@@ -1947,7 +1947,51 @@ static void ccgDM_prepare_vertex_data(DerivedMesh *dm, float *varray, int *UNUSE
 	}
 }
 
+static void copy_mcol_uc3(unsigned char *v, unsigned char *col)
+{
+	v[0] = col[3];
+	v[1] = col[2];
+	v[2] = col[1];
+}
+
 /* Only used by non-editmesh types */
+static void ccgDM_prepare_color_data(DerivedMesh *dm, float *varray_, int *UNUSED(vindex),
+                                      int *UNUSED(mat_orig_to_new), void *user_data)
+{
+	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
+	CCGSubSurf *ss = ccgdm->ss;
+	CCGKey key;
+	unsigned char *varray = (unsigned char *)varray_;
+	unsigned char *mcol = (unsigned char *)user_data;
+	int gridSize = ccgSubSurf_getGridSize(ss);
+	int gridFaces = gridSize - 1;
+	int i, totface = ccgSubSurf_getNumFaces(ss);
+	int start = 0;
+	int iface = 0;
+
+	CCG_key_top_level(&key, ss);
+
+
+	for (i = 0; i < totface; i++) {
+		CCGFace *f = ccgdm->faceMap[i].face;
+		int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
+
+		for (S = 0; S < numVerts; S++) {
+			for (y = 0; y < gridFaces; y++) {
+				for (x = 0; x < gridFaces; x++) {
+					copy_mcol_uc3(&varray[start], &mcol[iface * 16]);
+					copy_mcol_uc3(&varray[start + 3], &mcol[iface * 16 + 16]);
+					copy_mcol_uc3(&varray[start + 6], &mcol[iface * 16 + 8]);
+					copy_mcol_uc3(&varray[start + 9], &mcol[iface * 16 + 4]);
+
+					start += 12;
+					iface++;
+				}
+			}
+		}
+	}
+}
+
 static void ccgDM_prepare_uv_data(DerivedMesh *dm, float *varray, int *UNUSED(vindex),
                                       int *UNUSED(mat_orig_to_new), void *UNUSED(user_data))
 {
@@ -1983,7 +2027,7 @@ static void ccgDM_prepare_uv_data(DerivedMesh *dm, float *varray, int *UNUSED(vi
 }
 
 static void ccgDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray, int *index,
-                         int *mat_orig_to_new, void *UNUSED(user_data))
+                         int *mat_orig_to_new, void *user_data)
 {	
 	switch(type) {
 		case GPU_BUFFER_VERTEX:
@@ -1999,7 +2043,7 @@ static void ccgDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray, int *i
 			//ccgDM_prepare_uv_data(dm, varray, index, mat_orig_to_new, NULL);
 			break;
 		case GPU_BUFFER_COLOR:
-			//ccgDM_prepare_uv_data(dm, varray, index, mat_orig_to_new, NULL);
+			ccgDM_prepare_color_data(dm, varray, index, mat_orig_to_new, user_data);
 			break;
 		case GPU_BUFFER_TRIANGLES:
 			ccgDM_prepare_triangle_data(dm, varray, index, mat_orig_to_new, NULL);
@@ -2641,7 +2685,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	else
 		GPU_uv_setup(dm);
 	if (mcol) {
-	//	GPU_color_setup(dm, colType);
+		GPU_color_setup(dm, colType);
 	}
 
 	totface = ccgSubSurf_getNumFaces(ss);
@@ -2691,12 +2735,10 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 			int count = (numQuads + (draw_option != DM_DRAW_OPTION_SKIP ? facequads : 0)) * 6;
 
 			if (count) {
-				/*
 				if (mcol && draw_option != DM_DRAW_OPTION_NO_MCOL)
 					GPU_color_switch(1);
 				else
 					GPU_color_switch(0);
-				*/
 
 				GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, first * 6, count);
 
