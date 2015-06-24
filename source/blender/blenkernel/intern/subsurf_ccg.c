@@ -2611,18 +2611,14 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	int colType = CD_TEXTURE_MCOL;
 	MCol *mcol = dm->getTessFaceDataArray(dm, colType);
 	MTFace *tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
-	MTFace *tf_stencil_base = NULL;
-	MTFace *tf_stencil = NULL;
-	MTFace *tf_base;
-	short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
 	DMFlagMat *faceFlags = ccgdm->faceFlags;
 	DMDrawOption draw_option;
-	int i, totface, gridSize = ccgSubSurf_getGridSize(ss);
-	int gridFaces = gridSize - 1;
-	int gridOffset = 0;
-	int mat_nr_cache = -1;
-
-	(void) compareDrawOptions;
+	int i, totface;
+	bool flush;
+	unsigned int next_actualFace;
+	unsigned int startFace = 0;
+	unsigned int numQuads = 0;
+	int gridFaces = ccgSubSurf_getGridSize(ss) - 1;
 
 	CCG_key_top_level(&key, ss);
 	ccgdm_pbvh_update(ccgdm);
@@ -2649,40 +2645,27 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 
 	totface = ccgSubSurf_getNumFaces(ss);
 
-	if (flag & DM_DRAW_USE_TEXPAINT_UV) {
-		int stencil = CustomData_get_stencil_layer(&dm->faceData, CD_MTFACE);
-		tf_stencil_base = CustomData_get_layer_n(&dm->faceData, CD_MTFACE, stencil);
-	}
+	next_actualFace = 0;
 
+	glShadeModel(GL_SMOOTH);
+	/* lastFlag = 0; */ /* UNUSED */
 	for (i = 0; i < totface; i++) {
 		CCGFace *f = ccgdm->faceMap[i].face;
-		int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
-		int drawSmooth, index = ccgDM_getFaceMapIndex(ss, f);
+		int numVerts = ccgSubSurf_getFaceNumVerts(f);
+		int index = ccgDM_getFaceMapIndex(ss, f);
 		int origIndex = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
-		unsigned char *cp = NULL;
-		short (*ln)[4][3] = NULL;
 		int mat_nr;
+		int actualFace = next_actualFace;
+		int facequads = numVerts * gridFaces * gridFaces;
+
+		if (i != totface - 1)
+			next_actualFace = i + 1;
 
 		if (faceFlags) {
-			drawSmooth = (lnors || (faceFlags[origIndex].flag & ME_SMOOTH));
 			mat_nr = faceFlags[origIndex].mat_nr;
 		}
 		else {
-			drawSmooth = 1;
 			mat_nr = 0;
-		}
-
-		/* texture painting, handle the correct uv layer here */
-		if (flag & DM_DRAW_USE_TEXPAINT_UV) {
-			if (mat_nr != mat_nr_cache) {
-				tf_base = DM_paint_uvlayer_active_get(dm, mat_nr);
-
-				mat_nr_cache = mat_nr;
-			}
-
-			tf = tf_base ? tf_base + gridOffset : NULL;
-			tf_stencil = tf_stencil_base ? tf_stencil_base + gridOffset : NULL;
-			gridOffset += gridFaces * gridFaces * numVerts;
 		}
 
 		if (drawParams)
@@ -2692,158 +2675,36 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		else
 			draw_option = GPU_enable_material(mat_nr, NULL) ? DM_DRAW_OPTION_NORMAL : DM_DRAW_OPTION_SKIP;
 
-		if (lnors) {
-			ln = lnors;
-			lnors += gridFaces * gridFaces * numVerts;
+		/* flush buffer if current triangle isn't drawable or it's last triangle */
+		flush = (draw_option == DM_DRAW_OPTION_SKIP) || (i == totface - 1);
+
+		if (!flush && compareDrawOptions) {
+			/* also compare draw options and flush buffer if they're different
+					 * need for face selection highlight in edit mode */
+			flush |= compareDrawOptions(userData, actualFace, next_actualFace) == 0;
 		}
 
-		if (draw_option == DM_DRAW_OPTION_SKIP) {
-			if (tf) tf += gridFaces * gridFaces * numVerts;
-			if (mcol) mcol += gridFaces * gridFaces * numVerts * 4;
-			continue;
+		if (flush) {
+			int first = startFace;
+			/* Add last face to the length if we're drawing at the end of the array */
+			int count = (numQuads + (draw_option != DM_DRAW_OPTION_SKIP ? facequads : 0)) * 6;
+
+			if (count) {
+				/*
+				if (mcol && draw_option != DM_DRAW_OPTION_NO_MCOL)
+					GPU_color_switch(1);
+				else
+					GPU_color_switch(0);
+				*/
+
+				GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, first * 3, count);
+
+				numQuads = 0;
+			}
+			startFace = next_actualFace;
 		}
-
-		/* flag 1 == use vertex colors */
-		if (mcol) {
-			if (draw_option != DM_DRAW_OPTION_NO_MCOL)
-				cp = (unsigned char *)mcol;
-			mcol += gridFaces * gridFaces * numVerts * 4;
-		}
-
-		for (S = 0; S < numVerts; S++) {
-			CCGElem *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
-			CCGElem *a, *b;
-
-			if (ln) {
-				glShadeModel(GL_SMOOTH);
-				glBegin(GL_QUADS);
-				for (y = 0; y < gridFaces; y++) {
-					for (x = 0; x < gridFaces; x++) {
-						float *a_co = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
-						float *b_co = CCG_grid_elem_co(&key, faceGridData, x + 1, y + 0);
-						float *c_co = CCG_grid_elem_co(&key, faceGridData, x + 1, y + 1);
-						float *d_co = CCG_grid_elem_co(&key, faceGridData, x, y + 1);
-
-						if (tf) glTexCoord2fv(tf->uv[1]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[1]);
-						if (cp) glColor3ub(cp[7], cp[6], cp[5]);
-						glNormal3sv(ln[0][1]);
-						glVertex3fv(d_co);
-
-						if (tf) glTexCoord2fv(tf->uv[2]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[2]);
-						if (cp) glColor3ub(cp[11], cp[10], cp[9]);
-						glNormal3sv(ln[0][2]);
-						glVertex3fv(c_co);
-
-						if (tf) glTexCoord2fv(tf->uv[3]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[3]);
-						if (cp) glColor3ub(cp[15], cp[14], cp[13]);
-						glNormal3sv(ln[0][3]);
-						glVertex3fv(b_co);
-
-						if (tf) glTexCoord2fv(tf->uv[0]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[0]);
-						if (cp) glColor3ub(cp[3], cp[2], cp[1]);
-						glNormal3sv(ln[0][0]);
-						glVertex3fv(a_co);
-
-						if (tf) tf++;
-						if (tf_stencil) tf_stencil++;
-						if (cp) cp += 16;
-						ln++;
-					}
-				}
-				glEnd();
-			}
-			else if (drawSmooth) {
-				glShadeModel(GL_SMOOTH);
-				for (y = 0; y < gridFaces; y++) {
-					glBegin(GL_QUAD_STRIP);
-					for (x = 0; x < gridFaces; x++) {
-						a = CCG_grid_elem(&key, faceGridData, x, y + 0);
-						b = CCG_grid_elem(&key, faceGridData, x, y + 1);
-
-						if (tf) glTexCoord2fv(tf->uv[0]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[0]);
-						if (cp) glColor3ub(cp[3], cp[2], cp[1]);
-						glNormal3fv(CCG_elem_no(&key, a));
-						glVertex3fv(CCG_elem_co(&key, a));
-
-						if (tf) glTexCoord2fv(tf->uv[1]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[1]);
-						if (cp) glColor3ub(cp[7], cp[6], cp[5]);
-						glNormal3fv(CCG_elem_no(&key, b));
-						glVertex3fv(CCG_elem_co(&key, b));
-						
-						if (x != gridFaces - 1) {
-							if (tf) tf++;
-							if (tf_stencil) tf_stencil++;
-							if (cp) cp += 16;
-						}
-					}
-
-					a = CCG_grid_elem(&key, faceGridData, x, y + 0);
-					b = CCG_grid_elem(&key, faceGridData, x, y + 1);
-
-					if (tf) glTexCoord2fv(tf->uv[3]);
-					if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[3]);
-					if (cp) glColor3ub(cp[15], cp[14], cp[13]);
-					glNormal3fv(CCG_elem_no(&key, a));
-					glVertex3fv(CCG_elem_co(&key, a));
-
-					if (tf) glTexCoord2fv(tf->uv[2]);
-					if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[2]);
-					if (cp) glColor3ub(cp[11], cp[10], cp[9]);
-					glNormal3fv(CCG_elem_no(&key, b));
-					glVertex3fv(CCG_elem_co(&key, b));
-
-					if (tf) tf++;
-					if (tf_stencil) tf_stencil++;
-					if (cp) cp += 16;
-
-					glEnd();
-				}
-			}
-			else {
-				glShadeModel((cp) ? GL_SMOOTH : GL_FLAT);
-				glBegin(GL_QUADS);
-				for (y = 0; y < gridFaces; y++) {
-					for (x = 0; x < gridFaces; x++) {
-						float *a_co = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
-						float *b_co = CCG_grid_elem_co(&key, faceGridData, x + 1, y + 0);
-						float *c_co = CCG_grid_elem_co(&key, faceGridData, x + 1, y + 1);
-						float *d_co = CCG_grid_elem_co(&key, faceGridData, x, y + 1);
-
-						ccgDM_glNormalFast(a_co, b_co, c_co, d_co);
-
-						if (tf) glTexCoord2fv(tf->uv[1]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[1]);
-						if (cp) glColor3ub(cp[7], cp[6], cp[5]);
-						glVertex3fv(d_co);
-
-						if (tf) glTexCoord2fv(tf->uv[2]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[2]);
-						if (cp) glColor3ub(cp[11], cp[10], cp[9]);
-						glVertex3fv(c_co);
-
-						if (tf) glTexCoord2fv(tf->uv[3]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[3]);
-						if (cp) glColor3ub(cp[15], cp[14], cp[13]);
-						glVertex3fv(b_co);
-
-						if (tf) glTexCoord2fv(tf->uv[0]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[0]);
-						if (cp) glColor3ub(cp[3], cp[2], cp[1]);
-						glVertex3fv(a_co);
-
-						if (tf) tf++;
-						if (tf_stencil) tf_stencil++;
-						if (cp) cp += 16;
-					}
-				}
-				glEnd();
-			}
+		else {
+			numQuads += facequads;
 		}
 	}
 
