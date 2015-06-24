@@ -1961,7 +1961,6 @@ static void ccgDM_prepare_uv_data(DerivedMesh *dm, float *varray, int *UNUSED(vi
 	int start = 0;
 
 	CCG_key_top_level(&key, ss);
-	ccgdm_pbvh_update(ccgdm);
 
 	for (i = 0; i < totface; i++) {
 		CCGFace *f = ccgdm->faceMap[i].face;
@@ -2615,10 +2614,12 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	DMDrawOption draw_option;
 	int i, totface;
 	bool flush;
+	bool use_tface = (flag & DM_DRAW_USE_ACTIVE_UV) != 0;
 	unsigned int next_actualFace;
 	unsigned int startFace = 0;
 	unsigned int numQuads = 0;
-	int gridFaces = ccgSubSurf_getGridSize(ss) - 1;
+	unsigned int gridFaces = ccgSubSurf_getGridSize(ss) - 1;
+	unsigned int gridOffset = 0;
 
 	CCG_key_top_level(&key, ss);
 	ccgdm_pbvh_update(ccgdm);
@@ -2640,7 +2641,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	else
 		GPU_uv_setup(dm);
 	if (mcol) {
-		GPU_color_setup(dm, colType);
+	//	GPU_color_setup(dm, colType);
 	}
 
 	totface = ccgSubSurf_getNumFaces(ss);
@@ -2669,11 +2670,11 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		}
 
 		if (drawParams)
-			draw_option = drawParams(tf, (mcol != NULL), mat_nr);
+			draw_option = drawParams((use_tface && tf) ? (tf + gridOffset) : NULL, (mcol != NULL), mat_nr);
 		else if (index != ORIGINDEX_NONE)
 			draw_option = (drawParamsMapped) ? drawParamsMapped(userData, index, mat_nr) : DM_DRAW_OPTION_NORMAL;
 		else
-			draw_option = GPU_enable_material(mat_nr, NULL) ? DM_DRAW_OPTION_NORMAL : DM_DRAW_OPTION_SKIP;
+			draw_option = DM_DRAW_OPTION_NORMAL;
 
 		/* flush buffer if current triangle isn't drawable or it's last triangle */
 		flush = (draw_option == DM_DRAW_OPTION_SKIP) || (i == totface - 1);
@@ -2697,7 +2698,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 					GPU_color_switch(0);
 				*/
 
-				GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, first * 3, count);
+				GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, first * 6, count);
 
 				numQuads = 0;
 			}
@@ -2706,6 +2707,8 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		else {
 			numQuads += facequads;
 		}
+
+		gridOffset += facequads;
 	}
 
 	GPU_buffer_unbind();
