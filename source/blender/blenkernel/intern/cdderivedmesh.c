@@ -1827,7 +1827,7 @@ static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
 	 * each quad as two triangles */
 	mat_info = MEM_callocN(sizeof(*mat_info) * totmat, "GPU_drawobject_new.mat_orig_to_new");
 	for (i = 0; i < totface; i++) {
-		if (mface->v4) {
+		if (mface[i].v4) {
 			mat_info[mface[i].mat_nr].elements += 6;
 			mat_info[mface[i].mat_nr].loops += 4;
 		}
