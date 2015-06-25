@@ -227,6 +227,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	float spacemat[4][4];
 	int *cd_index = NULL;
 	float *cd_value = NULL;
+	bool between;
 
 	trackneg = ((ob->trackflag > 2) ? 1 : 0);
 
@@ -259,6 +260,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	sim.ob = pimd->ob;
 	sim.psys = psys;
 	sim.psmd = psys_get_modifier(pimd->ob, psys);
+	between = (psys->part->childtype == PART_CHILD_FACES);
 
 	if (pimd->flag & eParticleInstanceFlag_UseSize) {
 		float *si;
@@ -404,8 +406,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 					if (first_particle + p < psys->totpart)
 						pa = psys->particles + first_particle + p;
 					else {
-						ChildParticle *cpa = psys->child + (p - psys->totpart);
-						pa = psys->particles + cpa->parent;
+						ChildParticle *cpa = psys->child + p;
+						pa = psys->particles + (between? cpa->pa[0]: cpa->parent);
 					}
 					psys_mat_hair_to_global(sim.ob, sim.psmd->dm, sim.psys->part->from, pa, hairmat);
 					copy_m3_m4(mat, hairmat);
