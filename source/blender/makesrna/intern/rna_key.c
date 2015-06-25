@@ -50,7 +50,6 @@
 
 #include "DNA_cache_library_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_cache_library.h"

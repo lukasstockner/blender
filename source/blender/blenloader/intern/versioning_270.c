@@ -27,7 +27,6 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_compiler_attrs.h"
-#include "BLI_string.h"
 
 /* for MinGW32 definition of NULL, could use BLI_blenlib.h instead too */
 #include <stddef.h>
@@ -51,7 +50,6 @@
 #include "DNA_particle_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_actuator_types.h"
-#include "DNA_camera_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_smoke_types.h"
 
@@ -64,7 +62,6 @@
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
 #include "BKE_screen.h"
-#include "BKE_sequencer.h"
 
 #include "BLI_math.h"
 #include "BLI_listbase.h"

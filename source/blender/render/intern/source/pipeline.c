@@ -121,17 +121,6 @@
  *
  */
 
-/* Freestyle needs the whole frame to be merged into memory prior to
- * doing stroke rendering. This conflicts a bit with multiview save
- * buffers behavior which does a merge of exr files after all the
- * views are rendered.
- *
- * For until a proper solution is implemented we'll just merge single
- * view image prior to freestyle stroke rendering, which is how this
- * worked prior to multiview. Multiview+freestyle+save buffers are
- * considered unsupported for the time being.
- */
-#define FREESTYLR_SAVEBUFFERS_WORKAROUND
 
 /* ********* globals ******** */
 
@@ -1400,7 +1389,13 @@ static void threaded_tile_processor(Render *re)
 
 	BLI_thread_queue_free(donequeue);
 	BLI_thread_queue_free(workqueue);
-	
+
+	if (re->result->do_exr_tile) {
+		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+		render_result_save_empty_result_tiles(re);
+		BLI_rw_mutex_unlock(&re->resultmutex);
+	}
+
 	/* unset threadsafety */
 	g_break = 0;
 	BLI_rw_mutex_lock(&re->partsmutex, THREAD_LOCK_WRITE);
@@ -1444,9 +1439,6 @@ void RE_TileProcessor(Render *re)
 
 static void do_render_3d(Render *re)
 {
-#ifdef FREESTYLR_SAVEBUFFERS_WORKAROUND
-	const bool do_early_result_merge = (re->r.scemode & R_MULTIVIEW) == 0;
-#endif
 	RenderView *rv;
 	int cfra_backup;
 
@@ -1494,13 +1486,7 @@ static void do_render_3d(Render *re)
 			re->draw_lock(re->dlh, 0);
 	
 		threaded_tile_processor(re);
-
-#ifdef FREESTYLR_SAVEBUFFERS_WORKAROUND
-		if (do_early_result_merge) {
-			main_render_result_end(re);
-		}
-#endif
-
+	
 #ifdef WITH_FREESTYLE
 		/* Freestyle */
 		if (re->r.mode & R_EDGE_FRS)
@@ -1517,13 +1503,7 @@ static void do_render_3d(Render *re)
 		RE_Database_Free(re);
 	}
 
-#ifdef FREESTYLR_SAVEBUFFERS_WORKAROUND
-	if (!do_early_result_merge) {
-		main_render_result_end(re);
-	}
-#else
 	main_render_result_end(re);
-#endif
 
 	re->scene->r.cfra = cfra_backup;
 	re->scene->r.subframe = 0.f;
@@ -2225,7 +2205,7 @@ static void free_all_freestyle_renders(void)
 			/* detach the window manager from freestyle bmain (see comments
 			 * in add_freestyle() for more detail)
 			 */
-			re1->freestyle_bmain->wm.first = re1->freestyle_bmain->wm.last = NULL;
+			BLI_listbase_clear(&re1->freestyle_bmain->wm);
 
 			BKE_main_free(re1->freestyle_bmain);
 			re1->freestyle_bmain = NULL;
@@ -2969,13 +2949,6 @@ bool RE_is_rendering_allowed(Scene *scene, Object *camera_override, ReportList *
 			BKE_report(reports, RPT_ERROR, "Fields not supported in Freestyle");
 			return false;
 		}
-
-#  ifdef FREESTYLR_SAVEBUFFERS_WORKAROUND
-		if ((scene->r.scemode & R_MULTIVIEW) != 0 && (scene->r.scemode & R_EXR_TILE_FILE) != 0) {
-			BKE_report(reports, RPT_ERROR, "Multi-View combined with Save Buffers not supported in Freestyle");
-			return false;
-		}
-#  endif
 	}
 #endif
 

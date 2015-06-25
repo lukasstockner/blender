@@ -122,8 +122,6 @@ EnumPropertyItem brush_hair_tool_items[] = {
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_object_types.h"
-
 #include "RNA_access.h"
 
 #include "BKE_texture.h"

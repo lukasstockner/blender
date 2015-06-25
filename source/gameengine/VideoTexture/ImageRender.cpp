@@ -109,7 +109,7 @@ void ImageRender::setBackground (float red, float green, float blue, float alpha
 void ImageRender::setBackgroundFromScene (KX_Scene *scene)
 {
 	if (scene) {
-		const float *background_color = scene->GetWorldInfo()->getBackColor();
+		const float *background_color = scene->GetWorldInfo()->getBackColorConverted();
 		copy_v3_v3(m_background, background_color);
 		m_background[3] = 1.0f;
 	}
@@ -297,7 +297,10 @@ void ImageRender::Render()
         // TODO: implement an explicit function in rasterizer to restore the left buffer.
         m_rasterizer->SetEye(RAS_IRasterizer::RAS_STEREO_LEFTEYE);
     }
+
 	m_scene->CalculateVisibleMeshes(m_rasterizer,m_camera);
+
+	m_engine->UpdateAnimations(m_scene);
 
 	m_scene->RenderBuckets(camtrans, m_rasterizer);
 
