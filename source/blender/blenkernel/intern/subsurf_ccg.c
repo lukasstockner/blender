@@ -1980,7 +1980,7 @@ static void ccgDM_prepare_color_data(DerivedMesh *dm, float *varray_, int *UNUSE
 			for (y = 0; y < gridFaces; y++) {
 				for (x = 0; x < gridFaces; x++) {
 					copy_mcol_uc3(&varray[start], &mcol[iface * 16]);
-					copy_mcol_uc3(&varray[start + 3], &mcol[iface * 16 + 16]);
+					copy_mcol_uc3(&varray[start + 3], &mcol[iface * 16 + 12]);
 					copy_mcol_uc3(&varray[start + 6], &mcol[iface * 16 + 8]);
 					copy_mcol_uc3(&varray[start + 9], &mcol[iface * 16 + 4]);
 
