@@ -222,7 +222,7 @@ option(WITH_GAMEENGINE    "Enable Game Engine" ${_init_GAMEENGINE})
 option(WITH_PLAYER        "Build Player" OFF)
 option(WITH_OPENCOLORIO   "Enable OpenColorIO color management" ${_init_OPENCOLORIO})
 option(WITH_COMPOSITOR    "Enable the tile based nodal compositor" ON)
-option(WITH_OPENVDB       "Enable features relying on OpenVDB" ON)
+option(WITH_OPENVDB       "Enable features relying on OpenVDB" OFF)
 option(WITH_OPENVDB_BLOSC "Enable blosc compression for OpenVDB, only enble if OpenVDB was built with blosc support" OFF)
 
 # GHOST Windowing Library Options
