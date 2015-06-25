@@ -2633,7 +2633,7 @@ static void psys_face_mat(Object *ob, DerivedMesh *dm, ParticleData *pa, float m
 	triatomat(v[0], v[1], v[2], (osface) ? osface->uv : NULL, mat);
 }
 
-void psys_mat_hair_to_object(Object *UNUSED(ob), DerivedMesh *dm, short from, ParticleData *pa, float hairmat[4][4])
+void psys_mat_hair_to_object(Object *ob, DerivedMesh *dm, short from, ParticleData *pa, float hairmat[4][4])
 {
 	float vec[3];
 
@@ -2643,7 +2643,7 @@ void psys_mat_hair_to_object(Object *UNUSED(ob), DerivedMesh *dm, short from, Pa
 		return;
 	}
 	
-	psys_face_mat(0, dm, pa, hairmat, 0);
+	psys_face_mat(ob, dm, pa, hairmat, 0);
 	psys_particle_on_dm(dm, from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, vec, 0, 0, 0, 0, 0);
 	copy_v3_v3(hairmat[3], vec);
 }
