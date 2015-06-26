@@ -155,29 +155,16 @@ static void foreachObjectLink(ModifierData *md, Object *ob,
 
 static bool particle_skip(ParticleInstanceModifierData *pimd, ParticleSystem *psys, int p)
 {
+	const bool between = (psys->part->childtype == PART_CHILD_FACES);
 	ParticleData *pa;
 	int totpart, randp, minp, maxp;
 
-	if (pimd->flag & eParticleInstanceFlag_Parents) {
-		if (p >= psys->totpart) {
-			if (psys->part->childtype == PART_CHILD_PARTICLES) {
-				pa = psys->particles + (psys->child + p - psys->totpart)->parent;
-			}
-			else {
-				pa = NULL;
-			}
-		}
-		else {
-			pa = psys->particles + p;
-		}
+	if (p >= psys->totpart) {
+		ChildParticle *cpa = psys->child + (p - psys->totpart);
+		pa = psys->particles + (between? cpa->pa[0]: cpa->parent);
 	}
 	else {
-		if (psys->part->childtype == PART_CHILD_PARTICLES) {
-			pa = psys->particles + (psys->child + p)->parent;
-		}
-		else {
-			pa = NULL;
-		}
+		pa = psys->particles + p;
 	}
 
 	if (pa) {
@@ -219,7 +206,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	MLoop *mloop, *orig_mloop;
 	MVert *mvert, *orig_mvert;
 	int totvert, totpoly, totloop /* , totedge */;
-	int maxvert, maxpoly, maxloop, totpart = 0, first_particle = 0;
+	int maxvert, maxpoly, maxloop, part_end = 0, part_start;
 	int k, p, p_skip;
 	short track = ob->trackflag % 3, trackneg, axis = pimd->axis;
 	float max_co = 0.0, min_co = 0.0, temp_co[3];
@@ -227,6 +214,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	float spacemat[4][4];
 	int *cd_index = NULL;
 	float *cd_value = NULL;
+	const bool use_parents = pimd->flag & eParticleInstanceFlag_Parents;
+	const bool use_children = pimd->flag & eParticleInstanceFlag_Children;
 	bool between;
 
 	trackneg = ((ob->trackflag > 2) ? 1 : 0);
@@ -245,15 +234,15 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		return derivedData;
 	}
 
-	if (pimd->flag & eParticleInstanceFlag_Parents)
-		totpart += psys->totpart;
-	if (pimd->flag & eParticleInstanceFlag_Children) {
-		if (totpart == 0)
-			first_particle = psys->totpart;
-		totpart += psys->totchild;
-	}
+	part_start = use_parents ? 0 : psys->totpart;
+	
+	part_end = 0;
+	if (use_parents)
+		part_end += psys->totpart;
+	if (use_children)
+		part_end += psys->totchild;
 
-	if (totpart == 0)
+	if (part_end == 0)
 		return derivedData;
 
 	sim.scene = md->scene;
@@ -264,7 +253,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 	if (pimd->flag & eParticleInstanceFlag_UseSize) {
 		float *si;
-		si = size = MEM_callocN(totpart * sizeof(float), "particle size array");
+		si = size = MEM_callocN(part_end * sizeof(float), "particle size array");
 
 		if (pimd->flag & eParticleInstanceFlag_Parents) {
 			for (p = 0, pa = psys->particles; p < psys->totpart; p++, pa++, si++)
@@ -305,7 +294,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	maxpoly = 0;
 	maxloop = 0;
 
-	for (p = 0; p < totpart; p++) {
+	for (p = part_start; p < part_end; p++) {
 		if (particle_skip(pimd, psys, p))
 			continue;
 
@@ -342,7 +331,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		cd_value = CustomData_add_layer_named(&result->vertData, CD_PROP_FLT, CD_CALLOC,
 		                                       NULL, maxvert, pimd->value_layer_name);
 
-	for (p = 0, p_skip = 0; p < totpart; p++) {
+	for (p = part_start, p_skip = 0; p < part_end; p++) {
 		float prev_dir[3];
 		float frame[4]; /* frame orientation quaternion */
 		float p_random = psys_frand(psys, 77091 + 283*p);
@@ -394,7 +383,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 					mv->co[axis] = 0.0;
 				}
 
-				psys_get_particle_on_path(&sim, first_particle + p, &state, 1);
+				psys_get_particle_on_path(&sim, p, &state, 1);
 
 				normalize_v3(state.vel);
 
@@ -403,10 +392,10 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 					float hairmat[4][4];
 					float mat[3][3];
 					
-					if (first_particle + p < psys->totpart)
-						pa = psys->particles + first_particle + p;
+					if (p < psys->totpart)
+						pa = psys->particles + p;
 					else {
-						ChildParticle *cpa = psys->child + p;
+						ChildParticle *cpa = psys->child + (p - psys->totpart);
 						pa = psys->particles + (between? cpa->pa[0]: cpa->parent);
 					}
 					psys_mat_hair_to_global(sim.ob, sim.psmd->dm, sim.psys->part->from, pa, hairmat);
@@ -459,7 +448,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 			}
 			else {
 				state.time = -1.0;
-				psys_get_particle_state(&sim, first_particle + p, &state, 1);
+				psys_get_particle_state(&sim, p, &state, 1);
 			}
 
 			mul_qt_v3(state.rot, mv->co);
