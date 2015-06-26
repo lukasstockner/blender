@@ -116,6 +116,7 @@ typedef struct GPUDrawObject {
 	
 	int tot_triangle_point;
 	int tot_loose_point;
+	/* different than total loops since ngons get tesselated still */
 	int tot_loop_verts;
 	
 	/* caches of the original DerivedMesh values */

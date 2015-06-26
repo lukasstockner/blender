@@ -1815,7 +1815,7 @@ static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
 	MFace *mface;
 	int totmat = dm->totmat;
 	GPUMaterialInfo *mat_info;
-	int i, curmat, curpoint, totface;
+	int i, curmat, totelements, totface, totloops;
 
 	/* object contains at least one material (default included) so zero means uninitialized dm */
 	BLI_assert(totmat != 0);
@@ -1840,7 +1840,6 @@ static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
 	gdo = MEM_callocN(sizeof(GPUDrawObject), "GPUDrawObject");
 	gdo->totvert = dm->getNumVerts(dm);
 	gdo->totedge = dm->getNumEdges(dm);
-	gdo->tot_loop_verts = dm->getNumLoops(dm);
 
 	/* count the number of materials used by this DerivedMesh */
 	for (i = 0; i < totmat; i++) {
@@ -1853,21 +1852,24 @@ static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
 	                             "GPUDrawObject.materials");
 
 	/* initialize the materials array */
-	for (i = 0, curmat = 0, curpoint = 0; i < totmat; i++) {
+	for (i = 0, curmat = 0, totelements = 0, totloops = 0; i < totmat; i++) {
 		if (mat_info[i].elements > 0) {
-			gdo->materials[curmat].start = curpoint;
+			gdo->materials[curmat].start = totelements;
 			/* can set it to points now but used in cdDM_drawobject_init_vert_points as counter */
 			gdo->materials[curmat].totelements = 0;
 			gdo->materials[curmat].totloops = mat_info[i].loops;
 			gdo->materials[curmat].mat_nr = i;
 
-			curpoint += mat_info[i].elements;
+			totelements += mat_info[i].elements;
+			totloops += mat_info[i].loops;
 			curmat++;
 		}
 	}
 
+	gdo->tot_loop_verts = totloops;
+
 	/* store total number of points used for triangles */
-	gdo->tot_triangle_point = curpoint;
+	gdo->tot_triangle_point = totelements;
 
 	gdo->triangle_to_mface = MEM_mallocN(sizeof(int) * (gdo->tot_triangle_point / 3),
 	                                     "GPUDrawObject.triangle_to_mface");
