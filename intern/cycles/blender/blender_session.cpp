@@ -138,6 +138,13 @@ void BlenderSession::create_session()
 	session->reset(buffer_params, session_params.samples);
 
 	b_engine.use_highlight_tiles(session_params.progressive_refine == false);
+
+	char *sample_start_string = getenv("CYCLES_RENDER_SAMPLE_START");
+	char *num_samples_string = getenv("CYCLES_RENDER_NUM_SAMPLES");
+	if(sample_start_string != NULL && num_samples_string != NULL) {
+		session->tile_manager.start_sample = atoi(sample_start_string);
+		session->tile_manager.num_subsequent_samples = atoi(num_samples_string);
+	}
 }
 
 void BlenderSession::reset_session(BL::BlendData b_data_, BL::Scene b_scene_)
@@ -618,6 +625,10 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::Re
 	float exposure = scene->film->exposure;
 
 	vector<float> pixels(params.width*params.height*4);
+	int sample = rtile.sample;
+	if(session->tile_manager.start_sample != -1) {
+		sample -= session->tile_manager.start_sample;
+	}
 
 	if(!do_update_only) {
 		/* copy each pass */
@@ -631,7 +642,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::Re
 			int components = b_pass.channels();
 
 			/* copy pixels */
-			if(!buffers->get_pass_rect(pass_type, exposure, rtile.sample, components, &pixels[0]))
+			if(!buffers->get_pass_rect(pass_type, exposure, sample, components, &pixels[0]))
 				memset(&pixels[0], 0, pixels.size()*sizeof(float));
 
 			b_pass.rect(&pixels[0]);
@@ -640,7 +651,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::Re
 	else {
 		/* copy combined pass */
 		BL::RenderPass b_combined_pass(b_rlay.passes.find_by_type(BL::RenderPass::type_COMBINED, b_rview_name.c_str()));
-		if(buffers->get_pass_rect(PASS_COMBINED, exposure, rtile.sample, 4, &pixels[0]))
+		if(buffers->get_pass_rect(PASS_COMBINED, exposure, sample, 4, &pixels[0]))
 			b_combined_pass.rect(&pixels[0]);
 	}
 
@@ -806,12 +817,12 @@ void BlenderSession::get_progress(float& progress, double& total_time, double& r
 	int tile, sample, samples_per_tile;
 	int tile_total = session->tile_manager.state.num_tiles;
 	int samples = session->tile_manager.state.sample + 1;
-	int total_samples = session->tile_manager.num_samples;
+	int total_samples = session->tile_manager.get_samples_per_tile();
 
 	session->progress.get_tile(tile, total_time, render_time, tile_time);
 
 	sample = session->progress.get_sample();
-	samples_per_tile = session->tile_manager.num_samples;
+	samples_per_tile = session->tile_manager.get_samples_per_tile();
 
 	if(background && samples_per_tile && tile_total)
 		progress = ((float)sample / (float)(tile_total * samples_per_tile));
