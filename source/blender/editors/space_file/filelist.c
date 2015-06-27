@@ -72,7 +72,6 @@
 #include "BKE_icons.h"
 #include "BKE_idcode.h"
 #include "BKE_main.h"
-#include "BKE_report.h"
 #include "BLO_readfile.h"
 
 #include "DNA_space_types.h"
@@ -92,6 +91,8 @@
 
 #include "UI_resources.h"
 #include "UI_interface_icons.h"
+
+#include "atomic_ops.h"
 
 #include "filelist.h"
 
@@ -223,9 +224,10 @@ typedef struct FileListInternEntry {
 } FileListInternEntry;
 
 typedef struct FileListIntern {
-	/* XXX This will be reworked to keep 'all entries' storage to a minimum memory space! */
 	ListBase entries;  /* FileListInternEntry items. */
 	FileListInternEntry **filtered;
+
+	char curr_uuid[16];  /* Used to generate uuid during internal listing. */
 } FileListIntern;
 
 #define FILELIST_ENTRYCACHESIZE_DEFAULT 1024  /* Keep it a power of two! */
@@ -1921,7 +1923,7 @@ bool filelist_cache_previews_update(FileList *filelist)
 
 //	printf("%s: Update Previews...\n", __func__);
 
-	while (BLI_thread_queue_size(cache->previews_done) > 0) {
+	while (!BLI_thread_queue_is_empty(cache->previews_done)) {
 		FileListEntryPreview *preview = BLI_thread_queue_pop(cache->previews_done);
 //		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
 
@@ -2567,9 +2569,12 @@ static void filelist_readjob_do(
 			BLI_join_dirfile(dir, sizeof(dir), subdir, entry->relpath);
 			BLI_cleanup_file(root, dir);
 
-			/* We use the mere md5sum of path as entry UUID here.
-			 * entry->uuid is 16 bytes len, so we can use it directly! */
-			BLI_hash_md5_buffer(dir, strlen(dir), entry->uuid);
+			/* Generate our entry uuid. Abusing uuid as an uint64, shall be more than enough here,
+			 * things would crash way before we overflow that counter!
+			 * Using an atomic operation to avoid having to lock thread...
+			 * Note that we do not really need this here currently, since there is a single listing thread, but better
+             * remain consistent about threading! */
+			*((uint64_t *)entry->uuid) = atomic_add_uint64((uint64_t *)filelist->filelist_intern.curr_uuid, 1);
 
 			BLI_path_rel(dir, root);
 			/* Only thing we change in direntry here, so we need to free it first. */
@@ -2653,7 +2658,6 @@ typedef struct FileListReadJob {
 	int ae_job_id;
 	float *progress;
 	short *stop;
-	//~ ReportList reports;
 } FileListReadJob;
 
 static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update, float *progress)
@@ -2679,15 +2683,18 @@ static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update
 
 		flrj->tmp_filelist = MEM_dupallocN(flrj->filelist);
 
-		BLI_mutex_unlock(&flrj->lock);
-
 		BLI_listbase_clear(&flrj->tmp_filelist->filelist.entries);
 		flrj->tmp_filelist->filelist.nbr_entries = 0;
+
 		flrj->tmp_filelist->filelist_intern.filtered = NULL;
 		BLI_listbase_clear(&flrj->tmp_filelist->filelist_intern.entries);
+		memset(flrj->tmp_filelist->filelist_intern.curr_uuid, 0, sizeof(flrj->tmp_filelist->filelist_intern.curr_uuid));
+
 		flrj->tmp_filelist->libfiledata = NULL;
-		memset(&flrj->tmp_filelist->filelist_cache, 0, sizeof(FileListEntryCache));
+		memset(&flrj->tmp_filelist->filelist_cache, 0, sizeof(flrj->tmp_filelist->filelist_cache));
 		flrj->tmp_filelist->selection_state = NULL;
+
+		BLI_mutex_unlock(&flrj->lock);
 
 		flrj->tmp_filelist->read_jobf(flrj->tmp_filelist, flrj->main_name, stop, do_update, progress, &flrj->lock);
 	}
@@ -2796,8 +2803,6 @@ void filelist_readjob_start(FileList *filelist, const bContext *C)
 	filelist->flags |= FL_IS_PENDING;
 
 	BLI_mutex_init(&flrj->lock);
-
-	//~ BKE_reports_init(&tj->reports, RPT_PRINT);
 
 	/* setup job */
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), CTX_wm_area(C), "Listing Dirs...",

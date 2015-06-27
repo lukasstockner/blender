@@ -46,7 +46,6 @@
 #include "BKE_paint.h"
 #include "BKE_editmesh.h"
 #include "BKE_group.h" /* needed for BKE_group_object_exists() */
-#include "BKE_object.h" /* Needed for BKE_object_matrix_local_get() */
 #include "BKE_object_deform.h"
 
 #include "RNA_access.h"
@@ -88,8 +87,6 @@ EnumPropertyItem object_empty_drawtype_items[] = {
 
 static EnumPropertyItem parent_type_items[] = {
 	{PAROBJECT, "OBJECT", 0, "Object", "The object is parented to an object"},
-	{PARCURVE, "CURVE", 0, "Curve", "The object is parented to a curve"},
-	{PARKEY, "KEY", 0, "Key", ""},
 	{PARSKEL, "ARMATURE", 0, "Armature", ""},
 	{PARSKEL, "LATTICE", 0, "Lattice", "The object is parented to a lattice"}, /* PARSKEL reuse will give issues */
 	{PARVERT1, "VERTEX", 0, "Vertex", "The object is parented to a vertex"},
@@ -202,7 +199,6 @@ EnumPropertyItem object_axis_unsigned_items[] = {
 #include "BKE_scene.h"
 #include "BKE_deform.h"
 
-#include "ED_mesh.h"
 #include "ED_object.h"
 #include "ED_particle.h"
 #include "ED_curve.h"
@@ -469,10 +465,7 @@ static EnumPropertyItem *rna_Object_parent_type_itemf(bContext *UNUSED(C), Point
 	if (ob->parent) {
 		Object *par = ob->parent;
 		
-		if (par->type == OB_CURVE) {
-			RNA_enum_items_add_value(&item, &totitem, parent_type_items, PARCURVE);
-		}
-		else if (par->type == OB_LATTICE) {
+		if (par->type == OB_LATTICE) {
 			/* special hack: prevents this overriding others */
 			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[4], PARSKEL);
 		}

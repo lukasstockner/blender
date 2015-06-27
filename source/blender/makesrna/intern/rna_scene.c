@@ -42,10 +42,8 @@
 
 #include "BLF_translation.h"
 
-#include "BKE_freestyle.h"
 #include "BKE_editmesh.h"
 #include "BKE_paint.h"
-#include "BKE_scene.h"
 
 #include "GPU_extensions.h"
 
@@ -160,7 +158,8 @@ EnumPropertyItem mesh_select_mode_items[] = {
 };
 
 EnumPropertyItem snap_element_items[] = {
-	{SCE_SNAP_MODE_INCREMENT, "INCREMENT", ICON_SNAP_INCREMENT, "Increment", "Snap to increments of grid"},
+	{SCE_SNAP_MODE_INCREMENT, "INCREMENT", ICON_ALIGN, "Grid (increment)", "Snap to increments of grid"},
+	{SCE_SNAP_MODE_GRID, "GRID", ICON_SNAP_INCREMENT, "Grid (absolute)", "Snap to grid"},
 	{SCE_SNAP_MODE_VERTEX, "VERTEX", ICON_SNAP_VERTEX, "Vertex", "Snap to vertices"},
 	{SCE_SNAP_MODE_EDGE, "EDGE", ICON_SNAP_EDGE, "Edge", "Snap to edges"},
 	{SCE_SNAP_MODE_FACE, "FACE", ICON_SNAP_FACE, "Face", "Snap to faces"},
@@ -407,8 +406,6 @@ EnumPropertyItem stereo3d_interlace_type_items[] = {
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_threads.h"
-
 #include "BKE_brush.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -418,7 +415,6 @@ EnumPropertyItem stereo3d_interlace_type_items[] = {
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
 #include "BKE_depsgraph.h"
-#include "BKE_image.h"
 #include "BKE_mesh.h"
 #include "BKE_sound.h"
 #include "BKE_screen.h"
@@ -426,16 +422,12 @@ EnumPropertyItem stereo3d_interlace_type_items[] = {
 #include "BKE_animsys.h"
 #include "BKE_freestyle.h"
 
-#include "WM_api.h"
-
 #include "ED_info.h"
 #include "ED_node.h"
 #include "ED_view3d.h"
 #include "ED_mesh.h"
 #include "ED_keyframing.h"
 #include "ED_image.h"
-
-#include "RE_engine.h"
 
 #ifdef WITH_FREESTYLE
 #include "FRS_freestyle.h"
