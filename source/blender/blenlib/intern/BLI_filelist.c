@@ -244,6 +244,9 @@ void BLI_filelist_entry_size_to_string(
 {
 	double size;
 	const char *fmt;
+	const char *units[] = {"KiB", "MiB", "GiB", "TiB", NULL};
+	const char *units_compact[] = {"K", "M", "G", "T", NULL};
+	const char *unit = "B";
 
 	/*
 	 * Seems st_size is signed 32-bit value in *nix and Windows.  This
@@ -252,27 +255,17 @@ void BLI_filelist_entry_size_to_string(
 	 */
 	size = (double)(st ? st->st_size : sz);
 
-	if (size > 1024.0 * 1024.0 * 1024.0 * 1024.0) {
-		size /= (1024.0 * 1024.0 * 1024.0 * 1024.0);
-		fmt = compact ? "%.0f T" : "%.2f TiB";
-	}
-	else if (size > 1024.0 * 1024.0 * 1024.0) {
-		size /= (1024.0 * 1024.0 * 1024.0);
-		fmt = compact ? "%.0f G" : "%.2f GiB";
-	}
-	else if (size > 1024.0 * 1024.0) {
-		size /= (1024.0 * 1024.0);
-		fmt = compact ? "%.0f M" : "%.2f MiB";
-	}
-	else if (size > 1024.0) {
-		size /= 1024.0;
-		fmt = compact ? "%.0f K" : "%.2f KiB";
+	if (size > 1024.0) {
+		const char **u;
+		for (u = compact ? units_compact : units, size /= 1024.0; size > 1024.0 && *(u + 1); u++, size /= 1024.0);
+		fmt =  size > 100.0 ? "%.0f %s" : (size > 10.0 ? "%.1f %s" : "%.2f %s");
+		unit = *u;
 	}
 	else {
-		fmt = "%.0f B";
+		fmt = "%.0f %s";
 	}
 
-	BLI_snprintf(r_size, sizeof(*r_size) * FILELIST_DIRENTRY_SIZE_LEN, fmt, size);
+	BLI_snprintf(r_size, sizeof(*r_size) * FILELIST_DIRENTRY_SIZE_LEN, fmt, size, unit);
 }
 
 /**
