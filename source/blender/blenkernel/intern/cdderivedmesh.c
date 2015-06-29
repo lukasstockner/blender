@@ -559,8 +559,8 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 					orig = DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, actualFace);
 					if (orig == ORIGINDEX_NONE) {
 						/* XXX, this is not really correct
-							 * it will draw the previous faces context for this one when we don't know its settings.
-							 * but better then skipping it altogether. - campbell */
+						 * it will draw the previous faces context for this one when we don't know its settings.
+						 * but better then skipping it altogether. - campbell */
 						draw_option = DM_DRAW_OPTION_NORMAL;
 					}
 					else if (drawParamsMapped) {
@@ -577,7 +577,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 			if (!flush && compareDrawOptions) {
 				/* also compare draw options and flush buffer if they're different
-					 * need for face selection highlight in edit mode */
+				 * need for face selection highlight in edit mode */
 				flush |= compareDrawOptions(userData, actualFace, next_actualFace) == 0;
 			}
 
@@ -872,11 +872,9 @@ static void cddm_draw_attrib_vertex(DMVertexAttribs *attribs, const MVert *mvert
 }
 
 typedef struct {
-	GPUBuffer *buffers;
-	char *varray;
 	DMVertexAttribs attribs;
+	int elementsize; /* size of one vertex for the format of this material */
 	int numdata;
-	int elementsize;
 
 	GPUAttrib datatypes[GPU_MAX_ATTRIB]; /* TODO, messing up when switching materials many times - [#21056]*/
 } GPUMaterialConv;
@@ -1002,10 +1000,13 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	else {
 		GPUMaterialConv *matconv;
 		int offset;
-		int totloops = 0;
 		int totface = dm->getNumTessFaces(dm);
 		int *mat_orig_to_new;
 		int tot_active_mat;
+		GPUBuffer *buffer = NULL;
+		char *varray;
+		int max_element_size = 0;
+		int tot_loops = 0;
 		
 		const MFace *mf = mface;
 		
@@ -1030,128 +1031,133 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 			do_draw = setMaterial(new_matnr + 1, &gattribs);
 
 			if (do_draw) {
-				matconv[a].numdata = 0;
+				int numdata = 0;
 				DM_vertex_attributes_from_gpu(dm, &gattribs, &matconv[a].attribs);
 
 				if (matconv[a].attribs.totorco && matconv[a].attribs.orco.array) {
-					matconv[a].datatypes[matconv[a].numdata].index = matconv[a].attribs.orco.gl_index;
-					matconv[a].datatypes[matconv[a].numdata].size = 3;
-					matconv[a].datatypes[matconv[a].numdata].type = GL_FLOAT;
-					matconv[a].numdata++;
+					matconv[a].datatypes[numdata].index = matconv[a].attribs.orco.gl_index;
+					matconv[a].datatypes[numdata].size = 3;
+					matconv[a].datatypes[numdata].type = GL_FLOAT;
+					numdata++;
 				}
 				for (b = 0; b < matconv[a].attribs.tottface; b++) {
 					if (matconv[a].attribs.tface[b].array) {
-						matconv[a].datatypes[matconv[a].numdata].index = matconv[a].attribs.tface[b].gl_index;
-						matconv[a].datatypes[matconv[a].numdata].size = 2;
-						matconv[a].datatypes[matconv[a].numdata].type = GL_FLOAT;
-						matconv[a].numdata++;
+						matconv[a].datatypes[numdata].index = matconv[a].attribs.tface[b].gl_index;
+						matconv[a].datatypes[numdata].size = 2;
+						matconv[a].datatypes[numdata].type = GL_FLOAT;
+						numdata++;
 					}
 				}
 				for (b = 0; b < matconv[a].attribs.totmcol; b++) {
 					if (matconv[a].attribs.mcol[b].array) {
-						matconv[a].datatypes[matconv[a].numdata].index = matconv[a].attribs.mcol[b].gl_index;
-						matconv[a].datatypes[matconv[a].numdata].size = 4;
-						matconv[a].datatypes[matconv[a].numdata].type = GL_UNSIGNED_BYTE;
-						matconv[a].numdata++;
+						matconv[a].datatypes[numdata].index = matconv[a].attribs.mcol[b].gl_index;
+						matconv[a].datatypes[numdata].size = 4;
+						matconv[a].datatypes[numdata].type = GL_UNSIGNED_BYTE;
+						numdata++;
 					}
 				}
 				if (matconv[a].attribs.tottang && matconv[a].attribs.tang.array) {
-					matconv[a].datatypes[matconv[a].numdata].index = matconv[a].attribs.tang.gl_index;
-					matconv[a].datatypes[matconv[a].numdata].size = 4;
-					matconv[a].datatypes[matconv[a].numdata].type = GL_FLOAT;
-					matconv[a].numdata++;
+					matconv[a].datatypes[numdata].index = matconv[a].attribs.tang.gl_index;
+					matconv[a].datatypes[numdata].size = 4;
+					matconv[a].datatypes[numdata].type = GL_FLOAT;
+					numdata++;
 				}
-				if (matconv[a].numdata != 0) {
-					matconv[a].elementsize = GPU_attrib_element_size(matconv[a].datatypes, matconv[a].numdata);
-
-					matconv[a].buffers = GPU_buffer_alloc(matconv[a].elementsize * dm->drawObject->tot_loop_verts, false);
-
-					if (matconv[a].buffers == NULL) {
-						matconv[a].buffers = GPU_buffer_alloc(matconv[a].elementsize * dm->drawObject->tot_loop_verts, true);
-					}
-					matconv[a].varray = GPU_buffer_lock_stream(matconv[a].buffers);
-					if (matconv[a].varray == NULL) {
-						GPU_buffer_unbind();
-						GPU_buffer_free(matconv[a].buffers);
-						MEM_freeN(mat_orig_to_new);
-						MEM_freeN(matconv);
-						fprintf(stderr, "Out of memory, can't draw object\n");
-						return;
-					}
+				if (numdata != 0) {
+					matconv[a].elementsize = GPU_attrib_element_size(matconv[a].datatypes, numdata);
+					max_element_size = max_ii(matconv[a].elementsize, max_element_size);
 				}
 			}
 		}
 
-		mface = mf;
-		/* part two, fill the arrays with the data */
-		for (a = 0; a < totface; a++, mface++) {
-			int i = mat_orig_to_new[mface->mat_nr];
+		/* part two, generate and fill the arrays with the data */
+		if (max_element_size > 0) {
+			buffer = GPU_buffer_alloc(max_element_size * dm->drawObject->tot_loop_verts, false);
 
-			if (do_draw && matconv[i].numdata != 0) {
-				int elementsize = matconv[i].elementsize;
-				offset = 0;
-				if (matconv[i].attribs.totorco && matconv[i].attribs.orco.array) {
-					copy_v3_v3((float *)&matconv[i].varray[elementsize * totloops], (float *)matconv[i].attribs.orco.array[mface->v1]);
-					copy_v3_v3((float *)&matconv[i].varray[elementsize * totloops + elementsize], (float *)matconv[i].attribs.orco.array[mface->v2]);
-					copy_v3_v3((float *)&matconv[i].varray[elementsize * totloops + elementsize * 2], (float *)matconv[i].attribs.orco.array[mface->v3]);
-					if (mface->v4) {
-						copy_v3_v3((float *)&matconv[i].varray[elementsize * totloops + elementsize * 3], (float *)matconv[i].attribs.orco.array[mface->v4]);
-					}
-					offset += sizeof(float) * 3;
-				}
-				for (b = 0; b < matconv[i].attribs.tottface; b++) {
-					if (matconv[i].attribs.tface[b].array) {
-						MTFace *tf = &matconv[i].attribs.tface[b].array[a];
-						copy_v2_v2((float *)&matconv[i].varray[elementsize * totloops + offset], tf->uv[0]);
-						copy_v2_v2((float *)&matconv[i].varray[elementsize * totloops + offset + elementsize], tf->uv[1]);
-						copy_v2_v2((float *)&matconv[i].varray[elementsize * totloops + offset + elementsize * 2], tf->uv[2]);
+			if (buffer == NULL) {
+				buffer = GPU_buffer_alloc(max_element_size * dm->drawObject->tot_loop_verts, true);
+			}
+			varray = GPU_buffer_lock_stream(buffer);
+			if (varray == NULL) {
+				GPU_buffer_unbind();
+				GPU_buffer_free(buffer);
+				MEM_freeN(mat_orig_to_new);
+				MEM_freeN(matconv);
+				fprintf(stderr, "Out of memory, can't draw object\n");
+				return;
+			}
+
+			mface = mf;
+
+			for (a = 0; a < totface; a++, mface++) {
+				int i = mat_orig_to_new[mface->mat_nr];
+				offset = tot_loops * max_element_size;
+
+				if (do_draw && matconv[i].elementsize != 0) {
+					int elementsize = max_element_size;
+					if (matconv[i].attribs.totorco && matconv[i].attribs.orco.array) {
+						copy_v3_v3((float *)&varray[offset], (float *)matconv[i].attribs.orco.array[mface->v1]);
+						copy_v3_v3((float *)&varray[offset + elementsize], (float *)matconv[i].attribs.orco.array[mface->v2]);
+						copy_v3_v3((float *)&varray[offset + elementsize * 2], (float *)matconv[i].attribs.orco.array[mface->v3]);
 						if (mface->v4) {
-							copy_v2_v2((float *)&matconv[i].varray[elementsize * totloops + offset + elementsize * 3], tf->uv[3]);
+							copy_v3_v3((float *)&varray[offset + elementsize * 3], (float *)matconv[i].attribs.orco.array[mface->v4]);
 						}
-						offset += sizeof(float) * 2;
+						offset += sizeof(float) * 3;
 					}
-				}
-				for (b = 0; b < matconv[i].attribs.totmcol; b++) {
-					if (matconv[i].attribs.mcol[b].array) {
-						MCol *cp = &matconv[i].attribs.mcol[b].array[a * 4 + 0];
-						GLubyte col[4];
-						col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
-						copy_v4_v4_char((char *)&matconv[i].varray[elementsize * totloops + offset], (char *)col);
-						cp = &matconv[i].attribs.mcol[b].array[a * 4 + 1];
-						col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
-						copy_v4_v4_char((char *)&matconv[i].varray[elementsize * totloops + offset + elementsize], (char *)col);
-						cp = &matconv[i].attribs.mcol[b].array[a * 4 + 2];
-						col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
-						copy_v4_v4_char((char *)&matconv[i].varray[elementsize * totloops + offset + elementsize * 2], (char *)col);
-						if (mface->v4) {
-							cp = &matconv[i].attribs.mcol[b].array[a * 4 + 3];
+					for (b = 0; b < matconv[i].attribs.tottface; b++) {
+						if (matconv[i].attribs.tface[b].array) {
+							MTFace *tf = &matconv[i].attribs.tface[b].array[a];
+							copy_v2_v2((float *)&varray[offset], tf->uv[0]);
+							copy_v2_v2((float *)&varray[offset + elementsize], tf->uv[1]);
+							copy_v2_v2((float *)&varray[offset + elementsize * 2], tf->uv[2]);
+							if (mface->v4) {
+								copy_v2_v2((float *)&varray[offset + elementsize * 3], tf->uv[3]);
+							}
+							offset += sizeof(float) * 2;
+						}
+					}
+					for (b = 0; b < matconv[i].attribs.totmcol; b++) {
+						if (matconv[i].attribs.mcol[b].array) {
+							MCol *cp = &matconv[i].attribs.mcol[b].array[a * 4 + 0];
+							GLubyte col[4];
 							col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
-							copy_v4_v4_char((char *)&matconv[i].varray[elementsize * totloops + offset + elementsize * 3], (char *)col);
+							copy_v4_v4_char((char *)&varray[offset], (char *)col);
+							cp = &matconv[i].attribs.mcol[b].array[a * 4 + 1];
+							col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
+							copy_v4_v4_char((char *)&varray[offset + elementsize], (char *)col);
+							cp = &matconv[i].attribs.mcol[b].array[a * 4 + 2];
+							col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
+							copy_v4_v4_char((char *)&varray[offset + elementsize * 2], (char *)col);
+							if (mface->v4) {
+								cp = &matconv[i].attribs.mcol[b].array[a * 4 + 3];
+								col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
+								copy_v4_v4_char((char *)&varray[offset + elementsize * 3], (char *)col);
+							}
+							offset += sizeof(unsigned char) * 4;
 						}
-						offset += sizeof(unsigned char) * 4;
+					}
+					if (matconv[i].attribs.tottang && matconv[i].attribs.tang.array) {
+						const float *tang = matconv[i].attribs.tang.array[a * 4 + 0];
+						copy_v4_v4((float *)&varray[offset], tang);
+						tang = matconv[i].attribs.tang.array[a * 4 + 1];
+						copy_v4_v4((float *)&varray[offset + elementsize], tang);
+						tang = matconv[i].attribs.tang.array[a * 4 + 2];
+						copy_v4_v4((float *)&varray[offset + elementsize * 2], tang);
+						if (mface->v4) {
+							tang = matconv[i].attribs.tang.array[a * 4 + 3];
+							copy_v4_v4((float *)&varray[offset + elementsize * 3], tang);
+						}
+						offset += sizeof(float) * 4;
 					}
 				}
-				if (matconv[i].attribs.tottang && matconv[i].attribs.tang.array) {
-					const float *tang = matconv[i].attribs.tang.array[a * 4 + 0];
-					copy_v4_v4((float *)&matconv[i].varray[elementsize * totloops + offset], tang);
-					tang = matconv[i].attribs.tang.array[a * 4 + 1];
-					copy_v4_v4((float *)&matconv[i].varray[elementsize * totloops + offset + elementsize], tang);
-					tang = matconv[i].attribs.tang.array[a * 4 + 2];
-					copy_v4_v4((float *)&matconv[i].varray[elementsize * totloops + offset + elementsize * 2], tang);
-					if (mface->v4) {
-						tang = matconv[i].attribs.tang.array[a * 4 + 3];
-						copy_v4_v4((float *)&matconv[i].varray[elementsize * totloops + offset + elementsize * 3], tang);
-					}
-					offset += sizeof(float) * 4;
-				}
-			}
 
-			if (mface->v4) {
-				totloops += 4;
+				if (mface->v4) {
+					tot_loops += 4;
+				}
+				else {
+					tot_loops += 3;
+				}
 			}
-			else {
-				totloops += 3;
-			}
+			GPU_buffer_unlock(buffer);
 		}
 
 		for (a = 0; a < tot_active_mat; a++) {
@@ -1160,20 +1166,20 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 			do_draw = setMaterial(new_matnr + 1, &gattribs);
 
 			if (do_draw) {
-				if (matconv[a].buffers) {
-					GPU_buffer_unlock(matconv[a].buffers);
-					GPU_interleaved_attrib_setup(matconv[a].buffers, matconv[a].datatypes, matconv[a].numdata);
+				if (matconv[a].numdata) {
+					GPU_interleaved_attrib_setup(buffer, matconv[a].datatypes, matconv[a].numdata, max_element_size);
 				}
 				GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES,
 				                         dm->drawObject->materials[a].start, dm->drawObject->materials[a].totelements);
-				if (matconv[a].buffers) {
+				if (matconv[a].numdata) {
 					GPU_interleaved_attrib_unbind();
-					GPU_buffer_free(matconv[a].buffers);
 				}
 			}
 		}
 
 		GPU_buffer_unbind();
+		if (buffer)
+			GPU_buffer_free(buffer);
 
 		MEM_freeN(mat_orig_to_new);
 		MEM_freeN(matconv);

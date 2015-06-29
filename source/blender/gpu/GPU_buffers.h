@@ -110,6 +110,7 @@ typedef struct GPUDrawObject {
 #endif
 	
 	int colType;
+	int index_setup; /* how indices are setup, starting from start of buffer or start of material */
 
 	GPUBufferMaterial *materials;
 	int totmaterial;
@@ -185,7 +186,7 @@ void GPU_triangle_setup(struct DerivedMesh *dm);
 void GPU_triangle_fast_setup(struct DerivedMesh *dm); /* only for subsurf */
 
 int GPU_attrib_element_size(GPUAttrib data[], int numdata);
-void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata);
+void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata, int element_size);
 
 /* can't lock more than one buffer at once */
 void *GPU_buffer_lock(GPUBuffer *buffer);

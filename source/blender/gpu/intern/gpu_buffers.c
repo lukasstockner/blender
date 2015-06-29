@@ -873,7 +873,7 @@ int GPU_attrib_element_size(GPUAttrib data[], int numdata)
 	return elementsize;
 }
 
-void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata)
+void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata, int element_size)
 {
 	int i;
 	int elementsize;
@@ -887,7 +887,10 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 		else
 			break;
 	}
-	elementsize = GPU_attrib_element_size(data, numdata);
+	if (element_size == 0)
+		elementsize = GPU_attrib_element_size(data, numdata);
+	else
+		elementsize = element_size;
 
 	if (buffer->use_vbo) {
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffer->id);
