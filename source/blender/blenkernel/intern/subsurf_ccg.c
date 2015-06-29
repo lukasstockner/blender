@@ -2120,6 +2120,7 @@ static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
 			gdo->materials[curmat].totelements = matinfo[i].elements;
 			gdo->materials[curmat].totloops = matinfo[i].loops;
 			gdo->materials[curmat].mat_nr = i;
+			gdo->materials[curmat].polys = NULL;
 
 			curelement += matinfo[i].elements;
 			curmat++;
