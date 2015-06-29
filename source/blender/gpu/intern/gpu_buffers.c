@@ -419,13 +419,17 @@ void GPU_buffer_free(GPUBuffer *buffer)
 void GPU_drawobject_free(DerivedMesh *dm)
 {
 	GPUDrawObject *gdo;
+	int i;
 
 	if (!dm || !(gdo = dm->drawObject))
 		return;
 
+	for (i = 0; i < gdo->totmaterial; i++) {
+		if (gdo->materials[i].polys)
+			MEM_freeN(gdo->materials[i].polys);
+	}
+
 	MEM_freeN(gdo->materials);
-	if (gdo->triangle_to_mface)
-		MEM_freeN(gdo->triangle_to_mface);
 	if (gdo->vert_points)
 		MEM_freeN(gdo->vert_points);
 #ifdef USE_GPU_POINT_LINK

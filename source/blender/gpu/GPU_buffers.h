@@ -64,6 +64,9 @@ typedef struct GPUBufferMaterial {
 	int start;
 	int totelements;
 	int totloops;
+	int *polys; /* array of polygons for this material */
+	int totpolys; /* total polygons in polys */
+	int counter; /* general purpose counter, initialize first! */
 
 	/* original material index */
 	short mat_nr;
@@ -95,9 +98,6 @@ typedef struct GPUDrawObject {
 	GPUBuffer *uvedges;
 	GPUBuffer *triangles; /* triangle index buffer */
 	GPUBuffer *trianglesfast; /* level one triangle index for subsurf */
-
-	/* for each triangle, the original MFace index */
-	int *triangle_to_mface;
 
 	/* for each original vertex, the list of related points */
 	struct GPUVertPointLink *vert_points;

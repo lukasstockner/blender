@@ -479,11 +479,12 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	MTFace *tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
 	MCol *mcol;
 	int i, orig;
-	int colType, startFace = 0;
+	int colType, start_element;
 	bool use_tface = (uvflag & DM_DRAW_USE_ACTIVE_UV) != 0;
-	int tottri;
+	int totpoly;
 	int next_actualFace;
-	
+	int mat_index;
+	int tot_element;
 
 	/* double lookup */
 	const int *index_mf_to_mpoly = dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
@@ -531,68 +532,76 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	if (mcol) {
 		GPU_color_setup(dm, colType);
 	}
-	
-	tottri = dm->drawObject->tot_triangle_point / 3;
-	next_actualFace = dm->drawObject->triangle_to_mface[0];
-	
+		
 	glShadeModel(GL_SMOOTH);
 	/* lastFlag = 0; */ /* UNUSED */
-	for (i = 0; i < tottri; i++) {
-		int actualFace = next_actualFace;
-		DMDrawOption draw_option = DM_DRAW_OPTION_NORMAL;
-		int flush = 0;
-		
-		if (i != tottri - 1)
-			next_actualFace = dm->drawObject->triangle_to_mface[i + 1];
-		
-		if (drawParams) {
-			draw_option = drawParams(use_tface && tf ? &tf[actualFace] : NULL, (mcol != NULL), mf[actualFace].mat_nr);
-		}
-		else {
-			if (index_mf_to_mpoly) {
-				orig = DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, actualFace);
-				if (orig == ORIGINDEX_NONE) {
-					/* XXX, this is not really correct
+	for (mat_index = 0; mat_index < dm->drawObject->totmaterial; mat_index++) {
+		GPUBufferMaterial *bufmat = dm->drawObject->materials + mat_index;
+		next_actualFace = bufmat->polys[0];
+		totpoly = bufmat->totpolys;
+
+		tot_element = 0;
+		start_element = bufmat->start;
+
+		for (i = 0; i < totpoly; i++) {
+			int actualFace = bufmat->polys[i];
+			DMDrawOption draw_option = DM_DRAW_OPTION_NORMAL;
+			int flush = 0;
+
+			if (i != totpoly - 1)
+				next_actualFace = bufmat->polys[i + 1];
+
+			if (drawParams) {
+				draw_option = drawParams(use_tface && tf ? &tf[actualFace] : NULL, (mcol != NULL), mf[actualFace].mat_nr);
+			}
+			else {
+				if (index_mf_to_mpoly) {
+					orig = DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, actualFace);
+					if (orig == ORIGINDEX_NONE) {
+						/* XXX, this is not really correct
 							 * it will draw the previous faces context for this one when we don't know its settings.
 							 * but better then skipping it altogether. - campbell */
-					draw_option = DM_DRAW_OPTION_NORMAL;
+						draw_option = DM_DRAW_OPTION_NORMAL;
+					}
+					else if (drawParamsMapped) {
+						draw_option = drawParamsMapped(userData, orig, mf[actualFace].mat_nr);
+					}
 				}
 				else if (drawParamsMapped) {
-					draw_option = drawParamsMapped(userData, orig, mf[actualFace].mat_nr);
+					draw_option = drawParamsMapped(userData, actualFace, mf[actualFace].mat_nr);
 				}
 			}
-			else if (drawParamsMapped) {
-				draw_option = drawParamsMapped(userData, actualFace, mf[actualFace].mat_nr);
-			}
-		}
-		
-		/* flush buffer if current triangle isn't drawable or it's last triangle */
-		flush = (draw_option == DM_DRAW_OPTION_SKIP) || (i == tottri - 1);
-		
-		if (!flush && compareDrawOptions) {
-			/* also compare draw options and flush buffer if they're different
+
+			/* flush buffer if current triangle isn't drawable or it's last triangle */
+			flush = (draw_option == DM_DRAW_OPTION_SKIP) || (i == totpoly - 1);
+
+			if (!flush && compareDrawOptions) {
+				/* also compare draw options and flush buffer if they're different
 					 * need for face selection highlight in edit mode */
-			flush |= compareDrawOptions(userData, actualFace, next_actualFace) == 0;
-		}
-		
-		if (flush) {
-			int first = startFace;
-			/* Add one to the length if we're drawing at the end of the array */
-			int count = (i - startFace + (draw_option != DM_DRAW_OPTION_SKIP ? 1 : 0)) * 3;
-			
-			if (count) {
-				if (mcol && draw_option != DM_DRAW_OPTION_NO_MCOL)
-					GPU_color_switch(1);
-				else
-					GPU_color_switch(0);
-				
-				GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, first * 3, count);
+				flush |= compareDrawOptions(userData, actualFace, next_actualFace) == 0;
 			}
-			
-			startFace = i + 1;
+
+			if (flush) {
+				if (draw_option != DM_DRAW_OPTION_SKIP)
+					tot_element += mf[actualFace].v4 ? 6 : 3;
+
+				if (tot_element) {
+					if (mcol && draw_option != DM_DRAW_OPTION_NO_MCOL)
+						GPU_color_switch(1);
+					else
+						GPU_color_switch(0);
+
+					GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, start_element, tot_element);
+				}
+
+				start_element = tot_element;
+			}
+			else {
+				tot_element += mf[actualFace].v4 ? 6 : 3;
+			}
 		}
 	}
-	
+
 	GPU_buffer_unbind();
 	glShadeModel(GL_FLAT);
 	
@@ -746,8 +755,10 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 		}
 	}
 	else { /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
-		int prevstart = 0;
+		int start_element = 0, tot_element;
+		int totpoly;
 		int tottri;
+		int mat_index;
 		
 		GPU_vertex_setup(dm);
 		GPU_normal_setup(dm);
@@ -755,9 +766,10 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 		if (useColors && mcol) {
 			GPU_color_setup(dm, colType);
 		}
-		tottri = dm->drawObject->tot_triangle_point / 3;
 		glShadeModel(GL_SMOOTH);
 		
+		tottri = dm->drawObject->tot_triangle_point / 3;
+
 		if (tottri == 0) {
 			/* avoid buffer problems in following code */
 		}
@@ -765,69 +777,70 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 			/* just draw the entire face array */
 			GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, 0, 3 * tottri);
 		}
-		else {
-			/* we need to check if the next material changes */
-			int next_actualFace = dm->drawObject->triangle_to_mface[0];
-			short prev_mat_nr = -1;
-			
-			for (i = 0; i < tottri; i++) {
-				//int actualFace = dm->drawObject->triangle_to_mface[i];
-				int actualFace = next_actualFace;
-				MFace *mface = mf + actualFace;
-				/*int drawSmooth = (flag & DM_DRAW_ALWAYS_SMOOTH) ? 1 : (mface->flag & ME_SMOOTH);*/ /* UNUSED */
+		else {			
+			for (mat_index = 0; mat_index < dm->drawObject->totmaterial; mat_index++) {
+				GPUBufferMaterial *bufmat = dm->drawObject->materials + mat_index;
 				DMDrawOption draw_option = DM_DRAW_OPTION_NORMAL;
-				int flush = 0;
-				
-				if (i != tottri - 1)
-					next_actualFace = dm->drawObject->triangle_to_mface[i + 1];
-				
-				orig = (index_mf_to_mpoly) ? DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, actualFace) : actualFace;
-				
-				if (mface->mat_nr != prev_mat_nr) {
-					if (setMaterial)
-						draw_option = setMaterial(mface->mat_nr + 1, NULL);
-					
-					prev_mat_nr = mface->mat_nr;
-				}
-				
-				if (setDrawOptions != NULL && (orig != ORIGINDEX_NONE))
-					draw_option = setDrawOptions(userData, orig);
-				
-				if (draw_option == DM_DRAW_OPTION_STIPPLE) {
-					glEnable(GL_POLYGON_STIPPLE);
-					glPolygonStipple(stipple_quarttone);
-				}
-				
-				/* Goal is to draw as long of a contiguous triangle
+				int next_actualFace = bufmat->polys[0];
+				totpoly = bufmat->totpolys;
+
+				tot_element = 0;
+				start_element = bufmat->start;
+
+				if (setMaterial)
+					draw_option = setMaterial(bufmat->mat_nr + 1, NULL);
+
+				if (draw_option != DM_DRAW_OPTION_SKIP) {
+					for (i = 0; i < totpoly; i++) {
+						//int actualFace = dm->drawObject->triangle_to_mface[i];
+						int actualFace = next_actualFace;
+						int flush = 0;
+						draw_option = DM_DRAW_OPTION_NORMAL;
+
+						if (i != totpoly - 1)
+							next_actualFace = bufmat->polys[i + 1];
+
+						orig = (index_mf_to_mpoly) ? DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, actualFace) : actualFace;
+
+						if (setDrawOptions != NULL && (orig != ORIGINDEX_NONE))
+							draw_option = setDrawOptions(userData, orig);
+
+						if (draw_option == DM_DRAW_OPTION_STIPPLE) {
+							glEnable(GL_POLYGON_STIPPLE);
+							glPolygonStipple(stipple_quarttone);
+						}
+
+						/* Goal is to draw as long of a contiguous triangle
 					 * array as possible, so draw when we hit either an
 					 * invisible triangle or at the end of the array */
-				
-				/* flush buffer if current triangle isn't drawable or it's last triangle... */
-				flush = (ELEM(draw_option, DM_DRAW_OPTION_SKIP, DM_DRAW_OPTION_STIPPLE)) || (i == tottri - 1);
-				
-				/* ... or when material setting is dissferent  */
-				flush |= mf[actualFace].mat_nr != mf[next_actualFace].mat_nr;
-				
-				if (!flush && compareDrawOptions) {
-					flush |= compareDrawOptions(userData, actualFace, next_actualFace) == 0;
-				}
-				
-				if (flush) {
-					int first = prevstart;
-					/* Add one to the length if we're drawing at the end of the array */
-					int count = (i - prevstart + (draw_option != DM_DRAW_OPTION_SKIP ? 1 : 0)) * 3;
-					
-					if (count)
-						GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, first * 3, count);
-					
-					prevstart = i + 1;
-					
-					if (draw_option == DM_DRAW_OPTION_STIPPLE)
-						glDisable(GL_POLYGON_STIPPLE);
+
+						/* flush buffer if current triangle isn't drawable or it's last triangle... */
+						flush = (ELEM(draw_option, DM_DRAW_OPTION_SKIP, DM_DRAW_OPTION_STIPPLE)) || (i == totpoly - 1);
+
+						if (!flush && compareDrawOptions) {
+							flush |= compareDrawOptions(userData, actualFace, next_actualFace) == 0;
+						}
+
+						if (flush) {
+							if (!ELEM(draw_option, DM_DRAW_OPTION_SKIP, DM_DRAW_OPTION_STIPPLE))
+								tot_element += mf[actualFace].v4 ? 6 : 3;
+
+							if (tot_element)
+								GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, start_element, tot_element);
+
+							start_element = tot_element;
+
+							if (draw_option == DM_DRAW_OPTION_STIPPLE)
+								glDisable(GL_POLYGON_STIPPLE);
+						}
+						else {
+							tot_element += mf[actualFace].v4 ? 6 : 3;
+						}
+					}
+
+					glShadeModel(GL_FLAT);
 				}
 			}
-			
-			glShadeModel(GL_FLAT);
 		}
 		GPU_buffer_unbind();
 	}
@@ -1728,15 +1741,12 @@ static int tri_indices[2][3] = {{0, 1, 2}, {2, 3, 0}};
 /* update the vert_points and triangle_to_mface fields with a new
  * triangle */
 static void cdDM_drawobject_add_triangle(GPUDrawObject *gdo,
-                                        int base_point_index,
-                                        int face_index,
                                         int v1, int v2, int v3, bool quad, int loopindex)
 {
 	int i, v[3] = {v1, v2, v3};
 	int *tri_i = quad ? tri_indices[1] : tri_indices[0];
 	for (i = 0; i < 3; i++)
 		cdDM_drawobject_add_vert_point(gdo, v[i], loopindex + tri_i[i]);
-	gdo->triangle_to_mface[base_point_index / 3] = face_index;
 }
 
 /* for each vertex, build a list of points related to it; these lists
@@ -1760,8 +1770,10 @@ static void cdDM_drawobject_init_vert_points(GPUDrawObject *gdo, MFace *f, int t
 
 	/* build a map from the original material indices to the new
 	 * GPUBufferMaterial indices */
-	for (i = 0; i < gdo->totmaterial; i++)
+	for (i = 0; i < gdo->totmaterial; i++) {
 		mat_orig_to_new[gdo->materials[i].mat_nr] = i;
+		gdo->materials[i].counter = 0;
+	}
 
 	/* -1 indicates the link is not yet used */
 	for (i = 0; i < gdo->totvert; i++) {
@@ -1774,15 +1786,15 @@ static void cdDM_drawobject_init_vert_points(GPUDrawObject *gdo, MFace *f, int t
 	for (i = 0; i < totface; i++, f++) {
 		mat = &gdo->materials[mat_orig_to_new[f->mat_nr]];
 
+		mat->polys[mat->counter++] = i;
+
 		/* add triangle */
-		cdDM_drawobject_add_triangle(gdo, mat->start + mat->totelements,
-		                            i, f->v1, f->v2, f->v3, false, tot_loops);
+		cdDM_drawobject_add_triangle(gdo, f->v1, f->v2, f->v3, false, tot_loops);
 		mat->totelements += 3;
 
 		/* add second triangle for quads */
 		if (f->v4) {
-			cdDM_drawobject_add_triangle(gdo, mat->start + mat->totelements,
-			                            i, f->v3, f->v4, f->v1, true, tot_loops);
+			cdDM_drawobject_add_triangle(gdo, f->v3, f->v4, f->v1, true, tot_loops);
 			mat->totelements += 3;
 			tot_loops += 4;
 		}
@@ -1805,6 +1817,7 @@ static void cdDM_drawobject_init_vert_points(GPUDrawObject *gdo, MFace *f, int t
 typedef struct {
 	int elements;
 	int loops;
+	int polys;
 } GPUMaterialInfo;
 
 /* see GPUDrawObject's structure definition for a description of the
@@ -1827,6 +1840,7 @@ static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
 	 * each quad as two triangles */
 	mat_info = MEM_callocN(sizeof(*mat_info) * totmat, "GPU_drawobject_new.mat_orig_to_new");
 	for (i = 0; i < totface; i++) {
+		mat_info[mface[i].mat_nr].polys++;
 		if (mface[i].v4) {
 			mat_info[mface[i].mat_nr].elements += 6;
 			mat_info[mface[i].mat_nr].loops += 4;
@@ -1859,6 +1873,8 @@ static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
 			gdo->materials[curmat].totelements = 0;
 			gdo->materials[curmat].totloops = mat_info[i].loops;
 			gdo->materials[curmat].mat_nr = i;
+			gdo->materials[curmat].totpolys = mat_info[i].polys;
+			gdo->materials[curmat].polys = MEM_mallocN(sizeof(int) * mat_info[i].polys, "GPUMaterial polys");
 
 			totelements += mat_info[i].elements;
 			totloops += mat_info[i].loops;
@@ -1870,9 +1886,6 @@ static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
 
 	/* store total number of points used for triangles */
 	gdo->tot_triangle_point = totelements;
-
-	gdo->triangle_to_mface = MEM_mallocN(sizeof(int) * (gdo->tot_triangle_point / 3),
-	                                     "GPUDrawObject.triangle_to_mface");
 
 	cdDM_drawobject_init_vert_points(gdo, mface, totface, totmat);
 	MEM_freeN(mat_info);

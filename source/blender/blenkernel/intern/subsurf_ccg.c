@@ -2056,6 +2056,7 @@ static void ccgDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray, int *i
 typedef struct {
 	int elements;
 	int loops;
+	int polys;
 } GPUMaterialInfo;
 
 static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
@@ -2086,12 +2087,14 @@ static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
 			int new_matnr = faceFlags[index].mat_nr;
 			matinfo[new_matnr].elements += numVerts * gridFaces * gridFaces * 6;
 			matinfo[new_matnr].loops += numVerts * gridFaces * gridFaces * 4;
+			matinfo[new_matnr].polys++;
 		}
 	}
 	else {
 		for (i = 0; i < totface; i++) {
 			matinfo[0].elements += gridFaces * gridFaces * 6;
 			matinfo[0].loops += gridFaces * gridFaces * 4;
+			matinfo[0].polys++;
 		}
 	}
 	
