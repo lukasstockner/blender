@@ -52,9 +52,6 @@
 
 #include "RNA_access.h"
 
-/* TODO(sergey): Could be considered a bad level call, but
- * need this for gaussian table.
- */
 #include "RE_pipeline.h"
 
 static void slice_get_byte_buffers(const SeqRenderData *context, const ImBuf *ibuf1, const ImBuf *ibuf2,
@@ -2480,7 +2477,7 @@ void BKE_sequence_effect_speed_rebuild_map(Scene *scene, Sequence *seq, bool for
 		if ((seq->seq1->enddisp != seq->seq1->start) &&
 		    (seq->seq1->len != 0))
 		{
-			fallback_fac = (float) seq->seq1->len / (float) (seq->seq1->enddisp - seq->seq1->start);
+			fallback_fac = 1.0f;
 			flags = SEQ_SPEED_INTEGRATE;
 			fcu = NULL;
 		}

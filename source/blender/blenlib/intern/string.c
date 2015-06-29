@@ -231,6 +231,30 @@ size_t BLI_vsnprintf(char *__restrict buffer, size_t maxncpy, const char *__rest
 }
 
 /**
+ * A version of #BLI_vsnprintf that returns ``strlen(buffer)``
+ */
+size_t BLI_vsnprintf_rlen(char *__restrict buffer, size_t maxncpy, const char *__restrict format, va_list arg)
+{
+	size_t n;
+
+	BLI_assert(buffer != NULL);
+	BLI_assert(maxncpy > 0);
+	BLI_assert(format != NULL);
+
+	n = (size_t)vsnprintf(buffer, maxncpy, format, arg);
+
+	if (n != -1 && n < maxncpy) {
+		/* pass */
+	}
+	else {
+		n = maxncpy - 1;
+	}
+	buffer[n] = '\0';
+
+	return n;
+}
+
+/**
  * Portable replacement for #snprintf
  */
 size_t BLI_snprintf(char *__restrict dst, size_t maxncpy, const char *__restrict format, ...)
@@ -244,6 +268,25 @@ size_t BLI_snprintf(char *__restrict dst, size_t maxncpy, const char *__restrict
 
 	va_start(arg, format);
 	n = BLI_vsnprintf(dst, maxncpy, format, arg);
+	va_end(arg);
+
+	return n;
+}
+
+/**
+ * A version of #BLI_snprintf that returns ``strlen(dst)``
+ */
+size_t BLI_snprintf_rlen(char *__restrict dst, size_t maxncpy, const char *__restrict format, ...)
+{
+	size_t n;
+	va_list arg;
+
+#ifdef DEBUG_STRSIZE
+	memset(dst, 0xff, sizeof(*dst) * maxncpy);
+#endif
+
+	va_start(arg, format);
+	n = BLI_vsnprintf_rlen(dst, maxncpy, format, arg);
 	va_end(arg);
 
 	return n;
@@ -811,9 +854,9 @@ bool BLI_str_endswith(const char *__restrict str, const char *end)
  * \param suf Return value, set to next char after the first delimiter found (or NULL if none found).
  * \return The length of the prefix (i.e. *sep - str).
  */
-size_t BLI_str_partition(const char *str, const char delim[], char **sep, char **suf)
+size_t BLI_str_partition(const char *str, const char delim[], const char **sep, const char **suf)
 {
-	return BLI_str_partition_ex(str, delim, sep, suf, false);
+	return BLI_str_partition_ex(str, NULL, delim, sep, suf, false);
 }
 
 /**
@@ -825,30 +868,52 @@ size_t BLI_str_partition(const char *str, const char delim[], char **sep, char *
  * \param suf Return value, set to next char after the first delimiter found (or NULL if none found).
  * \return The length of the prefix (i.e. *sep - str).
  */
-size_t BLI_str_rpartition(const char *str, const char delim[], char **sep, char **suf)
+size_t BLI_str_rpartition(const char *str, const char delim[], const char **sep, const char **suf)
 {
-	return BLI_str_partition_ex(str, delim, sep, suf, true);
+	return BLI_str_partition_ex(str, NULL, delim, sep, suf, true);
 }
 
 /**
  * Find the first char matching one of the chars in \a delim, either from left or right.
  *
  * \param str The string to search within.
+ * \param end If non-NULL, the right delimiter of the string.
  * \param delim The set of delimiters to search for, as unicode values.
  * \param sep Return value, set to the first delimiter found (or NULL if none found).
  * \param suf Return value, set to next char after the first delimiter found (or NULL if none found).
  * \param from_right If %true, search from the right of \a str, else, search from its left.
  * \return The length of the prefix (i.e. *sep - str).
  */
-size_t BLI_str_partition_ex(const char *str, const char delim[], char **sep, char **suf, const bool from_right)
+size_t BLI_str_partition_ex(
+        const char *str, const char *end, const char delim[], const char **sep, const char **suf, const bool from_right)
 {
 	const char *d;
 	char *(*func)(const char *str, int c) = from_right ? strrchr : strchr;
 
+	BLI_assert(end == NULL || end > str);
+
 	*sep = *suf = NULL;
 
 	for (d = delim; *d != '\0'; ++d) {
-		char *tmp = func(str, *d);
+		const char *tmp;
+
+		if (end) {
+			if (from_right) {
+				for (tmp = end - 1; (tmp >= str) && (*tmp != *d); tmp--);
+				if (tmp	< str) {
+					tmp = NULL;
+				}
+			}
+			else {
+				tmp = func(str, *d);
+				if (tmp	>= end) {
+					tmp = NULL;
+				}
+			}
+		}
+		else {
+			tmp = func(str, *d);
+		}
 
 		if (tmp && (from_right ? (*sep < tmp) : (!*sep || *sep > tmp))) {
 			*sep = tmp;
@@ -860,7 +925,7 @@ size_t BLI_str_partition_ex(const char *str, const char delim[], char **sep, cha
 		return (size_t)(*sep - str);
 	}
 
-	return strlen(str);
+	return end ? (size_t)(end - str) : strlen(str);
 }
 
 /**

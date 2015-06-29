@@ -80,6 +80,7 @@
 #include "BKE_editmesh.h"
 #include "BKE_tracking.h"
 #include "BKE_mask.h"
+#include "BKE_utildefines.h"
 
 #include "ED_anim_api.h"
 #include "ED_armature.h"
@@ -808,10 +809,14 @@ static void recalcData_objects(TransInfo *t)
 					ebo->rad_head *= ebo->length / ebo->oldlength;
 					ebo->rad_tail *= ebo->length / ebo->oldlength;
 					ebo->oldlength = ebo->length;
+
+					if (ebo_parent) {
+						ebo_parent->rad_tail = ebo->rad_head;
+					}
 				}
 			}
 			
-			if (!ELEM(t->mode, TFM_BONE_ROLL, TFM_BONE_ENVELOPE, TFM_BONESIZE)) {
+			if (!ELEM(t->mode, TFM_BONE_ROLL, TFM_BONE_ENVELOPE, TFM_BONE_ENVELOPE_DIST, TFM_BONESIZE)) {
 				/* fix roll */
 				for (i = 0; i < t->total; i++, td++) {
 					if (td->extra) {
@@ -1065,6 +1070,8 @@ static int initTransInfo_edit_pet_to_flag(const int proportional)
  * Setup internal data, mouse, vectors
  *
  * \note \a op and \a event can be NULL
+ *
+ * \see #saveTransform does the reverse.
  */
 void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *event)
 {
@@ -1121,6 +1128,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
 	zero_v3(t->vec);
 	zero_v3(t->center);
+	zero_v3(t->center_global);
 
 	unit_m3(t->mat);
 	
@@ -1156,6 +1164,19 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		t->spacetype = sa->spacetype;
 	}
 
+	/* handle T_ALT_TRANSFORM initialization, we may use for different operators */
+	if (op) {
+		const char *prop_id = NULL;
+		if (t->mode == TFM_SHRINKFATTEN) {
+			prop_id = "use_even_offset";
+		}
+
+		if (prop_id && (prop = RNA_struct_find_property(op->ptr, prop_id)) &&
+		    RNA_property_is_set(op->ptr, prop))
+		{
+			BKE_BIT_TEST_SET(t->flag, RNA_property_boolean_get(op->ptr, prop), T_ALT_TRANSFORM);
+		}
+	}
 
 	if (t->spacetype == SPACE_VIEW3D) {
 		View3D *v3d = sa->spacedata.first;
@@ -1316,7 +1337,13 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			/* use settings from scene only if modal */
 			if (t->flag & T_MODAL) {
 				if ((t->options & CTX_NO_PET) == 0) {
-					if (t->obedit) {
+					if (t->spacetype == SPACE_IPO) {
+						t->flag |= initTransInfo_edit_pet_to_flag(ts->proportional_fcurve);
+					}
+					else if (t->spacetype == SPACE_ACTION) {
+						t->flag |= initTransInfo_edit_pet_to_flag(ts->proportional_action);
+					}
+					else if (t->obedit) {
 						t->flag |= initTransInfo_edit_pet_to_flag(ts->proportional);
 					}
 					else if (t->options & CTX_GPENCIL_STROKES) {
@@ -1375,6 +1402,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 #endif
 
 	setTransformViewMatrices(t);
+	setTransformViewAspect(t, t->aspect);
 	initNumInput(&t->num);
 }
 
@@ -1541,6 +1569,19 @@ void calculateCenter2D(TransInfo *t)
 	}
 }
 
+void calculateCenterGlobal(TransInfo *t)
+{
+	/* setting constraint center */
+	/* note, init functions may over-ride t->center */
+	if (t->flag & (T_EDIT | T_POSE)) {
+		Object *ob = t->obedit ? t->obedit : t->poseobj;
+		mul_v3_m4v3(t->center_global, ob->obmat, t->center);
+	}
+	else {
+		copy_v3_v3(t->center_global, t->center);
+	}
+}
+
 void calculateCenterCursor(TransInfo *t, float r_center[3])
 {
 	const float *cursor;
@@ -1569,30 +1610,17 @@ void calculateCenterCursor(TransInfo *t, float r_center[3])
 
 void calculateCenterCursor2D(TransInfo *t, float r_center[2])
 {
-	float aspx = 1.0, aspy = 1.0;
 	const float *cursor = NULL;
 	
 	if (t->spacetype == SPACE_IMAGE) {
 		SpaceImage *sima = (SpaceImage *)t->sa->spacedata.first;
-		if (t->options & CTX_MASK) {
-			ED_space_image_get_aspect(sima, &aspx, &aspy);
-		}
-		else {
-			ED_space_image_get_uv_aspect(sima, &aspx, &aspy);
-		}
 		cursor = sima->cursor;
 	}
 	else if (t->spacetype == SPACE_CLIP) {
 		SpaceClip *space_clip = (SpaceClip *) t->sa->spacedata.first;
-		if (t->options & CTX_MOVIECLIP) {
-			ED_space_clip_get_aspect_dimension_aware(space_clip, &aspx, &aspy);
-		}
-		else {
-			ED_space_clip_get_aspect(space_clip, &aspx, &aspy);
-		}
 		cursor = space_clip->cursor;
 	}
-	
+
 	if (cursor) {
 		if (t->options & CTX_MASK) {
 			float co[2];
@@ -1609,8 +1637,8 @@ void calculateCenterCursor2D(TransInfo *t, float r_center[2])
 				BLI_assert(!"Shall not happen");
 			}
 
-			r_center[0] = co[0] * aspx;
-			r_center[1] = co[1] * aspy;
+			r_center[0] = co[0] * t->aspect[0];
+			r_center[1] = co[1] * t->aspect[1];
 		}
 		else if (t->options & CTX_PAINT_CURVE) {
 			if (t->spacetype == SPACE_IMAGE) {
@@ -1619,8 +1647,8 @@ void calculateCenterCursor2D(TransInfo *t, float r_center[2])
 			}
 		}
 		else {
-			r_center[0] = cursor[0] * aspx;
-			r_center[1] = cursor[1] * aspy;
+			r_center[0] = cursor[0] * t->aspect[0];
+			r_center[1] = cursor[1] * t->aspect[1];
 		}
 	}
 }
@@ -1755,14 +1783,8 @@ void calculateCenter(TransInfo *t)
 	}
 
 	calculateCenter2D(t);
+	calculateCenterGlobal(t);
 
-	/* setting constraint center */
-	copy_v3_v3(t->con.center, t->center);
-	if (t->flag & (T_EDIT | T_POSE)) {
-		Object *ob = t->obedit ? t->obedit : t->poseobj;
-		mul_m4_v3(ob->obmat, t->con.center);
-	}
-	
 	/* for panning from cameraview */
 	if (t->flag & T_OBJECT) {
 		if (t->spacetype == SPACE_VIEW3D && t->ar && t->ar->regiontype == RGN_TYPE_WINDOW) {
@@ -1783,7 +1805,7 @@ void calculateCenter(TransInfo *t)
 				/* rotate only needs correct 2d center, grab needs ED_view3d_calc_zfac() value */
 				if (t->mode == TFM_TRANSLATION) {
 					copy_v3_v3(t->center, axis);
-					copy_v3_v3(t->con.center, t->center);
+					copy_v3_v3(t->center_global, t->center);
 				}
 			}
 		}

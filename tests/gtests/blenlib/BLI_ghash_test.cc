@@ -2,6 +2,8 @@
 
 #include "testing/testing.h"
 
+#define GHASH_INTERNAL_API
+
 extern "C" {
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
@@ -15,7 +17,7 @@ extern "C" {
 { \
 	double q, lf, var, pempty, poverloaded; \
 	int bigb; \
-	q = BLI_ghash_calc_quality((_gh), &lf, &var, &pempty, &poverloaded, &bigb); \
+	q = BLI_ghash_calc_quality_ex((_gh), &lf, &var, &pempty, &poverloaded, &bigb); \
 	printf("GHash stats (%d entries):\n\t" \
 	       "Quality (the lower the better): %f\n\tVariance (the lower the better): %f\n\tLoad: %f\n\t" \
 	       "Empty buckets: %.2f%%\n\tOverloaded buckets: %.2f%% (biggest bucket: %d)\n", \

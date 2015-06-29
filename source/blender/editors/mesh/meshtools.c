@@ -1025,7 +1025,7 @@ int *mesh_get_x_mirror_faces(Object *ob, BMEditMesh *em)
 
 	ED_mesh_mirror_spatial_table(ob, em, NULL, 'e');
 
-	fhash = BLI_ghash_new_ex(mirror_facehash, mirror_facecmp, "mirror_facehash gh", me->totface, false);
+	fhash = BLI_ghash_new_ex(mirror_facehash, mirror_facecmp, "mirror_facehash gh", me->totface);
 	for (a = 0, mf = mface; a < me->totface; a++, mf++)
 		BLI_ghash_insert(fhash, mf, mf);
 
@@ -1082,11 +1082,11 @@ bool ED_mesh_pick_face(bContext *C, Object *ob, const int mval[2], unsigned int 
 		 * on an edge in the backbuf, we can still select a face */
 
 		float dummy_dist;
-		*index = view3d_sample_backbuf_rect(&vc, mval, size, 1, me->totpoly + 1, &dummy_dist, 0, NULL, NULL);
+		*index = ED_view3d_backbuf_sample_rect(&vc, mval, size, 1, me->totpoly + 1, &dummy_dist);
 	}
 	else {
 		/* sample only on the exact position */
-		*index = view3d_sample_backbuf(&vc, mval[0], mval[1]);
+		*index = ED_view3d_backbuf_sample(&vc, mval[0], mval[1]);
 	}
 
 	if ((*index) == 0 || (*index) > (unsigned int)me->totpoly)
@@ -1248,11 +1248,11 @@ bool ED_mesh_pick_vert(bContext *C, Object *ob, const int mval[2], unsigned int 
 			 * on an face in the backbuf, we can still select a vert */
 
 			float dummy_dist;
-			*index = view3d_sample_backbuf_rect(&vc, mval, size, 1, me->totvert + 1, &dummy_dist, 0, NULL, NULL);
+			*index = ED_view3d_backbuf_sample_rect(&vc, mval, size, 1, me->totvert + 1, &dummy_dist);
 		}
 		else {
 			/* sample only on the exact position */
-			*index = view3d_sample_backbuf(&vc, mval[0], mval[1]);
+			*index = ED_view3d_backbuf_sample(&vc, mval[0], mval[1]);
 		}
 
 		if ((*index) == 0 || (*index) > (unsigned int)me->totvert)
