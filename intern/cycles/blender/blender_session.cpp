@@ -144,6 +144,9 @@ void BlenderSession::create_session()
 	if(sample_start_string != NULL && num_samples_string != NULL) {
 		session->tile_manager.start_sample = atoi(sample_start_string);
 		session->tile_manager.num_subsequent_samples = atoi(num_samples_string);
+		printf("Cycles: using samples offset, start sample=%d, number of samples=%d\n",
+		       session->tile_manager.start_sample,
+		       session->tile_manager.num_subsequent_samples);
 	}
 }
 
