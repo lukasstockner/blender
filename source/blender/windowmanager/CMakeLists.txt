@@ -64,6 +64,7 @@ set(SRC
 	intern/wm_operators.c
 	intern/wm_subwindow.c
 	intern/wm_window.c
+	intern/wm_stereo.c
 
 	WM_api.h
 	WM_keymap.h
@@ -77,6 +78,13 @@ set(SRC
 	wm_subwindow.h
 	wm_window.h
 )
+
+if(WITH_AUDASPACE)
+	list(APPEND INC
+		../../../intern/audaspace/intern
+	)
+	add_definitions(-DWITH_AUDASPACE)
+endif()
 
 add_definitions(${GL_DEFINITIONS})
 

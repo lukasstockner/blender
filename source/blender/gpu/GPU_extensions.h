@@ -52,6 +52,9 @@ typedef struct GPUOffScreen GPUOffScreen;
 struct GPUShader;
 typedef struct GPUShader GPUShader;
 
+struct GPUProgram;
+typedef struct GPUProgram GPUProgram;
+
 /* GPU extensions support */
 
 void GPU_extensions_disable(void);
@@ -66,32 +69,36 @@ bool GPU_instanced_drawing_support(void);
 
 int GPU_max_texture_size(void);
 int GPU_color_depth(void);
+void GPU_get_dfdy_factors(float fac[2]);
+
+bool GPU_mem_stats_supported(void);
+void GPU_mem_stats_get(int *totalmem, int *freemem);
 
 void GPU_code_generate_glsl_lib(void);
 
 /* GPU Types */
 
 typedef enum GPUDeviceType {
-	GPU_DEVICE_NVIDIA =		(1<<0),
-	GPU_DEVICE_ATI =		(1<<1),
-	GPU_DEVICE_INTEL =		(1<<2),
-	GPU_DEVICE_SOFTWARE =	(1<<3),
-	GPU_DEVICE_UNKNOWN = 	(1<<4),
-	GPU_DEVICE_ANY = 		(0xff)
+	GPU_DEVICE_NVIDIA =     (1<<0),
+	GPU_DEVICE_ATI =        (1<<1),
+	GPU_DEVICE_INTEL =      (1<<2),
+	GPU_DEVICE_SOFTWARE =   (1<<3),
+	GPU_DEVICE_UNKNOWN =    (1<<4),
+	GPU_DEVICE_ANY =        (0xff)
 } GPUDeviceType;
 
 typedef enum GPUOSType {
-	GPU_OS_WIN = 			(1<<8),
-	GPU_OS_MAC = 			(1<<9),
-	GPU_OS_UNIX =			(1<<10),
-	GPU_OS_ANY =			(0xff00)
+	GPU_OS_WIN =            (1<<8),
+	GPU_OS_MAC =            (1<<9),
+	GPU_OS_UNIX =           (1<<10),
+	GPU_OS_ANY =            (0xff00)
 } GPUOSType;
 
 typedef enum GPUDriverType {
-	GPU_DRIVER_OFFICIAL =	(1<<16),
+	GPU_DRIVER_OFFICIAL =   (1<<16),
 	GPU_DRIVER_OPENSOURCE = (1<<17),
-	GPU_DRIVER_SOFTWARE =	(1<<18),
-	GPU_DRIVER_ANY =		(0xff0000)
+	GPU_DRIVER_SOFTWARE =   (1<<18),
+	GPU_DRIVER_ANY =        (0xff0000)
 } GPUDriverType;
 
 bool GPU_type_matches(GPUDeviceType device, GPUOSType os, GPUDriverType driver);
@@ -180,6 +187,18 @@ void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels);
 int GPU_offscreen_width(const GPUOffScreen *ofs);
 int GPU_offscreen_height(const GPUOffScreen *ofs);
 
+/* Builtin/Non-generated shaders */
+typedef enum GPUProgramType {
+	GPU_PROGRAM_TYPE_FRAGMENT = 0
+} GPUProgramType;
+
+
+GPUProgram *GPU_program_shader_create(GPUProgramType type, const char *code);
+void GPU_program_free(GPUProgram *program);
+void GPU_program_parameter_4f(GPUProgram *program, unsigned int location, float x, float y, float z, float w);
+void GPU_program_bind(GPUProgram *);
+void GPU_program_unbind(GPUProgram *);
+
 /* GPU Shader
  * - only for fragment shaders now
  * - must call texture bind before setting a texture as uniform! */
@@ -204,18 +223,24 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name);
 
 /* Builtin/Non-generated shaders */
 typedef enum GPUBuiltinShader {
-	GPU_SHADER_VSM_STORE =			(1<<0),
-	GPU_SHADER_SEP_GAUSSIAN_BLUR =	(1<<1),
+	GPU_SHADER_VSM_STORE         = 0,
+	GPU_SHADER_SEP_GAUSSIAN_BLUR = 1,
 } GPUBuiltinShader;
 
+typedef enum GPUBuiltinProgram {
+	GPU_PROGRAM_SMOKE         = 0,
+	GPU_PROGRAM_SMOKE_COLORED = 1,
+} GPUBuiltinProgram;
+
 GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader);
+GPUProgram *GPU_shader_get_builtin_program(GPUBuiltinProgram program);
 GPUShader *GPU_shader_get_builtin_fx_shader(int effects, bool persp);
 
 void GPU_shader_free_builtin_shaders(void);
 
 /* Vertex attributes for shaders */
 
-#define GPU_MAX_ATTRIB		32
+#define GPU_MAX_ATTRIB 32
 
 typedef struct GPUVertexAttribs {
 	struct {

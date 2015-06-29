@@ -162,7 +162,7 @@ BLI_INLINE unsigned int ghash_bucket_index(GHash *gh, const unsigned int hash)
 #ifdef GHASH_USE_MODULO_BUCKETS
 	return hash % gh->nbuckets;
 #else
-	return full_hash & gh->bucket_mask;
+	return hash & gh->bucket_mask;
 #endif
 }
 
@@ -298,14 +298,14 @@ static void ghash_buckets_contract(
 
 #ifdef GHASH_USE_MODULO_BUCKETS
 	while ((nentries    < gh->limit_shrink) &&
-		   (gh->cursize > gh->size_min))
+	       (gh->cursize > gh->size_min))
 	{
 		new_nbuckets = hashsizes[--gh->cursize];
 		gh->limit_shrink = GHASH_LIMIT_SHRINK(new_nbuckets);
 	}
 #else
 	while ((nentries       < gh->limit_shrink) &&
-		   (gh->bucket_bit > gh->bucket_bit_min))
+	       (gh->bucket_bit > gh->bucket_bit_min))
 	{
 		new_nbuckets = 1u << --gh->bucket_bit;
 		gh->limit_shrink = GHASH_LIMIT_SHRINK(new_nbuckets);
@@ -445,19 +445,35 @@ BLI_INLINE void ghash_insert_ex(
 }
 
 /**
+ * Insert function that takes a pre-allocated entry.
+ */
+BLI_INLINE void ghash_insert_ex_keyonly_entry(
+        GHash *gh, void *key, const unsigned int bucket_index,
+        Entry *e)
+{
+	BLI_assert((gh->flag & GHASH_FLAG_ALLOW_DUPES) || (BLI_ghash_haskey(gh, key) == 0));
+
+	e->next = gh->buckets[bucket_index];
+	e->key = key;
+	gh->buckets[bucket_index] = e;
+
+	ghash_buckets_expand(gh, ++gh->nentries, false);
+}
+
+/**
  * Insert function that doesn't set the value (use for GSet)
  */
 BLI_INLINE void ghash_insert_ex_keyonly(
         GHash *gh, void *key, const unsigned int bucket_index)
 {
-	GSetEntry *e = BLI_mempool_alloc(gh->entrypool);
+	Entry *e = BLI_mempool_alloc(gh->entrypool);
 
 	BLI_assert((gh->flag & GHASH_FLAG_ALLOW_DUPES) || (BLI_ghash_haskey(gh, key) == 0));
 	BLI_assert((gh->flag & GHASH_FLAG_IS_GSET) != 0);
 
 	e->next = gh->buckets[bucket_index];
 	e->key = key;
-	gh->buckets[bucket_index] = (Entry *)e;
+	gh->buckets[bucket_index] = e;
 
 	ghash_buckets_expand(gh, ++gh->nentries, false);
 }
@@ -498,7 +514,7 @@ BLI_INLINE bool ghash_insert_safe_keyonly(GHash *gh, void *key, const bool overr
 {
 	const unsigned int hash = ghash_keyhash(gh, key);
 	const unsigned int bucket_index = ghash_bucket_index(gh, hash);
-	GSetEntry *e = ghash_lookup_entry_ex(gh, key, bucket_index);
+	Entry *e = ghash_lookup_entry_ex(gh, key, bucket_index);
 
 	BLI_assert((gh->flag & GHASH_FLAG_IS_GSET) != 0);
 
@@ -519,13 +535,13 @@ BLI_INLINE bool ghash_insert_safe_keyonly(GHash *gh, void *key, const bool overr
  * Remove the entry and return it, caller must free from gh->entrypool.
  */
 static Entry *ghash_remove_ex(
-        GHash *gh, void *key, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh, const void *key, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
         const unsigned int bucket_index)
 {
 	Entry *e_prev;
 	Entry *e = ghash_lookup_entry_prev_ex(gh, key, &e_prev, bucket_index);
 
-	BLI_assert(!valfreefp|| !(gh->flag & GHASH_FLAG_IS_GSET));
+	BLI_assert(!valfreefp || !(gh->flag & GHASH_FLAG_IS_GSET));
 
 	if (e) {
 		if (keyfreefp) keyfreefp(e->key);
@@ -992,9 +1008,9 @@ void BLI_ghash_reserve(GHash *gh, const unsigned int nentries_reserve)
 /**
  * \return size of the GHash.
  */
-int BLI_ghash_size(GHash *gh)
+unsigned int BLI_ghash_size(GHash *gh)
 {
-	return (int)gh->nentries;
+	return gh->nentries;
 }
 
 /**
@@ -1065,6 +1081,58 @@ void **BLI_ghash_lookup_p(GHash *gh, const void *key)
 }
 
 /**
+ * Ensure \a key is exists in \a gh.
+ *
+ * This handles the common situation where the caller needs ensure a key is added to \a gh,
+ * constructing a new value in the case the key isn't found.
+ * Otherwise use the existing value.
+ *
+ * Such situations typically incur multiple lookups, however this function
+ * avoids them by ensuring the key is added,
+ * returning a pointer to the value so it can be used or initialized by the caller.
+ *
+ * \returns true when the value didn't need to be added.
+ * (when false, the caller _must_ initialize the value).
+ */
+bool BLI_ghash_ensure_p(GHash *gh, void *key, void ***r_val)
+{
+	const unsigned int hash = ghash_keyhash(gh, key);
+	const unsigned int bucket_index = ghash_bucket_index(gh, hash);
+	GHashEntry *e = (GHashEntry *)ghash_lookup_entry_ex(gh, key, bucket_index);
+	const bool haskey = (e != NULL);
+
+	if (!haskey) {
+		e = BLI_mempool_alloc(gh->entrypool);
+		ghash_insert_ex_keyonly_entry(gh, key, bucket_index, (Entry *)e);
+	}
+
+	*r_val = &e->val;
+	return haskey;
+}
+
+/**
+ * A version of #BLI_ghash_ensure_p copies the key on insertion.
+ */
+bool BLI_ghash_ensure_p_ex(
+        GHash *gh, const void *key, void ***r_val,
+        GHashKeyCopyFP keycopyfp)
+{
+	const unsigned int hash = ghash_keyhash(gh, key);
+	const unsigned int bucket_index = ghash_bucket_index(gh, hash);
+	GHashEntry *e = (GHashEntry *)ghash_lookup_entry_ex(gh, key, bucket_index);
+	const bool haskey = (e != NULL);
+
+	if (!haskey) {
+		/* keycopyfp(key) is the only difference to BLI_ghash_ensure_p */
+		e = BLI_mempool_alloc(gh->entrypool);
+		ghash_insert_ex_keyonly_entry(gh, keycopyfp(key), bucket_index, (Entry *)e);
+	}
+
+	*r_val = &e->val;
+	return haskey;
+}
+
+/**
  * Remove \a key from \a gh, or return false if the key wasn't found.
  *
  * \param key  The key to remove.
@@ -1072,7 +1140,7 @@ void **BLI_ghash_lookup_p(GHash *gh, const void *key)
  * \param valfreefp  Optional callback to free the value.
  * \return true if \a key was removed from \a gh.
  */
-bool BLI_ghash_remove(GHash *gh, void *key, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
+bool BLI_ghash_remove(GHash *gh, const void *key, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
 {
 	const unsigned int hash = ghash_keyhash(gh, key);
 	const unsigned int bucket_index = ghash_bucket_index(gh, hash);
@@ -1095,7 +1163,7 @@ bool BLI_ghash_remove(GHash *gh, void *key, GHashKeyFreeFP keyfreefp, GHashValFr
  * \param keyfreefp  Optional callback to free the key.
  * \return the value of \a key int \a gh or NULL.
  */
-void *BLI_ghash_popkey(GHash *gh, void *key, GHashKeyFreeFP keyfreefp)
+void *BLI_ghash_popkey(GHash *gh, const void *key, GHashKeyFreeFP keyfreefp)
 {
 	const unsigned int hash = ghash_keyhash(gh, key);
 	const unsigned int bucket_index = ghash_bucket_index(gh, hash);
@@ -1452,7 +1520,7 @@ unsigned int BLI_ghashutil_uinthash_v4(const unsigned int key[4])
 }
 unsigned int BLI_ghashutil_uinthash_v4_murmur(const unsigned int key[4])
 {
-	return BLI_hash_mm2((const unsigned char *)key, sizeof(key), 0);
+	return BLI_hash_mm2((const unsigned char *)key, sizeof(int) * 4  /* sizeof(key) */, 0);
 }
 
 bool BLI_ghashutil_uinthash_v4_cmp(const void *a, const void *b)
@@ -1491,6 +1559,11 @@ unsigned int BLI_ghashutil_inthash_p_murmur(const void *ptr)
 	uintptr_t key = (uintptr_t)ptr;
 
 	return BLI_hash_mm2((const unsigned char *)&key, sizeof(key), 0);
+}
+
+unsigned int BLI_ghashutil_inthash_p_simple(const void *ptr)
+{
+	return GET_UINT_FROM_POINTER(ptr);
 }
 
 bool BLI_ghashutil_intcmp(const void *a, const void *b)
@@ -1640,9 +1713,9 @@ GSet *BLI_gset_copy(GSet *gs, GHashKeyCopyFP keycopyfp)
 	return (GSet *)ghash_copy((GHash *)gs, keycopyfp, NULL);
 }
 
-int BLI_gset_size(GSet *gs)
+unsigned int BLI_gset_size(GSet *gs)
 {
-	return (int)((GHash *)gs)->nentries;
+	return ((GHash *)gs)->nentries;
 }
 
 /**
@@ -1678,7 +1751,7 @@ bool BLI_gset_reinsert(GSet *gs, void *key, GSetKeyFreeFP keyfreefp)
 	return ghash_insert_safe_keyonly((GHash *)gs, key, true, keyfreefp);
 }
 
-bool BLI_gset_remove(GSet *gs, void *key, GSetKeyFreeFP keyfreefp)
+bool BLI_gset_remove(GSet *gs, const void *key, GSetKeyFreeFP keyfreefp)
 {
 	return BLI_ghash_remove((GHash *)gs, key, keyfreefp, NULL);
 }

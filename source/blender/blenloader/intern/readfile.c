@@ -111,6 +111,7 @@
 
 #include "BLF_translation.h"
 
+#include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_brush.h"
 #include "BKE_cloth.h"
@@ -139,7 +140,7 @@
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_sequencer.h"
-#include "BKE_treehash.h"
+#include "BKE_outliner_treehash.h"
 #include "BKE_sound.h"
 
 
@@ -1533,9 +1534,16 @@ void blo_make_packed_pointer_map(FileData *fd, Main *oldmain)
 	
 	fd->packedmap = oldnewmap_new();
 	
-	for (ima = oldmain->image.first; ima; ima = ima->id.next)
+	for (ima = oldmain->image.first; ima; ima = ima->id.next) {
+		ImagePackedFile *imapf;
+
 		if (ima->packedfile)
 			insert_packedmap(fd, ima->packedfile);
+
+		for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next)
+			if (imapf->packedfile)
+				insert_packedmap(fd, imapf->packedfile);
+	}
 			
 	for (vfont = oldmain->vfont.first; vfont; vfont = vfont->id.next)
 		if (vfont->packedfile)
@@ -1568,8 +1576,14 @@ void blo_end_packed_pointer_map(FileData *fd, Main *oldmain)
 			entry->newp = NULL;
 	}
 	
-	for (ima = oldmain->image.first; ima; ima = ima->id.next)
+	for (ima = oldmain->image.first; ima; ima = ima->id.next) {
+		ImagePackedFile *imapf;
+
 		ima->packedfile = newpackedadr(fd, ima->packedfile);
+
+		for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next)
+			imapf->packedfile = newpackedadr(fd, imapf->packedfile);
+	}
 	
 	for (vfont = oldmain->vfont.first; vfont; vfont = vfont->id.next)
 		vfont->packedfile = newpackedadr(fd, vfont->packedfile);
@@ -1982,7 +1996,7 @@ static void direct_link_script(FileData *UNUSED(fd), Script *script)
 static PackedFile *direct_link_packedfile(FileData *fd, PackedFile *oldpf)
 {
 	PackedFile *pf = newpackedadr(fd, oldpf);
-	
+
 	if (pf) {
 		pf->data = newpackedadr(fd, pf->data);
 	}
@@ -2420,12 +2434,13 @@ static void direct_link_animdata(FileData *fd, AnimData *adt)
 	link_list(fd, &adt->nla_tracks);
 	direct_link_nladata(fd, &adt->nla_tracks);
 	
-	/* relink active strip - even though strictly speaking this should only be used
+	/* relink active track/strip - even though strictly speaking this should only be used
 	 * if we're in 'tweaking mode', we need to be able to have this loaded back for
 	 * undo, but also since users may not exit tweakmode before saving (#24535)
 	 */
 	// TODO: it's not really nice that anyone should be able to save the file in this
 	//		state, but it's going to be too hard to enforce this single case...
+	adt->act_track = newdataadr(fd, adt->act_track);
 	adt->actstrip = newdataadr(fd, adt->actstrip);
 }	
 
@@ -2627,7 +2642,7 @@ static void lib_verify_nodetree(Main *main, int UNUSED(open))
 				 * New file versions already have input/output nodes with duplicate links,
 				 * in that case just remove the invalid links.
 				 */
-				int create_io_nodes = (ntree->flag & NTREE_DO_VERSIONS_CUSTOMNODES_GROUP_CREATE_INTERFACE);
+				const bool create_io_nodes = (ntree->flag & NTREE_DO_VERSIONS_CUSTOMNODES_GROUP_CREATE_INTERFACE) != 0;
 				
 				float input_locx = 1000000.0f, input_locy = 0.0f;
 				float output_locx = -1000000.0f, output_locy = 0.0f;
@@ -2748,7 +2763,8 @@ static void direct_link_nodetree(FileData *fd, bNodeTree *ntree)
 	
 	ntree->progress = NULL;
 	ntree->execdata = NULL;
-	
+	ntree->duplilock = NULL;
+
 	ntree->adt = newdataadr(fd, ntree->adt);
 	direct_link_animdata(fd, ntree->adt);
 	
@@ -2997,7 +3013,7 @@ static void lib_link_pose(FileData *fd, Main *bmain, Object *ob, bPose *pose)
 	
 	if (rebuild) {
 		DAG_id_tag_update_ex(bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
-		pose->flag |= POSE_RECALC;
+		BKE_pose_tag_recalc(bmain, pose);
 	}
 }
 
@@ -3391,6 +3407,8 @@ static void lib_link_image(FileData *fd, Main *main)
 
 static void direct_link_image(FileData *fd, Image *ima)
 {
+	ImagePackedFile *imapf;
+
 	/* for undo system, pointers could be restored */
 	if (fd->imamap)
 		ima->cache = newimaadr(fd, ima->cache);
@@ -3404,8 +3422,7 @@ static void direct_link_image(FileData *fd, Image *ima)
 		ima->gputexture = NULL;
 		ima->rr = NULL;
 	}
-	
-	ima->anim = NULL;
+
 	ima->repbind = NULL;
 	
 	/* undo system, try to restore render buffers */
@@ -3419,9 +3436,23 @@ static void direct_link_image(FileData *fd, Image *ima)
 		memset(ima->renders, 0, sizeof(ima->renders));
 		ima->last_render_slot = ima->render_slot;
 	}
-	
-	ima->packedfile = direct_link_packedfile(fd, ima->packedfile);
+
+	link_list(fd, &(ima->views));
+	link_list(fd, &(ima->packedfiles));
+
+	if (ima->packedfiles.first) {
+		for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next) {
+			imapf->packedfile = direct_link_packedfile(fd, imapf->packedfile);
+		}
+		ima->packedfile = NULL;
+	}
+	else {
+		ima->packedfile = direct_link_packedfile(fd, ima->packedfile);
+	}
+
+	BLI_listbase_clear(&ima->anims);
 	ima->preview = direct_link_preview_image(fd, ima->preview);
+	ima->stereo3d_format = newdataadr(fd, ima->stereo3d_format);
 	ima->ok = 1;
 }
 
@@ -3510,7 +3541,7 @@ static void direct_link_curve(FileData *fd, Curve *cu)
 		nu->bp = newdataadr(fd, nu->bp);
 		nu->knotsu = newdataadr(fd, nu->knotsu);
 		nu->knotsv = newdataadr(fd, nu->knotsv);
-		if (cu->vfont == NULL) nu->charidx= nu->mat_nr;
+		if (cu->vfont == NULL) nu->charidx = 0;
 		
 		if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
 			switch_endian_knots(nu);
@@ -4949,6 +4980,20 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			}
 			lmd->cache_system = NULL;
 		}
+		else if (md->type == eModifierType_CorrectiveSmooth) {
+			CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData*)md;
+
+			if (csmd->bind_coords) {
+				csmd->bind_coords = newdataadr(fd, csmd->bind_coords);
+				if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
+					BLI_endian_switch_float_array((float *)csmd->bind_coords, csmd->bind_coords_num * 3);
+				}
+			}
+
+			/* runtime only */
+			csmd->delta_cache = NULL;
+			csmd->delta_cache_num = 0;
+		}
 	}
 }
 
@@ -5333,7 +5378,7 @@ static void lib_link_scene(FileData *fd, Main *main)
 				if (seq->scene) {
 					seq->scene = newlibadr(fd, sce->id.lib, seq->scene);
 					if (seq->scene) {
-						seq->scene_sound = sound_scene_add_scene_sound_defaults(sce, seq);
+						seq->scene_sound = BKE_sound_scene_add_scene_sound_defaults(sce, seq);
 					}
 				}
 				if (seq->clip) {
@@ -5361,10 +5406,10 @@ static void lib_link_scene(FileData *fd, Main *main)
 					}
 					if (seq->sound) {
 						seq->sound->id.us++;
-						seq->scene_sound = sound_add_scene_sound_defaults(sce, seq);
+						seq->scene_sound = BKE_sound_add_scene_sound_defaults(sce, seq);
 					}
 				}
-				seq->anim = NULL;
+				BLI_listbase_clear(&seq->anims);
 
 				lib_link_sequence_modifiers(fd, sce, &seq->modifiers);
 			}
@@ -5530,13 +5575,14 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	SceneRenderLayer *srl;
 	
 	sce->theDag = NULL;
+	sce->depsgraph = NULL;
 	sce->obedit = NULL;
 	sce->stats = NULL;
 	sce->fps_info = NULL;
 	sce->customdata_mask_modal = 0;
 	sce->lay_updated = 0;
 	
-	sound_create_scene(sce);
+	BKE_sound_create_scene(sce);
 	
 	/* set users to one by default, not in lib-link, this will increase it for compo nodes */
 	sce->id.us = 1;
@@ -5596,6 +5642,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			if (seq->seq3 == NULL) seq->seq3 = seq->seq2;
 			
 			seq->effectdata = newdataadr(fd, seq->effectdata);
+			seq->stereo3d_format = newdataadr(fd, seq->stereo3d_format);
 			
 			if (seq->type & SEQ_TYPE_EFFECT)
 				seq->flag |= SEQ_EFFECT_NOT_LOADED;
@@ -5604,7 +5651,10 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 				SpeedControlVars *s = seq->effectdata;
 				s->frameMap = NULL;
 			}
-			
+
+			seq->prop = newdataadr(fd, seq->prop);
+			IDP_DirectLinkGroup_OrFree(&seq->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+
 			seq->strip = newdataadr(fd, seq->strip);
 			if (seq->strip && seq->strip->done==0) {
 				seq->strip->done = true;
@@ -5705,6 +5755,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	link_list(fd, &(sce->markers));
 	link_list(fd, &(sce->transform_spaces));
 	link_list(fd, &(sce->r.layers));
+	link_list(fd, &(sce->r.views));
 
 	for (srl = sce->r.layers.first; srl; srl = srl->next) {
 		link_list(fd, &(srl->freestyleConfig.modules));
@@ -5768,8 +5819,8 @@ static void direct_link_windowmanager(FileData *fd, wmWindowManager *wm)
 		BLI_listbase_clear(&win->modalhandlers);
 		BLI_listbase_clear(&win->subwindows);
 		BLI_listbase_clear(&win->gesture);
+		BLI_listbase_clear(&win->drawdata);
 		
-		win->drawdata = NULL;
 		win->drawmethod = -1;
 		win->drawfail = 0;
 		win->active = 0;
@@ -5777,6 +5828,13 @@ static void direct_link_windowmanager(FileData *fd, wmWindowManager *wm)
 		win->cursor      = 0;
 		win->lastcursor  = 0;
 		win->modalcursor = 0;
+		win->stereo3d_format = newdataadr(fd, win->stereo3d_format);
+
+		/* multiview always fallback to anaglyph at file opening
+		 * otherwise quadbuffer saved files can break Blender */
+		if (win->stereo3d_format) {
+			win->stereo3d_format->display_mode = S3D_DISPLAY_ANAGLYPH;
+		}
 	}
 	
 	BLI_listbase_clear(&wm->timers);
@@ -5927,6 +5985,9 @@ static void lib_link_screen(FileData *fd, Main *main)
 					else if (sl->spacetype == SPACE_BUTS) {
 						SpaceButs *sbuts = (SpaceButs *)sl;
 						sbuts->pinid = newlibadr(fd, sc->id.lib, sbuts->pinid);
+						if (sbuts->pinid == NULL) {
+							sbuts->flag &= ~SB_PIN_CONTEXT;
+						}
 					}
 					else if (sl->spacetype == SPACE_FILE) {
 						;
@@ -6000,7 +6061,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 							}
 							if (so->treehash) {
 								/* rebuild hash table, because it depends on ids too */
-								BKE_treehash_rebuild_from_treestore(so->treehash, so->treestore);
+								so->storeflag |= SO_TREESTORE_REBUILD;
 							}
 						}
 					}
@@ -6256,6 +6317,9 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 				else if (sl->spacetype == SPACE_BUTS) {
 					SpaceButs *sbuts = (SpaceButs *)sl;
 					sbuts->pinid = restore_pointer_by_name(newmain, sbuts->pinid, USER_IGNORE);
+					if (sbuts->pinid == NULL) {
+						sbuts->flag &= ~SB_PIN_CONTEXT;
+					}
 
 					/* TODO: restore path pointers: T40046
 					 * (complicated because this contains data pointers too, not just ID)*/
@@ -6351,7 +6415,7 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 						}
 						if (so->treehash) {
 							/* rebuild hash table, because it depends on ids too */
-							BKE_treehash_rebuild_from_treestore(so->treehash, so->treestore);
+							so->storeflag |= SO_TREESTORE_REBUILD;
 						}
 					}
 				}
@@ -6963,7 +7027,7 @@ static void lib_link_sound(FileData *fd, Main *main)
 			sound->id.flag -= LIB_NEED_LINK;
 			sound->ipo = newlibadr_us(fd, sound->id.lib, sound->ipo); // XXX deprecated - old animation system
 			
-			sound_load(main, sound);
+			BKE_sound_load(main, sound);
 		}
 	}
 }
@@ -7033,7 +7097,7 @@ static void direct_link_moviePlaneTracks(FileData *fd, ListBase *plane_tracks_ba
 		int i;
 
 		plane_track->point_tracks = newdataadr(fd, plane_track->point_tracks);
-
+		test_pointer_array(fd, (void**)&plane_track->point_tracks);
 		for (i = 0; i < plane_track->point_tracksnr; i++) {
 			plane_track->point_tracks[i] = newdataadr(fd, plane_track->point_tracks[i]);
 		}
@@ -7748,7 +7812,6 @@ static void do_versions_userdef(FileData *fd, BlendFileData *bfd)
 		user->walk_navigation.jump_height = 0.4f;      /* m */
 		user->walk_navigation.teleport_time = 0.2f; /* s */
 	}
-
 }
 
 static void do_versions(FileData *fd, Library *lib, Main *main)
@@ -7758,12 +7821,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	if (G.debug & G_DEBUG) {
 		char build_commit_datetime[32];
 		time_t temp_time = main->build_commit_timestamp;
-		struct tm *tm = gmtime(&temp_time);
+		struct tm *tm = (temp_time) ? gmtime(&temp_time) : NULL;
 		if (LIKELY(tm)) {
 			strftime(build_commit_datetime, sizeof(build_commit_datetime), "%Y-%m-%d %H:%M", tm);
 		}
 		else {
-			BLI_strncpy(build_commit_datetime, "date-unknown", sizeof(build_commit_datetime));
+			BLI_strncpy(build_commit_datetime, "unknown", sizeof(build_commit_datetime));
 		}
 
 		printf("read file %s\n  Version %d sub %d date %s hash %s\n",
@@ -7871,7 +7934,7 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
 	link_list(fd, &user->user_keymaps);
 	link_list(fd, &user->addons);
 	link_list(fd, &user->autoexec_paths);
-	
+
 	for (keymap=user->user_keymaps.first; keymap; keymap=keymap->next) {
 		keymap->modal_items= NULL;
 		keymap->poll = NULL;
@@ -9194,7 +9257,6 @@ static void give_base_to_groups(Main *mainvar, Scene *scene)
 			/* assign the group */
 			ob->dup_group = group;
 			ob->transflag |= OB_DUPLIGROUP;
-			rename_id(&ob->id, group->id.name + 2);
 			copy_v3_v3(ob->loc, scene->cursor);
 		}
 	}

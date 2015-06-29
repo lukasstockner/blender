@@ -42,19 +42,17 @@
 struct BMesh;
 struct CCGElem;
 struct CCGKey;
-struct CustomData;
 struct DMFlagMat;
 struct DerivedMesh;
-struct GHash;
 struct GSet;
 struct GPUVertPointLink;
 struct PBVH;
 
 typedef struct GPUBuffer {
-	int size;	/* in bytes */
-	void *pointer;	/* used with vertex arrays */
-	unsigned int id;	/* used with vertex buffer objects */
-	bool use_vbo;	/* true for VBOs, false for vertex arrays */
+	int size;        /* in bytes */
+	void *pointer;   /* used with vertex arrays */
+	unsigned int id; /* used with vertex buffer objects */
+	bool use_vbo;    /* true for VBOs, false for vertex arrays */
 } GPUBuffer;
 
 typedef struct GPUBufferMaterial {
@@ -115,6 +113,10 @@ typedef struct GPUDrawObject {
 	/* caches of the original DerivedMesh values */
 	int totvert;
 	int totedge;
+
+	int loose_edge_offset;
+	int tot_loose_edge_drawn;
+	int tot_edge_drawn;
 } GPUDrawObject;
 
 /* used for GLSL materials */

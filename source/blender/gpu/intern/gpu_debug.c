@@ -45,7 +45,7 @@
 
 static const char* gpu_gl_error_symbol(GLenum err)
 {
-	switch(err) {
+	switch (err) {
 		CASE_CODE_RETURN_STR(GL_NO_ERROR)
 		CASE_CODE_RETURN_STR(GL_INVALID_ENUM)
 		CASE_CODE_RETURN_STR(GL_INVALID_VALUE)
@@ -109,7 +109,7 @@ static bool gpu_report_gl_errors(const char *file, int line, const char *str)
 
 const char* gpuErrorString(GLenum err)
 {
-	switch(err) {
+	switch (err) {
 		case GL_NO_ERROR:
 			return "No Error";
 
@@ -191,6 +191,7 @@ void gpu_debug_init(void)
 
 #if !defined(WITH_GLEW_ES) && !defined(GLEW_ES_ONLY)
 	if (GLEW_VERSION_4_3) {
+		glEnable(GL_DEBUG_OUTPUT);
 		glDebugMessageCallback(gpu_debug_proc, mxGetCurrentContext());
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
 		GPU_STRING_MARKER(sizeof(success), success);
@@ -199,23 +200,11 @@ void gpu_debug_init(void)
 #endif
 
 	if (GLEW_KHR_debug) {
-#ifndef GLEW_NO_ES
-		if (MX_profile_es20)
-		{
-			glDebugMessageCallbackKHR(gpu_debug_proc, mxGetCurrentContext());
-			glDebugMessageControlKHR(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
-			GPU_STRING_MARKER(sizeof(success), success);
-		}
-		else
-#endif
-		{
 #ifndef GLEW_ES_ONLY
 			glDebugMessageCallback(gpu_debug_proc, mxGetCurrentContext());
 			glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
 			GPU_STRING_MARKER(sizeof(success), success);
 #endif
-		}
-
 		return;
 	}
 
@@ -256,19 +245,9 @@ void gpu_debug_exit(void)
 #endif
 
 	if (GLEW_KHR_debug) {
-#ifndef GLEW_NO_ES
-		if (MX_profile_es20)
-		{
-			glDebugMessageCallbackKHR(NULL, NULL);
-		}
-		else
-#endif
-		{
 #ifndef GLEW_ES_ONLY
-			glDebugMessageCallback(NULL, NULL);
+		glDebugMessageCallback(NULL, NULL);
 #endif
-		}
-
 		return;
 	}
 
@@ -302,19 +281,9 @@ void gpu_string_marker(size_t length, const char *buf)
 #endif
 
 	if (GLEW_KHR_debug) {
-#ifndef GLEW_NO_ES
-		if (MX_profile_es20)
-		{
-			glDebugMessageInsertKHR(GL_DEBUG_SOURCE_APPLICATION_KHR, GL_DEBUG_TYPE_MARKER_KHR, 0, GL_DEBUG_SEVERITY_NOTIFICATION_KHR, length, buf);
-		}
-		else
-#endif
-		{
 #ifndef GLEW_ES_ONLY
-			glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_MARKER, 0, GL_DEBUG_SEVERITY_NOTIFICATION, length, buf);
+		glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_MARKER, 0, GL_DEBUG_SEVERITY_NOTIFICATION, length, buf);
 #endif
-		}
-
 		return;
 	}
 
@@ -356,6 +325,7 @@ void gpu_assert_no_gl_errors(const char* file, int line, const char* str)
 		GLboolean gl_ok = gpu_report_gl_errors(file, line, str);
 
 		BLI_assert(gl_ok);
+		(void) gl_ok;
 	}
 }
 
