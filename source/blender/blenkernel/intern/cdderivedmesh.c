@@ -1878,7 +1878,7 @@ static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
 			gdo->materials[curmat].totloops = mat_info[i].loops;
 			gdo->materials[curmat].mat_nr = i;
 			gdo->materials[curmat].totpolys = mat_info[i].polys;
-			gdo->materials[curmat].polys = MEM_mallocN(sizeof(int) * mat_info[i].polys, "GPUMaterial polys");
+			gdo->materials[curmat].polys = MEM_mallocN(sizeof(int) * mat_info[i].polys, "GPUBufferMaterial.polys");
 
 			totelements += mat_info[i].elements;
 			totloops += mat_info[i].loops;

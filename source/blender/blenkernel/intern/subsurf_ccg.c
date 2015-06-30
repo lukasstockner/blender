@@ -2060,7 +2060,7 @@ typedef struct {
 } GPUMaterialInfo;
 
 static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
-//	GPUBufferMaterial *mat;
+	GPUBufferMaterial *mat;
 	int *mat_orig_to_new;
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
@@ -2120,7 +2120,8 @@ static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
 			gdo->materials[curmat].totelements = matinfo[i].elements;
 			gdo->materials[curmat].totloops = matinfo[i].loops;
 			gdo->materials[curmat].mat_nr = i;
-			gdo->materials[curmat].polys = NULL;
+			gdo->materials[curmat].totpolys = matinfo[i].polys;
+			gdo->materials[curmat].polys = MEM_mallocN(sizeof(int) * matinfo[0].polys, "GPUBufferMaterial.polys");
 
 			curelement += matinfo[i].elements;
 			curmat++;
@@ -2137,19 +2138,24 @@ static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
 	 * GPUBufferMaterial indices */
 	for (i = 0; i < gdo->totmaterial; i++) {
 		mat_orig_to_new[gdo->materials[i].mat_nr] = i;
-		
+		gdo->materials[i].counter = 0;
 	}
 
-	/*
-	for (i = 0; i < totface; i++) {
-		CCGFace *f = ccgdm->faceMap[i].face;
-		int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
-		int new_matnr = faceFlags[index].mat_nr;
-	
-		mat = &gdo->materials[mat_orig_to_new[new_matnr]];
+	if (faceFlags) {
+		for (i = 0; i < totface; i++) {
+			CCGFace *f = ccgdm->faceMap[i].face;
+			int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
+			int new_matnr = faceFlags[index].mat_nr;
 
+			mat = &gdo->materials[mat_orig_to_new[new_matnr]];
+			mat->polys[mat->counter++] = i;
+		}
 	}
-	*/
+	else {
+		mat = &gdo->materials[0];
+		for (i = 0; i < totface; i++)
+			mat->polys[mat->counter++] = i;
+	}
 
 
 	MEM_freeN(mat_orig_to_new);
@@ -2660,14 +2666,14 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	MTFace *tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
 	DMFlagMat *faceFlags = ccgdm->faceFlags;
 	DMDrawOption draw_option;
-	int i, totface;
+	int i, totpoly;
 	bool flush;
 	bool use_tface = (flag & DM_DRAW_USE_ACTIVE_UV) != 0;
 	unsigned int next_actualFace;
-	unsigned int startFace = 0;
-	unsigned int numQuads = 0;
 	unsigned int gridFaces = ccgSubSurf_getGridSize(ss) - 1;
 	unsigned int gridOffset = 0;
+	int mat_index;
+	int tot_element, start_element;
 
 	CCG_key_top_level(&key, ss);
 	ccgdm_pbvh_update(ccgdm);
@@ -2692,70 +2698,76 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		GPU_color_setup(dm, colType);
 	}
 
-	totface = ccgSubSurf_getNumFaces(ss);
-
 	next_actualFace = 0;
 
 	glShadeModel(GL_SMOOTH);
 	/* lastFlag = 0; */ /* UNUSED */
-	for (i = 0; i < totface; i++) {
-		CCGFace *f = ccgdm->faceMap[i].face;
-		int numVerts = ccgSubSurf_getFaceNumVerts(f);
-		int index = ccgDM_getFaceMapIndex(ss, f);
-		int origIndex = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
-		int mat_nr;
-		int actualFace = next_actualFace;
-		int facequads = numVerts * gridFaces * gridFaces;
+	for (mat_index = 0; mat_index < dm->drawObject->totmaterial; mat_index++) {
+		GPUBufferMaterial *bufmat = dm->drawObject->materials + mat_index;
+		next_actualFace = bufmat->polys[0];
+		totpoly = bufmat->totpolys;
 
-		if (i != totface - 1)
-			next_actualFace = i + 1;
+		tot_element = 0;
+		start_element = bufmat->start;
 
-		if (faceFlags) {
-			mat_nr = faceFlags[origIndex].mat_nr;
-		}
-		else {
-			mat_nr = 0;
-		}
+		for (i = 0; i < totpoly; i++) {
+			int actualFace = bufmat->polys[i];
+			CCGFace *f = ccgdm->faceMap[actualFace].face;
+			int numVerts = ccgSubSurf_getFaceNumVerts(f);
+			int index = ccgDM_getFaceMapIndex(ss, f);
+			int origIndex = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
+			int mat_nr;
+			int facequads = numVerts * gridFaces * gridFaces;
 
-		if (drawParams)
-			draw_option = drawParams((use_tface && tf) ? (tf + gridOffset) : NULL, (mcol != NULL), mat_nr);
-		else if (index != ORIGINDEX_NONE)
-			draw_option = (drawParamsMapped) ? drawParamsMapped(userData, index, mat_nr) : DM_DRAW_OPTION_NORMAL;
-		else
-			draw_option = DM_DRAW_OPTION_NORMAL;
+			if (i != totpoly - 1)
+				next_actualFace = bufmat->polys[i + 1];
 
-		/* flush buffer if current triangle isn't drawable or it's last triangle */
-		flush = (draw_option == DM_DRAW_OPTION_SKIP) || (i == totface - 1);
-
-		if (!flush && compareDrawOptions) {
-			/* also compare draw options and flush buffer if they're different
-					 * need for face selection highlight in edit mode */
-			flush |= compareDrawOptions(userData, actualFace, next_actualFace) == 0;
-		}
-
-		if (flush) {
-			int first = startFace;
-			/* Add last face to the length if we're drawing at the end of the array */
-			int count = (numQuads + (draw_option != DM_DRAW_OPTION_SKIP ? facequads : 0)) * 6;
-
-			if (count) {
-				if (mcol && draw_option != DM_DRAW_OPTION_NO_MCOL)
-					GPU_color_switch(1);
-				else
-					GPU_color_switch(0);
-
-				GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, first * 6, count);
-
-				numQuads = 0;
+			if (faceFlags) {
+				mat_nr = faceFlags[origIndex].mat_nr;
 			}
-			startFace = next_actualFace;
-		}
-		else {
-			numQuads += facequads;
-		}
+			else {
+				mat_nr = 0;
+			}
 
-		gridOffset += facequads;
+			if (drawParams)
+				draw_option = drawParams((use_tface && tf) ? (tf + gridOffset) : NULL, (mcol != NULL), mat_nr);
+			else if (index != ORIGINDEX_NONE)
+				draw_option = (drawParamsMapped) ? drawParamsMapped(userData, index, mat_nr) : DM_DRAW_OPTION_NORMAL;
+			else
+				draw_option = DM_DRAW_OPTION_NORMAL;
+
+			/* flush buffer if current triangle isn't drawable or it's last triangle */
+			flush = (draw_option == DM_DRAW_OPTION_SKIP) || (i == totpoly - 1);
+
+			if (!flush && compareDrawOptions) {
+				/* also compare draw options and flush buffer if they're different
+					 * need for face selection highlight in edit mode */
+				flush |= compareDrawOptions(userData, actualFace, next_actualFace) == 0;
+			}
+
+			if (flush) {
+				if (draw_option != DM_DRAW_OPTION_SKIP)
+					tot_element += facequads * 6;
+
+				if (tot_element) {
+					if (mcol && draw_option != DM_DRAW_OPTION_NO_MCOL)
+						GPU_color_switch(1);
+					else
+						GPU_color_switch(0);
+
+					GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, start_element, tot_element);
+				}
+
+				start_element = tot_element;
+			}
+			else {
+				tot_element += facequads * 6;
+			}
+
+			gridOffset += facequads;
+		}
 	}
+
 
 	GPU_buffer_unbind();
 }
