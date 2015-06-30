@@ -1322,8 +1322,9 @@ static void cdDM_drawMappedEdges(DerivedMesh *dm, DMSetDrawOptions setDrawOption
 	glEnd();
 }
 
-static void cdDM_buffer_copy_triangles(DerivedMesh *dm, float *varray_, int *index, int *mat_orig_to_new, void *UNUSED(user))
+static void cdDM_buffer_copy_triangles(DerivedMesh *dm, float *varray_, int *mat_orig_to_new, void *UNUSED(user))
 {
+	GPUBufferMaterial *gpumat;
 	MFace *f;
 	int i, start, totface, findex = 0;
 	unsigned int *varray = (unsigned int *)varray_;
@@ -1332,7 +1333,8 @@ static void cdDM_buffer_copy_triangles(DerivedMesh *dm, float *varray_, int *ind
 
 	totface = dm->getNumTessFaces(dm);
 	for (i = 0; i < totface; i++, f++) {
-		start = index[mat_orig_to_new[f->mat_nr]];
+		gpumat = dm->drawObject->materials + mat_orig_to_new[f->mat_nr];
+		start = gpumat->counter;
 
 		/* v1 v2 v3 */
 		varray[start++] = findex;
@@ -1345,17 +1347,17 @@ static void cdDM_buffer_copy_triangles(DerivedMesh *dm, float *varray_, int *ind
 			varray[start++] = findex + 3;
 			varray[start++] = findex;
 
-			index[mat_orig_to_new[f->mat_nr]] += 6;
+			gpumat->counter += 6;
 			findex += 4;
 		}
 		else {
-			index[mat_orig_to_new[f->mat_nr]] += 3;
+			gpumat->counter += 3;
 			findex += 3;
 		}
 	}
 }
 
-static void cdDM_buffer_copy_vertex(DerivedMesh *dm, float *varray, int *UNUSED(index), int *UNUSED(mat_orig_to_new), void *UNUSED(user))
+static void cdDM_buffer_copy_vertex(DerivedMesh *dm, float *varray, int *UNUSED(mat_orig_to_new), void *UNUSED(user))
 {
 	MVert *mvert;
 	MFace *f;
@@ -1390,7 +1392,7 @@ static void cdDM_buffer_copy_vertex(DerivedMesh *dm, float *varray, int *UNUSED(
 	}
 }
 
-static void cdDM_buffer_copy_normal(DerivedMesh *dm, float *varray, int *UNUSED(index), int *UNUSED(mat_orig_to_new), void *UNUSED(user))
+static void cdDM_buffer_copy_normal(DerivedMesh *dm, float *varray, int *UNUSED(mat_orig_to_new), void *UNUSED(user))
 {
 	int i, totface;
 	int start;
@@ -1463,7 +1465,7 @@ static void cdDM_buffer_copy_normal(DerivedMesh *dm, float *varray, int *UNUSED(
 	}
 }
 
-static void cdDM_buffer_copy_uv(DerivedMesh *dm, float *varray, int *UNUSED(index), int *UNUSED(mat_orig_to_new), void *UNUSED(user))
+static void cdDM_buffer_copy_uv(DerivedMesh *dm, float *varray, int *UNUSED(mat_orig_to_new), void *UNUSED(user))
 {
 	int start;
 	int i, totface;
@@ -1493,7 +1495,7 @@ static void cdDM_buffer_copy_uv(DerivedMesh *dm, float *varray, int *UNUSED(inde
 }
 
 
-static void cdDM_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *UNUSED(index), int *UNUSED(mat_orig_to_new), void *UNUSED(user))
+static void cdDM_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *UNUSED(mat_orig_to_new), void *UNUSED(user))
 {
 	int start;
 	int i, totface;
@@ -1551,7 +1553,7 @@ static void copy_mcol_uc3(unsigned char *v, unsigned char *col)
 }
 
 /* treat varray_ as an array of MCol, four MCol's per face */
-static void cdDM_buffer_copy_mcol(DerivedMesh *dm, float *varray_, int *UNUSED(index), int *UNUSED(mat_orig_to_new), void *user)
+static void cdDM_buffer_copy_mcol(DerivedMesh *dm, float *varray_, int *UNUSED(mat_orig_to_new), void *user)
 {
 	int i, totface, start;
 	unsigned char *varray = (unsigned char *)varray_;
@@ -1575,7 +1577,7 @@ static void cdDM_buffer_copy_mcol(DerivedMesh *dm, float *varray_, int *UNUSED(i
 	}
 }
 
-static void cdDM_buffer_copy_edge(DerivedMesh *dm, float *varray_, int *UNUSED(index), int *UNUSED(mat_orig_to_new), void *UNUSED(user))
+static void cdDM_buffer_copy_edge(DerivedMesh *dm, float *varray_, int *UNUSED(mat_orig_to_new), void *UNUSED(user))
 {
 	MEdge *medge, *medge_base;
 	unsigned int *varray = (unsigned int *)varray_;
@@ -1635,7 +1637,7 @@ static void cdDM_buffer_copy_edge(DerivedMesh *dm, float *varray_, int *UNUSED(i
 	dm->drawObject->tot_edge_drawn = tot;
 }
 
-static void cdDM_buffer_copy_uvedge(DerivedMesh *dm, float *varray, int *UNUSED(index), int *UNUSED(mat_orig_to_new), void *UNUSED(user))
+static void cdDM_buffer_copy_uvedge(DerivedMesh *dm, float *varray, int *UNUSED(mat_orig_to_new), void *UNUSED(user))
 {
 	MTFace *tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
 	int i, j = 0;
@@ -1669,33 +1671,33 @@ static void cdDM_buffer_copy_uvedge(DerivedMesh *dm, float *varray, int *UNUSED(
 	}
 }
 
-static void cdDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray, int *index,
+static void cdDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray,
                         int *mat_orig_to_new, void *user_data)
 {
 	switch(type) {
 		case GPU_BUFFER_VERTEX:
-			cdDM_buffer_copy_vertex(dm, varray, index, mat_orig_to_new, user_data);
+			cdDM_buffer_copy_vertex(dm, varray, mat_orig_to_new, user_data);
 			break;
 		case GPU_BUFFER_NORMAL:
-			cdDM_buffer_copy_normal(dm, varray, index, mat_orig_to_new, user_data);
+			cdDM_buffer_copy_normal(dm, varray, mat_orig_to_new, user_data);
 			break;
 		case GPU_BUFFER_COLOR:
-			cdDM_buffer_copy_mcol(dm, varray, index, mat_orig_to_new, user_data);
+			cdDM_buffer_copy_mcol(dm, varray, mat_orig_to_new, user_data);
 			break;
 		case GPU_BUFFER_UV:
-			cdDM_buffer_copy_uv(dm, varray, index, mat_orig_to_new, user_data);
+			cdDM_buffer_copy_uv(dm, varray, mat_orig_to_new, user_data);
 			break;
 		case GPU_BUFFER_UV_TEXPAINT:
-			cdDM_buffer_copy_uv_texpaint(dm, varray, index, mat_orig_to_new, user_data);
+			cdDM_buffer_copy_uv_texpaint(dm, varray, mat_orig_to_new, user_data);
 			break;
 		case GPU_BUFFER_EDGE:
-			cdDM_buffer_copy_edge(dm, varray, index, mat_orig_to_new, user_data);
+			cdDM_buffer_copy_edge(dm, varray, mat_orig_to_new, user_data);
 			break;
 		case GPU_BUFFER_UVEDGE:
-			cdDM_buffer_copy_uvedge(dm, varray, index, mat_orig_to_new, user_data);
+			cdDM_buffer_copy_uvedge(dm, varray, mat_orig_to_new, user_data);
 			break;
 		case GPU_BUFFER_TRIANGLES:
-			cdDM_buffer_copy_triangles(dm, varray, index, mat_orig_to_new, user_data);
+			cdDM_buffer_copy_triangles(dm, varray, mat_orig_to_new, user_data);
 			break;
 		case GPU_BUFFER_TRIANGLES_FAST:
 			/* only supported in subsurf */

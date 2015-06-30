@@ -1763,7 +1763,7 @@ static void ccgDM_glNormalFast(float *a, float *b, float *c, float *d)
 }
 
 /* Only used by non-editmesh types */
-static void ccgDM_prepare_normal_data(DerivedMesh *dm, float *varray, int *UNUSED(vindex),
+static void ccgDM_prepare_normal_data(DerivedMesh *dm, float *varray,
                                     int *UNUSED(mat_orig_to_new), void *UNUSED(user_data))
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
@@ -1857,9 +1857,10 @@ static void ccgDM_prepare_normal_data(DerivedMesh *dm, float *varray, int *UNUSE
 }
 
 /* Only used by non-editmesh types */
-static void ccgDM_prepare_triangle_data(DerivedMesh *dm, float *varray_, int *vindex,
+static void ccgDM_prepare_triangle_data(DerivedMesh *dm, float *varray_,
                                         int *mat_orig_to_new, void *UNUSED(user_data))
 {
+	GPUBufferMaterial *gpumat;
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGKey key;
@@ -1888,7 +1889,8 @@ static void ccgDM_prepare_triangle_data(DerivedMesh *dm, float *varray_, int *vi
 		for (S = 0; S < numVerts; S++) {
 			for (y = 0; y < gridFaces; y++) {
 				for (x = 0; x < gridFaces; x++) {
-					start = vindex[mat_orig_to_new[matnr]];
+					gpumat = dm->drawObject->materials + mat_orig_to_new[matnr];
+					start = gpumat->counter;
 
 					varray[start] = totloops + 3;
 					varray[start + 1] = totloops + 2;
@@ -1898,7 +1900,7 @@ static void ccgDM_prepare_triangle_data(DerivedMesh *dm, float *varray_, int *vi
 					varray[start + 4] = totloops + 1;
 					varray[start + 5] = totloops;
 
-					vindex[mat_orig_to_new[matnr]] += 6;
+					gpumat->counter += 6;
 					totloops += 4;
 				}
 			}
@@ -1908,7 +1910,7 @@ static void ccgDM_prepare_triangle_data(DerivedMesh *dm, float *varray_, int *vi
 
 
 /* Only used by non-editmesh types */
-static void ccgDM_prepare_vertex_data(DerivedMesh *dm, float *varray, int *UNUSED(vindex),
+static void ccgDM_prepare_vertex_data(DerivedMesh *dm, float *varray,
                                       int *UNUSED(mat_orig_to_new), void *UNUSED(user_data))
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
@@ -1955,7 +1957,7 @@ static void copy_mcol_uc3(unsigned char *v, unsigned char *col)
 }
 
 /* Only used by non-editmesh types */
-static void ccgDM_prepare_color_data(DerivedMesh *dm, float *varray_, int *UNUSED(vindex),
+static void ccgDM_prepare_color_data(DerivedMesh *dm, float *varray_,
                                       int *UNUSED(mat_orig_to_new), void *user_data)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
@@ -1992,7 +1994,7 @@ static void ccgDM_prepare_color_data(DerivedMesh *dm, float *varray_, int *UNUSE
 	}
 }
 
-static void ccgDM_prepare_uv_data(DerivedMesh *dm, float *varray, int *UNUSED(vindex),
+static void ccgDM_prepare_uv_data(DerivedMesh *dm, float *varray,
                                       int *UNUSED(mat_orig_to_new), void *UNUSED(user_data))
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
@@ -2026,27 +2028,27 @@ static void ccgDM_prepare_uv_data(DerivedMesh *dm, float *varray, int *UNUSED(vi
 	}
 }
 
-static void ccgDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray, int *index,
+static void ccgDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray,
                          int *mat_orig_to_new, void *user_data)
 {	
 	switch(type) {
 		case GPU_BUFFER_VERTEX:
-			ccgDM_prepare_vertex_data(dm, varray, index, mat_orig_to_new, NULL);
+			ccgDM_prepare_vertex_data(dm, varray, mat_orig_to_new, NULL);
 			break;
 		case GPU_BUFFER_NORMAL:
-			ccgDM_prepare_normal_data(dm, varray, index, mat_orig_to_new, NULL);
+			ccgDM_prepare_normal_data(dm, varray, mat_orig_to_new, NULL);
 			break;
 		case GPU_BUFFER_UV:
-			ccgDM_prepare_uv_data(dm, varray, index, mat_orig_to_new, NULL);
+			ccgDM_prepare_uv_data(dm, varray, mat_orig_to_new, NULL);
 			break;
 		case GPU_BUFFER_UV_TEXPAINT:
 			//ccgDM_prepare_uv_data(dm, varray, index, mat_orig_to_new, NULL);
 			break;
 		case GPU_BUFFER_COLOR:
-			ccgDM_prepare_color_data(dm, varray, index, mat_orig_to_new, user_data);
+			ccgDM_prepare_color_data(dm, varray, mat_orig_to_new, user_data);
 			break;
 		case GPU_BUFFER_TRIANGLES:
-			ccgDM_prepare_triangle_data(dm, varray, index, mat_orig_to_new, NULL);
+			ccgDM_prepare_triangle_data(dm, varray, mat_orig_to_new, NULL);
 			break;
 		default:
 			break;

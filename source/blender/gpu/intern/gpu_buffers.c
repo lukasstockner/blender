@@ -475,7 +475,6 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	GPUBuffer *buffer;
 	float *varray;
 	int *mat_orig_to_new;
-	int *cur_index_per_mat;
 	int i;
 	const GPUBufferTypeSettings *ts = &gpu_buffer_type_settings[type];
 	GLenum target = ts->gl_buffer_type;
@@ -496,11 +495,9 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 
 	mat_orig_to_new = MEM_mallocN(sizeof(*mat_orig_to_new) * dm->totmat,
 	                              "GPU_buffer_setup.mat_orig_to_new");
-	cur_index_per_mat = MEM_mallocN(sizeof(int) * object->totmaterial,
-	                                "GPU_buffer_setup.cur_index_per_mat");
 	for (i = 0; i < object->totmaterial; i++) {
 		/* for each material, the current index to copy data to */
-		cur_index_per_mat[i] = object->materials[i].start * num_components;
+		object->materials[i].counter = object->materials[i].start * num_components;
 
 		/* map from original material index to new
 		 * GPUBufferMaterial index */
@@ -537,7 +534,7 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 			uploaded = GL_FALSE;
 			/* attempt to upload the data to the VBO */
 			while (uploaded == GL_FALSE) {
-				dm->copy_gpu_data(dm, type, varray, cur_index_per_mat, mat_orig_to_new, user);
+				dm->copy_gpu_data(dm, type, varray, mat_orig_to_new, user);
 				/* glUnmapBuffer returns GL_FALSE if
 				 * the data store is corrupted; retry
 				 * in that case */
@@ -554,11 +551,10 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 		
 		if (buffer) {
 			varray = buffer->pointer;
-			dm->copy_gpu_data(dm, type, varray, cur_index_per_mat, mat_orig_to_new, user);
+			dm->copy_gpu_data(dm, type, varray, mat_orig_to_new, user);
 		}
 	}
 
-	MEM_freeN(cur_index_per_mat);
 	MEM_freeN(mat_orig_to_new);
 
 	BLI_mutex_unlock(&buffer_mutex);
