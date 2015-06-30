@@ -873,7 +873,6 @@ static void cddm_draw_attrib_vertex(DMVertexAttribs *attribs, const MVert *mvert
 
 typedef struct {
 	DMVertexAttribs attribs;
-	int elementsize; /* size of one vertex for the format of this material */
 	int numdata;
 
 	GPUAttrib datatypes[GPU_MAX_ATTRIB]; /* TODO, messing up when switching materials many times - [#21056]*/
@@ -1063,8 +1062,8 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 					numdata++;
 				}
 				if (numdata != 0) {
-					matconv[a].elementsize = GPU_attrib_element_size(matconv[a].datatypes, numdata);
-					max_element_size = max_ii(matconv[a].elementsize, max_element_size);
+					matconv[a].numdata = numdata;
+					max_element_size = max_ii(GPU_attrib_element_size(matconv[a].datatypes, numdata), max_element_size);
 				}
 			}
 		}
@@ -1092,14 +1091,13 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 				int i = mat_orig_to_new[mface->mat_nr];
 				offset = tot_loops * max_element_size;
 
-				if (do_draw && matconv[i].elementsize != 0) {
-					int elementsize = max_element_size;
+				if (matconv[i].numdata != 0) {
 					if (matconv[i].attribs.totorco && matconv[i].attribs.orco.array) {
 						copy_v3_v3((float *)&varray[offset], (float *)matconv[i].attribs.orco.array[mface->v1]);
-						copy_v3_v3((float *)&varray[offset + elementsize], (float *)matconv[i].attribs.orco.array[mface->v2]);
-						copy_v3_v3((float *)&varray[offset + elementsize * 2], (float *)matconv[i].attribs.orco.array[mface->v3]);
+						copy_v3_v3((float *)&varray[offset + max_element_size], (float *)matconv[i].attribs.orco.array[mface->v2]);
+						copy_v3_v3((float *)&varray[offset + max_element_size * 2], (float *)matconv[i].attribs.orco.array[mface->v3]);
 						if (mface->v4) {
-							copy_v3_v3((float *)&varray[offset + elementsize * 3], (float *)matconv[i].attribs.orco.array[mface->v4]);
+							copy_v3_v3((float *)&varray[offset + max_element_size * 3], (float *)matconv[i].attribs.orco.array[mface->v4]);
 						}
 						offset += sizeof(float) * 3;
 					}
@@ -1107,10 +1105,10 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 						if (matconv[i].attribs.tface[b].array) {
 							MTFace *tf = &matconv[i].attribs.tface[b].array[a];
 							copy_v2_v2((float *)&varray[offset], tf->uv[0]);
-							copy_v2_v2((float *)&varray[offset + elementsize], tf->uv[1]);
-							copy_v2_v2((float *)&varray[offset + elementsize * 2], tf->uv[2]);
+							copy_v2_v2((float *)&varray[offset + max_element_size], tf->uv[1]);
+							copy_v2_v2((float *)&varray[offset + max_element_size * 2], tf->uv[2]);
 							if (mface->v4) {
-								copy_v2_v2((float *)&varray[offset + elementsize * 3], tf->uv[3]);
+								copy_v2_v2((float *)&varray[offset + max_element_size * 3], tf->uv[3]);
 							}
 							offset += sizeof(float) * 2;
 						}
@@ -1123,14 +1121,14 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 							copy_v4_v4_char((char *)&varray[offset], (char *)col);
 							cp = &matconv[i].attribs.mcol[b].array[a * 4 + 1];
 							col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
-							copy_v4_v4_char((char *)&varray[offset + elementsize], (char *)col);
+							copy_v4_v4_char((char *)&varray[offset + max_element_size], (char *)col);
 							cp = &matconv[i].attribs.mcol[b].array[a * 4 + 2];
 							col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
-							copy_v4_v4_char((char *)&varray[offset + elementsize * 2], (char *)col);
+							copy_v4_v4_char((char *)&varray[offset + max_element_size * 2], (char *)col);
 							if (mface->v4) {
 								cp = &matconv[i].attribs.mcol[b].array[a * 4 + 3];
 								col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
-								copy_v4_v4_char((char *)&varray[offset + elementsize * 3], (char *)col);
+								copy_v4_v4_char((char *)&varray[offset + max_element_size * 3], (char *)col);
 							}
 							offset += sizeof(unsigned char) * 4;
 						}
@@ -1139,12 +1137,12 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 						const float *tang = matconv[i].attribs.tang.array[a * 4 + 0];
 						copy_v4_v4((float *)&varray[offset], tang);
 						tang = matconv[i].attribs.tang.array[a * 4 + 1];
-						copy_v4_v4((float *)&varray[offset + elementsize], tang);
+						copy_v4_v4((float *)&varray[offset + max_element_size], tang);
 						tang = matconv[i].attribs.tang.array[a * 4 + 2];
-						copy_v4_v4((float *)&varray[offset + elementsize * 2], tang);
+						copy_v4_v4((float *)&varray[offset + max_element_size * 2], tang);
 						if (mface->v4) {
 							tang = matconv[i].attribs.tang.array[a * 4 + 3];
-							copy_v4_v4((float *)&varray[offset + elementsize * 3], tang);
+							copy_v4_v4((float *)&varray[offset + max_element_size * 3], tang);
 						}
 						offset += sizeof(float) * 4;
 					}
