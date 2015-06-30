@@ -384,10 +384,11 @@ void applyGridAbsolute(TransInfo *t)
 	float grid_size = 0.0f;
 	GearsType grid_action;
 	TransData *td;
-	float imat[4][4];
+	float (*obmat)[4] = NULL;
+	bool use_obmat = false;
 	int i;
 	
-	if (!(activeSnap(t) && (t->tsnap.mode == SCE_SNAP_MODE_GRID)))
+	if (!(activeSnap(t) && (ELEM(t->tsnap.mode, SCE_SNAP_MODE_INCREMENT, SCE_SNAP_MODE_GRID))))
 		return;
 	
 	grid_action = BIG_GEARS;
@@ -395,9 +396,9 @@ void applyGridAbsolute(TransInfo *t)
 		grid_action = SMALL_GEARS;
 	
 	switch (grid_action) {
-		case NO_GEARS: grid_size = t->snap[0]; break;
-		case BIG_GEARS: grid_size = t->snap[1]; break;
-		case SMALL_GEARS: grid_size = t->snap[2]; break;
+		case NO_GEARS: grid_size = t->snap_spatial[0]; break;
+		case BIG_GEARS: grid_size = t->snap_spatial[1]; break;
+		case SMALL_GEARS: grid_size = t->snap_spatial[2]; break;
 	}
 	/* early exit on unusable grid size */
 	if (grid_size == 0.0f)
@@ -405,7 +406,8 @@ void applyGridAbsolute(TransInfo *t)
 	
 	if (t->flag & (T_EDIT | T_POSE)) {
 		Object *ob = t->obedit ? t->obedit : t->poseobj;
-		invert_m4_m4(imat, ob->obmat);
+		obmat = ob->obmat;
+		use_obmat = true;
 	}
 	
 	for (i = 0, td = t->data; i < t->total; i++, td++) {
@@ -421,9 +423,8 @@ void applyGridAbsolute(TransInfo *t)
 			continue;
 		
 		copy_v3_v3(iloc, td->loc);
-		if (t->flag & (T_EDIT | T_POSE)) {
-			Object *ob = t->obedit ? t->obedit : t->poseobj;
-			mul_m4_v3(ob->obmat, iloc);
+		if (use_obmat) {
+			mul_m4_v3(obmat, iloc);
 		}
 		else if (t->flag & T_OBJECT) {
 			td->ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
@@ -432,11 +433,11 @@ void applyGridAbsolute(TransInfo *t)
 		}
 		
 		mul_v3_v3fl(loc, iloc, 1.0f / grid_size);
-		loc[0] = floorf(loc[0]);
-		loc[1] = floorf(loc[1]);
-		loc[2] = floorf(loc[2]);
+		loc[0] = roundf(loc[0]);
+		loc[1] = roundf(loc[1]);
+		loc[2] = roundf(loc[2]);
 		mul_v3_fl(loc, grid_size);
-		
+
 		sub_v3_v3v3(tvec, loc, iloc);
 		mul_m3_v3(td->smtx, tvec);
 		add_v3_v3(td->loc, tvec);
@@ -635,6 +636,11 @@ void initSnapping(TransInfo *t, wmOperator *op)
 			t->tsnap.project = ((t->settings->snap_flag & SCE_SNAP_PROJECT) != 0);
 			t->tsnap.snap_self = !((t->settings->snap_flag & SCE_SNAP_NO_SELF) != 0);
 			t->tsnap.peel = ((t->settings->snap_flag & SCE_SNAP_PROJECT) != 0);
+		}
+
+		/* for now only 3d view (others can be added if we want) */
+		if (t->spacetype == SPACE_VIEW3D) {
+			t->tsnap.snap_spatial_grid = ((t->settings->snap_flag & SCE_SNAP_ABS_GRID) != 0);
 		}
 	}
 	

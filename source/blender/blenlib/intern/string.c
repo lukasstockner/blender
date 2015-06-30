@@ -418,7 +418,7 @@ char *BLI_str_quoted_substrN(const char *__restrict str, const char *__restrict 
  * \param substr_new The text in the string to find and replace
  * \retval Returns the duplicated string
  */
-char *BLI_replacestrN(const char *__restrict str, const char *__restrict substr_old, const char *__restrict substr_new)
+char *BLI_str_replaceN(const char *__restrict str, const char *__restrict substr_old, const char *__restrict substr_new)
 {
 	DynStr *ds = NULL;
 	size_t len_old = strlen(substr_old);
@@ -475,6 +475,23 @@ char *BLI_replacestrN(const char *__restrict str, const char *__restrict substr_
 		return BLI_strdup(str);
 	}
 } 
+
+/**
+ * In-place replace every \a src to \a dst in \a str.
+ *
+ * \param str: The string to operate on.
+ * \param src: The character to replace.
+ * \param dst: The character to replace with.
+ */
+void BLI_str_replace_char(char *str, char src, char dst)
+{
+	while (*str) {
+		if (*str == src) {
+			*str = dst;
+		}
+		str++;
+	}
+}
 
 /**
  * Compare two strings without regard to case.
@@ -698,22 +715,6 @@ int BLI_strcmp_ignore_pad(const char *str1, const char *str2, const char pad)
 			ret = -1;
 		}
 		return ret;
-	}
-}
-
-void BLI_timestr(double _time, char *str, size_t maxlen)
-{
-	/* format 00:00:00.00 (hr:min:sec) string has to be 12 long */
-	int  hr = ( (int)  _time) / (60 * 60);
-	int min = (((int)  _time) / 60 ) % 60;
-	int sec = ( (int)  _time) % 60;
-	int hun = ( (int) (_time   * 100.0)) % 100;
-
-	if (hr) {
-		BLI_snprintf(str, maxlen, "%.2d:%.2d:%.2d.%.2d", hr, min, sec, hun);
-	}
-	else {
-		BLI_snprintf(str, maxlen, "%.2d:%.2d.%.2d", min, sec, hun);
 	}
 }
 
