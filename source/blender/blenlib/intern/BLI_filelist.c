@@ -218,6 +218,7 @@ static void bli_adddirstrings(struct BuildDirCtx *dir_ctx)
 	const char *types[8] = {"---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx"};
 	/* symbolic display, indexed by mode field value */
 	int num;
+	double size;
 	struct direntry *file;
 	struct tm *tm;
 	time_t zero = 0;
@@ -287,25 +288,24 @@ static void bli_adddirstrings(struct BuildDirCtx *dir_ctx)
 		 * will buy us some time until files get bigger than 4GB or until
 		 * everyone starts using __USE_FILE_OFFSET64 or equivalent.
 		 */
-		file->realsize = file->s.st_size;
+		size = (double)file->s.st_size;
+		file->realsize = size;
 
-		BLI_file_size_string(file->realsize, file->size, sizeof(file->size));
-	}
-}
-
-void BLI_file_size_string(off_t st_size, char *size, size_t len)
-{
-	if (st_size > 1024 * 1024 * 1024) {
-		BLI_snprintf(size, len, "%.2f GiB", ((double)st_size) / (1024 * 1024 * 1024));
-	}
-	else if (st_size > 1024 * 1024) {
-		BLI_snprintf(size, len, "%.1f MiB", ((double)st_size) / (1024 * 1024));
-	}
-	else if (st_size > 1024) {
-		BLI_snprintf(size, len, "%d KiB", (int)(st_size / 1024));
-	}
-	else {
-		BLI_snprintf(size, len, "%d B", (int)st_size);
+		if (size > 1024.0 * 1024.0 * 1024.0 * 1024.0) {
+			BLI_snprintf(file->size, sizeof(file->size), "%.1f TiB", size / (1024.0 * 1024.0 * 1024.0 * 1024.0));
+		}
+		else if (size > 1024.0 * 1024.0 * 1024.0) {
+			BLI_snprintf(file->size, sizeof(file->size), "%.1f GiB", size / (1024.0 * 1024.0 * 1024.0));
+		}
+		else if (size > 1024.0 * 1024.0) {
+			BLI_snprintf(file->size, sizeof(file->size), "%.1f MiB", size / (1024.0 * 1024.0));
+		}
+		else if (size > 1024.0) {
+			BLI_snprintf(file->size, sizeof(file->size), "%.1f KiB", size / 1024.0);
+		}
+		else {
+			BLI_snprintf(file->size, sizeof(file->size), "%d B", (int)size);
+		}
 	}
 }
 

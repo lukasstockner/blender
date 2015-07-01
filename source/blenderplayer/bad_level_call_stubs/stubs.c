@@ -312,12 +312,14 @@ void WM_cursor_modal_restore(struct wmWindow *win) RET_NONE
 void WM_cursor_time(struct wmWindow *win, int nr) RET_NONE
 void WM_cursor_warp(struct wmWindow *win, int x, int y) RET_NONE
 
+<<<<<<< HEAD
 void WM_widgetmap_delete(struct wmWidgetMap *wmap) RET_NONE
 struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, int spaceid, int regionid, bool is_3d, bool create) RET_NULL
 struct wmWidgetGroupType *WM_widgetgrouptype_new(int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
                                                  void (*draw)(const struct bContext *, struct wmWidgetGroup *), 
                                                  struct Main *bmain, const char *mapidname, short spaceid, short regionid, bool is_3d) RET_NULL
 void WM_widgetgrouptype_unregister(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgroup) RET_NONE
+void WM_ndof_deadzone_set(float deadzone) RET_NONE
 
 void                WM_uilisttype_init(void) RET_NONE
 struct uiListType  *WM_uilisttype_find(const char *idname, bool quiet) RET_NULL
