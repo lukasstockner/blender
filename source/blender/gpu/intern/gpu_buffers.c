@@ -81,7 +81,7 @@ const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
     /* vertex */
     {GL_ARRAY_BUFFER_ARB, 3},
     /* normal */
-    {GL_ARRAY_BUFFER_ARB, 3},
+    {GL_ARRAY_BUFFER_ARB, 4}, /* we copy 3 shorts per normal but we add a fourth for alignment */
     /* mcol */
     {GL_ARRAY_BUFFER_ARB, 3},
     /* uv */
@@ -596,7 +596,7 @@ static int gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 		case GPU_BUFFER_VERTEX:
 			return sizeof(float) * gpu_buffer_type_settings[type].num_components * (dm->drawObject->tot_triangle_point + dm->drawObject->tot_loose_point);
 		case GPU_BUFFER_NORMAL:
-			return sizeof(float) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
+			return sizeof(short) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
 		case GPU_BUFFER_COLOR:
 			return sizeof(char) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
 		case GPU_BUFFER_UV:
@@ -683,10 +683,10 @@ void GPU_normal_setup(DerivedMesh *dm)
 	glEnableClientState(GL_NORMAL_ARRAY);
 	if (dm->drawObject->normals->use_vbo) {
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, dm->drawObject->normals->id);
-		glNormalPointer(GL_FLOAT, 0, 0);
+		glNormalPointer(GL_SHORT, 4 * sizeof(short), 0);
 	}
 	else {
-		glNormalPointer(GL_FLOAT, 0, dm->drawObject->normals->pointer);
+		glNormalPointer(GL_SHORT, 4 * sizeof(short), dm->drawObject->normals->pointer);
 	}
 
 	GLStates |= GPU_BUFFER_NORMAL_STATE;

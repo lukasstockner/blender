@@ -1392,12 +1392,13 @@ static void cdDM_buffer_copy_vertex(DerivedMesh *dm, float *varray, int *UNUSED(
 	}
 }
 
-static void cdDM_buffer_copy_normal(DerivedMesh *dm, float *varray, int *UNUSED(mat_orig_to_new), void *UNUSED(user))
+static void cdDM_buffer_copy_normal(DerivedMesh *dm, float *varray_, int *UNUSED(mat_orig_to_new), void *UNUSED(user))
 {
 	int i, totface;
 	int start;
 	float f_no[3];
 
+	short *varray = (short *)varray_;
 	const float *nors = dm->getTessFaceDataArray(dm, CD_NORMAL);
 	short (*tlnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
 	MVert *mvert = dm->getVertArray(dm);
@@ -1411,38 +1412,38 @@ static void cdDM_buffer_copy_normal(DerivedMesh *dm, float *varray, int *UNUSED(
 		if (tlnors) {
 			short (*tlnor)[3] = tlnors[i];
 			/* Copy loop normals */
-			normal_short_to_float_v3(&varray[start], tlnor[0]);
-			normal_short_to_float_v3(&varray[start + 3], tlnor[1]);
-			normal_short_to_float_v3(&varray[start + 6], tlnor[2]);
+			copy_v3_v3_short(&varray[start], tlnor[0]);
+			copy_v3_v3_short(&varray[start + 3], tlnor[1]);
+			copy_v3_v3_short(&varray[start + 6], tlnor[2]);
 			start += 9;
 
 			if (f->v4) {
-				normal_short_to_float_v3(&varray[start], tlnor[3]);
+				copy_v3_v3_short(&varray[start], tlnor[3]);
 				start += 3;
 			}
 		}
 		else if (smoothnormal) {
 			/* copy vertex normal */
-			normal_short_to_float_v3(&varray[start], mvert[f->v1].no);
-			normal_short_to_float_v3(&varray[start + 3], mvert[f->v2].no);
-			normal_short_to_float_v3(&varray[start + 6], mvert[f->v3].no);
-			start += 9;
+			copy_v3_v3_short(&varray[start], mvert[f->v1].no);
+			copy_v3_v3_short(&varray[start + 4], mvert[f->v2].no);
+			copy_v3_v3_short(&varray[start + 8], mvert[f->v3].no);
+			start += 12;
 
 			if (f->v4) {
-				normal_short_to_float_v3(&varray[start], mvert[f->v4].no);
-				start += 3;
+				copy_v3_v3_short(&varray[start], mvert[f->v4].no);
+				start += 4;
 			}
 		}
 		else if (nors) {
 			/* copy cached face normal */
-			copy_v3_v3(&varray[start], &nors[i * 3]);
-			copy_v3_v3(&varray[start + 3], &nors[i * 3]);
-			copy_v3_v3(&varray[start + 6], &nors[i * 3]);
-			start += 9;
+			normal_float_to_short_v3(&varray[start], &nors[i * 3]);
+			normal_float_to_short_v3(&varray[start + 4], &nors[i * 3]);
+			normal_float_to_short_v3(&varray[start + 8], &nors[i * 3]);
+			start += 12;
 
 			if (f->v4) {
-				copy_v3_v3(&varray[start], &nors[i * 3]);
-				start += 3;
+				normal_float_to_short_v3(&varray[start], &nors[i * 3]);
+				start += 4;
 			}
 		}
 		else {
@@ -1452,14 +1453,14 @@ static void cdDM_buffer_copy_normal(DerivedMesh *dm, float *varray, int *UNUSED(
 			else
 				normal_tri_v3(f_no, mvert[f->v1].co, mvert[f->v2].co, mvert[f->v3].co);
 
-			copy_v3_v3(&varray[start], f_no);
-			copy_v3_v3(&varray[start + 3], f_no);
-			copy_v3_v3(&varray[start + 6], f_no);
-			start += 9;
+			normal_float_to_short_v3(&varray[start], f_no);
+			normal_float_to_short_v3(&varray[start + 4], f_no);
+			normal_float_to_short_v3(&varray[start + 8], f_no);
+			start += 12;
 
 			if (f->v4) {
-				copy_v3_v3(&varray[start], f_no);
-				start += 3;
+				normal_float_to_short_v3(&varray[start], f_no);
+				start += 4;
 			}
 		}
 	}

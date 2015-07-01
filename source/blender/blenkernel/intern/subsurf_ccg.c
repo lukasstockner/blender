@@ -1763,12 +1763,13 @@ static void ccgDM_glNormalFast(float *a, float *b, float *c, float *d)
 }
 
 /* Only used by non-editmesh types */
-static void ccgDM_prepare_normal_data(DerivedMesh *dm, float *varray,
+static void ccgDM_prepare_normal_data(DerivedMesh *dm, float *varray_,
                                     int *UNUSED(mat_orig_to_new), void *UNUSED(user_data))
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGKey key;
+	short *varray = (short *)varray_;
 	short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
 	int gridSize = ccgSubSurf_getGridSize(ss);
 	int gridFaces = gridSize - 1;
@@ -1805,12 +1806,12 @@ static void ccgDM_prepare_normal_data(DerivedMesh *dm, float *varray,
 				/* Can't use quad strips here... */
 				for (y = 0; y < gridFaces; y ++) {
 					for (x = 0; x < gridFaces; x ++) {
-						normal_short_to_float_v3(&varray[start], ln[0][0]);
-						normal_short_to_float_v3(&varray[start + 3], ln[0][3]);
-						normal_short_to_float_v3(&varray[start + 6], ln[0][2]);
-						normal_short_to_float_v3(&varray[start + 9], ln[0][1]);
+						copy_v3_v3_short(&varray[start], ln[0][0]);
+						copy_v3_v3_short(&varray[start + 4], ln[0][3]);
+						copy_v3_v3_short(&varray[start + 8], ln[0][2]);
+						copy_v3_v3_short(&varray[start + 12], ln[0][1]);
 
-						start += 12;
+						start += 16;
 						ln ++;
 					}
 				}
@@ -1823,12 +1824,12 @@ static void ccgDM_prepare_normal_data(DerivedMesh *dm, float *varray,
 						float *c = CCG_grid_elem_no(&key, faceGridData, x + 1, y + 1);
 						float *d = CCG_grid_elem_no(&key, faceGridData, x, y + 1);
 
-						copy_v3_v3(&varray[start], a);
-						copy_v3_v3(&varray[start + 3], b);
-						copy_v3_v3(&varray[start + 6], c);
-						copy_v3_v3(&varray[start + 9], d);
+						normal_float_to_short_v3(&varray[start], a);
+						normal_float_to_short_v3(&varray[start + 4], b);
+						normal_float_to_short_v3(&varray[start + 8], c);
+						normal_float_to_short_v3(&varray[start + 12], d);
 
-						start += 12;
+						start += 16;
 					}
 				}
 			}
@@ -1843,12 +1844,12 @@ static void ccgDM_prepare_normal_data(DerivedMesh *dm, float *varray,
 
 						ccgDM_NormalFast(a, b, c, d, no);
 	
-						copy_v3_v3(&varray[start], no);
-						copy_v3_v3(&varray[start + 3], no);
-						copy_v3_v3(&varray[start + 6], no);
-						copy_v3_v3(&varray[start + 9], no);
+						normal_float_to_short_v3(&varray[start], no);
+						normal_float_to_short_v3(&varray[start + 4], no);
+						normal_float_to_short_v3(&varray[start + 8], no);
+						normal_float_to_short_v3(&varray[start + 12], no);
 
-						start += 12;
+						start += 16;
 					}
 				}
 			}
