@@ -725,11 +725,11 @@ void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const b
 {
 	bool update = false;
 
-	if (((filelist->filter_data.flags & FLF_HIDE_DOT) != 0) != hide_dot) {
+	if (((filelist->filter_data.flags & FLF_HIDE_DOT) != 0) != (hide_dot != 0)) {
 		filelist->filter_data.flags ^= FLF_HIDE_DOT;
 		update = true;
 	}
-	if (((filelist->filter_data.flags & FLF_HIDE_PARENT) != 0) != hide_parent) {
+	if (((filelist->filter_data.flags & FLF_HIDE_PARENT) != 0) != (hide_parent != 0)) {
 		filelist->filter_data.flags ^= FLF_HIDE_PARENT;
 		update = true;
 	}
