@@ -1783,13 +1783,7 @@ void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 			BLI_task_pool_push(pool, filelist_cache_previewf, cache, false, TASK_PRIORITY_HIGH);
 		}
 
-		i = -(cache->block_end_index - cache->block_start_index);
-		while (i++) {
-			const int idx = (cache->block_cursor - i) % cache_size;
-			FileDirEntry *entry = cache->block_entries[idx];
-
-			filelist_cache_previews_push(filelist, entry, cache->block_start_index - i);
-		}
+		/* No need to populate preview queue here, filelist_file_cache_block() handles this. */
 	}
 	else {
 //		printf("%s: Clear Previews...\n", __func__);
