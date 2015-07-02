@@ -1079,7 +1079,11 @@ static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid
 		else if (preview->flags & FILE_TYPE_FTFONT) {
 			source = THB_SOURCE_FONT;
 		}
+
+		IMB_thumb_lock_path(preview->path);
 		preview->img = IMB_thumb_manage(preview->path, THB_LARGE, source);
+		IMB_thumb_unlock_path(preview->path);
+
 		BLI_thread_queue_push(cache->previews_done, preview);
 	}
 
@@ -1100,6 +1104,7 @@ static void filelist_cache_preview_ensure_running(FileListEntryCache *cache)
 		while (num_tasks--) {
 			BLI_task_pool_push(pool, filelist_cache_previewf, cache, false, TASK_PRIORITY_HIGH);
 		}
+		IMB_thumb_locks_acquire();
 	}
 	cache->previews_timestamp = 0.0;
 }
@@ -1141,6 +1146,8 @@ static void filelist_cache_previews_free(FileListEntryCache *cache, const bool s
 		cache->previews_pool = NULL;
 		cache->previews_todo = NULL;
 		cache->previews_done = NULL;
+
+		IMB_thumb_locks_release();
 	}
 	if (set_inactive) {
 		cache->flags &= ~FLC_PREVIEWS_ACTIVE;
