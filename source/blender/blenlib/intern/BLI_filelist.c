@@ -291,21 +291,26 @@ static void bli_adddirstrings(struct BuildDirCtx *dir_ctx)
 		size = (double)file->s.st_size;
 		file->realsize = size;
 
-		if (size > 1024.0 * 1024.0 * 1024.0 * 1024.0) {
-			BLI_snprintf(file->size, sizeof(file->size), "%.1f TiB", size / (1024.0 * 1024.0 * 1024.0 * 1024.0));
-		}
-		else if (size > 1024.0 * 1024.0 * 1024.0) {
-			BLI_snprintf(file->size, sizeof(file->size), "%.1f GiB", size / (1024.0 * 1024.0 * 1024.0));
-		}
-		else if (size > 1024.0 * 1024.0) {
-			BLI_snprintf(file->size, sizeof(file->size), "%.1f MiB", size / (1024.0 * 1024.0));
-		}
-		else if (size > 1024.0) {
-			BLI_snprintf(file->size, sizeof(file->size), "%.1f KiB", size / 1024.0);
-		}
-		else {
-			BLI_snprintf(file->size, sizeof(file->size), "%d B", (int)size);
-		}
+		BLI_file_size_string(size, file->size, sizeof(file->size));
+	}
+}
+
+void BLI_file_size_string(off_t st_size, char *size, size_t len)
+{
+	if (st_size > 1024.0 * 1024.0 * 1024.0 * 1024.0) {
+		BLI_snprintf(size, len, "%.1f TiB", st_size / (1024.0 * 1024.0 * 1024.0 * 1024.0));
+	}
+	else if (st_size > 1024.0 * 1024.0 * 1024.0) {
+		BLI_snprintf(size, len, "%.1f GiB", st_size / (1024.0 * 1024.0 * 1024.0));
+	}
+	else if (st_size > 1024.0 * 1024.0) {
+		BLI_snprintf(size, len, "%.1f MiB", st_size / (1024.0 * 1024.0));
+	}
+	else if (st_size > 1024.0) {
+		BLI_snprintf(size, len, "%.1f KiB", st_size / 1024.0);
+	}
+	else {
+		BLI_snprintf(size, len, "%d B", (int)st_size);
 	}
 }
 
