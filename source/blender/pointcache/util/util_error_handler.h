@@ -108,7 +108,7 @@ private:
 BLI_INLINE void split_alembic_error_message(const char *msg, const char **origin, const char **base_msg)
 {
 	const char delim[] = {'\n', '\0'};
-	char *sep, *suffix;
+	const char *sep, *suffix;
 	
 	BLI_str_partition(msg, delim, &sep, &suffix);
 	if (suffix) {

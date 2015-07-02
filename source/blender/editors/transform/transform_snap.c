@@ -2445,7 +2445,7 @@ static void applyGridIncrement(TransInfo *t, float *val, int max_index, const fl
 	BLI_assert(max_index <= 2);
 
 	/* Early bailing out if no need to snap */
-	if (fac[action] == 0.0f) {
+	if (fac[action] == 0.0f)
 		return;
 
 	if (use_aspect) {

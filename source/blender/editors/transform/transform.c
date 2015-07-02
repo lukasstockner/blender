@@ -2095,11 +2095,6 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	else
 		unit_m3(t->spacemtx);
 
-	/* initialize snapping factors */
-	t->snap_aspect[0] = t->snap_aspect[1] = t->snap_aspect[2] = 1.0f;
-
-	initSnappingAspect(t);
-	
 	createTransData(C, t);          // make TransData structs from selection
 
 	if (t->total == 0) {
