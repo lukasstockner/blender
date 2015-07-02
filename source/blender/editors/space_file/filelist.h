@@ -118,6 +118,7 @@ int                 filelist_readjob_running(struct wmWindowManager *wm, struct 
 
 bool                filelist_cache_previews_update(struct FileList *filelist);
 void                filelist_cache_previews_set(struct FileList *filelist, const bool use_previews);
+bool                filelist_cache_previews_running(struct FileList *filelist);
 
 #ifdef __cplusplus
 }

@@ -231,7 +231,7 @@ typedef struct FileListIntern {
 typedef struct FileListEntryCache {
 	size_t size;  /* The size of the cache... */
 
-	bool is_init;
+	int flags;
 
 	/* Block cache: all entries between start and end index. used for part of the list on diplay. */
 	FileDirEntry **block_entries;
@@ -250,7 +250,15 @@ typedef struct FileListEntryCache {
 	TaskPool *previews_pool;
 	ThreadQueue *previews_todo;
 	ThreadQueue *previews_done;
+	double previews_timestamp;
+	int previews_pending;
 } FileListEntryCache;
+
+/* FileListCache.flags */
+enum {
+	FLC_IS_INIT              = 1 << 0,
+	FLC_PREVIEWS_ACTIVE      = 1 << 1,
+};
 
 typedef struct FileListEntryPreview {
 	char path[FILE_MAX];
@@ -1078,6 +1086,24 @@ static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid
 	printf("%s: End (%d)...\n", __func__, threadid);
 }
 
+static void filelist_cache_preview_ensure_running(FileListEntryCache *cache)
+{
+	if (!cache->previews_pool) {
+		TaskScheduler *scheduler = BLI_task_scheduler_get();
+		TaskPool *pool;
+		int num_tasks = 4;
+
+		pool = cache->previews_pool = BLI_task_pool_create(scheduler, NULL);
+		cache->previews_todo = BLI_thread_queue_init();
+		cache->previews_done = BLI_thread_queue_init();
+
+		while (num_tasks--) {
+			BLI_task_pool_push(pool, filelist_cache_previewf, cache, false, TASK_PRIORITY_HIGH);
+		}
+	}
+	cache->previews_timestamp = 0.0;
+}
+
 static void filelist_cache_previews_clear(FileListEntryCache *cache)
 {
 	FileListEntryPreview *preview;
@@ -1086,6 +1112,7 @@ static void filelist_cache_previews_clear(FileListEntryCache *cache)
 		while ((preview = BLI_thread_queue_pop_timeout(cache->previews_todo, 0))) {
 //			printf("%s: TODO %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
 			MEM_freeN(preview);
+			cache->previews_pending--;
 		}
 		while ((preview = BLI_thread_queue_pop_timeout(cache->previews_done, 0))) {
 //			printf("%s: DONE %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
@@ -1093,11 +1120,13 @@ static void filelist_cache_previews_clear(FileListEntryCache *cache)
 				IMB_freeImBuf(preview->img);
 			}
 			MEM_freeN(preview);
+			cache->previews_pending--;
 		}
 	}
+//	printf("%s: remaining pending previews: %d\n", __func__, cache->previews_pending);
 }
 
-static void filelist_cache_previews_free(FileListEntryCache *cache)
+static void filelist_cache_previews_free(FileListEntryCache *cache, const bool set_inactive)
 {
 	if (cache->previews_pool) {
 		BLI_thread_queue_nowait(cache->previews_todo);
@@ -1113,13 +1142,21 @@ static void filelist_cache_previews_free(FileListEntryCache *cache)
 		cache->previews_todo = NULL;
 		cache->previews_done = NULL;
 	}
+	if (set_inactive) {
+		cache->flags &= ~FLC_PREVIEWS_ACTIVE;
+	}
+	BLI_assert(cache->previews_pending == 0);
+	cache->previews_timestamp = 0.0;
 }
 
 static void filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry, const int index)
 {
 	FileListEntryCache *cache = &filelist->filelist_cache;
 
+	BLI_assert(cache->flags & FLC_PREVIEWS_ACTIVE);
+
 	if (!entry->image &&
+	    !(entry->flags & FILE_ENTRY_INVALID_PREVIEW) &&
 		(entry->typeflag & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE | FILE_TYPE_FTFONT |
 	                        FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP | FILE_TYPE_BLENDERLIB)))
 	{
@@ -1129,7 +1166,10 @@ static void filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry
 		preview->flags = entry->typeflag;
 		preview->img = NULL;
 //		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
+
+		filelist_cache_preview_ensure_running(cache);
 		BLI_thread_queue_push(cache->previews_todo, preview);
+		cache->previews_pending++;
 	}
 }
 
@@ -1148,16 +1188,16 @@ static void filelist_cache_init(FileListEntryCache *cache, size_t cache_size)
 	                   BLI_ghashutil_uinthash_v4_p, BLI_ghashutil_uinthash_v4_cmp, __func__, cache_size * 2);
 
 	cache->size = cache_size;
-	cache->is_init = true;
+	cache->flags = FLC_IS_INIT;
 }
 
 static void filelist_cache_free(FileListEntryCache *cache)
 {
-	if (!cache->is_init) {
+	if (!(cache->flags & FLC_IS_INIT)) {
 		return;
 	}
 
-	filelist_cache_previews_free(cache);
+	filelist_cache_previews_free(cache, true);
 
 	/* Note we nearly have nothing to do here, entries are just 'borrowed', not owned by cache... */
 	MEM_freeN(cache->block_entries);
@@ -1170,7 +1210,7 @@ static void filelist_cache_free(FileListEntryCache *cache)
 
 static void filelist_cache_clear(FileListEntryCache *cache, size_t new_size)
 {
-	if (!cache->is_init) {
+	if (!(cache->flags & FLC_IS_INIT)) {
 		return;
 	}
 
@@ -1596,7 +1636,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 //			printf("Full Recaching!\n");
 
-			if (cache->previews_pool) {
+			if (cache->flags & FLC_PREVIEWS_ACTIVE) {
 				filelist_cache_previews_clear(cache);
 			}
 
@@ -1622,7 +1662,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 			/* At this point, we know we keep part of currently cached entries, so update previews if needed,
 			 * and remove everything from working queue - we'll add all newly needed entries at the end. */
-			if (cache->previews_pool) {
+			if (cache->flags & FLC_PREVIEWS_ACTIVE) {
 				filelist_cache_previews_update(filelist);
 				filelist_cache_previews_clear(cache);
 			}
@@ -1727,7 +1767,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 //			printf("\tend-extended...\n");
 		}
 	}
-	else if (cache->block_center_index != index && cache->previews_pool) {
+	else if ((cache->block_center_index != index) && (cache->flags & FLC_PREVIEWS_ACTIVE)) {
 		/* We try to always preview visible entries first, so 'restart' preview background task. */
 		filelist_cache_previews_update(filelist);
 		filelist_cache_previews_clear(cache);
@@ -1736,7 +1776,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 //	printf("Re-queueing previews...\n");
 
 	/* Note we try to preview first images around given index - i.e. assumed visible ones. */
-	if (cache->previews_pool) {
+	if (cache->flags & FLC_PREVIEWS_ACTIVE) {
 		for (i = 0; ((index + i) < end_index) || ((index - i) >= start_index); i++) {
 			if ((index - i) >= start_index) {
 				const int idx = (cache->block_cursor + (index - start_index) - i) % cache_size;
@@ -1759,36 +1799,24 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 {
 	FileListEntryCache *cache = &filelist->filelist_cache;
-	const size_t cache_size = cache->size;
 
-	if (use_previews == (cache->previews_pool != NULL)) {
+	if (use_previews == ((cache->flags & FLC_PREVIEWS_ACTIVE) != 0)) {
 		return;
 	}
 	/* Do not start preview work while listing, gives nasty flickering! */
 	else if (use_previews && (filelist->flags & FL_IS_READY)) {
-		TaskScheduler *scheduler = BLI_task_scheduler_get();
-		TaskPool *pool;
-		int num_tasks = 4;
-		int i;
+		cache->flags |= FLC_PREVIEWS_ACTIVE;
 
 		BLI_assert((cache->previews_pool == NULL) && (cache->previews_todo == NULL) && (cache->previews_done == NULL));
 
 //		printf("%s: Init Previews...\n", __func__);
-
-		pool = cache->previews_pool = BLI_task_pool_create(scheduler, NULL);
-		cache->previews_todo = BLI_thread_queue_init();
-		cache->previews_done = BLI_thread_queue_init();
-
-		while (num_tasks--) {
-			BLI_task_pool_push(pool, filelist_cache_previewf, cache, false, TASK_PRIORITY_HIGH);
-		}
 
 		/* No need to populate preview queue here, filelist_file_cache_block() handles this. */
 	}
 	else {
 //		printf("%s: Clear Previews...\n", __func__);
 
-		filelist_cache_previews_free(cache);
+		filelist_cache_previews_free(cache, true);
 	}
 }
 
@@ -1806,11 +1834,13 @@ bool filelist_cache_previews_update(FileList *filelist)
 
 	while (!BLI_thread_queue_is_empty(cache->previews_done)) {
 		FileListEntryPreview *preview = BLI_thread_queue_pop(cache->previews_done);
+
+		/* entry might have been removed from cache in the mean while, we do not want to cache it again here. */
+		FileDirEntry *entry = filelist_file_ex(filelist, preview->index, false);
+
 //		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
 
 		if (preview->img) {
-			/* entry might have been removed from cache in the mean while, we do not want to cache it again here. */
-			FileDirEntry *entry = filelist_file_ex(filelist, preview->index, false);
 			/* Due to asynchronous process, a preview for a given image may be generated several times, i.e.
 			 * entry->image may already be set at this point. */
 			if (entry && !entry->image) {
@@ -1821,10 +1851,38 @@ bool filelist_cache_previews_update(FileList *filelist)
 				IMB_freeImBuf(preview->img);
 			}
 		}
+		else if (entry) {
+			/* We want to avoid re-processing this entry continuously!
+			 * Note that, since entries only live in cache, preview will be retried quite often anyway. */
+			entry->flags |= FILE_ENTRY_INVALID_PREVIEW;
+		}
+
 		MEM_freeN(preview);
+		cache->previews_pending--;
+		BLI_assert(cache->previews_pending >= 0);
+	}
+
+//	printf("%s: Previews pending: %d\n", __func__, cache->previews_pending);
+	if (cache->previews_pending == 0) {
+		if (cache->previews_timestamp == 0.0) {
+			cache->previews_timestamp = PIL_check_seconds_timer();
+		}
+		else if (PIL_check_seconds_timer() - cache->previews_timestamp > 1.0) {
+			/* Preview task is IDLE since more than (approximatively) 1000ms,
+			 * kill workers & task for now - they will be automatically restarted when needed. */
+//			printf("%s: Inactive preview task, sleeping (%f vs %f)!\n", __func__, PIL_check_seconds_timer(), cache->previews_timestamp);
+			filelist_cache_previews_free(cache, false);
+		}
 	}
 
 	return changed;
+}
+
+bool filelist_cache_previews_running(FileList *filelist)
+{
+	FileListEntryCache *cache = &filelist->filelist_cache;
+
+	return (cache->previews_pool != NULL);
 }
 
 /* would recognize .blend as well */

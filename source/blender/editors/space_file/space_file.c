@@ -252,11 +252,6 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 
 	if (params->display == FILE_IMGDISPLAY) {
 		filelist_cache_previews_set(sfile->files, true);
-		filelist_cache_previews_update(sfile->files);
-		if (!sfile->previews_timer) {
-			sfile->previews_timer = WM_event_add_timer_notifier(wm, CTX_wm_window(C),
-			                                                    NC_SPACE | ND_SPACE_FILE_PREVIEW, 0.01);
-		}
 	}
 	else {
 		filelist_cache_previews_set(sfile->files, false);
