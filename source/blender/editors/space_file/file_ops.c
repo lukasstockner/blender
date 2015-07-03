@@ -197,7 +197,7 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
 
 					if (params->recursion_level > 1) {
 						/* Disable 'dirtree' recursion when going up in tree. */
-						params->recursion_level = 1;
+						params->recursion_level = 0;
 						filelist_setrecursion(sfile->files, params->recursion_level);
 					}
 				}
@@ -1338,7 +1338,7 @@ int file_parent_exec(bContext *C, wmOperator *UNUSED(unused))
 			}
 			if (sfile->params->recursion_level > 1) {
 				/* Disable 'dirtree' recursion when going up in tree. */
-				sfile->params->recursion_level = 1;
+				sfile->params->recursion_level = 0;
 				filelist_setrecursion(sfile->files, sfile->params->recursion_level);
 			}
 			WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
