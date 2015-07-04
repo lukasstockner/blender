@@ -457,7 +457,7 @@ static void column_widths(FileSelectParams *params, struct FileLayout *layout)
 	/* Biggest possible reasonable values... */
 	layout->column_widths[COLUMN_DATE] = file_string_width(small_size ? "23/08/89" : "23-Dec-89");
 	layout->column_widths[COLUMN_TIME] = file_string_width("23:59");
-	layout->column_widths[COLUMN_SIZE] = file_string_width(small_size ? "987 M" : "987.64 MiB");
+	layout->column_widths[COLUMN_SIZE] = file_string_width(small_size ? "98.7 M" : "98.7 MiB");
 }
 
 void ED_fileselect_init_layout(struct SpaceFile *sfile, ARegion *ar)

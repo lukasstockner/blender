@@ -238,7 +238,7 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 	filelist_setdir(sfile->files, params->dir);
 	filelist_setrecursion(sfile->files, params->recursion_level);
 	filelist_setsorting(sfile->files, params->sort);
-	filelist_setfilter_options(sfile->files, params->flag & FILE_HIDE_DOT,
+	filelist_setfilter_options(sfile->files, (params->flag & FILE_HIDE_DOT) != 0,
 	                                         false, /* TODO hide_parent, should be controllable? */
 	                                         params->flag & FILE_FILTER ? params->filter : 0,
 	                                         params->filter_id,
@@ -266,11 +266,6 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 
 	if (params->display == FILE_IMGDISPLAY) {
 		filelist_cache_previews_set(sfile->files, true);
-		filelist_cache_previews_update(sfile->files);
-		if (!sfile->previews_timer) {
-			sfile->previews_timer = WM_event_add_timer_notifier(wm, CTX_wm_window(C),
-			                                                    NC_SPACE | ND_SPACE_FILE_PREVIEW, 0.01);
-		}
 	}
 	else {
 		filelist_cache_previews_set(sfile->files, false);
@@ -601,7 +596,7 @@ static void file_tools_area_init(wmWindowManager *wm, ARegion *ar)
 
 static void file_tools_area_draw(const bContext *C, ARegion *ar)
 {
-	ED_region_panels(C, ar, 1, NULL, -1);
+	ED_region_panels(C, ar, NULL, -1, true);
 }
 
 static void file_tools_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *UNUSED(ar), wmNotifier *UNUSED(wmn))

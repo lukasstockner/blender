@@ -302,6 +302,11 @@ public:
 	void StopAction(short layer);
 
 	/**
+	 * Remove playing tagged actions.
+	 */
+	void RemoveTaggedActions();
+
+	/**
 	 * Check if an action has finished playing
 	 */
 	bool IsActionDone(short layer);
@@ -1054,6 +1059,10 @@ public:
 	static int			pyattr_set_lin_vel_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_lin_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_lin_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_ang_vel_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_ang_vel_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_ang_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_ang_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_record_animation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

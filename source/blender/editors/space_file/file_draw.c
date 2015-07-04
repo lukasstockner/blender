@@ -67,6 +67,7 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
+#include "WM_api.h"
 #include "WM_types.h"
 
 #include "filelist.h"
@@ -525,6 +526,25 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		const bool success = filelist_file_cache_block(files, min_ii(offset + (numfiles_layout / 2), numfiles - 1));
 		BLI_assert(success);
 		UNUSED_VARS_NDEBUG(success);
+
+		filelist_cache_previews_update(files);
+
+		/* Handle preview timer here, since it's filelist_file_cache_block() and filelist_cache_previews_update()
+		 * which controlls previews task. */
+		{
+			const bool previews_running = filelist_cache_previews_running(files);
+//			printf("%s: preview task: %d\n", __func__, previews_running);
+			if (previews_running && !sfile->previews_timer) {
+				sfile->previews_timer = WM_event_add_timer_notifier(CTX_wm_manager(C), CTX_wm_window(C),
+																	NC_SPACE | ND_SPACE_FILE_PREVIEW, 0.01);
+			}
+			if (!previews_running && sfile->previews_timer) {
+				/* Preview is not running, no need to keep generating update events! */
+//				printf("%s: Inactive preview task, sleeping!\n", __func__);
+				WM_event_remove_timer_notifier(CTX_wm_manager(C), CTX_wm_window(C), sfile->previews_timer);
+				sfile->previews_timer = NULL;
+			}
+		}
 	}
 
 	for (i = offset; (i < numfiles) && (i < offset + numfiles_layout); i++) {

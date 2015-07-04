@@ -804,7 +804,7 @@ typedef struct FileDirEntry {
 	int nbr_tags;
 
 	short status;
-	short pad_s1;
+	short flags;
 
 	ListBase variants;
 	int nbr_variants;
@@ -826,9 +826,15 @@ typedef struct FileDirEntryArr {
 	char root[1024];	 /* FILE_MAX */
 } FileDirEntryArr;
 
+/* FileDirEntry.status */
 enum {
 	ASSET_STATUS_LOCAL  = 1 << 0,  /* If active uuid is available localy/immediately. */
 	ASSET_STATUS_LATEST = 1 << 1,  /* If active uuid is latest available version. */
+};
+
+/* FileDirEntry.flags */
+enum {
+	FILE_ENTRY_INVALID_PREVIEW = 1 << 0,  /* The preview for this entry could not be generated. */
 };
 
 /* Image/UV Editor ======================================== */

@@ -3799,7 +3799,7 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 	static EnumPropertyItem file_filter_idtypes_items[] = {
 		{FILTER_ID_AC, "ACTION", ICON_ANIM_DATA, "Actions", "Show/hide Action datablocks"},
 		{FILTER_ID_AR, "ARMATURE", ICON_ARMATURE_DATA, "Armatures", "Show/hide Armature datablocks"},
-		{FILTER_ID_BR, "BRUSH", ICON_BRUSH_DATA, "Brushes", "Show/hide Brushe datablocks"},
+		{FILTER_ID_BR, "BRUSH", ICON_BRUSH_DATA, "Brushes", "Show/hide Brushes datablocks"},
 		{FILTER_ID_CA, "CAMERA", ICON_CAMERA_DATA, "Cameras", "Show/hide Camera datablocks"},
 		{FILTER_ID_CU, "CURVE", ICON_CURVE_DATA, "Curves", "Show/hide Curve datablocks"},
 		{FILTER_ID_GD, "GREASE_PENCIL", ICON_GREASEPENCIL, "Grease Pencil", "Show/hide Grease pencil datablocks"},
@@ -3825,6 +3825,27 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 		{FILTER_ID_VF, "FONT", ICON_FONT_DATA, "Fonts", "Show/hide Font datablocks"},
 		{FILTER_ID_WO, "WORLD", ICON_WORLD_DATA, "Worlds", "Show/hide World datablocks"},
 		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem file_filter_idcategories_items[] = {
+	    {FILTER_ID_SCE,
+	     "SCENE", ICON_SCENE_DATA, "Scenes", "Show/hide scenes"},
+	    {FILTER_ID_AC,
+	     "ANIMATION", ICON_ANIM_DATA, "Animations", "Show/hide animation data"},
+		{FILTER_ID_OB | FILTER_ID_GR,
+	     "OBJECT", ICON_GROUP, "Objects & Groups", "Show/hide objects and groups"},
+		{FILTER_ID_AR | FILTER_ID_CU | FILTER_ID_LT | FILTER_ID_MB | FILTER_ID_ME,
+	     "GEOMETRY", ICON_MESH_DATA, "Geometry", "Show/hide meshes, curves, lattice, armatures and metaballs data"},
+		{FILTER_ID_LS | FILTER_ID_MA | FILTER_ID_NT | FILTER_ID_TE,
+	     "SHADING", ICON_MATERIAL_DATA, "Shading",
+	     "Show/hide materials, nodetrees, textures and Freestyle's linestyles"},
+		{FILTER_ID_IM | FILTER_ID_MC | FILTER_ID_MSK | FILTER_ID_SO,
+	     "IMAGE", ICON_IMAGE_DATA, "Images & Sounds", "Show/hide images, movie clips, sounds and masks"},
+		{FILTER_ID_CA | FILTER_ID_LA | FILTER_ID_SPK | FILTER_ID_WO,
+	     "ENVIRONMENT", ICON_WORLD_DATA, "Environment", "Show/hide worlds, lamps, cameras and speakers"},
+		{FILTER_ID_BR | FILTER_ID_GD | FILTER_ID_PAL | FILTER_ID_PC | FILTER_ID_TXT | FILTER_ID_VF,
+	     "MISC", ICON_GREASEPENCIL, "Miscellaneous", "Show/hide other data types"},
+	    {0, NULL, 0, NULL, NULL}
 	};
 
 	srna = RNA_def_struct(brna, "FileSelectParams", NULL);
@@ -3943,6 +3964,13 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, file_filter_idtypes_items);
 	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
 	RNA_def_property_ui_text(prop, "Filter ID types", "Which ID types to show/hide, when browsing a library");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+
+	prop = RNA_def_property(srna, "filter_id_category", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "filter_id");
+	RNA_def_property_enum_items(prop, file_filter_idcategories_items);
+	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
+	RNA_def_property_ui_text(prop, "Filter ID categories", "Which ID categories to show/hide, when browsing a library");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
 
 	prop = RNA_def_property(srna, "filter_glob", PROP_STRING, PROP_NONE);
