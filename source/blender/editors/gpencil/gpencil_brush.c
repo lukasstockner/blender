@@ -171,8 +171,15 @@ static float gp_brush_influence_calc(tGP_BrushEditData *gso, const int radius,
 	
 	/* distance fading */
 	if (brush->flag & GP_EDITBRUSH_FLAG_USE_FALLOFF) {
-		float distance = sqrtf((mx - x0) * (mx - x0) + (my - y0) * (my - y0));
-		float fac    = 1.0f - (distance / (float)radius); 
+		// XXX: these should just get passed in like this (and then we can use the len_v2v2_int version?)
+		const float mvec[2] = {(float)mx, (float)my};
+		const float pvec[2] = {(float)x0, (float)y0};
+		
+		float distance = len_v2v2(mvec, pvec);
+		float fac;
+		
+		CLAMP(distance, 0.0f, (float)radius);
+		fac = 1.0f - (distance / (float)radius);
 		
 		influence *= fac;
 	}
