@@ -918,8 +918,7 @@ void BKE_texture_make_local(Tex *tex)
 	 * - mixed: make copy
 	 */
 	
-	if ((tex->id.lib == NULL) || ID_MISSING(&tex->id))
-		return;
+	if (tex->id.lib == NULL) return;
 
 	if (tex->id.us == 1) {
 		id_clear_lib_data(bmain, &tex->id);

@@ -1899,9 +1899,7 @@ void ntreeMakeLocal(bNodeTree *ntree)
 	 * - mixed: make copy
 	 */
 	
-	if ((ntree->id.lib == NULL) || ID_MISSING(&ntree->id))
-		return;
-
+	if (ntree->id.lib == NULL) return;
 	if (ntree->id.us == 1) {
 		id_clear_lib_data(bmain, (ID *)ntree);
 		return;

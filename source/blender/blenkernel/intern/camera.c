@@ -108,9 +108,7 @@ void BKE_camera_make_local(Camera *cam)
 	 * - mixed: make copy
 	 */
 	
-	if ((cam->id.lib == NULL) || ID_MISSING(&cam->id))
-		return;
-
+	if (cam->id.lib == NULL) return;
 	if (cam->id.us == 1) {
 		id_clear_lib_data(bmain, &cam->id);
 		return;

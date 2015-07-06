@@ -325,9 +325,7 @@ void BKE_lattice_make_local(Lattice *lt)
 	 * - mixed: make copy
 	 */
 	
-	if ((lt->id.lib == NULL) || ID_MISSING(&lt->id))
-		return;
-
+	if (lt->id.lib == NULL) return;
 	if (lt->id.us == 1) {
 		id_clear_lib_data(bmain, &lt->id);
 		return;

@@ -149,9 +149,7 @@ void BKE_mball_make_local(MetaBall *mb)
 	 * - mixed: make copy
 	 */
 	
-	if ((mb->id.lib == NULL) || ID_MISSING(&mb->id))
-		return;
-
+	if (mb->id.lib == NULL) return;
 	if (mb->id.us == 1) {
 		id_clear_lib_data(bmain, &mb->id);
 		extern_local_mball(mb);

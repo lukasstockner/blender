@@ -59,6 +59,7 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_node_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_speaker_types.h"
@@ -195,7 +196,7 @@ void id_us_min(ID *id)
  * if the block can be made local. */
 bool id_make_local(ID *id, bool test)
 {
-	if (ID_MISSING(id) || (id->flag & LIB_INDIRECT))
+	if (id->flag & LIB_INDIRECT)
 		return false;
 
 	switch (GS(id->name)) {
@@ -298,10 +299,6 @@ bool id_make_local(ID *id, bool test)
 bool id_copy(ID *id, ID **newid, bool test)
 {
 	if (!test) *newid = NULL;
-
-	if (ID_MISSING(id)) {
-		return false;
-	}
 
 	/* conventions:
 	 * - make shallow copy, only this ID block
@@ -561,7 +558,7 @@ void BKE_main_lib_objects_recalc_all(Main *bmain)
 
 	/* flag for full recalc */
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
-		if (ob->id.lib && !ID_MISSING(&ob->id)) {
+		if (ob->id.lib) {
 			DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 		}
 	}
@@ -648,7 +645,7 @@ int set_listbasepointers(Main *main, ListBase **lb)
  * Allocates and returns memory of the right size for the specified block type,
  * initialized to zero.
  */
-ID *BKE_liblock_alloc_notest(short type)
+void *BKE_libblock_alloc_notest(short type)
 {
 	ID *id = NULL;
 	
@@ -770,7 +767,7 @@ void *BKE_libblock_alloc(Main *bmain, short type, const char *name)
 	ID *id = NULL;
 	ListBase *lb = which_libbase(bmain, type);
 	
-	id = BKE_liblock_alloc_notest(type);
+	id = BKE_libblock_alloc_notest(type);
 	if (id) {
 		BKE_main_lock(bmain);
 		BLI_addtail(lb, id);
@@ -783,6 +780,88 @@ void *BKE_libblock_alloc(Main *bmain, short type, const char *name)
 	}
 	DAG_id_type_tag(bmain, type);
 	return id;
+}
+
+/**
+ * Initialize an ID of given type, such that it has valid 'empty' data.
+ * ID is assumed to be just calloc'ed.
+ */
+void BKE_libblock_init_empty(ID *id)
+{
+	/* Note that only ID types that are not valid when filled of zero should have a callback here. */
+	switch (GS(id->name)) {
+		case ID_SCE:
+			BKE_scene_init((Scene *)id);
+			break;
+		case ID_LI:
+			break;
+		case ID_OB:
+		{
+			Object *ob = (Object *)id;
+			ob->type = OB_EMPTY;
+			BKE_object_init(ob);
+			break;
+		}
+		case ID_ME:
+			BKE_mesh_init((Mesh *)id);
+			break;
+		case ID_CU:
+			BKE_curve_init((Curve *)id);
+			break;
+		case ID_MB:
+			break;
+		case ID_MA:
+			break;
+		case ID_TE:
+			break;
+		case ID_IM:
+			break;
+		case ID_LT:
+			break;
+		case ID_LA:
+			break;
+		case ID_SPK:
+			break;
+		case ID_CA:
+			break;
+		case ID_IP:
+			break;
+		case ID_KE:
+			break;
+		case ID_WO:
+			break;
+		case ID_SCR:
+			break;
+		case ID_VF:
+			break;
+		case ID_TXT:
+			break;
+		case ID_SCRIPT:
+			break;
+		case ID_SO:
+			break;
+		case ID_GR:
+			break;
+		case ID_AR:
+			break;
+		case ID_AC:
+			break;
+		case ID_NT:
+			break;
+		case ID_BR:
+			BKE_brush_init((Brush *)id);
+			break;
+		case ID_PA:
+			break;
+		case ID_WM:
+			break;
+		case ID_GD:
+			break;
+		case ID_MSK:
+			break;
+		case ID_LS:
+			break;
+	}
 }
 
 /* by spec, animdata is first item after ID */
@@ -838,7 +917,7 @@ void *BKE_libblock_copy_nolib(ID *id, const bool do_action)
 	ID *idn;
 	size_t idn_len;
 
-	idn = BKE_liblock_alloc_notest(GS(id->name));
+	idn = BKE_libblock_alloc_notest(GS(id->name));
 	assert(idn != NULL);
 
 	BLI_strncpy(idn->name, id->name, sizeof(idn->name));
@@ -939,112 +1018,110 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 	BPY_id_release(id);
 #endif
 
-	if (!ID_MISSING(id)) {
-		switch (type) {    /* GetShort from util.h */
-			case ID_SCE:
-				BKE_scene_free((Scene *)id);
-				break;
-			case ID_LI:
-				BKE_library_free((Library *)id);
-				break;
-			case ID_OB:
-				BKE_object_free_ex((Object *)id, do_id_user);
-				break;
-			case ID_ME:
-				BKE_mesh_free((Mesh *)id, 1);
-				break;
-			case ID_CU:
-				BKE_curve_free((Curve *)id);
-				break;
-			case ID_MB:
-				BKE_mball_free((MetaBall *)id);
-				break;
-			case ID_MA:
-				BKE_material_free((Material *)id);
-				break;
-			case ID_TE:
-				BKE_texture_free((Tex *)id);
-				break;
-			case ID_IM:
-				BKE_image_free((Image *)id);
-				break;
-			case ID_LT:
-				BKE_lattice_free((Lattice *)id);
-				break;
-			case ID_LA:
-				BKE_lamp_free((Lamp *)id);
-				break;
-			case ID_CA:
-				BKE_camera_free((Camera *) id);
-				break;
-			case ID_IP:
-				BKE_ipo_free((Ipo *)id);
-				break;
-			case ID_KE:
-				BKE_key_free((Key *)id);
-				break;
-			case ID_WO:
-				BKE_world_free((World *)id);
-				break;
-			case ID_SCR:
-				BKE_screen_free((bScreen *)id);
-				break;
-			case ID_VF:
-				BKE_vfont_free((VFont *)id);
-				break;
-			case ID_TXT:
-				BKE_text_free((Text *)id);
-				break;
-			case ID_SCRIPT:
-				/* deprecated */
-				break;
-			case ID_SPK:
-				BKE_speaker_free((Speaker *)id);
-				break;
-			case ID_SO:
-				BKE_sound_free((bSound *)id);
-				break;
-			case ID_GR:
-				BKE_group_free((Group *)id);
-				break;
-			case ID_AR:
-				BKE_armature_free((bArmature *)id);
-				break;
-			case ID_AC:
-				BKE_action_free((bAction *)id);
-				break;
-			case ID_NT:
-				ntreeFreeTree_ex((bNodeTree *)id, do_id_user);
-				break;
-			case ID_BR:
-				BKE_brush_free((Brush *)id);
-				break;
-			case ID_PA:
-				BKE_particlesettings_free((ParticleSettings *)id);
-				break;
-			case ID_WM:
-				if (free_windowmanager_cb)
-					free_windowmanager_cb(NULL, (wmWindowManager *)id);
-				break;
-			case ID_GD:
-				BKE_gpencil_free((bGPdata *)id);
-				break;
-			case ID_MC:
-				BKE_movieclip_free((MovieClip *)id);
-				break;
-			case ID_MSK:
-				BKE_mask_free(bmain, (Mask *)id);
-				break;
-			case ID_LS:
-				BKE_linestyle_free((FreestyleLineStyle *)id);
-				break;
-			case ID_PAL:
-				BKE_palette_free((Palette *)id);
-				break;
-			case ID_PC:
-				BKE_paint_curve_free((PaintCurve *)id);
-				break;
-		}
+	switch (type) {    /* GetShort from util.h */
+		case ID_SCE:
+			BKE_scene_free((Scene *)id);
+			break;
+		case ID_LI:
+			BKE_library_free((Library *)id);
+			break;
+		case ID_OB:
+			BKE_object_free_ex((Object *)id, do_id_user);
+			break;
+		case ID_ME:
+			BKE_mesh_free((Mesh *)id, 1);
+			break;
+		case ID_CU:
+			BKE_curve_free((Curve *)id);
+			break;
+		case ID_MB:
+			BKE_mball_free((MetaBall *)id);
+			break;
+		case ID_MA:
+			BKE_material_free((Material *)id);
+			break;
+		case ID_TE:
+			BKE_texture_free((Tex *)id);
+			break;
+		case ID_IM:
+			BKE_image_free((Image *)id);
+			break;
+		case ID_LT:
+			BKE_lattice_free((Lattice *)id);
+			break;
+		case ID_LA:
+			BKE_lamp_free((Lamp *)id);
+			break;
+		case ID_CA:
+			BKE_camera_free((Camera *) id);
+			break;
+		case ID_IP:
+			BKE_ipo_free((Ipo *)id);
+			break;
+		case ID_KE:
+			BKE_key_free((Key *)id);
+			break;
+		case ID_WO:
+			BKE_world_free((World *)id);
+			break;
+		case ID_SCR:
+			BKE_screen_free((bScreen *)id);
+			break;
+		case ID_VF:
+			BKE_vfont_free((VFont *)id);
+			break;
+		case ID_TXT:
+			BKE_text_free((Text *)id);
+			break;
+		case ID_SCRIPT:
+			/* deprecated */
+			break;
+		case ID_SPK:
+			BKE_speaker_free((Speaker *)id);
+			break;
+		case ID_SO:
+			BKE_sound_free((bSound *)id);
+			break;
+		case ID_GR:
+			BKE_group_free((Group *)id);
+			break;
+		case ID_AR:
+			BKE_armature_free((bArmature *)id);
+			break;
+		case ID_AC:
+			BKE_action_free((bAction *)id);
+			break;
+		case ID_NT:
+			ntreeFreeTree_ex((bNodeTree *)id, do_id_user);
+			break;
+		case ID_BR:
+			BKE_brush_free((Brush *)id);
+			break;
+		case ID_PA:
+			BKE_particlesettings_free((ParticleSettings *)id);
+			break;
+		case ID_WM:
+			if (free_windowmanager_cb)
+				free_windowmanager_cb(NULL, (wmWindowManager *)id);
+			break;
+		case ID_GD:
+			BKE_gpencil_free((bGPdata *)id);
+			break;
+		case ID_MC:
+			BKE_movieclip_free((MovieClip *)id);
+			break;
+		case ID_MSK:
+			BKE_mask_free(bmain, (Mask *)id);
+			break;
+		case ID_LS:
+			BKE_linestyle_free((FreestyleLineStyle *)id);
+			break;
+		case ID_PAL:
+			BKE_palette_free((Palette *)id);
+			break;
+		case ID_PC:
+			BKE_paint_curve_free((PaintCurve *)id);
+			break;
 	}
 
 	/* avoid notifying on removed data */
@@ -1082,9 +1159,7 @@ void BKE_libblock_free_us(Main *bmain, void *idv)      /* test users */
 		else printf("ERROR block %s users %d\n", id->name, id->us);
 	}
 	if (id->us == 0) {
-		if (!ID_MISSING(id) && (GS(id->name) == ID_OB)) {
-			BKE_object_unlink((Object *)id);
-		}
+		if (GS(id->name) == ID_OB) BKE_object_unlink((Object *)id);
 		
 		BKE_libblock_free(bmain, id);
 	}
@@ -1406,7 +1481,7 @@ bool new_id(ListBase *lb, ID *id, const char *tname)
 
 /**
  * Pull an ID out of a library (make it local). Only call this for IDs that
- * don't have other library users (and that are not ID_MISSING!).
+ * don't have other library users.
  */
 void id_clear_lib_data(Main *bmain, ID *id)
 {
@@ -1473,7 +1548,7 @@ static void lib_indirect_test_id(ID *id, Library *lib)
 		return;
 	}
 	
-	if (!ID_MISSING(id) && (GS(id->name) == ID_OB)) {
+	if (GS(id->name) == ID_OB) {
 		Object *ob = (Object *)id;
 		Mesh *me;
 
@@ -1561,8 +1636,7 @@ void BKE_library_make_local(Main *bmain, Library *lib, bool untagged_only)
 			 * (very nasty to discover all your links are lost after appending)  
 			 * */
 			if (id->flag & (LIB_EXTERN | LIB_INDIRECT | LIB_NEW) &&
-			    ((untagged_only == false) || !(id->flag & LIB_PRE_EXISTING)) &&
-			    !ID_MISSING(id))
+			    ((untagged_only == false) || !(id->flag & LIB_PRE_EXISTING)))
 			{
 				if (lib == NULL || id->lib == lib) {
 					if (id->lib) {

@@ -3280,9 +3280,7 @@ void BKE_particlesettings_make_local(ParticleSettings *part)
 	 * - mixed: make copy
 	 */
 	
-	if ((part->id.lib == 0) || ID_MISSING(&part->id))
-		return;
-
+	if (part->id.lib == 0) return;
 	if (part->id.us == 1) {
 		id_clear_lib_data(bmain, &part->id);
 		expand_local_particlesettings(part);

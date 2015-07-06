@@ -185,9 +185,7 @@ void BKE_world_make_local(World *wrld)
 	 * - mixed: make copy
 	 */
 	
-	if ((wrld->id.lib == NULL) || ID_MISSING(&wrld->id))
-		return;
-
+	if (wrld->id.lib == NULL) return;
 	if (wrld->id.us == 1) {
 		id_clear_lib_data(bmain, &wrld->id);
 		return;

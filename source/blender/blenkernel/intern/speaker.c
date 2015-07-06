@@ -85,9 +85,7 @@ void BKE_speaker_make_local(Speaker *spk)
 	 * - mixed: make copy
 	 */
 
-	if ((spk->id.lib == NULL) || ID_MISSING(&spk->id))
-		return;
-
+	if (spk->id.lib == NULL) return;
 	if (spk->id.us == 1) {
 		id_clear_lib_data(bmain, &spk->id);
 		return;

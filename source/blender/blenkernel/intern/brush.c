@@ -131,12 +131,8 @@ static void brush_defaults(Brush *brush)
 
 /* Datablock add/copy/free/make_local */
 
-Brush *BKE_brush_add(Main *bmain, const char *name)
+void BKE_brush_init(Brush *brush)
 {
-	Brush *brush;
-
-	brush = BKE_libblock_alloc(bmain, ID_BR, name);
-
 	/* enable fake user by default */
 	brush->id.flag |= LIB_FAKEUSER;
 
@@ -146,6 +142,15 @@ Brush *BKE_brush_add(Main *bmain, const char *name)
 
 	/* the default alpha falloff curve */
 	BKE_brush_curve_preset(brush, CURVE_PRESET_SMOOTH);
+}
+
+Brush *BKE_brush_add(Main *bmain, const char *name)
+{
+	Brush *brush;
+
+	brush = BKE_libblock_alloc(bmain, ID_BR, name);
+
+	BKE_brush_init(brush);
 
 	return brush;
 }
@@ -223,8 +228,7 @@ void BKE_brush_make_local(Brush *brush)
 	Scene *scene;
 	bool is_local = false, is_lib = false;
 
-	if ((brush->id.lib == NULL) || ID_MISSING(&brush->id))
-		return;
+	if (brush->id.lib == NULL) return;
 
 	if (brush->clone.image) {
 		/* special case: ima always local immediately. Clone image should only

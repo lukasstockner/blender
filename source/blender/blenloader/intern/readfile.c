@@ -7654,7 +7654,7 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 	if (id->flag & LIB_FAKEUSER) id->us= 1;
 	else id->us = 0;
 	id->icon_id = 0;
-	id->flag &= ~(LIB_ID_RECALC|LIB_ID_RECALC_DATA|LIB_DOIT);
+	id->flag &= ~(LIB_ID_RECALC|LIB_ID_RECALC_DATA|LIB_DOIT|LIB_MISSING);
 	
 	/* this case cannot be direct_linked: it's just the ID part */
 	if (bhead->code == ID_ID) {
@@ -9136,89 +9136,88 @@ void BLO_expand_main(void *fdhandle, Main *mainvar)
 		while (a--) {
 			id = lbarray[a]->first;
 			while (id) {
-				if (!ID_MISSING(id)) {
-					if (id->flag & LIB_NEED_EXPAND) {
-						switch (GS(id->name)) {
-						case ID_OB:
-							expand_object(fd, mainvar, (Object *)id);
-							break;
-						case ID_ME:
-							expand_mesh(fd, mainvar, (Mesh *)id);
-							break;
-						case ID_CU:
-							expand_curve(fd, mainvar, (Curve *)id);
-							break;
-						case ID_MB:
-							expand_mball(fd, mainvar, (MetaBall *)id);
-							break;
-						case ID_SCE:
-							expand_scene(fd, mainvar, (Scene *)id);
-							break;
-						case ID_MA:
-							expand_material(fd, mainvar, (Material *)id);
-							break;
-						case ID_TE:
-							expand_texture(fd, mainvar, (Tex *)id);
-							break;
-						case ID_WO:
-							expand_world(fd, mainvar, (World *)id);
-							break;
-						case ID_LT:
-							expand_lattice(fd, mainvar, (Lattice *)id);
-							break;
-						case ID_LA:
-							expand_lamp(fd, mainvar, (Lamp *)id);
-							break;
-						case ID_KE:
-							expand_key(fd, mainvar, (Key *)id);
-							break;
-						case ID_CA:
-							expand_camera(fd, mainvar, (Camera *)id);
-							break;
-						case ID_SPK:
-							expand_speaker(fd, mainvar, (Speaker *)id);
-							break;
-						case ID_SO:
-							expand_sound(fd, mainvar, (bSound *)id);
-							break;
-						case ID_AR:
-							expand_armature(fd, mainvar, (bArmature *)id);
-							break;
-						case ID_AC:
-							expand_action(fd, mainvar, (bAction *)id); // XXX deprecated - old animation system
-							break;
-						case ID_GR:
-							expand_group(fd, mainvar, (Group *)id);
-							break;
-						case ID_NT:
-							expand_nodetree(fd, mainvar, (bNodeTree *)id);
-							break;
-						case ID_BR:
-							expand_brush(fd, mainvar, (Brush *)id);
-							break;
-						case ID_IP:
-							expand_ipo(fd, mainvar, (Ipo *)id); // XXX deprecated - old animation system
-							break;
-						case ID_PA:
-							expand_particlesettings(fd, mainvar, (ParticleSettings *)id);
-							break;
-						case ID_MC:
-							expand_movieclip(fd, mainvar, (MovieClip *)id);
-							break;
-						case ID_MSK:
-							expand_mask(fd, mainvar, (Mask *)id);
-							break;
-						case ID_LS:
-							expand_linestyle(fd, mainvar, (FreestyleLineStyle *)id);
-							break;
-						case ID_GD:
-							expand_gpencil(fd, mainvar, (bGPdata *)id);
-							break;
-						}
-
-						do_it = true;
-						id->flag -= LIB_NEED_EXPAND;
+				if (id->flag & LIB_NEED_EXPAND) {
+					switch (GS(id->name)) {
+					case ID_OB:
+						expand_object(fd, mainvar, (Object *)id);
+						break;
+					case ID_ME:
+						expand_mesh(fd, mainvar, (Mesh *)id);
+						break;
+					case ID_CU:
+						expand_curve(fd, mainvar, (Curve *)id);
+						break;
+					case ID_MB:
+						expand_mball(fd, mainvar, (MetaBall *)id);
+						break;
+					case ID_SCE:
+						expand_scene(fd, mainvar, (Scene *)id);
+						break;
+					case ID_MA:
+						expand_material(fd, mainvar, (Material *)id);
+						break;
+					case ID_TE:
+						expand_texture(fd, mainvar, (Tex *)id);
+						break;
+					case ID_WO:
+						expand_world(fd, mainvar, (World *)id);
+						break;
+					case ID_LT:
+						expand_lattice(fd, mainvar, (Lattice *)id);
+						break;
+					case ID_LA:
+						expand_lamp(fd, mainvar, (Lamp *)id);
+						break;
+					case ID_KE:
+						expand_key(fd, mainvar, (Key *)id);
+						break;
+					case ID_CA:
+						expand_camera(fd, mainvar, (Camera *)id);
+						break;
+					case ID_SPK:
+						expand_speaker(fd, mainvar, (Speaker *)id);
+						break;
+					case ID_SO:
+						expand_sound(fd, mainvar, (bSound *)id);
+						break;
+					case ID_AR:
+						expand_armature(fd, mainvar, (bArmature *)id);
+						break;
+					case ID_AC:
+						expand_action(fd, mainvar, (bAction *)id); // XXX deprecated - old animation system
+						break;
+					case ID_GR:
+						expand_group(fd, mainvar, (Group *)id);
+						break;
+					case ID_NT:
+						expand_nodetree(fd, mainvar, (bNodeTree *)id);
+						break;
+					case ID_BR:
+						expand_brush(fd, mainvar, (Brush *)id);
+						break;
+					case ID_IP:
+						expand_ipo(fd, mainvar, (Ipo *)id); // XXX deprecated - old animation system
+						break;
+					case ID_PA:
+						expand_particlesettings(fd, mainvar, (ParticleSettings *)id);
+						break;
+					case ID_MC:
+						expand_movieclip(fd, mainvar, (MovieClip *)id);
+						break;
+					case ID_MSK:
+						expand_mask(fd, mainvar, (Mask *)id);
+						break;
+					case ID_LS:
+						expand_linestyle(fd, mainvar, (FreestyleLineStyle *)id);
+						break;
+					case ID_GD:
+						expand_gpencil(fd, mainvar, (bGPdata *)id);
+						break;
 					}
+					
+					do_it = true;
+					id->flag -= LIB_NEED_EXPAND;
+					
 				}
 				id = id->next;
 			}
@@ -9479,9 +9478,10 @@ static void append_id_part(ReportList *reports, FileData *fd, Main *mainvar, ID 
 		/* Generate a placeholder for this ID (limited version of read_libblock actually...). */
 		if (r_id) {
 			ListBase *lb;
-			ID *ph_id = BKE_liblock_alloc_notest(GS(id->name));
+			ID *ph_id = BKE_libblock_alloc_notest(GS(id->name));
 
 			memcpy(ph_id->name, id->name, sizeof(ph_id->name));
+			BKE_libblock_init_empty(ph_id);
 			ph_id->lib = mainvar->curlib;
 			ph_id->flag = id->flag | LIB_MISSING;
 			ph_id->us = (ph_id->flag & LIB_FAKEUSER) ? 1 : 0;
@@ -9738,8 +9738,9 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 						                 mainptr->curlib->filepath);
 					}
 				}
-
-				do_it = true;
+				if (fd) {
+					do_it = true;
+				}
 				a = set_listbasepointers(mainptr, lbarray);
 				while (a--) {
 					ID *id = lbarray[a]->first;
@@ -9760,9 +9761,8 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 						}
 						id = idn;
 					}
-					
-					BLO_expand_main(fd, mainptr);
 				}
+				BLO_expand_main(fd, mainptr);
 			}
 			
 			mainptr = mainptr->next;
