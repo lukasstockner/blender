@@ -197,44 +197,7 @@ static float gp_brush_influence_calc(tGP_BrushEditData *gso, const int radius,
 /* ----------------------------------------------- */
 /* Smooth Brush */
 
-#if 0
-
-/* initialise custom data for handling this stroke */
-static bool gp_brush_smooth_stroke_init(tGP_BrushEditData *gso, bGPDstroke *gps)
-{
-	
-}
-
-/* compute average values for each point */
-static bool gp_brush_calc_average_co(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
-                                     const int mx, const int my, const int radius,
-                                     const int x0, const int y0)
-{
-	bGPDspoint *pt = &gps->points[i];
-	
-	
-	return true;
-}
-
-/* apply smoothing by blending between the average coordinates and the current coordinates */
-static bool gp_brush_smooth_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
-                                  const int mx, const int my, const int radius,
-                                  const int x0, const int y0)
-{
-	bGPDspoint *pt = &gps->points[i];
-	float inf = gp_brush_influence_calc(gso, radius, mx, my, x0, y0);
-	float *sco;
-	
-	/* get smoothed coordinate */
-	//sco = 
-	
-	return true;
-}
-
-#endif
-
-
-// Simple (but slower + inaccurate) implementation to test the algorithm for stroke smoothing
+/* A simple (but slower + inaccurate) smooth-brush implementation to test the algorithm for stroke smoothing */
 static bool gp_brush_smooth_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
                                   const int mx, const int my, const int radius,
                                   const int x0, const int y0)
@@ -287,7 +250,6 @@ static bool gp_brush_smooth_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i
 	
 	/* Based on influence factor, blend between original and optimal smoothed coordinate */
 	// TODO: affect pressure too...
-	printf("%d) inf = %f\n", i, inf);
 	interp_v3_v3v3(&pt->x, &pt->x, sco, inf);
 	
 	return true;
@@ -611,12 +573,6 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 		switch (gso->brush_type) {
 			case GP_EDITBRUSH_TYPE_SMOOTH: /* Smooth strokes */
 			{
-				// init
-				// calc average
-				// apply
-				// cleanup
-				
-				// XXX: stupid method first... a more optimal one can come later
 				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_smooth_apply);
 			}
 			break;
