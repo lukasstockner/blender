@@ -32,6 +32,7 @@
 #include "util_color.h"
 #include "util_foreach.h"
 #include "util_function.h"
+#include "util_logging.h"
 #include "util_progress.h"
 #include "util_time.h"
 
@@ -502,6 +503,11 @@ void BlenderSession::render()
 			break;
 	}
 
+	double total_time, render_time;
+	session->progress.get_time(total_time, render_time);
+	VLOG(1) << "Total render time: " << total_time;
+	VLOG(1) << "Render time (without synchronization): " << render_time;
+
 	/* clear callback */
 	session->write_render_tile_cb = function_null;
 	session->update_render_tile_cb = function_null;
@@ -868,12 +874,12 @@ void BlenderSession::update_status_progress()
 			scene += ", " + b_rview_name;
 	}
 	else {
-		BLI_timestr(total_time, time_str, sizeof(time_str));
+		BLI_timecode_string_from_time_simple(time_str, sizeof(time_str), total_time);
 		timestatus = "Time:" + string(time_str) + " | ";
 	}
 
 	if(remaining_time > 0) {
-		BLI_timestr(remaining_time, time_str, sizeof(time_str));
+		BLI_timecode_string_from_time_simple(time_str, sizeof(time_str), remaining_time);
 		timestatus += "Remaining:" + string(time_str) + " | ";
 	}
 

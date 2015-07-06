@@ -1096,7 +1096,7 @@ static void write_pointcaches(WriteData *wd, ListBase *ptcaches)
 				
 				for (i=0; i<BPHYS_TOT_DATA; i++) {
 					if (pm->data[i] && pm->data_types & (1<<i)) {
-						if (ptcache_data_struct[i][0]=='\0')
+						if (ptcache_data_struct[i][0] == '\0')
 							writedata(wd, DATA, MEM_allocN_len(pm->data[i]), pm->data[i]);
 						else
 							writestruct(wd, DATA, ptcache_data_struct[i], pm->totpoint, pm->data[i]);
@@ -1104,7 +1104,7 @@ static void write_pointcaches(WriteData *wd, ListBase *ptcaches)
 				}
 
 				for (; extra; extra=extra->next) {
-					if (ptcache_extra_struct[extra->type][0]=='\0')
+					if (ptcache_extra_struct[extra->type][0] == '\0')
 						continue;
 					writestruct(wd, DATA, "PTCacheExtra", 1, extra);
 					writestruct(wd, DATA, ptcache_extra_struct[extra->type], extra->totdata, extra->data);
@@ -2467,6 +2467,9 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 							break;
 						case SEQ_TYPE_GAUSSIAN_BLUR:
 							writestruct(wd, DATA, "GaussianBlurVars", 1, seq->effectdata);
+							break;
+						case SEQ_TYPE_TEXT:
+							writestruct(wd, DATA, "TextVars", 1, seq->effectdata);
 							break;
 						}
 					}
