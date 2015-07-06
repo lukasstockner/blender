@@ -708,7 +708,7 @@ static void recalcData_spaceclip(TransInfo *t)
 static void recalcData_objects(TransInfo *t)
 {
 	Base *base = t->scene->basact;
-	
+
 	if (t->obedit) {
 		if (ELEM(t->obedit->type, OB_CURVE, OB_SURF)) {
 			Curve *cu = t->obedit->data;

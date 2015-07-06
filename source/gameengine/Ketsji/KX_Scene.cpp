@@ -1756,6 +1756,10 @@ void KX_Scene::RenderFonts()
 void KX_Scene::UpdateObjectLods(void)
 {
 	KX_GameObject* gameobj;
+
+	if (!this->m_active_camera)
+		return;
+
 	MT_Vector3 cam_pos = this->m_active_camera->NodeGetWorldPosition();
 
 	for (int i = 0; i < this->GetObjectList()->GetCount(); i++) {
@@ -1993,6 +1997,10 @@ static void MergeScene_GameObject(KX_GameObject* gameobj, KX_Scene *to, KX_Scene
 
 	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_CAMERA)
 		to->AddCamera((KX_Camera*)gameobj);
+
+	// All armatures should be in the animated object list to be umpdated.
+	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
+		to->AddAnimatedObject(gameobj);
 
 	/* Add the object to the scene's logic manager */
 	to->GetLogicManager()->RegisterGameObjectName(gameobj->GetName(), gameobj);
