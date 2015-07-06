@@ -233,6 +233,66 @@ static bool gp_brush_smooth_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i
 
 #endif
 
+
+// Simple (but slower + inaccurate) implementation to test the algorithm for stroke smoothing
+static bool gp_brush_smooth_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
+                                  const int mx, const int my, const int radius,
+                                  const int x0, const int y0)
+{
+	bGPDspoint *pt = &gps->points[i];
+	float inf = gp_brush_influence_calc(gso, radius, mx, my, x0, y0);
+	float sco[3] = {0.0f};
+	
+	/* Do nothing if not enough points to smooth out */
+	if (gps->totpoints <= 2) {
+		return false;
+	}
+	
+	/* Do not touch the endpoints of the stroke either, to prevent it from shrinking */
+	if ((i == 0) || (i == gps->totpoints - 1)) {
+		return false;
+	}
+	
+	/* Compute smoothed coordinate by taking the ones nearby */
+	// XXX: This is slow, and suffers from accumulation error as earlier points are handled before later ones
+	// TODO: affect pressure too...
+	{	
+		// XXX: this is hardcoded to look at 2 points on either side of the current one (i.e. 5 items total)
+		const int   steps = 2;
+		const float average_fac = 1.0f / (float)(steps * 2 + 1);
+		int step;
+		
+		/* add the point itself */
+		madd_v3_v3fl(sco, &pt->x, average_fac);
+		
+		/* n-steps before/after current point */
+		// XXX: review how the endpoints are treated by this algorithm
+		// XXX: falloff measures should also introduce some weighting variations, so that further-out points get less weight
+		for (step = 1; step <= steps; step++) {
+			bGPDspoint *pt1, *pt2;
+			int before = i - step;
+			int after  = i + step;
+			
+			CLAMP_MIN(before, 0);
+			CLAMP_MAX(after, gps->totpoints - 1);
+			
+			pt1 = &gps->points[before];
+			pt2 = &gps->points[after];
+			
+			/* add both these points to the average-sum (s += p[i]/n) */
+			madd_v3_v3fl(sco, &pt1->x, average_fac);
+			madd_v3_v3fl(sco, &pt2->x, average_fac);
+		}
+	}
+	
+	/* Based on influence factor, blend between original and optimal smoothed coordinate */
+	// TODO: affect pressure too...
+	printf("%d) inf = %f\n", i, inf);
+	interp_v3_v3v3(&pt->x, &pt->x, sco, inf);
+	
+	return true;
+}
+
 /* ----------------------------------------------- */
 /* Line Thickness Brush */
 
@@ -555,6 +615,9 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 				// calc average
 				// apply
 				// cleanup
+				
+				// XXX: stupid method first... a more optimal one can come later
+				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_smooth_apply);
 			}
 			break;
 			
