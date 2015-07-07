@@ -549,12 +549,12 @@ static EnumPropertyItem *rna_userdef_opensubdiv_compute_type_itemf(bContext *UNU
 {
 	EnumPropertyItem *item = NULL;
 	int totitem = 0;
-	int controllers = openSubdiv_getAvailableControllers();
+	int evaluators = openSubdiv_getAvailableEvaluators();
 
 	RNA_enum_items_add_value(&item, &totitem, opensubdiv_compute_type_items, USER_OPENSUBDIV_COMPUTE_NONE);
 
 #define APPEND_COMPUTE(compute) \
-	if (controllers & OPENSUBDIV_CONTROLLER_## compute) { \
+	if (evaluators & OPENSUBDIV_EVALUATOR_## compute) { \
 		RNA_enum_items_add_value(&item, &totitem, opensubdiv_compute_type_items, USER_OPENSUBDIV_COMPUTE_ ## compute); \
 	}
 

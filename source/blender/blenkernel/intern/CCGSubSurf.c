@@ -46,7 +46,7 @@
 
 #ifdef WITH_OPENSUBDIV
 #  include "opensubdiv_capi.h"
-#  include <opensubdiv/osdutil/evaluator_capi.h>
+//#  include <opensubdiv/osdutil/evaluator_capi.h>
 #endif
 
 #include "GL/glew.h"
@@ -952,7 +952,8 @@ void ccgSubSurf_free(CCGSubSurf *ss)
 	CCGAllocatorHDL allocator = ss->allocator;
 #ifdef WITH_OPENSUBDIV
 	if (ss->osd_evaluator != NULL) {
-		openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
+		/* TODO(sergey): Need proper port. */
+		//openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
 	}
 	if (ss->osd_mesh != NULL) {
 		/* TODO(sergey): Make sure free happens form the main thread! */
@@ -2331,14 +2332,14 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 	int compute_type;
 
 	/* Happens for meshes without faces. */
-	if (UNLIKELY(ss->osd_evaluator == NULL)) {
-		return false;
-	}
+	//if (UNLIKELY(ss->osd_evaluator == NULL)) {
+	//	return false;
+	//}
 
 	switch (U.opensubdiv_compute_type) {
 #define CHECK_COMPUTE_TYPE(type) \
 		case USER_OPENSUBDIV_COMPUTE_ ## type: \
-			compute_type = OPENSUBDIV_CONTROLLER_ ## type; \
+			compute_type = OPENSUBDIV_EVALUATOR_ ## type; \
 			break;
 		CHECK_COMPUTE_TYPE(CPU)
 		CHECK_COMPUTE_TYPE(OPENMP)
@@ -2511,9 +2512,11 @@ static void opensubdiv_initEvaluatorFace(CCGSubSurf *ss,
 	}
 	OSD_LOG(")\n");
 
-	openSubdiv_createEvaluatorDescrFace(ss->osd_evaluator,
-	                                    face->numVerts,
-	                                    indices);
+	/* TODO(sergey): Need proper port. */
+	//openSubdiv_createEvaluatorDescrFace(ss->osd_evaluator,
+	//                                    face->numVerts,
+	//                                    indices);
+	(void)ss;
 
 	if (indices != indices_static) {
 		MEM_freeN(indices);
@@ -2523,6 +2526,8 @@ static void opensubdiv_initEvaluatorFace(CCGSubSurf *ss,
 
 static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 {
+	/* TODO(sergey): Need proper port. */
+#if 0
 	int i;
 	OsdScheme scheme = ss->meshIFC.simpleSubdiv
 		? OSD_SCHEME_BILINEAR
@@ -2555,6 +2560,10 @@ static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 	return openSubdiv_finishEvaluatorDescr(ss->osd_evaluator,
 	                                       ss->subdivLevels,
 	                                       scheme) != 0;
+#else
+	(void)ss;
+	return true;
+#endif
 }
 
 void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss,
@@ -2562,7 +2571,7 @@ void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss,
                                   bool subdivide_uvs)
 {
 	CustomData *loop_data = &dm->loopData;
-	int layer, num_layer = CustomData_number_of_layers(loop_data, CD_MLOOPUV);
+	int /*layer,*/ num_layer = CustomData_number_of_layers(loop_data, CD_MLOOPUV);
 	bool mpoly_allocated;
 	MPoly *mpoly;
 
@@ -2585,6 +2594,8 @@ void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss,
 
 	mpoly = DM_get_poly_array(dm, &mpoly_allocated);
 
+	/* TODO(sergey): Need proper port. */
+#if 0
 	openSubdiv_evaluatorFVDataClear(ss->osd_evaluator);
 
 	for (layer = 0; layer < num_layer; ++layer) {
@@ -2616,6 +2627,7 @@ void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss,
 			}
 		}
 	}
+#endif
 
 	if (mpoly_allocated) {
 		MEM_freeN(mpoly);
@@ -2626,7 +2638,7 @@ static bool check_topology_changed(CCGSubSurf *ss)
 {
 	int num_vertices,
 	    refinement_level,
-	    num_indices,
+	    /*num_indices,*/
 	    num_nverts;
 	int *indices, *nverts;
 	int i, index, osd_face_index;
@@ -2643,7 +2655,11 @@ static bool check_topology_changed(CCGSubSurf *ss)
 
 	BLI_assert(ss->osd_evaluator != NULL);
 
+	return false;
+
 	/* Get the topology from existing evaluator. */
+	/* TODO(sergey): Need proper port. */
+	/*
 	openSubdiv_getEvaluatorTopology(ss->osd_evaluator,
 	                                &num_vertices,
 	                                &refinement_level,
@@ -2651,6 +2667,7 @@ static bool check_topology_changed(CCGSubSurf *ss)
 	                                &indices,
 	                                &num_nverts,
 	                                &nverts);
+	*/
 
 	/* Quick tests based on the number of subdiv level, verts and facces. */
 	if (refinement_level != ss->subdivLevels ||
@@ -2706,7 +2723,8 @@ static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 			/* If topology changes then we are to re-create evaluator
 			 * from the very scratch.
 			 */
-			openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
+			/* TODO(sergey): Need proper port. */
+			//openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
 			ss->osd_evaluator = NULL;
 
 			/* We would also need to re-create gl mesh from sratch
@@ -2724,8 +2742,9 @@ static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 	if (ss->osd_evaluator == NULL) {
 		int num_basis_verts = ss->vMap->numEntries;
 		OSD_LOG("Allocating new evaluator, %d verts\n", num_basis_verts);
-		ss->osd_evaluator =
-			openSubdiv_createEvaluatorDescr(num_basis_verts);
+		/* TODO(sergey): Need proper port. */
+		//ss->osd_evaluator =
+		//	openSubdiv_createEvaluatorDescr(num_basis_verts);
 		evaluator_needs_init = true;
 	} else {
 		OSD_LOG("Re-using old evaluator\n");
@@ -2770,9 +2789,10 @@ static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
 		}
 	}
 
-	openSubdiv_setEvaluatorCoarsePositions(ss->osd_evaluator,
-	                                       (float *) positions,
-	                                       num_basis_verts);
+	/* TODO(sergey): Need proper port. */
+	//openSubdiv_setEvaluatorCoarsePositions(ss->osd_evaluator,
+	//                                       (float *) positions,
+	//                                       num_basis_verts);
 
 	MEM_freeN(positions);
 }
@@ -2863,11 +2883,12 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 
 				ccgSubSurf__mapGridToFace(S, grid_u, grid_v, &face_u, &face_v);
 
-				openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index,
-				                         face_u, face_v,
-				                         P,
-				                         do_normals ? dPdu : NULL,
-				                         do_normals ? dPdv : NULL);
+				/* TODO(sergey): Need proper port. */
+				//openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index,
+				//                         face_u, face_v,
+				//                         P,
+				//                         do_normals ? dPdu : NULL,
+				//                         do_normals ? dPdv : NULL);
 
 				OSD_LOG("face=%d, corner=%d, grid_u=%f, grid_v=%f, face_u=%f, face_v=%f, P=(%f, %f, %f)\n",
 				        osd_face_index, S, grid_u, grid_v, face_u, face_v, P[0], P[1], P[2]);
@@ -2940,7 +2961,8 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 			/* TODO(sergey): Ideally we will re-use grid here, but for now
 			 * let's just re-evaluate for simplicity.
 			 */
-			openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index, u, v, P, dPdu, dPdv);
+			/* TODO(sergey): Need proper port. */
+			//openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index, u, v, P, dPdu, dPdv);
 			VertDataCopy(co, P, ss);
 			if (do_normals) {
 				cross_v3_v3v3(no, dPdv, dPdu);
@@ -3003,7 +3025,8 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 				      v = 1.0f - (float) x / (gridSize - 1);
 				float P[3], dPdu[3], dPdv[3];
 
-				openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index + S, u, v, P, dPdu, dPdv);
+				/* TODO(sergey): Need proper port. */
+				//openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index + S, u, v, P, dPdu, dPdv);
 
 				OSD_LOG("face=%d, corner=%d, u=%f, v=%f, P=(%f, %f, %f)\n",
 				        osd_face_index + S, S, u, v, P[0], P[1], P[2]);

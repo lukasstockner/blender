@@ -31,14 +31,20 @@ set(INC
 set(INC_SYS
 	${OPENSUBDIV_INCLUDE_DIR}
 	${GLEW_INCLUDE_PATH}
+	/usr/local/cuda/include
 )
 
 set(SRC
 	opensubdiv_capi.cc
+	opensubdiv_device_context_cuda.cc
+	opensubdiv_device_context_opencl.cc
 	opensubdiv_gpu_capi.cc
-	clInit.h
-	cudaInit.h
+	opensubdiv_utils_capi.cc
+
 	opensubdiv_capi.h
+	opensubdiv_device_context_cuda.h
+	opensubdiv_device_context_opencl.h
+	opensubdiv_partitioned.h
 )
 
 macro(OPENSUBDIV_DEFINE_COMPONENT component)
@@ -49,7 +55,8 @@ endmacro()
 
 OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_OPENMP)
 OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_OPENCL)
-OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_CUDA)
+# TODO(sergey): CUDA stays disabled for util it's ported to drievr API.
+# OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_CUDA)
 OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK)
 OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_GLSL_COMPUTE)
 
@@ -61,12 +68,13 @@ if(WIN32)
 	add_definitions(-DNOMINMAX)
 endif()
 
-if(OPENSUBDIV_HAS_CUDA)
-	list(APPEND INC
-		../../extern/cuew/include
-	)
-	add_definitions(-DOPENSUBDIV_HAS_CUEW)
-endif()
+# TODO(sergey): Put CUEW back when CUDA is officially supported by OSD.
+#if(OPENSUBDIV_HAS_CUDA)
+#	list(APPEND INC
+#		../../extern/cuew/include
+#	)
+#	add_definitions(-DOPENSUBDIV_HAS_CUEW)
+#endif()
 
 if(OPENSUBDIV_HAS_OPENCL)
 	list(APPEND INC

@@ -34,24 +34,24 @@
 #  include "iso646.h"
 #endif
 
+#include <cstdio>
+#include <cmath>
 #include <GL/glew.h>
 
 #include <opensubdiv/osd/glMesh.h>
 
 #ifdef OPENSUBDIV_HAS_CUDA
 #  include <opensubdiv/osd/cudaGLVertexBuffer.h>
-#endif
+#endif  /* OPENSUBDIV_HAS_CUDA */
 
 #include <opensubdiv/osd/cpuGLVertexBuffer.h>
-#include <opensubdiv/osd/cpuComputeContext.h>
-#include <opensubdiv/osd/cpuComputeController.h>
+#include <opensubdiv/osd/cpuEvaluator.h>
 
 #include "opensubdiv_partitioned.h"
 
-using OpenSubdiv::FarPatchTables;
-using OpenSubdiv::OsdDrawContext;
-using OpenSubdiv::OsdGLMeshInterface;
-using OpenSubdiv::PartitionedGLMeshInterface;
+//using OpenSubdiv::FarPatchTables;
+using OpenSubdiv::Osd::GLMeshInterface;
+//sing OpenSubdiv::PartitionedGLMeshInterface;
 
 extern "C" char datatoc_gpu_shader_opensubd_display_glsl[];
 
@@ -299,7 +299,7 @@ GLuint linkProgram(const char *define)
 	return program;
 }
 
-void bindProgram(PartitionedGLMeshInterface *mesh,
+void bindProgram(PartitionedGLMeshInterface * /*mesh*/,
                  int program)
 {
 	glUseProgram(program);
@@ -351,6 +351,8 @@ void bindProgram(PartitionedGLMeshInterface *mesh,
 		glUniform4fv(glGetUniformLocation(program, "diffuse"), 1, color);
 	}
 
+	/* TODO(sergey): Bring face varying back. */
+#if 0
 	/* Face-vertex data */
 	if (mesh->GetDrawContext()->GetFvarDataTextureBuffer()) {
 		glActiveTexture(GL_TEXTURE31);
@@ -358,9 +360,11 @@ void bindProgram(PartitionedGLMeshInterface *mesh,
 		              mesh->GetDrawContext()->GetFvarDataTextureBuffer());
 		glActiveTexture(GL_TEXTURE0);
 	}
+#endif
 
+	/* TODO(sergey): Bring face varying back. */
 	glUniform1i(glGetUniformLocation(program, "osd_fvar_count"),
-	            mesh->GetFVarCount());
+	            0/* * mesh->GetFVarCount()*/);
 
 	glUniform1i(glGetUniformLocation(program, "osd_active_uv_offset"),
 	            g_active_uv_index * 2);
@@ -475,6 +479,8 @@ static GLuint preapre_patchDraw(PartitionedGLMeshInterface *mesh,
 				glUniform1i(location, model == GL_FLAT);
 			}
 
+			/* TODO(sergey): Bring this back. */
+#if 0
 			/* Face-vertex data */
 			if (mesh->GetDrawContext()->GetFvarDataTextureBuffer()) {
 				glActiveTexture(GL_TEXTURE31);
@@ -493,6 +499,7 @@ static GLuint preapre_patchDraw(PartitionedGLMeshInterface *mesh,
 					            g_active_uv_index * 2);
 				}
 			}
+#endif
 
 		}
 		return program;
@@ -556,6 +563,7 @@ static void draw_partition_patches_range(PartitionedGLMeshInterface *mesh,
                                          int start_partition,
                                          int num_partitions)
 {
+#if 0
 	/* Glue patches from all partitions in the range together. */
 	int patch_index = -1, start_element = -1, num_elements = 0;
 	for (int partition = start_partition;
@@ -588,26 +596,32 @@ static void draw_partition_patches_range(PartitionedGLMeshInterface *mesh,
 	                     patch_index,
 	                     num_elements,
 	                     start_element);
+#else
+	(void)mesh;
+	(void)program;
+	(void)start_partition;
+	(void)num_partitions;
+#endif
 }
 
 static void draw_all_patches(PartitionedGLMeshInterface *mesh,
                              GLuint program)
 {
-	OsdDrawContext::PatchArrayVector const &patches =
-	        mesh->GetDrawContext()->patchArrays;
+    OpenSubdiv::Osd::PatchArrayVector const & patches =
+        mesh->GetPatchTable()->GetPatchArrays();
 
-	for (int i = 0; i < (int)patches.size(); ++i) {
-		OsdDrawContext::PatchArray const &patch = patches[i];
-		OsdDrawContext::PatchDescriptor desc = patch.GetDescriptor();
-		OpenSubdiv::FarPatchTables::Type patchType = desc.GetType();
+    for (int i = 0; i < (int)patches.size(); ++i) {
+	    OpenSubdiv::Osd::PatchArray const &patch = patches[i];
+	    OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
+	    OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
 
-		if (patchType == OpenSubdiv::FarPatchTables::QUADS) {
+	    if (patchType == OpenSubdiv::Far::PatchDescriptor::QUADS) {
 			perform_drawElements(program,
-			                     patch.GetPatchIndex(),
-			                     patch.GetNumIndices(),
-			                     patch.GetVertIndex());
-		}
-	}
+			                     i,
+			                     patch.GetNumPatches() * desc.GetNumControlVertices(),
+			                     patch.GetIndexBase());
+	    }
+    }
 }
 
 void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
@@ -625,10 +639,17 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
 	GLuint program = preapre_patchDraw(mesh, fill_quads != 0);
 
 	if (start_partition != -1) {
+#if 0
 		draw_partition_patches_range(mesh,
 		                             program,
 		                             start_partition,
 		                             num_partitions);
+#else
+		(void)num_partitions;
+		if(start_partition == 0) {
+			draw_all_patches(mesh, program);
+		}
+#endif
 	}
 	else {
 		draw_all_patches(mesh, program);

@@ -40,21 +40,21 @@ typedef struct OpenSubdiv_GLMesh OpenSubdiv_GLMesh;
 #ifdef __cplusplus
 struct OpenSubdiv_GLMeshDescr;
 typedef struct OpenSubdiv_GLMesh {
-	int controller_type;
+	int evaluator_type;
 	OpenSubdiv_GLMeshDescr *descriptor;
 	int level;
 } OpenSubdiv_GLMesh;
 #endif
 
-// Keep this a bitmask os it's possible to pass vailable
-// controllers to Blender.
+// Keep this a bitmask os it's possible to pass available
+// evaluators to Blender.
 enum {
-	OPENSUBDIV_CONTROLLER_CPU                      = (1 << 0),
-	OPENSUBDIV_CONTROLLER_OPENMP                   = (1 << 1),
-	OPENSUBDIV_CONTROLLER_OPENCL                   = (1 << 2),
-	OPENSUBDIV_CONTROLLER_CUDA                     = (1 << 3),
-	OPENSUBDIV_CONTROLLER_GLSL_TRANSFORM_FEEDBACK  = (1 << 4),
-	OPENSUBDIV_CONTROLLER_GLSL_COMPUTE             = (1 << 5),
+	OPENSUBDIV_EVALUATOR_CPU                      = (1 << 0),
+	OPENSUBDIV_EVALUATOR_OPENMP                   = (1 << 1),
+	OPENSUBDIV_EVALUATOR_OPENCL                   = (1 << 2),
+	OPENSUBDIV_EVALUATOR_CUDA                     = (1 << 3),
+	OPENSUBDIV_EVALUATOR_GLSL_TRANSFORM_FEEDBACK  = (1 << 4),
+	OPENSUBDIV_EVALUATOR_GLSL_COMPUTE             = (1 << 5),
 };
 
 enum {
@@ -76,7 +76,7 @@ const float *openSubdiv_evaluatorGetFloatTagArgs(
 
 OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
     OpenSubdiv_EvaluatorDescr *evaluator_descr,
-    int controller_type,
+    int evaluator_type,
     int level,
     int scheme,
     int subdivide_uvs);
@@ -115,7 +115,7 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
 
 /* ** Utility functions ** */
 int openSubdiv_supportGPUDisplay(void);
-int openSubdiv_getAvailableControllers(void);
+int openSubdiv_getAvailableEvaluators(void);
 void openSubdiv_cleanup(void);
 
 #ifdef __cplusplus

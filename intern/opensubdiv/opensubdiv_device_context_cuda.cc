@@ -1,33 +1,82 @@
-//
-//   Copyright 2013 Pixar
-//
-//   Licensed under the Apache License, Version 2.0 (the "Apache License")
-//   with the following modification; you may not use this file except in
-//   compliance with the Apache License and the following modification to it:
-//   Section 6. Trademarks. is deleted and replaced with:
-//
-//   6. Trademarks. This License does not grant permission to use the trade
-//      names, trademarks, service marks, or product names of the Licensor
-//      and its affiliates, except as required to comply with Section 4(c) of
-//      the License and to reproduce the content of the NOTICE file.
-//
-//   You may obtain a copy of the Apache License at
-//
-//       http://www.apache.org/licenses/LICENSE-2.0
-//
-//   Unless required by applicable law or agreed to in writing, software
-//   distributed under the Apache License with the above modification is
-//   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-//   KIND, either express or implied. See the Apache License for the specific
-//   language governing permissions and limitations under the Apache License.
-//
+/*
+ * Adopted from OpenSubdiv with the following license:
+ *
+ *   Copyright 2015 Pixar
+ *
+ *   Licensed under the Apache License, Version 2.0 (the "Apache License")
+ *   with the following modification; you may not use this file except in
+ *   compliance with the Apache License and the following modification to it:
+ *   Section 6. Trademarks. is deleted and replaced with:
+ *
+ *   6. Trademarks. This License does not grant permission to use the trade
+ *      names, trademarks, service marks, or product names of the Licensor
+ *      and its affiliates, except as required to comply with Section 4(c) of
+ *      the License and to reproduce the content of the NOTICE file.
+ *
+ *   You may obtain a copy of the Apache License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *   Unless required by applicable law or agreed to in writing, software
+ *   distributed under the Apache License with the above modification is
+ *   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ *   KIND, either express or implied. See the Apache License for the specific
+ *   language governing permissions and limitations under the Apache License.
+ */
 
-#ifndef OSD_CUDA_INIT_H
-#define OSD_CUDA_INIT_H
+#include "opensubdiv_device_context_cuda.h"
 
-#include <algorithm>
+#if defined(_WIN32)
+#  include <windows.h>
+#elif defined(__APPLE__)
+#  include <OpenGL/OpenGL.h>
+#else
+#  include <X11/Xlib.h>
+#  include <GL/glx.h>
+#endif
+
 #include <cstdio>
-#include <opensubdiv/osd/cuda.h>
+#include <algorithm>
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+#include <cuda_gl_interop.h>
+
+#define message(fmt, ...)
+//#define message(fmt, ...)  fprintf(stderr, fmt, __VA_ARGS__)
+#define error(fmt, ...)  fprintf(stderr, fmt, __VA_ARGS__)
+
+static int _GetCudaDeviceForCurrentGLContext()
+{
+	// Find and use the CUDA device for the current GL context
+	unsigned int interopDeviceCount = 0;
+	int interopDevices[1];
+	cudaError_t status = cudaGLGetDevices(&interopDeviceCount, interopDevices,
+	                                      1,  cudaGLDeviceListCurrentFrame);
+	if (status == cudaErrorNoDevice or interopDeviceCount != 1) {
+		message("CUDA no interop devices found.\n");
+		return 0;
+	}
+	int device = interopDevices[0];
+
+#if defined(_WIN32)
+	return device;
+
+#elif defined(__APPLE__)
+	return device;
+
+#else  // X11
+	Display * display = glXGetCurrentDisplay();
+	int screen = DefaultScreen(display);
+	if (device != screen) {
+		error("The CUDA interop device (%d) does not match "
+		      "the screen used by the current GL context (%d), "
+		      "which may cause slow performance on systems "
+		      "with multiple GPU devices.", device, screen);
+	}
+	message("CUDA init using device for current GL context: %d\n", device);
+	return device;
+#endif
+}
 
 /* From "NVIDIA GPU Computing SDK 4.2/C/common/inc/cutil_inline_runtime.h": */
 
@@ -76,7 +125,7 @@ inline int cutGetMaxGflopsDeviceId()
 	int device_count     = 0, best_SM_arch     = 0;
 	int compat_major, compat_minor;
 
-	cuda_assert(cuDeviceGetCount(&device_count));
+	cuDeviceGetCount(&device_count);
 	/* Find the best major SM Architecture GPU device. */
 	while (current_device < device_count) {
 		cuDeviceComputeCapability(&compat_major, &compat_minor, current_device);
@@ -123,7 +172,8 @@ inline int cutGetMaxGflopsDeviceId()
 	return max_perf_device;
 }
 
-static bool HAS_CUDA_VERSION_4_0() {
+bool CudaDeviceContext::HAS_CUDA_VERSION_4_0()
+{
 #ifdef OPENSUBDIV_HAS_CUDA
 	static bool cudaInitialized = false;
 	static bool cudaLoadSuccess = true;
@@ -156,4 +206,24 @@ static bool HAS_CUDA_VERSION_4_0() {
 #endif
 }
 
-#endif  /* OSD_CUDA_INIT_H */
+CudaDeviceContext::CudaDeviceContext()
+    : _initialized(false) {
+}
+
+CudaDeviceContext::~CudaDeviceContext() {
+	cudaDeviceReset();
+}
+
+bool CudaDeviceContext::Initialize()
+{
+	/* See if any cuda device is available. */
+	int deviceCount = 0;
+	cudaGetDeviceCount(&deviceCount);
+	message("CUDA device count: %d\n", deviceCount);
+	if (deviceCount <= 0) {
+		return false;
+	}
+	cudaGLSetGLDevice(_GetCudaDeviceForCurrentGLContext());
+	_initialized = true;
+	return true;
+}

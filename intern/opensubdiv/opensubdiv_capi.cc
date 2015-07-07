@@ -33,225 +33,116 @@
 #include <GL/glew.h>
 
 #include <opensubdiv/osd/glMesh.h>
-#include <opensubdiv/osd/glDrawRegistry.h>
-#include <opensubdiv/osdutil/evaluator_capi.h>
-#include <opensubdiv/osdutil/topology.h>
-#include <opensubdiv/osdutil/mesh.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
 
-// CPU Backend
+/* CPU Backend */
 #include <opensubdiv/osd/cpuGLVertexBuffer.h>
-#include <opensubdiv/osd/cpuComputeContext.h>
-#include <opensubdiv/osd/cpuComputeController.h>
+#include <opensubdiv/osd/cpuEvaluator.h>
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-#  include <opensubdiv/osd/ompComputeController.h>
-#endif
+#  include <opensubdiv/osd/ompEvaluator.h>
+#endif  /* OPENSUBDIV_HAS_OPENMP */
 
 #ifdef OPENSUBDIV_HAS_OPENCL
 #  include <opensubdiv/osd/clGLVertexBuffer.h>
-#  include <opensubdiv/osd/clComputeContext.h>
-#  include <opensubdiv/osd/clComputeController.h>
-#  include "clInit.h"
-#endif
+#  include <opensubdiv/osd/clEvaluator.h>
+#  include "opensubdiv_device_context_opencl.h"
+#endif  /* OPENSUBDIV_HAS_OPENCL */
 
 #ifdef OPENSUBDIV_HAS_CUDA
 #  include <opensubdiv/osd/cudaGLVertexBuffer.h>
-#  include <opensubdiv/osd/cudaComputeContext.h>
-#  include <opensubdiv/osd/cudaComputeController.h>
-#  include "cudaInit.h"
-#endif
+#  include <opensubdiv/osd/cudaEvaluator.h>
+#  include "opensubdiv_device_context_cuda.h"
+#endif  /* OPENSUBDIV_HAS_CUDA */
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-#  include <opensubdiv/osd/glslTransformFeedbackComputeContext.h>
-#  include <opensubdiv/osd/glslTransformFeedbackComputeController.h>
+#  include <opensubdiv/osd/glXFBEvaluator.h>
 #  include <opensubdiv/osd/glVertexBuffer.h>
-#endif
+#endif  /* OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK */
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-#  include <opensubdiv/osd/glslComputeContext.h>
-#  include <opensubdiv/osd/glslComputeController.h>
+#  include <opensubdiv/osd/glComputeEvaluator.h>
 #  include <opensubdiv/osd/glVertexBuffer.h>
-#endif
+#endif  /* OPENSUBDIV_HAS_GLSL_COMPUTE */
 
-#include <opensubdiv/osdutil/patchPartitioner.h>
+#include <opensubdiv/osd/glPatchTable.h>
+#include <opensubdiv/far/stencilTable.h>
 
 #include "opensubdiv_partitioned.h"
 
 #include "MEM_guardedalloc.h"
 
-// **************** Types declaration ****************
+/* **************** Types declaration **************** */
 
-struct OpenSubdiv_ComputeControllerDescr;
+using OpenSubdiv::Osd::GLMeshInterface;
+using OpenSubdiv::Osd::Mesh;
+using OpenSubdiv::Osd::MeshBitset;
+using OpenSubdiv::Far::StencilTable;
+using OpenSubdiv::Osd::GLPatchTable;
 
-typedef struct OpenSubdiv_ComputeController {
-	int type;
-	OpenSubdiv_ComputeControllerDescr *descriptor;
-} OpenSubdiv_ComputeController;
+using OpenSubdiv::Osd::PartitionedMesh;
 
-using OpenSubdiv::OsdCpuComputeController;
-using OpenSubdiv::OsdGLDrawContext;
-using OpenSubdiv::OsdGLMeshInterface;
-using OpenSubdiv::OsdMesh;
-using OpenSubdiv::OsdMeshBitset;
-using OpenSubdiv::OsdUtilSubdivTopology;
-using OpenSubdiv::OsdVertex;
-
-typedef OpenSubdiv::HbrMesh<OsdVertex> OsdHbrMesh;
-typedef OpenSubdiv::HbrFace<OpenSubdiv::OsdVertex> OsdHbrFace;
-
-#if defined(OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK) || \
-    defined(OPENSUBDIV_HAS_GLSL_COMPUTE)
-using OpenSubdiv::OsdGLVertexBuffer;
-#endif
-
-using OpenSubdiv::OsdGLDrawContext;
-using OpenSubdiv::PartitionedMesh;
-
-// CPU backend
-using OpenSubdiv::OsdCpuGLVertexBuffer;
-using OpenSubdiv::OsdCpuComputeController;
-static OpenSubdiv_ComputeController *g_cpuComputeController = NULL;
-typedef PartitionedMesh<OsdCpuGLVertexBuffer,
-                        OsdCpuComputeController,
-                        OsdGLDrawContext> OsdCpuMesh;
+/* CPU backend */
+using OpenSubdiv::Osd::CpuGLVertexBuffer;
+using OpenSubdiv::Osd::CpuEvaluator;
+typedef PartitionedMesh<CpuGLVertexBuffer,
+                        StencilTable,
+                        CpuEvaluator,
+                        GLPatchTable> OsdCpuMesh;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-using OpenSubdiv::OsdOmpComputeController;
-static OpenSubdiv_ComputeController *g_ompComputeController = NULL;
-typedef PartitionedMesh<OsdCpuGLVertexBuffer,
-                        OsdOmpComputeController,
-                        OsdGLDrawContext> OsdOmpMesh;
-#endif
+using OpenSubdiv::Osd::OmpEvaluator;
+typedef PartitionedMesh<CpuGLVertexBuffer,
+                        StencilTable,
+                        OmpEvaluator,
+                        GLPatchTable> OsdOmpMesh;
+#endif  /* OPENSUBDIV_HAS_OPENMP */
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-using OpenSubdiv::OsdCLGLVertexBuffer;
-using OpenSubdiv::OsdCLComputeController;
-typedef PartitionedMesh<OsdCLGLVertexBuffer,
-                        OsdCLComputeController,
-                        OsdGLDrawContext> OsdCLMesh;
-static OpenSubdiv_ComputeController *g_clComputeController = NULL;
-static cl_context g_clContext;
-static cl_command_queue g_clQueue;
-#endif
+using OpenSubdiv::Osd::CLEvaluator;
+using OpenSubdiv::Osd::CLGLVertexBuffer;
+using OpenSubdiv::Osd::CLStencilTable;
+/* TODO(sergey): Use CLDeviceCOntext similar to OSD examples? */
+typedef PartitionedMesh<CLGLVertexBuffer,
+                        CLStencilTable,
+                        CLEvaluator,
+                        GLPatchTable,
+                        CLDeviceContext> OsdCLMesh;
+static CLDeviceContext g_clDeviceContext;
+#endif  /* OPENSUBDIV_HAS_OPENCL */
 
 #ifdef OPENSUBDIV_HAS_CUDA
-using OpenSubdiv::OsdCudaComputeController;
-using OpenSubdiv::OsdCudaGLVertexBuffer;
-typedef PartitionedMesh<OsdCudaGLVertexBuffer,
-                        OsdCudaComputeController,
-                        OsdGLDrawContext> OsdCudaMesh;
-static OpenSubdiv_ComputeController *g_cudaComputeController = NULL;
-static bool g_cudaInitialized = false;
-#endif
+using OpenSubdiv::Osd::CudaEvaluator;
+using OpenSubdiv::Osd::CudaGLVertexBuffer;
+using OpenSubdiv::Osd::CudaStencilTable;
+typedef PartitionedMesh<CudaGLVertexBuffer,
+                        CudaStencilTable,
+                        CudaEvaluator,
+                        GLPatchTable> OsdCudaMesh;
+static CudaDeviceContext g_cudaDeviceContext;
+#endif  /* OPENSUBDIV_HAS_CUDA */
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-using OpenSubdiv::OsdGLSLTransformFeedbackComputeController;
-typedef PartitionedMesh<OsdGLVertexBuffer,
-                        OsdGLSLTransformFeedbackComputeController,
-                        OsdGLDrawContext> OsdGLSLTransformFeedbackMesh;
-static OpenSubdiv_ComputeController *g_glslTransformFeedbackComputeController = NULL;
-#endif
+using OpenSubdiv::Osd::GLXFBEvaluator;
+using OpenSubdiv::Osd::GLStencilTableTBO;
+using OpenSubdiv::Osd::GLVertexBuffer;
+typedef PartitionedMesh<GLVertexBuffer,
+                        GLStencilTableTBO,
+                        GLXFBEvaluator,
+                        GLPatchTable> OsdGLSLTransformFeedbackMesh;
+#endif  /* OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK */
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-using OpenSubdiv::OsdGLSLComputeController;
-typedef PartitionedMesh<OsdGLVertexBuffer,
-                        OsdGLSLComputeController,
-                        OsdGLDrawContext> OsdGLSLComputeMesh;
-static OpenSubdiv_ComputeController *g_glslOComputeComputeController = NULL;
+using OpenSubdiv::Osd::GLComputeEvaluator;
+using OpenSubdiv::Osd::GLStencilTableSSBO;
+using OpenSubdiv::Osd::GLVertexBuffer;
+typedef PartitionedMesh<GLVertexBuffer,
+                        GLStencilTableSSBO,
+                        GLComputeEvaluator,
+                        GLPatchTable> OsdGLSLComputeMesh;
 #endif
 
-static OpenSubdiv_ComputeController *alloc_controller(int controller_type)
-{
-	OpenSubdiv_ComputeController *controller =
-		(OpenSubdiv_ComputeController *) OBJECT_GUARDED_NEW(
-			OpenSubdiv_ComputeController);
-	controller->type = controller_type;
-	return controller;
-}
-
-static OpenSubdiv_ComputeController *openSubdiv_getController(
-	int controller_type)
-{
-#ifdef OPENSUBDIV_HAS_OPENCL
-	if (controller_type == OPENSUBDIV_CONTROLLER_OPENCL &&
-	    g_clContext == NULL)
-	{
-		if (!HAS_CL_VERSION_1_1()) {
-			printf("OpenCL is not supported on this system\n");
-			return NULL;
-		}
-		if (initCL(&g_clContext, &g_clQueue) == false) {
-			printf("Error in initializing OpenCL\n");
-			return NULL;
-		}
-	}
-#endif
-
-#ifdef OPENSUBDIV_HAS_CUDA
-	if (controller_type == OPENSUBDIV_CONTROLLER_CUDA &&
-	   g_cudaInitialized == false)
-	{
-		if (!HAS_CUDA_VERSION_4_0()) {
-			printf("CUDA is not supported on this system\n");
-			return NULL;
-		}
-		g_cudaInitialized = true;
-	}
-#endif
-
-	switch (controller_type) {
-#define CHECK_CONTROLLER_TYPR(type, var, class) \
-	case OPENSUBDIV_CONTROLLER_ ## type: \
-		if (var == NULL) { \
-			var = alloc_controller(controller_type); \
-			var->descriptor = \
-				(OpenSubdiv_ComputeControllerDescr *) new class(); \
-		} \
-		return var;
-
-		CHECK_CONTROLLER_TYPR(CPU,
-		                      g_cpuComputeController,
-		                      OsdCpuComputeController);
-
-#ifdef OPENSUBDIV_HAS_OPENMP
-		CHECK_CONTROLLER_TYPR(OPENMP,
-		                      g_ompComputeController,
-		                      OsdOmpComputeController);
-#endif
-
-#ifdef OPENSUBDIV_HAS_OPENCL
-	case OPENSUBDIV_CONTROLLER_OPENCL:
-		if (g_clComputeController == NULL) {
-			g_clComputeController = alloc_controller(controller_type);
-			g_clComputeController->descriptor =
-				(OpenSubdiv_ComputeControllerDescr *)
-					new OsdCLComputeController(g_clContext, g_clQueue);
-		}
-		return g_clComputeController;
-#endif
-
-#ifdef OPENSUBDIV_HAS_CUDA
-		CHECK_CONTROLLER_TYPR(CUDA,
-		                      g_cudaComputeController,
-		                      OsdCudaComputeController);
-#endif
-
-#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-		CHECK_CONTROLLER_TYPR(GLSL_TRANSFORM_FEEDBACK,
-		                      g_glslTransformFeedbackComputeController,
-		                      OsdGLSLTransformFeedbackComputeController);
-#endif
-
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-		CHECK_CONTROLLER_TYPR(GLSL_COMPUTE,
-		                      g_glslComputeController,
-		                      OsdGLSLComputeController);
-#endif
-	}
-
-	return NULL;
-}
-
+#if 0
 static OpenSubdiv::OsdUtilMesh<OsdVertex>::Scheme get_osd_scheme(int scheme)
 {
 	switch (scheme) {
@@ -266,6 +157,7 @@ static OpenSubdiv::OsdUtilMesh<OsdVertex>::Scheme get_osd_scheme(int scheme)
 	}
 	return OpenSubdiv::OsdUtilMesh<OsdVertex>::SCHEME_BILINEAR;
 }
+#endif
 
 /* TODO(sergey): Currently we use single coarse face per partition,
  * which allows to have per-face material assignment but which also
@@ -275,26 +167,27 @@ static OpenSubdiv::OsdUtilMesh<OsdVertex>::Scheme get_osd_scheme(int scheme)
  * at draw time, so adjacent faces with the same material are displayed
  * in a single chunk.
  */
+#if 0
 static void get_partition_per_face(OsdHbrMesh &hmesh,
                                    std::vector<int> *idsOnPtexFaces)
 {
 	int numFaces = hmesh.GetNumCoarseFaces();
 
-	// First, assign partition ID to each coarse face.
+	/* First, assign partition ID to each coarse face. */
 	std::vector<int> idsOnCoarseFaces;
 	for (int i = 0; i < numFaces; ++i) {
 		int partitionID = i;
 		idsOnCoarseFaces.push_back(partitionID);
 	}
 
-	// Create ptex index to coarse face index mapping.
+	/* Create ptex index to coarse face index mapping. */
 	OsdHbrFace *lastFace = hmesh.GetFace(numFaces - 1);
 	int numPtexFaces = lastFace->GetPtexIndex();
 	numPtexFaces += (hmesh.GetSubdivision()->FaceIsExtraordinary(&hmesh,
 	                                                             lastFace) ?
 	                 lastFace->GetNumVertices() : 1);
 
-	// TODO(sergey): Duplicated logic to simpleHbr.
+	/* TODO(sergey): Duplicated logic to simpleHbr. */
 	std::vector<int> ptexIndexToFaceMapping(numPtexFaces);
 	int ptexIndex = 0;
 	for (int i = 0; i < numFaces; ++i) {
@@ -309,16 +202,17 @@ static void get_partition_per_face(OsdHbrMesh &hmesh,
 	}
 	assert((int)ptexIndexToFaceMapping.size() == numPtexFaces);
 
-	// Convert ID array from coarse face index space to ptex index space.
+	/* Convert ID array from coarse face index space to ptex index space. */
 	for (int i = 0; i < numPtexFaces; ++i) {
 		idsOnPtexFaces->push_back(idsOnCoarseFaces[ptexIndexToFaceMapping[i]]);
 	}
 }
+#endif
 
 /* TODO(sergey): It might be good to have in evaluator_capi. */
-void openSubdiv_evlauatorClearTags(
-    OpenSubdiv_EvaluatorDescr *evaluator_descr)
+void openSubdiv_evlauatorClearTags(OpenSubdiv_EvaluatorDescr *evaluator_descr)
 {
+#if 0
 	OsdUtilSubdivTopology *topology =
 	    (OsdUtilSubdivTopology *)openSubdiv_getEvaluatorTopologyDescr(
 	        evaluator_descr);
@@ -327,131 +221,353 @@ void openSubdiv_evlauatorClearTags(
 	topology->tagData.intArgs.clear();
 	topology->tagData.floatArgs.clear();
 	topology->tagData.stringArgs.clear();
+#else
+	(void)evaluator_descr;
+#endif
 }
 
 void openSubdiv_evaluatorSetEdgeSharpness(
-    OpenSubdiv_EvaluatorDescr *evaluator_descr,
-    int v0, int v1,
-    float sharpness)
+        OpenSubdiv_EvaluatorDescr *evaluator_descr,
+        int v0, int v1,
+        float sharpness)
 {
+#if 0
 	OsdUtilSubdivTopology *topology =
 	    (OsdUtilSubdivTopology *)openSubdiv_getEvaluatorTopologyDescr(
 	        evaluator_descr);
 	int indices[] = {v0, v1};
 
 	topology->tagData.AddCrease(indices, 2, &sharpness, 1);
+#else
+	(void)evaluator_descr;
+	(void)v0;
+	(void)v1;
+	(void)sharpness;
+#endif
 }
 
 const float *openSubdiv_evaluatorGetFloatTagArgs(
-    OpenSubdiv_EvaluatorDescr *evaluator_descr)
+        OpenSubdiv_EvaluatorDescr *evaluator_descr)
 {
+#if 0
 	OsdUtilSubdivTopology *topology =
 	    (OsdUtilSubdivTopology *)openSubdiv_getEvaluatorTopologyDescr(
 	        evaluator_descr);
 	return &topology->tagData.floatArgs[0];
+#else
+	(void)evaluator_descr;
+	return NULL;
+#endif
 }
 
+static int g_nverts = 5,
+           g_nedges = 8,
+           g_nfaces = 5;
+
+// vertex positions
+static float g_verts[5][3] = {{ 0.0f,  0.0f,  2.0f},
+                              { 0.0f, -2.0f,  0.0f},
+                              { 2.0f,  0.0f,  0.0f},
+                              { 0.0f,  2.0f,  0.0f},
+                              {-2.0f,  0.0f,  0.0f}};
+
+// number of vertices in each face
+static int g_facenverts[5] = { 3, 3, 3, 3, 4 };
+
+// index of face vertices
+static int g_faceverts[16] = { 0, 1, 2,
+                               0, 2, 3,
+                               0, 3, 4,
+                               0, 4, 1,
+                               4, 3, 2, 1 };
+
+// index of edge vertices (2 per edge)
+static int g_edgeverts[16] = { 0, 1,
+                               1, 2,
+                               2, 0,
+                               2, 3,
+                               3, 0,
+                               3, 4,
+                               4, 0,
+                               4, 1 };
+
+
+// index of face edges
+static int g_faceedges[16] = { 0, 1, 2,
+                               2, 3, 4,
+                               4, 5, 6,
+                               6, 7, 0,
+                               5, 3, 1, 7 };
+
+// number of faces adjacent to each edge
+static int g_edgenfaces[8] = { 2, 2, 2, 2, 2, 2, 2, 2 };
+
+// index of faces incident to a given edge
+static int g_edgefaces[16] = { 0, 3,
+                               0, 4,
+                               0, 1,
+                               1, 4,
+                               1, 2,
+                               2, 4,
+                               2, 3,
+                               3, 4 };
+
+// number of faces incident to each vertex
+static int g_vertexnfaces[5] = { 4, 3, 3, 3, 3 };
+
+// index of faces incident to each vertex
+static int g_vertexfaces[25] = { 0, 1, 2, 3,
+                                 0, 3, 4,
+                                 0, 4, 1,
+                                 1, 4, 2,
+                                 2, 4, 3 };
+
+
+// number of edges incident to each vertex
+static int g_vertexnedges[5] = { 4, 3, 3, 3, 3 };
+
+// index of edges incident to each vertex
+static int g_vertexedges[25] = { 0, 2, 4, 6,
+                                 1, 0, 7,
+                                 2, 1, 3,
+                                 4, 3, 5,
+                                 6, 5, 7 };
+
+// Edge crease sharpness
+static float g_edgeCreases[8] = { 0.0f,
+                                  2.5f,
+                                  0.0f,
+                                  2.5f,
+                                  0.0f,
+                                  2.5f,
+                                  0.0f,
+                                  2.5f };
+
+struct Converter {
+
+public:
+
+	OpenSubdiv::Sdc::SchemeType GetType() const {
+        return OpenSubdiv::Sdc::SCHEME_CATMARK;
+    }
+
+    OpenSubdiv::Sdc::Options GetOptions() const {
+        OpenSubdiv::Sdc::Options options;
+        options.SetVtxBoundaryInterpolation(OpenSubdiv::Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
+        return options;
+    }
+
+    int GetNumFaces() const { return g_nfaces; }
+
+    int GetNumEdges() const { return g_nedges; }
+
+    int GetNumVertices() const { return g_nverts; }
+
+    //
+    // Face relationships
+    //
+    int GetNumFaceVerts(int face) const { return g_facenverts[face]; }
+
+    int const * GetFaceVerts(int face) const { return g_faceverts+getCompOffset(g_facenverts, face); }
+
+    int const * GetFaceEdges(int edge) const { return g_faceedges+getCompOffset(g_facenverts, edge); }
+
+
+    //
+    // Edge relationships
+    //
+    int const * GetEdgeVertices(int edge) const { return g_edgeverts+edge*2; }
+
+    int GetNumEdgeFaces(int edge) const { return g_edgenfaces[edge]; }
+
+    int const * GetEdgeFaces(int edge) const { return g_edgefaces+getCompOffset(g_edgenfaces, edge); }
+
+    //
+    // Vertex relationships
+    //
+    int GetNumVertexEdges(int vert) const { return g_vertexnedges[vert]; }
+
+    int const * GetVertexEdges(int vert) const { return g_vertexedges+getCompOffset(g_vertexnedges, vert); }
+
+    int GetNumVertexFaces(int vert) const { return g_vertexnfaces[vert]; }
+
+    int const * GetVertexFaces(int vert) const { return g_vertexfaces+getCompOffset(g_vertexnfaces, vert); }
+
+private:
+
+    int getCompOffset(int const * comps, int comp) const {
+        int ofs=0;
+        for (int i=0; i<comp; ++i) {
+            ofs += comps[i];
+        }
+        return ofs;
+    }
+
+};
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
+namespace Far {
+
+template <>
+bool
+TopologyRefinerFactory<Converter>::resizeComponentTopology(
+    TopologyRefiner & refiner, Converter const & conv) {
+
+    // Faces and face-verts
+    int nfaces = conv.GetNumFaces();
+    setNumBaseFaces(refiner, nfaces);
+    for (int face=0; face<nfaces; ++face) {
+
+        int nv = conv.GetNumFaceVerts(face);
+        setNumBaseFaceVertices(refiner, face, nv);
+    }
+
+   // Edges and edge-faces
+    int nedges = conv.GetNumEdges();
+    setNumBaseEdges(refiner, nedges);
+    for (int edge=0; edge<nedges; ++edge) {
+
+        int nf = conv.GetNumEdgeFaces(edge);
+        setNumBaseEdgeFaces(refiner, edge, nf);
+    }
+
+    // Vertices and vert-faces and vert-edges
+    int nverts = conv.GetNumVertices();
+    setNumBaseVertices(refiner, nverts);
+    for (int vert=0; vert<nverts; ++vert) {
+
+        int ne = conv.GetNumVertexEdges(vert),
+            nf = conv.GetNumVertexFaces(vert);
+        setNumBaseVertexEdges(refiner, vert, ne);
+        setNumBaseVertexFaces(refiner, vert, nf);
+    }
+    return true;
+}
+
+template <>
+bool
+TopologyRefinerFactory<Converter>::assignComponentTopology(
+    TopologyRefiner & refiner, Converter const & conv) {
+
+    typedef Far::IndexArray      IndexArray;
+
+    { // Face relations:
+        int nfaces = conv.GetNumFaces();
+        for (int face=0; face<nfaces; ++face) {
+
+            IndexArray dstFaceVerts = getBaseFaceVertices(refiner, face);
+            IndexArray dstFaceEdges = getBaseFaceEdges(refiner, face);
+
+            int const * faceverts = conv.GetFaceVerts(face);
+            int const * faceedges = conv.GetFaceEdges(face);
+
+            for (int vert=0; vert<conv.GetNumFaceVerts(face); ++vert) {
+                dstFaceVerts[vert] = faceverts[vert];
+                dstFaceEdges[vert] = faceedges[vert];
+            }
+        }
+    }
+
+    { // Edge relations
+      //
+      // Note: if your representation is unable to provide edge relationships
+      //       (ex: half-edges), you can comment out this section and Far will
+      //       automatically generate the missing information.
+      //
+        int nedges = conv.GetNumEdges();
+        for (int edge=0; edge<nedges; ++edge) {
+
+            //  Edge-vertices:
+            IndexArray dstEdgeVerts = getBaseEdgeVertices(refiner, edge);
+            dstEdgeVerts[0] = conv.GetEdgeVertices(edge)[0];
+            dstEdgeVerts[1] = conv.GetEdgeVertices(edge)[1];
+
+            //  Edge-faces
+            IndexArray dstEdgeFaces = getBaseEdgeFaces(refiner, edge);
+            for (int face=0; face<conv.GetNumEdgeFaces(face); ++face) {
+                dstEdgeFaces[face] = conv.GetEdgeFaces(edge)[face];
+            }
+        }
+    }
+
+    { // Vertex relations
+        int nverts = conv.GetNumVertices();
+        for (int vert=0; vert<nverts; ++vert) {
+
+            //  Vert-Faces:
+            IndexArray vertFaces = getBaseVertexFaces(refiner, vert);
+            //LocalIndexArray vertInFaceIndices = getBaseVertexFaceLocalIndices(refiner, vert);
+            for (int face=0; face<conv.GetNumVertexFaces(vert); ++face) {
+                vertFaces[face] = conv.GetVertexFaces(vert)[face];
+            }
+
+            //  Vert-Edges:
+            IndexArray vertEdges = getBaseVertexEdges(refiner, vert);
+            //LocalIndexArray vertInEdgeIndices = getBaseVertexEdgeLocalIndices(refiner, vert);
+            for (int edge=0; edge<conv.GetNumVertexEdges(vert); ++edge) {
+                vertEdges[edge] = conv.GetVertexEdges(vert)[edge];
+            }
+        }
+    }
+
+    populateBaseLocalIndices(refiner);
+
+    return true;
+};
+
+template <>
+bool
+TopologyRefinerFactory<Converter>::assignComponentTags(
+    TopologyRefiner & refiner, Converter const & conv) {
+
+    // arbitrarily sharpen the 4 bottom edges of the pyramid to 2.5f
+    for (int edge=0; edge<conv.GetNumEdges(); ++edge) {
+        setBaseEdgeSharpness(refiner, edge, g_edgeCreases[edge]);
+    }
+    return true;
+}
+
+} // namespace Far
+
+} // namespace OPENSUBDIV_VERSION
+} // namespace OpenSubdiv
+
 struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
-    OpenSubdiv_EvaluatorDescr *evaluator_descr,
-    int controller_type,
-    int level,
-    int scheme,
-    int subdivide_uvs)
+        OpenSubdiv_EvaluatorDescr * /*evaluator_descr*/,
+        int evaluator_type,
+        int level,
+        int /*scheme*/,
+        int /*subdivide_uvs*/)
 {
-	OpenSubdiv_ComputeController *controller =
-		openSubdiv_getController(controller_type);
-	if (controller == NULL) {
-		return NULL;
-	}
-
-	OsdUtilSubdivTopology *topology;
-	OpenSubdiv::OsdUtilMesh<OsdVertex> util_mesh;
-
-	topology = (OsdUtilSubdivTopology *)openSubdiv_getEvaluatorTopologyDescr(
-		evaluator_descr);
-
-	if (util_mesh.Initialize(*topology,
-	                         NULL,
-	                         get_osd_scheme(scheme)) == false) {
-		return NULL;
-	}
-
-	OsdHbrMesh *hmesh = util_mesh.GetHbrMesh();
-
-	std::vector<int> idsOnPtexFaces;
-	get_partition_per_face(*hmesh, &idsOnPtexFaces);
-
-	hmesh->SetFVarInterpolateBoundaryMethod(
-	        subdivide_uvs
-	            ? OsdHbrMesh::k_InterpolateBoundaryEdgeAndCorner
-	            : OsdHbrMesh::k_InterpolateBoundaryNone);
-	hmesh->SetFVarPropagateCorners(false);
-
-	OsdMeshBitset bits;
+	MeshBitset bits;
 	/* TODO(sergey): Adaptive subdivisions are not currently
 	 * possible because of the lack of tessellation shader.
 	 */
-	bits.set(OpenSubdiv::MeshAdaptive, 0);
-	bits.set(OpenSubdiv::MeshFVarData, 1);
+	bits.set(OpenSubdiv::Osd::MeshAdaptive, 0);
+    bits.set(OpenSubdiv::Osd::MeshUseSingleCreasePatch, 0);
+    bits.set(OpenSubdiv::Osd::MeshInterleaveVarying, 0);
+    bits.set(OpenSubdiv::Osd::MeshFVarData, 1);
+    bits.set(OpenSubdiv::Osd::MeshEndCapBSplineBasis, 1);
+    // bits.set(Osd::MeshEndCapGregoryBasis, 1);
+    // bits.set(Osd::MeshEndCapLegacyGregory, 1);
 
-	int num_vertex_elements = 6;
-	int num_varying_elements = 0;
+	const int num_vertex_elements = 6;
+	const int num_varying_elements = 0;
 
-	OsdGLMeshInterface *mesh = NULL;
+	GLMeshInterface *mesh = NULL;
 
-	switch (controller_type) {
-#define CHECK_CONTROLLER_TYPE(type, class, controller_class) \
-		case OPENSUBDIV_CONTROLLER_ ## type: \
-			mesh = (OsdGLMeshInterface *) \
-				new class( \
-					(controller_class *) controller->descriptor, \
-					hmesh, \
-					num_vertex_elements, \
-					num_varying_elements, \
-					level, \
-					bits, \
-					idsOnPtexFaces); \
-			break;
-		CHECK_CONTROLLER_TYPE(CPU, OsdCpuMesh, OsdCpuComputeController)
+    Converter conv;
+    OpenSubdiv::Far::TopologyRefiner * refiner =
+        OpenSubdiv::Far::TopologyRefinerFactory<Converter>::Create(conv,
+                OpenSubdiv::Far::TopologyRefinerFactory<Converter>::Options(conv.GetType(), conv.GetOptions()));
 
-#ifdef OPENSUBDIV_HAS_OPENMP
-		CHECK_CONTROLLER_TYPE(OPENMP, OsdOmpMesh, OsdOmpComputeController)
-#endif
-
-#ifdef OPENSUBDIV_HAS_OPENCL
-		case OPENSUBDIV_CONTROLLER_OPENCL:
-			mesh = (OsdGLMeshInterface *)
-				new OsdCLMesh(
-					(OsdCLComputeController *) controller->descriptor,
-					hmesh,
-					num_vertex_elements,
-					num_varying_elements,
-					level,
-					bits,
-					g_clContext,
-					g_clQueue,
-					idsOnPtexFaces);
-			break;
-#endif
-
-#ifdef OPENSUBDIV_HAS_CUDA
-		CHECK_CONTROLLER_TYPE(CUDA, OsdCudaMesh, OsdCudaComputeController)
-#endif
-
-#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-		CHECK_CONTROLLER_TYPE(GLSL_TRANSFORM_FEEDBACK,
-		                      OsdGLSLTransformFeedbackMesh,
-		                      OsdGLSLTransformFeedbackComputeController)
-#endif
-
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-		CHECK_CONTROLLER_TYPE(GLSL_COMPUTE,
-		                      OsdGLSLComputeMesh,
-		                      OsdGLSLComputeController)
-#endif
-
-#undef CHECK_CONTROLLER_TYPE
-	}
+	mesh = new OsdCpuMesh(refiner,
+	                      num_vertex_elements,
+	                      num_varying_elements,
+	                      level,
+	                      bits);
 
 	if (mesh == NULL) {
 		return NULL;
@@ -459,7 +575,7 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 
 	OpenSubdiv_GLMesh *gl_mesh =
 		(OpenSubdiv_GLMesh *) OBJECT_GUARDED_NEW(OpenSubdiv_GLMesh);
-	gl_mesh->controller_type = controller_type;
+	gl_mesh->evaluator_type = evaluator_type;
 	gl_mesh->descriptor = (OpenSubdiv_GLMeshDescr *) mesh;
 	gl_mesh->level = level;
 
@@ -468,36 +584,36 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 
 void openSubdiv_deleteOsdGLMesh(struct OpenSubdiv_GLMesh *gl_mesh)
 {
-	switch (gl_mesh->controller_type) {
-#define CHECK_CONTROLLER_TYPE(type, class) \
-		case OPENSUBDIV_CONTROLLER_ ## type: \
+	switch (gl_mesh->evaluator_type) {
+#define CHECK_EVALUATOR_TYPE(type, class) \
+		case OPENSUBDIV_EVALUATOR_ ## type: \
 			delete (class *) gl_mesh->descriptor; \
 			break;
 
-		CHECK_CONTROLLER_TYPE(CPU, OsdCpuMesh)
+		CHECK_EVALUATOR_TYPE(CPU, OsdCpuMesh)
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-		CHECK_CONTROLLER_TYPE(OPENMP, OsdOmpMesh)
+		CHECK_EVALUATOR_TYPE(OPENMP, OsdOmpMesh)
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-		CHECK_CONTROLLER_TYPE(OPENCL, OsdCLMesh)
+		CHECK_EVALUATOR_TYPE(OPENCL, OsdCLMesh)
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
-		CHECK_CONTROLLER_TYPE(CUDA, OsdCudaMesh)
+		CHECK_EVALUATOR_TYPE(CUDA, OsdCudaMesh)
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-		CHECK_CONTROLLER_TYPE(GLSL_TRANSFORM_FEEDBACK,
-		                      OsdGLSLTransformFeedbackMesh)
+		CHECK_EVALUATOR_TYPE(GLSL_TRANSFORM_FEEDBACK,
+		                     OsdGLSLTransformFeedbackMesh)
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-		CHECK_CONTROLLER_TYPE(GLSL_COMPUTE, OsdGLSLComputeMesh)
+		CHECK_EVALUATOR_TYPE(GLSL_COMPUTE, OsdGLSLComputeMesh)
 #endif
 
-#undef CHECK_CONTROLLER_TYPE
+#undef CHECK_EVALUATOR_TYPE
 	}
 
 	OBJECT_GUARDED_DELETE(gl_mesh, OpenSubdiv_GLMesh);
@@ -505,12 +621,12 @@ void openSubdiv_deleteOsdGLMesh(struct OpenSubdiv_GLMesh *gl_mesh)
 
 unsigned int openSubdiv_getOsdGLMeshPatchIndexBuffer(struct OpenSubdiv_GLMesh *gl_mesh)
 {
-	return ((OsdGLMeshInterface *)gl_mesh->descriptor)->GetDrawContext()->GetPatchIndexBuffer();
+	return ((GLMeshInterface *)gl_mesh->descriptor)->GetPatchTable()->GetPatchIndexBuffer();
 }
 
 unsigned int openSubdiv_getOsdGLMeshVertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh)
 {
-	return ((OsdGLMeshInterface *)gl_mesh->descriptor)->BindVertexBuffer();
+	return ((GLMeshInterface *)gl_mesh->descriptor)->BindVertexBuffer();
 }
 
 void openSubdiv_osdGLMeshUpdateVertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh,
@@ -518,24 +634,24 @@ void openSubdiv_osdGLMeshUpdateVertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh,
                                             int start_vertex,
                                             int num_verts)
 {
-	((OsdGLMeshInterface *)gl_mesh->descriptor)->UpdateVertexBuffer(vertex_data,
-	                                                                start_vertex,
-	                                                                num_verts);
+	((GLMeshInterface *)gl_mesh->descriptor)->UpdateVertexBuffer(vertex_data,
+	                                                             start_vertex,
+	                                                             num_verts);
 }
 
 void openSubdiv_osdGLMeshRefine(struct OpenSubdiv_GLMesh *gl_mesh)
 {
-	((OsdGLMeshInterface *)gl_mesh->descriptor)->Refine();
+	((GLMeshInterface *)gl_mesh->descriptor)->Refine();
 }
 
 void openSubdiv_osdGLMeshSynchronize(struct OpenSubdiv_GLMesh *gl_mesh)
 {
-	((OsdGLMeshInterface *)gl_mesh->descriptor)->Synchronize();
+	((GLMeshInterface *)gl_mesh->descriptor)->Synchronize();
 }
 
 void openSubdiv_osdGLMeshBindVertexBuffer(OpenSubdiv_GLMesh *gl_mesh)
 {
-	((OsdGLMeshInterface *)gl_mesh->descriptor)->BindVertexBuffer();
+	((GLMeshInterface *)gl_mesh->descriptor)->BindVertexBuffer();
 }
 
 int openSubdiv_supportGPUDisplay(void)
@@ -543,85 +659,4 @@ int openSubdiv_supportGPUDisplay(void)
 	return GL_EXT_geometry_shader4 &&
 	       GL_ARB_gpu_shader5 &&
 	       glProgramParameteriEXT;
-}
-
-int openSubdiv_getAvailableControllers(void)
-{
-	if (!openSubdiv_supportGPUDisplay()) {
-		return 0;
-	}
-
-	int flags = OPENSUBDIV_CONTROLLER_CPU;
-
-#ifdef OPENSUBDIV_HAS_OPENMP
-	flags |= OPENSUBDIV_CONTROLLER_OPENMP;
-#endif
-
-#ifdef OPENSUBDIV_HAS_OPENCL
-	if (HAS_CL_VERSION_1_1()) {
-		flags |= OPENSUBDIV_CONTROLLER_OPENCL;
-	}
-#endif
-
-#ifdef OPENSUBDIV_HAS_CUDA
-	if (HAS_CUDA_VERSION_4_0()) {
-		flags |= OPENSUBDIV_CONTROLLER_CUDA;
-	}
-#endif
-
-#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-	if (GLEW_ARB_texture_buffer_object) {
-		flags |= OPENSUBDIV_CONTROLLER_GLSL_TRANSFORM_FEEDBACK;
-	}
-#endif
-
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-	flags |= OPENSUBDIV_CONTROLLER_GLSL_COMPUTE;
-#endif
-
-	return flags;
-}
-
-void openSubdiv_cleanup(void)
-{
-	openSubdiv_osdGLDisplayDeinit();
-
-#define DELETE_DESCRIPTOR(var, class) \
-	if (var != NULL) { \
-		delete (class*) var->descriptor; \
-		OBJECT_GUARDED_DELETE(var, OpenSubdiv_ComputeController); \
-	}
-
-	DELETE_DESCRIPTOR(g_cpuComputeController,
-	                  OsdCpuComputeController);
-
-#ifdef OPENSUBDIV_HAS_OPENMP
-	DELETE_DESCRIPTOR(g_ompComputeController,
-	                  OsdOmpComputeController);
-#endif
-
-#ifdef OPENSUBDIV_HAS_OPENCL
-	DELETE_DESCRIPTOR(g_clComputeController,
-	                  OsdCLComputeController);
-    uninitCL(g_clContext, g_clQueue);
-#endif
-
-#ifdef OPENSUBDIV_HAS_CUDA
-	DELETE_DESCRIPTOR(g_cudaComputeController,
-	                  OsdCudaComputeController);
-#endif
-
-#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-	if (GLEW_ARB_texture_buffer_object) {
-		DELETE_DESCRIPTOR(g_glslTransformFeedbackComputeController,
-		                  OsdGLSLTransformFeedbackComputeController);
-	}
-#endif
-
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-	DELETE_DESCRIPTOR(g_glslComputeController,
-	                  OsdGLSLComputeController);
-#endif
-
-#undef DELETE_DESCRIPTOR
 }
