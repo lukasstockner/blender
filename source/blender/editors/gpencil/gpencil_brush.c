@@ -748,11 +748,14 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 				
 			/* Exit modal operator, based on the "standard" ops */
 			// XXX: should this be "emergency stop" instead? (i.e. operator_cancelled)
-			case MIDDLEMOUSE:
 			case RIGHTMOUSE:
 			case ESCKEY:
 				gpsculpt_brush_exit(C, op);
 				return OPERATOR_FINISHED;
+				
+			/* MMB is often used for view manipulations */
+			case MIDDLEMOUSE:
+				return OPERATOR_PASS_THROUGH;
 				
 			/* Mouse movements should update the brush cursor - Just redraw the active region */
 			case MOUSEMOVE:
