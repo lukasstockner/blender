@@ -116,8 +116,7 @@ typedef struct tGP_BrushEditData {
 
 /* Callback for performing some brush operation on a single point */
 typedef bool (*GP_BrushApplyCb)(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
-                                const int mx, const int my, const int radius,
-                                const int x0, const int y0);
+                                const int radius, const int co[2]);
 
 /* ************************************************ */
 /* Utility Functions */
@@ -155,9 +154,7 @@ static bool gp_brush_invert_check(tGP_BrushEditData *gso)
 }
 
 /* Compute strength of effect */
-static float gp_brush_influence_calc(tGP_BrushEditData *gso, const int radius,
-                                     const int mx, const int my,
-                                     const int x0, const int y0)
+static float gp_brush_influence_calc(tGP_BrushEditData *gso, const int radius, const int co[2])
 {
 	GP_EditBrush_Data *brush = gso->brush;
 	
@@ -171,11 +168,7 @@ static float gp_brush_influence_calc(tGP_BrushEditData *gso, const int radius,
 	
 	/* distance fading */
 	if (brush->flag & GP_EDITBRUSH_FLAG_USE_FALLOFF) {
-		// XXX: these should just get passed in like this (and then we can use the len_v2v2_int version?)
-		const float mvec[2] = {(float)mx, (float)my};
-		const float pvec[2] = {(float)x0, (float)y0};
-		
-		float distance = len_v2v2(mvec, pvec);
+		float distance = (float)len_v2v2_int(gso->mval, co);
 		float fac;
 		
 		CLAMP(distance, 0.0f, (float)radius);
@@ -199,11 +192,10 @@ static float gp_brush_influence_calc(tGP_BrushEditData *gso, const int radius,
 
 /* A simple (but slower + inaccurate) smooth-brush implementation to test the algorithm for stroke smoothing */
 static bool gp_brush_smooth_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
-                                  const int mx, const int my, const int radius,
-                                  const int x0, const int y0)
+                                  const int radius, const int co[2])
 {
 	bGPDspoint *pt = &gps->points[i];
-	float inf = gp_brush_influence_calc(gso, radius, mx, my, x0, y0);
+	float inf = gp_brush_influence_calc(gso, radius, co);
 	float sco[3] = {0.0f};
 	
 	/* Do nothing if not enough points to smooth out */
@@ -262,8 +254,7 @@ static bool gp_brush_smooth_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i
 
 /* Make lines thicker or thinner by the specified amounts */
 static bool gp_brush_thickness_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
-                                     const int mx, const int my, const int radius,
-                                     const int x0, const int y0)
+                                     const int radius, const int co[2])
 {
 	bGPDspoint *pt = gps->points + i;
 	float inf;
@@ -272,7 +263,7 @@ static bool gp_brush_thickness_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 	 * - We divide the strength by 10, so that users can set "sane" values.
 	 *   Otherwise, good default values are in the range of 0.093
 	 */
-	inf = gp_brush_influence_calc(gso, radius, mx, my, x0, y0) / 10.0f;
+	inf = gp_brush_influence_calc(gso, radius, co) / 10.0f;
 	
 	/* apply */
 	// XXX: this is much too strong, and it should probably do some smoothing with the surrounding stuff
@@ -309,8 +300,7 @@ static bool gp_brush_grab_stroke_init(tGP_BrushEditData *gso, bGPDstroke *gps)
 
 /* store references to stroke points in the initial stage */
 static bool gp_brush_grab_store_points(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
-                                       const int mx, const int my, const int radius,
-                                       const int x0, const int y0)
+                                       const int radius, const int co[2])
 {
 	bGPDspoint *pt = &gps->points[i];
 	
@@ -320,11 +310,10 @@ static bool gp_brush_grab_store_points(tGP_BrushEditData *gso, bGPDstroke *gps, 
 
 /* apply smoothing by blending between the average coordinates and the current coordinates */
 static bool gp_brush_grab_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
-                                const int mx, const int my, const int radius,
-                                const int x0, const int y0)
+                                const int radius, const int co[2])
 {
 	bGPDspoint *pt = &gps->points[i];
-	float inf = gp_brush_influence_calc(gso, radius, mx, my, x0, y0);
+	float inf = gp_brush_influence_calc(gso, radius, co);
 	 
 	
 	return true;
@@ -454,26 +443,23 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso, bGPDstroke *gps, GP
 {
 	GP_SpaceConversion *gsc = &gso->gsc;
 	rcti *rect = &gso->brush_rect;
-	
 	const int radius = gso->brush->size;
-	const int mx = gso->mval[0];
-	const int my = gso->mval[1];
 	
 	bGPDspoint *pt1, *pt2;
-	int x0 = 0, y0 = 0;
-	int x1 = 0, y1 = 0;
+	int pc1[2] = {0};
+	int pc2[2] = {0};
 	int i;
 	bool changed = false;
 	
 	if (gps->totpoints == 1) {
-		gp_point_to_xy(gsc, gps, gps->points, &x0, &y0);
+		gp_point_to_xy(gsc, gps, gps->points, &pc1[0], &pc1[1]);
 		
 		/* do boundbox check first */
-		if ((!ELEM(V2D_IS_CLIPPED, x0, y0)) && BLI_rcti_isect_pt(rect, x0, y0)) {
+		if ((!ELEM(V2D_IS_CLIPPED, pc1[0], pc1[1])) && BLI_rcti_isect_pt(rect, pc1[0], pc1[1])) {
 			/* only check if point is inside */
-			if (((x0 - mx) * (x0 - mx) + (y0 - my) * (y0 - my)) <= radius * radius) {
+			if (len_v2v2_int(gso->mval, pc1) <= radius) {
 				/* apply operation to this point */
-				changed = apply(gso, gps, 0, mx, my, radius, x0, y0);
+				changed = apply(gso, gps, 0, radius, pc1);
 				// XXX: Should we report "success" even if technically nothing happened?
 			}
 		}
@@ -493,23 +479,23 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso, bGPDstroke *gps, GP
 					continue;
 			}
 			
-			gp_point_to_xy(gsc, gps, pt1, &x0, &y0);
-			gp_point_to_xy(gsc, gps, pt2, &x1, &y1);
+			gp_point_to_xy(gsc, gps, pt1, &pc1[0], &pc1[1]);
+			gp_point_to_xy(gsc, gps, pt2, &pc2[0], &pc2[1]);
 			
 			/* Check that point segment of the boundbox of the selection stroke */
-			if (((!ELEM(V2D_IS_CLIPPED, x0, y0)) && BLI_rcti_isect_pt(rect, x0, y0)) ||
-			    ((!ELEM(V2D_IS_CLIPPED, x1, y1)) && BLI_rcti_isect_pt(rect, x1, y1)))
+			if (((!ELEM(V2D_IS_CLIPPED, pc1[0], pc1[1])) && BLI_rcti_isect_pt(rect, pc1[0], pc1[1])) ||
+			    ((!ELEM(V2D_IS_CLIPPED, pc2[0], pc2[1])) && BLI_rcti_isect_pt(rect, pc2[0], pc2[1])))
 			{
 				/* Check if point segment of stroke had anything to do with
 				 * eraser region  (either within stroke painted, or on its lines)
 				 *  - this assumes that linewidth is irrelevant
 				 */
-				if (gp_stroke_inside_circle(gso->mval, gso->mval_prev, radius, x0, y0, x1, y1)) {
+				if (gp_stroke_inside_circle(gso->mval, gso->mval_prev, radius, pc1[0], pc1[1], pc2[0], pc2[1])) {
 					/* Apply operation to these points */
 					bool ok = false;
 					
 					/* To each point individually... */
-					ok = apply(gso, gps, i, mx, my, radius, x0, y0);
+					ok = apply(gso, gps, i, radius, pc1);
 					
 					/* Only do the second point if this is the last segment,
 					 * and it is unlikely that the point will get handled
@@ -520,7 +506,7 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso, bGPDstroke *gps, GP
 					 *       the line linking the points was!
 					 */
 					if (i + 1 == gps->totpoints - 1) {
-						ok |= apply(gso, gps, i + 1, mx, my, radius, x1, y1);
+						ok |= apply(gso, gps, i + 1, radius, pc2);
 					}
 					
 					changed |= ok;
