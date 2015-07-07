@@ -211,9 +211,11 @@ static bool gp_brush_smooth_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i
 		return false;
 	}
 	
-	/* Do not touch the endpoints of the stroke either, to prevent it from shrinking */
+	/* Only affect endpoints by a fraction of the normal strength,
+	 * to prevent the stroke from shrinking too much
+	 */
 	if ((i == 0) || (i == gps->totpoints - 1)) {
-		return false;
+		inf *= 0.1f;
 	}
 	
 	/* Compute smoothed coordinate by taking the ones nearby */
