@@ -705,7 +705,11 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 			/* Mouse Move = Apply somewhere else */
 			case MOUSEMOVE:
 			case INBETWEEN_MOUSEMOVE:
+				/* apply brush effect at new position */
 				gpsculpt_brush_apply_event(C, op, event);
+				
+				/* force redraw, so that the cursor will at least be valid */
+				redraw_region = true;
 				break;
 			
 #if 0
