@@ -55,6 +55,8 @@
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
 
+#include "widgets.h"
+
 #include "interface_intern.h"
 
 #ifdef WITH_INPUT_IME
@@ -64,54 +66,10 @@
 /* icons are 80% of height of button (16 pixels inside 20 height) */
 #define ICON_SIZE_FROM_BUTRECT(rect) (0.8f * BLI_rcti_size_y(rect))
 
-/* ************** widget base functions ************** */
-/**
- * - in: roundbox codes for corner types and radius
- * - return: array of `[size][2][x, y]` points, the edges of the roundbox, + UV coords
- *
- * - draw black box with alpha 0 on exact button boundbox
- * - for every AA step:
- *    - draw the inner part for a round filled box, with color blend codes or texture coords
- *    - draw outline in outline color
- *    - draw outer part, bottom half, extruded 1 pixel to bottom, for emboss shadow
- *    - draw extra decorations
- * - draw background color box with alpha 1 on exact button boundbox
- */
-
-/* fill this struct with polygon info to draw AA'ed */
-/* it has outline, back, and two optional tria meshes */
-
-typedef struct uiWidgetTrias {
-	unsigned int tot;
-	
-	float vec[16][2];
-	const unsigned int (*index)[3];
-	
-} uiWidgetTrias;
-
-/* max as used by round_box__edges */
-#define WIDGET_CURVE_RESOLU 9
-#define WIDGET_SIZE_MAX (WIDGET_CURVE_RESOLU * 4)
-
-typedef struct uiWidgetBase {
-	
-	int totvert, halfwayvert;
-	float outer_v[WIDGET_SIZE_MAX][2];
-	float inner_v[WIDGET_SIZE_MAX][2];
-	float inner_uv[WIDGET_SIZE_MAX][2];
-	
-	bool draw_inner, draw_outline, draw_emboss, draw_shadedir;
-	
-	uiWidgetTrias tria1;
-	uiWidgetTrias tria2;
-	
-} uiWidgetBase;
-
 /** uiWidgetType: for time being only for visual appearance,
  * later, a handling callback can be added too 
  */
 typedef struct uiWidgetType {
-	
 	/* pointer to theme color definition */
 	uiWidgetColors *wcol_theme;
 	uiWidgetStateColors *wcol_state;
@@ -119,6 +77,8 @@ typedef struct uiWidgetType {
 	/* converted colors for state */
 	uiWidgetColors wcol;
 	
+	uiWidgetDrawType *draw_type;
+
 	void (*state)(struct uiWidgetType *, int state);
 	void (*draw)(uiWidgetColors *, rcti *, int state, int roundboxalign);
 	void (*custom)(uiBut *, uiWidgetColors *, rcti *, int state, int roundboxalign);
@@ -322,162 +282,6 @@ static int round_box_shadow_edges(float (*vert)[2], const rcti *rect, float rad,
 	return tot;
 }
 
-/* this call has 1 extra arg to allow mask outline */
-static void round_box__edges(uiWidgetBase *wt, int roundboxalign, const rcti *rect, float rad, float radi)
-{
-	float vec[WIDGET_CURVE_RESOLU][2], veci[WIDGET_CURVE_RESOLU][2];
-	float minx = rect->xmin, miny = rect->ymin, maxx = rect->xmax, maxy = rect->ymax;
-	float minxi = minx + U.pixelsize; /* boundbox inner */
-	float maxxi = maxx - U.pixelsize;
-	float minyi = miny + U.pixelsize;
-	float maxyi = maxy - U.pixelsize;
-	float facxi = (maxxi != minxi) ? 1.0f / (maxxi - minxi) : 0.0f; /* for uv, can divide by zero */
-	float facyi = (maxyi != minyi) ? 1.0f / (maxyi - minyi) : 0.0f;
-	int a, tot = 0, minsize;
-	const int hnum = ((roundboxalign & (UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT)) == (UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT) ||
-	                  (roundboxalign & (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT)) == (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT)) ? 1 : 2;
-	const int vnum = ((roundboxalign & (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT)) == (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT) ||
-	                  (roundboxalign & (UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT)) == (UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT)) ? 1 : 2;
-
-	minsize = min_ii(BLI_rcti_size_x(rect) * hnum,
-	                 BLI_rcti_size_y(rect) * vnum);
-	
-	if (2.0f * rad > minsize)
-		rad = 0.5f * minsize;
-
-	if (2.0f * (radi + 1.0f) > minsize)
-		radi = 0.5f * minsize - U.pixelsize;
-	
-	/* mult */
-	for (a = 0; a < WIDGET_CURVE_RESOLU; a++) {
-		veci[a][0] = radi * cornervec[a][0];
-		veci[a][1] = radi * cornervec[a][1];
-		vec[a][0] = rad * cornervec[a][0];
-		vec[a][1] = rad * cornervec[a][1];
-	}
-	
-	/* corner left-bottom */
-	if (roundboxalign & UI_CNR_BOTTOM_LEFT) {
-		
-		for (a = 0; a < WIDGET_CURVE_RESOLU; a++, tot++) {
-			wt->inner_v[tot][0] = minxi + veci[a][1];
-			wt->inner_v[tot][1] = minyi + radi - veci[a][0];
-			
-			wt->outer_v[tot][0] = minx + vec[a][1];
-			wt->outer_v[tot][1] = miny + rad - vec[a][0];
-			
-			wt->inner_uv[tot][0] = facxi * (wt->inner_v[tot][0] - minxi);
-			wt->inner_uv[tot][1] = facyi * (wt->inner_v[tot][1] - minyi);
-		}
-	}
-	else {
-		wt->inner_v[tot][0] = minxi;
-		wt->inner_v[tot][1] = minyi;
-		
-		wt->outer_v[tot][0] = minx;
-		wt->outer_v[tot][1] = miny;
-
-		wt->inner_uv[tot][0] = 0.0f;
-		wt->inner_uv[tot][1] = 0.0f;
-		
-		tot++;
-	}
-	
-	/* corner right-bottom */
-	if (roundboxalign & UI_CNR_BOTTOM_RIGHT) {
-		
-		for (a = 0; a < WIDGET_CURVE_RESOLU; a++, tot++) {
-			wt->inner_v[tot][0] = maxxi - radi + veci[a][0];
-			wt->inner_v[tot][1] = minyi + veci[a][1];
-			
-			wt->outer_v[tot][0] = maxx - rad + vec[a][0];
-			wt->outer_v[tot][1] = miny + vec[a][1];
-			
-			wt->inner_uv[tot][0] = facxi * (wt->inner_v[tot][0] - minxi);
-			wt->inner_uv[tot][1] = facyi * (wt->inner_v[tot][1] - minyi);
-		}
-	}
-	else {
-		wt->inner_v[tot][0] = maxxi;
-		wt->inner_v[tot][1] = minyi;
-		
-		wt->outer_v[tot][0] = maxx;
-		wt->outer_v[tot][1] = miny;
-
-		wt->inner_uv[tot][0] = 1.0f;
-		wt->inner_uv[tot][1] = 0.0f;
-		
-		tot++;
-	}
-	
-	wt->halfwayvert = tot;
-	
-	/* corner right-top */
-	if (roundboxalign & UI_CNR_TOP_RIGHT) {
-		
-		for (a = 0; a < WIDGET_CURVE_RESOLU; a++, tot++) {
-			wt->inner_v[tot][0] = maxxi - veci[a][1];
-			wt->inner_v[tot][1] = maxyi - radi + veci[a][0];
-			
-			wt->outer_v[tot][0] = maxx - vec[a][1];
-			wt->outer_v[tot][1] = maxy - rad + vec[a][0];
-			
-			wt->inner_uv[tot][0] = facxi * (wt->inner_v[tot][0] - minxi);
-			wt->inner_uv[tot][1] = facyi * (wt->inner_v[tot][1] - minyi);
-		}
-	}
-	else {
-		wt->inner_v[tot][0] = maxxi;
-		wt->inner_v[tot][1] = maxyi;
-		
-		wt->outer_v[tot][0] = maxx;
-		wt->outer_v[tot][1] = maxy;
-		
-		wt->inner_uv[tot][0] = 1.0f;
-		wt->inner_uv[tot][1] = 1.0f;
-		
-		tot++;
-	}
-	
-	/* corner left-top */
-	if (roundboxalign & UI_CNR_TOP_LEFT) {
-		
-		for (a = 0; a < WIDGET_CURVE_RESOLU; a++, tot++) {
-			wt->inner_v[tot][0] = minxi + radi - veci[a][0];
-			wt->inner_v[tot][1] = maxyi - veci[a][1];
-			
-			wt->outer_v[tot][0] = minx + rad - vec[a][0];
-			wt->outer_v[tot][1] = maxy - vec[a][1];
-			
-			wt->inner_uv[tot][0] = facxi * (wt->inner_v[tot][0] - minxi);
-			wt->inner_uv[tot][1] = facyi * (wt->inner_v[tot][1] - minyi);
-		}
-		
-	}
-	else {
-		
-		wt->inner_v[tot][0] = minxi;
-		wt->inner_v[tot][1] = maxyi;
-		
-		wt->outer_v[tot][0] = minx;
-		wt->outer_v[tot][1] = maxy;
-		
-		wt->inner_uv[tot][0] = 0.0f;
-		wt->inner_uv[tot][1] = 1.0f;
-		
-		tot++;
-	}
-
-	BLI_assert(tot <= WIDGET_SIZE_MAX);
-
-	wt->totvert = tot;
-}
-
-static void round_box_edges(uiWidgetBase *wt, int roundboxalign, const rcti *rect, float rad)
-{
-	round_box__edges(wt, roundboxalign, rect, rad, rad - U.pixelsize);
-}
-
 
 /* based on button rect, return scaled array of triangles */
 static void widget_draw_tria_ex(
@@ -533,14 +337,6 @@ static void widget_scroll_circle(uiWidgetTrias *tria, const rcti *rect, float tr
 	        tria, rect, triasize, where,
 	        scroll_circle_vert, ARRAY_SIZE(scroll_circle_vert),
 	        scroll_circle_face, ARRAY_SIZE(scroll_circle_face));
-}
-
-static void widget_trias_draw(uiWidgetTrias *tria)
-{
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(2, GL_FLOAT, 0, tria->vec);
-	glDrawElements(GL_TRIANGLES, tria->tot * 3, GL_UNSIGNED_INT, tria->index);
-	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
 static void widget_menu_trias(uiWidgetTrias *tria, const rcti *rect)
@@ -618,17 +414,6 @@ static void widget_verts_to_triangle_strip(uiWidgetBase *wtb, const int totvert,
 	copy_v2_v2(triangle_strip[a * 2 + 1], wtb->inner_v[0]);
 }
 
-static void widget_verts_to_triangle_strip_open(uiWidgetBase *wtb, const int totvert, float triangle_strip[WIDGET_SIZE_MAX * 2][2])
-{
-	int a;
-	for (a = 0; a < totvert; a++) {
-		triangle_strip[a * 2][0] = wtb->outer_v[a][0];
-		triangle_strip[a * 2][1] = wtb->outer_v[a][1];
-		triangle_strip[a * 2 + 1][0] = wtb->outer_v[a][0];
-		triangle_strip[a * 2 + 1][1] = wtb->outer_v[a][1] - 1.0f;
-	}
-}
-
 static void widgetbase_outline(uiWidgetBase *wtb)
 {
 	float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2]; /* + 2 because the last pair is wrapped */
@@ -638,167 +423,6 @@ static void widgetbase_outline(uiWidgetBase *wtb)
 	glVertexPointer(2, GL_FLOAT, 0, triangle_strip);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, wtb->totvert * 2 + 2);
 	glDisableClientState(GL_VERTEX_ARRAY);
-}
-
-static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
-{
-	int j, a;
-	
-	glEnable(GL_BLEND);
-
-	/* backdrop non AA */
-	if (wtb->draw_inner) {
-		if (wcol->shaded == 0) {
-			if (wcol->alpha_check) {
-				float inner_v_half[WIDGET_SIZE_MAX][2];
-				float x_mid = 0.0f; /* used for dumb clamping of values */
-
-				/* dark checkers */
-				glColor4ub(UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, 255);
-				glEnableClientState(GL_VERTEX_ARRAY);
-				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
-
-				/* light checkers */
-				glEnable(GL_POLYGON_STIPPLE);
-				glColor4ub(UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, 255);
-				glPolygonStipple(stipple_checker_8px);
-
-				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
-
-				glDisable(GL_POLYGON_STIPPLE);
-
-				/* alpha fill */
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-				glColor4ubv((unsigned char *)wcol->inner);
-
-				for (a = 0; a < wtb->totvert; a++) {
-					x_mid += wtb->inner_v[a][0];
-				}
-				x_mid /= wtb->totvert;
-
-				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
-
-				/* 1/2 solid color */
-				glColor4ub(wcol->inner[0], wcol->inner[1], wcol->inner[2], 255);
-
-				for (a = 0; a < wtb->totvert; a++) {
-					inner_v_half[a][0] = MIN2(wtb->inner_v[a][0], x_mid);
-					inner_v_half[a][1] = wtb->inner_v[a][1];
-				}
-
-				glVertexPointer(2, GL_FLOAT, 0, inner_v_half);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
-				glDisableClientState(GL_VERTEX_ARRAY);
-			}
-			else {
-				/* simple fill */
-				glColor4ubv((unsigned char *)wcol->inner);
-
-				glEnableClientState(GL_VERTEX_ARRAY);
-				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
-				glDisableClientState(GL_VERTEX_ARRAY);
-			}
-		}
-		else {
-			char col1[4], col2[4];
-			unsigned char col_array[WIDGET_SIZE_MAX * 4];
-			unsigned char *col_pt = col_array;
-			
-			shadecolors4(col1, col2, wcol->inner, wcol->shadetop, wcol->shadedown);
-			
-			glShadeModel(GL_SMOOTH);
-			for (a = 0; a < wtb->totvert; a++, col_pt += 4) {
-				round_box_shade_col4_r(col_pt, col1, col2, wtb->inner_uv[a][wtb->draw_shadedir ? 1 : 0]);
-			}
-
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glEnableClientState(GL_COLOR_ARRAY);
-			glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-			glColorPointer(4, GL_UNSIGNED_BYTE, 0, col_array);
-			glDrawArrays(GL_POLYGON, 0, wtb->totvert);
-			glDisableClientState(GL_VERTEX_ARRAY);
-			glDisableClientState(GL_COLOR_ARRAY);
-
-			glShadeModel(GL_FLAT);
-		}
-	}
-	
-	/* for each AA step */
-	if (wtb->draw_outline) {
-		float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2]; /* + 2 because the last pair is wrapped */
-		float triangle_strip_emboss[WIDGET_SIZE_MAX * 2][2]; /* only for emboss */
-
-		const unsigned char tcol[4] = {wcol->outline[0],
-		                               wcol->outline[1],
-		                               wcol->outline[2],
-		                               wcol->outline[3] / WIDGET_AA_JITTER};
-
-		widget_verts_to_triangle_strip(wtb, wtb->totvert, triangle_strip);
-
-		if (wtb->draw_emboss) {
-			widget_verts_to_triangle_strip_open(wtb, wtb->halfwayvert, triangle_strip_emboss);
-		}
-
-		glEnableClientState(GL_VERTEX_ARRAY);
-
-		for (j = 0; j < WIDGET_AA_JITTER; j++) {
-			unsigned char emboss[4];
-
-			glTranslatef(jit[j][0], jit[j][1], 0.0f);
-			
-			/* outline */
-			glColor4ubv(tcol);
-
-			glVertexPointer(2, GL_FLOAT, 0, triangle_strip);
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, wtb->totvert * 2 + 2);
-
-			/* emboss bottom shadow */
-			if (wtb->draw_emboss) {
-				UI_GetThemeColor4ubv(TH_WIDGET_EMBOSS, emboss);
-
-				if (emboss[3]) {
-					glColor4ubv(emboss);
-					glVertexPointer(2, GL_FLOAT, 0, triangle_strip_emboss);
-					glDrawArrays(GL_TRIANGLE_STRIP, 0, wtb->halfwayvert * 2);
-				}
-			}
-			
-			glTranslatef(-jit[j][0], -jit[j][1], 0.0f);
-		}
-
-		glDisableClientState(GL_VERTEX_ARRAY);
-	}
-	
-	/* decoration */
-	if (wtb->tria1.tot || wtb->tria2.tot) {
-		const unsigned char tcol[4] = {wcol->item[0],
-		                               wcol->item[1],
-		                               wcol->item[2],
-		                               (unsigned char)((float)wcol->item[3] / WIDGET_AA_JITTER)};
-
-		/* for each AA step */
-		for (j = 0; j < WIDGET_AA_JITTER; j++) {
-			glTranslatef(jit[j][0], jit[j][1], 0.0f);
-
-			if (wtb->tria1.tot) {
-				glColor4ubv(tcol);
-				widget_trias_draw(&wtb->tria1);
-			}
-			if (wtb->tria2.tot) {
-				glColor4ubv(tcol);
-				widget_trias_draw(&wtb->tria2);
-			}
-		
-			glTranslatef(-jit[j][0], -jit[j][1], 0.0f);
-		}
-	}
-
-	glDisable(GL_BLEND);
 }
 
 /* *********************** text/icon ************************************** */
@@ -3333,19 +2957,6 @@ static void widget_but(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int 
 	widgetbase_draw(&wtb, wcol);
 }
 
-static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
-{
-	uiWidgetBase wtb;
-	const float rad = 0.25f * U.widget_unit;
-	
-	widget_init(&wtb);
-	
-	/* half rounded */
-	round_box_edges(&wtb, roundboxalign, rect, rad);
-
-	widgetbase_draw(&wtb, wcol);
-}
-
 static void widget_draw_extra_mask(const bContext *C, uiBut *but, uiWidgetType *wt, rcti *rect)
 {
 	uiWidgetBase wtb;
@@ -3376,19 +2987,24 @@ static void widget_draw_extra_mask(const bContext *C, uiBut *but, uiWidgetType *
 	widgetbase_draw(&wtb, &wt->wcol);
 }
 
+/* TODO move to widgets/widgets.c */
 static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 {
 	bTheme *btheme = UI_GetTheme();
+	uiWidgetDrawStyle *draw_style = widget_drawstyle_get(0); /* TODO drawstyles aren't in use yet */
 	static uiWidgetType wt;
 	
 	/* defaults */
 	wt.wcol_theme = &btheme->tui.wcol_regular;
 	wt.wcol_state = &btheme->tui.wcol_state;
+	wt.draw_type = NULL;
+
+	/* XXX remove usages, use wt.draw_type */
 	wt.state = widget_state;
 	wt.draw = widget_but;
 	wt.custom = NULL;
 	wt.text = widget_draw_text_icon;
-	
+
 	switch (type) {
 		case UI_WTYPE_REGULAR:
 			break;
@@ -3425,7 +3041,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			
 		case UI_WTYPE_EXEC:
 			wt.wcol_theme = &btheme->tui.wcol_tool;
-			wt.draw = widget_roundbut;
+			wt.draw_type = draw_style->widget_exec;
 			break;
 
 		case UI_WTYPE_TOOLTIP:
@@ -3834,10 +3450,20 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 			ui_widget_color_disabled(wt);
 
 		wt->state(wt, state);
-		if (wt->custom)
-			wt->custom(but, &wt->wcol, rect, state, roundboxalign);
-		else if (wt->draw)
-			wt->draw(&wt->wcol, rect, state, roundboxalign);
+		if (wt->draw_type) {
+			if (wt->draw_type->custom) {
+				wt->draw_type->custom(but, &wt->wcol, rect, state, roundboxalign);
+			}
+			else if (wt->draw_type->draw) {
+				wt->draw_type->draw(&wt->wcol, rect, state, roundboxalign);
+			}
+		}
+		else {
+			if (wt->custom)
+				wt->custom(but, &wt->wcol, rect, state, roundboxalign);
+			else if (wt->draw)
+				wt->draw(&wt->wcol, rect, state, roundboxalign);
+		}
 
 		if (disabled)
 			glEnable(GL_BLEND);

@@ -19,6 +19,8 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
+	widgets
+	widgets/widgets_draw
 	../include
 	../../blenfont
 	../../blenkernel
@@ -55,8 +57,13 @@ set(SRC
 	resources.c
 	view2d.c
 	view2d_ops.c
+	widgets/widgets.c
+	widgets/widgets_draw/drawstyle_classic.c
+	widgets/widgets_draw/widgets_draw.c
 
 	interface_intern.h
+	widgets/widgets.h
+	widgets/widgets_draw/widgets_draw_intern.h
 )
 
 if(WITH_INTERNATIONAL)
