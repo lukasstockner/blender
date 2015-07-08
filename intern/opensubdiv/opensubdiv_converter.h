@@ -46,19 +46,19 @@ public:
 
 	/* Face relationships. */
 	int get_num_face_verts(int face) const;
-	const int *get_face_verts(int face) const;
-	const int *get_face_edges(int face) const;
+	void get_face_verts(int face, int *face_verts) const;
+	void get_face_edges(int face, int *face_edges) const;
 
 	/* Edge relationships. */
-	const int *get_edge_verts(int edge) const;
+	void get_edge_verts(int edge, int *edge_verts) const;
 	int get_num_edge_faces(int edge) const;
-	const int *get_edge_faces(int edge) const;
+	void get_edge_faces(int edge, int *edge_faces) const;
 
 	/* Vertex relationships. */
 	int get_num_vert_edges(int vert) const;
-	const int *get_vert_edges(int vert) const;
+	void get_vert_edges(int vert, int *vert_edges) const;
 	int get_num_vert_faces(int vert) const;
-	const int *get_vert_faces(int vert) const;
+	void get_vert_faces(int vert, int *vert_faces) const;
 
 private:
 	struct DerivedMesh *dm_;
@@ -68,7 +68,6 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 namespace Far {
 
-/* Based on tutorial from OpenSubdiv which is Apache 2.0 license. */
 template <>
 inline bool TopologyRefinerFactory<OsdBlenderConverter>::resizeComponentTopology(
         TopologyRefiner& refiner,
@@ -89,9 +88,9 @@ inline bool TopologyRefinerFactory<OsdBlenderConverter>::resizeComponentTopology
 		setNumBaseEdgeFaces(refiner, edge, num_faces);
 	}
 	/* Vertices and vert-faces and vert-edges/ */
-	int nverts = conv.get_num_verts();
-	setNumBaseVertices(refiner, nverts);
-	for (int vert = 0; vert < nverts; ++vert) {
+	int num_verts = conv.get_num_verts();
+	setNumBaseVertices(refiner, num_verts);
+	for (int vert = 0; vert < num_verts; ++vert) {
 		int num_edges = conv.get_num_vert_edges(vert),
 		    num_faces = conv.get_num_vert_faces(vert);
 		setNumBaseVertexEdges(refiner, vert, num_edges);
@@ -111,48 +110,29 @@ inline bool TopologyRefinerFactory<OsdBlenderConverter>::assignComponentTopology
 	int num_faces = conv.get_num_faces();
 	for (int face = 0; face < num_faces; ++face) {
 		IndexArray dst_face_verts = getBaseFaceVertices(refiner, face);
+		conv.get_face_verts(face, &dst_face_verts[0]);
 		IndexArray dst_face_edges = getBaseFaceEdges(refiner, face);
-		const int *face_verts = conv.get_face_verts(face);
-		const int *face_edges = conv.get_face_edges(face);
-		int num_face_verts = conv.get_num_face_verts(face);
-		for (int vert = 0; vert < num_face_verts; ++vert) {
-			dst_face_verts[vert] = face_verts[vert];
-			dst_face_edges[vert] = face_edges[vert];
-		}
+		conv.get_face_edges(face, &dst_face_edges[0]);
 	}
 	/* Edge relations. */
 	int num_edges = conv.get_num_edges();
 	for (int edge = 0; edge < num_edges; ++edge) {
-		/*  Edge-vertices */
+		/* Edge-vertices */
 		IndexArray dst_edge_verts = getBaseEdgeVertices(refiner, edge);
-		const int *edge_vetrs = conv.get_edge_verts(edge);
-		dst_edge_verts[0] = edge_vetrs[0];
-		dst_edge_verts[1] = edge_vetrs[1];
-		/*  Edge-faces */
+		conv.get_edge_verts(edge, &dst_edge_verts[0]);
+		/* Edge-faces */
 		IndexArray dst_edge_faces = getBaseEdgeFaces(refiner, edge);
-		int num_edge_faces = conv.get_num_edge_faces(edge);
-		const int *edge_faces = conv.get_edge_faces(edge);
-		for (int face = 0; face < num_edge_faces; ++face) {
-			dst_edge_faces[face] = edge_faces[face];
-		}
+		conv.get_edge_faces(edge, &dst_edge_faces[0]);
 	}
 	/* Vertex relations */
 	int num_verts = conv.get_num_verts();
 	for (int vert = 0; vert < num_verts; ++vert) {
 		/* Vert-Faces */
 		IndexArray dst_vert_faces = getBaseVertexFaces(refiner, vert);
-		int num_vet_faces = conv.get_num_vert_faces(vert);
-		const int *vert_faces = conv.get_vert_faces(vert);
-		for (int face = 0; face < num_vet_faces; ++face) {
-			dst_vert_faces[face] = vert_faces[face];
-		}
+		conv.get_vert_faces(vert, &dst_vert_faces[0]);
 		/* Vert-Edges */
 		IndexArray dst_vert_edges = getBaseVertexEdges(refiner, vert);
-		int num_verets_edges = conv.get_num_vert_edges(vert);
-		const int *vert_edges = conv.get_vert_edges(vert);
-		for (int edge = 0; edge < num_verets_edges; ++edge) {
-			dst_vert_edges[edge] = vert_edges[edge];
-		}
+		conv.get_vert_edges(vert, &dst_vert_edges[0]);
 	}
 	populateBaseLocalIndices(refiner);
 	return true;
