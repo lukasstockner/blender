@@ -74,8 +74,10 @@ void openSubdiv_evaluatorSetEdgeSharpness(
 const float *openSubdiv_evaluatorGetFloatTagArgs(
     OpenSubdiv_EvaluatorDescr *evaluator_descr);
 
+struct DerivedMesh;
 OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
-    OpenSubdiv_EvaluatorDescr *evaluator_descr,
+    //OpenSubdiv_EvaluatorDescr *evaluator_descr,
+    DerivedMesh *dm,
     int evaluator_type,
     int level,
     int scheme,

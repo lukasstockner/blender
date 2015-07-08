@@ -2327,7 +2327,7 @@ static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
 	MEM_freeN(positions);
 }
 
-bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
+bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, DerivedMesh *dm, bool use_osd_glsl)
 {
 	int compute_type;
 
@@ -2366,7 +2366,8 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 		             : OPENSUBDIV_SCHEME_CATMARK;
 
 		ss->osd_mesh = openSubdiv_createOsdGLMeshFromEvaluator(
-			ss->osd_evaluator,
+			//ss->osd_evaluator,
+			dm,
 			compute_type,
 			ss->subdivLevels,
 			scheme,

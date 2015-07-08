@@ -26,6 +26,9 @@
 set(INC
 	.
 	../guardedalloc
+	../../source/blender/blenlib
+	../../source/blender/blenkernel
+	../../source/blender/makesdna
 )
 
 set(INC_SYS
@@ -36,12 +39,14 @@ set(INC_SYS
 
 set(SRC
 	opensubdiv_capi.cc
+	opensubdiv_converter.cc
 	opensubdiv_device_context_cuda.cc
 	opensubdiv_device_context_opencl.cc
 	opensubdiv_gpu_capi.cc
 	opensubdiv_utils_capi.cc
 
 	opensubdiv_capi.h
+	opensubdiv_converter.h
 	opensubdiv_device_context_cuda.h
 	opensubdiv_device_context_opencl.h
 	opensubdiv_partitioned.h

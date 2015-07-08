@@ -1654,7 +1654,7 @@ static void ccgDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEd
 #ifdef WITH_OPENSUBDIV
 	if (ccgdm->useGpuBackend) {
 		/* TODO(sergey): We currently only support all edges drawing. */
-		if (ccgSubSurf_prepareGLMesh(ss, true)) {
+		if (ccgSubSurf_prepareGLMesh(ss, ccgdm->orig_dm, true)) {
 			ccgSubSurf_drawGLMesh(ss, false, -1, -1);
 		}
 		return;
@@ -1799,7 +1799,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm,
 		int i, matnr = -1, shademodel = -1;
 		CCGFaceIterator fi;
 		int start_partition = 0, num_partitions = 0;
-		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, setMaterial != NULL) == false)) {
+		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, ccgdm->orig_dm, setMaterial != NULL) == false)) {
 			return;
 		}
 
@@ -1982,7 +1982,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 
 		GPU_draw_update_fvar_offset(dm);
 
-		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, false) == false)) {
+		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, ccgdm->orig_dm, false) == false)) {
 			return;
 		}
 
@@ -2430,7 +2430,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		 * this we'll need to pass proper compareDrawOptions.
 		 */
 
-		if (ccgSubSurf_prepareGLMesh(ss, true) == false) {
+		if (ccgSubSurf_prepareGLMesh(ss, ccgdm->orig_dm, true) == false) {
 			return;
 		}
 
@@ -2767,7 +2767,7 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 			glColor3f(0.8f, 0.8f, 0.8f);
 		}
 
-		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, true) == false)) {
+		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, ccgdm->orig_dm, true) == false)) {
 			return;
 		}
 
@@ -4337,6 +4337,9 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 #endif
 		}
 	}
+
+	dm->needsFree = 0;
+	result->orig_dm = dm;
 
 	return (DerivedMesh *)result;
 }
