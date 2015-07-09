@@ -210,57 +210,6 @@ static void get_partition_per_face(OsdHbrMesh &hmesh,
 }
 #endif
 
-/* TODO(sergey): It might be good to have in evaluator_capi. */
-void openSubdiv_evlauatorClearTags(OpenSubdiv_EvaluatorDescr *evaluator_descr)
-{
-#if 0
-	OsdUtilSubdivTopology *topology =
-	    (OsdUtilSubdivTopology *)openSubdiv_getEvaluatorTopologyDescr(
-	        evaluator_descr);
-
-	topology->tagData.tags.clear();
-	topology->tagData.intArgs.clear();
-	topology->tagData.floatArgs.clear();
-	topology->tagData.stringArgs.clear();
-#else
-	(void)evaluator_descr;
-#endif
-}
-
-void openSubdiv_evaluatorSetEdgeSharpness(
-        OpenSubdiv_EvaluatorDescr *evaluator_descr,
-        int v0, int v1,
-        float sharpness)
-{
-#if 0
-	OsdUtilSubdivTopology *topology =
-	    (OsdUtilSubdivTopology *)openSubdiv_getEvaluatorTopologyDescr(
-	        evaluator_descr);
-	int indices[] = {v0, v1};
-
-	topology->tagData.AddCrease(indices, 2, &sharpness, 1);
-#else
-	(void)evaluator_descr;
-	(void)v0;
-	(void)v1;
-	(void)sharpness;
-#endif
-}
-
-const float *openSubdiv_evaluatorGetFloatTagArgs(
-        OpenSubdiv_EvaluatorDescr *evaluator_descr)
-{
-#if 0
-	OsdUtilSubdivTopology *topology =
-	    (OsdUtilSubdivTopology *)openSubdiv_getEvaluatorTopologyDescr(
-	        evaluator_descr);
-	return &topology->tagData.floatArgs[0];
-#else
-	(void)evaluator_descr;
-	return NULL;
-#endif
-}
-
 struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
         //OpenSubdiv_EvaluatorDescr * /*evaluator_descr*/,
         DerivedMesh *dm,

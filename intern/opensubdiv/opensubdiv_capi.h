@@ -63,17 +63,6 @@ enum {
 	OPENSUBDIV_SCHEME_LOOP,
 };
 
-void openSubdiv_evlauatorClearTags(
-    OpenSubdiv_EvaluatorDescr *evaluator_descr);
-
-void openSubdiv_evaluatorSetEdgeSharpness(
-    OpenSubdiv_EvaluatorDescr *evaluator_descr,
-    int v0, int v1,
-    float sharpness);
-
-const float *openSubdiv_evaluatorGetFloatTagArgs(
-    OpenSubdiv_EvaluatorDescr *evaluator_descr);
-
 struct DerivedMesh;
 OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
     //OpenSubdiv_EvaluatorDescr *evaluator_descr,

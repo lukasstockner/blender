@@ -2495,6 +2495,7 @@ BLI_INLINE void ccgSubSurf__mapEdgeToFace(int S,
 	}
 }
 
+#if 0
 static void opensubdiv_initEvaluatorFace(CCGSubSurf *ss,
                                          CCGFace *face)
 {
@@ -2535,6 +2536,7 @@ static void opensubdiv_initEvaluatorFace(CCGSubSurf *ss,
 	}
 #undef MAX_STATIC_VERTS
 }
+#endif
 
 static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 {
@@ -2654,8 +2656,8 @@ static bool check_topology_changed(CCGSubSurf *ss)
 	    num_nverts;
 	int *indices, *nverts;
 	int i, index, osd_face_index;
-	const float *float_args =
-	        openSubdiv_evaluatorGetFloatTagArgs(ss->osd_evaluator);
+	const float *float_args = NULL;
+	/*        openSubdiv_evaluatorGetFloatTagArgs(ss->osd_evaluator); */
 
 	/* If compute type changes, need to re-create GL Mesh.
 	 * For now let's do evaluator as well, will optimize
