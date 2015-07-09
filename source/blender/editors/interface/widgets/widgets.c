@@ -34,6 +34,7 @@
 #include "widgets.h" /* own include */
 
 
+
 uiWidgetDrawStyle *widget_drawstyle_get(const int widget_style_type) /* TODO widget draw styles are for later */
 {
 #if 0

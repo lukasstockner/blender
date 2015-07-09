@@ -79,8 +79,21 @@ typedef struct uiWidgetBase {
 
 /* widgets_draw.c - shared low-level drawing functions */
 void widgetbase_init(uiWidgetBase *wtb);
+
 void round_box_edges(uiWidgetBase *wt, int roundboxalign, const rcti *rect, float rad); /* XXX rename to widgetbase_roundboxedges_set */
 void round_box__edges(uiWidgetBase *wt, int roundboxalign, const rcti *rect, float rad, float radi);
+
+void widget_draw_tria_ex( /* XXX tmp, could be static */
+        uiWidgetTrias *tria, const rcti *rect, float triasize, char where,
+        /* input data */
+        const float verts[][2], const int verts_tot,
+        const unsigned int tris[][3], const int tris_tot);
+void widget_num_tria(uiWidgetTrias *tria, const rcti *rect, float triasize, char where);
+void widget_menu_trias(uiWidgetTrias *tria, const rcti *rect);
+void widget_check_trias(uiWidgetTrias *tria, const rcti *rect);
+
+void widget_softshadow(const rcti *rect, int roundboxalign, const float radin);
+
 void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol);
 
 #endif  /* __WIDGETS_DRAW_INTERN_H__ */

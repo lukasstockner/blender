@@ -23,7 +23,7 @@
 /** \file blender/editors/interface/widgets/widgets_draw/widgets_draw.c
  *  \ingroup edinterface
  * 
- * Shared low-level widget drawing functions
+ * \brief Shared low-level widget drawing functions
  */
 
 #include "BIF_gl.h"
@@ -41,6 +41,7 @@
 #include "widgets_draw_intern.h" /* own include */
 
 
+/* draw defines ************************************ */
 
 static const float cornervec[WIDGET_CURVE_RESOLU][2] = {
 	{0.0, 0.0}, {0.195, 0.02}, {0.383, 0.067},
@@ -56,6 +57,30 @@ static const float jit[WIDGET_AA_JITTER][2] = {
 	{-0.272855,  0.269918}, { 0.095909,  0.388710}
 };
 
+static const float num_tria_vert[3][2] = {
+	{-0.352077, 0.532607}, {-0.352077, -0.549313}, {0.330000, -0.008353}
+};
+
+static const unsigned int num_tria_face[1][3] = {
+	{0, 1, 2}
+};
+
+static const float check_tria_vert[6][2] = {
+	{-0.578579, 0.253369},  {-0.392773, 0.412794},  {-0.004241, -0.328551},
+	{-0.003001, 0.034320},  {1.055313, 0.864744},   {0.866408, 1.026895}
+};
+
+static const unsigned int check_tria_face[4][3] = {
+	{3, 2, 4}, {3, 4, 5}, {1, 0, 3}, {0, 2, 3}
+};
+
+static const float menu_tria_vert[6][2] = {
+	{-0.33, 0.16}, {0.33, 0.16}, {0, 0.82},
+	{0, -0.82}, {-0.33, -0.16}, {0.33, -0.16}
+};
+
+static const unsigned int menu_tria_face[2][3] = {{2, 0, 1}, {3, 5, 4}};
+
 /* ************************************************* */
 
 void widgetbase_init(uiWidgetBase *wtb)
@@ -69,6 +94,12 @@ void widgetbase_init(uiWidgetBase *wtb)
 	wtb->draw_emboss = true;
 	wtb->draw_shadedir = true;
 }
+
+
+
+/* prepare drawing ********************************* */
+
+/* roundbox stuff ************* */
 
 /* this call has 1 extra arg to allow mask outline */
 void round_box__edges(uiWidgetBase *wt, int roundboxalign, const rcti *rect, float rad, float radi)
@@ -245,6 +276,9 @@ static void round_box_shade_col4_r(unsigned char r_col[4], const char col1[4], c
 	r_col[3] = (faci * col1[3] + facm * col2[3]) / 256;
 }
 
+
+/* triangle stuff ************* */
+
 static void widget_verts_to_triangle_strip(uiWidgetBase *wtb, const int totvert, float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2])
 {
 	int a;
@@ -265,6 +299,224 @@ static void widget_verts_to_triangle_strip_open(uiWidgetBase *wtb, const int tot
 		triangle_strip[a * 2 + 1][0] = wtb->outer_v[a][0];
 		triangle_strip[a * 2 + 1][1] = wtb->outer_v[a][1] - 1.0f;
 	}
+}
+
+/* based on button rect, return scaled array of triangles */
+/* XXX tmp, could be static */
+/* static */ void widget_draw_tria_ex(
+        uiWidgetTrias *tria, const rcti *rect, float triasize, char where,
+        /* input data */
+        const float verts[][2], const int verts_tot,
+        const unsigned int tris[][3], const int tris_tot)
+{
+	float centx, centy, sizex, sizey, minsize;
+	int a, i1 = 0, i2 = 1;
+
+	minsize = min_ii(BLI_rcti_size_x(rect), BLI_rcti_size_y(rect));
+
+	/* center position and size */
+	centx = (float)rect->xmin + 0.4f * minsize;
+	centy = (float)rect->ymin + 0.5f * minsize;
+	sizex = sizey = -0.5f * triasize * minsize;
+
+	if (where == 'r') {
+		centx = (float)rect->xmax - 0.4f * minsize;
+		sizex = -sizex;
+	}
+	else if (where == 't') {
+		centy = (float)rect->ymax - 0.5f * minsize;
+		sizey = -sizey;
+		i2 = 0; i1 = 1;
+	}
+	else if (where == 'b') {
+		sizex = -sizex;
+		i2 = 0; i1 = 1;
+	}
+
+	for (a = 0; a < verts_tot; a++) {
+		tria->vec[a][0] = sizex * verts[a][i1] + centx;
+		tria->vec[a][1] = sizey * verts[a][i2] + centy;
+	}
+
+	tria->tot = tris_tot;
+	tria->index = tris;
+}
+
+void widget_num_tria(uiWidgetTrias *tria, const rcti *rect, float triasize, char where)
+{
+	widget_draw_tria_ex(
+	        tria, rect, triasize, where,
+	        num_tria_vert, ARRAY_SIZE(num_tria_vert),
+	        num_tria_face, ARRAY_SIZE(num_tria_face));
+}
+
+void widget_menu_trias(uiWidgetTrias *tria, const rcti *rect)
+{
+	float centx, centy, size;
+	int a;
+
+	/* center position and size */
+	centx = rect->xmax - 0.32f * BLI_rcti_size_y(rect);
+	centy = rect->ymin + 0.50f * BLI_rcti_size_y(rect);
+	size = 0.4f * BLI_rcti_size_y(rect);
+
+	for (a = 0; a < 6; a++) {
+		tria->vec[a][0] = size * menu_tria_vert[a][0] + centx;
+		tria->vec[a][1] = size * menu_tria_vert[a][1] + centy;
+	}
+
+	tria->tot = 2;
+	tria->index = menu_tria_face;
+}
+
+void widget_check_trias(uiWidgetTrias *tria, const rcti *rect)
+{
+	float centx, centy, size;
+	int a;
+
+	/* center position and size */
+	centx = rect->xmin + 0.5f * BLI_rcti_size_y(rect);
+	centy = rect->ymin + 0.5f * BLI_rcti_size_y(rect);
+	size = 0.5f * BLI_rcti_size_y(rect);
+
+	for (a = 0; a < 6; a++) {
+		tria->vec[a][0] = size * check_tria_vert[a][0] + centx;
+		tria->vec[a][1] = size * check_tria_vert[a][1] + centy;
+	}
+
+	tria->tot = 4;
+	tria->index = check_tria_face;
+}
+
+/* menu backdrop stuff ******** */
+
+/* helper call, makes shadow rect, with 'sun' above menu, so only shadow to left/right/bottom */
+/* return tot */
+static int round_box_shadow_edges(float (*vert)[2], const rcti *rect, float rad, int roundboxalign, float step)
+{
+	float vec[WIDGET_CURVE_RESOLU][2];
+	float minx, miny, maxx, maxy;
+	int a, tot = 0;
+
+	rad += step;
+
+	if (2.0f * rad > BLI_rcti_size_y(rect))
+		rad = 0.5f * BLI_rcti_size_y(rect);
+
+	minx = rect->xmin - step;
+	miny = rect->ymin - step;
+	maxx = rect->xmax + step;
+	maxy = rect->ymax + step;
+
+	/* mult */
+	for (a = 0; a < WIDGET_CURVE_RESOLU; a++) {
+		vec[a][0] = rad * cornervec[a][0];
+		vec[a][1] = rad * cornervec[a][1];
+	}
+
+	/* start with left-top, anti clockwise */
+	if (roundboxalign & UI_CNR_TOP_LEFT) {
+		for (a = 0; a < WIDGET_CURVE_RESOLU; a++, tot++) {
+			vert[tot][0] = minx + rad - vec[a][0];
+			vert[tot][1] = maxy - vec[a][1];
+		}
+	}
+	else {
+		for (a = 0; a < WIDGET_CURVE_RESOLU; a++, tot++) {
+			vert[tot][0] = minx;
+			vert[tot][1] = maxy;
+		}
+	}
+
+	if (roundboxalign & UI_CNR_BOTTOM_LEFT) {
+		for (a = 0; a < WIDGET_CURVE_RESOLU; a++, tot++) {
+			vert[tot][0] = minx + vec[a][1];
+			vert[tot][1] = miny + rad - vec[a][0];
+		}
+	}
+	else {
+		for (a = 0; a < WIDGET_CURVE_RESOLU; a++, tot++) {
+			vert[tot][0] = minx;
+			vert[tot][1] = miny;
+		}
+	}
+
+	if (roundboxalign & UI_CNR_BOTTOM_RIGHT) {
+		for (a = 0; a < WIDGET_CURVE_RESOLU; a++, tot++) {
+			vert[tot][0] = maxx - rad + vec[a][0];
+			vert[tot][1] = miny + vec[a][1];
+		}
+	}
+	else {
+		for (a = 0; a < WIDGET_CURVE_RESOLU; a++, tot++) {
+			vert[tot][0] = maxx;
+			vert[tot][1] = miny;
+		}
+	}
+
+	if (roundboxalign & UI_CNR_TOP_RIGHT) {
+		for (a = 0; a < WIDGET_CURVE_RESOLU; a++, tot++) {
+			vert[tot][0] = maxx - vec[a][1];
+			vert[tot][1] = maxy - rad + vec[a][0];
+		}
+	}
+	else {
+		for (a = 0; a < WIDGET_CURVE_RESOLU; a++, tot++) {
+			vert[tot][0] = maxx;
+			vert[tot][1] = maxy;
+		}
+	}
+	return tot;
+}
+
+
+/* actual drawing ********************************** */
+
+/* menu backdrop ************** */
+
+/* outside of rect, rad to left/bottom/right */
+void widget_softshadow(const rcti *rect, int roundboxalign, const float radin)
+{
+	bTheme *btheme = UI_GetTheme();
+	uiWidgetBase wtb;
+	rcti rect1 = *rect;
+	float alphastep;
+	int step, totvert;
+	float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2];
+	const float radout = UI_ThemeMenuShadowWidth();
+
+	/* disabled shadow */
+	if (radout == 0.0f)
+		return;
+
+	/* prevent tooltips to not show round shadow */
+	if (radout > 0.2f * BLI_rcti_size_y(&rect1))
+		rect1.ymax -= 0.2f * BLI_rcti_size_y(&rect1);
+	else
+		rect1.ymax -= radout;
+
+	/* inner part */
+	totvert = round_box_shadow_edges(wtb.inner_v, &rect1, radin, roundboxalign & (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT), 0.0f);
+
+	/* we draw a number of increasing size alpha quad strips */
+	alphastep = 3.0f * btheme->tui.menu_shadow_fac / radout;
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+
+	for (step = 1; step <= (int)radout; step++) {
+		float expfac = sqrtf(step / radout);
+
+		round_box_shadow_edges(wtb.outer_v, &rect1, radin, UI_CNR_ALL, (float)step);
+
+		glColor4f(0.0f, 0.0f, 0.0f, alphastep * (1.0f - expfac));
+
+		widget_verts_to_triangle_strip(&wtb, totvert, triangle_strip);
+
+		glVertexPointer(2, GL_FLOAT, 0, triangle_strip);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, totvert * 2); /* add + 2 for getting a complete soft rect. Now it skips top edge to allow transparent menus */
+	}
+
+	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
 static void widget_trias_draw(uiWidgetTrias *tria)

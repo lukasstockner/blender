@@ -46,9 +46,83 @@ typedef struct uiWidgetDrawType {
 	void (*text)(struct uiFontStyle *, uiWidgetColors *, struct uiBut *, rcti *);
 } uiWidgetDrawType;
 
+#if 0 /* uiWidgetDrawType init template */
+
+uiWidgetDrawType drawtype_xxx_xxx = {
+	/* state */  NULL,
+	/* draw */   widget_roundbut,
+	/* custom */ NULL,
+	/* text */   NULL,
+};
+#endif
+
 typedef struct uiWidgetDrawStyle {
-	uiWidgetDrawType *widget_exec;
+	/* let's keep this in a nice alphabetical order! */
+	uiWidgetDrawType *box,
+	                 *checkbox,
+	                 *exec,
+	                 *filename,
+	                 *icon,
+	                 *label,
+	                 *listitem,
+	                 *menu_back,
+	                 *menu_icon_radio,
+	                 *menu_item,
+	                 *menu_item_radial,
+	                 *menu_node_link,
+	                 *menu_pointer_link,
+	                 *menu_radio,
+	                 *name,
+	                 *name_link,
+	                 *number,
+	                 *pointer_link,
+	                 *progressbar,
+	                 *pulldown,
+	                 *radio,
+	                 *regular,
+	                 *rgb_picker,
+	                 *scroll,
+	                 *slider,
+	                 *swatch,
+	                 *toggle,
+	                 *tooltip,
+	                 *unitvec;
 } uiWidgetDrawStyle;
+
+#if 0 /* uiWidgetDrawStyle init template */
+
+uiWidgetDrawStyle WidgetStyle_xxx = {
+	/* box */               NULL,
+	/* checkbox */          NULL,
+	/* exec */              NULL,
+	/* filename */          NULL,
+	/* icon */              NULL,
+	/* label */             NULL,
+	/* listitem */          NULL,
+	/* menu_back */         NULL,
+	/* menu_icon_radio */   NULL,
+	/* menu_item */         NULL,
+	/* menu_item_radial */  NULL,
+	/* menu_node_link */    NULL,
+	/* menu_pointer_link */ NULL,
+	/* menu_radio */        NULL,
+	/* name */              NULL,
+	/* name_link */         NULL,
+	/* number */            NULL,
+	/* pointer_link */      NULL,
+	/* progressbar */       NULL,
+	/* pulldown */          NULL,
+	/* radio */             NULL,
+	/* regular */           NULL,
+	/* rgb_picker */        NULL,
+	/* scroll */            NULL,
+	/* slider */            NULL,
+	/* swatch */            NULL,
+	/* toggle */            NULL,
+	/* tooltip */           NULL,
+	/* unitvec */           NULL,
+};
+#endif
 
 extern struct uiWidgetDrawStyle WidgetStyle_Classic;
 
