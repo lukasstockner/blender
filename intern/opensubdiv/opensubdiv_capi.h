@@ -31,10 +31,8 @@ extern "C" {
 #endif
 
 // Types declaration.
-struct OpenSubdiv_EvaluatorDescr;
 struct OpenSubdiv_GLMesh;
 
-typedef struct OpenSubdiv_EvaluatorDescr OpenSubdiv_EvaluatorDescr;
 typedef struct OpenSubdiv_GLMesh OpenSubdiv_GLMesh;
 
 #ifdef __cplusplus
@@ -63,9 +61,9 @@ enum {
 	OPENSUBDIV_SCHEME_LOOP,
 };
 
+/* TODO(sergey): Re-name and avoid bad level data access. */
 struct DerivedMesh;
 OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
-    //OpenSubdiv_EvaluatorDescr *evaluator_descr,
     DerivedMesh *dm,
     int evaluator_type,
     int level,
@@ -89,8 +87,17 @@ void openSubdiv_osdGLDisplayInit(void);
 void openSubdiv_osdGLDisplayDeinit(void);
 
 /* ** Evaluator API ** */
-void openSubdiv_evaluateLimit(//OpenSubdiv_EvaluatorDescr *evaluator_descr,
-                              DerivedMesh *dm,
+
+struct OpenSubdiv_EvaluatorDescr;
+typedef struct OpenSubdiv_EvaluatorDescr OpenSubdiv_EvaluatorDescr;
+
+/* TODO(sergey): Avoid bad-level data access, */
+OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(DerivedMesh *dm,
+                                                           int subsurf_level);
+
+void openSubdiv_deleteEvaluatorDescr(OpenSubdiv_EvaluatorDescr *evaluator_descr);
+
+void openSubdiv_evaluateLimit(OpenSubdiv_EvaluatorDescr *evaluator_descr,
                               int osd_face_index,
                               float face_u, float face_v,
                               float P[3],

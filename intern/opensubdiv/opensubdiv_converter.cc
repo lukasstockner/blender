@@ -44,6 +44,7 @@ OpenSubdiv::Sdc::Options OsdBlenderConverter::get_options() const
 {
 	OpenSubdiv::Sdc::Options options;
 	options.SetVtxBoundaryInterpolation(OpenSubdiv::Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
+	options.SetFVarLinearInterpolation(OpenSubdiv::Sdc::Options::FVAR_LINEAR_ALL);
 	return options;
 }
 
@@ -77,16 +78,16 @@ void OsdBlenderConverter::get_coarse_verts(float *coords) const
 /* Face relationships. */
 int OsdBlenderConverter::get_num_face_verts(int face) const
 {
-	MPoly *mp = dm_->getPolyArray(dm_);
-	MPoly *mpoly = &mp[face];
+	const MPoly *mp = dm_->getPolyArray(dm_);
+	const MPoly *mpoly = &mp[face];
 	return mpoly->totloop;
 }
 
 void OsdBlenderConverter::get_face_verts(int face, int *face_verts) const
 {
-	MLoop *ml = dm_->getLoopArray(dm_);
-	MPoly *mp = dm_->getPolyArray(dm_);
-	MPoly *mpoly = &mp[face];
+	const MLoop *ml = dm_->getLoopArray(dm_);
+	const MPoly *mp = dm_->getPolyArray(dm_);
+	const MPoly *mpoly = &mp[face];
 	for(int i = 0; i < mpoly->totloop; ++i) {
 		face_verts[i] = ml[mpoly->loopstart + i].v;
 	}
@@ -94,9 +95,9 @@ void OsdBlenderConverter::get_face_verts(int face, int *face_verts) const
 
 void OsdBlenderConverter::get_face_edges(int face, int *face_edges) const
 {
-	MLoop *ml = dm_->getLoopArray(dm_);
-	MPoly *mp = dm_->getPolyArray(dm_);
-	MPoly *mpoly = &mp[face];
+	const MLoop *ml = dm_->getLoopArray(dm_);
+	const MPoly *mp = dm_->getPolyArray(dm_);
+	const MPoly *mpoly = &mp[face];
 	for(int i = 0; i < mpoly->totloop; ++i) {
 		face_edges[i] = ml[mpoly->loopstart + i].e;
 	}
@@ -105,21 +106,21 @@ void OsdBlenderConverter::get_face_edges(int face, int *face_edges) const
 /* Edge relationships. */
 void OsdBlenderConverter::get_edge_verts(int edge, int *edge_verts) const
 {
-	MEdge *me = dm_->getEdgeArray(dm_);
-	MEdge *medge = &me[edge];
+	const MEdge *me = dm_->getEdgeArray(dm_);
+	const MEdge *medge = &me[edge];
 	edge_verts[0] = medge->v1;
 	edge_verts[1] = medge->v2;
 }
 
 int OsdBlenderConverter::get_num_edge_faces(int edge) const
 {
-	MLoop *ml = dm_->getLoopArray(dm_);
-	MPoly *mp = dm_->getPolyArray(dm_);
+	const MLoop *ml = dm_->getLoopArray(dm_);
+	const MPoly *mp = dm_->getPolyArray(dm_);
 	int num = 0;
 	for (int poly = 0; poly < dm_->getNumPolys(dm_); ++poly) {
-		MPoly *mpoly = &mp[poly];
+		const MPoly *mpoly = &mp[poly];
 		for (int loop = 0; loop < mpoly->totloop; ++loop) {
-			MLoop *mloop = &ml[loop + mpoly->loopstart];
+			const MLoop *mloop = &ml[mpoly->loopstart + loop];
 			if (mloop->e == edge) {
 				++num;
 				break;
@@ -131,13 +132,13 @@ int OsdBlenderConverter::get_num_edge_faces(int edge) const
 
 void OsdBlenderConverter::get_edge_faces(int edge, int *edge_faces) const
 {
-	MLoop *ml = dm_->getLoopArray(dm_);
-	MPoly *mp = dm_->getPolyArray(dm_);
+	const MLoop *ml = dm_->getLoopArray(dm_);
+	const MPoly *mp = dm_->getPolyArray(dm_);
 	int num = 0;
 	for (int poly = 0; poly < dm_->getNumPolys(dm_); ++poly) {
-		MPoly *mpoly = &mp[poly];
+		const MPoly *mpoly = &mp[poly];
 		for (int loop = 0; loop < mpoly->totloop; ++loop) {
-			MLoop *mloop = &ml[loop + mpoly->loopstart];
+			const MLoop *mloop = &ml[mpoly->loopstart + loop];
 			if (mloop->e == edge) {
 				edge_faces[num++] = poly;
 				break;
@@ -149,10 +150,10 @@ void OsdBlenderConverter::get_edge_faces(int edge, int *edge_faces) const
 /* Vertex relationships. */
 int OsdBlenderConverter::get_num_vert_edges(int vert) const
 {
-	MEdge *me = dm_->getEdgeArray(dm_);
+	const MEdge *me = dm_->getEdgeArray(dm_);
 	int num = 0;
 	for (int edge = 0; edge < dm_->getNumEdges(dm_); ++edge) {
-		MEdge *medge = &me[edge];
+		const MEdge *medge = &me[edge];
 		if (medge->v1 == vert || medge->v2 == vert) {
 			++num;
 		}
@@ -162,10 +163,10 @@ int OsdBlenderConverter::get_num_vert_edges(int vert) const
 
 void OsdBlenderConverter::get_vert_edges(int vert, int *vert_edges) const
 {
-	MEdge *me = dm_->getEdgeArray(dm_);
+	const MEdge *me = dm_->getEdgeArray(dm_);
 	int num = 0;
 	for (int edge = 0; edge < dm_->getNumEdges(dm_); ++edge) {
-		MEdge *medge = &me[edge];
+		const MEdge *medge = &me[edge];
 		if (medge->v1 == vert || medge->v2 == vert) {
 			vert_edges[num++] = edge;
 		}
@@ -174,13 +175,13 @@ void OsdBlenderConverter::get_vert_edges(int vert, int *vert_edges) const
 
 int OsdBlenderConverter::get_num_vert_faces(int vert) const
 {
-	MLoop *ml = dm_->getLoopArray(dm_);
-	MPoly *mp = dm_->getPolyArray(dm_);
+	const MLoop *ml = dm_->getLoopArray(dm_);
+	const MPoly *mp = dm_->getPolyArray(dm_);
 	int num = 0;
 	for (int poly = 0; poly < dm_->getNumPolys(dm_); ++poly) {
-		MPoly *mpoly = &mp[poly];
+		const MPoly *mpoly = &mp[poly];
 		for (int loop = 0; loop < mpoly->totloop; ++loop) {
-			MLoop *mloop = &ml[loop + mpoly->loopstart];
+			const MLoop *mloop = &ml[mpoly->loopstart + loop];
 			if (mloop->v == vert) {
 				++num;
 				break;
@@ -192,13 +193,13 @@ int OsdBlenderConverter::get_num_vert_faces(int vert) const
 
 void OsdBlenderConverter::get_vert_faces(int vert, int *vert_faces) const
 {
-	MLoop *ml = dm_->getLoopArray(dm_);
-	MPoly *mp = dm_->getPolyArray(dm_);
+	const MLoop *ml = dm_->getLoopArray(dm_);
+	const MPoly *mp = dm_->getPolyArray(dm_);
 	int num = 0;
 	for (int poly = 0; poly < dm_->getNumPolys(dm_); ++poly) {
-		MPoly *mpoly = &mp[poly];
+		const MPoly *mpoly = &mp[poly];
 		for (int loop = 0; loop < mpoly->totloop; ++loop) {
-			MLoop *mloop = &ml[loop + mpoly->loopstart];
+			const MLoop *mloop = &ml[mpoly->loopstart + loop];
 			if (mloop->v == vert) {
 				vert_faces[num++] = poly;
 				break;

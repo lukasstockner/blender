@@ -40,8 +40,11 @@
 
 #include "opensubdiv_converter.h"
 
+#include "MEM_guardedalloc.h"
+
 using OpenSubdiv::Osd::BufferDescriptor;
 using OpenSubdiv::Osd::PatchCoord;
+using OpenSubdiv::Far::PatchMap;
 using OpenSubdiv::Far::PatchTable;
 using OpenSubdiv::Far::PatchTableFactory;
 using OpenSubdiv::Far::StencilTable;
@@ -88,7 +91,7 @@ public:
 	           StencilTable const *varying_stencils,
 	           int num_coarse_verts,
 	           int num_total_verts,
-	           int num_particles,
+	           int num_output_verts,
 	           PatchTable const *patch_table,
 	           EvaluatorCache *evaluator_cache = NULL,
 	           DEVICE_CONTEXT *device_context = NULL)
@@ -105,8 +108,8 @@ public:
 		using OpenSubdiv::Osd::convertToCompatibleStencilTable;
 		src_data_ = SRC_VERTEX_BUFFER::Create(3, num_total_verts, device_context_);
 		src_varying_data_ = SRC_VERTEX_BUFFER::Create(3, num_total_verts, device_context_);
-		vertex_data_ = EVAL_VERTEX_BUFFER::Create(6, num_particles, device_context_);
-		derivatives_ = EVAL_VERTEX_BUFFER::Create(6, num_particles, device_context_);
+		vertex_data_ = EVAL_VERTEX_BUFFER::Create(6, num_output_verts, device_context_);
+		derivatives_ = EVAL_VERTEX_BUFFER::Create(6, num_output_verts, device_context_);
 		patch_table_ = PATCH_TABLE::Create(patch_table, device_context_);
 		patch_coords_ = NULL;
 		vertex_stencils_ = convertToCompatibleStencilTable<STENCIL_TABLE>(vertex_stencils,
@@ -130,6 +133,11 @@ public:
 	float *BindCpuVertexData() const
 	{
 		return vertex_data_->BindCpuBuffer();
+	}
+
+	float *BindCpuDerivativesData() const
+	{
+		return derivatives_->BindCpuBuffer();
 	}
 
 	void UpdateData(const float *src, int start_vertex, int num_vertices)
@@ -269,120 +277,154 @@ typedef EvalOutput<OpenSubdiv::Osd::CpuVertexBuffer,
                    OpenSubdiv::Osd::CpuPatchTable,
                    OpenSubdiv::Osd::CpuEvaluator> CpuEvalOutput;
 
-void openSubdiv_evaluateLimit(//OpenSubdiv_EvaluatorDescr *evaluator_descr,
-                              DerivedMesh *dm,
+typedef struct OpenSubdiv_EvaluatorDescr {
+	CpuEvalOutput *eval_output;
+	PatchMap *patch_map;
+} OpenSubdiv_EvaluatorDescr;
+
+OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(DerivedMesh *dm,
+                                                           int subsurf_level)
+{
+	OsdBlenderConverter conv(dm);
+
+	/* TODO(sergey): Look into re-using refiner with GLMesh. */
+	TopologyRefinerFactory<OsdBlenderConverter>::Options topology_options(conv.get_type(),
+	                                                                      conv.get_options());
+	// topology_options.validateFullTopology = true;
+	TopologyRefiner *refiner =
+	        TopologyRefinerFactory<OsdBlenderConverter>::Create(conv,
+	                                                            topology_options);
+
+	const StencilTable *vertex_stencils = NULL;
+	const StencilTable *varying_stencils = NULL;
+	int num_total_verts = 0;
+
+	/* Apply adaptive refinement to the mesh so that we can use the
+	 * limit evaluation API features.
+	 */
+	TopologyRefiner::AdaptiveOptions options(subsurf_level);
+	refiner->RefineAdaptive(options);
+
+	/* Generate stencil table to update the bi-cubic patches control
+	 * vertices after they have been re-posed (both for vertex & varying
+	 * interpolation).
+	 */
+	StencilTableFactory::Options soptions;
+	soptions.generateOffsets = true;
+	soptions.generateIntermediateLevels = true;
+
+	vertex_stencils = StencilTableFactory::Create(*refiner, soptions);
+
+	soptions.interpolationMode = StencilTableFactory::INTERPOLATE_VARYING;
+	varying_stencils = StencilTableFactory::Create(*refiner, soptions);
+
+	/* Generate bi-cubic patch table for the limit surface. */
+	PatchTableFactory::Options poptions;
+	poptions.SetEndCapType(PatchTableFactory::Options::ENDCAP_BSPLINE_BASIS);
+
+	PatchTable const *patch_table = PatchTableFactory::Create(*refiner, poptions);
+
+	/* Append local points stencils. */
+	/* TODO(sergey): Do we really need to worry about local points stencils? */
+	if (StencilTable const *local_point_stencil_table =
+	    patch_table->GetLocalPointStencilTable())
+	{
+		StencilTable const *table =
+			StencilTableFactory::AppendLocalPointStencilTable(*refiner,
+			                                                  vertex_stencils,
+			                                                  local_point_stencil_table);
+		delete vertex_stencils;
+		vertex_stencils = table;
+	}
+	if (StencilTable const *local_point_varying_stencil_table =
+	     patch_table->GetLocalPointVaryingStencilTable())
+	{
+		StencilTable const *table =
+			StencilTableFactory::AppendLocalPointStencilTable(*refiner,
+			                                                  varying_stencils,
+			                                                  local_point_varying_stencil_table);
+		delete varying_stencils;
+		varying_stencils = table;
+	}
+
+	/* Total number of vertices = coarse verts + refined verts + gregory basis verts. */
+	num_total_verts = vertex_stencils->GetNumControlVertices() +
+		vertex_stencils->GetNumStencils();
+
+	const int num_coarse_verts = refiner->GetLevel(0).GetNumVertices();
+	const int g_nParticles = 1;
+
+	CpuEvalOutput *eval_output = new CpuEvalOutput(vertex_stencils,
+	                                               varying_stencils,
+	                                               num_coarse_verts,
+	                                               num_total_verts,
+	                                               g_nParticles,
+	                                               patch_table);
+
+	float *g_positions = new float[3 * num_coarse_verts];
+	conv.get_coarse_verts(g_positions);
+	eval_output->UpdateData(&g_positions[0], 0, num_coarse_verts);
+	delete g_positions;
+	eval_output->Refine();
+
+	OpenSubdiv::Far::PatchMap *patch_map = new PatchMap(*patch_table);
+
+	OpenSubdiv_EvaluatorDescr *evaluator_descr;
+	evaluator_descr = OBJECT_GUARDED_NEW(OpenSubdiv_EvaluatorDescr);
+	evaluator_descr->eval_output = eval_output;
+	evaluator_descr->patch_map = patch_map;
+
+	/* TOOD(sergey): Look into whether w've got duplicated stencils arrays. */
+	/*
+	delete varying_stencils;
+	delete patch_table;
+	delete vertex_stencils;
+	*/
+
+	delete refiner;
+
+	return evaluator_descr;
+}
+
+void openSubdiv_deleteEvaluatorDescr(OpenSubdiv_EvaluatorDescr *evaluator_descr)
+{
+	delete evaluator_descr->eval_output;
+	delete evaluator_descr->patch_map;
+	OBJECT_GUARDED_DELETE(evaluator_descr, OpenSubdiv_EvaluatorDescr);
+}
+
+void openSubdiv_evaluateLimit(OpenSubdiv_EvaluatorDescr *evaluator_descr,
                               int osd_face_index,
                               float face_u, float face_v,
                               float P[3],
                               float dPdu[3],
                               float dPdv[3])
 {
-	OsdBlenderConverter conv(dm);
-	TopologyRefiner * refiner =
-	        TopologyRefinerFactory<OsdBlenderConverter>::Create(
-	                conv,
-	                TopologyRefinerFactory<OsdBlenderConverter>::Options(conv.get_type(),
-	                                                                     conv.get_options()));
+	assert((face_u >= 0.0f) && (face_u <= 1.0f) && (face_v >= 0.0f) && (face_v <= 1.0f));
 
-	OpenSubdiv::Far::StencilTable const * vertex_stencils = NULL;
-	OpenSubdiv::Far::StencilTable const * varying_stencils = NULL;
-	OpenSubdiv::Far::PatchTable const * g_patchTable;
-	int nverts=0;
-	{
-		// Apply feature adaptive refinement to the mesh so that we can use the
-		// limit evaluation API features.
-		OpenSubdiv::Far::TopologyRefiner::UniformOptions options(1);
-		refiner->RefineUniform(options);
-
-		// Generate stencil table to update the bi-cubic patches control
-		// vertices after they have been re-posed (both for vertex & varying
-		// interpolation)
-		StencilTableFactory::Options soptions;
-		soptions.generateOffsets = true;
-		soptions.generateIntermediateLevels = true;
-
-		vertex_stencils = StencilTableFactory::Create(*refiner, soptions);
-
-		soptions.interpolationMode = StencilTableFactory::INTERPOLATE_VARYING;
-		varying_stencils = StencilTableFactory::Create(*refiner, soptions);
-
-		// Generate bi-cubic patch table for the limit surface
-		PatchTableFactory::Options poptions;
-		poptions.SetEndCapType(PatchTableFactory::Options::ENDCAP_BSPLINE_BASIS);
-
-		PatchTable const * patchTable = PatchTableFactory::Create(*refiner, poptions);
-
-		// append local points stencils
-		if (StencilTable const *local_point_stencil_table =
-		     patchTable->GetLocalPointStencilTable())
-		{
-			StencilTable const *table =
-				StencilTableFactory::AppendLocalPointStencilTable(*refiner,
-				                                                  vertex_stencils,
-				                                                  local_point_stencil_table);
-			delete vertex_stencils;
-			vertex_stencils = table;
-		}
-		if (StencilTable const *local_point_varying_stencil_table =
-		     patchTable->GetLocalPointVaryingStencilTable())
-		{
-			StencilTable const *table =
-				StencilTableFactory::AppendLocalPointStencilTable(*refiner,
-				                                                  varying_stencils,
-				                                                  local_point_varying_stencil_table);
-			delete varying_stencils;
-			varying_stencils = table;
-		}
-
-		// total number of vertices = coarse verts + refined verts + gregory basis verts
-		nverts = vertex_stencils->GetNumControlVertices() +
-			vertex_stencils->GetNumStencils();
-
-		g_patchTable = patchTable;
-	}
-
-	const int nCoarseVertices = refiner->GetLevel(0).GetNumVertices();
-	const int g_nParticles = 1;
-
-	CpuEvalOutput *g_evalOutput = new CpuEvalOutput(vertex_stencils,
-	                                                varying_stencils,
-	                                                nCoarseVertices,
-	                                                nverts,
-	                                                g_nParticles,
-	                                                g_patchTable);
-
-	float g_positions[3*1024];
-	conv.get_coarse_verts(g_positions);
-	g_evalOutput->UpdateData(&g_positions[0], 0, nCoarseVertices);
-	g_evalOutput->Refine();
-	OpenSubdiv::Far::PatchMap patchMap(*g_patchTable);
 	std::vector<PatchCoord> patchCoords;
 	PatchTable::PatchHandle const *handle =
-		patchMap.FindPatch(osd_face_index, face_u, face_v);
+		evaluator_descr->patch_map->FindPatch(osd_face_index, face_u, face_v);
 	PatchCoord patchCoord(*handle, face_u, face_v);
 	patchCoords.push_back(patchCoord);
-	g_evalOutput->UpdatePatchCoords(patchCoords);
-	g_evalOutput->EvalPatches();
-
-	float *refined_verts = g_evalOutput->BindCpuVertexData();
-
-	P[0] = refined_verts[0];
-	P[1] = refined_verts[1];
-	P[2] = refined_verts[2];
-
-	if (dPdu) {
-		dPdu[0] = 1.0f;
-		dPdu[1] = 0.0f;
-		dPdu[2] = 0.0f;
+	evaluator_descr->eval_output->UpdatePatchCoords(patchCoords);
+	if (dPdu != NULL || dPdv != NULL) {
+		evaluator_descr->eval_output->EvalPatchesWithDerivatives();
 	}
-	if (dPdv) {
-		dPdv[0] = 0.0f;
-		dPdv[1] = 1.0f;
-		dPdv[2] = 0.0f;
+	else {
+		evaluator_descr->eval_output->EvalPatches();
 	}
-	delete varying_stencils;
-	delete g_patchTable;
-	delete vertex_stencils;
-	delete refiner;
-	delete g_evalOutput;
+
+	float *refined_verts = evaluator_descr->eval_output->BindCpuVertexData();
+	memcpy(P, refined_verts, sizeof(float) * 3);
+
+	if (dPdu != NULL || dPdv != NULL) {
+		float *drivatives = evaluator_descr->eval_output->BindCpuDerivativesData();
+		if (dPdu) {
+			memcpy(dPdu, drivatives, sizeof(float) * 3);
+		}
+		if (dPdv) {
+			memcpy(dPdv, drivatives + 3, sizeof(float) * 3);
+		}
+	}
 }

@@ -76,27 +76,27 @@ inline bool TopologyRefinerFactory<OsdBlenderConverter>::resizeComponentTopology
         const OsdBlenderConverter& conv)
 {
 	/* Faces and face-verts */
-	int num_faces = conv.get_num_faces();
+	const int num_faces = conv.get_num_faces();
 	setNumBaseFaces(refiner, num_faces);
 	for (int face = 0; face < num_faces; ++face) {
-		int num_verts = conv.get_num_face_verts(face);
+		const int num_verts = conv.get_num_face_verts(face);
 		setNumBaseFaceVertices(refiner, face, num_verts);
 	}
 	/* Edges and edge-faces. */
-	int num_edges = conv.get_num_edges();
+	const int num_edges = conv.get_num_edges();
 	setNumBaseEdges(refiner, num_edges);
 	for (int edge = 0; edge < num_edges; ++edge) {
-		int num_faces = conv.get_num_edge_faces(edge);
-		setNumBaseEdgeFaces(refiner, edge, num_faces);
+		const int num_edge_faces = conv.get_num_edge_faces(edge);
+		setNumBaseEdgeFaces(refiner, edge, num_edge_faces);
 	}
 	/* Vertices and vert-faces and vert-edges/ */
-	int num_verts = conv.get_num_verts();
+	const int num_verts = conv.get_num_verts();
 	setNumBaseVertices(refiner, num_verts);
 	for (int vert = 0; vert < num_verts; ++vert) {
-		int num_edges = conv.get_num_vert_edges(vert),
-		    num_faces = conv.get_num_vert_faces(vert);
-		setNumBaseVertexEdges(refiner, vert, num_edges);
-		setNumBaseVertexFaces(refiner, vert, num_faces);
+		const int num_vert_edges = conv.get_num_vert_edges(vert),
+		          num_vert_faces = conv.get_num_vert_faces(vert);
+		setNumBaseVertexEdges(refiner, vert, num_vert_edges);
+		setNumBaseVertexFaces(refiner, vert, num_vert_faces);
 	}
 	return true;
 }
@@ -109,7 +109,7 @@ inline bool TopologyRefinerFactory<OsdBlenderConverter>::assignComponentTopology
 
 	using Far::IndexArray;
 	/* Face relations. */
-	int num_faces = conv.get_num_faces();
+	const int num_faces = conv.get_num_faces();
 	for (int face = 0; face < num_faces; ++face) {
 		IndexArray dst_face_verts = getBaseFaceVertices(refiner, face);
 		conv.get_face_verts(face, &dst_face_verts[0]);
@@ -117,7 +117,7 @@ inline bool TopologyRefinerFactory<OsdBlenderConverter>::assignComponentTopology
 		conv.get_face_edges(face, &dst_face_edges[0]);
 	}
 	/* Edge relations. */
-	int num_edges = conv.get_num_edges();
+	const int num_edges = conv.get_num_edges();
 	for (int edge = 0; edge < num_edges; ++edge) {
 		/* Edge-vertices */
 		IndexArray dst_edge_verts = getBaseEdgeVertices(refiner, edge);
@@ -127,7 +127,7 @@ inline bool TopologyRefinerFactory<OsdBlenderConverter>::assignComponentTopology
 		conv.get_edge_faces(edge, &dst_edge_faces[0]);
 	}
 	/* Vertex relations */
-	int num_verts = conv.get_num_verts();
+	const int num_verts = conv.get_num_verts();
 	for (int vert = 0; vert < num_verts; ++vert) {
 		/* Vert-Faces */
 		IndexArray dst_vert_faces = getBaseVertexFaces(refiner, vert);

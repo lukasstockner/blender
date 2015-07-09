@@ -380,7 +380,8 @@ struct CCGFace {
 	CCGFace     *next;  /* EHData.next */
 	CCGFaceHDL fHDL;    /* EHData.key */
 
-	short numVerts, flags, pad1, pad2;
+	short numVerts, flags;
+	int osd_index;
 
 //	CCGVert **verts;
 //	CCGEdge **edges;
@@ -464,6 +465,7 @@ struct CCGSubSurf {
 	bool osd_uvs_invalid;
 	bool osd_subsurf_uv;
 	int osd_uv_index;
+	int osd_next_face_index;
 
 	DerivedMesh *dm;
 #endif
@@ -942,6 +944,8 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 		ss->osd_uvs_invalid = true;
 		ss->osd_subsurf_uv = 0;
 		ss->osd_uv_index = -1;
+		ss->osd_next_face_index = 0;
+		ss->dm = NULL;
 #endif
 
 		return ss;
@@ -955,7 +959,7 @@ void ccgSubSurf_free(CCGSubSurf *ss)
 #ifdef WITH_OPENSUBDIV
 	if (ss->osd_evaluator != NULL) {
 		/* TODO(sergey): Need proper port. */
-		//openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
+		openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
 	}
 	if (ss->osd_mesh != NULL) {
 		/* TODO(sergey): Make sure free happens form the main thread! */
@@ -1129,6 +1133,7 @@ CCGError ccgSubSurf_initFullSync(CCGSubSurf *ss)
 	ss->tempEdges = MEM_mallocN(sizeof(*ss->tempEdges) * ss->lenTempArrays, "CCGSubsurf tempEdges");
 
 	ss->syncState = eSyncState_Vert;
+	ss->osd_next_face_index = 0;
 
 	return eCCGError_None;
 }
@@ -1454,6 +1459,15 @@ CCGError ccgSubSurf_syncFace(CCGSubSurf *ss, CCGFaceHDL fHDL, int numVerts, CCGV
 				}
 			}
 		}
+#ifdef WITH_OPENSUBDIV
+		f->osd_index = ss->osd_next_face_index;
+		if (numVerts == 4) {
+			ss->osd_next_face_index++;
+		}
+		else {
+			ss->osd_next_face_index += numVerts;
+		}
+#endif
 	}
 
 	if (f_r) *f_r = f;
@@ -1513,7 +1527,7 @@ static void ccgSubSurf__calcVertNormals(CCGSubSurf *ss,
 	int normalDataOffset = ss->normalDataOffset;
 	int vertDataSize = ss->meshIFC.vertDataSize;
 
-#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+//#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (ptrIdx = 0; ptrIdx < numEffectedF; ptrIdx++) {
 		CCGFace *f = (CCGFace *) effectedF[ptrIdx];
 		int S, x, y;
@@ -1647,7 +1661,7 @@ static void ccgSubSurf__calcVertNormals(CCGSubSurf *ss,
 		}
 	}
 
-#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+//#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (ptrIdx = 0; ptrIdx < numEffectedF; ptrIdx++) {
 		CCGFace *f = (CCGFace *) effectedF[ptrIdx];
 		int S, x, y;
@@ -1714,7 +1728,7 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 	int vertDataSize = ss->meshIFC.vertDataSize;
 	float *q = ss->q, *r = ss->r;
 
-#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+//#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (ptrIdx = 0; ptrIdx < numEffectedF; ptrIdx++) {
 		CCGFace *f = (CCGFace *) effectedF[ptrIdx];
 		int S, x, y;
@@ -2061,17 +2075,17 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 		}
 	}
 
-#pragma omp parallel private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+//#pragma omp parallel private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	{
 		float *q, *r;
 
-#pragma omp critical
+//#pragma omp critical
 		{
 			q = MEM_mallocN(ss->meshIFC.vertDataSize, "CCGSubsurf q");
 			r = MEM_mallocN(ss->meshIFC.vertDataSize, "CCGSubsurf r");
 		}
 
-#pragma omp for schedule(static)
+//#pragma omp for schedule(static)
 		for (ptrIdx = 0; ptrIdx < numEffectedF; ptrIdx++) {
 			CCGFace *f = (CCGFace *) effectedF[ptrIdx];
 			int S, x, y;
@@ -2162,7 +2176,7 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 			}
 		}
 
-#pragma omp critical
+//#pragma omp critical
 		{
 			MEM_freeN(q);
 			MEM_freeN(r);
@@ -2174,14 +2188,14 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 	gridSize = ccg_gridsize(nextLvl);
 	cornerIdx = gridSize - 1;
 
-#pragma omp parallel for private(i) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+//#pragma omp parallel for private(i) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (i = 0; i < numEffectedE; i++) {
 		CCGEdge *e = effectedE[i];
 		VertDataCopy(EDGE_getCo(e, nextLvl, 0), VERT_getCo(e->v0, nextLvl), ss);
 		VertDataCopy(EDGE_getCo(e, nextLvl, edgeSize - 1), VERT_getCo(e->v1, nextLvl), ss);
 	}
 
-#pragma omp parallel for private(i) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+//#pragma omp parallel for private(i) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (i = 0; i < numEffectedF; i++) {
 		CCGFace *f = effectedF[i];
 		int S, x;
@@ -2298,6 +2312,10 @@ static void ccgSubSurf__dumpCoords(CCGSubSurf *ss)
 
 void ccgSubSurf_setDerivedMesh(CCGSubSurf *ss, DerivedMesh *dm)
 {
+	if (ss->dm != NULL) {
+		ss->dm->needsFree = 1;
+		ss->dm->release(ss->dm);
+	}
 	ss->dm = dm;
 }
 
@@ -2318,7 +2336,7 @@ static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
 
 	positions = MEM_callocN(2 * sizeof(*positions) * num_basis_verts,
 	                        "OpenSubdiv coarse points");
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (i = 0; i < ss->vMap->curSize; i++) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
@@ -2495,91 +2513,6 @@ BLI_INLINE void ccgSubSurf__mapEdgeToFace(int S,
 	}
 }
 
-#if 0
-static void opensubdiv_initEvaluatorFace(CCGSubSurf *ss,
-                                         CCGFace *face)
-{
-#define MAX_STATIC_VERTS 64
-	int *indices;
-	int indices_static[MAX_STATIC_VERTS];
-	int S;
-
-	/* If number of vertices per face is low, we use static array,
-	 * this is so because of performance issues -- in most cases
-	 * we'll just use static array and wouldn't stress memory
-	 * allocator at all.
-	 */
-	if (face->numVerts <= MAX_STATIC_VERTS) {
-		indices = indices_static;
-	} else {
-		/* TODO(sergey): Avoid per-ngon allocation, allocate the array once
-		 * and grow it then when needed.
-		 */
-		indices = MEM_mallocN(sizeof(int) * face->numVerts, "subsurf hbr tmp vertices");
-	}
-
-	OSD_LOG("Adding face (");
-	for (S = 0; S < face->numVerts; S++) {
-		indices[S] = FACE_getVerts(face)[S]->osd_index;
-		OSD_LOG("%d, ", indices[S]);
-	}
-	OSD_LOG(")\n");
-
-	/* TODO(sergey): Need proper port. */
-	//openSubdiv_createEvaluatorDescrFace(ss->osd_evaluator,
-	//                                    face->numVerts,
-	//                                    indices);
-	(void)ss;
-
-	if (indices != indices_static) {
-		MEM_freeN(indices);
-	}
-#undef MAX_STATIC_VERTS
-}
-#endif
-
-static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
-{
-	/* TODO(sergey): Need proper port. */
-#if 0
-	int i;
-	OsdScheme scheme = ss->meshIFC.simpleSubdiv
-		? OSD_SCHEME_BILINEAR
-		: OSD_SCHEME_CATMARK;
-
-	ss->osd_compute = U.opensubdiv_compute_type;
-
-	for (i = 0; i < ss->fMap->curSize; i++) {
-		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
-		for (; face; face = face->next) {
-			opensubdiv_initEvaluatorFace(ss, face);
-		}
-	}
-
-	openSubdiv_evlauatorClearTags(ss->osd_evaluator);
-	for (i = 0; i < ss->eMap->curSize; i++) {
-		CCGEdge *e = (CCGEdge *) ss->eMap->buckets[i];
-		for (; e; e = e->next) {
-			openSubdiv_evaluatorSetEdgeSharpness(
-			        ss->osd_evaluator,
-			        e->v0->osd_index,
-			        e->v1->osd_index,
-			        e->crease);
-		}
-	}
-
-	/* Do feature adaptive refinement and get ready to update
-	 * coarse points and evaluate.
-	 */
-	return openSubdiv_finishEvaluatorDescr(ss->osd_evaluator,
-	                                       ss->subdivLevels,
-	                                       scheme) != 0;
-#else
-	(void)ss;
-	return true;
-#endif
-}
-
 void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss,
                                   DerivedMesh *dm,
                                   bool subdivide_uvs)
@@ -2730,15 +2663,12 @@ static bool check_topology_changed(CCGSubSurf *ss)
 
 static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 {
-	bool evaluator_needs_init = false;
-
 	if (ss->osd_evaluator != NULL) {
 		if (check_topology_changed(ss)) {
 			/* If topology changes then we are to re-create evaluator
 			 * from the very scratch.
 			 */
-			/* TODO(sergey): Need proper port. */
-			//openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
+			openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
 			ss->osd_evaluator = NULL;
 
 			/* We would also need to re-create gl mesh from sratch
@@ -2756,15 +2686,11 @@ static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 	if (ss->osd_evaluator == NULL) {
 		int num_basis_verts = ss->vMap->numEntries;
 		OSD_LOG("Allocating new evaluator, %d verts\n", num_basis_verts);
-		/* TODO(sergey): Need proper port. */
-		//ss->osd_evaluator =
-		//	openSubdiv_createEvaluatorDescr(num_basis_verts);
-		evaluator_needs_init = true;
+		ss->osd_evaluator =
+		        openSubdiv_createEvaluatorDescr(ss->dm,
+		                                        ss->subdivLevels);
 	} else {
 		OSD_LOG("Re-using old evaluator\n");
-	}
-	if (evaluator_needs_init) {
-		return opensubdiv_initEvaluator(ss);
 	}
 	return true;
 }
@@ -2788,7 +2714,7 @@ static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
 		positions = MEM_callocN(3 * sizeof(float) * num_basis_verts,
 		                        "OpenSubdiv coarse points");
 	}
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (i = 0; i < ss->vMap->curSize; i++) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
@@ -2821,7 +2747,7 @@ static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
 		return;
 	}
 
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (i = 0; i < ss->vMap->curSize; ++i) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
@@ -2830,7 +2756,7 @@ static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
 		}
 	}
 
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (i = 0; i < ss->fMap->curSize; ++i) {
 		CCGFace *f = (CCGFace *) ss->fMap->buckets[i];
 		for (; f; f = f->next) {
@@ -2847,7 +2773,7 @@ static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
 			if (UNLIKELY(normalize_v3(face_no) == 0.0f)) {
 				face_no[2] = 1.0f; /* other axis set to 0.0 */
 			}
-#pragma omp critical
+//#pragma omp critical
 			{
 				for (S = 0; S < f->numVerts; S++) {
 					CCGVert *v = FACE_getVerts(f)[S];
@@ -2858,7 +2784,7 @@ static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
 		}
 	}
 
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (i = 0; i < ss->vMap->curSize; ++i) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
@@ -2880,7 +2806,7 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 	int S;
 	bool do_normals = ss->meshIFC.numLayers == 3;
 
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (S = 0; S < face->numVerts; S++) {
 		int x, y, k;
 		CCGEdge *edge = NULL;
@@ -2898,7 +2824,7 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 				ccgSubSurf__mapGridToFace(S, grid_u, grid_v, &face_u, &face_v);
 
 				/* TODO(sergey): Need proper port. */
-				openSubdiv_evaluateLimit(/*ss->osd_evaluator*/ss->dm, osd_face_index,
+				openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index,
 				                         face_u, face_v,
 				                         P,
 				                         do_normals ? dPdu : NULL,
@@ -2976,7 +2902,7 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 			 * let's just re-evaluate for simplicity.
 			 */
 			/* TODO(sergey): Need proper port. */
-			openSubdiv_evaluateLimit(/*ss->osd_evaluator*/ss->dm, osd_face_index, u, v, P, dPdu, dPdv);
+			openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index, u, v, P, dPdu, dPdv);
 			VertDataCopy(co, P, ss);
 			if (do_normals) {
 				cross_v3_v3v3(no, dPdv, dPdu);
@@ -3028,7 +2954,7 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 	 */
 
 	/* Evaluate face grids. */
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (S = 0; S < face->numVerts; S++) {
 		int x, y;
 		for (x = 0; x < gridSize; x++) {
@@ -3040,7 +2966,7 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 				float P[3], dPdu[3], dPdv[3];
 
 				/* TODO(sergey): Need proper port. */
-				openSubdiv_evaluateLimit(/*ss->osd_evaluator*/ss->dm, osd_face_index + S, u, v, P, dPdu, dPdv);
+				openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index + S, u, v, P, dPdu, dPdv);
 
 				OSD_LOG("face=%d, corner=%d, u=%f, v=%f, P=(%f, %f, %f)\n",
 				        osd_face_index + S, S, u, v, P[0], P[1], P[2]);
@@ -3142,24 +3068,21 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 
 static void opensubdiv_evaluateGrids(CCGSubSurf *ss)
 {
-	int i, osd_face_index;
-
-	for (i = 0, osd_face_index = 0; i < ss->fMap->curSize; i++) {
+	int i;
+	for (i = 0; i < ss->fMap->curSize; i++) {
 		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
 		for (; face; face = face->next) {
 			if (face->numVerts == 4) {
 				/* For quads we do special magic with converting face coords
 				 * into corner coords and interpolating grids from it.
 				 */
-				opensubdiv_evaluateQuadFaceGrids(ss, face, osd_face_index);
-				osd_face_index++;
+				opensubdiv_evaluateQuadFaceGrids(ss, face, face->osd_index);
 			}
 			else {
 				/* NGons and tris are split into separate osd faces which
 				 * evaluates onto grids directly.
 				 */
-				opensubdiv_evaluateNGonFaceGrids(ss, face, osd_face_index);
-				osd_face_index += face->numVerts;
+				opensubdiv_evaluateNGonFaceGrids(ss, face, face->osd_index);
 			}
 		}
 	}
