@@ -62,6 +62,18 @@ int OsdBlenderConverter::get_num_verts() const
 	return dm_->getNumVerts(dm_);
 }
 
+void OsdBlenderConverter::get_coarse_verts(float *coords) const
+{
+	MVert *mv = dm_->getVertArray(dm_);
+	const int num_verts = dm_->getNumVerts(dm_);
+	for (int i = 0; i < num_verts; ++i) {
+		MVert *mvert = &mv[i];
+		coords[i * 3 + 0] = mvert->co[0];
+		coords[i * 3 + 1] = mvert->co[1];
+		coords[i * 3 + 2] = mvert->co[2];
+	}
+}
+
 /* Face relationships. */
 int OsdBlenderConverter::get_num_face_verts(int face) const
 {

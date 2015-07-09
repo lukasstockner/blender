@@ -42,6 +42,7 @@ set(SRC
 	opensubdiv_converter.cc
 	opensubdiv_device_context_cuda.cc
 	opensubdiv_device_context_opencl.cc
+	opensubdiv_evaluator_capi.cc
 	opensubdiv_gpu_capi.cc
 	opensubdiv_utils_capi.cc
 

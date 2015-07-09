@@ -135,8 +135,6 @@ typedef struct CCGDerivedMesh {
 	} multires;
 
 	struct EdgeHash *ehash;
-
-	DerivedMesh *orig_dm;
 } CCGDerivedMesh;
 
 #endif

@@ -99,6 +99,15 @@ void openSubdiv_osdGLMeshBindVertexBuffer(OpenSubdiv_GLMesh *gl_mesh);
 void openSubdiv_osdGLDisplayInit(void);
 void openSubdiv_osdGLDisplayDeinit(void);
 
+/* ** Evaluator API ** */
+void openSubdiv_evaluateLimit(//OpenSubdiv_EvaluatorDescr *evaluator_descr,
+                              DerivedMesh *dm,
+                              int osd_face_index,
+                              float face_u, float face_v,
+                              float P[3],
+                              float dPdu[3],
+                              float dPdv[3]);
+
 /* ** Actual drawing ** */
 
 /* Initialize all the invariants which stays the same for every single path,

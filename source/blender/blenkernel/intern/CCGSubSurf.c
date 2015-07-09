@@ -464,6 +464,8 @@ struct CCGSubSurf {
 	bool osd_uvs_invalid;
 	bool osd_subsurf_uv;
 	int osd_uv_index;
+
+	DerivedMesh *dm;
 #endif
 };
 
@@ -961,6 +963,10 @@ void ccgSubSurf_free(CCGSubSurf *ss)
 	}
 	if (ss->osd_vao != 0) {
 		glDeleteVertexArrays(1, &ss->osd_vao);
+	}
+	if (ss->dm != NULL) {
+		ss->dm->needsFree = 1;
+		ss->dm->release(ss->dm);
 	}
 #endif
 
@@ -2290,6 +2296,11 @@ static void ccgSubSurf__dumpCoords(CCGSubSurf *ss)
 
 #  define OSD_LOG if (false) printf
 
+void ccgSubSurf_setDerivedMesh(CCGSubSurf *ss, DerivedMesh *dm)
+{
+	ss->dm = dm;
+}
+
 static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
 {
 	/* TODO(sergey): This is rather a duplicated work to gather all
@@ -2327,7 +2338,7 @@ static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
 	MEM_freeN(positions);
 }
 
-bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, DerivedMesh *dm, bool use_osd_glsl)
+bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 {
 	int compute_type;
 
@@ -2367,7 +2378,7 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, DerivedMesh *dm, bool use_osd_glsl
 
 		ss->osd_mesh = openSubdiv_createOsdGLMeshFromEvaluator(
 			//ss->osd_evaluator,
-			dm,
+			ss->dm,
 			compute_type,
 			ss->subdivLevels,
 			scheme,
@@ -2885,11 +2896,11 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 				ccgSubSurf__mapGridToFace(S, grid_u, grid_v, &face_u, &face_v);
 
 				/* TODO(sergey): Need proper port. */
-				//openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index,
-				//                         face_u, face_v,
-				//                         P,
-				//                         do_normals ? dPdu : NULL,
-				//                         do_normals ? dPdv : NULL);
+				openSubdiv_evaluateLimit(/*ss->osd_evaluator*/ss->dm, osd_face_index,
+				                         face_u, face_v,
+				                         P,
+				                         do_normals ? dPdu : NULL,
+				                         do_normals ? dPdv : NULL);
 
 				OSD_LOG("face=%d, corner=%d, grid_u=%f, grid_v=%f, face_u=%f, face_v=%f, P=(%f, %f, %f)\n",
 				        osd_face_index, S, grid_u, grid_v, face_u, face_v, P[0], P[1], P[2]);
@@ -2963,7 +2974,7 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 			 * let's just re-evaluate for simplicity.
 			 */
 			/* TODO(sergey): Need proper port. */
-			//openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index, u, v, P, dPdu, dPdv);
+			openSubdiv_evaluateLimit(/*ss->osd_evaluator*/ss->dm, osd_face_index, u, v, P, dPdu, dPdv);
 			VertDataCopy(co, P, ss);
 			if (do_normals) {
 				cross_v3_v3v3(no, dPdv, dPdu);
@@ -3027,7 +3038,7 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 				float P[3], dPdu[3], dPdv[3];
 
 				/* TODO(sergey): Need proper port. */
-				//openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index + S, u, v, P, dPdu, dPdv);
+				openSubdiv_evaluateLimit(/*ss->osd_evaluator*/ss->dm, osd_face_index + S, u, v, P, dPdu, dPdv);
 
 				OSD_LOG("face=%d, corner=%d, u=%f, v=%f, P=(%f, %f, %f)\n",
 				        osd_face_index + S, S, u, v, P[0], P[1], P[2]);
