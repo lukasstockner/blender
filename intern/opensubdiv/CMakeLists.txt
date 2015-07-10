@@ -50,6 +50,7 @@ set(SRC
 	opensubdiv_converter.h
 	opensubdiv_device_context_cuda.h
 	opensubdiv_device_context_opencl.h
+	opensubdiv_intern.h
 	opensubdiv_partitioned.h
 )
 

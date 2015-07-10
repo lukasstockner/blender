@@ -69,6 +69,7 @@
 #include <opensubdiv/far/stencilTable.h>
 
 #include "opensubdiv_converter.h"
+#include "opensubdiv_intern.h"
 #include "opensubdiv_partitioned.h"
 
 #include "MEM_guardedalloc.h"
@@ -218,6 +219,7 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
         int /*scheme*/,
         int /*subdivide_uvs*/)
 {
+	using OpenSubdiv::Far::TopologyRefinerFactory;
 	MeshBitset bits;
 	/* TODO(sergey): Adaptive subdivisions are not currently
 	 * possible because of the lack of tessellation shader.
@@ -236,9 +238,13 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 	GLMeshInterface *mesh = NULL;
 
 	OsdBlenderConverter conv(dm);
-	OpenSubdiv::Far::TopologyRefiner * refiner =
-	    OpenSubdiv::Far::TopologyRefinerFactory<OsdBlenderConverter>::Create(conv,
-	            OpenSubdiv::Far::TopologyRefinerFactory<OsdBlenderConverter>::Options(conv.get_type(), conv.get_options()));
+	TopologyRefinerFactory<OsdBlenderConverter>::Options topology_options(conv.get_type(),
+                                                                              conv.get_options());
+#ifdef OPENSUBDIV_VALIDATE_TOPOLOGY
+       topology_options.validateFullTopology = true;
+#endif
+	OpenSubdiv::Far::TopologyRefiner *refiner =
+	    TopologyRefinerFactory<OsdBlenderConverter>::Create(conv, topology_options);
 
 	mesh = new OsdCpuMesh(refiner,
 	                      num_vertex_elements,

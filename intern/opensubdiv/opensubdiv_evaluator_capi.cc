@@ -39,6 +39,7 @@
 #include <opensubdiv/osd/types.h>
 
 #include "opensubdiv_converter.h"
+#include "opensubdiv_intern.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -489,10 +490,17 @@ OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(DerivedMesh *dm,
 	/* TODO(sergey): Look into re-using refiner with GLMesh. */
 	TopologyRefinerFactory<OsdBlenderConverter>::Options topology_options(conv.get_type(),
 	                                                                      conv.get_options());
-	// topology_options.validateFullTopology = true;
+#ifdef OPENSUBDIV_VALIDATE_TOPOLOGY
+	topology_options.validateFullTopology = true;
+#endif
 	TopologyRefiner *refiner =
 	        TopologyRefinerFactory<OsdBlenderConverter>::Create(conv,
 	                                                            topology_options);
+
+	if(refiner == NULL) {
+		/* Happens on bad topology. */
+		return NULL;
+	}
 
 	const StencilTable *vertex_stencils = NULL;
 	const StencilTable *varying_stencils = NULL;
