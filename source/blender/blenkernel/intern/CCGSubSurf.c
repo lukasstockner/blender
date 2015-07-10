@@ -2835,7 +2835,7 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 
 				VertDataCopy(co, P, ss);
 				if (do_normals) {
-					cross_v3_v3v3(no, dPdv, dPdu);
+					cross_v3_v3v3(no, dPdu, dPdv);
 					normalize_v3(no);
 				}
 
@@ -2905,7 +2905,7 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 			openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index, u, v, P, dPdu, dPdv);
 			VertDataCopy(co, P, ss);
 			if (do_normals) {
-				cross_v3_v3v3(no, dPdv, dPdu);
+				cross_v3_v3v3(no, dPdu, dPdv);
 				normalize_v3(no);
 			}
 		}
@@ -2973,7 +2973,7 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 
 				VertDataCopy(co, P, ss);
 				if (do_normals) {
-					cross_v3_v3v3(no, dPdv, dPdu);
+					cross_v3_v3v3(no, dPdu, dPdv);
 					normalize_v3(no);
 				}
 
