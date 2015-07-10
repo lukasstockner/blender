@@ -457,6 +457,7 @@ struct CCGSubSurf {
 #ifdef WITH_OPENSUBDIV
 	struct OpenSubdiv_EvaluatorDescr *osd_evaluator;
 	struct OpenSubdiv_GLMesh *osd_mesh;
+	bool osd_topology_changed;
 	bool osd_mesh_invalid, osd_coords_invalid;
 	unsigned int osd_vao;
 	bool skip_grids;
@@ -936,6 +937,7 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 #ifdef WITH_OPENSUBDIV
 		ss->osd_evaluator = NULL;
 		ss->osd_mesh = NULL;
+		ss->osd_topology_changed = false;
 		ss->osd_mesh_invalid = false;
 		ss->osd_coords_invalid = false;
 		ss->osd_vao = 0;
@@ -1032,6 +1034,7 @@ CCGError ccgSubSurf_setSubdivisionLevels(CCGSubSurf *ss, int subdivisionLevels)
 		return eCCGError_InvalidValue;
 	}
 	else if (subdivisionLevels != ss->subdivLevels) {
+		ss->osd_topology_changed = true;
 		ss->numGrids = 0;
 		ss->subdivLevels = subdivisionLevels;
 		_ehash_free(ss->vMap, (EHEntryFreeFP) _vert_free, ss);
@@ -2313,6 +2316,7 @@ static void ccgSubSurf__dumpCoords(CCGSubSurf *ss)
 void ccgSubSurf_setDerivedMesh(CCGSubSurf *ss, DerivedMesh *dm)
 {
 	if (ss->dm != NULL) {
+		/* TODO(sergey): Add topology comparison here. */
 		ss->dm->needsFree = 1;
 		ss->dm->release(ss->dm);
 	}
@@ -2583,82 +2587,11 @@ void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss,
 
 static bool check_topology_changed(CCGSubSurf *ss)
 {
-	int num_vertices,
-	    refinement_level,
-	    /*num_indices,*/
-	    num_nverts;
-	int *indices, *nverts;
-	int i, index, osd_face_index;
-	const float *float_args = NULL;
-	/*        openSubdiv_evaluatorGetFloatTagArgs(ss->osd_evaluator); */
-
-	/* If compute type changes, need to re-create GL Mesh.
-	 * For now let's do evaluator as well, will optimize
-	 * later.
-	 */
 	if (ss->osd_compute != U.opensubdiv_compute_type) {
 		return true;
 	}
 
-	BLI_assert(ss->osd_evaluator != NULL);
-
-	return false;
-
-	/* Get the topology from existing evaluator. */
-	/* TODO(sergey): Need proper port. */
-	/*
-	openSubdiv_getEvaluatorTopology(ss->osd_evaluator,
-	                                &num_vertices,
-	                                &refinement_level,
-	                                &num_indices,
-	                                &indices,
-	                                &num_nverts,
-	                                &nverts);
-	*/
-
-	/* Quick tests based on the number of subdiv level, verts and facces. */
-	if (refinement_level != ss->subdivLevels ||
-	    num_vertices != ss->vMap->numEntries ||
-	    num_nverts != ss->fMap->numEntries)
-	{
-		return true;
-	}
-
-	/* Rather slow check for faces topology change. */
-	for (i = 0, osd_face_index = 0, index = 0;
-	     i < ss->fMap->curSize;
-	     i++)
-	{
-		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
-		for (; face; face = face->next, ++osd_face_index) {
-			int S;
-
-			if (face->numVerts != nverts[osd_face_index]) {
-				return true;
-			}
-
-			for (S = 0; S < face->numVerts; ++S) {
-				if (FACE_getVerts(face)[S]->osd_index != indices[index++]) {
-					return true;
-				}
-			}
-		}
-	}
-
-	/* For now we consider crease changes as a topology changes. */
-	/* TODO(sergey): Currently optimized for creases only, if more
-	 * tags are added this will break.
-	 */
-	for (i = 0, index = 0; i < ss->eMap->curSize; i++) {
-		CCGEdge *e = (CCGEdge *) ss->eMap->buckets[i];
-		for (; e; e = e->next, index++) {
-			if (e->crease != float_args[index]) {
-				return true;
-			}
-		}
-	}
-
-	return false;
+	return ss->osd_topology_changed;
 }
 
 static bool opensubdiv_createEvaluator(CCGSubSurf *ss)
