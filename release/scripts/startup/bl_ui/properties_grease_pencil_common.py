@@ -185,6 +185,9 @@ class GreasePencilStrokeSculptPanel:
         row.prop(brush, "strength", slider=True)
         row.prop(brush, "use_pressure_strength", text="")
         col.prop(brush, "use_falloff")
+		
+        if settings.tool == 'SMOOTH':
+            col.prop(brush, "affect_pressure")
 
         layout.prop(settings, "use_select_mask")
 

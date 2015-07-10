@@ -206,8 +206,10 @@ static float gp_brush_influence_calc(tGP_BrushEditData *gso, const int radius, c
 static bool gp_brush_smooth_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
                                   const int radius, const int co[2])
 {
+	GP_EditBrush_Data *brush = gso->brush;
 	bGPDspoint *pt = &gps->points[i];
 	float inf = gp_brush_influence_calc(gso, radius, co);
+	float pressure = 0.0f;
 	float sco[3] = {0.0f};
 	
 	/* Do nothing if not enough points to smooth out */
@@ -223,8 +225,7 @@ static bool gp_brush_smooth_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i
 	}
 	
 	/* Compute smoothed coordinate by taking the ones nearby */
-	// XXX: This is slow, and suffers from accumulation error as earlier points are handled before later ones
-	// TODO: affect pressure too...
+	/* XXX: This is potentially slow, and suffers from accumulation error as earlier points are handled before later ones */
 	{	
 		// XXX: this is hardcoded to look at 2 points on either side of the current one (i.e. 5 items total)
 		const int   steps = 2;
@@ -233,6 +234,10 @@ static bool gp_brush_smooth_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i
 		
 		/* add the point itself */
 		madd_v3_v3fl(sco, &pt->x, average_fac);
+		
+		if (brush->flag & GP_EDITBRUSH_FLAG_SMOOTH_PRESSURE) {
+			pressure += pt->pressure * average_fac;
+		}
 		
 		/* n-steps before/after current point */
 		// XXX: review how the endpoints are treated by this algorithm
@@ -251,12 +256,21 @@ static bool gp_brush_smooth_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i
 			/* add both these points to the average-sum (s += p[i]/n) */
 			madd_v3_v3fl(sco, &pt1->x, average_fac);
 			madd_v3_v3fl(sco, &pt2->x, average_fac);
+			
+			/* do pressure too? */
+			if (brush->flag & GP_EDITBRUSH_FLAG_SMOOTH_PRESSURE) {
+				pressure += pt1->pressure * average_fac;
+				pressure += pt2->pressure * average_fac;
+			}
 		}
 	}
 	
 	/* Based on influence factor, blend between original and optimal smoothed coordinate */
-	// TODO: affect pressure too...
 	interp_v3_v3v3(&pt->x, &pt->x, sco, inf);
+	
+	if (brush->flag & GP_EDITBRUSH_FLAG_SMOOTH_PRESSURE) {
+		pt->pressure = pressure;
+	}
 	
 	return true;
 }
