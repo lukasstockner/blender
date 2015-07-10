@@ -1553,37 +1553,6 @@ static void widget_state_menu_item(uiWidgetType *wt, int state)
 
 /* ************ menu backdrop ************************* */
 
-static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int direction)
-{
-	uiWidgetBase wtb;
-	int roundboxalign = UI_CNR_ALL;
-	
-	widgetbase_init(&wtb);
-	
-	/* menu is 2nd level or deeper */
-	if (flag & UI_BLOCK_POPUP) {
-		//rect->ymin -= 4.0;
-		//rect->ymax += 4.0;
-	}
-	else if (direction == UI_DIR_DOWN) {
-		roundboxalign = (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT);
-		rect->ymin -= 0.1f * U.widget_unit;
-	}
-	else if (direction == UI_DIR_UP) {
-		roundboxalign = UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT;
-		rect->ymax += 0.1f * U.widget_unit;
-	}
-	
-	glEnable(GL_BLEND);
-	widget_softshadow(rect, roundboxalign, 0.25f * U.widget_unit);
-	
-	round_box_edges(&wtb, roundboxalign, rect, 0.25f * U.widget_unit);
-	wtb.draw_emboss = false;
-	widgetbase_draw(&wtb, wcol);
-	
-	glDisable(GL_BLEND);
-}
-
 
 static void ui_hsv_cursor(float x, float y)
 {
@@ -2008,40 +1977,6 @@ static void ui_draw_separator(const rcti *rect,  uiWidgetColors *wcol)
 }
 
 /* ************ button callbacks, draw ***************** */
-static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, bool emboss)
-{
-	uiWidgetBase wtb;
-	const float rad = 0.5f * BLI_rcti_size_y(rect);
-	float textofs = rad * 0.85f;
-
-	if (state & UI_SELECT)
-		SWAP(short, wcol->shadetop, wcol->shadedown);
-	
-	widgetbase_init(&wtb);
-	
-	if (!emboss) {
-		round_box_edges(&wtb, roundboxalign, rect, rad);
-	}
-
-	/* decoration */
-	if (!(state & UI_TEXTINPUT)) {
-		widget_num_tria(&wtb.tria1, rect, 0.6f, 'l');
-		widget_num_tria(&wtb.tria2, rect, 0.6f, 'r');
-	}
-
-	widgetbase_draw(&wtb, wcol);
-	
-	if (!(state & UI_TEXTINPUT)) {
-		/* text space */
-		rect->xmin += textofs;
-		rect->xmax -= textofs;
-	}
-}
-
-static void widget_numbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
-{
-	widget_numbut_draw(wcol, rect, state, roundboxalign, false);
-}
 
 bool ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol)
 {
@@ -2169,93 +2104,6 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
 	}
 }
 
-static void widget_scroll(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int UNUSED(roundboxalign))
-{
-	rcti rect1;
-	double value;
-	float fac, size, min;
-	int horizontal;
-
-	/* calculate slider part */
-	value = ui_but_value_get(but);
-
-	size = (but->softmax + but->a1 - but->softmin);
-	size = max_ff(size, 2.0f);
-	
-	/* position */
-	rect1 = *rect;
-
-	/* determine horizontal/vertical */
-	horizontal = (BLI_rcti_size_x(rect) > BLI_rcti_size_y(rect));
-	
-	if (horizontal) {
-		fac = BLI_rcti_size_x(rect) / size;
-		rect1.xmin = rect1.xmin + ceilf(fac * ((float)value - but->softmin));
-		rect1.xmax = rect1.xmin + ceilf(fac * (but->a1 - but->softmin));
-
-		/* ensure minimium size */
-		min = BLI_rcti_size_y(rect);
-
-		if (BLI_rcti_size_x(&rect1) < min) {
-			rect1.xmax = rect1.xmin + min;
-
-			if (rect1.xmax > rect->xmax) {
-				rect1.xmax = rect->xmax;
-				rect1.xmin = max_ii(rect1.xmax - min, rect->xmin);
-			}
-		}
-	}
-	else {
-		fac = BLI_rcti_size_y(rect) / size;
-		rect1.ymax = rect1.ymax - ceilf(fac * ((float)value - but->softmin));
-		rect1.ymin = rect1.ymax - ceilf(fac * (but->a1 - but->softmin));
-
-		/* ensure minimium size */
-		min = BLI_rcti_size_x(rect);
-
-		if (BLI_rcti_size_y(&rect1) < min) {
-			rect1.ymax = rect1.ymin + min;
-
-			if (rect1.ymax > rect->ymax) {
-				rect1.ymax = rect->ymax;
-				rect1.ymin = max_ii(rect1.ymax - min, rect->ymin);
-			}
-		}
-	}
-
-	if (state & UI_SELECT)
-		state = UI_SCROLL_PRESSED;
-	else
-		state = 0;
-	UI_draw_widget_scroll(wcol, rect, &rect1, state);
-}
-
-static void widget_progressbar(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
-{
-	rcti rect_prog = *rect, rect_bar = *rect;
-	float value = but->a1;
-	float w, min;
-	
-	/* make the progress bar a proportion of the original height */
-	/* hardcoded 4px high for now */
-	rect_prog.ymax = rect_prog.ymin + 4 * UI_DPI_FAC;
-	rect_bar.ymax = rect_bar.ymin + 4 * UI_DPI_FAC;
-	
-	w = value * BLI_rcti_size_x(&rect_prog);
-	
-	/* ensure minimium size */
-	min = BLI_rcti_size_y(&rect_prog);
-	w = MAX2(w, min);
-	
-	rect_bar.xmax = rect_bar.xmin + w;
-		
-	UI_draw_widget_scroll(wcol, &rect_prog, &rect_bar, UI_SCROLL_NO_OUTLINE);
-	
-	/* raise text a bit */
-	rect->ymin += 6 * UI_DPI_FAC;
-	rect->xmin -= 6 * UI_DPI_FAC;
-}
-
 static void widget_link(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
 	
@@ -2270,175 +2118,6 @@ static void widget_link(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect, in
 		rectlink.ymax = but->linkto[1];
 		
 		ui_draw_link_bezier(&rectlink);
-	}
-}
-
-static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
-{
-	uiWidgetBase wtb, wtb1;
-	rcti rect1;
-	double value;
-	float offs, toffs, fac = 0;
-	char outline[3];
-
-	widgetbase_init(&wtb);
-	widgetbase_init(&wtb1);
-	
-	/* backdrop first */
-	
-	/* fully rounded */
-	offs = 0.5f * BLI_rcti_size_y(rect);
-	toffs = offs * 0.75f;
-	round_box_edges(&wtb, roundboxalign, rect, offs);
-
-	wtb.draw_outline = false;
-	widgetbase_draw(&wtb, wcol);
-	
-	/* draw left/right parts only when not in text editing */
-	if (!(state & UI_TEXTINPUT)) {
-		int roundboxalign_slider;
-		
-		/* slider part */
-		copy_v3_v3_char(outline, wcol->outline);
-		copy_v3_v3_char(wcol->outline, wcol->item);
-		copy_v3_v3_char(wcol->inner, wcol->item);
-
-		if (!(state & UI_SELECT))
-			SWAP(short, wcol->shadetop, wcol->shadedown);
-		
-		rect1 = *rect;
-		
-		value = ui_but_value_get(but);
-		if ((but->softmax - but->softmin) > 0) {
-			fac = ((float)value - but->softmin) * (BLI_rcti_size_x(&rect1) - offs) / (but->softmax - but->softmin);
-		}
-		
-		/* left part of slider, always rounded */
-		rect1.xmax = rect1.xmin + ceil(offs + U.pixelsize);
-		round_box_edges(&wtb1, roundboxalign & ~(UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT), &rect1, offs);
-		wtb1.draw_outline = false;
-		widgetbase_draw(&wtb1, wcol);
-		
-		/* right part of slider, interpolate roundness */
-		rect1.xmax = rect1.xmin + fac + offs;
-		rect1.xmin +=  floor(offs - U.pixelsize);
-		
-		if (rect1.xmax + offs > rect->xmax) {
-			roundboxalign_slider = roundboxalign & ~(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT);
-			offs *= (rect1.xmax + offs - rect->xmax) / offs;
-		}
-		else {
-			roundboxalign_slider = 0;
-			offs = 0.0f;
-		}
-		round_box_edges(&wtb1, roundboxalign_slider, &rect1, offs);
-		
-		widgetbase_draw(&wtb1, wcol);
-		copy_v3_v3_char(wcol->outline, outline);
-		
-		if (!(state & UI_SELECT))
-			SWAP(short, wcol->shadetop, wcol->shadedown);
-	}
-	
-	/* outline */
-	wtb.draw_outline = true;
-	wtb.draw_inner = false;
-	widgetbase_draw(&wtb, wcol);
-
-	/* add space at either side of the button so text aligns with numbuttons (which have arrow icons) */
-	if (!(state & UI_TEXTINPUT)) {
-		rect->xmax -= toffs;
-		rect->xmin += toffs;
-	}
-}
-
-/* I think 3 is sufficient border to indicate keyed status */
-#define SWATCH_KEYED_BORDER 3
-
-static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
-{
-	uiWidgetBase wtb;
-	float rad, col[4];
-	bool color_profile = but->block->color_profile;
-	
-	col[3] = 1.0f;
-
-	if (but->rnaprop) {
-		BLI_assert(but->rnaindex == -1);
-
-		if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
-			color_profile = false;
-
-		if (RNA_property_array_length(&but->rnapoin, but->rnaprop) == 4) {
-			col[3] = RNA_property_float_get_index(&but->rnapoin, but->rnaprop, 3);
-		}
-	}
-	
-	widgetbase_init(&wtb);
-	
-	/* half rounded */
-	rad = 0.25f * U.widget_unit;
-	round_box_edges(&wtb, roundboxalign, rect, rad);
-		
-	ui_but_v3_get(but, col);
-
-	if (state & (UI_BUT_ANIMATED | UI_BUT_ANIMATED_KEY | UI_BUT_DRIVEN | UI_BUT_REDALERT)) {
-		/* draw based on state - color for keyed etc */
-		widgetbase_draw(&wtb, wcol);
-
-		/* inset to draw swatch color */
-		rect->xmin += SWATCH_KEYED_BORDER;
-		rect->xmax -= SWATCH_KEYED_BORDER;
-		rect->ymin += SWATCH_KEYED_BORDER;
-		rect->ymax -= SWATCH_KEYED_BORDER;
-		
-		round_box_edges(&wtb, roundboxalign, rect, rad);
-	}
-	
-	if (color_profile)
-		ui_block_cm_to_display_space_v3(but->block, col);
-	
-	rgba_float_to_uchar((unsigned char *)wcol->inner, col);
-
-	wcol->shaded = 0;
-	wcol->alpha_check = (wcol->inner[3] < 255);
-
-	widgetbase_draw(&wtb, wcol);
-	
-	if (but->a1 == UI_PALETTE_COLOR && ((Palette *)but->rnapoin.id.data)->active_color == (int)but->a2) {
-		float width = rect->xmax - rect->xmin;
-		float height = rect->ymax - rect->ymin;
-		/* find color luminance and change it slightly */
-		float bw = rgb_to_grayscale(col);
-
-		bw += (bw < 0.5f) ? 0.5f : -0.5f;
-		
-		glColor4f(bw, bw, bw, 1.0);
-		glBegin(GL_TRIANGLES);
-		glVertex2f(rect->xmin + 0.1f * width, rect->ymin + 0.9f * height);
-		glVertex2f(rect->xmin + 0.1f * width, rect->ymin + 0.5f * height);
-		glVertex2f(rect->xmin + 0.5f * width, rect->ymin + 0.9f * height);
-		glEnd();
-	}
-}
-
-static void widget_unitvec(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
-{
-	ui_draw_but_UNITVEC(but, wcol, rect);
-}
-
-static void widget_pulldownbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
-{
-	if (state & UI_ACTIVE) {
-		uiWidgetBase wtb;
-		const float rad = 0.2f * U.widget_unit;
-
-		widgetbase_init(&wtb);
-
-		/* half rounded */
-		round_box_edges(&wtb, roundboxalign, rect, rad);
-		
-		widgetbase_draw(&wtb, wcol);
 	}
 }
 
@@ -2460,20 +2139,6 @@ static void widget_state_label(uiWidgetType *wt, int state)
 		else
 			UI_GetThemeColor3ubv(TH_TEXT, (unsigned char *)wt->wcol.text);
 	}
-}
-
-static void widget_radiobut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
-{
-	uiWidgetBase wtb;
-	float rad;
-	
-	widgetbase_init(&wtb);
-	
-	/* half rounded */
-	rad = 0.2f * U.widget_unit;
-	round_box_edges(&wtb, roundboxalign, rect, rad);
-	
-	widgetbase_draw(&wtb, wcol);
 }
 
 static void widget_but(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
@@ -2543,7 +2208,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			break;
 
 		case UI_WTYPE_LABEL:
-			wt.draw = NULL;
+			wt.draw_type = draw_style->label;
 			wt.state = widget_state_label;
 			break;
 			
@@ -2558,17 +2223,17 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			
 		case UI_WTYPE_RADIO:
 			wt.wcol_theme = &btheme->tui.wcol_radio;
-			wt.draw = widget_radiobut;
+			wt.draw_type = draw_style->radio;
 			break;
 
 		case UI_WTYPE_NUMBER:
 			wt.wcol_theme = &btheme->tui.wcol_num;
-			wt.draw = widget_numbut;
+			wt.draw_type = draw_style->number;
 			break;
 			
 		case UI_WTYPE_SLIDER:
 			wt.wcol_theme = &btheme->tui.wcol_numslider;
-			wt.custom = widget_numslider;
+			wt.draw_type = draw_style->slider;
 			wt.state = widget_state_numslider;
 			break;
 			
@@ -2579,7 +2244,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 
 		case UI_WTYPE_TOOLTIP:
 			wt.wcol_theme = &btheme->tui.wcol_tooltip;
-			wt.draw = widget_menu_back;
+			wt.draw_type = draw_style->tooltip;
 			break;
 			
 			
@@ -2622,7 +2287,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			
 		case UI_WTYPE_PULLDOWN:
 			wt.wcol_theme = &btheme->tui.wcol_pulldown;
-			wt.draw = widget_pulldownbut;
+			wt.draw_type = draw_style->pulldown;
 			wt.state = widget_state_pulldown;
 			break;
 			
@@ -2644,7 +2309,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			break;
 			
 		case UI_WTYPE_SWATCH:
-			wt.custom = widget_swatch;
+			wt.draw_type = draw_style->swatch;
 			break;
 			
 		case UI_WTYPE_BOX:
@@ -2656,13 +2321,13 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			break;
 			
 		case UI_WTYPE_UNITVEC:
-			wt.custom = widget_unitvec;
+			wt.draw_type = draw_style->unitvec;
 			break;
 
 		case UI_WTYPE_SCROLL:
 			wt.wcol_theme = &btheme->tui.wcol_scroll;
 			wt.state = widget_state_nothing;
-			wt.custom = widget_scroll;
+			wt.draw_type = draw_style->scroll;
 			break;
 
 		case UI_WTYPE_LISTITEM:
@@ -2672,7 +2337,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			
 		case UI_WTYPE_PROGRESSBAR:
 			wt.wcol_theme = &btheme->tui.wcol_progress;
-			wt.custom = widget_progressbar;
+			wt.draw_type = draw_style->progressbar;
 			break;
 
 		case UI_WTYPE_MENU_ITEM_RADIAL:
@@ -3174,8 +2839,11 @@ void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock *UNUSED(block), 
 {
 	uiWidgetType *wt = widget_type(UI_WTYPE_TOOLTIP);
 	wt->state(wt, 0);
-	/* wt->draw ends up using same function to draw the tooltip as menu_back */
-	wt->draw(&wt->wcol, rect, 0, 0);
+	if (wt->draw_type) {
+		if (wt->draw_type->draw) {
+			wt->draw_type->draw(&wt->wcol, rect, 0, 0);
+		}
+	}
 }
 
 void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)

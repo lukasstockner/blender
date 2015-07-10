@@ -37,8 +37,11 @@
 #include "UI_interface.h"
 #include "UI_resources.h"
 
+#include "../interface_intern.h" /* XXX */
+
 
 #include "widgets_draw_intern.h" /* own include */
+
 
 
 /* draw defines ************************************ */
@@ -471,8 +474,6 @@ static int round_box_shadow_edges(float (*vert)[2], const rcti *rect, float rad,
 
 
 /* actual drawing ********************************** */
-
-/* menu backdrop ************** */
 
 /* outside of rect, rad to left/bottom/right */
 void widget_softshadow(const rcti *rect, int roundboxalign, const float radin)

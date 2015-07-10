@@ -32,6 +32,9 @@
 
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_brush_types.h"
+
+#include "RNA_access.h"
 
 #include "UI_interface.h"
 
@@ -331,6 +334,276 @@ static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int 
 	}
 }
 
+static void widget_progressbar(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+{
+	rcti rect_prog = *rect, rect_bar = *rect;
+	float value = but->a1;
+	float w, min;
+
+	/* make the progress bar a proportion of the original height */
+	/* hardcoded 4px high for now */
+	rect_prog.ymax = rect_prog.ymin + 4 * UI_DPI_FAC;
+	rect_bar.ymax = rect_bar.ymin + 4 * UI_DPI_FAC;
+
+	w = value * BLI_rcti_size_x(&rect_prog);
+
+	/* ensure minimium size */
+	min = BLI_rcti_size_y(&rect_prog);
+	w = MAX2(w, min);
+
+	rect_bar.xmax = rect_bar.xmin + w;
+
+	UI_draw_widget_scroll(wcol, &rect_prog, &rect_bar, UI_SCROLL_NO_OUTLINE);
+
+	/* raise text a bit */
+	rect->ymin += 6 * UI_DPI_FAC;
+	rect->xmin -= 6 * UI_DPI_FAC;
+}
+
+static void widget_pulldownbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+{
+	if (state & UI_ACTIVE) {
+		uiWidgetBase wtb;
+		const float rad = 0.2f * U.widget_unit;
+
+		widgetbase_init(&wtb);
+
+		/* half rounded */
+		round_box_edges(&wtb, roundboxalign, rect, rad);
+
+		widgetbase_draw(&wtb, wcol);
+	}
+}
+
+static void widget_radiobut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+{
+	uiWidgetBase wtb;
+	float rad;
+
+	widgetbase_init(&wtb);
+
+	/* half rounded */
+	rad = 0.2f * U.widget_unit;
+	round_box_edges(&wtb, roundboxalign, rect, rad);
+
+	widgetbase_draw(&wtb, wcol);
+}
+
+static void widget_scroll(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int UNUSED(roundboxalign))
+{
+	rcti rect1;
+	double value;
+	float fac, size, min;
+	int horizontal;
+
+	/* calculate slider part */
+	value = ui_but_value_get(but);
+
+	size = (but->softmax + but->a1 - but->softmin);
+	size = max_ff(size, 2.0f);
+
+	/* position */
+	rect1 = *rect;
+
+	/* determine horizontal/vertical */
+	horizontal = (BLI_rcti_size_x(rect) > BLI_rcti_size_y(rect));
+
+	if (horizontal) {
+		fac = BLI_rcti_size_x(rect) / size;
+		rect1.xmin = rect1.xmin + ceilf(fac * ((float)value - but->softmin));
+		rect1.xmax = rect1.xmin + ceilf(fac * (but->a1 - but->softmin));
+
+		/* ensure minimium size */
+		min = BLI_rcti_size_y(rect);
+
+		if (BLI_rcti_size_x(&rect1) < min) {
+			rect1.xmax = rect1.xmin + min;
+
+			if (rect1.xmax > rect->xmax) {
+				rect1.xmax = rect->xmax;
+				rect1.xmin = max_ii(rect1.xmax - min, rect->xmin);
+			}
+		}
+	}
+	else {
+		fac = BLI_rcti_size_y(rect) / size;
+		rect1.ymax = rect1.ymax - ceilf(fac * ((float)value - but->softmin));
+		rect1.ymin = rect1.ymax - ceilf(fac * (but->a1 - but->softmin));
+
+		/* ensure minimium size */
+		min = BLI_rcti_size_x(rect);
+
+		if (BLI_rcti_size_y(&rect1) < min) {
+			rect1.ymax = rect1.ymin + min;
+
+			if (rect1.ymax > rect->ymax) {
+				rect1.ymax = rect->ymax;
+				rect1.ymin = max_ii(rect1.ymax - min, rect->ymin);
+			}
+		}
+	}
+
+	if (state & UI_SELECT)
+		state = UI_SCROLL_PRESSED;
+	else
+		state = 0;
+	UI_draw_widget_scroll(wcol, rect, &rect1, state);
+}
+
+static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+{
+	uiWidgetBase wtb, wtb1;
+	rcti rect1;
+	double value;
+	float offs, toffs, fac = 0;
+	char outline[3];
+
+	widgetbase_init(&wtb);
+	widgetbase_init(&wtb1);
+
+	/* backdrop first */
+
+	/* fully rounded */
+	offs = 0.5f * BLI_rcti_size_y(rect);
+	toffs = offs * 0.75f;
+	round_box_edges(&wtb, roundboxalign, rect, offs);
+
+	wtb.draw_outline = false;
+	widgetbase_draw(&wtb, wcol);
+
+	/* draw left/right parts only when not in text editing */
+	if (!(state & UI_TEXTINPUT)) {
+		int roundboxalign_slider;
+
+		/* slider part */
+		copy_v3_v3_char(outline, wcol->outline);
+		copy_v3_v3_char(wcol->outline, wcol->item);
+		copy_v3_v3_char(wcol->inner, wcol->item);
+
+		if (!(state & UI_SELECT))
+			SWAP(short, wcol->shadetop, wcol->shadedown);
+
+		rect1 = *rect;
+
+		value = ui_but_value_get(but);
+		if ((but->softmax - but->softmin) > 0) {
+			fac = ((float)value - but->softmin) * (BLI_rcti_size_x(&rect1) - offs) / (but->softmax - but->softmin);
+		}
+
+		/* left part of slider, always rounded */
+		rect1.xmax = rect1.xmin + ceil(offs + U.pixelsize);
+		round_box_edges(&wtb1, roundboxalign & ~(UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT), &rect1, offs);
+		wtb1.draw_outline = false;
+		widgetbase_draw(&wtb1, wcol);
+
+		/* right part of slider, interpolate roundness */
+		rect1.xmax = rect1.xmin + fac + offs;
+		rect1.xmin +=  floor(offs - U.pixelsize);
+
+		if (rect1.xmax + offs > rect->xmax) {
+			roundboxalign_slider = roundboxalign & ~(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT);
+			offs *= (rect1.xmax + offs - rect->xmax) / offs;
+		}
+		else {
+			roundboxalign_slider = 0;
+			offs = 0.0f;
+		}
+		round_box_edges(&wtb1, roundboxalign_slider, &rect1, offs);
+
+		widgetbase_draw(&wtb1, wcol);
+		copy_v3_v3_char(wcol->outline, outline);
+
+		if (!(state & UI_SELECT))
+			SWAP(short, wcol->shadetop, wcol->shadedown);
+	}
+
+	/* outline */
+	wtb.draw_outline = true;
+	wtb.draw_inner = false;
+	widgetbase_draw(&wtb, wcol);
+
+	/* add space at either side of the button so text aligns with numbuttons (which have arrow icons) */
+	if (!(state & UI_TEXTINPUT)) {
+		rect->xmax -= toffs;
+		rect->xmin += toffs;
+	}
+}
+
+/* I think 3 is sufficient border to indicate keyed status */
+#define SWATCH_KEYED_BORDER 3
+
+static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+{
+	uiWidgetBase wtb;
+	float rad, col[4];
+	bool color_profile = but->block->color_profile;
+
+	col[3] = 1.0f;
+
+	if (but->rnaprop) {
+		BLI_assert(but->rnaindex == -1);
+
+		if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
+			color_profile = false;
+
+		if (RNA_property_array_length(&but->rnapoin, but->rnaprop) == 4) {
+			col[3] = RNA_property_float_get_index(&but->rnapoin, but->rnaprop, 3);
+		}
+	}
+
+	widgetbase_init(&wtb);
+
+	/* half rounded */
+	rad = 0.25f * U.widget_unit;
+	round_box_edges(&wtb, roundboxalign, rect, rad);
+
+	ui_but_v3_get(but, col);
+
+	if (state & (UI_BUT_ANIMATED | UI_BUT_ANIMATED_KEY | UI_BUT_DRIVEN | UI_BUT_REDALERT)) {
+		/* draw based on state - color for keyed etc */
+		widgetbase_draw(&wtb, wcol);
+
+		/* inset to draw swatch color */
+		rect->xmin += SWATCH_KEYED_BORDER;
+		rect->xmax -= SWATCH_KEYED_BORDER;
+		rect->ymin += SWATCH_KEYED_BORDER;
+		rect->ymax -= SWATCH_KEYED_BORDER;
+
+		round_box_edges(&wtb, roundboxalign, rect, rad);
+	}
+
+	if (color_profile)
+		ui_block_cm_to_display_space_v3(but->block, col);
+
+	rgba_float_to_uchar((unsigned char *)wcol->inner, col);
+
+	wcol->shaded = 0;
+	wcol->alpha_check = (wcol->inner[3] < 255);
+
+	widgetbase_draw(&wtb, wcol);
+
+	if (but->a1 == UI_PALETTE_COLOR && ((Palette *)but->rnapoin.id.data)->active_color == (int)but->a2) {
+		float width = rect->xmax - rect->xmin;
+		float height = rect->ymax - rect->ymin;
+		/* find color luminance and change it slightly */
+		float bw = rgb_to_grayscale(col);
+
+		bw += (bw < 0.5f) ? 0.5f : -0.5f;
+
+		glColor4f(bw, bw, bw, 1.0);
+		glBegin(GL_TRIANGLES);
+		glVertex2f(rect->xmin + 0.1f * width, rect->ymin + 0.9f * height);
+		glVertex2f(rect->xmin + 0.1f * width, rect->ymin + 0.5f * height);
+		glVertex2f(rect->xmin + 0.5f * width, rect->ymin + 0.9f * height);
+		glEnd();
+	}
+}
+
+static void widget_unitvec(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+{
+	ui_draw_but_UNITVEC(but, wcol, rect);
+}
+
 /* helper calls *************************************** */
 
 /**
@@ -339,6 +612,11 @@ static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int 
 static void widget_numbut_embossn(uiBut *UNUSED(but), uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
 	widget_numbut_draw(wcol, rect, state, roundboxalign, true);
+}
+
+static void widget_numbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+{
+	widget_numbut_draw(wcol, rect, state, roundboxalign, false);
 }
 
 
@@ -369,6 +647,13 @@ uiWidgetDrawType drawtype_classic_icon = {
 	/* state */  NULL,
 	/* draw */   NULL,
 	/* custom */ widget_icon_has_anim,
+	/* text */   NULL,
+};
+
+uiWidgetDrawType drawtype_classic_label = {
+	/* state */  NULL,
+	/* draw */   NULL,
+	/* custom */ NULL,
 	/* text */   NULL,
 };
 
@@ -435,6 +720,69 @@ uiWidgetDrawType drawtype_classic_name = {
 	/* text */   NULL,
 };
 
+uiWidgetDrawType drawtype_classic_number = {
+	/* state */  NULL,
+	/* draw */   widget_numbut,
+	/* custom */ NULL,
+	/* text */   NULL,
+};
+
+uiWidgetDrawType drawtype_classic_progressbar = {
+	/* state */  NULL,
+	/* draw */   NULL,
+	/* custom */ widget_progressbar,
+	/* text */   NULL,
+};
+
+uiWidgetDrawType drawtype_classic_pulldown = {
+	/* state */  NULL,
+	/* draw */   widget_pulldownbut,
+	/* custom */ NULL,
+	/* text */   NULL,
+};
+
+uiWidgetDrawType drawtype_classic_radio = {
+	/* state */  NULL,
+	/* draw */   widget_radiobut,
+	/* custom */ NULL,
+	/* text */   NULL,
+};
+
+uiWidgetDrawType drawtype_classic_scroll = {
+	/* state */  NULL,
+	/* draw */   NULL,
+	/* custom */ widget_scroll,
+	/* text */   NULL,
+};
+
+uiWidgetDrawType drawtype_classic_numslider = {
+	/* state */  NULL,
+	/* draw */   NULL,
+	/* custom */ widget_numslider,
+	/* text */   NULL,
+};
+
+uiWidgetDrawType drawtype_classic_swatch = {
+	/* state */  NULL,
+	/* draw */   NULL,
+	/* custom */ widget_swatch,
+	/* text */   NULL,
+};
+
+uiWidgetDrawType drawtype_classic_tooltip = {
+	/* state */  NULL,
+	/* draw */   widget_menu_back,
+	/* custom */ NULL,
+	/* text */   NULL,
+};
+
+uiWidgetDrawType drawtype_classic_unitvec = {
+	/* state */  NULL,
+	/* draw */   NULL,
+	/* custom */ widget_unitvec,
+	/* text */   NULL,
+};
+
 
 uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* box */               &drawtype_classic_box,
@@ -442,7 +790,7 @@ uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* exec */              &drawtype_classic_exec,
 	/* filename */          NULL, /* not used (yet?) */
 	/* icon */              &drawtype_classic_icon,
-	/* label */             NULL,
+	/* label */             &drawtype_classic_label,
 	/* listitem */          &drawtype_classic_listitem,
 	/* menu_back */         &drawtype_classic_menu_back,
 	/* menu_icon_radio */   &drawtype_classic_menu_icon_radio,
@@ -452,19 +800,19 @@ uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* menu_pointer_link */ &drawtype_classic_menu_pointer_link, /* not used (yet?) */
 	/* menu_radio */        &drawtype_classic_menu_radio,
 	/* name */              &drawtype_classic_name,
-	/* name_link */         NULL,
-	/* number */            NULL,
-	/* pointer_link */      NULL,
-	/* progressbar */       NULL,
-	/* pulldown */          NULL,
-	/* radio */             NULL,
+	/* name_link */         NULL, /* not used (yet?) */
+	/* number */            &drawtype_classic_number,
+	/* pointer_link */      NULL, /* not used (yet?) */
+	/* progressbar */       &drawtype_classic_progressbar,
+	/* pulldown */          &drawtype_classic_pulldown,
+	/* radio */             &drawtype_classic_radio,
 	/* regular */           NULL,
-	/* rgb_picker */        NULL,
-	/* scroll */            NULL,
-	/* slider */            NULL,
-	/* swatch */            NULL,
+	/* rgb_picker */        NULL, /* not used (yet?) */
+	/* scroll */            &drawtype_classic_scroll,
+	/* slider */            &drawtype_classic_numslider,
+	/* swatch */            &drawtype_classic_swatch,
 	/* toggle */            NULL,
-	/* tooltip */           NULL,
-	/* unitvec */           NULL,
+	/* tooltip */           &drawtype_classic_tooltip,
+	/* unitvec */           &drawtype_classic_unitvec,
 };
 
