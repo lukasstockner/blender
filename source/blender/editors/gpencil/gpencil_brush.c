@@ -38,8 +38,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
 #include "BLI_blenlib.h"
+#include "BLI_ghash.h"
+#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
@@ -81,6 +82,13 @@
 
 /* Context for brush operators */
 typedef struct tGP_BrushEditData {
+	/* Current editor/region/etc. */
+	/* NOTE: This stuff is mainly needed to handle 3D view projection stuff... */
+	Scene *scene;
+	
+	ScrArea *sa;
+	ARegion *ar;
+	
 	/* Brush Settings */
 	GP_BrushEdit_Settings *settings;
 	GP_EditBrush_Data *brush;
@@ -106,11 +114,15 @@ typedef struct tGP_BrushEditData {
 	int   mval[2], mval_prev[2];
 	float pressure, pressure_prev;
 	
+	/* - effect vector (e.g. 2D/3D translation for grab brush) */
+	float dvec[3];
+	
 	/* brush geometry (bounding box) */
 	rcti brush_rect;
 	
 	/* Custom data for certain brushes */
-	void *customdata;
+	/* - map from bGPDstroke's to structs containing custom data about those strokes */
+	GHash *stroke_customdata;
 } tGP_BrushEditData;
 
 
@@ -290,36 +302,139 @@ static bool gp_brush_thickness_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 /* ----------------------------------------------- */
 /* Grab Brush */
 
-#if 0
+/* Custom data per stroke for the Grab Brush
+ *
+ * This basically defines the strength of the effect for each
+ * affected stroke point that was within the initial range of
+ * the brush region.
+ */
+typedef struct tGPSB_Grab_StrokeData {
+	/* array of indices to corresponding points in the stroke */
+	int   *points;
+	/* array of influence weights for each of the included points */
+	float *weights;
+	
+	/* capacity of the arrays */
+	int capacity;
+	/* actual number of items currently stored */
+	int size;
+} tGPSB_Grab_StrokeData;
 
 /* initialise custom data for handling this stroke */
-static bool gp_brush_grab_stroke_init(tGP_BrushEditData *gso, bGPDstroke *gps)
+static void gp_brush_grab_stroke_init(tGP_BrushEditData *gso, bGPDstroke *gps)
 {
+	tGPSB_Grab_StrokeData *data = NULL;
 	
+	BLI_assert(gps->totpoints > 0);
+	
+	/* Check if there are buffers already (from a prior run) */
+	if (BLI_ghash_haskey(gso->stroke_customdata, gps)) {
+		/* Ensure that the caches are empty
+		 * - Since we reuse these between different strokes, we don't
+		 *   want the previous invocation's data polluting the arrays
+		 */
+		// XXX: if we're lazy, we could just leave these as-is...
+		data = BLI_ghash_lookup(gso->stroke_customdata, gps);
+		BLI_assert(data != NULL);
+		
+		data->size = 0; /* minimum requirement - so that we can repopulate again */
+		
+		memset(data->points, 0, sizeof(int) * data->capacity);
+		memset(data->weights, 0, sizeof(float) * data->capacity);
+	}
+	else {
+		/* Create new instance */
+		data = MEM_callocN(sizeof(tGPSB_Grab_StrokeData), "GP Stroke Grab Data");
+		
+		data->capacity = gps->totpoints;
+		data->size = 0;
+		
+		data->points  = MEM_callocN(sizeof(int) * data->capacity, "GP Stroke Grab Indices");
+		data->weights = MEM_callocN(sizeof(float) * data->capacity, "GP Stroke Grab Weights");
+		
+		/* hook up to the cache */
+		BLI_ghash_insert(gso->stroke_customdata, gps, data);
+	}	
 }
 
 /* store references to stroke points in the initial stage */
 static bool gp_brush_grab_store_points(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
                                        const int radius, const int co[2])
 {
-	bGPDspoint *pt = &gps->points[i];
-	
-	
-	return true;
-}
-
-/* apply smoothing by blending between the average coordinates and the current coordinates */
-static bool gp_brush_grab_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
-                                const int radius, const int co[2])
-{
-	bGPDspoint *pt = &gps->points[i];
+	tGPSB_Grab_StrokeData *data = BLI_ghash_lookup(gso->stroke_customdata, gps);
 	float inf = gp_brush_influence_calc(gso, radius, co);
-	 
 	
+	BLI_assert(data != NULL);
+	BLI_assert(data->size < data->capacity);
+	
+	/* insert this point into the set of affected points */
+	data->points[data->size]  = i;
+	data->weights[data->size] = inf;
+	data->size++;
+	
+	/* done */
 	return true;
 }
 
-#endif
+/* Compute effect vector for grab brush */
+static void gp_brush_grab_calc_dvec(tGP_BrushEditData *gso)
+{
+	/* Convert mouse-movements to movement vector */
+	// TODO: incorporate pressure into this?
+	if (gso->sa->spacetype == SPACE_VIEW3D) {
+		View3D *v3d = gso->sa->spacedata.first;
+		RegionView3D *rv3d = gso->ar->regiondata;
+		float *rvec = ED_view3d_cursor3d_get(gso->scene, v3d);
+		float zfac = ED_view3d_calc_zfac(rv3d, rvec, NULL);
+		
+		float mval_f[2];
+		
+		/* convert from 2D screenspace to 3D... */
+		mval_f[0] = (float)(gso->mval[0] - gso->mval_prev[0]);
+		mval_f[1] = (float)(gso->mval[1] - gso->mval_prev[1]);
+		
+		ED_view3d_win_to_delta(gso->ar, mval_f, gso->dvec, zfac);
+	}
+	else {
+		/* 2D - just copy */
+		gso->dvec[0] = (float)(gso->mval[0] - gso->mval_prev[0]);
+		gso->dvec[1] = (float)(gso->mval[1] - gso->mval_prev[1]);
+		gso->dvec[2] = 0.0f;  /* unused */
+	}
+}
+
+/* Apply grab transform to all relevant points of the affected strokes */
+static void gp_brush_grab_apply_cached(tGP_BrushEditData *gso, bGPDstroke *gps)
+{
+	tGPSB_Grab_StrokeData *data = BLI_ghash_lookup(gso->stroke_customdata, gps);
+	int i;
+	
+	/* Apply dvec to all of the stored points */
+	for (i = 0; i < data->size; i++) {
+		bGPDspoint *pt = &gps->points[data->points[i]];
+		float delta[3] = {0.0f};
+		
+		/* adjust the amount of displacement to apply */
+		mul_v3_v3fl(delta, gso->dvec, data->weights[i]);
+		
+		/* apply */
+		add_v3_v3(&pt->x, delta);
+	}
+}
+
+/* free customdata used for handling this stroke */
+static void gp_brush_grab_stroke_free(void *ptr)
+{
+	tGPSB_Grab_StrokeData *data = (tGPSB_Grab_StrokeData *)ptr;
+	
+	/* free arrays */
+	MEM_freeN(data->points);
+	MEM_freeN(data->weights);
+	
+	/* ... and this item itself, since it was also allocated */
+	// XXX?
+	MEM_freeN(data);
+}
 
 /* ************************************************ */
 /* Cursor drawing */
@@ -391,9 +506,13 @@ static bool gpsculpt_brush_init(bContext *C, wmOperator *op)
 	gso->is_painting = false;
 	gso->first = true;
 	
+	gso->scene = scene;
+	
+	gso->sa = CTX_wm_area(C);
+	gso->ar = CTX_wm_region(C);
+	
 	/* setup space conversions */
 	gp_point_conversion_init(C, &gso->gsc);
-	
 	
 	/* update header */
 	ED_area_headerprint(CTX_wm_area(C),
@@ -411,6 +530,22 @@ static void gpsculpt_brush_exit(bContext *C, wmOperator *op)
 {
 	tGP_BrushEditData *gso = op->customdata;
 	wmWindow *win = CTX_wm_window(C);
+	
+	/* free brush-specific data */
+	switch (gso->brush_type) {
+		case GP_EDITBRUSH_TYPE_GRAB:
+		{
+			/* Free per-stroke customdata
+			 * - Keys don't need to be freed, as those are the strokes
+			 * - Values assigned to those keys do, as they are custom structs
+			 */
+			BLI_ghash_free(gso->stroke_customdata, NULL, gp_brush_grab_stroke_free);
+			break;
+		}
+		
+		default:
+			break;
+	}
 	
 #if 0
 	/* unregister timer (only used for realtime) */
@@ -555,6 +690,20 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 	gso->brush_rect.ymax = mouse[1] + radius;
 	
 	
+	/* Calculate brush-specific data which applies equally to all points */
+	switch (gso->brush_type) {
+		case GP_EDITBRUSH_TYPE_GRAB: /* Grab points */
+		{
+			/* calculate amount of displacement to apply */
+			gp_brush_grab_calc_dvec(gso);
+			break;
+		}
+		
+		default:
+			break;
+	}
+	
+	
 	/* Find visible strokes, and perform operations on those if hit */
 	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
 	{
@@ -573,7 +722,19 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 			
 			case GP_EDITBRUSH_TYPE_GRAB: /* Grab points */
 			{
-				//changed |= gpsculpt_brush_do_stroke(gso, gps, apply);
+				if (gso->first) {
+					/* First time this brush stroke is being applied:
+					 * 1) Prepare data buffers (init/clear) for this stroke
+					 * 2) Use the points now under the cursor
+					 */
+					gp_brush_grab_stroke_init(gso, gps);
+					changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_grab_store_points);
+				}
+				else {
+					/* Apply effect to the stored points */
+					gp_brush_grab_apply_cached(gso, gps);
+					changed |= true;
+				}
 			}
 			break;
 			
@@ -665,22 +826,32 @@ static int gpsculpt_brush_exec(bContext *C, wmOperator *op)
 
 /* start modal painting */
 static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *event)
-{	
-	//Scene *scene = CTX_data_scene(C);
-	
-	//GP_BrushEdit_Settings *gset = gpsculpt_get_settings(scene);
-	//tGP_BrushEditData *gso = NULL;
+{
+	tGP_BrushEditData *gso = NULL;
+#if 0
+	bool needs_timer = false;
+#endif
 	
 	/* init painting data */
 	if (!gpsculpt_brush_init(C, op))
 		return OPERATOR_CANCELLED;
 	
-	//gso = op->customdata;
+	gso = op->customdata;
+	
+	/* initialise type-specific data */
+	switch (gso->brush_type) {
+		case GP_EDITBRUSH_TYPE_GRAB:
+			/* initialise the cache needed for this brush */
+			gso->stroke_customdata = BLI_ghash_ptr_new("GP Grab Brush - Strokes Hash");
+			break;
+			
+		default:
+			break;
+	}
 	
 	/* register timer for increasing influence by hovering over an area */
 #if 0
-	if (ELEM(gset->brushtype, ...))
-	{
+	if (needs_timer) {
 		GP_EditBrush_Data *brush = gpsculpt_get_brush(scene);
 		gso->timer = WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, brush->rate);
 	}
