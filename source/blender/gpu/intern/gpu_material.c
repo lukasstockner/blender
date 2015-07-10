@@ -2416,8 +2416,8 @@ void GPU_material_update_fvar_offset(GPUMaterial *gpu_material,
                                      DerivedMesh *dm)
 {
 	GPUPass *pass = gpu_material->pass;
-	GPUShader *shader = pass->shader;
-	ListBase *inputs = &pass->inputs;
+	GPUShader *shader = (pass != NULL ? pass->shader : NULL);
+	ListBase *inputs = (pass != NULL ? &pass->inputs : NULL);
 	GPUInput *input;
 
 	if (shader == NULL) {

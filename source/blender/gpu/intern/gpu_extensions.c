@@ -61,8 +61,9 @@
 #  include "BLI_winstuff.h"
 #endif
 
-#define MAX_DEFINE_LENGTH 72
-#define MAX_EXT_DEFINE_LENGTH 280
+/* TODO(sergey): Find better default values for this constants. */
+#define MAX_DEFINE_LENGTH 1024
+#define MAX_EXT_DEFINE_LENGTH 1024
 
 /* Extensions support */
 
@@ -1545,7 +1546,6 @@ static void gpu_shader_standard_extensions(char defines[MAX_EXT_DEFINE_LENGTH])
 {
 #ifdef WITH_OPENSUBDIV
 	strcat(defines, "#extension GL_ARB_texture_query_lod: enable\n"
-	                "#extension GL_EXT_geometry_shader4 : enable\n"
 	                "#extension GL_ARB_gpu_shader5 : enable\n"
 	                "#extension GL_ARB_explicit_attrib_location : require\n");
 #else
@@ -1556,6 +1556,7 @@ static void gpu_shader_standard_extensions(char defines[MAX_EXT_DEFINE_LENGTH])
 
 	if (GPU_geometry_shader_support())
 		strcat(defines, "#extension GL_EXT_geometry_shader4: enable\n");
+
 	if (GPU_instanced_drawing_support()) {
 		strcat(defines, "#extension GL_EXT_gpu_shader4: enable\n");
 		strcat(defines, "#extension GL_ARB_draw_instanced: enable\n");
@@ -1683,8 +1684,6 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 
 	if (vertexcode)
 		shader->vertex = glCreateShaderObjectARB(GL_VERTEX_SHADER_ARB);
-	if (geocode)
-		shader->geometry = glCreateShaderObjectARB(GL_GEOMETRY_SHADER_ARB);
 	if (fragcode)
 		shader->fragment = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
 	if (geocode)
@@ -1725,35 +1724,6 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 
 		if (!status) {
 			glGetInfoLogARB(shader->vertex, sizeof(log), &length, log);
-			shader_print_errors("compile", log, source, num_source);
-
-			GPU_shader_free(shader);
-			return NULL;
-		}
-	}
-
-	if (geocode) {
-		const char *source[5];
-		/* custom limit, may be too small, beware */
-		int num_source = 0;
-
-		source[num_source++] = gpu_shader_version();
-		source[num_source++] = standard_extensions;
-		source[num_source++] = standard_defines;
-
-		if (defines) source[num_source++] = defines;
-		source[num_source++] = geocode;
-
-		glAttachObjectARB(shader->object, shader->geometry);
-		glShaderSourceARB(shader->geometry, num_source, source, NULL);
-
-		glCompileShaderARB(shader->geometry);
-		glGetObjectParameterivARB(shader->geometry,
-		                          GL_OBJECT_COMPILE_STATUS_ARB,
-		                          &status);
-
-		if (!status) {
-			glGetInfoLogARB(shader->geometry, sizeof(log), &length, log);
 			shader_print_errors("compile", log, source, num_source);
 
 			GPU_shader_free(shader);
@@ -1824,7 +1794,9 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 			return NULL;
 		}
 		
-		GPU_shader_geometry_stage_primitive_io(shader, input, output, number);
+		if (!use_opensubdiv) {
+			GPU_shader_geometry_stage_primitive_io(shader, input, output, number);
+		}
 	}
 
 
