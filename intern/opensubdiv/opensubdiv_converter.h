@@ -46,6 +46,7 @@ public:
 	int get_num_edges() const;
 	int get_num_verts() const;
 
+	/* TODO(sergey): Currently unused, but might be handy in the future. */
 	void get_coarse_verts(float *coords) const;
 
 	/* Face relationships. */

@@ -2661,6 +2661,15 @@ static bool check_topology_changed(CCGSubSurf *ss)
 	return false;
 }
 
+static bool opensubdiv_createEvaluator(CCGSubSurf *ss)
+{
+	ss->osd_compute = U.opensubdiv_compute_type;
+	ss->osd_evaluator =
+	    openSubdiv_createEvaluatorDescr(ss->dm,
+	                                    ss->subdivLevels);
+	return ss->osd_evaluator != NULL;
+}
+
 static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 {
 	if (ss->osd_evaluator != NULL) {
@@ -2686,9 +2695,7 @@ static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 	if (ss->osd_evaluator == NULL) {
 		int num_basis_verts = ss->vMap->numEntries;
 		OSD_LOG("Allocating new evaluator, %d verts\n", num_basis_verts);
-		ss->osd_evaluator =
-		        openSubdiv_createEvaluatorDescr(ss->dm,
-		                                        ss->subdivLevels);
+		opensubdiv_createEvaluator(ss);
 	} else {
 		OSD_LOG("Re-using old evaluator\n");
 	}
@@ -2702,6 +2709,11 @@ static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
 	int num_basis_verts = ss->vMap->numEntries;
 	int i;
 
+	/* TODO(sergey): Avoid allocation on every update. We could either update
+	 * coordinates in chunks of 1K vertices (which will only use stack memory)
+	 * or do some callback magic for OSD evaluator can invoke it and fill in
+	 * buffer directly.
+	 */
 	if (ss->meshIFC.numLayers == 3) {
 		/* If all the components are to be initialized, no need to memset the
 		 * new memory block.
@@ -2729,10 +2741,10 @@ static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
 		}
 	}
 
-	/* TODO(sergey): Need proper port. */
-	//openSubdiv_setEvaluatorCoarsePositions(ss->osd_evaluator,
-	//                                       (float *) positions,
-	//                                       num_basis_verts);
+	openSubdiv_setEvaluatorCoarsePositions(ss->osd_evaluator,
+	                                       (float*)positions,
+	                                       0,
+	                                       num_basis_verts);
 
 	MEM_freeN(positions);
 }

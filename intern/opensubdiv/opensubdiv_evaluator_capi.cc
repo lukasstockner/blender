@@ -584,12 +584,6 @@ OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(DerivedMesh *dm,
 	                                               num_total_verts,
 	                                               patch_table);
 
-	float *g_positions = new float[3 * num_coarse_verts];
-	conv.get_coarse_verts(g_positions);
-	eval_output->UpdateData(&g_positions[0], 0, num_coarse_verts);
-	delete [] g_positions;
-	eval_output->Refine();
-
 	OpenSubdiv::Far::PatchMap *patch_map = new PatchMap(*patch_table);
 
 	OpenSubdiv_EvaluatorDescr *evaluator_descr;
@@ -613,6 +607,19 @@ void openSubdiv_deleteEvaluatorDescr(OpenSubdiv_EvaluatorDescr *evaluator_descr)
 	delete evaluator_descr->patch_map;
 	delete evaluator_descr->patch_table;
 	OBJECT_GUARDED_DELETE(evaluator_descr, OpenSubdiv_EvaluatorDescr);
+}
+
+void openSubdiv_setEvaluatorCoarsePositions(OpenSubdiv_EvaluatorDescr *evaluator_descr,
+                                            float *positions,
+                                            int start_vert,
+                                            int num_verts)
+{
+	/* TODO(sergey): Add sanity check on indices. */
+	evaluator_descr->eval_output->UpdateData(positions, start_vert, num_verts);
+	/* TODO(sergey): Consider moving this to a separate call,
+	 * so we can updatwe coordinates in chunks.
+	 */
+	evaluator_descr->eval_output->Refine();
 }
 
 void openSubdiv_evaluateLimit(OpenSubdiv_EvaluatorDescr *evaluator_descr,
