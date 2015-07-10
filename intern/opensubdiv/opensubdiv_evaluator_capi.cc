@@ -77,6 +77,35 @@ public:
 	}
 };
 
+class SinglePatchCoordBuffer {
+public:
+	SinglePatchCoordBuffer() {
+	}
+	SinglePatchCoordBuffer(const PatchCoord& patch_coord)
+	        : patch_coord_(patch_coord){
+	}
+	static SinglePatchCoordBuffer *Create()
+	{
+		SinglePatchCoordBuffer *buffer = new SinglePatchCoordBuffer();
+		return buffer;
+	}
+	PatchCoord *BindCpuBuffer() {
+		return (PatchCoord*)&patch_coord_;
+	}
+	int GetNumVertices() {
+		return 1;
+	}
+	void UpdateData(const PatchCoord& patch_coord)
+	{
+		patch_coord_ = patch_coord;
+	}
+protected:
+	PatchCoord patch_coord_;
+};
+
+/* Non-volatile evaluator which can't be used from threads but capable of
+ * evaluating multiple patch coords at once.
+ */
 template<typename SRC_VERTEX_BUFFER,
          typename EVAL_VERTEX_BUFFER,
          typename STENCIL_TABLE,
@@ -269,13 +298,182 @@ private:
 	DEVICE_CONTEXT *device_context_;
 };
 
+/* Volatile evaluator which can be used from threads.
+ *
+ * TODO(sergey): Make it possible to evaluate coordinates in chuncks as well.
+ */
+template<typename SRC_VERTEX_BUFFER,
+         typename EVAL_VERTEX_BUFFER,
+         typename STENCIL_TABLE,
+         typename PATCH_TABLE,
+         typename EVALUATOR,
+         typename DEVICE_CONTEXT = void>
+class VolatileEvalOutput {
+public:
+	typedef OpenSubdiv::Osd::EvaluatorCacheT<EVALUATOR> EvaluatorCache;
+
+	VolatileEvalOutput(const StencilTable *vertex_stencils,
+	                   const StencilTable *varying_stencils,
+	                   int num_coarse_verts,
+	                   int num_total_verts,
+	                   const PatchTable *patch_table,
+	                   EvaluatorCache *evaluator_cache = NULL,
+	                   DEVICE_CONTEXT *device_context = NULL)
+	    : src_desc_(        /*offset*/ 0, /*length*/ 3, /*stride*/ 3),
+	      src_varying_desc_(/*offset*/ 0, /*length*/ 3, /*stride*/ 3),
+	      num_coarse_verts_(num_coarse_verts),
+	      evaluator_cache_ (evaluator_cache),
+	      device_context_(device_context)
+	{
+		using OpenSubdiv::Osd::convertToCompatibleStencilTable;
+		src_data_ = SRC_VERTEX_BUFFER::Create(3, num_total_verts, device_context_);
+		src_varying_data_ = SRC_VERTEX_BUFFER::Create(3, num_total_verts, device_context_);
+		patch_table_ = PATCH_TABLE::Create(patch_table, device_context_);
+		patch_coords_ = NULL;
+		vertex_stencils_ = convertToCompatibleStencilTable<STENCIL_TABLE>(vertex_stencils,
+		                                                                  device_context_);
+		varying_stencils_ = convertToCompatibleStencilTable<STENCIL_TABLE>(varying_stencils,
+		                                                                   device_context_);
+	}
+
+	~VolatileEvalOutput()
+	{
+		delete src_data_;
+		delete src_varying_data_;
+		delete patch_table_;
+		delete vertex_stencils_;
+		delete varying_stencils_;
+	}
+
+	void UpdateData(const float *src, int start_vertex, int num_vertices)
+	{
+		src_data_->UpdateData(src, start_vertex, num_vertices, device_context_);
+	}
+
+	void UpdateVaryingData(const float *src, int start_vertex, int num_vertices)
+	{
+		src_varying_data_->UpdateData(src,
+		                              start_vertex,
+		                              num_vertices,
+		                              device_context_);
+	}
+
+	void Refine()
+	{
+		BufferDescriptor dst_desc = src_desc_;
+		dst_desc.offset += num_coarse_verts_ * src_desc_.stride;
+
+		const EVALUATOR *eval_instance =
+		        OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(evaluator_cache_,
+		                                                 src_desc_,
+		                                                 dst_desc,
+		                                                 device_context_);
+
+		EVALUATOR::EvalStencils(src_data_, src_desc_,
+		                        src_data_, dst_desc,
+		                        vertex_stencils_,
+		                        eval_instance,
+		                        device_context_);
+
+		dst_desc = src_varying_desc_;
+		dst_desc.offset += num_coarse_verts_ * src_varying_desc_.stride;
+		eval_instance =
+		        OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(evaluator_cache_,
+		                                                 src_varying_desc_,
+		                                                 dst_desc,
+		                                                 device_context_);
+
+		EVALUATOR::EvalStencils(src_varying_data_, src_varying_desc_,
+		                        src_varying_data_, dst_desc,
+		                        varying_stencils_,
+		                        eval_instance,
+		                        device_context_);
+	}
+
+	void EvalPatchCoord(PatchCoord& patch_coord, float P[3])
+	{
+		/* TODO(sergey): Avoid per-evaluation heap allocation. */
+		EVAL_VERTEX_BUFFER *vertex_data = EVAL_VERTEX_BUFFER::Create(6, 1, device_context_);
+		BufferDescriptor vertex_desc(0, 3, 6);
+		SinglePatchCoordBuffer patch_coord_buffer(patch_coord);
+		const EVALUATOR *eval_instance =
+		        OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(evaluator_cache_,
+		                                                 src_desc_,
+		                                                 vertex_desc,
+		                                                 device_context_);
+		EVALUATOR::EvalPatches(src_data_, src_desc_,
+		                       vertex_data, vertex_desc,
+		                       patch_coord_buffer.GetNumVertices(),
+		                       &patch_coord_buffer,
+		                       patch_table_, eval_instance, device_context_);
+		float *refined_verts = vertex_data->BindCpuBuffer();
+		memcpy(P, refined_verts, sizeof(float) * 3);
+		delete vertex_data;
+	}
+
+	void EvalPatchesWithDerivatives(PatchCoord& patch_coord,
+	                                float P[3],
+	                                float dPdu[3],
+	                                float dPdv[3])
+	{
+		/* TODO(sergey): Avoid per-evaluation heap allocation. */
+		EVAL_VERTEX_BUFFER *vertex_data = EVAL_VERTEX_BUFFER::Create(6, 1, device_context_),
+		                   *derivatives = EVAL_VERTEX_BUFFER::Create(6, 1, device_context_);
+		BufferDescriptor vertex_desc(0, 3, 6),
+		                 du_desc(0, 3, 6),
+		                 dv_desc(3, 3, 6);
+		SinglePatchCoordBuffer patch_coord_buffer(patch_coord);
+		const EVALUATOR *eval_instance =
+		        OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(evaluator_cache_,
+		                                                 src_desc_,
+		                                                 vertex_desc,
+		                                                 du_desc,
+		                                                 dv_desc,
+		                                                 device_context_);
+		EVALUATOR::EvalPatches(src_data_, src_desc_,
+		                       vertex_data, vertex_desc,
+		                       derivatives, du_desc,
+		                       derivatives, dv_desc,
+		                       patch_coord_buffer.GetNumVertices(),
+		                       &patch_coord_buffer,
+		                       patch_table_, eval_instance, device_context_);
+		float *refined_verts = vertex_data->BindCpuBuffer();
+		memcpy(P, refined_verts, sizeof(float) * 3);
+		if (dPdu != NULL || dPdv != NULL) {
+			float *refined_drivatives = derivatives->BindCpuBuffer();
+			if (dPdu) {
+				memcpy(dPdu, refined_drivatives, sizeof(float) * 3);
+			}
+			if (dPdv) {
+				memcpy(dPdv, refined_drivatives + 3, sizeof(float) * 3);
+			}
+		}
+		delete vertex_data;
+		delete derivatives;
+	}
+private:
+	SRC_VERTEX_BUFFER *src_data_;
+	SRC_VERTEX_BUFFER *src_varying_data_;
+	PatchCoordBuffer *patch_coords_;
+	PATCH_TABLE *patch_table_;
+	BufferDescriptor src_desc_;
+	BufferDescriptor src_varying_desc_;
+	int num_coarse_verts_;
+
+	const STENCIL_TABLE *vertex_stencils_;
+	const STENCIL_TABLE *varying_stencils_;
+
+	EvaluatorCache *evaluator_cache_;
+	DEVICE_CONTEXT *device_context_;
+};
+
 }  /* namespace */
 
-typedef EvalOutput<OpenSubdiv::Osd::CpuVertexBuffer,
-                   OpenSubdiv::Osd::CpuVertexBuffer,
-                   OpenSubdiv::Far::StencilTable,
-                   OpenSubdiv::Osd::CpuPatchTable,
-                   OpenSubdiv::Osd::CpuEvaluator> CpuEvalOutput;
+typedef VolatileEvalOutput<OpenSubdiv::Osd::CpuVertexBuffer,
+                           OpenSubdiv::Osd::CpuVertexBuffer,
+                           OpenSubdiv::Far::StencilTable,
+                           OpenSubdiv::Osd::CpuPatchTable,
+                           OpenSubdiv::Osd::CpuEvaluator> CpuEvalOutput;
 
 typedef struct OpenSubdiv_EvaluatorDescr {
 	CpuEvalOutput *eval_output;
@@ -353,13 +551,11 @@ OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(DerivedMesh *dm,
 		vertex_stencils->GetNumStencils();
 
 	const int num_coarse_verts = refiner->GetLevel(0).GetNumVertices();
-	const int g_nParticles = 1;
 
 	CpuEvalOutput *eval_output = new CpuEvalOutput(vertex_stencils,
 	                                               varying_stencils,
 	                                               num_coarse_verts,
 	                                               num_total_verts,
-	                                               g_nParticles,
 	                                               patch_table);
 
 	float *g_positions = new float[3 * num_coarse_verts];
@@ -401,30 +597,16 @@ void openSubdiv_evaluateLimit(OpenSubdiv_EvaluatorDescr *evaluator_descr,
                               float dPdv[3])
 {
 	assert((face_u >= 0.0f) && (face_u <= 1.0f) && (face_v >= 0.0f) && (face_v <= 1.0f));
-
-	std::vector<PatchCoord> patchCoords;
 	const PatchTable::PatchHandle *handle =
 	        evaluator_descr->patch_map->FindPatch(osd_face_index, face_u, face_v);
-	PatchCoord patchCoord(*handle, face_u, face_v);
-	patchCoords.push_back(patchCoord);
-	evaluator_descr->eval_output->UpdatePatchCoords(patchCoords);
+	PatchCoord patch_coord(*handle, face_u, face_v);
 	if (dPdu != NULL || dPdv != NULL) {
-		evaluator_descr->eval_output->EvalPatchesWithDerivatives();
+		evaluator_descr->eval_output->EvalPatchCoord(patch_coord, P);
 	}
 	else {
-		evaluator_descr->eval_output->EvalPatches();
-	}
-
-	float *refined_verts = evaluator_descr->eval_output->BindCpuVertexData();
-	memcpy(P, refined_verts, sizeof(float) * 3);
-
-	if (dPdu != NULL || dPdv != NULL) {
-		float *drivatives = evaluator_descr->eval_output->BindCpuDerivativesData();
-		if (dPdu) {
-			memcpy(dPdu, drivatives, sizeof(float) * 3);
-		}
-		if (dPdv) {
-			memcpy(dPdv, drivatives + 3, sizeof(float) * 3);
-		}
+		evaluator_descr->eval_output->EvalPatchesWithDerivatives(patch_coord,
+		                                                         P,
+		                                                         dPdu,
+		                                                         dPdv);
 	}
 }

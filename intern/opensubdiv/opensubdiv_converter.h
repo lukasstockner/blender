@@ -176,7 +176,7 @@ void orderVertexFacesAndEdges(const OsdBlenderConverter& conv,
 		ConstIndexArrayOwn fVerts = getFaceVertices(conv, fStart);
 		ConstIndexArrayOwn fEdges = getFaceEdges(conv, fStart);
 		int feStart = fvStart;
-		int feNext  = feStart ? (feStart - 1) : (fVerts.size() - 1);
+		int feNext = feStart ? (feStart - 1) : (fVerts.size() - 1);
 		Index eNext = fEdges[feNext];
 		vEdgesOrdered[eCountOrdered++] = eNext;
 		if (fCountOrdered < fCount) {
