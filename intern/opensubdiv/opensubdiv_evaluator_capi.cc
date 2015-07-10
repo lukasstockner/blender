@@ -87,12 +87,12 @@ class EvalOutput {
 public:
 	typedef OpenSubdiv::Osd::EvaluatorCacheT<EVALUATOR> EvaluatorCache;
 
-	EvalOutput(StencilTable const *vertex_stencils,
-	           StencilTable const *varying_stencils,
+	EvalOutput(const StencilTable *vertex_stencils,
+	           const StencilTable *varying_stencils,
 	           int num_coarse_verts,
 	           int num_total_verts,
 	           int num_output_verts,
-	           PatchTable const *patch_table,
+	           const PatchTable *patch_table,
 	           EvaluatorCache *evaluator_cache = NULL,
 	           DEVICE_CONTEXT *device_context = NULL)
 	    : src_desc_(        /*offset*/ 0, /*length*/ 3, /*stride*/ 3),
@@ -158,7 +158,7 @@ public:
 		BufferDescriptor dst_desc = src_desc_;
 		dst_desc.offset += num_coarse_verts_ * src_desc_.stride;
 
-		EVALUATOR const *eval_instance =
+		const EVALUATOR *eval_instance =
 		        OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(evaluator_cache_,
 		                                                 src_desc_,
 		                                                 dst_desc,
@@ -187,7 +187,7 @@ public:
 
 	void EvalPatches()
 	{
-		EVALUATOR const *eval_instance =
+		const EVALUATOR *eval_instance =
 		        OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(evaluator_cache_,
 		                                                 src_desc_,
 		                                                 vertex_desc_,
@@ -202,7 +202,7 @@ public:
 
 	void EvalPatchesWithDerivatives()
 	{
-		EVALUATOR const *eval_instance =
+		const EVALUATOR *eval_instance =
 		        OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(evaluator_cache_,
 		                                                 src_desc_,
 		                                                 vertex_desc_,
@@ -220,7 +220,7 @@ public:
 
 	void EvalPatchesVarying()
 	{
-		EVALUATOR const *eval_instance =
+		const EVALUATOR *eval_instance =
 		        OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(evaluator_cache_,
 		                                                 src_varying_desc_,
 		                                                 varying_desc_,
@@ -234,9 +234,9 @@ public:
 		                       patch_table_, eval_instance, device_context_);
 	}
 
-	void UpdatePatchCoords(std::vector<PatchCoord> const &patchCoords)
+	void UpdatePatchCoords(const std::vector<PatchCoord> &patch_coords)
 	{
-		int new_size = (int)patchCoords.size();
+		int new_size = (int)patch_coords.size();
 		if (patch_coords_ != NULL && patch_coords_->GetNumVertices() != new_size) {
 			delete patch_coords_;
 			patch_coords_ = NULL;
@@ -244,7 +244,7 @@ public:
 		if (patch_coords_ == NULL) {
 			patch_coords_ = PatchCoordBuffer::Create(new_size);
 		}
-		patch_coords_->UpdateData(&patchCoords[0], new_size);
+		patch_coords_->UpdateData(&patch_coords[0], new_size);
 	}
 private:
 	SRC_VERTEX_BUFFER *src_data_;
@@ -262,8 +262,8 @@ private:
 	BufferDescriptor dv_desc_;
 	int num_coarse_verts_;
 
-	STENCIL_TABLE const *vertex_stencils_;
-	STENCIL_TABLE const *varying_stencils_;
+	const STENCIL_TABLE *vertex_stencils_;
+	const STENCIL_TABLE *varying_stencils_;
 
 	EvaluatorCache *evaluator_cache_;
 	DEVICE_CONTEXT *device_context_;
@@ -279,7 +279,8 @@ typedef EvalOutput<OpenSubdiv::Osd::CpuVertexBuffer,
 
 typedef struct OpenSubdiv_EvaluatorDescr {
 	CpuEvalOutput *eval_output;
-	PatchMap *patch_map;
+	const PatchMap *patch_map;
+	const PatchTable *patch_table;
 } OpenSubdiv_EvaluatorDescr;
 
 OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(DerivedMesh *dm,
@@ -322,24 +323,24 @@ OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(DerivedMesh *dm,
 	PatchTableFactory::Options poptions;
 	poptions.SetEndCapType(PatchTableFactory::Options::ENDCAP_BSPLINE_BASIS);
 
-	PatchTable const *patch_table = PatchTableFactory::Create(*refiner, poptions);
+	const PatchTable *patch_table = PatchTableFactory::Create(*refiner, poptions);
 
 	/* Append local points stencils. */
 	/* TODO(sergey): Do we really need to worry about local points stencils? */
-	if (StencilTable const *local_point_stencil_table =
+	if (const StencilTable *local_point_stencil_table =
 	    patch_table->GetLocalPointStencilTable())
 	{
-		StencilTable const *table =
+		const StencilTable *table =
 			StencilTableFactory::AppendLocalPointStencilTable(*refiner,
 			                                                  vertex_stencils,
 			                                                  local_point_stencil_table);
 		delete vertex_stencils;
 		vertex_stencils = table;
 	}
-	if (StencilTable const *local_point_varying_stencil_table =
+	if (const StencilTable *local_point_varying_stencil_table =
 	     patch_table->GetLocalPointVaryingStencilTable())
 	{
-		StencilTable const *table =
+		const StencilTable *table =
 			StencilTableFactory::AppendLocalPointStencilTable(*refiner,
 			                                                  varying_stencils,
 			                                                  local_point_varying_stencil_table);
@@ -373,10 +374,10 @@ OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(DerivedMesh *dm,
 	evaluator_descr = OBJECT_GUARDED_NEW(OpenSubdiv_EvaluatorDescr);
 	evaluator_descr->eval_output = eval_output;
 	evaluator_descr->patch_map = patch_map;
+	evaluator_descr->patch_table = patch_table;
 
 	/* TOOD(sergey): Look into whether w've got duplicated stencils arrays. */
 	delete varying_stencils;
-	// delete patch_table;
 	delete vertex_stencils;
 
 	delete refiner;
@@ -388,6 +389,7 @@ void openSubdiv_deleteEvaluatorDescr(OpenSubdiv_EvaluatorDescr *evaluator_descr)
 {
 	delete evaluator_descr->eval_output;
 	delete evaluator_descr->patch_map;
+	delete evaluator_descr->patch_table;
 	OBJECT_GUARDED_DELETE(evaluator_descr, OpenSubdiv_EvaluatorDescr);
 }
 
@@ -401,8 +403,8 @@ void openSubdiv_evaluateLimit(OpenSubdiv_EvaluatorDescr *evaluator_descr,
 	assert((face_u >= 0.0f) && (face_u <= 1.0f) && (face_v >= 0.0f) && (face_v <= 1.0f));
 
 	std::vector<PatchCoord> patchCoords;
-	PatchTable::PatchHandle const *handle =
-		evaluator_descr->patch_map->FindPatch(osd_face_index, face_u, face_v);
+	const PatchTable::PatchHandle *handle =
+	        evaluator_descr->patch_map->FindPatch(osd_face_index, face_u, face_v);
 	PatchCoord patchCoord(*handle, face_u, face_v);
 	patchCoords.push_back(patchCoord);
 	evaluator_descr->eval_output->UpdatePatchCoords(patchCoords);
