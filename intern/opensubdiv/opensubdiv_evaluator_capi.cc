@@ -488,15 +488,7 @@ OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(DerivedMesh *dm,
 	OsdBlenderConverter conv(dm);
 
 	/* TODO(sergey): Look into re-using refiner with GLMesh. */
-	TopologyRefinerFactory<OsdBlenderConverter>::Options topology_options(conv.get_type(),
-	                                                                      conv.get_options());
-#ifdef OPENSUBDIV_VALIDATE_TOPOLOGY
-	topology_options.validateFullTopology = true;
-#endif
-	TopologyRefiner *refiner =
-	        TopologyRefinerFactory<OsdBlenderConverter>::Create(conv,
-	                                                            topology_options);
-
+	TopologyRefiner *refiner = openSubdiv_topologyRefinerFromDM(dm);
 	if(refiner == NULL) {
 		/* Happens on bad topology. */
 		return NULL;

@@ -219,7 +219,6 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
         int /*scheme*/,
         int /*subdivide_uvs*/)
 {
-	using OpenSubdiv::Far::TopologyRefinerFactory;
 	MeshBitset bits;
 	/* TODO(sergey): Adaptive subdivisions are not currently
 	 * possible because of the lack of tessellation shader.
@@ -236,15 +235,7 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 	const int num_varying_elements = 0;
 
 	GLMeshInterface *mesh = NULL;
-
-	OsdBlenderConverter conv(dm);
-	TopologyRefinerFactory<OsdBlenderConverter>::Options topology_options(conv.get_type(),
-                                                                              conv.get_options());
-#ifdef OPENSUBDIV_VALIDATE_TOPOLOGY
-       topology_options.validateFullTopology = true;
-#endif
-	OpenSubdiv::Far::TopologyRefiner *refiner =
-	    TopologyRefinerFactory<OsdBlenderConverter>::Create(conv, topology_options);
+	OpenSubdiv::Far::TopologyRefiner *refiner = openSubdiv_topologyRefinerFromDM(dm);
 
 	mesh = new OsdCpuMesh(refiner,
 	                      num_vertex_elements,

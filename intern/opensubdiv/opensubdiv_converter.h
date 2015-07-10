@@ -281,4 +281,6 @@ inline bool TopologyRefinerFactory<OsdBlenderConverter>::assignComponentTags(
 }  /* namespace OPENSUBDIV_VERSION */
 }  /* namespace OpenSubdiv */
 
+OpenSubdiv::Far::TopologyRefiner *openSubdiv_topologyRefinerFromDM(DerivedMesh *dm);
+
 #endif  /* __OPENSUBDIV_CONVERTER_H__ */

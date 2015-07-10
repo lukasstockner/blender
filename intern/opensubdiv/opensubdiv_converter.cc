@@ -25,6 +25,10 @@
 
 #include "opensubdiv_converter.h"
 
+#include <opensubdiv/far/topologyRefinerFactory.h>
+
+#include "opensubdiv_intern.h"
+
 extern "C" {
 #include "BKE_DerivedMesh.h"
 #include "DNA_meshdata_types.h"
@@ -206,4 +210,16 @@ void OsdBlenderConverter::get_vert_faces(int vert, int *vert_faces) const
 			}
 		}
 	}
+}
+
+OpenSubdiv::Far::TopologyRefiner *openSubdiv_topologyRefinerFromDM(DerivedMesh *dm)
+{
+	using OpenSubdiv::Far::TopologyRefinerFactory;
+	OsdBlenderConverter conv(dm);
+	TopologyRefinerFactory<OsdBlenderConverter>::Options
+	        topology_options(conv.get_type(), conv.get_options());
+#ifdef OPENSUBDIV_VALIDATE_TOPOLOGY
+       topology_options.validateFullTopology = true;
+#endif
+	return TopologyRefinerFactory<OsdBlenderConverter>::Create(conv, topology_options);
 }
