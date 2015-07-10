@@ -64,6 +64,9 @@ static EnumPropertyItem gpencil_sculpt_brush_items[] = {
 	{GP_EDITBRUSH_TYPE_SMOOTH, "SMOOTH", 0, "Smooth", "Smooth stroke points"},
 	{GP_EDITBRUSH_TYPE_THICKNESS, "THICKNESS", 0, "Thickness", "Adjust thickness of strokes"},
 	{GP_EDITBRUSH_TYPE_GRAB, "GRAB", 0, "Grab", "Translate the set of points initially within the brush circle"},
+	{GP_EDITBRUSH_TYPE_PUSH, "PUSH", 0, "Push", "Move points out of the way, as if combing them"},
+	{GP_EDITBRUSH_TYPE_TWIST, "TWIST", 0, "Twist", "Rotate points around the midpoint of the brush"},
+	{GP_EDITBRUSH_TYPE_PINCH, "PINCH", 0, "Pinch", "Pull points towards the midpoint of the brush"},
 	{GP_EDITBRUSH_TYPE_RANDOMISE, "RANDOMISE", 0, "Randomise", "Introduce jitter/randomness into strokes"},
 	{0, NULL, 0, NULL, NULL}
 };
