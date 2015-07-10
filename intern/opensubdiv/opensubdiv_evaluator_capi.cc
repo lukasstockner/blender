@@ -53,6 +53,10 @@ using OpenSubdiv::Far::TopologyRefiner;
 
 namespace {
 
+/* Helper class to wrap numerous of patch coords into a buffer.
+ * Used to pass coordinates to the CPU evaluator. Other evaluators
+ * are not supported.
+ */
 class PatchCoordBuffer : public std::vector<PatchCoord> {
 public:
 	static PatchCoordBuffer *Create(int size)
@@ -76,6 +80,10 @@ public:
 	}
 };
 
+/* Helper class to wrap single of patch coord into a buffer.
+ * Used to pass coordinates to the CPU evaluator. Other evaluators
+ * are not supported.
+ */
 class SinglePatchCoordBuffer {
 public:
 	SinglePatchCoordBuffer() {
@@ -100,6 +108,32 @@ public:
 	}
 protected:
 	PatchCoord patch_coord_;
+};
+
+/* Helper class which is aimed to be used in cases when buffer
+ * is small enough and better to be allocated in stack rather
+ * than in heap.
+ *
+ * TODO(sergey): Check if bare arrays could be sued by CPU evalautor.
+ */
+template <int element_size, int num_verts>
+class StackAllocatedBuffer {
+public:
+	static PatchCoordBuffer *Create(int size)
+	{
+		StackAllocatedBuffer<element_size, num_verts> *buffer =
+		        new StackAllocatedBuffer<element_size, num_verts>();
+		return buffer;
+	}
+	float *BindCpuBuffer() {
+		return &data_[0];
+	}
+	int GetNumVertices() {
+		return num_verts;
+	}
+	/* TODO(sergey): Support UpdateData(). */
+protected:
+	float data_[element_size * num_verts];
 };
 
 /* Non-volatile evaluator which can't be used from threads but capable of
@@ -391,8 +425,7 @@ public:
 
 	void EvalPatchCoord(PatchCoord& patch_coord, float P[3])
 	{
-		/* TODO(sergey): Avoid per-evaluation heap allocation. */
-		EVAL_VERTEX_BUFFER *vertex_data = EVAL_VERTEX_BUFFER::Create(6, 1, device_context_);
+		StackAllocatedBuffer<6, 1> vertex_data;
 		BufferDescriptor vertex_desc(0, 3, 6);
 		SinglePatchCoordBuffer patch_coord_buffer(patch_coord);
 		const EVALUATOR *eval_instance =
@@ -401,13 +434,12 @@ public:
 		                                                 vertex_desc,
 		                                                 device_context_);
 		EVALUATOR::EvalPatches(src_data_, src_desc_,
-		                       vertex_data, vertex_desc,
+		                       &vertex_data, vertex_desc,
 		                       patch_coord_buffer.GetNumVertices(),
 		                       &patch_coord_buffer,
 		                       patch_table_, eval_instance, device_context_);
-		float *refined_verts = vertex_data->BindCpuBuffer();
+		float *refined_verts = vertex_data.BindCpuBuffer();
 		memcpy(P, refined_verts, sizeof(float) * 3);
-		delete vertex_data;
 	}
 
 	void EvalPatchesWithDerivatives(PatchCoord& patch_coord,
@@ -415,9 +447,7 @@ public:
 	                                float dPdu[3],
 	                                float dPdv[3])
 	{
-		/* TODO(sergey): Avoid per-evaluation heap allocation. */
-		EVAL_VERTEX_BUFFER *vertex_data = EVAL_VERTEX_BUFFER::Create(6, 1, device_context_),
-		                   *derivatives = EVAL_VERTEX_BUFFER::Create(6, 1, device_context_);
+		StackAllocatedBuffer<6, 1> vertex_data, derivatives;
 		BufferDescriptor vertex_desc(0, 3, 6),
 		                 du_desc(0, 3, 6),
 		                 dv_desc(3, 3, 6);
@@ -430,16 +460,16 @@ public:
 		                                                 dv_desc,
 		                                                 device_context_);
 		EVALUATOR::EvalPatches(src_data_, src_desc_,
-		                       vertex_data, vertex_desc,
-		                       derivatives, du_desc,
-		                       derivatives, dv_desc,
+		                       &vertex_data, vertex_desc,
+		                       &derivatives, du_desc,
+		                       &derivatives, dv_desc,
 		                       patch_coord_buffer.GetNumVertices(),
 		                       &patch_coord_buffer,
 		                       patch_table_, eval_instance, device_context_);
-		float *refined_verts = vertex_data->BindCpuBuffer();
+		float *refined_verts = vertex_data.BindCpuBuffer();
 		memcpy(P, refined_verts, sizeof(float) * 3);
 		if (dPdu != NULL || dPdv != NULL) {
-			float *refined_drivatives = derivatives->BindCpuBuffer();
+			float *refined_drivatives = derivatives.BindCpuBuffer();
 			if (dPdu) {
 				memcpy(dPdu, refined_drivatives, sizeof(float) * 3);
 			}
@@ -447,8 +477,6 @@ public:
 				memcpy(dPdv, refined_drivatives + 3, sizeof(float) * 3);
 			}
 		}
-		delete vertex_data;
-		delete derivatives;
 	}
 private:
 	SRC_VERTEX_BUFFER *src_data_;
@@ -599,12 +627,12 @@ void openSubdiv_evaluateLimit(OpenSubdiv_EvaluatorDescr *evaluator_descr,
 	        evaluator_descr->patch_map->FindPatch(osd_face_index, face_u, face_v);
 	PatchCoord patch_coord(*handle, face_u, face_v);
 	if (dPdu != NULL || dPdv != NULL) {
-		evaluator_descr->eval_output->EvalPatchCoord(patch_coord, P);
-	}
-	else {
 		evaluator_descr->eval_output->EvalPatchesWithDerivatives(patch_coord,
 		                                                         P,
 		                                                         dPdu,
 		                                                         dPdv);
+	}
+	else {
+		evaluator_descr->eval_output->EvalPatchCoord(patch_coord, P);
 	}
 }
