@@ -28,7 +28,7 @@
 
 /* Perform full topology validation when exporting it to OpenSubdiv. */
 #ifdef NDEBUG
-#  under OPENSUBDIV_VALIDATE_TOPOLOGY
+#  undef OPENSUBDIV_VALIDATE_TOPOLOGY
 #else
 #  define OPENSUBDIV_VALIDATE_TOPOLOGY
 #endif
