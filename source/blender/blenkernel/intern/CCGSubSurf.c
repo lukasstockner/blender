@@ -960,7 +960,6 @@ void ccgSubSurf_free(CCGSubSurf *ss)
 	CCGAllocatorHDL allocator = ss->allocator;
 #ifdef WITH_OPENSUBDIV
 	if (ss->osd_evaluator != NULL) {
-		/* TODO(sergey): Need proper port. */
 		openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
 	}
 	if (ss->osd_mesh != NULL) {
@@ -3044,10 +3043,9 @@ static void ccgSubSurf__sync(CCGSubSurf *ss)
 
 	ss->osd_coords_invalid = true;
 
-
 	/* Make sure OSD evaluator is up-to-date. */
-	if (opensubdiv_ensureEvaluator(ss)) {
-		if (ss->skip_grids == false) {
+	if (ss->skip_grids == false) {
+		if (opensubdiv_ensureEvaluator(ss)) {
 			/* Update coarse points in the OpenSubdiv evaluator. */
 			opensubdiv_updateCoarsePositions(ss);
 
@@ -3055,12 +3053,21 @@ static void ccgSubSurf__sync(CCGSubSurf *ss)
 			opensubdiv_evaluateGrids(ss);
 		}
 		else {
-			BLI_assert(ss->meshIFC.numLayers == 3);
-			opensubdiv_updateCoarseNormals(ss);
+			BLI_assert(!"OpenSubdiv initializetion failed, should not happen.");
 		}
 	}
 	else {
-		BLI_assert(!"OpenSubdiv initializetion failed, should not happen.");
+		BLI_assert(ss->meshIFC.numLayers == 3);
+		/* TODO(sergey): De-duplicate with the case of evalautor. */
+		if (check_topology_changed(ss)) {
+			if (ss->osd_mesh) {
+				ss->osd_mesh_invalid = true;
+			}
+			ss->osd_uvs_invalid = true;
+			ss->osd_topology_changed = false;
+			ss->osd_compute = U.opensubdiv_compute_type;
+		}
+		opensubdiv_updateCoarseNormals(ss);
 	}
 
 #ifdef DUMP_RESULT_GRIDS
