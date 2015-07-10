@@ -364,7 +364,7 @@ OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(DerivedMesh *dm,
 	float *g_positions = new float[3 * num_coarse_verts];
 	conv.get_coarse_verts(g_positions);
 	eval_output->UpdateData(&g_positions[0], 0, num_coarse_verts);
-	delete g_positions;
+	delete [] g_positions;
 	eval_output->Refine();
 
 	OpenSubdiv::Far::PatchMap *patch_map = new PatchMap(*patch_table);
@@ -375,11 +375,9 @@ OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(DerivedMesh *dm,
 	evaluator_descr->patch_map = patch_map;
 
 	/* TOOD(sergey): Look into whether w've got duplicated stencils arrays. */
-	/*
 	delete varying_stencils;
-	delete patch_table;
+	// delete patch_table;
 	delete vertex_stencils;
-	*/
 
 	delete refiner;
 

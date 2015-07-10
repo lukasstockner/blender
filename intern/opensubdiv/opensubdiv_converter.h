@@ -68,7 +68,130 @@ private:
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
+
+namespace Vtr {
+
+class ConstIndexArrayOwn : public ConstIndexArray
+{
+public:
+	ConstIndexArrayOwn(Index *ptr, size_type size)
+	    : ConstIndexArray(ptr, size) { }
+
+	~ConstIndexArrayOwn() {
+		delete [] this->_begin;
+	}
+};
+
+}  /* namespace Vtr */
+
 namespace Far {
+
+/* Hackish approach to ensure proper component orientation.
+ *
+ * TODO(sergey): Get rid of this, it's far too slow.
+ */
+namespace {
+
+using OpenSubdiv::Vtr::ConstIndexArrayOwn;
+
+inline int findInArray(ConstIndexArrayOwn array, Index value)
+{
+	return (int)(std::find(array.begin(), array.end(), value) - array.begin());
+}
+
+inline ConstIndexArrayOwn getVertexEdges(const OsdBlenderConverter& conv, Index vIndex)
+{
+	int num_vert_edges = conv.get_num_vert_edges(vIndex);
+	int *vert_edges = new int[num_vert_edges];
+	conv.get_vert_edges(vIndex, vert_edges);
+	return ConstIndexArrayOwn(vert_edges, num_vert_edges);
+}
+
+inline ConstIndexArrayOwn getVertexFaces(const OsdBlenderConverter& conv, Index vIndex)
+{
+	int num_vert_faces = conv.get_num_vert_faces(vIndex);
+	int *vert_faces = new int[num_vert_faces];
+	conv.get_vert_faces(vIndex, vert_faces);
+	return ConstIndexArrayOwn(vert_faces, num_vert_faces);
+}
+
+inline ConstIndexArrayOwn getFaceVertices(const OsdBlenderConverter& conv, Index fIndex)
+{
+	int num_face_verts = conv.get_num_face_verts(fIndex);
+	int *face_verts = new int[num_face_verts];
+	conv.get_face_verts(fIndex, face_verts);
+	return ConstIndexArrayOwn(face_verts, num_face_verts);
+}
+
+inline ConstIndexArrayOwn getFaceEdges(const OsdBlenderConverter& conv, Index fIndex)
+{
+	int num_face_edges = conv.get_num_face_verts(fIndex);
+	int *face_edges = new int[num_face_edges];
+	conv.get_face_edges(fIndex, face_edges);
+	return ConstIndexArrayOwn(face_edges, num_face_edges);
+}
+
+inline ConstIndexArrayOwn getEdgeFaces(const OsdBlenderConverter& conv, Index eIndex)
+{
+	int num_edge_faces = conv.get_num_edge_faces(eIndex);
+	int *edge_faces = new int[num_edge_faces];
+	conv.get_edge_faces(eIndex, edge_faces);
+	return ConstIndexArrayOwn(edge_faces, num_edge_faces);
+}
+
+void orderVertexFacesAndEdges(const OsdBlenderConverter& conv,
+                              Index vIndex,
+                              Index *vFacesOrdered,
+                              Index *vEdgesOrdered)
+{
+	ConstIndexArrayOwn vEdges = getVertexEdges(conv, vIndex);
+	ConstIndexArrayOwn vFaces = getVertexFaces(conv, vIndex);
+	int fCount = vFaces.size();
+	int eCount = vEdges.size();
+	Index fStart = INDEX_INVALID;
+	Index eStart = INDEX_INVALID;
+	int fvStart = 0;
+	if (eCount == fCount) {
+		fStart  = vFaces[0];
+		fvStart = findInArray(getFaceVertices(conv, fStart), vIndex);
+		eStart = getFaceEdges(conv, fStart)[fvStart];
+	} else {
+		for (int i = 0; i < eCount; ++i) {
+			ConstIndexArrayOwn eFaces = getEdgeFaces(conv, vEdges[i]);
+			if (eFaces.size() == 1) {
+				eStart = vEdges[i];
+				fStart = eFaces[0];
+				fvStart = findInArray(getFaceVertices(conv, fStart), vIndex);
+				if (eStart == (getFaceEdges(conv, fStart)[fvStart])) {
+					break;
+				}
+			}
+		}
+	}
+	int eCountOrdered = 1;
+	int fCountOrdered = 1;
+	vFacesOrdered[0] = fStart;
+	vEdgesOrdered[0] = eStart;
+	while (eCountOrdered < eCount) {
+		ConstIndexArrayOwn fVerts = getFaceVertices(conv, fStart);
+		ConstIndexArrayOwn fEdges = getFaceEdges(conv, fStart);
+		int feStart = fvStart;
+		int feNext  = feStart ? (feStart - 1) : (fVerts.size() - 1);
+		Index eNext = fEdges[feNext];
+		vEdgesOrdered[eCountOrdered++] = eNext;
+		if (fCountOrdered < fCount) {
+			ConstIndexArrayOwn eFaces = getEdgeFaces(conv, eNext);
+			fStart = eFaces[eFaces[0] == fStart];
+			fvStart = findInArray(getFaceEdges(conv, fStart), eNext);
+			vFacesOrdered[fCountOrdered++] = fStart;
+		}
+		eStart = eNext;
+	}
+	assert(eCountOrdered == eCount);
+	assert(fCountOrdered == fCount);
+}
+
+}  /* namespace */
 
 template <>
 inline bool TopologyRefinerFactory<OsdBlenderConverter>::resizeComponentTopology(
@@ -131,10 +254,11 @@ inline bool TopologyRefinerFactory<OsdBlenderConverter>::assignComponentTopology
 	for (int vert = 0; vert < num_verts; ++vert) {
 		/* Vert-Faces */
 		IndexArray dst_vert_faces = getBaseVertexFaces(refiner, vert);
-		conv.get_vert_faces(vert, &dst_vert_faces[0]);
+		//conv.get_vert_faces(vert, &dst_vert_faces[0]);
 		/* Vert-Edges */
 		IndexArray dst_vert_edges = getBaseVertexEdges(refiner, vert);
-		conv.get_vert_edges(vert, &dst_vert_edges[0]);
+		//conv.get_vert_edges(vert, &dst_vert_edges[0]);
+		orderVertexFacesAndEdges(conv, vert, &dst_vert_faces[0], &dst_vert_edges[0]);
 	}
 	populateBaseLocalIndices(refiner);
 	return true;

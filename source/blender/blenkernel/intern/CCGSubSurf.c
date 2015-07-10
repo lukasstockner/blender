@@ -1527,7 +1527,7 @@ static void ccgSubSurf__calcVertNormals(CCGSubSurf *ss,
 	int normalDataOffset = ss->normalDataOffset;
 	int vertDataSize = ss->meshIFC.vertDataSize;
 
-//#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (ptrIdx = 0; ptrIdx < numEffectedF; ptrIdx++) {
 		CCGFace *f = (CCGFace *) effectedF[ptrIdx];
 		int S, x, y;
@@ -1661,7 +1661,7 @@ static void ccgSubSurf__calcVertNormals(CCGSubSurf *ss,
 		}
 	}
 
-//#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (ptrIdx = 0; ptrIdx < numEffectedF; ptrIdx++) {
 		CCGFace *f = (CCGFace *) effectedF[ptrIdx];
 		int S, x, y;
@@ -1728,7 +1728,7 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 	int vertDataSize = ss->meshIFC.vertDataSize;
 	float *q = ss->q, *r = ss->r;
 
-//#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (ptrIdx = 0; ptrIdx < numEffectedF; ptrIdx++) {
 		CCGFace *f = (CCGFace *) effectedF[ptrIdx];
 		int S, x, y;
@@ -2075,17 +2075,17 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 		}
 	}
 
-//#pragma omp parallel private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+#pragma omp parallel private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	{
 		float *q, *r;
 
-//#pragma omp critical
+#pragma omp critical
 		{
 			q = MEM_mallocN(ss->meshIFC.vertDataSize, "CCGSubsurf q");
 			r = MEM_mallocN(ss->meshIFC.vertDataSize, "CCGSubsurf r");
 		}
 
-//#pragma omp for schedule(static)
+#pragma omp for schedule(static)
 		for (ptrIdx = 0; ptrIdx < numEffectedF; ptrIdx++) {
 			CCGFace *f = (CCGFace *) effectedF[ptrIdx];
 			int S, x, y;
@@ -2176,7 +2176,7 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 			}
 		}
 
-//#pragma omp critical
+#pragma omp critical
 		{
 			MEM_freeN(q);
 			MEM_freeN(r);
@@ -2188,14 +2188,14 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 	gridSize = ccg_gridsize(nextLvl);
 	cornerIdx = gridSize - 1;
 
-//#pragma omp parallel for private(i) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+#pragma omp parallel for private(i) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (i = 0; i < numEffectedE; i++) {
 		CCGEdge *e = effectedE[i];
 		VertDataCopy(EDGE_getCo(e, nextLvl, 0), VERT_getCo(e->v0, nextLvl), ss);
 		VertDataCopy(EDGE_getCo(e, nextLvl, edgeSize - 1), VERT_getCo(e->v1, nextLvl), ss);
 	}
 
-//#pragma omp parallel for private(i) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+#pragma omp parallel for private(i) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (i = 0; i < numEffectedF; i++) {
 		CCGFace *f = effectedF[i];
 		int S, x;
@@ -2336,7 +2336,7 @@ static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
 
 	positions = MEM_callocN(2 * sizeof(*positions) * num_basis_verts,
 	                        "OpenSubdiv coarse points");
-//#pragma omp parallel for
+#pragma omp parallel for
 	for (i = 0; i < ss->vMap->curSize; i++) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
@@ -2714,7 +2714,7 @@ static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
 		positions = MEM_callocN(3 * sizeof(float) * num_basis_verts,
 		                        "OpenSubdiv coarse points");
 	}
-//#pragma omp parallel for
+#pragma omp parallel for
 	for (i = 0; i < ss->vMap->curSize; i++) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
@@ -2747,7 +2747,7 @@ static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
 		return;
 	}
 
-//#pragma omp parallel for
+#pragma omp parallel for
 	for (i = 0; i < ss->vMap->curSize; ++i) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
@@ -2756,7 +2756,7 @@ static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
 		}
 	}
 
-//#pragma omp parallel for
+#pragma omp parallel for
 	for (i = 0; i < ss->fMap->curSize; ++i) {
 		CCGFace *f = (CCGFace *) ss->fMap->buckets[i];
 		for (; f; f = f->next) {
@@ -2773,7 +2773,7 @@ static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
 			if (UNLIKELY(normalize_v3(face_no) == 0.0f)) {
 				face_no[2] = 1.0f; /* other axis set to 0.0 */
 			}
-//#pragma omp critical
+#pragma omp critical
 			{
 				for (S = 0; S < f->numVerts; S++) {
 					CCGVert *v = FACE_getVerts(f)[S];
@@ -2784,7 +2784,7 @@ static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
 		}
 	}
 
-//#pragma omp parallel for
+#pragma omp parallel for
 	for (i = 0; i < ss->vMap->curSize; ++i) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
@@ -2806,7 +2806,7 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 	int S;
 	bool do_normals = ss->meshIFC.numLayers == 3;
 
-//#pragma omp parallel for
+#pragma omp parallel for
 	for (S = 0; S < face->numVerts; S++) {
 		int x, y, k;
 		CCGEdge *edge = NULL;
@@ -2954,7 +2954,7 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 	 */
 
 	/* Evaluate face grids. */
-//#pragma omp parallel for
+#pragma omp parallel for
 	for (S = 0; S < face->numVerts; S++) {
 		int x, y;
 		for (x = 0; x < gridSize; x++) {
