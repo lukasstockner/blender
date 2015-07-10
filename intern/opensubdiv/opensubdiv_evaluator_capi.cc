@@ -28,7 +28,6 @@
 #include <cstdio>
 #include <vector>
 
-#include <opensubdiv/far/topologyRefinerFactory.h>
 #include <opensubdiv/far/patchMap.h>
 #include <opensubdiv/far/patchTable.h>
 #include <opensubdiv/far/patchTableFactory.h>
@@ -51,7 +50,6 @@ using OpenSubdiv::Far::PatchTableFactory;
 using OpenSubdiv::Far::StencilTable;
 using OpenSubdiv::Far::StencilTableFactory;
 using OpenSubdiv::Far::TopologyRefiner;
-using OpenSubdiv::Far::TopologyRefinerFactory;
 
 namespace {
 

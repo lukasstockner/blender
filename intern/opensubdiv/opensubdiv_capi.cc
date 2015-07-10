@@ -33,7 +33,6 @@
 #include <GL/glew.h>
 
 #include <opensubdiv/osd/glMesh.h>
-#include <opensubdiv/far/topologyRefinerFactory.h>
 
 /* CPU Backend */
 #include <opensubdiv/osd/cpuGLVertexBuffer.h>

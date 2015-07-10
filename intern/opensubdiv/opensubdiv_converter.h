@@ -29,6 +29,8 @@
 #include <opensubdiv/far/topologyRefinerFactory.h>
 #include <opensubdiv/far/primvarRefiner.h>
 
+#include <cstdio>
+
 extern "C" {
 struct DerivedMesh;
 }
@@ -254,10 +256,10 @@ inline bool TopologyRefinerFactory<OsdBlenderConverter>::assignComponentTopology
 	for (int vert = 0; vert < num_verts; ++vert) {
 		/* Vert-Faces */
 		IndexArray dst_vert_faces = getBaseVertexFaces(refiner, vert);
-		//conv.get_vert_faces(vert, &dst_vert_faces[0]);
+		// conv.get_vert_faces(vert, &dst_vert_faces[0]);
 		/* Vert-Edges */
 		IndexArray dst_vert_edges = getBaseVertexEdges(refiner, vert);
-		//conv.get_vert_edges(vert, &dst_vert_edges[0]);
+		// conv.get_vert_edges(vert, &dst_vert_edges[0]);
 		orderVertexFacesAndEdges(conv, vert, &dst_vert_faces[0], &dst_vert_edges[0]);
 	}
 	populateBaseLocalIndices(refiner);
@@ -275,6 +277,15 @@ inline bool TopologyRefinerFactory<OsdBlenderConverter>::assignComponentTags(
 		setBaseEdgeSharpness(refiner, edge, 0.0f);
 	}
 	return true;
+}
+
+template <>
+inline void TopologyRefinerFactory<OsdBlenderConverter>::reportInvalidTopology(
+        TopologyError /*errCode*/,
+        const char *msg,
+        const OsdBlenderConverter& /*mesh*/)
+{
+	printf("OpenSubdiv Error: %s\n", msg);
 }
 
 }  /* namespace Far */

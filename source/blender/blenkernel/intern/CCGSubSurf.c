@@ -2692,7 +2692,7 @@ static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 	} else {
 		OSD_LOG("Re-using old evaluator\n");
 	}
-	return true;
+	return ss->osd_evaluator != NULL;
 }
 
 static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
