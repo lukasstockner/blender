@@ -236,11 +236,41 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 	GLMeshInterface *mesh = NULL;
 	OpenSubdiv::Far::TopologyRefiner *refiner = openSubdiv_topologyRefinerFromDM(dm);
 
-	mesh = new OsdCpuMesh(refiner,
-	                      num_vertex_elements,
-	                      num_varying_elements,
-	                      level,
-	                      bits);
+	switch(evaluator_type) {
+#define CHECK_EVALUATOR_TYPE(type, class) \
+		case OPENSUBDIV_EVALUATOR_ ## type: \
+			mesh = new class(refiner, \
+			                 num_vertex_elements, \
+			                 num_varying_elements, \
+			                 level, \
+			                 bits); \
+			break;
+
+		CHECK_EVALUATOR_TYPE(CPU, OsdCpuMesh)
+
+#ifdef OPENSUBDIV_HAS_OPENMP
+		CHECK_EVALUATOR_TYPE(OPENMP, OsdOmpMesh)
+#endif
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+		CHECK_EVALUATOR_TYPE(OPENCL, OsdCLMesh)
+#endif
+
+#ifdef OPENSUBDIV_HAS_CUDA
+		CHECK_EVALUATOR_TYPE(CUDA, OsdCudaMesh)
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+		CHECK_EVALUATOR_TYPE(GLSL_TRANSFORM_FEEDBACK,
+		                     OsdGLSLTransformFeedbackMesh)
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+		CHECK_EVALUATOR_TYPE(GLSL_COMPUTE, OsdGLSLComputeMesh)
+#endif
+
+#undef CHECK_EVALUATOR_TYPE
+	}
 
 	if (mesh == NULL) {
 		return NULL;
