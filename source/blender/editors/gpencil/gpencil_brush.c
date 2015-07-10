@@ -450,6 +450,28 @@ static void gp_brush_grab_stroke_free(void *ptr)
 	MEM_freeN(data);
 }
 
+/* ----------------------------------------------- */
+/* Push Brush */
+/* NOTE: Depends on gp_brush_grab_calc_dvec() */
+
+static bool gp_brush_push_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
+                                const int radius, const int co[2])
+{
+	bGPDspoint *pt = gps->points + i;
+	float inf = gp_brush_influence_calc(gso, radius, co);
+	float delta[3] = {0.0f};
+		
+	/* adjust the amount of displacement to apply */
+	mul_v3_v3fl(delta, gso->dvec, inf);
+	
+	/* apply */
+	add_v3_v3(&pt->x, delta);
+
+	/* done */
+	return true;
+}
+
+
 /* ************************************************ */
 /* Cursor drawing */
 
@@ -707,6 +729,7 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 	/* Calculate brush-specific data which applies equally to all points */
 	switch (gso->brush_type) {
 		case GP_EDITBRUSH_TYPE_GRAB: /* Grab points */
+		case GP_EDITBRUSH_TYPE_PUSH: /* Push points */
 		{
 			/* calculate amount of displacement to apply */
 			gp_brush_grab_calc_dvec(gso);
@@ -749,6 +772,12 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 					gp_brush_grab_apply_cached(gso, gps);
 					changed |= true;
 				}
+			}
+			break;
+			
+			case GP_EDITBRUSH_TYPE_PUSH: /* Push points */
+			{
+				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_push_apply);
 			}
 			break;
 			
