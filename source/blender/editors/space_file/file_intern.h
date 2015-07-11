@@ -109,6 +109,7 @@ int file_highlight_set(struct SpaceFile *sfile, struct ARegion *ar, int mx, int 
 
 
 /* filesel.c */
+void fileselect_file_set(SpaceFile *sfile, const int index);
 float file_string_width(const char *str);
 
 float file_font_pointsize(void);

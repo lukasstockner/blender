@@ -447,7 +447,7 @@ static int debug_mode(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	G.debug |= G_DEBUG;  /* std output printf's */
 	printf(BLEND_VERSION_STRING_FMT);
 	MEM_set_memory_debug();
-#ifdef DEBUG
+#ifndef NDEBUG
 	BLI_mempool_set_memory_debug();
 #endif
 
