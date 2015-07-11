@@ -3364,6 +3364,18 @@ static void write_linestyle_color_modifiers(WriteData *wd, ListBase *modifiers)
 		case LS_MODIFIER_MATERIAL:
 			struct_name = "LineStyleColorModifier_Material";
 			break;
+		case LS_MODIFIER_TANGENT:
+			struct_name = "LineStyleColorModifier_Tangent";
+			break;
+		case LS_MODIFIER_NOISE:
+			struct_name = "LineStyleColorModifier_Noise";
+			break;
+		case LS_MODIFIER_CREASE_ANGLE:
+			struct_name = "LineStyleColorModifier_CreaseAngle";
+			break;
+		case LS_MODIFIER_CURVATURE_3D:
+			struct_name = "LineStyleColorModifier_Curvature_3D";
+			break;
 		default:
 			struct_name = "LineStyleColorModifier"; /* this should not happen */
 		}
@@ -3382,6 +3394,18 @@ static void write_linestyle_color_modifiers(WriteData *wd, ListBase *modifiers)
 			break;
 		case LS_MODIFIER_MATERIAL:
 			writestruct(wd, DATA, "ColorBand", 1, ((LineStyleColorModifier_Material *)m)->color_ramp);
+			break;
+		case LS_MODIFIER_TANGENT:
+			writestruct(wd, DATA, "ColorBand", 1, ((LineStyleColorModifier_Tangent *)m)->color_ramp);
+			break;
+		case LS_MODIFIER_NOISE:
+			writestruct(wd, DATA, "ColorBand", 1, ((LineStyleColorModifier_Noise *)m)->color_ramp);
+			break;
+		case LS_MODIFIER_CREASE_ANGLE:
+			writestruct(wd, DATA, "ColorBand", 1, ((LineStyleColorModifier_CreaseAngle *)m)->color_ramp);
+			break;
+		case LS_MODIFIER_CURVATURE_3D:
+			writestruct(wd, DATA, "ColorBand", 1, ((LineStyleColorModifier_Curvature_3D *)m)->color_ramp);
 			break;
 		}
 	}
@@ -3406,6 +3430,18 @@ static void write_linestyle_alpha_modifiers(WriteData *wd, ListBase *modifiers)
 		case LS_MODIFIER_MATERIAL:
 			struct_name = "LineStyleAlphaModifier_Material";
 			break;
+		case LS_MODIFIER_TANGENT:
+			struct_name = "LineStyleAlphaModifier_Tangent";
+			break;
+		case LS_MODIFIER_NOISE:
+			struct_name = "LineStyleAlphaModifier_Noise";
+			break;
+		case LS_MODIFIER_CREASE_ANGLE:
+			struct_name = "LineStyleAlphaModifier_CreaseAngle";
+			break;
+		case LS_MODIFIER_CURVATURE_3D:
+			struct_name = "LineStyleAlphaModifier_Curvature_3D";
+			break;
 		default:
 			struct_name = "LineStyleAlphaModifier"; /* this should not happen */
 		}
@@ -3424,6 +3460,18 @@ static void write_linestyle_alpha_modifiers(WriteData *wd, ListBase *modifiers)
 			break;
 		case LS_MODIFIER_MATERIAL:
 			write_curvemapping(wd, ((LineStyleAlphaModifier_Material *)m)->curve);
+			break;
+		case LS_MODIFIER_TANGENT:
+			write_curvemapping(wd, ((LineStyleAlphaModifier_Tangent *)m)->curve);
+			break;
+		case LS_MODIFIER_NOISE:
+			write_curvemapping(wd, ((LineStyleAlphaModifier_Noise *)m)->curve);
+			break;
+		case LS_MODIFIER_CREASE_ANGLE:
+			write_curvemapping(wd, ((LineStyleAlphaModifier_CreaseAngle *)m)->curve);
+			break;
+		case LS_MODIFIER_CURVATURE_3D:
+			write_curvemapping(wd, ((LineStyleAlphaModifier_Curvature_3D *)m)->curve);
 			break;
 		}
 	}
@@ -3451,6 +3499,18 @@ static void write_linestyle_thickness_modifiers(WriteData *wd, ListBase *modifie
 		case LS_MODIFIER_CALLIGRAPHY:
 			struct_name = "LineStyleThicknessModifier_Calligraphy";
 			break;
+		case LS_MODIFIER_TANGENT:
+			struct_name = "LineStyleThicknessModifier_Tangent";
+			break;
+		case LS_MODIFIER_NOISE:
+			struct_name = "LineStyleThicknessModifier_Noise";
+			break;
+		case LS_MODIFIER_CREASE_ANGLE:
+			struct_name = "LineStyleThicknessModifier_CreaseAngle";
+			break;
+		case LS_MODIFIER_CURVATURE_3D:
+			struct_name = "LineStyleThicknessModifier_Curvature_3D";
+			break;
 		default:
 			struct_name = "LineStyleThicknessModifier"; /* this should not happen */
 		}
@@ -3469,6 +3529,15 @@ static void write_linestyle_thickness_modifiers(WriteData *wd, ListBase *modifie
 			break;
 		case LS_MODIFIER_MATERIAL:
 			write_curvemapping(wd, ((LineStyleThicknessModifier_Material *)m)->curve);
+			break;
+		case LS_MODIFIER_TANGENT:
+			write_curvemapping(wd, ((LineStyleThicknessModifier_Tangent *)m)->curve);
+			break;
+		case LS_MODIFIER_CREASE_ANGLE:
+			write_curvemapping(wd, ((LineStyleThicknessModifier_CreaseAngle *)m)->curve);
+			break;
+		case LS_MODIFIER_CURVATURE_3D:
+			write_curvemapping(wd, ((LineStyleThicknessModifier_Curvature_3D *)m)->curve);
 			break;
 		}
 	}
@@ -3519,6 +3588,9 @@ static void write_linestyle_geometry_modifiers(WriteData *wd, ListBase *modifier
 			break;
 		case LS_MODIFIER_2D_TRANSFORM:
 			struct_name = "LineStyleGeometryModifier_2DTransform";
+			break;
+		case LS_MODIFIER_SIMPLIFICATION:
+			struct_name = "LineStyleGeometryModifier_Simplification";
 			break;
 		default:
 			struct_name = "LineStyleGeometryModifier"; /* this should not happen */

@@ -389,10 +389,10 @@ void BLI_filelist_duplicate(
 void BLI_filelist_entry_free(struct direntry *entry)
 {
 	if (entry->relname) {
-		MEM_freeN(entry->relname);
+		MEM_freeN((void *)entry->relname);
 	}
 	if (entry->path) {
-		MEM_freeN(entry->path);
+		MEM_freeN((void *)entry->path);
 	}
 }
 
