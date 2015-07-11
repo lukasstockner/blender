@@ -2312,10 +2312,45 @@ static void ccgSubSurf__dumpCoords(CCGSubSurf *ss)
 
 #  define OSD_LOG if (false) printf
 
+static bool ccgSubSurf_checkDMTopologyChanged(DerivedMesh *dm, DerivedMesh *dm2)
+{
+	const int num_verts = dm->getNumVerts(dm);
+	const int num_polys = dm->getNumPolys(dm);
+	const MPoly *mpoly = dm->getPolyArray(dm);
+	const MPoly *mpoly2 = dm2->getPolyArray(dm2);
+	const MLoop *mloop = dm->getLoopArray(dm);
+	const MLoop *mloop2 = dm2->getLoopArray(dm2);
+	int poly_index;
+
+	/* Quick tests based on the number of verts and facces. */
+	if (num_verts != dm2->getNumVerts(dm2) ||
+	    num_polys != dm2->getNumPolys(dm2))
+	{
+		return true;
+	}
+
+	/* Rather slow check for faces topology change. */
+	for (poly_index = 0; poly_index < num_polys; poly_index++, mpoly++, mpoly2++) {
+		int S;
+		if (mpoly->totloop != mpoly2->totloop) {
+			return true;
+		}
+		for (S = 0; S < mpoly->totloop; ++S) {
+			if (mloop[mpoly->loopstart + S].v != mloop2[mpoly2->loopstart + S].v) {
+				return true;
+			}
+		}
+	}
+	/* TODO(sergey): Check whether crease changed. */
+	return false;
+}
+
 void ccgSubSurf_setDerivedMesh(CCGSubSurf *ss, DerivedMesh *dm)
 {
 	if (ss->dm != NULL) {
-		/* TODO(sergey): Add topology comparison here. */
+		if (ccgSubSurf_checkDMTopologyChanged(ss->dm, dm)) {
+			ss->osd_topology_changed = true;
+		}
 		ss->dm->needsFree = 1;
 		ss->dm->release(ss->dm);
 	}
