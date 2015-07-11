@@ -1075,6 +1075,7 @@ typedef enum eGP_EditBrush_Types {
 	GP_EDITBRUSH_TYPE_PINCH     = 5,
 	GP_EDITBRUSH_TYPE_RANDOMISE = 6,
 	
+	/* !!! Update GP_EditBrush_Data brush[###]; below !!! */
 	TOT_GP_EDITBRUSH_TYPES
 } eGP_EditBrush_Types;
 
@@ -1104,7 +1105,7 @@ typedef enum eGP_EditBrush_Flag {
 
 /* GPencil Stroke Sculpting Settings */
 typedef struct GP_BrushEdit_Settings {
-	GP_EditBrush_Data brush[4];   /* 4 = TOT_GP_EDITBRUSH_TYPES */
+	GP_EditBrush_Data brush[7];   /* TOT_GP_EDITBRUSH_TYPES */
 	void *paintcursor;            /* runtime */
 	
 	int brushtype;                /* eGP_EditBrush_Types */
