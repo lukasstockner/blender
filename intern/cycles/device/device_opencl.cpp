@@ -77,6 +77,8 @@ cl_device_type opencl_device_type()
 	char *device = getenv("CYCLES_OPENCL_TEST");
 
 	if(device) {
+		if(strcmp(device, "NONE") == 0)
+			return 0;
 		if(strcmp(device, "ALL") == 0)
 			return CL_DEVICE_TYPE_ALL;
 		else if(strcmp(device, "DEFAULT") == 0)
@@ -141,7 +143,7 @@ bool opencl_device_supported(const string& platform_name,
 	if(platform_name == "AMD Accelerated Parallel Processing" &&
 	   device_type == CL_DEVICE_TYPE_GPU)
 	{
-		return true;;
+		return true;
 	}
 	return false;
 }
@@ -210,6 +212,10 @@ void opencl_get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices)
 	        (getenv("CYCLES_OPENCL_TEST") != NULL) ||
 	        (getenv("CYCLES_OPENCL_SPLIT_KERNEL_TEST")) != NULL;
 	const cl_device_type device_type = opencl_device_type();
+
+	if(device_type == 0) {
+		return;
+	}
 
 	vector<cl_device_id> device_ids;
 	cl_uint num_devices = 0;
@@ -2849,16 +2855,25 @@ public:
 		/* Macro for Enqueuing split kernels. */
 #define GLUE(a, b) a ## b
 #define ENQUEUE_SPLIT_KERNEL(kernelName, globalSize, localSize) \
-		opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, \
-		                                     GLUE(ckPathTraceKernel_, \
-		                                          kernelName), \
-		                                     2, \
-		                                     NULL, \
-		                                     globalSize, \
-		                                     localSize, \
-		                                     0, \
-		                                     NULL, \
-		                                     NULL))
+		{ \
+			ciErr = clEnqueueNDRangeKernel(cqCommandQueue, \
+			                               GLUE(ckPathTraceKernel_, \
+			                                    kernelName), \
+			                               2, \
+			                               NULL, \
+			                               globalSize, \
+			                               localSize, \
+			                               0, \
+			                               NULL, \
+			                               NULL); \
+			opencl_assert_err(ciErr, "clEnqueueNDRangeKernel"); \
+			if(ciErr != CL_SUCCESS) { \
+				string message = string_printf("OpenCL error: %s in clEnqueueNDRangeKernel()", \
+				                               clewErrorString(ciErr)); \
+				opencl_error(message); \
+				return; \
+			} \
+		} (void) 0
 
 		/* Enqueue ckPathTraceKernel_data_init kernel. */
 		ENQUEUE_SPLIT_KERNEL(data_init, global_size, local_size);
@@ -3409,7 +3424,17 @@ bool device_opencl_init(void)
 
 	initialized = true;
 
-	result = clewInit() == CLEW_SUCCESS;
+	int clew_result = clewInit();
+	if(clew_result == CLEW_SUCCESS) {
+		VLOG(1) << "CLEW initialization succeeded.";
+		result = true;
+	}
+	else {
+		VLOG(1) << "CLEW initialization failed: "
+		        << ((clew_result == CLEW_ERROR_ATEXIT_FAILED)
+		            ? "Error setting up atexit() handler"
+		            : "Error opening the library");
+	}
 
 	return result;
 }
@@ -3471,6 +3496,9 @@ void device_opencl_info(vector<DeviceInfo>& devices)
 
 string device_opencl_capabilities(void)
 {
+	if(opencl_device_type() == 0) {
+		return "All OpenCL devices are forced to be OFF";
+	}
 	string result = "";
 	string error_msg = "";  /* Only used by opencl_assert(), but in the future
 	                         * it could also be nicely reported to the console.

@@ -465,8 +465,9 @@ static GPUBuffer *gpu_try_realloc(GPUBufferPool *pool, GPUBuffer *buffer, int si
 	return buffer;
 }
 
-typedef void (*GPUBufferCopyFunc)(DerivedMesh *dm, float *varray, int *index,
-                                  int *mat_orig_to_new, void *user_data);
+typedef void (*GPUBufferCopyFunc)(
+        DerivedMesh *dm, float *varray, int *index,
+        const int *mat_orig_to_new, const void *user_data);
 
 static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
                                    int type, void *user)
@@ -1065,8 +1066,8 @@ struct GPU_PBVH_Buffers {
 	GLenum index_type;
 
 	/* mesh pointers in case buffer allocation fails */
-	MFace *mface;
-	MVert *mvert;
+	const MFace *mface;
+	const MVert *mvert;
 	const int *face_indices;
 	int totface;
 	const float *vmask;
@@ -1171,9 +1172,10 @@ static void gpu_color_from_mask_quad_set(const CCGKey *key,
 	glColor3f(diffuse_color[0] * color, diffuse_color[1] * color, diffuse_color[2] * color);
 }
 
-void GPU_update_mesh_pbvh_buffers(GPU_PBVH_Buffers *buffers, MVert *mvert,
-                                  int *vert_indices, int totvert, const float *vmask,
-                                  int (*face_vert_indices)[4], bool show_diffuse_color)
+void GPU_update_mesh_pbvh_buffers(
+        GPU_PBVH_Buffers *buffers, const MVert *mvert,
+        const int *vert_indices, int totvert, const float *vmask,
+        const int (*face_vert_indices)[4], bool show_diffuse_color)
 {
 	VertexBufferFormat *vert_data;
 	int i, j, k;
@@ -1189,7 +1191,7 @@ void GPU_update_mesh_pbvh_buffers(GPU_PBVH_Buffers *buffers, MVert *mvert,
 		if (buffers->use_matcaps)
 			diffuse_color[0] = diffuse_color[1] = diffuse_color[2] = 1.0;
 		else if (show_diffuse_color) {
-			MFace *f = buffers->mface + buffers->face_indices[0];
+			const MFace *f = buffers->mface + buffers->face_indices[0];
 
 			GPU_material_diffuse_get(f->mat_nr + 1, diffuse_color);
 		}
@@ -1210,7 +1212,7 @@ void GPU_update_mesh_pbvh_buffers(GPU_PBVH_Buffers *buffers, MVert *mvert,
 			 * shouldn't be shared. */
 			if (buffers->smooth) {
 				for (i = 0; i < totvert; ++i) {
-					MVert *v = mvert + vert_indices[i];
+					const MVert *v = &mvert[vert_indices[i]];
 					VertexBufferFormat *out = vert_data + i;
 
 					copy_v3_v3(out->co, v->co);
@@ -1227,7 +1229,7 @@ void GPU_update_mesh_pbvh_buffers(GPU_PBVH_Buffers *buffers, MVert *mvert,
 				} (void)0
 
 				for (i = 0; i < buffers->totface; i++) {
-					MFace *f = buffers->mface + buffers->face_indices[i];
+					const MFace *f = buffers->mface + buffers->face_indices[i];
 
 					UPDATE_VERTEX(i, f->v1, 0, diffuse_color);
 					UPDATE_VERTEX(i, f->v2, 1, diffuse_color);
@@ -1309,10 +1311,11 @@ void GPU_update_mesh_pbvh_buffers(GPU_PBVH_Buffers *buffers, MVert *mvert,
 	buffers->mvert = mvert;
 }
 
-GPU_PBVH_Buffers *GPU_build_mesh_pbvh_buffers(int (*face_vert_indices)[4],
-                                              MFace *mface, MVert *mvert,
-                                              int *face_indices,
-                                              int totface)
+GPU_PBVH_Buffers *GPU_build_mesh_pbvh_buffers(
+        const int (*face_vert_indices)[4],
+        const MFace *mface, const MVert *mvert,
+        const int *face_indices,
+        int totface)
 {
 	GPU_PBVH_Buffers *buffers;
 	unsigned short *tri_data;
@@ -1965,9 +1968,9 @@ static void gpu_draw_buffers_legacy_mesh(GPU_PBVH_Buffers *buffers)
 	}
 
 	for (i = 0; i < buffers->totface; ++i) {
-		MFace *f = buffers->mface + buffers->face_indices[i];
+		const MFace *f = &buffers->mface[buffers->face_indices[i]];
 		int S = f->v4 ? 4 : 3;
-		unsigned int *fv = &f->v1;
+		const unsigned int *fv = &f->v1;
 
 		if (paint_is_face_hidden(f, buffers->mvert))
 			continue;
@@ -2257,7 +2260,7 @@ bool GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, GSet *bm_faces,
 		return false;
 
 	if (buffers->mface) {
-		MFace *f = buffers->mface + buffers->face_indices[0];
+		const MFace *f = &buffers->mface[buffers->face_indices[0]];
 
 		GPU_material_diffuse_get(f->mat_nr + 1, diffuse_color);
 	}
