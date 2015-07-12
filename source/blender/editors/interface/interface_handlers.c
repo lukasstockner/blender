@@ -3653,7 +3653,7 @@ static int ui_do_but_HOTKEYEVT(bContext *C, uiBut *but, uiHandleButtonData *data
 		if (event->val == KM_PRESS) {
 			if (ISHOTKEY(event->type)) {
 				
-				if (WM_key_event_string(event->type)[0])
+				if (WM_key_event_string(event->type, false)[0])
 					ui_but_value_set(but, event->type);
 				else
 					data->cancel = true;
@@ -3689,7 +3689,7 @@ static int ui_do_but_KEYEVT(bContext *C, uiBut *but, uiHandleButtonData *data, c
 		}
 
 		if (event->val == KM_PRESS) {
-			if (WM_key_event_string(event->type)[0])
+			if (WM_key_event_string(event->type, false)[0])
 				ui_but_value_set(but, event->type);
 			else
 				data->cancel = true;
@@ -3947,7 +3947,7 @@ static float ui_numedit_apply_snapf(
 		/* workaround, too high snapping values */
 		/* snapping by 10's for float buttons is quite annoying (location, scale...),
 		 * but allow for rotations */
-		if ((softrange > 2100.0f)) {
+		if (softrange >= 21.0f) {
 			int unit_type = UI_but_unit_type_get(but);
 			if (!ELEM(unit_type, PROP_UNIT_ROTATION)) {
 				softrange = 20.0f;
@@ -6274,7 +6274,7 @@ static void but_shortcut_name_func(bContext *C, void *arg1, int UNUSED(event))
 		
 		/* complex code to change name of button */
 		if (WM_key_event_operator_string(C, but->optype->idname, but->opcontext, prop, true,
-		                                 shortcut_str, sizeof(shortcut_str)))
+		                                 sizeof(shortcut_str), shortcut_str))
 		{
 			ui_but_add_shortcut(but, shortcut_str, true);
 		}
