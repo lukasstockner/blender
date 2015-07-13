@@ -2855,8 +2855,8 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 	char *cpoin = NULL;
 
 	wt->state(wt, state);
-	wt->draw(&wt->wcol, rect, 0, 0);
-	
+	wt->draw_type->draw(&wt->wcol, rect, 0, 0);
+
 	UI_fontstyle_set(fstyle);
 	fstyle->align = UI_STYLE_TEXT_LEFT;
 	
