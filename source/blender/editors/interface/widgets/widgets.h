@@ -64,6 +64,7 @@ typedef struct uiWidgetDrawStyle {
 	                 *filename,
 	                 *icon,
 	                 *label,
+	                 *link,
 	                 *listitem,
 	                 *menu_back,
 	                 *menu_icon_radio,

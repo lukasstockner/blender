@@ -145,6 +145,22 @@ static void widget_icon_has_anim(uiBut *but, uiWidgetColors *wcol, rcti *rect, i
 	}
 }
 
+static void widget_link(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+{
+	if (but->flag & UI_SELECT) {
+		rcti rectlink;
+
+		UI_ThemeColor(TH_TEXT_HI);
+
+		rectlink.xmin = BLI_rcti_cent_x(rect);
+		rectlink.ymin = BLI_rcti_cent_y(rect);
+		rectlink.xmax = but->linkto[0];
+		rectlink.ymax = but->linkto[1];
+
+		ui_draw_link_bezier(&rectlink);
+	}
+}
+
 static void widget_list_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
 	uiWidgetBase wtb;
@@ -657,6 +673,13 @@ uiWidgetDrawType drawtype_classic_label = {
 	/* text */   NULL,
 };
 
+uiWidgetDrawType drawtype_classic_link = {
+	/* state */  NULL,
+	/* draw */   NULL,
+	/* custom */ widget_link,
+	/* text */   NULL,
+};
+
 uiWidgetDrawType drawtype_classic_listitem = {
 	/* state */  NULL,
 	/* draw */   widget_list_itembut,
@@ -791,6 +814,7 @@ uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* filename */          NULL, /* not used (yet?) */
 	/* icon */              &drawtype_classic_icon,
 	/* label */             &drawtype_classic_label,
+	/* link */              &drawtype_classic_link,
 	/* listitem */          &drawtype_classic_listitem,
 	/* menu_back */         &drawtype_classic_menu_back,
 	/* menu_icon_radio */   &drawtype_classic_menu_icon_radio,

@@ -2104,23 +2104,6 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
 	}
 }
 
-static void widget_link(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
-{
-	
-	if (but->flag & UI_SELECT) {
-		rcti rectlink;
-		
-		UI_ThemeColor(TH_TEXT_HI);
-		
-		rectlink.xmin = BLI_rcti_cent_x(rect);
-		rectlink.ymin = BLI_rcti_cent_y(rect);
-		rectlink.xmax = but->linkto[0];
-		rectlink.ymax = but->linkto[1];
-		
-		ui_draw_link_bezier(&rectlink);
-	}
-}
-
 /* labels use Editor theme colors for text */
 static void widget_state_label(uiWidgetType *wt, int state)
 {
@@ -2345,6 +2328,9 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			wt.draw_type = draw_style->menu_item_radial;
 			wt.state = widget_state_pie_menu_item;
 			break;
+
+		case UI_WTYPE_LINK:
+			wt.draw_type = draw_style->link;
 	}
 	
 	return &wt;
@@ -2548,9 +2534,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				
 			case UI_BTYPE_LINK:
 			case UI_BTYPE_INLINK:
-				wt = widget_type(UI_WTYPE_ICON);
-				wt->custom = widget_link;
-				
+				wt = widget_type(UI_WTYPE_LINK);
 				break;
 			
 			case UI_BTYPE_EXTRA:
