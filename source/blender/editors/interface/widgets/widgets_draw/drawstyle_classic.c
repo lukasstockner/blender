@@ -77,6 +77,20 @@ static void widget_box(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(
 	copy_v3_v3_char(wcol->inner, old_col);
 }
 
+static void widget_but(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+{
+	uiWidgetBase wtb;
+	float rad;
+
+	widgetbase_init(&wtb);
+
+	/* half rounded */
+	rad = 0.2f * U.widget_unit;
+	round_box_edges(&wtb, roundboxalign, rect, rad);
+
+	widgetbase_draw(&wtb, wcol);
+}
+
 static void widget_checkbox(uiWidgetColors *wcol, rcti *rect, int state, int UNUSED(roundboxalign))
 {
 	uiWidgetBase wtb;
@@ -640,7 +654,7 @@ static void widget_numbut(uiWidgetColors *wcol, rcti *rect, int state, int round
 
 uiWidgetDrawType drawtype_classic_box = {
 	/* state */  NULL,
-	/* draw */   NULL,
+	/* draw */   widget_but,
 	/* custom */ widget_box,
 	/* text */   NULL,
 };
@@ -771,6 +785,13 @@ uiWidgetDrawType drawtype_classic_radio = {
 	/* text */   NULL,
 };
 
+uiWidgetDrawType drawtype_classic_regular = {
+	/* state */  NULL,
+	/* draw */   widget_but,
+	/* custom */ NULL,
+	/* text */   NULL,
+};
+
 uiWidgetDrawType drawtype_classic_scroll = {
 	/* state */  NULL,
 	/* draw */   NULL,
@@ -789,6 +810,13 @@ uiWidgetDrawType drawtype_classic_swatch = {
 	/* state */  NULL,
 	/* draw */   NULL,
 	/* custom */ widget_swatch,
+	/* text */   NULL,
+};
+
+uiWidgetDrawType drawtype_classic_toggle = {
+	/* state */  NULL,
+	/* draw */   widget_but,
+	/* custom */ NULL,
 	/* text */   NULL,
 };
 
@@ -830,12 +858,12 @@ uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* progressbar */       &drawtype_classic_progressbar,
 	/* pulldown */          &drawtype_classic_pulldown,
 	/* radio */             &drawtype_classic_radio,
-	/* regular */           NULL,
+	/* regular */           &drawtype_classic_regular,
 	/* rgb_picker */        NULL, /* not used (yet?) */
 	/* scroll */            &drawtype_classic_scroll,
 	/* slider */            &drawtype_classic_numslider,
 	/* swatch */            &drawtype_classic_swatch,
-	/* toggle */            NULL,
+	/* toggle */            &drawtype_classic_toggle,
 	/* tooltip */           &drawtype_classic_tooltip,
 	/* unitvec */           &drawtype_classic_unitvec,
 };

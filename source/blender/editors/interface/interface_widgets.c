@@ -2188,6 +2188,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 
 	switch (type) {
 		case UI_WTYPE_REGULAR:
+			wt.draw_type = draw_style->regular;
 			break;
 
 		case UI_WTYPE_LABEL:
@@ -2197,6 +2198,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			
 		case UI_WTYPE_TOGGLE:
 			wt.wcol_theme = &btheme->tui.wcol_toggle;
+			wt.draw_type = draw_style->toggle;
 			break;
 			
 		case UI_WTYPE_CHECKBOX:
@@ -2331,6 +2333,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 
 		case UI_WTYPE_LINK:
 			wt.draw_type = draw_style->link;
+			break;
 	}
 	
 	return &wt;
@@ -2840,9 +2843,9 @@ void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 
 	wt->state(wt, 0);
 	if (block)
-		wt->draw(&wt->wcol, rect, block->flag, UI_CNR_ALL);
+		wt->draw_type->draw(&wt->wcol, rect, block->flag, UI_CNR_ALL);
 	else
-		wt->draw(&wt->wcol, rect, 0, UI_CNR_ALL);
+		wt->draw_type->draw(&wt->wcol, rect, 0, UI_CNR_ALL);
 }
 
 
