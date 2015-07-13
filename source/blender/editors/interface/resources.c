@@ -2658,6 +2658,36 @@ void init_userdef_do_versions(void)
 			0,
 			0, 0
 		};
+
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			btheme->tui.wcol_tab = wcol_tab;
+			for (ts = UI_THEMESPACE_START(btheme); ts != UI_THEMESPACE_END(btheme); ts++) {
+				copy_v4_v4_char(ts->tabs.tab_active, ts->tab_active);
+				copy_v4_v4_char(ts->tabs.tab_inactive, ts->tab_inactive);
+				copy_v4_v4_char(ts->tabs.tab_back, ts->tab_back);
+				copy_v4_v4_char(ts->tabs.tab_outline, ts->tab_outline);
+			}
+		}
+	}
+
+	if (!USER_VERSION_ATLEAST(275, 3)) {
+		bTheme *btheme;
+		ThemeSpace *ts;
+
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			for (ts = UI_THEMESPACE_START(btheme); ts != UI_THEMESPACE_END(btheme); ts++) {
+				/* XXX maybe remove show_back/show_header options? */
+				ts->panelcolors.show_back = ts->panelcolors.show_header = true;
+				rgba_char_args_set(ts->panelcolors.back, 128, 128, 128, 255);
+				rgba_char_args_set(ts->panelcolors.header, 97, 97, 97, 255);
+			}
+
+			rgba_char_args_set_fl(btheme->tui.area_edges, 0.10f, 0.10f, 0.10f, 1.0f);
+
+			btheme->tui.interface_style = TH_IFACE_STYLE_FLAT;
+
+			ui_widget_color_init(&btheme->tui);
+		}
 	}
 
 	if (U.pixelsize == 0.0f)

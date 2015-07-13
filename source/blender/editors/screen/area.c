@@ -99,7 +99,8 @@ static void region_draw_emboss(const ARegion *ar, const rcti *scirct)
 	}
 	/* top  */
 	else {
-		BLI_assert(ar->alignment == RGN_ALIGN_BOTTOM);
+		/* XXX (julian) */
+//		BLI_assert(ar->alignment == RGN_ALIGN_BOTTOM);
 		sdrawline(rect.xmin, rect.ymax, rect.xmax, rect.ymax);
 	}
 

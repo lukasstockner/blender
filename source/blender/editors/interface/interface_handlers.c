@@ -7423,7 +7423,8 @@ static uiSubBut *ui_subbut_find_mouse_over(const ARegion *ar, const uiBut *but, 
 	float mx = mouse_xy[0];
 	float my = mouse_xy[1];
 
-	BLI_assert(ui_but_contains_point_px(ar, but, UNPACK2(mouse_xy)));
+	/* XXX (julian) */
+//	BLI_assert(ui_but_contains_point_px(ar, but, UNPACK2(mouse_xy)));
 
 	ui_window_to_block_fl(ar, but->block, &mx, &my);
 
