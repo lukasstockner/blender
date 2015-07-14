@@ -80,10 +80,7 @@ typedef struct uiWidgetType {
 	uiWidgetDrawType *draw_type;
 
 	void (*state)(struct uiWidgetType *, int state);
-	void (*draw)(uiWidgetColors *, rcti *, int state, int roundboxalign);
-	void (*custom)(uiBut *, uiWidgetColors *, rcti *, int state, int roundboxalign);
 	void (*text)(uiFontStyle *, uiWidgetColors *, uiBut *, rcti *);
-	
 } uiWidgetType;
 
 
@@ -2124,20 +2121,6 @@ static void widget_state_label(uiWidgetType *wt, int state)
 	}
 }
 
-static void widget_but(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
-{
-	uiWidgetBase wtb;
-	float rad;
-	
-	widgetbase_init(&wtb);
-	
-	/* half rounded */
-	rad = 0.2f * U.widget_unit;
-	round_box_edges(&wtb, roundboxalign, rect, rad);
-	
-	widgetbase_draw(&wtb, wcol);
-}
-
 static void widget_draw_extra_mask(const bContext *C, uiBut *but, uiWidgetType *wt, rcti *rect)
 {
 	uiWidgetBase wtb;
@@ -2182,8 +2165,6 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 
 	/* XXX remove usages, use wt.draw_type */
 	wt.state = widget_state;
-	wt.draw = widget_but;
-	wt.custom = NULL;
 	wt.text = widget_draw_text_icon;
 
 	switch (type) {
@@ -2635,19 +2616,11 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 			ui_widget_color_disabled(wt);
 
 		wt->state(wt, state);
-		if (wt->draw_type) {
-			if (wt->draw_type->custom) {
-				wt->draw_type->custom(but, &wt->wcol, rect, state, roundboxalign);
-			}
-			else if (wt->draw_type->draw) {
-				wt->draw_type->draw(&wt->wcol, rect, state, roundboxalign);
-			}
+		if (wt->draw_type->custom) {
+			wt->draw_type->custom(but, &wt->wcol, rect, state, roundboxalign);
 		}
-		else {
-			if (wt->custom)
-				wt->custom(but, &wt->wcol, rect, state, roundboxalign);
-			else if (wt->draw)
-				wt->draw(&wt->wcol, rect, state, roundboxalign);
+		else if (wt->draw_type->draw) {
+			wt->draw_type->draw(&wt->wcol, rect, state, roundboxalign);
 		}
 
 		if (disabled)
@@ -2667,15 +2640,10 @@ void ui_draw_menu_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_BACK);
 	const int flag = block ? block->flag : 0;
 	const char dir = block ? block->direction : 0;
-	
+
 	wt->state(wt, 0);
-	if (wt->draw_type) {
-		wt->draw_type->draw(&wt->wcol, rect, flag, dir);
-	}
-	else {
-		wt->draw(&wt->wcol, rect, flag, dir);
-	}
-	
+	wt->draw_type->draw(&wt->wcol, rect, flag, dir);
+
 	if (block) {
 		if (block->flag & UI_BLOCK_CLIPTOP) {
 			/* XXX no scaling for UI here yet */
@@ -2937,7 +2905,7 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 	
 	/* drawing button background */
 	wt->state(wt, state);
-	wt->draw(&wt->wcol, rect, 0, 0);
+	wt->draw_type->draw(&wt->wcol, rect, 0, 0);
 	
 	/* draw icon in rect above the space reserved for the label */
 	rect->ymin += text_size;
