@@ -395,6 +395,7 @@ static void gp_brush_grab_calc_dvec(tGP_BrushEditData *gso)
 {
 	/* Convert mouse-movements to movement vector */
 	// TODO: incorporate pressure into this?
+	// XXX: screen-space strokes in 3D space will suffer!
 	if (gso->sa->spacetype == SPACE_VIEW3D) {
 		View3D *v3d = gso->sa->spacedata.first;
 		RegionView3D *rv3d = gso->ar->regiondata;
@@ -471,6 +472,69 @@ static bool gp_brush_push_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 	return true;
 }
 
+/* ----------------------------------------------- */
+/* Pinch Brush */
+
+/* Compute reference midpoint for the brush - this is what we'll be moving towards */
+static void gp_brush_calc_midpoint(tGP_BrushEditData *gso)
+{
+	if (gso->sa->spacetype == SPACE_VIEW3D) {
+		/* Convert mouse position to 3D space
+		 * See: gpencil_paint.c :: gp_stroke_convertcoords()
+		 */
+		View3D *v3d = gso->sa->spacedata.first;
+		RegionView3D *rv3d = gso->ar->regiondata;
+		float *rvec = ED_view3d_cursor3d_get(gso->scene, v3d);
+		float zfac = ED_view3d_calc_zfac(rv3d, rvec, NULL);
+		
+		float mval_f[2] = {UNPACK2(gso->mval)};
+		float mval_prj[2];
+		float dvec[3];
+		
+		
+		if (ED_view3d_project_float_global(gso->ar, rvec, mval_prj, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
+			sub_v2_v2v2(mval_f, mval_prj, mval_f);
+			ED_view3d_win_to_delta(gso->ar, mval_f, dvec, zfac);
+			sub_v3_v3v3(gso->dvec, rvec, dvec);
+		}
+		else {
+			zero_v3(gso->dvec);
+		}
+	}
+	else {
+		/* Just 2D coordinates */
+		// XXX: fix View2D offsets later
+		gso->dvec[0] = (float)gso->mval[0];
+		gso->dvec[1] = (float)gso->mval[1];
+		gso->dvec[2] = 0.0f;
+	}
+}
+
+/* Shrink distance between midpoint and this point... */
+static bool gp_brush_pinch_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
+                                 const int radius, const int co[2])
+{
+	bGPDspoint *pt = gps->points + i;
+	float inf = gp_brush_influence_calc(gso, radius, co);
+	
+	float vec[3];
+	float fac;
+	
+	/* 1) Make this point relative to the cursor/midpoint (dvec) */
+	sub_v3_v3v3(vec, &pt->x, gso->dvec);
+	
+	/* 2) Shrink the distance by pulling the point towards the midpoint
+	 *    (0.0 = at midpoint, 1 = at edge of brush region) 
+	 */
+	fac = 1.0f - (inf * inf); /* squared to temper the effect... */
+	mul_v3_fl(vec, fac);
+	
+	/* 3) Translate back to original space, with the shrinkage applied */
+	add_v3_v3v3(&pt->x, gso->dvec, vec);
+	
+	/* done */
+	return true;
+}
 
 /* ************************************************ */
 /* Cursor drawing */
@@ -736,6 +800,13 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 			break;
 		}
 		
+		case GP_EDITBRUSH_TYPE_PINCH: /* Pinch points */
+		{
+			/* calculate midpoint of the brush (in data space) */
+			gp_brush_calc_midpoint(gso);
+			break;
+		}
+		
 		default:
 			break;
 	}
@@ -778,6 +849,12 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 			case GP_EDITBRUSH_TYPE_PUSH: /* Push points */
 			{
 				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_push_apply);
+			}
+			break;
+			
+			case GP_EDITBRUSH_TYPE_PINCH: /* Pinch points */
+			{
+				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_pinch_apply);
 			}
 			break;
 			
@@ -881,7 +958,7 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	
 	gso = op->customdata;
 	
-	/* initialise type-specific data */
+	/* initialise type-specific data (used for the entire session) */
 	switch (gso->brush_type) {
 		case GP_EDITBRUSH_TYPE_GRAB:
 			/* initialise the cache needed for this brush */
