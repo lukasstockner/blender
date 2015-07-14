@@ -67,7 +67,6 @@
 #include <opensubdiv/osd/glPatchTable.h>
 #include <opensubdiv/far/stencilTable.h>
 
-#include "opensubdiv_converter.h"
 #include "opensubdiv_intern.h"
 #include "opensubdiv_partitioned.h"
 

@@ -37,7 +37,6 @@
 #include <opensubdiv/osd/mesh.h>
 #include <opensubdiv/osd/types.h>
 
-#include "opensubdiv_converter.h"
 #include "opensubdiv_intern.h"
 
 #include "MEM_guardedalloc.h"

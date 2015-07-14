@@ -47,7 +47,7 @@ set(SRC
 	opensubdiv_utils_capi.cc
 
 	opensubdiv_capi.h
-	opensubdiv_converter.h
+	opensubdiv_converter_capi.h
 	opensubdiv_device_context_cuda.h
 	opensubdiv_device_context_opencl.h
 	opensubdiv_intern.h
