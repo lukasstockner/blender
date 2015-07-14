@@ -515,9 +515,15 @@ static bool gp_brush_pinch_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
                                  const int radius, const int co[2])
 {
 	bGPDspoint *pt = gps->points + i;
-	float inf = gp_brush_influence_calc(gso, radius, co);
+	float fac, inf;
 	float vec[3];
-	float fac;
+	
+	/* Scale down standard influence value to get it more manageable...
+	 *  - No damping = Unmanageable at > 0.5 strength
+	 *  - Div 10     = Not enough effect
+	 *  - Div 5      = Happy medium... (by trial and error)
+	 */
+	inf = gp_brush_influence_calc(gso, radius, co) / 5.0f;
 	
 	/* 1) Make this point relative to the cursor/midpoint (dvec) */
 	sub_v3_v3v3(vec, &pt->x, gso->dvec);
