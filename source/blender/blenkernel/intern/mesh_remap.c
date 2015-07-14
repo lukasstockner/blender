@@ -184,10 +184,15 @@ static void mesh_calc_eigen_matrix(
 		const MVert *mv;
 		float (*co)[3];
 
-		vcos = cos = MEM_mallocN(sizeof(*cos) * (size_t)numverts, __func__);
+		cos = MEM_mallocN(sizeof(*cos) * (size_t)numverts, __func__);
 		for (i = 0, co = cos, mv = verts; i < numverts; i++, co++, mv++) {
 			copy_v3_v3(*co, mv->co);
 		}
+		/* TODO(sergey): For until we officially drop all compilers which
+		 * doesn't handle casting correct we use workaround to avoid explicit
+		 * cast here.
+		 */
+		vcos = (void*)cos;
 	}
 	unit_m4(r_mat);
 
@@ -1438,7 +1443,7 @@ void BKE_mesh_remap_calc_loops_from_dm(
 			bool pcent_dst_valid = false;
 
 			if ((size_t)mp_dst->totloop > islands_res_buff_size) {
-				islands_res_buff_size = (size_t)mp_dst->totloop;
+				islands_res_buff_size = (size_t)mp_dst->totloop + MREMAP_DEFAULT_BUFSIZE;
 				for (tindex = 0; tindex < num_trees; tindex++) {
 					islands_res[tindex] = MEM_reallocN(islands_res[tindex], sizeof(**islands_res) * islands_res_buff_size);
 				}
@@ -1534,7 +1539,7 @@ void BKE_mesh_remap_calc_loops_from_dm(
 								}
 							}
 							best_nor_dot = (best_nor_dot + 1.0f) * 0.5f;
-							islands_res[tindex][plidx_dst].factor = hit_dist ? (1.0f / hit_dist * best_nor_dot) : 1e18f;
+							islands_res[tindex][plidx_dst].factor = hit_dist ? (best_nor_dot / hit_dist) : 1e18f;
 							islands_res[tindex][plidx_dst].hit_dist = hit_dist;
 							islands_res[tindex][plidx_dst].index_src = best_index_src;
 						}
