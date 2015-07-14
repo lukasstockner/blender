@@ -94,7 +94,7 @@ void widget_check_trias(uiWidgetTrias *tria, const rcti *rect);
 
 void widget_softshadow(const rcti *rect, int roundboxalign, const float radin);
 
-void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol);
+void widgetbase_draw(uiWidgetBase *wtb, struct uiWidgetColors *wcol);
 
 #endif  /* __WIDGETS_DRAW_INTERN_H__ */
 

@@ -39,11 +39,11 @@ struct uiWidgetType;
 
 typedef struct uiWidgetDrawType {
 	void (*state)(struct uiWidgetType *, int state);
-	void (*draw)(uiWidgetColors *, rcti *, int state, int roundboxalign);
+	void (*draw)(struct uiWidgetColors *, rcti *, int state, int roundboxalign);
 	/* XXX uiBut and uiFontStyle shouldn't be needed/used at this level,
 	 * the needed data should be transferred using uiWidget API instead */
-	void (*custom)(struct uiBut *, uiWidgetColors *, rcti *, int state, int roundboxalign);
-	void (*text)(struct uiFontStyle *, uiWidgetColors *, struct uiBut *, rcti *);
+	void (*custom)(struct uiBut *, struct uiWidgetColors *, rcti *, int state, int roundboxalign);
+	void (*text)(struct uiFontStyle *, struct uiWidgetColors *, struct uiBut *, rcti *);
 } uiWidgetDrawType;
 
 #if 0 /* uiWidgetDrawType init template */

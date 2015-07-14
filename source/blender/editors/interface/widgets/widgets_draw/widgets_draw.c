@@ -32,6 +32,7 @@
 #include "BLI_math.h"
 #include "BLI_rect.h"
 
+#include "DNA_userdef_types.h"
 #include "DNA_screen_types.h"
 
 #include "UI_interface.h"
