@@ -2681,8 +2681,14 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 				mat_nr = 0;
 			}
 
-			if (drawParams)
-				draw_option = drawParams((use_tface && tf) ? (tf + actualFace) : NULL, (mcol != NULL), mat_nr);
+			if (drawParams) {
+				MTexPoly tpoly;
+				if (tf) {
+					ME_MTEXFACE_CPY(&tpoly, tf + actualFace);
+				}
+
+				draw_option = drawParams((use_tface && tf) ? &tpoly : NULL, (mcol != NULL), mat_nr);
+			}
 			else if (index != ORIGINDEX_NONE)
 				draw_option = (drawParamsMapped) ? drawParamsMapped(userData, index, mat_nr) : DM_DRAW_OPTION_NORMAL;
 			else

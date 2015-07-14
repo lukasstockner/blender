@@ -471,7 +471,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 	const MFace *mf = DM_get_tessface_data_layer(dm, CD_MFACE);
-	MTFace *tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
+	MTexPoly *mtexpoly = DM_get_poly_data_layer(dm, CD_MTEXPOLY);
 	MCol *mcol;
 	int i, orig;
 	int colType, start_element;
@@ -547,7 +547,15 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 				next_actualFace = bufmat->polys[i + 1];
 
 			if (drawParams) {
-				draw_option = drawParams(use_tface && tf ? &tf[actualFace] : NULL, (mcol != NULL), mf[actualFace].mat_nr);
+				MTexPoly *tp = NULL;
+				if (use_tface && mtexpoly && index_mf_to_mpoly) {
+					int actualFace_poly = index_mf_to_mpoly[actualFace];
+					if (actualFace_poly != ORIGINDEX_NONE) {
+						tp = &mtexpoly[actualFace_poly];
+					}
+				}
+
+				draw_option = drawParams(tp, (mcol != NULL), mf[actualFace].mat_nr);
 			}
 			else {
 				if (index_mf_to_mpoly) {
