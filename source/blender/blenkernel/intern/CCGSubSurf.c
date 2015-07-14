@@ -851,6 +851,7 @@ static void ccgSubSurf__sync(CCGSubSurf *ss)
 	if (true) {
 		ccgSubSurf__sync_opensubdiv(ss);
 	}
+	else
 #endif
 	{
 		ccgSubSurf__sync_legacy(ss);

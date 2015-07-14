@@ -30,7 +30,7 @@
  */
 
 /* Define this to see dump of the grids after the subsurf applied. */
-#define DUMP_RESULT_GRIDS
+#undef DUMP_RESULT_GRIDS
 
 /* used for normalize_v3 in BLI_math_vector
  * float.h's FLT_EPSILON causes trouble with subsurf normals - campbell */
