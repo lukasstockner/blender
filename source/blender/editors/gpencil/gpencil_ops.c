@@ -200,6 +200,14 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	/* Brush-Based Editing */
 	WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", EKEY, KM_PRESS, 0, 0);
 	
+	/* Shift-FKEY = Sculpt Strength */
+	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path_primary", "tool_settings.gpencil_sculpt.brush.strength");
+	
+	/* Ctrl-FKEY = Sculpt Brush Size */
+	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_CTRL, 0);
+	RNA_string_set(kmi->ptr, "data_path_primary", "tool_settings.gpencil_sculpt.brush.size");
+	
 	
 	/* Transform Tools */
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, 0);
