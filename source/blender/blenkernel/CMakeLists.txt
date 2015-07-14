@@ -61,6 +61,9 @@ set(INC_SYS
 
 set(SRC
 	intern/CCGSubSurf.c
+	intern/CCGSubSurf_legacy.c
+	intern/CCGSubSurf_opensubdiv.c
+	intern/CCGSubSurf_util.c
 	intern/DerivedMesh.c
 	intern/action.c
 	intern/addon.c
@@ -285,6 +288,8 @@ set(SRC
 	nla_private.h
 	tracking_private.h
 	intern/CCGSubSurf.h
+	intern/CCGSubSurf_inline.h
+	intern/CCGSubSurf_intern.h
 	intern/pbvh_intern.h
 	intern/data_transfer_intern.h
 )
