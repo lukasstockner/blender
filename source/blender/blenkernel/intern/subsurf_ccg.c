@@ -2238,10 +2238,10 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 	int a;
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 
-	if (ccgdm->pbvh && ccgdm->multires.mmd && !fast) {
+	if (ccgdm->pbvh && ccgdm->multires.mmd) {
 		if (BKE_pbvh_has_faces(ccgdm->pbvh)) {
 			BKE_pbvh_draw(ccgdm->pbvh, partial_redraw_planes, NULL,
-			              setMaterial, false);
+			              setMaterial, false, fast);
 			glShadeModel(GL_FLAT);
 		}
 
@@ -2259,124 +2259,6 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 		}
 	}
 	GPU_buffer_unbind();
-
-#if 0
-	
-	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
-	CCGSubSurf *ss = ccgdm->ss;
-	CCGKey key;
-	short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
-	int gridSize = ccgSubSurf_getGridSize(ss);
-	int gridFaces = gridSize - 1;
-	DMFlagMat *faceFlags = ccgdm->faceFlags;
-	int step = (fast) ? gridSize - 1 : 1;
-	int i, totface = ccgSubSurf_getNumFaces(ss);
-	int drawcurrent = 0, matnr = -1, shademodel = -1;
-
-	CCG_key_top_level(&key, ss);
-	ccgdm_pbvh_update(ccgdm);
-
-
-	for (i = 0; i < totface; i++) {
-		CCGFace *f = ccgdm->faceMap[i].face;
-		int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
-		int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
-		int new_matnr, new_shademodel;
-		short (*ln)[4][3] = NULL;
-
-		if (faceFlags) {
-			new_shademodel = (lnors || (faceFlags[index].flag & ME_SMOOTH)) ? GL_SMOOTH : GL_FLAT;
-			new_matnr = faceFlags[index].mat_nr;
-		}
-		else {
-			new_shademodel = GL_SMOOTH;
-			new_matnr = 0;
-		}
-
-		if (lnors) {
-			ln = lnors;
-			lnors += gridFaces * gridFaces * numVerts;
-		}
-
-		if (shademodel != new_shademodel || matnr != new_matnr) {
-			matnr = new_matnr;
-			shademodel = new_shademodel;
-
-			if (setMaterial)
-				drawcurrent = setMaterial(matnr + 1, NULL);
-			else
-				drawcurrent = 1;
-
-			glShadeModel(shademodel);
-		}
-
-		if (!drawcurrent)
-			continue;
-
-		for (S = 0; S < numVerts; S++) {
-			CCGElem *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
-
-			if (ln) {
-				/* Can't use quad strips here... */
-				glBegin(GL_QUADS);
-				for (y = 0; y < gridFaces; y += step) {
-					for (x = 0; x < gridFaces; x += step) {
-						float *a = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
-						float *b = CCG_grid_elem_co(&key, faceGridData, x + step, y + 0);
-						float *c = CCG_grid_elem_co(&key, faceGridData, x + step, y + step);
-						float *d = CCG_grid_elem_co(&key, faceGridData, x, y + step);
-
-						glNormal3sv(ln[0][1]);
-						glVertex3fv(d);
-						glNormal3sv(ln[0][2]);
-						glVertex3fv(c);
-						glNormal3sv(ln[0][3]);
-						glVertex3fv(b);
-						glNormal3sv(ln[0][0]);
-						glVertex3fv(a);
-						ln += step;
-					}
-				}
-				glEnd();
-			}
-			else if (shademodel == GL_SMOOTH) {
-				for (y = 0; y < gridFaces; y += step) {
-					glBegin(GL_QUAD_STRIP);
-					for (x = 0; x < gridSize; x += step) {
-						CCGElem *a = CCG_grid_elem(&key, faceGridData, x, y + 0);
-						CCGElem *b = CCG_grid_elem(&key, faceGridData, x, y + step);
-
-						glNormal3fv(CCG_elem_no(&key, a));
-						glVertex3fv(CCG_elem_co(&key, a));
-						glNormal3fv(CCG_elem_no(&key, b));
-						glVertex3fv(CCG_elem_co(&key, b));
-					}
-					glEnd();
-				}
-			}
-			else {
-				glBegin(GL_QUADS);
-				for (y = 0; y < gridFaces; y += step) {
-					for (x = 0; x < gridFaces; x += step) {
-						float *a = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
-						float *b = CCG_grid_elem_co(&key, faceGridData, x + step, y + 0);
-						float *c = CCG_grid_elem_co(&key, faceGridData, x + step, y + step);
-						float *d = CCG_grid_elem_co(&key, faceGridData, x, y + step);
-
-						ccgDM_glNormalFast(a, b, c, d);
-
-						glVertex3fv(d);
-						glVertex3fv(c);
-						glVertex3fv(b);
-						glVertex3fv(a);
-					}
-				}
-				glEnd();
-			}
-		}
-	}
-
-#endif
 }
 
 /* Only used by non-editmesh types */

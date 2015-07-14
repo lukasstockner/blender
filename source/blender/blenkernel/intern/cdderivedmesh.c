@@ -391,7 +391,7 @@ static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdg
 	if (cddm->pbvh && cddm->pbvh_draw &&
 	    BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH)
 	{
-		BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, true);
+		BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, true, false);
 
 		return;
 	}
@@ -442,7 +442,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 			float (*face_nors)[3] = CustomData_get_layer(&dm->faceData, CD_NORMAL);
 
 			BKE_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors,
-			              setMaterial, false);
+			              setMaterial, false, false);
 			glShadeModel(GL_FLAT);
 		}
 
@@ -498,7 +498,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	if (cddm->pbvh && cddm->pbvh_draw && BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH) {
 		if (BKE_pbvh_has_faces(cddm->pbvh)) {
 			GPU_set_tpage(NULL, false, false);
-			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false);
+			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false, false);
 		}
 
 		return;
@@ -902,7 +902,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	if (cddm->pbvh && cddm->pbvh_draw && BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH) {
 		if (BKE_pbvh_has_faces(cddm->pbvh)) {
 			setMaterial(1, &gattribs);
-			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false);
+			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false, false);
 		}
 
 		return;
@@ -1213,7 +1213,7 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 	if (cddm->pbvh && cddm->pbvh_draw && BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH) {
 		if (BKE_pbvh_has_faces(cddm->pbvh)) {
 			setMaterial(userData, 1, &gattribs);
-			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false);
+			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false, false);
 		}
 
 		return;
@@ -1694,8 +1694,6 @@ static void cdDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray,
 		case GPU_BUFFER_TRIANGLES:
 			cdDM_buffer_copy_triangles(dm, varray, mat_orig_to_new, user_data);
 			break;
-		case GPU_BUFFER_TRIANGLES_FAST:
-			/* only supported in subsurf */
 		default:
 			break;
 	}

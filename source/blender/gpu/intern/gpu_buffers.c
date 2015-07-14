@@ -443,7 +443,6 @@ void GPU_drawobject_free(DerivedMesh *dm)
 	GPU_buffer_free(gdo->edges);
 	GPU_buffer_free(gdo->uvedges);
 	GPU_buffer_free(gdo->triangles);
-	GPU_buffer_free(gdo->trianglesfast);
 
 	MEM_freeN(gdo);
 	dm->drawObject = NULL;
@@ -579,8 +578,6 @@ static GPUBuffer **gpu_drawobject_buffer_from_type(GPUDrawObject *gdo, GPUBuffer
 			return &gdo->uvedges;
 		case GPU_BUFFER_TRIANGLES:
 			return &gdo->triangles;
-		case GPU_BUFFER_TRIANGLES_FAST:
-			return &gdo->trianglesfast;
 		default:
 			return NULL;
 	}
@@ -610,8 +607,6 @@ static int gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 			 * tris. */
 			return sizeof(int) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
 		case GPU_BUFFER_TRIANGLES:
-			return sizeof(int) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
-		case GPU_BUFFER_TRIANGLES_FAST:
 			return sizeof(int) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
 		default:
 			return -1;
@@ -822,19 +817,6 @@ void GPU_triangle_setup(struct DerivedMesh *dm)
 
 	GLStates |= GPU_BUFFER_ELEMENT_STATE;
 }
-
-void GPU_triangle_fast_setup(struct DerivedMesh *dm)
-{
-	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_TRIANGLES_FAST))
-		return;
-
-	if (dm->drawObject->trianglesfast->use_vbo) {
-		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, dm->drawObject->trianglesfast->id);
-	}
-
-	GLStates |= GPU_BUFFER_ELEMENT_STATE;
-}
-
 
 static int GPU_typesize(int type)
 {
@@ -1058,7 +1040,7 @@ typedef struct {
 
 struct GPU_PBVH_Buffers {
 	/* opengl buffer handles */
-	GLuint vert_buf, index_buf;
+	GLuint vert_buf, index_buf, index_buf_fast;
 	GLenum index_type;
 
 	/* mesh pointers in case buffer allocation fails */
@@ -1614,6 +1596,32 @@ static GLuint gpu_get_grid_buffer(int gridsize, GLenum *index_type, unsigned *to
 	return buffer;
 }
 
+#define FILL_FAST_BUFFER(type_) \
+{ \
+    type_ *buffer; \
+    glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, \
+                    sizeof(type_) * 6 * totgrid, NULL, \
+                    GL_STATIC_DRAW_ARB); \
+    buffer = glMapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB); \
+    if (buffer) { \
+        int i; \
+        for (i = 0; i < totgrid; i++) { \
+            int currentquad = i * 6; \
+            buffer[currentquad] = i * gridsize * gridsize; \
+            buffer[currentquad + 1] = i * gridsize * gridsize + gridsize - 1; \
+            buffer[currentquad + 2] = (i + 1) * gridsize * gridsize - gridsize; \
+            buffer[currentquad + 3] = (i + 1) * gridsize * gridsize - 1; \
+            buffer[currentquad + 4] = i * gridsize * gridsize + gridsize - 1; \
+            buffer[currentquad + 5] = (i + 1) * gridsize * gridsize - gridsize; \
+        } \
+        glUnmapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB); \
+	} \
+	else { \
+        glDeleteBuffersARB(1, &buffers->index_buf_fast); \
+        buffers->index_buf_fast = 0; \
+    } \
+} (void)0
+
 GPU_PBVH_Buffers *GPU_build_grid_pbvh_buffers(int *grid_indices, int totgrid,
                                               BLI_bitmap **grid_hidden, int gridsize)
 {
@@ -1634,6 +1642,22 @@ GPU_PBVH_Buffers *GPU_build_grid_pbvh_buffers(int *grid_indices, int totgrid,
 	/* totally hidden node, return here to avoid BufferData with zero below. */
 	if (totquad == 0)
 		return buffers;
+
+	/* create and fill indices of the fast buffer too */
+	glGenBuffersARB(1, &buffers->index_buf_fast);
+
+	if (buffers->index_buf_fast) {
+		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, buffers->index_buf_fast);
+
+		if (totgrid * gridsize * gridsize < USHRT_MAX) {
+			FILL_FAST_BUFFER(unsigned short);
+		}
+		else {
+			FILL_FAST_BUFFER(unsigned int);
+		}
+
+		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
+	}
 
 	if (totquad == fully_visible_totquad) {
 		buffers->index_buf = gpu_get_grid_buffer(gridsize, &buffers->index_type, &buffers->tot_quad);
@@ -2149,8 +2173,9 @@ static void gpu_draw_buffers_legacy_grids(GPU_PBVH_Buffers *buffers)
 }
 
 void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
-                           bool wireframe)
+                           bool wireframe, bool fast)
 {
+	bool do_fast = fast && buffers->index_buf_fast;
 	/* sets material from the first face, to solve properly face would need to
 	 * be sorted in buckets by materials */
 	if (setMaterial) {
@@ -2181,7 +2206,9 @@ void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
 
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->vert_buf);
 
-		if (buffers->index_buf)
+		if (do_fast)
+			glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, buffers->index_buf_fast);
+		else if (buffers->index_buf)
 			glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, buffers->index_buf);
 
 		if (wireframe)
@@ -2198,7 +2225,10 @@ void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
 				glColorPointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat),
 				               offset + offsetof(VertexBufferFormat, color));
 				
-				glDrawElements(GL_TRIANGLES, buffers->tot_quad * 6, buffers->index_type, 0);
+				if (do_fast)
+					glDrawElements(GL_TRIANGLES, buffers->totgrid * 6, buffers->index_type, 0);
+				else
+					glDrawElements(GL_TRIANGLES, buffers->tot_quad * 6, buffers->index_type, 0);
 
 				offset += buffers->gridkey.grid_area * sizeof(VertexBufferFormat);
 			}
@@ -2327,6 +2357,8 @@ void GPU_free_pbvh_buffers(GPU_PBVH_Buffers *buffers)
 			gpu_pbvh_buffer_free_intern(buffers->vert_buf);
 		if (buffers->index_buf && (buffers->tot_tri || buffers->has_hidden))
 			gpu_pbvh_buffer_free_intern(buffers->index_buf);
+		if (buffers->index_buf_fast)
+			gpu_pbvh_buffer_free_intern(buffers->index_buf_fast);
 
 		MEM_freeN(buffers);
 	}

@@ -97,7 +97,6 @@ typedef struct GPUDrawObject {
 	GPUBuffer *edges;
 	GPUBuffer *uvedges;
 	GPUBuffer *triangles; /* triangle index buffer */
-	GPUBuffer *trianglesfast; /* level one triangle index for subsurf */
 
 	/* for each original vertex, the list of related points */
 	struct GPUVertPointLink *vert_points;
@@ -166,8 +165,7 @@ typedef enum {
 	GPU_BUFFER_UV_TEXPAINT,
 	GPU_BUFFER_EDGE,
 	GPU_BUFFER_UVEDGE,
-	GPU_BUFFER_TRIANGLES,
-	GPU_BUFFER_TRIANGLES_FAST,
+	GPU_BUFFER_TRIANGLES
 } GPUBufferType;
 
 
@@ -182,8 +180,6 @@ void GPU_edge_setup(struct DerivedMesh *dm); /* does not mix with other data */
 void GPU_uvedge_setup(struct DerivedMesh *dm);
 
 void GPU_triangle_setup(struct DerivedMesh *dm);
-
-void GPU_triangle_fast_setup(struct DerivedMesh *dm); /* only for subsurf */
 
 int GPU_attrib_element_size(GPUAttrib data[], int numdata);
 void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata, int element_size);
@@ -240,7 +236,7 @@ void GPU_update_grid_pbvh_buffers(GPU_PBVH_Buffers *buffers, struct CCGElem **gr
 
 /* draw */
 void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
-                           bool wireframe);
+                           bool wireframe, bool fast);
 
 /* debug PBVH draw*/
 void GPU_draw_pbvh_BB(float min[3], float max[3], bool leaf);
