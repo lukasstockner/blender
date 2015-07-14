@@ -38,10 +38,216 @@
 #include "DNA_userdef_types.h"
 
 #include "opensubdiv_capi.h"
+#include "opensubdiv_converter_capi.h"
 
 #include "GL/glew.h"
 
 #define OSD_LOG if (false) printf
+
+/* TODO(sergey): Move converters API to own file for clearity of code. */
+static int conv_dm_get_num_faces(const OpenSubdiv_Converter *converter)
+{
+	DerivedMesh *dm = converter->user_data;
+	return dm->getNumPolys(dm);
+}
+
+static int conv_dm_get_num_edges(const OpenSubdiv_Converter *converter)
+{
+	DerivedMesh *dm = converter->user_data;
+	return dm->getNumEdges(dm);
+}
+
+static int conv_dm_get_num_verts(const OpenSubdiv_Converter *converter)
+{
+	DerivedMesh *dm = converter->user_data;
+	return dm->getNumVerts(dm);
+}
+
+static int conv_dm_get_num_face_verts(const OpenSubdiv_Converter *converter,
+                                      int face)
+{
+	DerivedMesh *dm = converter->user_data;
+	const MPoly *mp = dm->getPolyArray(dm);
+	const MPoly *mpoly = &mp[face];
+	return mpoly->totloop;
+}
+
+static void conv_dm_get_face_verts(const OpenSubdiv_Converter *converter,
+                                   int face,
+                                   int *face_verts)
+{
+	DerivedMesh *dm = converter->user_data;
+	const MLoop *ml = dm->getLoopArray(dm);
+	const MPoly *mp = dm->getPolyArray(dm);
+	const MPoly *mpoly = &mp[face];
+	int loop;
+	for(loop = 0; loop < mpoly->totloop; loop++) {
+		face_verts[loop] = ml[mpoly->loopstart + loop].v;
+	}
+}
+
+static void conv_dm_get_face_edges(const OpenSubdiv_Converter *converter,
+                                   int face,
+                                   int *face_edges)
+{
+	DerivedMesh *dm = converter->user_data;
+	const MLoop *ml = dm->getLoopArray(dm);
+	const MPoly *mp = dm->getPolyArray(dm);
+	const MPoly *mpoly = &mp[face];
+	int loop;
+	for(loop = 0; loop < mpoly->totloop; loop++) {
+		face_edges[loop] = ml[mpoly->loopstart + loop].e;
+	}
+}
+
+static void conv_dm_get_edge_verts(const OpenSubdiv_Converter *converter,
+                                   int edge,
+                                   int *edge_verts)
+{
+	DerivedMesh *dm = converter->user_data;
+	const MEdge *me = dm->getEdgeArray(dm);
+	const MEdge *medge = &me[edge];
+	edge_verts[0] = medge->v1;
+	edge_verts[1] = medge->v2;
+}
+
+static int conv_dm_get_num_edge_faces(const OpenSubdiv_Converter *converter,
+                                      int edge)
+{
+	DerivedMesh *dm = converter->user_data;
+	const MLoop *ml = dm->getLoopArray(dm);
+	const MPoly *mp = dm->getPolyArray(dm);
+	int num = 0, poly;
+	for (poly = 0; poly < dm->getNumPolys(dm); poly++) {
+		const MPoly *mpoly = &mp[poly];
+		int loop;
+		for (loop = 0; loop < mpoly->totloop; loop++) {
+			const MLoop *mloop = &ml[mpoly->loopstart + loop];
+			if (mloop->e == edge) {
+				++num;
+				break;
+			}
+		}
+	}
+	return num;
+}
+
+static void conv_dm_get_edge_faces(const OpenSubdiv_Converter *converter,
+                                   int edge,
+                                   int *edge_faces)
+{
+	DerivedMesh *dm = converter->user_data;
+	const MLoop *ml = dm->getLoopArray(dm);
+	const MPoly *mp = dm->getPolyArray(dm);
+	int num = 0, poly;
+	for (poly = 0; poly < dm->getNumPolys(dm); poly++) {
+		const MPoly *mpoly = &mp[poly];
+		int loop;
+		for (loop = 0; loop < mpoly->totloop; loop++) {
+			const MLoop *mloop = &ml[mpoly->loopstart + loop];
+			if (mloop->e == edge) {
+				edge_faces[num++] = poly;
+				break;
+			}
+		}
+	}
+}
+
+static int conv_dm_get_num_vert_edges(const OpenSubdiv_Converter *converter,
+                                      int vert)
+{
+	DerivedMesh *dm = converter->user_data;
+	const MEdge *me = dm->getEdgeArray(dm);
+	int num = 0, edge;
+	for (edge = 0; edge < dm->getNumEdges(dm); edge++) {
+		const MEdge *medge = &me[edge];
+		if (medge->v1 == vert || medge->v2 == vert) {
+			++num;
+		}
+	}
+	return num;
+}
+
+static void conv_dm_get_vert_edges(const OpenSubdiv_Converter *converter,
+                                   int vert,
+                                   int *vert_edges)
+{
+	DerivedMesh *dm = converter->user_data;
+	const MEdge *me = dm->getEdgeArray(dm);
+	int num = 0, edge;
+	for (edge = 0; edge < dm->getNumEdges(dm); edge++) {
+		const MEdge *medge = &me[edge];
+		if (medge->v1 == vert || medge->v2 == vert) {
+			vert_edges[num++] = edge;
+		}
+	}
+}
+
+static int conv_dm_get_num_vert_faces(const OpenSubdiv_Converter *converter,
+                                      int vert)
+{
+	DerivedMesh *dm = converter->user_data;
+	const MLoop *ml = dm->getLoopArray(dm);
+	const MPoly *mp = dm->getPolyArray(dm);
+	int num = 0, poly;
+	for (poly = 0; poly < dm->getNumPolys(dm); poly++) {
+		const MPoly *mpoly = &mp[poly];
+		int loop;
+		for (loop = 0; loop < mpoly->totloop; loop++) {
+			const MLoop *mloop = &ml[mpoly->loopstart + loop];
+			if (mloop->v == vert) {
+				++num;
+				break;
+			}
+		}
+	}
+	return num;
+}
+
+static void conv_dm_get_vert_faces(const OpenSubdiv_Converter *converter,
+                                   int vert,
+                                   int *vert_faces)
+{
+	DerivedMesh *dm = converter->user_data;
+	const MLoop *ml = dm->getLoopArray(dm);
+	const MPoly *mp = dm->getPolyArray(dm);
+	int num = 0, poly;
+	for (poly = 0; poly < dm->getNumPolys(dm); poly++) {
+		const MPoly *mpoly = &mp[poly];
+		int loop;
+		for (loop = 0; loop < mpoly->totloop; loop++) {
+			const MLoop *mloop = &ml[mpoly->loopstart + loop];
+			if (mloop->v == vert) {
+				vert_faces[num++] = poly;
+				break;
+			}
+		}
+	}
+}
+
+static void converter_setup_from_derivedmesh(
+        DerivedMesh *dm,
+        OpenSubdiv_Converter *converter)
+{
+	converter->get_num_faces = conv_dm_get_num_faces;
+	converter->get_num_edges = conv_dm_get_num_edges;
+	converter->get_num_verts = conv_dm_get_num_verts;
+
+	converter->get_num_face_verts = conv_dm_get_num_face_verts;
+	converter->get_face_verts = conv_dm_get_face_verts;
+	converter->get_face_edges = conv_dm_get_face_edges;
+
+	converter->get_edge_verts = conv_dm_get_edge_verts;
+	converter->get_num_edge_faces = conv_dm_get_num_edge_faces;
+	converter->get_edge_faces = conv_dm_get_edge_faces;
+
+	converter->get_num_vert_edges = conv_dm_get_num_vert_edges;
+	converter->get_vert_edges = conv_dm_get_vert_edges;
+	converter->get_num_vert_faces = conv_dm_get_num_vert_faces;
+	converter->get_vert_faces = conv_dm_get_vert_faces;
+
+	converter->user_data = dm;
+}
 
 static bool ccgSubSurf_checkDMTopologyChanged(DerivedMesh *dm, DerivedMesh *dm2)
 {
@@ -159,17 +365,16 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 	}
 
 	if (ss->osd_mesh == NULL) {
-		int scheme = ss->meshIFC.simpleSubdiv
-		             ? OPENSUBDIV_SCHEME_BILINEAR
-		             : OPENSUBDIV_SCHEME_CATMARK;
-
-		ss->osd_mesh = openSubdiv_createOsdGLMeshFromEvaluator(
-			//ss->osd_evaluator,
-			ss->dm,
-			compute_type,
-			ss->subdivLevels,
-			scheme,
-			ss->osd_subsurf_uv);
+		OpenSubdiv_Converter converter;
+		OpenSubdiv_TopologyRefinerDescr *topology_refiner;
+		converter_setup_from_derivedmesh(ss->dm, &converter);
+		topology_refiner = openSubdiv_createTopologyRefinerDescr(&converter);
+		ss->osd_mesh = openSubdiv_createOsdGLMeshFromTopologyRefiner(
+		        topology_refiner,
+		        compute_type,
+		        ss->subdivLevels,
+		        OPENSUBDIV_SCHEME_CATMARK,  /* TODO(sergey): Deprecated argument. */
+		        ss->osd_subsurf_uv);
 
 		if (UNLIKELY(ss->osd_mesh == NULL)) {
 			/* Most likely compute device is not available. */
@@ -361,10 +566,14 @@ static bool check_topology_changed(CCGSubSurf *ss)
 
 static bool opensubdiv_createEvaluator(CCGSubSurf *ss)
 {
+	OpenSubdiv_Converter converter;
+	OpenSubdiv_TopologyRefinerDescr *topology_refiner;
+	converter_setup_from_derivedmesh(ss->dm, &converter);
+	topology_refiner = openSubdiv_createTopologyRefinerDescr(&converter);
 	ss->osd_compute = U.opensubdiv_compute_type;
 	ss->osd_evaluator =
-	    openSubdiv_createEvaluatorDescr(ss->dm,
-	                                    ss->subdivLevels);
+	        openSubdiv_createEvaluatorDescr(topology_refiner,
+	                                        ss->subdivLevels);
 	return ss->osd_evaluator != NULL;
 }
 

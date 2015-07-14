@@ -508,13 +508,12 @@ typedef struct OpenSubdiv_EvaluatorDescr {
 	const PatchTable *patch_table;
 } OpenSubdiv_EvaluatorDescr;
 
-OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(DerivedMesh *dm,
-                                                           int subsurf_level)
+OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(
+        OpenSubdiv_TopologyRefinerDescr *topology_refiner,
+        int subsurf_level)
 {
-	OsdBlenderConverter conv(dm);
-
 	/* TODO(sergey): Look into re-using refiner with GLMesh. */
-	TopologyRefiner *refiner = openSubdiv_topologyRefinerFromDM(dm);
+	TopologyRefiner *refiner = (TopologyRefiner *)topology_refiner;
 	if(refiner == NULL) {
 		/* Happens on bad topology. */
 		return NULL;

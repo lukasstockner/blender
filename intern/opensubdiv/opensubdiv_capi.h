@@ -32,6 +32,7 @@ extern "C" {
 
 // Types declaration.
 struct OpenSubdiv_GLMesh;
+struct OpenSubdiv_TopologyRefinerDescr;
 
 typedef struct OpenSubdiv_GLMesh OpenSubdiv_GLMesh;
 
@@ -62,9 +63,8 @@ enum {
 };
 
 /* TODO(sergey): Re-name and avoid bad level data access. */
-struct DerivedMesh;
-OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
-    DerivedMesh *dm,
+OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromTopologyRefiner(
+    struct OpenSubdiv_TopologyRefinerDescr *topology_refiner,
     int evaluator_type,
     int level,
     int scheme,
@@ -92,8 +92,9 @@ struct OpenSubdiv_EvaluatorDescr;
 typedef struct OpenSubdiv_EvaluatorDescr OpenSubdiv_EvaluatorDescr;
 
 /* TODO(sergey): Avoid bad-level data access, */
-OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(DerivedMesh *dm,
-                                                           int subsurf_level);
+OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(
+        struct OpenSubdiv_TopologyRefinerDescr *topology_refiner,
+        int subsurf_level);
 
 void openSubdiv_deleteEvaluatorDescr(OpenSubdiv_EvaluatorDescr *evaluator_descr);
 

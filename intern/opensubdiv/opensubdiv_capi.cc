@@ -210,14 +210,15 @@ static void get_partition_per_face(OsdHbrMesh &hmesh,
 }
 #endif
 
-struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
-        //OpenSubdiv_EvaluatorDescr * /*evaluator_descr*/,
-        DerivedMesh *dm,
+struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromTopologyRefiner(
+        OpenSubdiv_TopologyRefinerDescr *topology_refiner,
         int evaluator_type,
         int level,
         int /*scheme*/,
         int /*subdivide_uvs*/)
 {
+	using OpenSubdiv::Far::TopologyRefiner;
+
 	MeshBitset bits;
 	/* TODO(sergey): Adaptive subdivisions are not currently
 	 * possible because of the lack of tessellation shader.
@@ -234,7 +235,7 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 	const int num_varying_elements = 0;
 
 	GLMeshInterface *mesh = NULL;
-	OpenSubdiv::Far::TopologyRefiner *refiner = openSubdiv_topologyRefinerFromDM(dm);
+	TopologyRefiner *refiner = (TopologyRefiner*)topology_refiner;
 
 	switch(evaluator_type) {
 #define CHECK_EVALUATOR_TYPE(type, class) \
