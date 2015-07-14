@@ -516,7 +516,6 @@ static bool gp_brush_pinch_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 {
 	bGPDspoint *pt = gps->points + i;
 	float inf = gp_brush_influence_calc(gso, radius, co);
-	
 	float vec[3];
 	float fac;
 	
@@ -524,9 +523,18 @@ static bool gp_brush_pinch_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 	sub_v3_v3v3(vec, &pt->x, gso->dvec);
 	
 	/* 2) Shrink the distance by pulling the point towards the midpoint
-	 *    (0.0 = at midpoint, 1 = at edge of brush region) 
+	 *    (0.0 = at midpoint, 1 = at edge of brush region)
+	 *                         OR
+	 *    Increase the distance (if inverting the brush action!)
 	 */
-	fac = 1.0f - (inf * inf); /* squared to temper the effect... */
+	if (gp_brush_invert_check(gso)) {
+		/* Inflate (inverse) */
+		fac = 1.0f + (inf * inf); /* squared to temper the effect... */
+	}
+	else {
+		/* Shrink (default) */
+		fac = 1.0f - (inf * inf); /* squared to temper the effect... */
+	}
 	mul_v3_fl(vec, fac);
 	
 	/* 3) Translate back to original space, with the shrinkage applied */
