@@ -25,6 +25,8 @@
  *
  */
 
+#ifdef OPENSUBDIV_HAS_OPENCL
+
 #include "opensubdiv_device_context_opencl.h"
 
 #if defined(_WIN32)
@@ -241,3 +243,5 @@ bool CLDeviceContext::Initialize()
 	}
 	return true;
 }
+
+#endif  /* OPENSUBDIV_HAS_OPENCL */

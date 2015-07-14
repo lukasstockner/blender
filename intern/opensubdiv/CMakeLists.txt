@@ -26,15 +26,11 @@
 set(INC
 	.
 	../guardedalloc
-	../../source/blender/blenlib
-	../../source/blender/blenkernel
-	../../source/blender/makesdna
 )
 
 set(INC_SYS
 	${OPENSUBDIV_INCLUDE_DIR}
 	${GLEW_INCLUDE_PATH}
-	/usr/local/cuda/include
 )
 
 set(SRC

@@ -24,6 +24,8 @@
  *   language governing permissions and limitations under the Apache License.
  */
 
+#ifdef OPENSUBDIV_HAS_CUDA
+
 #include "opensubdiv_device_context_cuda.h"
 
 #if defined(_WIN32)
@@ -227,3 +229,5 @@ bool CudaDeviceContext::Initialize()
 	_initialized = true;
 	return true;
 }
+
+#endif  /* OPENSUBDIV_HAS_CUDA */
