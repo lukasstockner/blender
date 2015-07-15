@@ -1763,14 +1763,13 @@ static void ccgDM_glNormalFast(float *a, float *b, float *c, float *d)
 }
 
 /* Only used by non-editmesh types */
-static void ccgDM_buffer_copy_normal(DerivedMesh *dm, float *varray_,
-                                    int *UNUSED(mat_orig_to_new), void *UNUSED(user_data))
+static void ccgDM_buffer_copy_normal(
+        DerivedMesh *dm, short *varray)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGKey key;
-	short *varray = (short *)varray_;
-	short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
+	const short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
 	int gridSize = ccgSubSurf_getGridSize(ss);
 	int gridFaces = gridSize - 1;
 	DMFlagMat *faceFlags = ccgdm->faceFlags;
@@ -1785,7 +1784,7 @@ static void ccgDM_buffer_copy_normal(DerivedMesh *dm, float *varray_,
 		CCGFace *f = ccgdm->faceMap[i].face;
 		int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
 		int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
-		short (*ln)[4][3] = NULL;
+		const short (*ln)[3] = NULL;
 
 		if (faceFlags) {
 			shademodel = (lnors || (faceFlags[index].flag & ME_SMOOTH)) ? GL_SMOOTH : GL_FLAT;
@@ -1795,7 +1794,7 @@ static void ccgDM_buffer_copy_normal(DerivedMesh *dm, float *varray_,
 		}
 
 		if (lnors) {
-			ln = lnors;
+			ln = *lnors;
 			lnors += gridFaces * gridFaces * numVerts;
 		}
 
@@ -1806,13 +1805,13 @@ static void ccgDM_buffer_copy_normal(DerivedMesh *dm, float *varray_,
 				/* Can't use quad strips here... */
 				for (y = 0; y < gridFaces; y ++) {
 					for (x = 0; x < gridFaces; x ++) {
-						copy_v3_v3_short(&varray[start], ln[0][0]);
-						copy_v3_v3_short(&varray[start + 4], ln[0][3]);
-						copy_v3_v3_short(&varray[start + 8], ln[0][2]);
-						copy_v3_v3_short(&varray[start + 12], ln[0][1]);
+						copy_v3_v3_short(&varray[start], ln[0]);
+						copy_v3_v3_short(&varray[start + 4], ln[3]);
+						copy_v3_v3_short(&varray[start + 8], ln[2]);
+						copy_v3_v3_short(&varray[start + 12], ln[1]);
 
 						start += 16;
-						ln ++;
+						ln += 4;
 					}
 				}
 			}
@@ -1836,18 +1835,21 @@ static void ccgDM_buffer_copy_normal(DerivedMesh *dm, float *varray_,
 			else {
 				for (y = 0; y < gridFaces; y ++) {
 					for (x = 0; x < gridFaces; x ++) {
-						float no[3];
+						float f_no[3];
+						short f_no_s[3];
+
 						float *a = CCG_grid_elem_co(&key, faceGridData, x, y );
 						float *b = CCG_grid_elem_co(&key, faceGridData, x + 1, y );
 						float *c = CCG_grid_elem_co(&key, faceGridData, x + 1, y + 1);
 						float *d = CCG_grid_elem_co(&key, faceGridData, x, y + 1);
 
-						ccgDM_NormalFast(a, b, c, d, no);
+						ccgDM_NormalFast(a, b, c, d, f_no);
+						normal_float_to_short_v3(f_no_s, f_no);
 	
-						normal_float_to_short_v3(&varray[start], no);
-						normal_float_to_short_v3(&varray[start + 4], no);
-						normal_float_to_short_v3(&varray[start + 8], no);
-						normal_float_to_short_v3(&varray[start + 12], no);
+						copy_v3_v3_short(&varray[start], f_no_s);
+						copy_v3_v3_short(&varray[start + 4], f_no_s);
+						copy_v3_v3_short(&varray[start + 8], f_no_s);
+						copy_v3_v3_short(&varray[start + 12], f_no_s);
 
 						start += 16;
 					}
@@ -1858,14 +1860,14 @@ static void ccgDM_buffer_copy_normal(DerivedMesh *dm, float *varray_,
 }
 
 /* Only used by non-editmesh types */
-static void ccgDM_buffer_copy_triangles(DerivedMesh *dm, float *varray_,
-                                        int *mat_orig_to_new, void *UNUSED(user_data))
+static void ccgDM_buffer_copy_triangles(
+        DerivedMesh *dm, unsigned int *varray,
+        const int *mat_orig_to_new)
 {
 	GPUBufferMaterial *gpumat;
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGKey key;
-	unsigned int *varray = (unsigned int *)varray_;
 	int gridSize = ccgSubSurf_getGridSize(ss);
 	int gridFaces = gridSize - 1;
 	DMFlagMat *faceFlags = ccgdm->faceFlags;
@@ -1911,9 +1913,10 @@ static void ccgDM_buffer_copy_triangles(DerivedMesh *dm, float *varray_,
 
 
 /* Only used by non-editmesh types */
-static void ccgDM_buffer_copy_vertex(DerivedMesh *dm, float *varray,
-                                      int *UNUSED(mat_orig_to_new), void *UNUSED(user_data))
+static void ccgDM_buffer_copy_vertex(
+        DerivedMesh *dm, void *varray_p)
 {
+	float *varray = varray_p;
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGKey key;
@@ -1950,7 +1953,7 @@ static void ccgDM_buffer_copy_vertex(DerivedMesh *dm, float *varray,
 	}
 }
 
-static void copy_mcol_uc3(unsigned char *v, unsigned char *col)
+static void copy_mcol_uc3(unsigned char *v, const unsigned char *col)
 {
 	v[0] = col[3];
 	v[1] = col[2];
@@ -1958,14 +1961,14 @@ static void copy_mcol_uc3(unsigned char *v, unsigned char *col)
 }
 
 /* Only used by non-editmesh types */
-static void ccgDM_buffer_copy_color(DerivedMesh *dm, float *varray_,
-                                      int *UNUSED(mat_orig_to_new), void *user_data)
+static void ccgDM_buffer_copy_color(
+        DerivedMesh *dm, unsigned char *varray,
+        const void *user_data)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGKey key;
-	unsigned char *varray = (unsigned char *)varray_;
-	unsigned char *mcol = (unsigned char *)user_data;
+	const unsigned char *mcol = user_data;
 	int gridSize = ccgSubSurf_getGridSize(ss);
 	int gridFaces = gridSize - 1;
 	int i, totface = ccgSubSurf_getNumFaces(ss);
@@ -1995,9 +1998,10 @@ static void ccgDM_buffer_copy_color(DerivedMesh *dm, float *varray_,
 	}
 }
 
-static void ccgDM_buffer_copy_uv(DerivedMesh *dm, float *varray,
-                                      int *UNUSED(mat_orig_to_new), void *UNUSED(user_data))
+static void ccgDM_buffer_copy_uv(
+        DerivedMesh *dm, void *varray_p)
 {
+	float *varray = varray_p;
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGKey key;
@@ -2029,7 +2033,8 @@ static void ccgDM_buffer_copy_uv(DerivedMesh *dm, float *varray,
 	}
 }
 
-static void ccgDM_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *UNUSED(mat_orig_to_new), void *UNUSED(user))
+static void ccgDM_buffer_copy_uv_texpaint(
+        DerivedMesh *dm, float *varray)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
@@ -2094,27 +2099,29 @@ static void ccgDM_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *U
 	MEM_freeN(mtface_base);
 }
 
-static void ccgDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray,
-                         int *mat_orig_to_new, void *user_data)
-{	
-	switch(type) {
+static void ccgDM_copy_gpu_data(
+        DerivedMesh *dm, int type, void *varray_p,
+        const int *mat_orig_to_new, const void *user_data)
+{
+	/* 'varray_p' cast is redundant but include for self-documentation */
+	switch (type) {
 		case GPU_BUFFER_VERTEX:
-			ccgDM_buffer_copy_vertex(dm, varray, mat_orig_to_new, NULL);
+			ccgDM_buffer_copy_vertex(dm, (float *)varray_p);
 			break;
 		case GPU_BUFFER_NORMAL:
-			ccgDM_buffer_copy_normal(dm, varray, mat_orig_to_new, NULL);
+			ccgDM_buffer_copy_normal(dm, (short *)varray_p);
 			break;
 		case GPU_BUFFER_UV:
-			ccgDM_buffer_copy_uv(dm, varray, mat_orig_to_new, NULL);
+			ccgDM_buffer_copy_uv(dm, (float *)varray_p);
 			break;
 		case GPU_BUFFER_UV_TEXPAINT:
-			ccgDM_buffer_copy_uv_texpaint(dm, varray, mat_orig_to_new, NULL);
+			ccgDM_buffer_copy_uv_texpaint(dm, (float *)varray_p);
 			break;
 		case GPU_BUFFER_COLOR:
-			ccgDM_buffer_copy_color(dm, varray, mat_orig_to_new, user_data);
+			ccgDM_buffer_copy_color(dm, (unsigned char *)varray_p, user_data);
 			break;
 		case GPU_BUFFER_TRIANGLES:
-			ccgDM_buffer_copy_triangles(dm, varray, mat_orig_to_new, NULL);
+			ccgDM_buffer_copy_triangles(dm, (unsigned int *)varray_p, mat_orig_to_new);
 			break;
 		default:
 			break;
@@ -2127,7 +2134,8 @@ typedef struct {
 	int polys;
 } GPUMaterialInfo;
 
-static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
+static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm)
+{
 	GPUBufferMaterial *mat;
 	int *mat_orig_to_new;
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
@@ -2189,7 +2197,7 @@ static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
 			gdo->materials[curmat].totloops = matinfo[i].loops;
 			gdo->materials[curmat].mat_nr = i;
 			gdo->materials[curmat].totpolys = matinfo[i].polys;
-			gdo->materials[curmat].polys = MEM_mallocN(sizeof(int) * matinfo[0].polys, "GPUBufferMaterial.polys");
+			gdo->materials[curmat].polys = MEM_mallocN(sizeof(int) * matinfo[i].polys, "GPUBufferMaterial.polys");
 
 			curelement += matinfo[i].elements;
 			curmat++;
@@ -2622,7 +2630,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	unsigned int next_actualFace;
 	unsigned int gridFaces = ccgSubSurf_getGridSize(ss) - 1;
 	int mat_index;
-	int tot_element, start_element;
+	int tot_element, start_element, tot_drawn;
 
 	CCG_key_top_level(&key, ss);
 	ccgdm_pbvh_update(ccgdm);
@@ -2657,7 +2665,8 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		totpoly = bufmat->totpolys;
 
 		tot_element = 0;
-		start_element = bufmat->start;
+		tot_drawn = 0;
+		start_element = 0;
 
 		for (i = 0; i < totpoly; i++) {
 			int polyindex = bufmat->polys[i];
@@ -2703,23 +2712,26 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 				flush |= compareDrawOptions(userData, actualFace, next_actualFace) == 0;
 			}
 
+			tot_element += facequads * 6;
+
 			if (flush) {
 				if (draw_option != DM_DRAW_OPTION_SKIP)
-					tot_element += facequads * 6;
+					tot_drawn += facequads * 6;
 
-				if (tot_element) {
+				if (tot_drawn) {
 					if (mcol && draw_option != DM_DRAW_OPTION_NO_MCOL)
 						GPU_color_switch(1);
 					else
 						GPU_color_switch(0);
 
-					GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, start_element, tot_element);
+					GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, bufmat->start + start_element, tot_drawn);
+					tot_drawn = 0;
 				}
 
 				start_element = tot_element;
 			}
 			else {
-				tot_element += facequads * 6;
+				tot_drawn += facequads * 6;
 			}
 		}
 	}

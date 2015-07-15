@@ -149,6 +149,7 @@ typedef enum DMDrawFlag {
 	DM_DRAW_ALWAYS_SMOOTH       = (1 << 1),
 	DM_DRAW_USE_ACTIVE_UV       = (1 << 2),
 	DM_DRAW_USE_TEXPAINT_UV     = (1 << 3),
+	DM_DRAW_SKIP_HIDDEN         = (1 << 4),
 } DMDrawFlag;
 
 typedef enum DMForeachFlag {
@@ -464,7 +465,8 @@ struct DerivedMesh {
 	                           bool (*setFace)(void *userData, int index), void *userData);
 
 	struct GPUDrawObject *(*gpuObjectNew)(DerivedMesh *dm);
-	void (*copy_gpu_data)(DerivedMesh *dm, int type, float *varray, int *mat_orig_to_new, void *user_data);
+	void (*copy_gpu_data)(DerivedMesh *dm, int type, void *varray_p,
+	                      const int *mat_orig_to_new, const void *user_data);
 
 	/** Release reference to the DerivedMesh. This function decides internally
 	 * if the DerivedMesh will be freed, or cached for later use. */
