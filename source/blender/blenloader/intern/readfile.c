@@ -9731,6 +9731,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 					}
 					else {
 						mainptr->curlib->filedata = NULL;
+						mainptr->curlib->id.flag |= LIB_MISSING;
 					}
 					
 					if (fd == NULL) {
