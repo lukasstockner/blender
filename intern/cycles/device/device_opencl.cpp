@@ -115,12 +115,14 @@ bool opencl_kernel_use_advanced_shading(const string& platform)
 	if(platform == "NVIDIA CUDA")
 		return true;
 	else if(platform == "Apple")
-		return false;
+		return true;
 	else if(platform == "AMD Accelerated Parallel Processing")
 		return true;
 	else if(platform == "Intel(R) OpenCL")
 		return true;
-
+	/* Make sure officially unsupported OpenCL platforms
+	 * does not set up to use advanced shading.
+	 */
 	return false;
 }
 
@@ -153,6 +155,9 @@ bool opencl_device_supported(const string& platform_name,
 	if(platform_name == "AMD Accelerated Parallel Processing" &&
 	   device_type == CL_DEVICE_TYPE_GPU)
 	{
+		return true;
+	}
+	if(platform_name == "Apple" && device_type == CL_DEVICE_TYPE_GPU) {
 		return true;
 	}
 	return false;
