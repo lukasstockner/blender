@@ -44,6 +44,7 @@
 
 #define OSD_LOG if (false) printf
 
+#if 0
 static bool ccgSubSurf_checkDMTopologyChanged(DerivedMesh *dm, DerivedMesh *dm2)
 {
 	const int num_verts = dm->getNumVerts(dm);
@@ -76,54 +77,15 @@ static bool ccgSubSurf_checkDMTopologyChanged(DerivedMesh *dm, DerivedMesh *dm2)
 	/* TODO(sergey): Check whether crease changed. */
 	return false;
 }
-
-void ccgSubSurf_setDerivedMesh(CCGSubSurf *ss, DerivedMesh *dm)
-{
-	if (ss->dm != NULL) {
-		if (ccgSubSurf_checkDMTopologyChanged(ss->dm, dm)) {
-			ss->osd_topology_changed = true;
-		}
-		ss->dm->needsFree = 1;
-		ss->dm->release(ss->dm);
-	}
-	ss->dm = dm;
-}
+#endif
 
 static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
 {
-	/* TODO(sergey): This is rather a duplicated work to gather all
-	 * the basis coordinates in an array. It also needed to update
-	 * evaluator and we somehow should optimize this to positions
-	 * are not being packed into an array at draw time.
-	 */
-	float (*positions)[3];
-	int vertDataSize = ss->meshIFC.vertDataSize;
-	int normalDataOffset = ss->normalDataOffset;
-	int num_basis_verts = ss->vMap->numEntries;
-	int i;
-
 	BLI_assert(ss->meshIFC.numLayers == 3);
-
-	positions = MEM_callocN(2 * sizeof(*positions) * num_basis_verts,
-	                        "OpenSubdiv coarse points");
-#pragma omp parallel for
-	for (i = 0; i < ss->vMap->curSize; i++) {
-		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
-		for (; v; v = v->next) {
-			float *co = VERT_getCo(v, 0);
-			float *no = VERT_getNo(v, 0);
-			BLI_assert(v->osd_index < ss->vMap->numEntries);
-			VertDataCopy(positions[v->osd_index * 2], co, ss);
-			VertDataCopy(positions[v->osd_index * 2 + 1], no, ss);
-		}
-	}
-
 	openSubdiv_osdGLMeshUpdateVertexBuffer(ss->osd_mesh,
-	                                       (float *) positions,
+	                                       (float *) ss->osd_coarse_positions,
 	                                       0,
-	                                       num_basis_verts);
-
-	MEM_freeN(positions);
+	                                       ss->osd_num_coarse_positions);
 }
 
 bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
@@ -160,16 +122,13 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 	}
 
 	if (ss->osd_mesh == NULL) {
-		OpenSubdiv_Converter converter;
-		OpenSubdiv_TopologyRefinerDescr *topology_refiner;
-		ccgSubSurf_converter_setup_from_derivedmesh(ss, ss->dm, &converter);
-		topology_refiner = openSubdiv_createTopologyRefinerDescr(&converter);
 		ss->osd_mesh = openSubdiv_createOsdGLMeshFromTopologyRefiner(
-		        topology_refiner,
+		        ss->osd_topology_refiner,
 		        compute_type,
 		        ss->subdivLevels,
 		        OPENSUBDIV_SCHEME_CATMARK,  /* TODO(sergey): Deprecated argument. */
 		        ss->osd_subsurf_uv);
+		ss->osd_topology_refiner = NULL;
 
 		if (UNLIKELY(ss->osd_mesh == NULL)) {
 			/* Most likely compute device is not available. */
@@ -360,8 +319,8 @@ static bool check_topology_changed(CCGSubSurf *ss)
 	if (ss->osd_compute != U.opensubdiv_compute_type) {
 		return true;
 	}
-
-	return ss->osd_topology_changed;
+	/* TODO(sergey): Do proper check here. */
+	return false;
 }
 
 static bool opensubdiv_createEvaluator(CCGSubSurf *ss)
@@ -806,6 +765,52 @@ static void opensubdiv_evaluateGrids(CCGSubSurf *ss)
 	}
 }
 
+void ccgSubSurf_prepareTopologyRefiner(CCGSubSurf *ss,
+                                       DerivedMesh *dm)
+{
+	if (ss->osd_mesh == NULL || ss->osd_mesh_invalid) {
+		OpenSubdiv_Converter converter;
+		ccgSubSurf_converter_setup_from_derivedmesh(ss, dm, &converter);
+		/* TODO(sergey): Remove possibly previously allocated refiner. */
+		ss->osd_topology_refiner = openSubdiv_createTopologyRefinerDescr(&converter);
+	}
+
+	/* Update number of grids, needed for thinhs liek final faces
+	 * counter, used by display drawing.
+	 */
+	{
+		const int num_polys = dm->getNumPolys(dm);
+		const MPoly *mpoly = dm->getPolyArray(dm);
+		int poly;
+		ss->numGrids = 0;
+		for (poly = 0; poly < num_polys; ++poly) {
+			ss->numGrids += mpoly[poly].totloop;
+		}
+	}
+
+	{
+		const int num_verts = dm->getNumVerts(dm);
+		const MVert *mvert = dm->getVertArray(dm);
+		int vert;
+		if (ss->osd_coarse_positions != NULL &&
+		    num_verts != ss->osd_num_coarse_positions)
+		{
+			MEM_freeN(ss->osd_coarse_positions);
+			ss->osd_coarse_positions = NULL;
+		}
+		if (ss->osd_coarse_positions == NULL) {
+			ss->osd_coarse_positions = MEM_mallocN(sizeof(float) * 6 * num_verts, "osd coarse positions");
+		}
+		for (vert = 0; vert < num_verts; vert++) {
+			copy_v3_v3(ss->osd_coarse_positions[vert * 2 + 0], mvert[vert].co);
+			/* TODO(sergey): Support proper normals here. */
+			zero_v3(ss->osd_coarse_positions[vert * 2 + 1]);
+		}
+		ss->osd_num_coarse_positions = num_verts;
+		ss->osd_coords_invalid = true;
+	}
+}
+
 void ccgSubSurf__sync_opensubdiv(CCGSubSurf *ss)
 {
 	BLI_assert(ss->meshIFC.numLayers == 2 || ss->meshIFC.numLayers == 3);
@@ -831,7 +836,6 @@ void ccgSubSurf__sync_opensubdiv(CCGSubSurf *ss)
 				ss->osd_mesh_invalid = true;
 			}
 			ss->osd_uvs_invalid = true;
-			ss->osd_topology_changed = false;
 			ss->osd_compute = U.opensubdiv_compute_type;
 		}
 		opensubdiv_updateCoarseNormals(ss);

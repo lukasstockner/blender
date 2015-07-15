@@ -207,7 +207,7 @@ struct CCGSubSurf {
 #ifdef WITH_OPENSUBDIV
 	struct OpenSubdiv_EvaluatorDescr *osd_evaluator;
 	struct OpenSubdiv_GLMesh *osd_mesh;
-	bool osd_topology_changed;
+	struct OpenSubdiv_TopologyRefinerDescr *osd_topology_refiner;  /* Only used at synchronization stage. */
 	bool osd_mesh_invalid, osd_coords_invalid;
 	unsigned int osd_vao;
 	bool skip_grids;
@@ -218,7 +218,8 @@ struct CCGSubSurf {
 	int osd_uv_index;
 	int osd_next_face_index;
 
-	struct DerivedMesh *dm;
+	float (*osd_coarse_positions)[3];
+	int osd_num_coarse_positions;
 #endif
 };
 

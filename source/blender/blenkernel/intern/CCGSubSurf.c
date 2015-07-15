@@ -306,7 +306,7 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 #ifdef WITH_OPENSUBDIV
 		ss->osd_evaluator = NULL;
 		ss->osd_mesh = NULL;
-		ss->osd_topology_changed = false;
+		ss->osd_topology_refiner = NULL;
 		ss->osd_mesh_invalid = false;
 		ss->osd_coords_invalid = false;
 		ss->osd_vao = 0;
@@ -316,7 +316,8 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 		ss->osd_subsurf_uv = 0;
 		ss->osd_uv_index = -1;
 		ss->osd_next_face_index = 0;
-		ss->dm = NULL;
+		ss->osd_coarse_positions = NULL;
+		ss->osd_num_coarse_positions = 0;
 #endif
 
 		return ss;
@@ -338,10 +339,11 @@ void ccgSubSurf_free(CCGSubSurf *ss)
 	if (ss->osd_vao != 0) {
 		glDeleteVertexArrays(1, &ss->osd_vao);
 	}
-	if (ss->dm != NULL) {
-		ss->dm->needsFree = 1;
-		ss->dm->release(ss->dm);
+	if (ss->osd_coarse_positions != NULL) {
+		MEM_freeN(ss->osd_coarse_positions);
 	}
+	/* TODO(sergey): This is not valid when viewport is not visible. */
+	BLI_assert(ss->osd_topology_refiner == NULL);
 #endif
 
 	if (ss->syncState) {
@@ -402,7 +404,9 @@ CCGError ccgSubSurf_setSubdivisionLevels(CCGSubSurf *ss, int subdivisionLevels)
 		return eCCGError_InvalidValue;
 	}
 	else if (subdivisionLevels != ss->subdivLevels) {
-		ss->osd_topology_changed = true;
+#ifdef WITH_OPENSUBDIV
+		ss->osd_mesh_invalid = true;
+#endif
 		ss->numGrids = 0;
 		ss->subdivLevels = subdivisionLevels;
 		ccg_ehash_free(ss->vMap, (EHEntryFreeFP) _vert_free, ss);

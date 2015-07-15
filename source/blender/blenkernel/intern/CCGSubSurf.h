@@ -195,14 +195,14 @@ void				ccgFaceIterator_next		(CCGFaceIterator *fi);
  * of the prepare routine.
  */
 struct DerivedMesh;
-void ccgSubSurf_setDerivedMesh(CCGSubSurf *ss, struct DerivedMesh *dm);
+void ccgSubSurf_prepareTopologyRefiner(CCGSubSurf *ss,
+                                       struct DerivedMesh *dm);
 bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl);
 void ccgSubSurf_drawGLMesh(CCGSubSurf *ss, bool fill_quads,
                            int start_partition, int num_partitions);
 void ccgSubSurf_setSkipGrids(CCGSubSurf *ss, bool skip_grids);
 bool ccgSubSurf_needGrids(CCGSubSurf *ss);
 
-struct DerivedMesh;
 void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss,
                                   struct DerivedMesh *dm,
                                   bool subdivide_uvs);

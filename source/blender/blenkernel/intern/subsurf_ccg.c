@@ -675,6 +675,14 @@ static void ss_sync_ccg_from_derivedmesh(CCGSubSurf *ss,
 #endif
 }
 
+#ifdef WITH_OPENSUBDIV
+static void ss_sync_osd_from_derivedmesh(CCGSubSurf *ss,
+                                         DerivedMesh *dm)
+{
+	ccgSubSurf_prepareTopologyRefiner(ss, dm);
+}
+#endif  /* WITH_OPENSUBDIV */
+
 static void ss_sync_from_derivedmesh(CCGSubSurf *ss,
                                      DerivedMesh *dm,
                                      float (*vertexCos)[3],
@@ -682,7 +690,8 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss,
 {
 #ifdef WITH_OPENSUBDIV
 	if (!ccgSubSurf_needGrids(ss)) {
-		abort();
+		/* TODO(sergey): Use vertex coordinates and flat subdiv flag. */
+		ss_sync_osd_from_derivedmesh(ss, dm);
 	}
 	else
 #endif
@@ -2291,64 +2300,11 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 
 #ifdef WITH_OPENSUBDIV
 	if (ccgdm->useGpuBackend) {
-		const DMFlagMat *faceFlags = ccgdm->faceFlags;
-		const short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
 		CCGSubSurf *ss = ccgdm->ss;
-		int i, matnr = -1, shademodel = -1;
-		CCGFaceIterator fi;
-		int start_partition = 0, num_partitions = 0;
 		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, setMaterial != NULL) == false)) {
 			return;
 		}
-
-		for (ccgSubSurf_initFaceIterator(ss, &fi), i = 0;
-		     !ccgFaceIterator_isStopped(&fi);
-		     ccgFaceIterator_next(&fi), ++i)
-		{
-			CCGFace *f = ccgFaceIterator_getCurrent(&fi);
-			int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
-			int new_matnr, new_shademodel;
-
-			if (faceFlags) {
-				new_shademodel = (lnors || (faceFlags[index].flag & ME_SMOOTH))
-					? GL_SMOOTH
-					: GL_FLAT;
-				new_matnr = faceFlags[index].mat_nr;
-			}
-			else {
-				new_shademodel = GL_SMOOTH;
-				new_matnr = 0;
-			}
-
-			if (new_shademodel != shademodel || new_matnr != matnr) {
-				if (num_partitions) {
-					ccgSubSurf_drawGLMesh(ss, true,
-					                      start_partition, num_partitions);
-				}
-
-				start_partition = i;
-				num_partitions = 0;
-
-				/* Update material settings for the next partitions batch. */
-				glShadeModel(new_shademodel);
-				if (new_matnr != matnr && setMaterial) {
-					setMaterial(new_matnr + 1, NULL);
-				}
-
-				/* Cache settings. */
-				shademodel = new_shademodel;
-				matnr = new_matnr;
-			}
-
-			num_partitions++;
-		}
-
-		/* Draw residual tail of the partitions. */
-		if (num_partitions) {
-			ccgSubSurf_drawGLMesh(ss, true, start_partition, num_partitions);
-		}
-
-		/* We're done with drawing if drawing happens using OpenSubdiv. */
+		ccgSubSurf_drawGLMesh(ss, true, -1, -1);
 		return;
 	}
 #endif
@@ -2387,84 +2343,13 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 
 #ifdef WITH_OPENSUBDIV
 	if (ccgdm->useGpuBackend) {
-		int i, matnr = -1, shademodel = -1;
-		CCGFaceIterator fi;
-		int start_partition = 0, num_partitions = 0;
-
+		int new_matnr = faceFlags[0].mat_nr + 1;
 		GPU_draw_update_fvar_offset(dm);
-
 		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, false) == false)) {
 			return;
 		}
-
-		do_draw = false;
-		for (ccgSubSurf_initFaceIterator(ss, &fi), i = 0;
-		     !ccgFaceIterator_isStopped(&fi);
-		     ccgFaceIterator_next(&fi), ++i)
-		{
-			CCGFace *f = ccgFaceIterator_getCurrent(&fi);
-			int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
-			int origIndex = ccgDM_getFaceMapIndex(ss, f);
-			int new_matnr, new_shademodel;
-
-			if (faceFlags) {
-				new_shademodel = (lnors || (faceFlags[index].flag & ME_SMOOTH))
-					? GL_SMOOTH
-					: GL_FLAT;
-				new_matnr = faceFlags[index].mat_nr + 1;
-			}
-			else {
-				new_shademodel = GL_SMOOTH;
-				new_matnr = 1;
-			}
-
-			if (new_shademodel != shademodel || new_matnr != matnr) {
-				if (num_partitions) {
-					ccgSubSurf_drawGLMesh(ss, true,
-					                      start_partition, num_partitions);
-				}
-
-				start_partition = i;
-				num_partitions = 0;
-
-				/* Update material settings for the next partitions batch. */
-				if (new_shademodel != shademodel) {
-					glShadeModel(new_shademodel);
-				}
-
-				if (new_matnr != matnr) {
-					do_draw = setMaterial(new_matnr, &gattribs);
-				}
-
-				/* Cache settings. */
-				shademodel = new_shademodel;
-				matnr = new_matnr;
-			}
-
-			/* TODO(sergey): This isn't actually tested.. */
-			if (!do_draw || (setDrawOptions && (origIndex != ORIGINDEX_NONE) &&
-			                (setDrawOptions(userData, origIndex) == DM_DRAW_OPTION_SKIP)))
-			{
-				if (num_partitions) {
-					ccgSubSurf_drawGLMesh(ss, true,
-					                      start_partition, num_partitions);
-				}
-
-				start_partition = i;
-				num_partitions = 0;
-
-				continue;
-			}
-
-			num_partitions++;
-		}
-
-		/* Draw residual tail of the partitions. */
-		if (num_partitions) {
-			ccgSubSurf_drawGLMesh(ss, true, start_partition, num_partitions);
-		}
-
-		/* We're done with drawing if drawing happens using OpenSubdiv. */
+		setMaterial(new_matnr, &gattribs);
+		ccgSubSurf_drawGLMesh(ss, true, -1, -1);
 		return;
 	}
 #endif
@@ -2822,55 +2707,10 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 
 #ifdef WITH_OPENSUBDIV
 	if (ccgdm->useGpuBackend) {
-		const short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
-		/* TODO(sergey): Do we have shorter way to do this? */
-		int active = CustomData_get_active_layer(&ccgdm->dm.polyData,
-		                                         CD_MTEXPOLY);
-		MTexPoly *mtexpoly = CustomData_get_layer_n(&ccgdm->dm.polyData,
-		                                            CD_MTEXPOLY,
-		                                            active);
-
-		CCGFaceIterator fi;
-
-		/* TODO(sergey): Face-by-face for now, in order to optimize
-		 * this we'll need to pass proper compareDrawOptions.
-		 */
-
 		if (ccgSubSurf_prepareGLMesh(ss, true) == false) {
 			return;
 		}
-
-		for (ccgSubSurf_initFaceIterator(ss, &fi), i = 0;
-		     !ccgFaceIterator_isStopped(&fi);
-		     ccgFaceIterator_next(&fi), ++i)
-		{
-			CCGFace *f = ccgFaceIterator_getCurrent(&fi);
-			int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
-			bool drawSmooth;
-			MTexPoly tpoly;
-			int mat_nr;
-			if (tf) {
-				ME_MTEXFACE_CPY(&tpoly, &mtexpoly[index]);
-			}
-
-			if (faceFlags) {
-				drawSmooth = (lnors || (faceFlags[0].flag & ME_SMOOTH));
-				mat_nr = faceFlags[0].mat_nr;
-			}
-			else {
-				drawSmooth = 1;
-				mat_nr = 0;
-			}
-
-			glShadeModel(drawSmooth ? GL_SMOOTH : GL_FLAT);
-
-			if (drawParams != NULL && mtexpoly != NULL) {
-				drawParams((use_tface && tf) ? &tpoly : NULL, (mcol != NULL), mat_nr);
-			}
-
-			ccgSubSurf_drawGLMesh(ss, true, i, 1);
-		}
-
+		ccgSubSurf_drawGLMesh(ss, true, -1, -1);
 		return;
 	}
 #endif
@@ -3052,11 +2892,6 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 
 #ifdef WITH_OPENSUBDIV
 	if (ccgdm->useGpuBackend) {
-		int i, matnr = -1, shademodel = -1;
-		CCGFaceIterator fi;
-		int start_partition = 0, num_partitions = 0;
-		DMDrawOption draw_option = DM_DRAW_OPTION_NORMAL;
-
 		/* TODO(sergey): This is for cases when vertex colors or weights
 		 * are visualising. Currently we don't have CD layers for this data
 		 * and here we only make it so there's no garbage displayed.
@@ -3067,82 +2902,10 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 		if (setDrawOptions == NULL) {
 			glColor3f(0.8f, 0.8f, 0.8f);
 		}
-
 		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, true) == false)) {
 			return;
 		}
-
-		for (ccgSubSurf_initFaceIterator(ss, &fi), i = 0;
-		     !ccgFaceIterator_isStopped(&fi);
-		     ccgFaceIterator_next(&fi), ++i)
-		{
-			CCGFace *f = ccgFaceIterator_getCurrent(&fi);
-			int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
-			int origIndex = ccgDM_getFaceMapIndex(ss, f);
-			int new_matnr, new_shademodel;
-
-			if (faceFlags) {
-				new_shademodel = (lnors || (faceFlags[index].flag & ME_SMOOTH))
-					? GL_SMOOTH
-					: GL_FLAT;
-				new_matnr = faceFlags[index].mat_nr + 1;
-			}
-			else {
-				new_shademodel = GL_SMOOTH;
-				new_matnr = 1;
-			}
-
-			if (new_shademodel != shademodel || new_matnr != matnr) {
-				if (num_partitions) {
-					ccgSubSurf_drawGLMesh(ss, true,
-					                      start_partition, num_partitions);
-				}
-
-				start_partition = i;
-				num_partitions = 0;
-
-				/* Update material settings for the next partitions batch. */
-				if (new_shademodel != shademodel) {
-					glShadeModel(new_shademodel);
-				}
-
-				if (new_matnr != matnr) {
-					if (index == ORIGINDEX_NONE) {
-						/* XXX, no faceFlags no material */
-						draw_option = setMaterial(faceFlags ? faceFlags[origIndex].mat_nr + 1 : 1, NULL);
-					}
-					else if (setDrawOptions) {
-						draw_option = setDrawOptions(userData, index);
-					}
-				}
-
-				/* Cache settings. */
-				shademodel = new_shademodel;
-				matnr = new_matnr;
-			}
-
-			/* TODO(sergey): This isn't actually tested.. */
-			if (draw_option == DM_DRAW_OPTION_SKIP) {
-				if (num_partitions) {
-					ccgSubSurf_drawGLMesh(ss, true,
-					                      start_partition, num_partitions);
-				}
-
-				start_partition = i;
-				num_partitions = 0;
-
-				continue;
-			}
-
-			num_partitions++;
-		}
-
-		/* Draw residual tail of the partitions. */
-		if (num_partitions) {
-			ccgSubSurf_drawGLMesh(ss, true, start_partition, num_partitions);
-		}
-
-		/* We're done with drawing if drawing happens using OpenSubdiv. */
+		ccgSubSurf_drawGLMesh(ss, true, -1, -1);
 		return;
 	}
 #endif
