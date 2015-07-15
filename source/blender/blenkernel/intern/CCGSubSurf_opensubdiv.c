@@ -44,10 +44,16 @@
 
 #define OSD_LOG if (false) printf
 
-static OpenSubdiv_SchemeType conv_dm_get_type(
+static OpenSubdiv_SchemeType conv_dm_get_catmark_type(
         const OpenSubdiv_Converter *UNUSED(converter))
 {
 	return OSD_SCHEME_CATMARK;
+}
+
+static OpenSubdiv_SchemeType conv_dm_get_bilinear_type(
+        const OpenSubdiv_Converter *UNUSED(converter))
+{
+	return OSD_SCHEME_BILINEAR;
 }
 
 /* TODO(sergey): Move converters API to own file for clearity of code. */
@@ -232,10 +238,14 @@ static void conv_dm_get_vert_faces(const OpenSubdiv_Converter *converter,
 }
 
 static void converter_setup_from_derivedmesh(
+        CCGSubSurf *ss,
         DerivedMesh *dm,
         OpenSubdiv_Converter *converter)
 {
-	converter->get_type = conv_dm_get_type;
+	if (ss->meshIFC.simpleSubdiv)
+		converter->get_type = conv_dm_get_bilinear_type;
+	else
+		converter->get_type = conv_dm_get_catmark_type;
 
 	converter->get_num_faces = conv_dm_get_num_faces;
 	converter->get_num_edges = conv_dm_get_num_edges;
@@ -375,7 +385,7 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 	if (ss->osd_mesh == NULL) {
 		OpenSubdiv_Converter converter;
 		OpenSubdiv_TopologyRefinerDescr *topology_refiner;
-		converter_setup_from_derivedmesh(ss->dm, &converter);
+		converter_setup_from_derivedmesh(ss, ss->dm, &converter);
 		topology_refiner = openSubdiv_createTopologyRefinerDescr(&converter);
 		ss->osd_mesh = openSubdiv_createOsdGLMeshFromTopologyRefiner(
 		        topology_refiner,
@@ -576,7 +586,7 @@ static bool opensubdiv_createEvaluator(CCGSubSurf *ss)
 {
 	OpenSubdiv_Converter converter;
 	OpenSubdiv_TopologyRefinerDescr *topology_refiner;
-	converter_setup_from_derivedmesh(ss->dm, &converter);
+	converter_setup_from_derivedmesh(ss, ss->dm, &converter);
 	topology_refiner = openSubdiv_createTopologyRefinerDescr(&converter);
 	ss->osd_compute = U.opensubdiv_compute_type;
 	ss->osd_evaluator =

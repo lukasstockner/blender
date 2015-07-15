@@ -524,6 +524,10 @@ OpenSubdiv_EvaluatorDescr *openSubdiv_createEvaluatorDescr(
 
 	/* Apply adaptive refinement to the mesh so that we can use the
 	 * limit evaluation API features.
+	 *
+	 * TODO(sergey): Once OpenSubdiv supports uniform meshes in limit
+	 * evlauation we need to switch to uniform here, which will match
+	 * original Blender subsurf.
 	 */
 	TopologyRefiner::AdaptiveOptions options(subsurf_level);
 	refiner->RefineAdaptive(options);
