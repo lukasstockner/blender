@@ -48,6 +48,7 @@ static void node_shader_init_tex_pointdensity(bNodeTree *UNUSED(ntree),
 	point_density->resolution = 100;
 	point_density->radius = 0.3f;
 	point_density->space = SHD_POINTDENSITY_SPACE_OBJECT;
+	point_density->color_source = SHD_POINTDENSITY_COLOR_PARTAGE;
 	node->storage = point_density;
 }
 

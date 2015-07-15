@@ -3003,12 +3003,13 @@ static void rna_ShaderNodePointDensity_psys_set(PointerRNA *ptr, PointerRNA valu
 static int point_density_color_source_from_shader(NodeShaderTexPointDensity *shader_point_density)
 {
 	switch (shader_point_density->color_source) {
-		case SHD_POINTDENSITY_COLOR_CONSTANT: return TEX_PD_COLOR_CONSTANT;
 		case SHD_POINTDENSITY_COLOR_PARTAGE: return TEX_PD_COLOR_PARTAGE;
 		case SHD_POINTDENSITY_COLOR_PARTSPEED: return TEX_PD_COLOR_PARTSPEED;
 		case SHD_POINTDENSITY_COLOR_PARTVEL: return TEX_PD_COLOR_PARTVEL;
 		case SHD_POINTDENSITY_COLOR_PARTTEX: return TEX_PD_COLOR_PARTTEX;
-		default: BLI_assert(false); return TEX_PD_COLOR_CONSTANT;
+		default:
+			BLI_assert(!"Unknown color source");
+			return TEX_PD_COLOR_CONSTANT;
 	}
 }
 
@@ -3909,7 +3910,6 @@ static void def_sh_tex_pointdensity(StructRNA *srna)
 	};
 
 	static EnumPropertyItem color_source_items[] = {
-		{SHD_POINTDENSITY_COLOR_CONSTANT, "CONSTANT", 0, "Constant", ""},
 		{SHD_POINTDENSITY_COLOR_PARTAGE, "PARTICLE_AGE", 0, "Particle Age",
 		                                 "Lifetime mapped as 0.0 - 1.0 intensity"},
 		{SHD_POINTDENSITY_COLOR_PARTSPEED, "PARTICLE_SPEED", 0, "Particle Speed",
