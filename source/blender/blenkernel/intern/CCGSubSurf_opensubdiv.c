@@ -228,6 +228,11 @@ void ccgSubSurf_setSkipGrids(CCGSubSurf *ss, bool skip_grids)
 	ss->skip_grids = skip_grids;
 }
 
+bool ccgSubSurf_needGrids(CCGSubSurf *ss)
+{
+	return ss->skip_grids == false;
+}
+
 BLI_INLINE void ccgSubSurf__mapGridToFace(int S, float grid_u, float grid_v,
                                           float *face_u, float *face_v)
 {
@@ -363,7 +368,7 @@ static bool opensubdiv_createEvaluator(CCGSubSurf *ss)
 {
 	OpenSubdiv_Converter converter;
 	OpenSubdiv_TopologyRefinerDescr *topology_refiner;
-	ccgSubSurf_converter_setup_from_derivedmesh(ss, ss->dm, &converter);
+	ccgSubSurf_converter_setup_from_ccg(ss, &converter);
 	topology_refiner = openSubdiv_createTopologyRefinerDescr(&converter);
 	ss->osd_compute = U.opensubdiv_compute_type;
 	ss->osd_evaluator =
@@ -387,7 +392,7 @@ static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 			 * Here we only tag for free, actual free should happen
 			 * from the main thread.
 			 */
-			if (ss->osd_mesh) {
+			if (ss->osd_mesh != NULL) {
 				ss->osd_mesh_invalid = true;
 			}
 
@@ -395,8 +400,7 @@ static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 		}
 	}
 	if (ss->osd_evaluator == NULL) {
-		int num_basis_verts = ss->vMap->numEntries;
-		OSD_LOG("Allocating new evaluator, %d verts\n", num_basis_verts);
+		OSD_LOG("Allocating new evaluator, %d verts\n", ss->vMap->numEntries);
 		opensubdiv_createEvaluator(ss);
 	} else {
 		OSD_LOG("Re-using old evaluator\n");
@@ -404,7 +408,7 @@ static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 	return ss->osd_evaluator != NULL;
 }
 
-static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
+static void opensubdiv_updateEvaluatorCoarsePositions(CCGSubSurf *ss)
 {
 	float (*positions)[3];
 	int vertDataSize = ss->meshIFC.vertDataSize;
@@ -806,18 +810,11 @@ void ccgSubSurf__sync_opensubdiv(CCGSubSurf *ss)
 {
 	BLI_assert(ss->meshIFC.numLayers == 2 || ss->meshIFC.numLayers == 3);
 
-	/* TODO(sergey): Apparently it's not supported by OpenSubdiv. */
-	if (ss->fMap->numEntries == 0) {
-		return;
-	}
-
-	ss->osd_coords_invalid = true;
-
-	/* Make sure OSD evaluator is up-to-date. */
 	if (ss->skip_grids == false) {
+		/* Make sure OSD evaluator is up-to-date. */
 		if (opensubdiv_ensureEvaluator(ss)) {
 			/* Update coarse points in the OpenSubdiv evaluator. */
-			opensubdiv_updateCoarsePositions(ss);
+			opensubdiv_updateEvaluatorCoarsePositions(ss);
 
 			/* Evaluate opensubdiv mesh into the CCG grids. */
 			opensubdiv_evaluateGrids(ss);

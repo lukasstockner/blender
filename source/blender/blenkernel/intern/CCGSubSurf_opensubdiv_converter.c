@@ -40,6 +40,10 @@
 #include "opensubdiv_capi.h"
 #include "opensubdiv_converter_capi.h"
 
+/**
+ * Converter from DerivedMesh.
+ */
+
 /* TODO(sergey): Optimize this by using mesh_map, so we don't
  * do full mesh lookup for every geometry primitive.
  */
@@ -266,6 +270,177 @@ void ccgSubSurf_converter_setup_from_derivedmesh(
 	converter->user_data = dm;
 }
 
-/* TODO(sergey): Implement converter from CCGSubSurf. */
+/**
+ * Converter from CCGSubSurf
+ */
+
+static OpenSubdiv_SchemeType conv_ccg_get_bilinear_type(
+        const OpenSubdiv_Converter *converter)
+{
+	CCGSubSurf *ss = converter->user_data;
+	if (ss->meshIFC.simpleSubdiv) {
+		return OSD_SCHEME_BILINEAR;
+	}
+	else {
+		return OSD_SCHEME_CATMARK;
+	}
+}
+
+static int conv_ccg_get_num_faces(const OpenSubdiv_Converter *converter)
+{
+	CCGSubSurf *ss = converter->user_data;
+	return ss->fMap->numEntries;
+}
+
+static int conv_ccg_get_num_edges(const OpenSubdiv_Converter *converter)
+{
+	CCGSubSurf *ss = converter->user_data;
+	return ss->eMap->numEntries;
+}
+
+static int conv_ccg_get_num_verts(const OpenSubdiv_Converter *converter)
+{
+	CCGSubSurf *ss = converter->user_data;
+	return ss->vMap->numEntries;
+}
+
+static int conv_ccg_get_num_face_verts(const OpenSubdiv_Converter *converter,
+                                       int face)
+{
+	CCGSubSurf *ss = converter->user_data;
+	CCGFace *ccg_face = ccgSubSurf_getFace(ss, SET_INT_IN_POINTER(face));
+	return ccgSubSurf_getFaceNumVerts(ccg_face);
+}
+
+static void conv_ccg_get_face_verts(const OpenSubdiv_Converter *converter,
+                                    int face,
+                                    int *face_verts)
+{
+	CCGSubSurf *ss = converter->user_data;
+	CCGFace *ccg_face = ccgSubSurf_getFace(ss, SET_INT_IN_POINTER(face));
+	int num_face_verts = ccgSubSurf_getFaceNumVerts(ccg_face);
+	int loop;
+	for(loop = 0; loop < num_face_verts; loop++) {
+		CCGVert *ccg_vert = ccgSubSurf_getFaceVert(ccg_face, loop);
+		face_verts[loop] = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(ccg_vert));
+	}
+}
+
+static void conv_ccg_get_face_edges(const OpenSubdiv_Converter *converter,
+                                    int face,
+                                    int *face_edges)
+{
+	CCGSubSurf *ss = converter->user_data;
+	CCGFace *ccg_face = ccgSubSurf_getFace(ss, SET_INT_IN_POINTER(face));
+	int num_face_verts = ccgSubSurf_getFaceNumVerts(ccg_face);
+	int loop;
+	for(loop = 0; loop < num_face_verts; loop++) {
+		CCGEdge *ccg_edge = ccgSubSurf_getFaceEdge(ccg_face, loop);
+		face_edges[loop] = GET_INT_FROM_POINTER(ccgSubSurf_getEdgeEdgeHandle(ccg_edge));
+	}
+}
+
+static void conv_ccg_get_edge_verts(const OpenSubdiv_Converter *converter,
+                                    int edge,
+                                    int *edge_verts)
+{
+	CCGSubSurf *ss = converter->user_data;
+	CCGEdge *ccg_edge = ccgSubSurf_getEdge(ss, SET_INT_IN_POINTER(edge));
+	CCGVert *ccg_vert0 = ccgSubSurf_getEdgeVert0(ccg_edge);
+	CCGVert *ccg_vert1 = ccgSubSurf_getEdgeVert1(ccg_edge);
+	edge_verts[0] = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(ccg_vert0));
+	edge_verts[1] = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(ccg_vert1));
+}
+
+static int conv_ccg_get_num_edge_faces(const OpenSubdiv_Converter *converter,
+                                       int edge)
+{
+	CCGSubSurf *ss = converter->user_data;
+	CCGEdge *ccg_edge = ccgSubSurf_getEdge(ss, SET_INT_IN_POINTER(edge));
+	return ccgSubSurf_getEdgeNumFaces(ccg_edge);
+}
+
+static void conv_ccg_get_edge_faces(const OpenSubdiv_Converter *converter,
+                                    int edge,
+                                    int *edge_faces)
+{
+	CCGSubSurf *ss = converter->user_data;
+	CCGEdge *ccg_edge = ccgSubSurf_getEdge(ss, SET_INT_IN_POINTER(edge));
+	int num_edge_faces = ccgSubSurf_getEdgeNumFaces(ccg_edge);
+	int face;
+	for (face = 0; face < num_edge_faces; face++) {
+		CCGFace *ccg_face = ccgSubSurf_getEdgeFace(ccg_edge, face);
+		edge_faces[face] = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(ccg_face));
+	}
+}
+
+static int conv_ccg_get_num_vert_edges(const OpenSubdiv_Converter *converter,
+                                       int vert)
+{
+	CCGSubSurf *ss = converter->user_data;
+	CCGVert *ccg_vert = ccgSubSurf_getVert(ss, SET_INT_IN_POINTER(vert));
+	return ccgSubSurf_getVertNumEdges(ccg_vert);
+}
+
+static void conv_ccg_get_vert_edges(const OpenSubdiv_Converter *converter,
+                                    int vert,
+                                    int *vert_edges)
+{
+	CCGSubSurf *ss = converter->user_data;
+	CCGVert *ccg_vert = ccgSubSurf_getVert(ss, SET_INT_IN_POINTER(vert));
+	int num_vert_edges = ccgSubSurf_getVertNumEdges(ccg_vert);
+	int edge;
+	for (edge = 0; edge < num_vert_edges; edge++) {
+		CCGEdge *ccg_edge = ccgSubSurf_getVertEdge(ccg_vert, edge);
+		vert_edges[edge] = GET_INT_FROM_POINTER(ccgSubSurf_getEdgeEdgeHandle(ccg_edge));
+	}
+}
+
+static int conv_ccg_get_num_vert_faces(const OpenSubdiv_Converter *converter,
+                                       int vert)
+{
+	CCGSubSurf *ss = converter->user_data;
+	CCGVert *ccg_vert = ccgSubSurf_getVert(ss, SET_INT_IN_POINTER(vert));
+	return ccgSubSurf_getVertNumFaces(ccg_vert);
+}
+
+static void conv_ccg_get_vert_faces(const OpenSubdiv_Converter *converter,
+                                    int vert,
+                                    int *vert_faces)
+{
+	CCGSubSurf *ss = converter->user_data;
+	CCGVert *ccg_vert = ccgSubSurf_getVert(ss, SET_INT_IN_POINTER(vert));
+	int num_vert_faces = ccgSubSurf_getVertNumFaces(ccg_vert);
+	int face;
+	for (face = 0; face < num_vert_faces; face++) {
+		CCGFace *ccg_face = ccgSubSurf_getVertFace(ccg_vert, face);
+		vert_faces[face] = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(ccg_face));
+	}
+}
+
+void ccgSubSurf_converter_setup_from_ccg(CCGSubSurf *ss,
+                                         OpenSubdiv_Converter *converter)
+{
+	converter->get_type = conv_ccg_get_bilinear_type;
+
+	converter->get_num_faces = conv_ccg_get_num_faces;
+	converter->get_num_edges = conv_ccg_get_num_edges;
+	converter->get_num_verts = conv_ccg_get_num_verts;
+
+	converter->get_num_face_verts = conv_ccg_get_num_face_verts;
+	converter->get_face_verts = conv_ccg_get_face_verts;
+	converter->get_face_edges = conv_ccg_get_face_edges;
+
+	converter->get_edge_verts = conv_ccg_get_edge_verts;
+	converter->get_num_edge_faces = conv_ccg_get_num_edge_faces;
+	converter->get_edge_faces = conv_ccg_get_edge_faces;
+
+	converter->get_num_vert_edges = conv_ccg_get_num_vert_edges;
+	converter->get_vert_edges = conv_ccg_get_vert_edges;
+	converter->get_num_vert_faces = conv_ccg_get_num_vert_faces;
+	converter->get_vert_faces = conv_ccg_get_vert_faces;
+
+	converter->user_data = ss;
+}
 
 #endif  /* WITH_OPENSUBDIV */

@@ -572,8 +572,10 @@ static void free_ss_weights(WeightTable *wtable)
 		MEM_freeN(wtable->weight_table);
 }
 
-static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
-                                     float (*vertexCos)[3], int useFlatSubdiv)
+static void ss_sync_ccg_from_derivedmesh(CCGSubSurf *ss,
+                                         DerivedMesh *dm,
+                                         float (*vertexCos)[3],
+                                         int useFlatSubdiv)
 {
 	float creaseFactor = (float) ccgSubSurf_getSubdivisionLevels(ss);
 #ifndef USE_DYNSIZE
@@ -666,12 +668,27 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
 		((int *)ccgSubSurf_getFaceUserData(ss, f))[1] = (index) ? *index++ : i;
 	}
 
-	ccgSubSurf_setDerivedMesh(ss, dm);
 	ccgSubSurf_processSync(ss);
 
 #ifndef USE_DYNSIZE
 	BLI_array_free(fVerts);
 #endif
+}
+
+static void ss_sync_from_derivedmesh(CCGSubSurf *ss,
+                                     DerivedMesh *dm,
+                                     float (*vertexCos)[3],
+                                     int use_flat_subdiv)
+{
+#ifdef WITH_OPENSUBDIV
+	if (!ccgSubSurf_needGrids(ss)) {
+		abort();
+	}
+	else
+#endif
+	{
+		ss_sync_ccg_from_derivedmesh(ss, dm, vertexCos, use_flat_subdiv);
+	}
 }
 
 /***/
@@ -4475,6 +4492,22 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 
 /***/
 
+static bool subsurf_use_gpu_backend(SubsurfFlags flags)
+{
+#ifdef WITH_OPENSUBDIV
+	/* Use GPU backend if it's a last modifier in the stack
+	 * and user choosed to use any of the OSD compute devices,
+	 * but also check if GPU has all needed features.
+	 */
+	return
+	        (flags & SUBSURF_USE_GPU_BACKEND) != 0 &&
+	        (U.opensubdiv_compute_type != USER_OPENSUBDIV_COMPUTE_NONE) &&
+	        (openSubdiv_supportGPUDisplay());
+#else
+	return false;
+#endif
+}
+
 struct DerivedMesh *subsurf_make_derived_from_derived(
         struct DerivedMesh *dm,
         struct SubsurfModifierData *smd,
@@ -4486,11 +4519,11 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 	int useSubsurfUv = smd->flags & eSubsurfModifierFlag_SubsurfUv;
 	int drawInteriorEdges = !(smd->flags & eSubsurfModifierFlag_ControlEdges);
 	CCGDerivedMesh *result;
+	bool use_gpu_backend = subsurf_use_gpu_backend(flags);
 
 	/* note: editmode calculation can only run once per
 	 * modifier stack evaluation (uses freed cache) [#36299] */
 	if (flags & SUBSURF_FOR_EDIT_MODE) {
-		bool use_gpu_backend = false;
 		int levels = (smd->modifier.scene) ? get_render_subsurf_level(&smd->modifier.scene->r, smd->levels, false) : smd->levels;
 
 		/* TODO(sergey): Same as emCache below. */
@@ -4501,23 +4534,11 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 
 		smd->emCache = _getSubSurf(smd->emCache, levels, 3, useSimple | useAging | CCG_CALC_NORMALS);
 
-#ifdef WITH_OPENSUBDIV
-		use_gpu_backend = (flags & SUBSURF_USE_GPU_BACKEND) != 0 &&
-			openSubdiv_supportGPUDisplay() &&
-			U.opensubdiv_compute_type != USER_OPENSUBDIV_COMPUTE_NONE;
-
 		ccgSubSurf_setSkipGrids(smd->emCache, use_gpu_backend);
-#endif
-
 		ss_sync_from_derivedmesh(smd->emCache, dm, vertCos, useSimple);
-
 		result = getCCGDerivedMesh(smd->emCache,
 		                           drawInteriorEdges,
 		                           useSubsurfUv, dm, use_gpu_backend);
-
-#ifdef WITH_OPENSUBDIV
-		ccgSubSurf_setUVCoordsFromDM(smd->emCache, dm, useSubsurfUv);
-#endif
 	}
 	else if (flags & SUBSURF_USE_RENDER_PARAMS) {
 		/* Do not use cache in render mode. */
@@ -4569,13 +4590,6 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 		else {
 			CCGFlags ccg_flags = useSimple | CCG_USE_ARENA | CCG_CALC_NORMALS;
 			CCGSubSurf *prevSS = NULL;
-			bool use_gpu_backend = false;
-
-#ifdef WITH_OPENSUBDIV
-			use_gpu_backend = (flags & SUBSURF_USE_GPU_BACKEND) != 0 &&
-				openSubdiv_supportGPUDisplay() &&
-				U.opensubdiv_compute_type != USER_OPENSUBDIV_COMPUTE_NONE;
-#endif
 
 			if (smd->mCache && (flags & SUBSURF_IS_FINAL_CALC)) {
 #ifdef WITH_OPENSUBDIV
@@ -4599,13 +4613,8 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 			if (flags & SUBSURF_ALLOC_PAINT_MASK)
 				ccg_flags |= CCG_ALLOC_MASK;
 
-			/* TODO(sergey): No need to sync all edges/faces if topology didn't change,
-			 * only need this in cases when topology changes.
-			 */
 			ss = _getSubSurf(prevSS, levels, 3, ccg_flags);
-#ifdef WITH_OPENSUBDIV
 			ccgSubSurf_setSkipGrids(ss, use_gpu_backend);
-#endif
 			ss_sync_from_derivedmesh(ss, dm, vertCos, useSimple);
 
 			result = getCCGDerivedMesh(ss, drawInteriorEdges, useSubsurfUv, dm, use_gpu_backend);
@@ -4617,14 +4626,8 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 
 			if (flags & SUBSURF_ALLOC_PAINT_MASK)
 				ccgSubSurf_setNumLayers(ss, 4);
-
-#ifdef WITH_OPENSUBDIV
-			ccgSubSurf_setUVCoordsFromDM(ss, dm, useSubsurfUv);
-#endif
 		}
 	}
-
-	dm->needsFree = 0;
 
 	return (DerivedMesh *)result;
 }
