@@ -263,6 +263,15 @@ void ccgSubSurf__sync_legacy(CCGSubSurf *ss);
 
 void ccgSubSurf__sync_opensubdiv(CCGSubSurf *ss);
 
+/* * CCGSubSurf_opensubdiv_converter.c * */
+
+struct OpenSubdiv_Converter;
+
+void ccgSubSurf_converter_setup_from_derivedmesh(
+        CCGSubSurf *ss,
+        struct DerivedMesh *dm,
+        struct OpenSubdiv_Converter *converter);
+
 /* * CCGSubSurf_util.c * */
 
 #ifdef DUMP_RESULT_GRIDS
