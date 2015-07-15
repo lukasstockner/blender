@@ -86,7 +86,9 @@ class VIEW3D_HT_header(Header):
             row = layout.row(align=True)
             row.prop(toolsettings, "use_snap", text="")
             row.prop(toolsettings, "snap_element", icon_only=True)
-            if snap_element != 'INCREMENT':
+            if snap_element == 'INCREMENT':
+                row.prop(toolsettings, "use_snap_grid_absolute", text="")
+            else:
                 row.prop(toolsettings, "snap_target", text="")
                 if obj:
                     if mode in {'OBJECT', 'POSE'} and snap_element != 'VOLUME':
@@ -158,7 +160,7 @@ class VIEW3D_MT_editor_menus(Menu):
         if edit_object:
             layout.menu("VIEW3D_MT_edit_%s" % edit_object.type.lower())
         elif obj:
-            if mode_string not in {'PAINT_TEXTURE'}:
+            if mode_string != 'PAINT_TEXTURE':
                 layout.menu("VIEW3D_MT_%s" % mode_string.lower())
             if mode_string in {'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'PAINT_TEXTURE'}:
                 layout.menu("VIEW3D_MT_brush")
@@ -208,8 +210,10 @@ class VIEW3D_MT_transform_base(Menu):
         layout.operator("transform.shear", text="Shear")
         layout.operator("transform.bend", text="Bend")
         layout.operator("transform.push_pull", text="Push/Pull")
-        layout.operator("object.vertex_warp", text="Warp")
-        layout.operator("object.vertex_random", text="Randomize")
+
+        if context.mode != 'OBJECT':
+            layout.operator("transform.vertex_warp", text="Warp")
+            layout.operator("transform.vertex_random", text="Randomize")
 
 
 # Generic transform menu - geometry types
@@ -726,6 +730,7 @@ class VIEW3D_MT_select_edit_curve(Menu):
         layout.operator("curve.select_random")
         layout.operator("curve.select_nth")
         layout.operator("curve.select_linked", text="Select Linked")
+        layout.operator("curve.select_similar", text="Select Similar")
 
         layout.separator()
 
@@ -756,6 +761,7 @@ class VIEW3D_MT_select_edit_surface(Menu):
         layout.operator("curve.select_random")
         layout.operator("curve.select_nth")
         layout.operator("curve.select_linked", text="Select Linked")
+        layout.operator("curve.select_similar", text="Select Similar")
 
         layout.separator()
 
@@ -935,7 +941,7 @@ class VIEW3D_MT_angle_control(Menu):
         settings = UnifiedPaintPanel.paint_settings(context)
         brush = settings.brush
 
-        sculpt = (context.sculpt_object != None)
+        sculpt = (context.sculpt_object is not None)
 
         tex_slot = brush.texture_slot
 
@@ -1043,6 +1049,17 @@ class INFO_MT_armature_add(Menu):
         layout.operator("object.armature_add", text="Single Bone", icon='BONE_DATA')
 
 
+class INFO_MT_lamp_add(Menu):
+    bl_idname = "INFO_MT_lamp_add"
+    bl_label = "Lamp"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator_enum("object.lamp_add", "type")
+
+
 class INFO_MT_add(Menu):
     bl_label = "Add"
 
@@ -1075,7 +1092,7 @@ class INFO_MT_add(Menu):
         layout.separator()
 
         layout.operator("object.camera_add", text="Camera", icon='OUTLINER_OB_CAMERA')
-        layout.operator_menu_enum("object.lamp_add", "type", text="Lamp", icon='OUTLINER_OB_LAMP')
+        layout.menu("INFO_MT_lamp_add", icon='OUTLINER_OB_LAMP')
         layout.separator()
 
         layout.operator_menu_enum("object.effector_add", "type", text="Force Field", icon='OUTLINER_OB_EMPTY')
@@ -1654,10 +1671,10 @@ class VIEW3D_MT_paint_weight(Menu):
         layout.operator("object.vertex_group_clean", text="Clean")
         layout.operator("object.vertex_group_quantize", text="Quantize")
         layout.operator("object.vertex_group_levels", text="Levels")
-        layout.operator("object.vertex_group_blend", text="Blend")
-        prop = layout.operator("object.data_transfer", text="Transfer Weights")
-        prop.use_reverse_transfer = True
-        prop.data_type = 'VGROUP_WEIGHTS'
+        layout.operator("object.vertex_group_smooth", text="Smooth")
+        props = layout.operator("object.data_transfer", text="Transfer Weights")
+        props.use_reverse_transfer = True
+        props.data_type = 'VGROUP_WEIGHTS'
         layout.operator("object.vertex_group_limit_total", text="Limit Total")
         layout.operator("object.vertex_group_fix", text="Fix Deforms")
 
@@ -2266,10 +2283,10 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
 
         layout.separator()
 
-        op = layout.operator("mesh.mark_sharp", text="Shade Smooth")
-        op.use_verts = True
-        op.clear = True
-        layout.operator("mesh.mark_sharp", text="Shade Sharp").use_verts = True
+        layout.operator("mesh.mark_sharp", text="Mark Sharp Edges").use_verts = True
+        props = layout.operator("mesh.mark_sharp", text="Clear Sharp Edges")
+        props.use_verts = True
+        props.clear = True
 
         layout.separator()
 
@@ -2280,7 +2297,7 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
 
         layout.operator("mesh.blend_from_shape")
 
-        layout.operator("object.vertex_group_blend")
+        layout.operator("object.vertex_group_smooth")
         layout.operator("mesh.shape_propagate_to_all")
 
         layout.separator()
@@ -2423,6 +2440,7 @@ class VIEW3D_MT_edit_mesh_clean(Menu):
 
         layout.operator("mesh.dissolve_degenerate")
         layout.operator("mesh.dissolve_limited")
+        layout.operator("mesh.face_make_planar")
         layout.operator("mesh.vert_connect_nonplanar")
         layout.operator("mesh.vert_connect_concave")
         layout.operator("mesh.fill_holes")
@@ -2455,6 +2473,20 @@ class VIEW3D_MT_edit_mesh_delete(Menu):
 class VIEW3D_MT_edit_mesh_showhide(ShowHideMenu, Menu):
     _operator_name = "mesh"
 
+
+class VIEW3D_MT_edit_gpencil_delete(Menu):
+    bl_label = "Delete"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_enum("gpencil.delete", "type")
+
+        layout.separator()
+
+        layout.operator("gpencil.dissolve")
+
+
 # Edit Curve
 # draw_curve is used by VIEW3D_MT_edit_curve and VIEW3D_MT_edit_surface
 
@@ -2471,6 +2503,7 @@ def draw_curve(self, context):
     layout.separator()
 
     layout.operator("curve.extrude_move")
+    layout.operator("curve.spin")
     layout.operator("curve.duplicate_move")
     layout.operator("curve.split")
     layout.operator("curve.separate")
@@ -2774,6 +2807,20 @@ class VIEW3D_MT_edit_armature_roll(Menu):
 
         layout.operator("transform.transform", text="Set Roll").mode = 'BONE_ROLL'
 
+
+class VIEW3D_MT_edit_armature_delete(Menu):
+    bl_label = "Delete"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("armature.delete", text="Delete Bones")
+
+        layout.separator()
+
+        layout.operator("armature.dissolve", text="Dissolve")
+
+
 # ********** Panel **********
 
 
@@ -3009,14 +3056,12 @@ class VIEW3D_PT_view3d_shading(Panel):
             if obj and obj.mode == 'EDIT':
                 col.prop(view, "show_occlude_wire")
 
-
         fx_settings = view.fx_settings
 
-        sub = col.column()
-        sub.active = view.region_3d.view_perspective == 'CAMERA'
-        sub.prop(fx_settings, "use_dof")
-
         if view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
+            sub = col.column()
+            sub.active = view.region_3d.view_perspective == 'CAMERA'
+            sub.prop(fx_settings, "use_dof")
             col.prop(fx_settings, "use_ssao", text="Ambient Occlusion")
             if fx_settings.use_ssao:
                 ssao_settings = fx_settings.ssao
@@ -3209,6 +3254,7 @@ class VIEW3D_PT_background_image(Panel):
         layout = self.layout
 
         view = context.space_data
+        use_multiview = context.scene.render.use_multiview
 
         col = layout.column()
         col.operator("view3d.background_image_add", text="Add Image")
@@ -3245,6 +3291,19 @@ class VIEW3D_PT_background_image(Panel):
                     if bg.image is not None:
                         box.template_image(bg, "image", bg.image_user, compact=True)
                         has_bg = True
+
+                        if use_multiview and bg.view_axis in {'CAMERA','ALL'}:
+                            box.prop(bg.image, "use_multiview")
+
+                            column = box.column()
+                            column.active = bg.image.use_multiview
+
+                            column.label(text="Views Format:")
+                            column.row().prop(bg.image, "views_format", expand=True)
+
+                            sub = column.box()
+                            sub.active = bg.image.views_format == 'STEREO_3D'
+                            sub.template_image_stereo_3d(bg.image.stereo_3d_format)
 
                 elif bg.source == 'MOVIE_CLIP':
                     box.prop(bg, "use_camera_clip")

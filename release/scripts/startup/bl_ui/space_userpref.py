@@ -113,11 +113,11 @@ class USERPREF_MT_splash(Menu):
         row.label("")
         row = split.row()
         row.label("Interaction:")
-        # XXX, no redraws
-        # text = bpy.path.display_name(context.window_manager.keyconfigs.active.name)
-        # if not text:
-        #     text = "Blender (default)"
-        row.menu("USERPREF_MT_appconfigs", text="Preset")
+
+        text = bpy.path.display_name(context.window_manager.keyconfigs.active.name)
+        if not text:
+            text = "Blender (default)"
+        row.menu("USERPREF_MT_appconfigs", text=text)
 
 
 # only for addons
@@ -200,6 +200,11 @@ class USERPREF_PT_interface(Panel):
         col.label(text="2D Viewports:")
         col.prop(view, "view2d_grid_spacing_min", text="Minimum Grid Spacing")
         col.prop(view, "timecode_style")
+        col.prop(view, "view_frame_type")
+        if (view.view_frame_type == 'SECONDS'):
+            col.prop(view, "view_frame_seconds")
+        elif (view.view_frame_type == 'KEYFRAMES'):
+            col.prop(view, "view_frame_keyframes")
 
         row.separator()
         row.separator()
@@ -983,6 +988,7 @@ class USERPREF_MT_ndof_settings(Menu):
 
         layout.prop(input_prefs, "ndof_sensitivity")
         layout.prop(input_prefs, "ndof_orbit_sensitivity")
+        layout.prop(input_prefs, "ndof_deadzone")
 
         if is_view3d:
             layout.separator()
@@ -1041,7 +1047,8 @@ class USERPREF_PT_input(Panel):
         userpref = context.user_preferences
         return (userpref.active_section == 'INPUT')
 
-    def draw_input_prefs(self, inputs, layout):
+    @staticmethod
+    def draw_input_prefs(inputs, layout):
         import sys
 
         # General settings
@@ -1055,15 +1062,6 @@ class USERPREF_PT_input(Panel):
         subrow.menu("USERPREF_MT_interaction_presets", text=bpy.types.USERPREF_MT_interaction_presets.bl_label)
         subrow.operator("wm.interaction_preset_add", text="", icon='ZOOMIN')
         subrow.operator("wm.interaction_preset_add", text="", icon='ZOOMOUT').remove_active = True
-
-        sub.separator()
-
-        sub = col.column()
-        sub.label(text="Double Click:")
-        sub.prop(inputs, "double_click_time", text="Speed")
-        sub.label(text="Sticky Keys:")
-        sub.prop(inputs, "click_timeout")
-
         sub.separator()
 
         sub.label(text="Mouse:")
@@ -1076,6 +1074,10 @@ class USERPREF_PT_input(Panel):
 
         sub.label(text="Select With:")
         sub.row().prop(inputs, "select_mouse", expand=True)
+
+        sub = col.column()
+        sub.label(text="Double Click:")
+        sub.prop(inputs, "mouse_double_click_time", text="Speed")
 
         sub.separator()
 
@@ -1129,10 +1131,12 @@ class USERPREF_PT_input(Panel):
             sub.prop(walk, "jump_height")
 
         col.separator()
-        sub = col.column()
-        sub.label(text="NDOF Device:")
+        col.label(text="NDOF Device:")
+        sub = col.column(align=True)
         sub.prop(inputs, "ndof_sensitivity", text="NDOF Sensitivity")
         sub.prop(inputs, "ndof_orbit_sensitivity", text="NDOF Orbit Sensitivity")
+        sub.prop(inputs, "ndof_deadzone", text="NDOF Deadzone")
+        sub = col.column(align=True)
         sub.row().prop(inputs, "ndof_view_navigate_method", expand=True)
         sub.row().prop(inputs, "ndof_view_rotate_method", expand=True)
 

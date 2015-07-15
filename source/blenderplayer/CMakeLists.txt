@@ -106,6 +106,7 @@ endif()
 		bf_intern_ghostndof3dconnexion
 		bf_rna
 		bf_blenkernel
+		bf_depsgraph
 		bf_physics
 		bf_intern_rigidbody
 		bf_blenloader
@@ -169,6 +170,7 @@ endif()
 		extern_libmv
 		extern_glog
 		extern_sdlew
+		extern_eigen3
 	)
 
 	if(WITH_MOD_CLOTH_ELTOPO)

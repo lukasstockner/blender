@@ -872,10 +872,10 @@ static bool ConvertMaterial(
 		material->matname	=(mat->id.name);
 
 	if (tface) {
-		material->tface		= *tface;
+		ME_MTEXFACE_CPY(&material->mtexpoly, tface);
 	}
 	else {
-		memset(&material->tface, 0, sizeof(material->tface));
+		memset(&material->mtexpoly, 0, sizeof(material->mtexpoly));
 	}
 	material->material	= mat;
 	return true;
@@ -995,7 +995,6 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	meshobj->m_sharedvertex_map.resize(totvert);
 
 	Material* ma = 0;
-	bool collider = true;
 	MT_Point2 uvs[4][RAS_TexVert::MAX_UNIT];
 	unsigned int rgb[4] = {0};
 
@@ -1065,29 +1064,19 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		else
 			ma = mesh->mat ? mesh->mat[mface->mat_nr]:NULL;
 
-		/* ckeck for texface since texface _only_ is used as a fallback */
-		if (ma == NULL && tface == NULL) {
+		// Check for blender material
+		if (ma == NULL) {
 			ma= &defmaterial;
 		}
 
 		{
-			bool visible = true;
-			bool twoside = false;
 
 			RAS_MaterialBucket* bucket = material_from_mesh(ma, mface, tface, mcol, layers, lightlayer, rgb, uvs, tfaceName, scene, converter);
 
 			// set render flags
-			if (ma)
-			{
-				visible = ((ma->game.flag & GEMAT_INVISIBLE)==0);
-				twoside = ((ma->game.flag  & GEMAT_BACKCULL)==0);
-				collider = ((ma->game.flag & GEMAT_NOPHYSICS)==0);
-			}
-			else {
-				visible = true;
-				twoside = false;
-				collider = true;
-			}
+			bool visible = ((ma->game.flag & GEMAT_INVISIBLE)==0);
+			bool twoside = ((ma->game.flag  & GEMAT_BACKCULL)==0);
+			bool collider = ((ma->game.flag & GEMAT_NOPHYSICS)==0);
 
 			/* mark face as flat, so vertices are split */
 			bool flat = (mface->flag & ME_SMOOTH) == 0;
@@ -1211,7 +1200,9 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blendero
 //	velocity clamping XXX
 	shapeProps->m_clamp_vel_min = blenderobject->min_vel;
 	shapeProps->m_clamp_vel_max = blenderobject->max_vel;
-	
+	shapeProps->m_clamp_angvel_min = blenderobject->min_angvel;
+	shapeProps->m_clamp_angvel_max = blenderobject->max_angvel;
+
 //  Character physics properties
 	shapeProps->m_step_height = blenderobject->step_height;
 	shapeProps->m_jump_speed = blenderobject->jump_speed;
@@ -1347,8 +1338,8 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	if (!(blenderobject->gameflag & OB_COLLISION)) {
 		// Respond to all collisions so that Near sensors work on No Collision
 		// objects.
-		gameobj->SetUserCollisionGroup(0xff);
-		gameobj->SetUserCollisionMask(0xff);
+		gameobj->SetUserCollisionGroup(0xffff);
+		gameobj->SetUserCollisionMask(0xffff);
 		return;
 	}
 
@@ -1470,7 +1461,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, KX_BlenderSceneConverter *converter)
 {
 	Camera* ca = static_cast<Camera*>(ob->data);
-	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist);
+	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->shiftx, ca->shifty, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist);
 	KX_Camera *gamecamera;
 	
 	gamecamera= new KX_Camera(kxscene, KX_Scene::m_callbacks, camdata);
@@ -2183,8 +2174,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			case PARSKEL: // skinned - ignore
 				break;
 			case PAROBJECT:
-			case PARCURVE:
-			case PARKEY:
 			case PARVERT3:
 			default:
 				// unhandled

@@ -102,7 +102,6 @@ struct GPUMaterial {
 	/* for binding the material */
 	GPUPass *pass;
 	GPUVertexAttribs attribs;
-	int bound;
 	int builtins;
 	int alpha, obcolalpha;
 	int dynproperty;
@@ -113,7 +112,13 @@ struct GPUMaterial {
 	int obcolloc, obautobumpscaleloc;
 	int cameratexcofacloc;
 
+	int partscalarpropsloc;
+	int partcoloc;
+	int partvel;
+	int partangvel;
+
 	ListBase lamps;
+	bool bound;
 };
 
 struct GPULamp {
@@ -241,6 +246,14 @@ static int GPU_material_construct_end(GPUMaterial *material, const char *passnam
 			material->obautobumpscaleloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_AUTO_BUMPSCALE));
 		if (material->builtins & GPU_CAMERA_TEXCO_FACTORS)
 			material->cameratexcofacloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_CAMERA_TEXCO_FACTORS));
+		if (material->builtins & GPU_PARTICLE_SCALAR_PROPS)
+			material->partscalarpropsloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_SCALAR_PROPS));
+		if (material->builtins & GPU_PARTICLE_LOCATION)
+			material->partcoloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_LOCATION));
+		if (material->builtins & GPU_PARTICLE_VELOCITY)
+			material->partvel = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_VELOCITY));
+		if (material->builtins & GPU_PARTICLE_ANG_VELOCITY)
+			material->partangvel = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_ANG_VELOCITY));
 		return 1;
 	}
 
@@ -367,7 +380,7 @@ void GPU_material_bind(GPUMaterial *material, int oblay, int viewlay, double tim
 	}
 }
 
-void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[4][4], float obcol[4], float autobumpscale)
+void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[4][4], float obcol[4], float autobumpscale, GPUParticleInfo* pi)
 {
 	if (material->pass) {
 		GPUShader *shader = GPU_pass_shader(material->pass);
@@ -389,6 +402,19 @@ void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[4][4], float 
 		if (material->builtins & GPU_AUTO_BUMPSCALE) {
 			GPU_shader_uniform_vector(shader, material->obautobumpscaleloc, 1, 1, &autobumpscale);
 		}
+		if (material->builtins & GPU_PARTICLE_SCALAR_PROPS) {
+			GPU_shader_uniform_vector(shader, material->partscalarpropsloc, 4, 1, pi->scalprops);
+		}
+		if (material->builtins & GPU_PARTICLE_LOCATION) {
+			GPU_shader_uniform_vector(shader, material->partcoloc, 3, 1, pi->location);
+		}
+		if (material->builtins & GPU_PARTICLE_VELOCITY) {
+			GPU_shader_uniform_vector(shader, material->partvel, 3, 1, pi->velocity);
+		}
+		if (material->builtins & GPU_PARTICLE_ANG_VELOCITY) {
+			GPU_shader_uniform_vector(shader, material->partangvel, 3, 1, pi->angular_velocity);
+		}
+
 	}
 }
 
@@ -400,7 +426,7 @@ void GPU_material_unbind(GPUMaterial *material)
 	}
 }
 
-int GPU_material_bound(GPUMaterial *material)
+bool GPU_material_bound(GPUMaterial *material)
 {
 	return material->bound;
 }
@@ -1449,7 +1475,6 @@ static void do_material_tex(GPUShadeInput *shi)
 
 void GPU_shadeinput_set(GPUMaterial *mat, Material *ma, GPUShadeInput *shi)
 {
-	float hard = ma->har;
 	float one = 1.0f;
 
 	memset(shi, 0, sizeof(*shi));
@@ -1457,20 +1482,20 @@ void GPU_shadeinput_set(GPUMaterial *mat, Material *ma, GPUShadeInput *shi)
 	shi->gpumat = mat;
 	shi->mat = ma;
 
-	GPU_link(mat, "set_rgb", GPU_uniform(&ma->r), &shi->rgb);
-	GPU_link(mat, "set_rgb", GPU_uniform(&ma->specr), &shi->specrgb);
+	GPU_link(mat, "set_rgb", GPU_dynamic_uniform(&ma->r, GPU_DYNAMIC_MAT_DIFFRGB, NULL), &shi->rgb);
+	GPU_link(mat, "set_rgb", GPU_dynamic_uniform(&ma->specr, GPU_DYNAMIC_MAT_SPECRGB, NULL), &shi->specrgb);
 	GPU_link(mat, "shade_norm", GPU_builtin(GPU_VIEW_NORMAL), &shi->vn);
 
 	if (mat->alpha)
-		GPU_link(mat, "set_value", GPU_uniform(&ma->alpha), &shi->alpha);
+		GPU_link(mat, "set_value", GPU_dynamic_uniform(&ma->alpha, GPU_DYNAMIC_MAT_ALPHA, NULL), &shi->alpha);
 	else
 		GPU_link(mat, "set_value", GPU_uniform(&one), &shi->alpha);
 
-	GPU_link(mat, "set_value", GPU_uniform(&ma->ref), &shi->refl);
-	GPU_link(mat, "set_value", GPU_uniform(&ma->spec), &shi->spec);
-	GPU_link(mat, "set_value", GPU_uniform(&ma->emit), &shi->emit);
-	GPU_link(mat, "set_value", GPU_uniform(&hard), &shi->har);
-	GPU_link(mat, "set_value", GPU_uniform(&ma->amb), &shi->amb);
+	GPU_link(mat, "set_value", GPU_dynamic_uniform(&ma->ref, GPU_DYNAMIC_MAT_REF, NULL), &shi->refl);
+	GPU_link(mat, "set_value", GPU_dynamic_uniform(&ma->spec, GPU_DYNAMIC_MAT_SPEC, NULL), &shi->spec);
+	GPU_link(mat, "set_value", GPU_dynamic_uniform(&ma->emit, GPU_DYNAMIC_MAT_EMIT, NULL), &shi->emit);
+	GPU_link(mat, "set_value", GPU_dynamic_uniform((float*)&ma->har, GPU_DYNAMIC_MAT_HARD, NULL), &shi->har);
+	GPU_link(mat, "set_value", GPU_dynamic_uniform(&ma->amb, GPU_DYNAMIC_MAT_AMB, NULL), &shi->amb);
 	GPU_link(mat, "set_value", GPU_uniform(&ma->spectra), &shi->spectra);
 	GPU_link(mat, "shade_view", GPU_builtin(GPU_VIEW_POSITION), &shi->view);
 	GPU_link(mat, "vcol_attribute", GPU_attribute(CD_MCOL, ""), &shi->vcol);
@@ -2306,7 +2331,7 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 					break;
 				}
 
-				if (uniform->type >= GPU_DYNAMIC_LAMP_FIRST && uniform->type <= GPU_DYNAMIC_LAMP_LAST)
+				if (GPU_DYNAMIC_GROUP_FROM_TYPE(uniform->type) == GPU_DYNAMIC_GROUP_LAMP)
 					uniform->lamp = input->dynamicdata;
 			}
 

@@ -413,7 +413,7 @@ static void lamphalo_tile(RenderPart *pa, RenderLayer *rl)
 					}
 					else {
 						fac= ((float)R.osa-totsamp)/(float)R.osa;
-						pass = RE_RenderLayerGetPass(rlpp[sample], SCE_PASS_COMBINED, R.viewname);
+						pass = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, R.viewname);
 						pass += od * 4;
 						pass[0]+= fac*col[0];
 						pass[1]+= fac*col[1];
@@ -1622,7 +1622,8 @@ void zbufshade_sss_tile(RenderPart *pa)
 	VlakRen *vlr;
 	Material *mat= re->sss_mat;
 	float (*co)[3], (*color)[3], *area, *fcol;
-	int x, y, seed, quad, totpoint, display = !(re->r.scemode & (R_BUTS_PREVIEW|R_VIEWPORT_PREVIEW));
+	int x, y, seed, quad, totpoint;
+	const bool display = (re->r.scemode & (R_BUTS_PREVIEW | R_VIEWPORT_PREVIEW)) == 0;
 	int *ro, *rz, *rp, *rbo, *rbz, *rbp, lay;
 #if 0
 	PixStr *ps;

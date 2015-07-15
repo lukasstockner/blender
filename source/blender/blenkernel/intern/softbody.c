@@ -1035,6 +1035,7 @@ static int sb_detect_aabb_collisionCached(float UNUSED(force[3]), unsigned int U
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 #if 0			/* UNUSED */
@@ -1076,6 +1077,7 @@ static int sb_detect_aabb_collisionCached(float UNUSED(force[3]), unsigned int U
 				}
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 	BLI_ghashIterator_free(ihash);
 	return deflected;
@@ -1114,6 +1116,7 @@ static int sb_detect_face_pointCached(float face_v1[3], float face_v2[3], float 
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 				MVert *mvert= NULL;
@@ -1177,6 +1180,7 @@ static int sb_detect_face_pointCached(float face_v1[3], float face_v2[3], float 
 				} /* if (mvert) */
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 	BLI_ghashIterator_free(ihash);
 	return deflected;
@@ -1206,6 +1210,7 @@ static int sb_detect_face_collisionCached(float face_v1[3], float face_v2[3], fl
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 				MFace *mface= NULL;
@@ -1315,6 +1320,7 @@ static int sb_detect_face_collisionCached(float face_v1[3], float face_v2[3], fl
 				}/* while a */
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 	BLI_ghashIterator_free(ihash);
 	return deflected;
@@ -1434,6 +1440,7 @@ static int sb_detect_edge_collisionCached(float edge_v1[3], float edge_v2[3], fl
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 				MFace *mface= NULL;
@@ -1555,6 +1562,7 @@ static int sb_detect_edge_collisionCached(float edge_v1[3], float edge_v2[3], fl
 				}/* while a */
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 	BLI_ghashIterator_free(ihash);
 	return deflected;
@@ -1762,6 +1770,7 @@ static int sb_detect_vertex_collisionCached(float opco[3], float facenormal[3], 
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 				MFace *mface= NULL;
@@ -1799,7 +1808,7 @@ static int sb_detect_vertex_collisionCached(float opco[3], float facenormal[3], 
 				else {
 					/*aye that should be cached*/
 					printf("missing cache error\n");
-						BLI_ghashIterator_step(ihash);
+					BLI_ghashIterator_step(ihash);
 					continue;
 				}
 
@@ -1917,16 +1926,16 @@ static int sb_detect_vertex_collisionCached(float opco[3], float facenormal[3], 
 								if (facedist > outerfacethickness*ff)
 									force_mag_norm =(float)force_mag_norm*fa*(facedist - outerfacethickness)*(facedist - outerfacethickness);
 								*damp=ob->pd->pdef_sbdamp;
-							if (facedist > 0.0f) {
-								*damp *= (1.0f - facedist/outerfacethickness);
-								Vec3PlusStVec(outerforceaccu, force_mag_norm, d_nvect);
-								deflected = 3;
+								if (facedist > 0.0f) {
+									*damp *= (1.0f - facedist/outerfacethickness);
+									Vec3PlusStVec(outerforceaccu, force_mag_norm, d_nvect);
+									deflected = 3;
 
-							}
-							else {
-								Vec3PlusStVec(innerforceaccu, force_mag_norm, d_nvect);
-								if (deflected < 2) deflected = 2;
-							}
+								}
+								else {
+									Vec3PlusStVec(innerforceaccu, force_mag_norm, d_nvect);
+									if (deflected < 2) deflected = 2;
+								}
 
 								if ((mprevvert) && (*damp > 0.0f)) {
 									choose_winner(ve, opco, nv1, nv3, nv4, vv1, vv3, vv4);
@@ -1997,6 +2006,7 @@ static int sb_detect_vertex_collisionCached(float opco[3], float facenormal[3], 
 				}/* while a */
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 
 	if (deflected == 1) { // no face but 'outer' edge cylinder sees vert
@@ -2335,14 +2345,14 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 				float kd = 1.0f;
 
 				if (sb_deflect_face(ob, bp->pos, facenormal, defforce, &cf, timenow, vel, &intrusion)) {
-						if (intrusion < 0.0f) {
-							sb->scratch->flag |= SBF_DOFUZZY;
-							bp->loc_flag |= SBF_DOFUZZY;
-							bp->choke = sb->choke*0.01f;
-						}
+					if (intrusion < 0.0f) {
+						sb->scratch->flag |= SBF_DOFUZZY;
+						bp->loc_flag |= SBF_DOFUZZY;
+						bp->choke = sb->choke*0.01f;
+					}
 
-							sub_v3_v3v3(cfforce, bp->vec, vel);
-							Vec3PlusStVec(bp->force, -cf*50.0f, cfforce);
+					sub_v3_v3v3(cfforce, bp->vec, vel);
+					Vec3PlusStVec(bp->force, -cf*50.0f, cfforce);
 
 					Vec3PlusStVec(bp->force, kd, defforce);
 				}
@@ -3181,38 +3191,6 @@ static void interpolate_exciter(Object *ob, int timescale, int time)
 	- xxxx_to_softbody(Object *ob)      : a full (new) copy, creates SB geometry
 */
 
-static void get_scalar_from_vertexgroup(Object *ob, int vertID, int groupindex, float *target)
-/* result 0 on success, else indicates error number
--- kind of *inverse* result defintion,
--- but this way we can signal error condition to caller
--- and yes this function must not be here but in a *vertex group module*
-*/
-{
-	MDeformVert *dv= NULL;
-	int i;
-
-	/* spot the vert in deform vert list at mesh */
-	if (ob->type==OB_MESH) {
-		Mesh *me= ob->data;
-		if (me->dvert)
-			dv = me->dvert + vertID;
-	}
-	else if (ob->type==OB_LATTICE) {	/* not yet supported in softbody btw */
-		Lattice *lt= ob->data;
-		if (lt->dvert)
-			dv = lt->dvert + vertID;
-	}
-	if (dv) {
-		/* Lets see if this vert is in the weight group */
-		for (i=0; i<dv->totweight; i++) {
-			if (dv->dw[i].def_nr == groupindex) {
-				*target= dv->dw[i].weight; /* got it ! */
-				break;
-			}
-		}
-	}
-}
-
 /* Resetting a Mesh SB object's springs */
 /* Spring length are caculted from'raw' mesh vertices that are NOT altered by modifier stack. */
 static void springs_from_mesh(Object *ob)
@@ -3261,7 +3239,8 @@ static void mesh_to_softbody(Scene *scene, Object *ob)
 	BodyPoint *bp;
 	BodySpring *bs;
 	int a, totedge;
-	
+	int defgroup_index, defgroup_index_mass, defgroup_index_spring;
+
 	BKE_mesh_tessface_ensure(me);
 	
 	if (ob->softflag & OB_SB_EDGES) totedge= me->totedge;
@@ -3271,8 +3250,12 @@ static void mesh_to_softbody(Scene *scene, Object *ob)
 	renew_softbody(scene, ob, me->totvert, totedge);
 
 	/* we always make body points */
-	sb= ob->soft;
+	sb = ob->soft;
 	bp= sb->bpoint;
+
+	defgroup_index        = me->dvert ? (sb->vertgroup - 1) : -1;
+	defgroup_index_mass   = me->dvert ? defgroup_name_index(ob, sb->namedVG_Mass) : -1;
+	defgroup_index_spring = me->dvert ? defgroup_name_index(ob, sb->namedVG_Spring_K) : -1;
 
 	for (a=0; a<me->totvert; a++, bp++) {
 		/* get scalar values needed  *per vertex* from vertex group functions,
@@ -3281,51 +3264,24 @@ static void mesh_to_softbody(Scene *scene, Object *ob)
 		 * which can be done by caller but still .. i'd like it to go this way
 		 */
 
-		if ((ob->softflag & OB_SB_GOAL) && sb->vertgroup) { /* even this is a deprecated evil hack */
-		   /* I'd like to have it  .. if (sb->namedVG_Goal[0]) */
-
-			get_scalar_from_vertexgroup(ob, a, sb->vertgroup - 1, &bp->goal);
-			/* do this always, regardless successful read from vertex group */
-			/* this is where '2.5 every thing is animatable' goes wrong in the first place jow_go_for2_5 */
-			/* 1st coding action to take : move this to frame level */
-			/* reads: leave the bp->goal as it was read from vertex group / or default .. we will need it at per frame call */
-			/* should be fixed for meshes */
-			// bp->goal= sb->mingoal + bp->goal*goalfac; /* do not do here jow_go_for2_5 */
+		if (ob->softflag & OB_SB_GOAL) {
+			BLI_assert(bp->goal == sb->defgoal);
 		}
-		else {
-			/* in consequence if no group was set .. but we want to animate it laters */
-			/* logically attach to goal with default first */
-			if (ob->softflag & OB_SB_GOAL) {bp->goal = sb->defgoal;}
+		if ((ob->softflag & OB_SB_GOAL) && (defgroup_index != -1)) {
+			bp->goal *= defvert_find_weight(&me->dvert[a], defgroup_index);
 		}
 
 		/* to proof the concept
 		 * this enables per vertex *mass painting*
 		 */
 
-		if (sb->namedVG_Mass[0]) {
-			int defgrp_index = defgroup_name_index(ob, sb->namedVG_Mass);
-			/* printf("VGN  %s %d\n", sb->namedVG_Mass, defgrp_index); */
-			if (defgrp_index != -1) {
-				get_scalar_from_vertexgroup(ob, a, defgrp_index, &bp->mass);
-				/* 2.5  bp->mass = bp->mass * sb->nodemass; */
-				/* printf("bp->mass  %f\n", bp->mass); */
-
-			}
-		}
-		/* first set the default */
-		bp->springweight = 1.0f;
-
-		if (sb->namedVG_Spring_K[0]) {
-			int defgrp_index = defgroup_name_index(ob, sb->namedVG_Spring_K);
-			//printf("VGN  %s %d\n", sb->namedVG_Spring_K, defgrp_index);
-			if (defgrp_index  != -1) {
-				get_scalar_from_vertexgroup(ob, a, defgrp_index , &bp->springweight);
-				//printf("bp->springweight  %f\n", bp->springweight);
-
-			}
+		if (defgroup_index_mass != -1) {
+			bp->mass *= defvert_find_weight(&me->dvert[a], defgroup_index_mass);
 		}
 
-
+		if (defgroup_index_spring != -1) {
+			bp->springweight *= defvert_find_weight(&me->dvert[a], defgroup_index_spring);
+		}
 	}
 
 	/* but we only optionally add body edge springs */
@@ -3484,7 +3440,7 @@ static void makelatticesprings(Lattice *lt,	BodySpring *bs, int dostiff, Object 
 							bs->v1 = bpc;
 							bs->v2 = bpc+dw+dv-1;
 							bs->springtype=SB_BEND;
-							 bs->len= globallen((bp+dw+dv-1)->vec, bp->vec, ob);
+							bs->len= globallen((bp+dw+dv-1)->vec, bp->vec, ob);
 							bs++;
 						}
 					}
@@ -3505,6 +3461,7 @@ static void lattice_to_softbody(Scene *scene, Object *ob)
 	int totvert, totspring = 0, a;
 	BodyPoint *bp;
 	BPoint *bpnt = lt->def;
+	int defgroup_index, defgroup_index_mass, defgroup_index_spring;
 
 	totvert= lt->pntsu*lt->pntsv*lt->pntsw;
 
@@ -3523,17 +3480,33 @@ static void lattice_to_softbody(Scene *scene, Object *ob)
 	sb= ob->soft;	/* can be created in renew_softbody() */
 	bp = sb->bpoint;
 
+	defgroup_index        = lt->dvert ? (sb->vertgroup - 1) : -1;
+	defgroup_index_mass   = lt->dvert ? defgroup_name_index(ob, sb->namedVG_Mass) : -1;
+	defgroup_index_spring = lt->dvert ? defgroup_name_index(ob, sb->namedVG_Spring_K) : -1;
+
 	/* same code used as for mesh vertices */
 	for (a = 0; a < totvert; a++, bp++, bpnt++) {
-		if ((ob->softflag & OB_SB_GOAL) && sb->vertgroup) {
-			get_scalar_from_vertexgroup(ob, a, (short) (sb->vertgroup - 1), &bp->goal);
+
+		if (ob->softflag & OB_SB_GOAL) {
+			BLI_assert(bp->goal == sb->defgoal);
+		}
+
+		if ((ob->softflag & OB_SB_GOAL) && (defgroup_index != -1)) {
+			bp->goal *= defvert_find_weight(&lt->dvert[a], defgroup_index);
 		}
 		else {
-			if (ob->softflag & OB_SB_GOAL) {
-				bp->goal = sb->defgoal;
-			}
+			bp->goal *= bpnt->weight;
+		}
+
+		if (defgroup_index_mass != -1) {
+			bp->mass *= defvert_find_weight(&lt->dvert[a], defgroup_index_mass);
+		}
+
+		if (defgroup_index_spring != -1) {
+			bp->springweight *= defvert_find_weight(&lt->dvert[a], defgroup_index_spring);
 		}
 	}
+
 
 	/* create some helper edges to enable SB lattice to be useful at all */
 	if (ob->softflag & OB_SB_EDGES) {
@@ -3585,7 +3558,7 @@ static void curve_surf_to_softbody(Scene *scene, Object *ob)
 			/* not too hard to do, but needs some more code to care for;  some one may want look at it  JOW 2010/06/12*/
 			for (bezt=nu->bezt, a=0; a<nu->pntsu; a++, bezt++, bp+=3, curindex+=3) {
 				if (setgoal) {
-					bp->goal= bezt->weight;
+					bp->goal *= bezt->weight;
 
 					/* all three triples */
 					(bp+1)->goal= bp->goal;
@@ -3620,7 +3593,7 @@ static void curve_surf_to_softbody(Scene *scene, Object *ob)
 		else {
 			for (bpnt=nu->bp, a=0; a<nu->pntsu*nu->pntsv; a++, bpnt++, bp++, curindex++) {
 				if (setgoal) {
-					bp->goal= bpnt->weight;
+					bp->goal *= bpnt->weight;
 				}
 				if (totspring && a>0) {
 					bs->v1= curindex-1;

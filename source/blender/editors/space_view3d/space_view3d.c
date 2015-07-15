@@ -74,6 +74,8 @@
 #  include "BPY_extern.h"
 #endif
 
+#include "DEG_depsgraph.h"
+
 #include "view3d_intern.h"  /* own include */
 
 /* ******************** manage regions ********************* */
@@ -931,7 +933,8 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 					    (ob && (ob->mode == OB_MODE_TEXTURE_PAINT)) ||
 					    (v3d->drawtype == OB_TEXTURE &&
 					     (scene->gm.matmode == GAME_MAT_GLSL ||
-					      BKE_scene_use_new_shading_nodes(scene))))
+					      BKE_scene_use_new_shading_nodes(scene))) ||
+					    !DEG_depsgraph_use_legacy())
 					{
 						ED_region_tag_redraw(ar);
 					}
@@ -954,7 +957,8 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 			switch (wmn->data) {
 				case ND_LIGHTING:
 					if ((v3d->drawtype == OB_MATERIAL) ||
-					    (v3d->drawtype == OB_TEXTURE && (scene->gm.matmode == GAME_MAT_GLSL)))
+					    (v3d->drawtype == OB_TEXTURE && (scene->gm.matmode == GAME_MAT_GLSL)) ||
+					    !DEG_depsgraph_use_legacy())
 					{
 						ED_region_tag_redraw(ar);
 					}
@@ -1011,7 +1015,7 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 
 			break;
 		case NC_GPENCIL:
-			if (ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
+			if (wmn->data == ND_DATA || ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
 				ED_region_tag_redraw(ar);
 			}
 			break;
@@ -1089,7 +1093,7 @@ static void view3d_buttons_area_init(wmWindowManager *wm, ARegion *ar)
 
 static void view3d_buttons_area_draw(const bContext *C, ARegion *ar)
 {
-	ED_region_panels(C, ar, 1, NULL, -1);
+	ED_region_panels(C, ar, NULL, -1, true);
 }
 
 static void view3d_buttons_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
@@ -1195,7 +1199,7 @@ static void view3d_tools_area_init(wmWindowManager *wm, ARegion *ar)
 
 static void view3d_tools_area_draw(const bContext *C, ARegion *ar)
 {
-	ED_region_panels(C, ar, 1, CTX_data_mode_string(C), -1);
+	ED_region_panels(C, ar, CTX_data_mode_string(C), -1, true);
 }
 
 static void view3d_props_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)

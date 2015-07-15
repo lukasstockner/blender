@@ -18,7 +18,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenlib/intern/filelist.c
+/** \file blender/blenlib/intern/BLI_filelist.c
  *  \ingroup bli
  */
 
@@ -112,10 +112,40 @@ static void bli_builddir(struct BuildDirCtx *dir_ctx, const char *dirname)
 
 	if ((dir = opendir(dirname)) != NULL) {
 		const struct dirent *fname;
+		bool has_current = false, has_parent = false;
+
 		while ((fname = readdir(dir)) != NULL) {
 			struct dirlink * const dlink = (struct dirlink *)malloc(sizeof(struct dirlink));
 			if (dlink != NULL) {
 				dlink->name = BLI_strdup(fname->d_name);
+				if (FILENAME_IS_PARENT(dlink->name)) {
+					has_parent = true;
+				}
+				else if (FILENAME_IS_CURRENT(dlink->name)) {
+					has_current = true;
+				}
+				BLI_addhead(&dirbase, dlink);
+				newnum++;
+			}
+		}
+
+		if (!has_parent) {
+			char pardir[FILE_MAXDIR];
+
+			BLI_strncpy(pardir, dirname, sizeof(pardir));
+			if (BLI_parent_dir(pardir) && (BLI_access(pardir, R_OK) == 0)) {
+				struct dirlink * const dlink = (struct dirlink *)malloc(sizeof(struct dirlink));
+				if (dlink != NULL) {
+					dlink->name = BLI_strdup(FILENAME_PARENT);
+					BLI_addhead(&dirbase, dlink);
+					newnum++;
+				}
+			}
+		}
+		if (!has_current) {
+			struct dirlink * const dlink = (struct dirlink *)malloc(sizeof(struct dirlink));
+			if (dlink != NULL) {
+				dlink->name = BLI_strdup(FILENAME_CURRENT);
 				BLI_addhead(&dirbase, dlink);
 				newnum++;
 			}
@@ -147,6 +177,10 @@ static void bli_builddir(struct BuildDirCtx *dir_ctx, const char *dirname)
 					BLI_join_dirfile(fullname, sizeof(fullname), dirname, dlink->name);
 					if (BLI_stat(fullname, &file->s) != -1) {
 						file->type = file->s.st_mode;
+					}
+					else if (FILENAME_IS_CURRPAR(file->relname)) {
+						/* Hack around for UNC paths on windows - does not support stat on '\\SERVER\foo\..', sigh... */
+						file->type |= S_IFDIR;
 					}
 					file->flags = 0;
 					dir_ctx->nrfiles++;
@@ -184,19 +218,16 @@ static void bli_adddirstrings(struct BuildDirCtx *dir_ctx)
 	const char *types[8] = {"---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx"};
 	/* symbolic display, indexed by mode field value */
 	int num;
-#ifdef WIN32
-	__int64 st_size;
-#else
-	off_t st_size;
-	int mode;
-#endif
-
+	double size;
 	struct direntry *file;
 	struct tm *tm;
 	time_t zero = 0;
 
-	for (num = 0, file = dir_ctx->files; num < dir_ctx->nrfiles; num++, file++) {
+#ifndef WIN32
+	int mode;
+#endif
 
+	for (num = 0, file = dir_ctx->files; num < dir_ctx->nrfiles; num++, file++) {
 
 		/* Mode */
 #ifdef WIN32
@@ -257,19 +288,22 @@ static void bli_adddirstrings(struct BuildDirCtx *dir_ctx)
 		 * will buy us some time until files get bigger than 4GB or until
 		 * everyone starts using __USE_FILE_OFFSET64 or equivalent.
 		 */
-		st_size = file->s.st_size;
+		size = (double)file->s.st_size;
 
-		if (st_size > 1024 * 1024 * 1024) {
-			BLI_snprintf(file->size, sizeof(file->size), "%.2f GiB", ((double)st_size) / (1024 * 1024 * 1024));
+		if (size > 1024.0 * 1024.0 * 1024.0 * 1024.0) {
+			BLI_snprintf(file->size, sizeof(file->size), "%.1f TiB", size / (1024.0 * 1024.0 * 1024.0 * 1024.0));
 		}
-		else if (st_size > 1024 * 1024) {
-			BLI_snprintf(file->size, sizeof(file->size), "%.1f MiB", ((double)st_size) / (1024 * 1024));
+		else if (size > 1024.0 * 1024.0 * 1024.0) {
+			BLI_snprintf(file->size, sizeof(file->size), "%.1f GiB", size / (1024.0 * 1024.0 * 1024.0));
 		}
-		else if (st_size > 1024) {
-			BLI_snprintf(file->size, sizeof(file->size), "%d KiB", (int)(st_size / 1024));
+		else if (size > 1024.0 * 1024.0) {
+			BLI_snprintf(file->size, sizeof(file->size), "%.1f MiB", size / (1024.0 * 1024.0));
+		}
+		else if (size > 1024.0) {
+			BLI_snprintf(file->size, sizeof(file->size), "%.1f KiB", size / 1024.0);
 		}
 		else {
-			BLI_snprintf(file->size, sizeof(file->size), "%d B", (int)st_size);
+			BLI_snprintf(file->size, sizeof(file->size), "%d B", (int)size);
 		}
 	}
 }
@@ -345,9 +379,9 @@ void BLI_filelist_free(struct direntry *filelist, unsigned int nrentries, void (
 			IMB_freeImBuf(entry->image);
 		}
 		if (entry->relname)
-			MEM_freeN(entry->relname);
+			MEM_freeN((void *)entry->relname);
 		if (entry->path)
-			MEM_freeN(entry->path);
+			MEM_freeN((void *)entry->path);
 		if (entry->poin && free_poin)
 			free_poin(entry->poin);
 	}

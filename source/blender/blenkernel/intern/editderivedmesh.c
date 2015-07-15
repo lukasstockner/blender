@@ -521,8 +521,6 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 	GLenum poly_prev = GL_ZERO;
 	GLenum shade_prev = GL_ZERO;
 
-	(void)setMaterial; /* UNUSED */
-
 	/* currently unused -- each original face is handled separately */
 	(void)compareDrawOptions;
 
@@ -539,6 +537,8 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 	}
 
 	if (bmdm->vertexCos) {
+		short prev_mat_nr = -1;
+
 		/* add direct access */
 		const float (*vertexCos)[3] = bmdm->vertexCos;
 		const float (*vertexNos)[3];
@@ -569,8 +569,14 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 			               setDrawOptions(userData, BM_elem_index_get(efa)));
 			if (draw_option != DM_DRAW_OPTION_SKIP) {
 				const GLenum poly_type = GL_TRIANGLES; /* BMESH NOTE, this is odd but keep it for now to match trunk */
-				if (setMaterial)
-					setMaterial(efa->mat_nr + 1, NULL);
+
+				if (efa->mat_nr != prev_mat_nr) {
+					if (setMaterial) {
+						setMaterial(efa->mat_nr + 1, NULL);
+					}
+					prev_mat_nr = efa->mat_nr;
+				}
+
 				if (draw_option == DM_DRAW_OPTION_STIPPLE) { /* enabled with stipple */
 
 					if (poly_prev != GL_ZERO) glEnd();
@@ -645,6 +651,8 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 		}
 	}
 	else {
+		short prev_mat_nr = -1;
+
 		BM_mesh_elem_index_ensure(bm, lnors ? BM_FACE | BM_LOOP : BM_FACE);
 
 		for (i = 0; i < tottri; i++) {
@@ -661,8 +669,12 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 			if (draw_option != DM_DRAW_OPTION_SKIP) {
 				const GLenum poly_type = GL_TRIANGLES; /* BMESH NOTE, this is odd but keep it for now to match trunk */
 
-				if (setMaterial)
-					setMaterial(efa->mat_nr + 1, NULL);
+				if (efa->mat_nr != prev_mat_nr) {
+					if (setMaterial) {
+						setMaterial(efa->mat_nr + 1, NULL);
+					}
+					prev_mat_nr = efa->mat_nr;
+				}
 				
 				if (draw_option == DM_DRAW_OPTION_STIPPLE) { /* enabled with stipple */
 
@@ -821,19 +833,15 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 		for (i = 0; i < em->tottri; i++) {
 			BMLoop **ltri = looptris[i];
 			MTexPoly *tp = (cd_poly_tex_offset != -1) ? BM_ELEM_CD_GET_VOID_P(ltri[0]->f, cd_poly_tex_offset) : NULL;
-			MTFace mtf = {{{0}}};
 			/*unsigned char *cp = NULL;*/ /*UNUSED*/
 			int drawSmooth = lnors || BM_elem_flag_test(ltri[0]->f, BM_ELEM_SMOOTH);
 			DMDrawOption draw_option;
 
 			efa = ltri[0]->f;
 
-			if (cd_poly_tex_offset != -1) {
-				ME_MTEXFACE_CPY(&mtf, tp);
+			if (drawParams) {
+				draw_option = drawParams(tp, has_vcol, efa->mat_nr);
 			}
-
-			if (drawParams)
-				draw_option = drawParams(&mtf, has_vcol, efa->mat_nr);
 			else if (drawParamsMapped)
 				draw_option = drawParamsMapped(userData, BM_elem_index_get(efa), efa->mat_nr);
 			else
@@ -890,19 +898,14 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 		for (i = 0; i < em->tottri; i++) {
 			BMLoop **ltri = looptris[i];
 			MTexPoly *tp = (cd_poly_tex_offset != -1) ? BM_ELEM_CD_GET_VOID_P(ltri[0]->f, cd_poly_tex_offset) : NULL;
-			MTFace mtf = {{{0}}};
 			/*unsigned char *cp = NULL;*/ /*UNUSED*/
 			int drawSmooth = lnors || BM_elem_flag_test(ltri[0]->f, BM_ELEM_SMOOTH);
 			DMDrawOption draw_option;
 
 			efa = ltri[0]->f;
 
-			if (cd_poly_tex_offset != -1) {
-				ME_MTEXFACE_CPY(&mtf, tp);
-			}
-
 			if (drawParams)
-				draw_option = drawParams(&mtf, has_vcol, efa->mat_nr);
+				draw_option = drawParams(tp, has_vcol, efa->mat_nr);
 			else if (drawParamsMapped)
 				draw_option = drawParamsMapped(userData, BM_elem_index_get(efa), efa->mat_nr);
 			else
@@ -985,7 +988,7 @@ static void emDM_drawMappedFacesTex(DerivedMesh *dm,
  * ... because the material may use layer names to select different UV's
  * see: [#34378]
  */
-static void emdm_pass_attrib_vertex_glsl(const DMVertexAttribs *attribs, const BMLoop *loop, const int index_in_face)
+static void emdm_pass_attrib_vertex_glsl(const DMVertexAttribs *attribs, const BMLoop *loop, const int index_in_face, const int face_index)
 {
 	BMVert *eve = loop->v;
 	int i;
@@ -1028,7 +1031,7 @@ static void emdm_pass_attrib_vertex_glsl(const DMVertexAttribs *attribs, const B
 		glVertexAttrib4ubvARB(attribs->mcol[i].gl_index, col);
 	}
 	if (attribs->tottang) {
-		int index = i * 4 + index_in_face;
+		int index = face_index * 4 + index_in_face;
 		const float *tang = (attribs->tang.array) ? attribs->tang.array[index] : zero;
 		glVertexAttrib4fvARB(attribs->tang.gl_index, tang);
 	}
@@ -1100,14 +1103,14 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 				if (vertexCos) {
 					glNormal3fv(polyNos[BM_elem_index_get(efa)]);
 					for (fi = 0; fi < 3; fi++) {
-						emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi);
+						emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi, i);
 						glVertex3fv(vertexCos[BM_elem_index_get(ltri[fi]->v)]);
 					}
 				}
 				else {
 					glNormal3fv(efa->no);
 					for (fi = 0; fi < 3; fi++) {
-						emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi);
+						emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi, i);
 						glVertex3fv(ltri[fi]->v->co);
 					}
 				}
@@ -1116,7 +1119,7 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 				if (vertexCos) {
 					for (fi = 0; fi < 3; fi++) {
 						const int j = BM_elem_index_get(ltri[fi]->v);
-						emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi);
+						emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi, i);
 						if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[fi])]);
 						else glNormal3fv(vertexNos[j]);
 						glVertex3fv(vertexCos[j]);
@@ -1124,7 +1127,7 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 				}
 				else {
 					for (fi = 0; fi < 3; fi++) {
-						emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi);
+						emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi, i);
 						if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[fi])]);
 						else glNormal3fv(ltri[fi]->v->no);
 						glVertex3fv(ltri[fi]->v->co);
@@ -1204,14 +1207,14 @@ static void emDM_drawMappedFacesMat(DerivedMesh *dm,
 			if (vertexCos) {
 				glNormal3fv(polyNos[BM_elem_index_get(efa)]);
 				for (fi = 0; fi < 3; fi++) {
-					emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi);
+					emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi, i);
 					glVertex3fv(vertexCos[BM_elem_index_get(ltri[fi]->v)]);
 				}
 			}
 			else {
 				glNormal3fv(efa->no);
 				for (fi = 0; fi < 3; fi++) {
-					emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi);
+					emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi, i);
 					glVertex3fv(ltri[fi]->v->co);
 				}
 			}
@@ -1220,7 +1223,7 @@ static void emDM_drawMappedFacesMat(DerivedMesh *dm,
 			if (vertexCos) {
 				for (fi = 0; fi < 3; fi++) {
 					const int j = BM_elem_index_get(ltri[fi]->v);
-					emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi);
+					emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi, i);
 					if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[fi])]);
 					else glNormal3fv(vertexNos[j]);
 					glVertex3fv(vertexCos[j]);
@@ -1228,7 +1231,7 @@ static void emDM_drawMappedFacesMat(DerivedMesh *dm,
 			}
 			else {
 				for (fi = 0; fi < 3; fi++) {
-					emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi);
+					emdm_pass_attrib_vertex_glsl(&attribs, ltri[fi], fi, i);
 					if (lnors) glNormal3fv(lnors[BM_elem_index_get(ltri[fi])]);
 					else glNormal3fv(ltri[fi]->v->no);
 					glVertex3fv(ltri[fi]->v->co);
@@ -1968,7 +1971,7 @@ static void statvis_calc_thickness(
 
 	BLI_assert(min <= max);
 
-	fill_vn_fl(face_dists, em->bm->totface, max);
+	copy_vn_fl(face_dists, em->bm->totface, max);
 
 	if (use_jit) {
 		int j;
@@ -2223,7 +2226,7 @@ static void statvis_calc_sharp(
 
 	(void)vertexCos;  /* TODO */
 
-	fill_vn_fl(vert_angles, em->bm->totvert, -M_PI);
+	copy_vn_fl(vert_angles, em->bm->totvert, -M_PI);
 
 	/* first assign float values to verts */
 	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
@@ -2347,7 +2350,7 @@ float (*BKE_editmesh_vertexCos_get(BMEditMesh *em, Scene *scene, int *r_numVerts
 	struct CageUserData data;
 	float (*cos_cage)[3];
 
-	cage = editbmesh_get_derived_cage_and_final(scene, em->ob, em, &final, CD_MASK_BAREMESH);
+	cage = editbmesh_get_derived_cage_and_final(scene, em->ob, em, CD_MASK_BAREMESH, &final);
 	cos_cage = MEM_callocN(sizeof(*cos_cage) * em->bm->totvert, "bmbvh cos_cage");
 
 	/* when initializing cage verts, we only want the first cage coordinate for each vertex,

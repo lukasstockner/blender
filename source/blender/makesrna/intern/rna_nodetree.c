@@ -30,7 +30,6 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
@@ -49,7 +48,6 @@
 #include "BKE_node.h"
 #include "BKE_image.h"
 #include "BKE_texture.h"
-#include "BKE_idprop.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -1581,7 +1579,7 @@ static bNodeSocket *rna_Node_outputs_new(ID *id, bNode *node, ReportList *report
 	sock = nodeAddSocket(ntree, node, SOCK_OUT, type, identifier, name);
 	
 	if (sock == NULL) {
-		BKE_reportf(reports, RPT_ERROR, "Unable to create socket");
+		BKE_report(reports, RPT_ERROR, "Unable to create socket");
 	}
 	else {
 		ntreeUpdateTree(G.main, ntree);
@@ -2261,8 +2259,13 @@ static void rna_NodeSocketStandard_value_update(struct bContext *C, PointerRNA *
 		nodeFindNode(ntree, sock, &node, NULL);
 	}
 	
-	if (node)
+	if (node) {
 		nodeSynchronizeID(node, true);
+
+		/* extra update for sockets that get synced to material */
+		if (node->id && ELEM(node->type, SH_NODE_MATERIAL, SH_NODE_MATERIAL_EXT))
+			WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, node->id);
+	}
 }
 
 
@@ -3389,6 +3392,8 @@ static void def_sh_mapping(StructRNA *srna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static float default_1[3] = {1.f, 1.f, 1.f};
+
 	PropertyRNA *prop;
 	
 	RNA_def_struct_sdna_from(srna, "TexMapping", "storage");
@@ -3412,6 +3417,7 @@ static void def_sh_mapping(StructRNA *srna)
 	
 	prop = RNA_def_property(srna, "scale", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_float_sdna(prop, NULL, "size");
+	RNA_def_property_float_array_default(prop, default_1);
 	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_ui_text(prop, "Scale", "");
 	RNA_def_property_update(prop, 0, "rna_Mapping_Node_update");
@@ -3423,6 +3429,7 @@ static void def_sh_mapping(StructRNA *srna)
 	
 	prop = RNA_def_property(srna, "max", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_float_sdna(prop, NULL, "max");
+	RNA_def_property_float_array_default(prop, default_1);
 	RNA_def_property_ui_text(prop, "Maximum", "Maximum value for clipping");
 	RNA_def_property_update(prop, 0, "rna_Mapping_Node_update");
 	
@@ -3565,6 +3572,7 @@ static void def_sh_tex_environment(StructRNA *srna)
 
 	prop = RNA_def_property(srna, "color_space", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, prop_color_space_items);
+	RNA_def_property_enum_default(prop, SHD_COLORSPACE_COLOR);
 	RNA_def_property_ui_text(prop, "Color Space", "Image file color space");
 	RNA_def_property_update(prop, 0, "rna_Node_update");
 
@@ -3630,6 +3638,7 @@ static void def_sh_tex_image(StructRNA *srna)
 
 	prop = RNA_def_property(srna, "color_space", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, prop_color_space_items);
+	RNA_def_property_enum_default(prop, SHD_COLORSPACE_COLOR);
 	RNA_def_property_ui_text(prop, "Color Space", "Image file color space");
 	RNA_def_property_update(prop, 0, "rna_Node_update");
 
@@ -6576,14 +6585,12 @@ static void def_tex_image(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Image", "");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-	/* is this supposed to be exposed? not sure.. */
-#if 0
-	prop = RNA_def_property(srna, "settings", PROP_POINTER, PROP_NONE);
+	prop = RNA_def_property(srna, "image_user", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "storage");
 	RNA_def_property_struct_type(prop, "ImageUser");
-	RNA_def_property_ui_text(prop, "Settings", "");
+	RNA_def_property_ui_text(prop, "Image User",
+	                         "Parameters defining the image duration, offset and related settings");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-#endif
 }
 
 static void def_tex_bricks(StructRNA *srna)

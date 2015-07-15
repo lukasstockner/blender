@@ -20,6 +20,7 @@
  */
 #if defined(__GNUC__) && defined(NDEBUG)
 #  pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#  pragma GCC diagnostic ignored "-Wuninitialized"
 #endif
 
 #include <string.h>
@@ -887,7 +888,7 @@ bool OSLRenderServices::texture(ustring filename, TextureOpt &options,
 #endif
 	bool status;
 
-	if(filename[0] == '@' && filename.find('.') == -1) {
+	if(filename[0] == '@') {
 		int slot = atoi(filename.c_str() + 1);
 		float4 rgba = kernel_tex_image_interp(slot, s, 1.0f - t);
 
@@ -940,7 +941,7 @@ bool OSLRenderServices::texture3d(ustring filename, TextureOpt &options,
 	ShaderData *sd = (ShaderData *)(sg->renderstate);
 	KernelGlobals *kg = sd->osl_globals;
 	bool status;
-	if(filename[0] == '@' && filename.find('.') == -1) {
+	if(filename[0] == '@') {
 		int slot = atoi(filename.c_str() + 1);
 		float4 rgba = kernel_tex_image_interp_3d(slot, P.x, P.y, P.z);
 
@@ -956,7 +957,7 @@ bool OSLRenderServices::texture3d(ustring filename, TextureOpt &options,
 	else {
 		OSLThreadData *tdata = kg->osl_tdata;
 		OIIO::TextureSystem::Perthread *thread_info = tdata->oiio_thread_info;
-		OIIO::TextureSystem::TextureHandle *th =  ts->get_texture_handle(filename, thread_info);
+		OIIO::TextureSystem::TextureHandle *th = ts->get_texture_handle(filename, thread_info);
 #if OIIO_VERSION < 10500
 		status = ts->texture3d(th, thread_info,
 		                       options, P, dPdx, dPdy, dPdz, result);
@@ -993,7 +994,7 @@ bool OSLRenderServices::environment(ustring filename, TextureOpt &options,
 	OSLThreadData *tdata = kg->osl_tdata;
 	OIIO::TextureSystem::Perthread *thread_info = tdata->oiio_thread_info;
 
-	OIIO::TextureSystem::TextureHandle *th =  ts->get_texture_handle(filename, thread_info);
+	OIIO::TextureSystem::TextureHandle *th = ts->get_texture_handle(filename, thread_info);
 
 #if OIIO_VERSION < 10500
 	bool status = ts->environment(th, thread_info,

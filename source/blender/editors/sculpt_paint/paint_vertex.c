@@ -209,7 +209,7 @@ static void do_shared_vertex_tesscol(Mesh *me, bool *mfacetag)
 {
 	/* if no mcol: do not do */
 	/* if tface: only the involved faces, otherwise all */
-	const int use_face_sel = (me->editflag & ME_EDIT_PAINT_FACE_SEL);
+	const bool use_face_sel = (me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
 	MFace *mface;
 	int a;
 	short *scolmain, *scol;
@@ -280,7 +280,7 @@ static void do_shared_vertex_tesscol(Mesh *me, bool *mfacetag)
 
 static void do_shared_vertexcol(Mesh *me, bool *mlooptag, bool *mfacetag, const bool do_tessface)
 {
-	const int use_face_sel = (me->editflag & ME_EDIT_PAINT_FACE_SEL);
+	const bool use_face_sel = (me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
 	MPoly *mp;
 	int (*scol)[4];
 	int i, j;
@@ -869,7 +869,7 @@ static unsigned int vpaint_blend(VPaint *vp, unsigned int col, unsigned int colo
 }
 
 
-static int sample_backbuf_area(ViewContext *vc, int *indexar, int totface, int x, int y, float size)
+static int sample_backbuf_area(ViewContext *vc, int *indexar, int totpoly, int x, int y, float size)
 {
 	struct ImBuf *ibuf;
 	int a, tot = 0, index;
@@ -878,26 +878,29 @@ static int sample_backbuf_area(ViewContext *vc, int *indexar, int totface, int x
 	 * brushes with size > 64, why is this here? */
 	/*if (size > 64.0) size = 64.0;*/
 	
-	ibuf = view3d_read_backbuf(vc, x - size, y - size, x + size, y + size);
+	ibuf = ED_view3d_backbuf_read(vc, x - size, y - size, x + size, y + size);
 	if (ibuf) {
 		unsigned int *rt = ibuf->rect;
 
-		memset(indexar, 0, sizeof(int) * (totface + 1));
+		memset(indexar, 0, sizeof(int) * (totpoly + 1));
 		
 		size = ibuf->x * ibuf->y;
 		while (size--) {
 				
 			if (*rt) {
-				index = WM_framebuffer_to_index(*rt);
-				if (index > 0 && index <= totface)
+				index = *rt;
+				if (index > 0 && index <= totpoly) {
 					indexar[index] = 1;
+				}
 			}
 		
 			rt++;
 		}
 		
-		for (a = 1; a <= totface; a++) {
-			if (indexar[a]) indexar[tot++] = a;
+		for (a = 1; a <= totpoly; a++) {
+			if (indexar[a]) {
+				indexar[tot++] = a;
+			}
 		}
 
 		IMB_freeImBuf(ibuf);
@@ -936,7 +939,7 @@ static float calc_vp_strength_col_dl(VPaint *vp, ViewContext *vc, const float co
 			else {
 				factor = 1.0f;
 			}
-			return factor * BKE_brush_curve_strength(brush, dist, brush_size_pressure);
+			return factor * BKE_brush_curve_strength_clamped(brush, dist, brush_size_pressure);
 		}
 	}
 	if (rgba)
@@ -1091,7 +1094,7 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *even
 	me = BKE_mesh_from_object(vc.obact);
 
 	if (me && me->dvert && vc.v3d && vc.rv3d) {
-		const int use_vert_sel = (me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
+		const bool use_vert_sel = (me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
 		int v_idx_best = -1;
 		unsigned int index;
 
@@ -1177,7 +1180,7 @@ static EnumPropertyItem *weight_paint_sample_enum_itemf(bContext *C, PointerRNA 
 
 			if (me && me->dvert && vc.v3d && vc.rv3d && vc.obact->defbase.first) {
 				const int defbase_tot = BLI_listbase_count(&vc.obact->defbase);
-				const int use_vert_sel = (me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
+				const bool use_vert_sel = (me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
 				int *groups = MEM_callocN(defbase_tot * sizeof(int), "groups");
 				bool found = false;
 				unsigned int index;
@@ -2984,8 +2987,8 @@ static void vpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 	if ((me->editflag & ME_EDIT_PAINT_FACE_SEL) && me->mpoly) {
 		for (index = 0; index < totindex; index++) {
 			if (indexar[index] && indexar[index] <= me->totpoly) {
-				MPoly *mpoly = ((MPoly *)me->mpoly) + (indexar[index] - 1);
-						
+				const MPoly *mpoly = &me->mpoly[indexar[index] - 1];
+
 				if ((mpoly->flag & ME_FACE_SEL) == 0)
 					indexar[index] = 0;
 			}
@@ -3217,7 +3220,7 @@ static void gradientVert_update(DMGradient_userData *grad_data, int index)
 	/* no need to clamp 'alpha' yet */
 
 	/* adjust weight */
-	alpha = BKE_brush_curve_strength(grad_data->brush, alpha, 1.0f);
+	alpha = BKE_brush_curve_strength_clamped(grad_data->brush, alpha, 1.0f);
 
 	if (alpha != 0.0f) {
 		MDeformVert *dv = &me->dvert[index];

@@ -2785,10 +2785,13 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface, char *filenam
 	}
 
 	/* Set output format, png in case exr isn't supported */
-	ibuf->ftype = PNG | 95;
+	ibuf->ftype = IMB_FTYPE_PNG;
+	ibuf->foptions.quality = 15;
+
 #ifdef WITH_OPENEXR
 	if (format == R_IMF_IMTYPE_OPENEXR) {   /* OpenEXR 32-bit float */
-		ibuf->ftype = OPENEXR | OPENEXR_COMPRESS;
+		ibuf->ftype = IMB_FTYPE_OPENEXR;
+		ibuf->foptions.flag |= OPENEXR_COMPRESS;
 	}
 #endif
 
@@ -2964,15 +2967,16 @@ static void mesh_faces_nearest_point_dp(void *userdata, int index, const float c
 /**
  * Mix color values to canvas point.
  *
- * \param surface canvas surface
- * \param index surface point index
- * \param paintFlags paint object flags
- * \param paintColor,Alpha,Wetness to be mixed paint values
- * \param timescale value used to adjust time dependent
+ * \param surface: Canvas surface
+ * \param index: Surface point index
+ * \param paintFlags: paint object flags
+ * \param paintColor,paintAlpha,paintWetness: To be mixed paint values
+ * \param timescale: Value used to adjust time dependent
  * operations when using substeps
  */
-static void dynamicPaint_mixPaintColors(DynamicPaintSurface *surface, int index, int paintFlags,
-                                        const float paintColor[3], float *paintAlpha, float *paintWetness, float *timescale)
+static void dynamicPaint_mixPaintColors(
+        DynamicPaintSurface *surface, int index, int paintFlags,
+        const float paintColor[3], float *paintAlpha, float *paintWetness, float *timescale)
 {
 	PaintPoint *pPoint = &((PaintPoint *)surface->data->type_data)[index];
 

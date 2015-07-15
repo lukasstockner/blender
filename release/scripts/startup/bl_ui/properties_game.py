@@ -89,10 +89,14 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             split = layout.split()
 
             col = split.column()
-            col.label(text="Velocity:")
+            col.label(text="Linear velocity:")
             sub = col.column(align=True)
             sub.prop(game, "velocity_min", text="Minimum")
             sub.prop(game, "velocity_max", text="Maximum")
+            col.label(text="Angular velocity:")
+            sub = col.column(align=True)
+            sub.prop(game, "angular_velocity_min", text="Minimum")
+            sub.prop(game, "angular_velocity_max", text="Maximum")
 
             col = split.column()
             col.label(text="Damping:")
@@ -100,7 +104,6 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             sub.prop(game, "damping", text="Translation", slider=True)
             sub.prop(game, "rotation_damping", text="Rotation", slider=True)
 
-        if physics_type == 'RIGID_BODY':
             layout.separator()
 
             split = layout.split()
@@ -111,6 +114,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(game, "lock_location_y", text="Y")
             col.prop(game, "lock_location_z", text="Z")
 
+        if physics_type == 'RIGID_BODY':
             col = split.column()
             col.label(text="Lock Rotation:")
             col.prop(game, "lock_rotation_x", text="X")
@@ -213,15 +217,17 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
         layout = self.layout
 
         game = context.active_object.game
-        layout.active = game.use_collision_bounds
+        split = layout.split()
+        split.active = game.use_collision_bounds
 
-        layout.prop(game, "collision_bounds_type", text="Bounds")
+        col = split.column()
+        col.prop(game, "collision_bounds_type", text="Bounds")
 
-        row = layout.row()
+        row = col.row()
         row.prop(game, "collision_margin", text="Margin", slider=True)
 
         sub = row.row()
-        sub.active = game.physics_type  not in {'SOFT_BODY', 'CHARACTER'}
+        sub.active = game.physics_type not in {'SOFT_BODY', 'CHARACTER'}
         sub.prop(game, "use_collision_compound", text="Compound")
 
         layout.separator()
@@ -542,7 +548,7 @@ class SCENE_PT_game_hysteresis(SceneButtonsPanel, Panel):
         row.prop(gs, "scene_hysteresis_percentage", text="")
 
 
-class WorldButtonsPanel():
+class WorldButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "world"
@@ -731,6 +737,8 @@ class DATA_PT_shadow_game(DataButtonsPanel, Panel):
 
         col = split.column()
         col.prop(lamp, "shadow_color", text="")
+        if lamp.type == 'SUN':
+            col.prop(lamp, "show_shadow_box")
 
         col = split.column()
         col.prop(lamp, "use_shadow_layer", text="This Layer Only")

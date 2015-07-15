@@ -268,8 +268,7 @@ typedef struct bNode {
 /* Unique hash key for identifying node instances
  * Defined as a struct because DNA does not support other typedefs.
  */
-typedef struct bNodeInstanceKey
-{
+typedef struct bNodeInstanceKey {
 	unsigned int value;
 } bNodeInstanceKey;
 
@@ -387,6 +386,8 @@ typedef struct bNodeTree {
 	int (*test_break)(void *);
 	void (*update_draw)(void *);
 	void *tbh, *prh, *sdh, *udh;
+
+	void *duplilock;
 	
 } bNodeTree;
 
@@ -1034,14 +1035,12 @@ enum {
 
 /* subsurface */
 enum {
+#ifdef DNA_DEPRECATED
 	SHD_SUBSURFACE_COMPATIBLE		= 0, // Deprecated
+#endif
 	SHD_SUBSURFACE_CUBIC			= 1,
 	SHD_SUBSURFACE_GAUSSIAN			= 2,
 };
-
-#if (DNA_DEPRECATED_GCC_POISON == 1)
-#pragma GCC poison SHD_SUBSURFACE_COMPATIBLE
-#endif
 
 /* blur node */
 #define CMP_NODE_BLUR_ASPECT_NONE		0

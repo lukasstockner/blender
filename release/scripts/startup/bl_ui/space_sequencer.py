@@ -207,6 +207,7 @@ class SEQUENCER_MT_view(Menu):
         if is_preview:
             if st.display_mode == 'IMAGE':
                 layout.prop(st, "show_safe_areas")
+                layout.prop(st, "show_metadata")
             elif st.display_mode == 'WAVEFORM':
                 layout.prop(st, "show_separate_color")
 
@@ -229,12 +230,12 @@ class SEQUENCER_MT_select(Menu):
 
         layout.operator("sequencer.select_active_side", text="Strips to the Left").side = 'LEFT'
         layout.operator("sequencer.select_active_side", text="Strips to the Right").side = 'RIGHT'
-        op = layout.operator("sequencer.select", text="All strips to the Left")
-        op.left_right = 'LEFT'
-        op.linked_time = True
-        op = layout.operator("sequencer.select", text="All strips to the Right")
-        op.left_right = 'RIGHT'
-        op.linked_time = True
+        props = layout.operator("sequencer.select", text="All strips to the Left")
+        props.left_right = 'LEFT'
+        props.linked_time = True
+        props = layout.operator("sequencer.select", text="All strips to the Right")
+        props.left_right = 'RIGHT'
+        props.linked_time = True
 
         layout.separator()
         layout.operator("sequencer.select_handles", text="Surrounding Handles").side = 'BOTH'
@@ -332,6 +333,7 @@ class SEQUENCER_MT_add_effect(Menu):
         layout.operator("sequencer.effect_strip_add", text="Over Drop").type = 'OVER_DROP'
         layout.operator("sequencer.effect_strip_add", text="Wipe").type = 'WIPE'
         layout.operator("sequencer.effect_strip_add", text="Glow").type = 'GLOW'
+        layout.operator("sequencer.effect_strip_add", text="Text").type = 'TEXT'
         layout.operator("sequencer.effect_strip_add", text="Transform").type = 'TRANSFORM'
         layout.operator("sequencer.effect_strip_add", text="Color").type = 'COLOR'
         layout.operator("sequencer.effect_strip_add", text="Speed Control").type = 'SPEED'
@@ -473,7 +475,7 @@ class SEQUENCER_PT_edit(SequencerButtonsPanel, Panel):
         split.label(text="Type:")
         split.prop(strip, "type", text="")
 
-        if strip.type not in {'SOUND'}:
+        if strip.type != 'SOUND':
             split = layout.split(percentage=0.3)
             split.label(text="Blend:")
             split.prop(strip, "blend_type", text="")
@@ -536,7 +538,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
         return strip.type in {'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
                               'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP',
                               'WIPE', 'GLOW', 'TRANSFORM', 'COLOR', 'SPEED',
-                              'MULTICAM', 'GAUSSIAN_BLUR'}
+                              'MULTICAM', 'GAUSSIAN_BLUR', 'TEXT'}
 
     def draw(self, context):
         layout = self.layout
@@ -627,6 +629,15 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
             for i in range(1, strip.channel):
                 row.operator("sequencer.cut_multicam", text="%d" % i).camera = i
 
+        elif strip.type == 'TEXT':
+            col = layout.column()
+            col.prop(strip, "text")
+            col.prop(strip, "font_size")
+            col.prop(strip, "use_shadow")
+            col.prop(strip, "align")
+            col.prop(strip, "location")
+            layout.operator("sequencer.export_subtitles")
+
         col = layout.column(align=True)
         if strip.type == 'SPEED':
             col.prop(strip, "multiply_speed")
@@ -637,7 +648,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
         elif strip.type == 'GAUSSIAN_BLUR':
             col.prop(strip, "size_x")
             col.prop(strip, "size_y")
-
+ 
 
 class SEQUENCER_PT_input(SequencerButtonsPanel, Panel):
     bl_label = "Strip Input"
@@ -948,23 +959,13 @@ class SEQUENCER_PT_proxy(SequencerButtonsPanel, Panel):
                 if proxy.use_proxy_custom_file:
                     flow.prop(proxy, "filepath")
 
-            layout.label("Enabled Proxies:")
-            enabled = ""
             row = layout.row()
-            if (proxy.build_25):
-                enabled += "25% "
-            if (proxy.build_50):
-                enabled += "50% "
-            if (proxy.build_75):
-                enabled += "75% "
-            if (proxy.build_100):
-                enabled += "100% "
+            row.prop(strip.proxy, "build_25")
+            row.prop(strip.proxy, "build_50")
+            row.prop(strip.proxy, "build_75")
+            row.prop(strip.proxy, "build_100")
 
-            row.label(enabled)
-            if (proxy.use_overwrite):
-                layout.label("Overwrite On")
-            else:
-                layout.label("Overwrite Off")
+            layout.prop(proxy, "use_overwrite")
 
             col = layout.column()
             col.label(text="Build JPEG quality")
@@ -1060,6 +1061,7 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
         layout.prop(strip, "use_linear_modifiers")
 
         layout.operator_menu_enum("sequencer.strip_modifier_add", "type")
+        layout.operator("sequencer.strip_modifier_copy")
 
         for mod in strip.modifiers:
             box = layout.box()

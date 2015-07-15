@@ -66,6 +66,7 @@ enum_panorama_types = (
     ('FISHEYE_EQUIDISTANT', "Fisheye Equidistant", "Ideal for fulldomes, ignore the sensor dimensions"),
     ('FISHEYE_EQUISOLID', "Fisheye Equisolid",
                           "Similar to most fisheye modern lens, takes sensor dimensions into consideration"),
+    ('MIRRORBALL', "Mirror Ball", "Uses the mirror ball mapping"),
     )
 
 enum_curve_primitives = (
@@ -393,6 +394,12 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 default=0,
                 )
 
+        cls.use_animated_seed = BoolProperty(
+                name="Use Animated Seed",
+                description="Use different seed values (and hence noise patterns) at different frames",
+                default=False,
+                )
+
         cls.sample_clamp_direct = FloatProperty(
                 name="Clamp Direct",
                 description="If non-zero, the maximum value for a direct sample, "
@@ -693,6 +700,12 @@ class CyclesLampSettings(bpy.types.PropertyGroup):
                             "reduces noise for area lamps and sharp glossy materials",
                 default=False,
                 )
+        cls.is_portal = BoolProperty(
+                name="Is Portal",
+                description="Use this area lamp to guide sampling of the background, "
+                            "note that this will make the lamp invisible",
+                default=False,
+                )
 
     @classmethod
     def unregister(cls):
@@ -725,6 +738,12 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
                 description="Number of light samples to render for each AA sample",
                 min=1, max=10000,
                 default=4,
+                )
+        cls.max_bounces = IntProperty(
+                name="Max Bounces",
+                description="Maximum number of bounces the background light will contribute to the render",
+                min=0, max=1024,
+                default=1024,
                 )
         cls.homogeneous_volume = BoolProperty(
                 name="Homogeneous Volume",

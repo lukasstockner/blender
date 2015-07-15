@@ -96,6 +96,7 @@ class PHY_IPhysicsController : public PHY_IController
 		virtual void		SetAngularDamping(float damping)=0;
 		virtual void		SetDamping(float linear, float angular)=0;
 
+		virtual void		RefreshCollisions() = 0;
 		virtual void		SuspendDynamics(bool ghost=false)=0;
 		virtual void		RestoreDynamics()=0;
 
@@ -124,6 +125,11 @@ class PHY_IPhysicsController : public PHY_IController
 		virtual float GetLinVelocityMax() const=0;
 		virtual void  SetLinVelocityMax(float val) = 0;
 		
+		virtual void SetAngularVelocityMin(float val) = 0;
+		virtual float GetAngularVelocityMin() const = 0;
+		virtual void SetAngularVelocityMax(float val) = 0;
+		virtual float GetAngularVelocityMax() const = 0;
+
 		MT_Vector3	GetWorldPosition(MT_Vector3& localpos);
 
 		// Shape control

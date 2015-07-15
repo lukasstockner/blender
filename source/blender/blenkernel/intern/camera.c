@@ -728,7 +728,8 @@ static void camera_stereo3d_model_matrix(Object *camera, const bool is_left, flo
 	if (((pivot == CAM_S3D_PIVOT_LEFT) && is_left) ||
 	    ((pivot == CAM_S3D_PIVOT_RIGHT) && !is_left))
 	{
-		return camera_model_matrix(camera, r_modelmat);
+		camera_model_matrix(camera, r_modelmat);
+		return;
 	}
 	else {
 		float size[3];
@@ -907,6 +908,9 @@ static float camera_stereo3d_shift_x(Object *camera, const char *viewname)
 	convergence_mode = data->stereo.convergence_mode;
 	pivot = data->stereo.pivot;
 
+	if (convergence_mode != CAM_S3D_OFFAXIS)
+		return shift;
+
 	if (((pivot == CAM_S3D_PIVOT_LEFT) && is_left) ||
 	    ((pivot == CAM_S3D_PIVOT_RIGHT) && !is_left))
 	{
@@ -917,11 +921,7 @@ static float camera_stereo3d_shift_x(Object *camera, const char *viewname)
 		fac = 0.5f;
 
 	fac_signed = is_left ? fac : -fac;
-
-	/* Note: in viewport, parallel renders as offaxis, but in render it does parallel */
-	if (ELEM(convergence_mode, CAM_S3D_OFFAXIS, CAM_S3D_PARALLEL)) {
-		shift += ((interocular_distance / data->sensor_x) * (data->lens / convergence_distance)) * fac_signed;
-	}
+	shift += ((interocular_distance / data->sensor_x) * (data->lens / convergence_distance)) * fac_signed;
 
 	return shift;
 }
@@ -930,6 +930,8 @@ float BKE_camera_multiview_shift_x(RenderData *rd, Object *camera, const char *v
 {
 	const bool is_multiview = (rd && rd->scemode & R_MULTIVIEW) != 0;
 	Camera *data = camera->data;
+
+	BLI_assert(camera->type == OB_CAMERA);
 
 	if (!is_multiview) {
 		return data->shiftx;
@@ -944,7 +946,9 @@ float BKE_camera_multiview_shift_x(RenderData *rd, Object *camera, const char *v
 
 void BKE_camera_multiview_params(RenderData *rd, CameraParams *params, Object *camera, const char *viewname)
 {
-	params->shiftx = BKE_camera_multiview_shift_x(rd, camera, viewname);
+	if (camera->type == OB_CAMERA) {
+		params->shiftx = BKE_camera_multiview_shift_x(rd, camera, viewname);
+	}
 }
 
 void BKE_camera_to_gpu_dof(struct Object *camera, struct GPUFXSettings *r_fx_settings)

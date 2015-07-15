@@ -40,7 +40,7 @@
 
 #include <stddef.h>
 
-#include "ListValue.h"
+#include "EXP_ListValue.h"
 #include "SCA_IObject.h"
 #include "SG_Node.h"
 #include "MT_Transform.h"
@@ -100,8 +100,8 @@ protected:
 	MT_Vector4							m_objectColor;
 
 	// Bit fields for user control over physics collisions
-	short								m_userCollisionGroup;
-	short								m_userCollisionMask;
+	unsigned short						m_userCollisionGroup;
+	unsigned short						m_userCollisionMask;
 
 	// visible = user setting
 	// culled = while rendering, depending on camera
@@ -300,6 +300,11 @@ public:
 	 * Stop playing the action on the given layer
 	 */
 	void StopAction(short layer);
+
+	/**
+	 * Remove playing tagged actions.
+	 */
+	void RemoveTaggedActions();
 
 	/**
 	 * Check if an action has finished playing
@@ -517,8 +522,17 @@ public:
 	 */
 	void ActivateGraphicController(bool recurse);
 
-	void SetUserCollisionGroup(short filter);
-	void SetUserCollisionMask(short mask);
+	/** Set the object's collison group
+	 * \param filter The group bitfield
+	 */
+	void SetUserCollisionGroup(unsigned short filter);
+
+	/** Set the object's collison mask
+	 * \param filter The mask bitfield
+	 */
+	void SetUserCollisionMask(unsigned short mask);
+	unsigned short GetUserCollisionGroup();
+	unsigned short GetUserCollisionMask();
 	/**
 	 * Extra broadphase check for user controllable collisions
 	 */
@@ -905,7 +919,7 @@ public:
 	 * Change the layer of the object (when it is added in another layer
 	 * than the original layer)
 	 */
-		void
+	virtual void
 	SetLayer(
 		int l
 	);
@@ -996,7 +1010,7 @@ public:
 	KX_PYMETHOD_O(KX_GameObject,SetState);
 	KX_PYMETHOD_VARARGS(KX_GameObject,AlignAxisToVect);
 	KX_PYMETHOD_O(KX_GameObject,GetAxisVect);
-	KX_PYMETHOD_NOARGS(KX_GameObject,SuspendDynamics);
+	KX_PYMETHOD_VARARGS(KX_GameObject,SuspendDynamics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,RestoreDynamics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,EnableRigidBody);
 	KX_PYMETHOD_NOARGS(KX_GameObject,DisableRigidBody);
@@ -1045,6 +1059,10 @@ public:
 	static int			pyattr_set_lin_vel_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_lin_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_lin_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_ang_vel_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_ang_vel_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_ang_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_ang_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_record_animation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
@@ -1087,6 +1105,10 @@ public:
 	static int			pyattr_set_obcolor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_collisionCallbacks(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_collisionCallbacks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_collisionGroup(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_collisionGroup(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_collisionMask(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_collisionMask(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_debug(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_debug(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_debugRecursive(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

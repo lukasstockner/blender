@@ -122,8 +122,7 @@ enum {
 };
 
 /* controls state of render, everything that's read-only during render stage */
-struct Render
-{
+struct Render {
 	struct Render *next, *prev;
 	char name[RE_MAXNAME];
 	int slot;
@@ -368,6 +367,14 @@ typedef struct ObjectInstanceRen {
 	struct RayObject *raytree;
 	int transform_primitives;
 
+	/* Particle info */
+	float part_index;
+	float part_age;
+	float part_lifetime;
+	float part_size;
+	float part_co[3];
+	float part_vel[3];
+	float part_avel[3];
 } ObjectInstanceRen;
 
 /* ------------------------------------------------------------------------- */

@@ -1091,7 +1091,7 @@ static void layerDefault_mcol(void *data, int count)
 
 static void layerDefault_origindex(void *data, int count)
 {
-	fill_vn_i((int *)data, count, ORIGINDEX_NONE);
+	copy_vn_i((int *)data, count, ORIGINDEX_NONE);
 }
 
 static void layerInterp_bweight(
@@ -1199,8 +1199,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 0: CD_MVERT */
 	{sizeof(MVert), "MVert", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 	/* 1: CD_MSTICKY */  /* DEPRECATED */
-	{sizeof(float) * 2, "", 1, NULL, NULL, NULL, NULL, NULL,
-	 NULL},
+	{sizeof(float) * 2, "", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 	/* 2: CD_MDEFORMVERT */
 	{sizeof(MDeformVert), "MDeformVert", 1, NULL, layerCopy_mdeformvert,
 	 layerFree_mdeformvert, layerInterp_mdeformvert, NULL, NULL},
@@ -1221,7 +1220,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 3 floats per normal vector */
 	{sizeof(float) * 3, "vec3f", 1, NULL, NULL, NULL, layerInterp_normal, NULL, NULL,
 	 NULL, NULL, NULL, NULL, NULL, layerCopyValue_normal},
-	/* 9: CD_POLYINDEX (deprecated) */
+	/* 9: CD_POLYINDEX */  /* DEPRECATED */
 	{sizeof(int), "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
 	/* 10: CD_PROP_FLT */
 	{sizeof(MFloatProperty), "MFloatProperty", 1, N_("Float"), layerCopy_propFloat, NULL, NULL, NULL},
@@ -1256,9 +1255,8 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 20: CD_PREVIEW_MCOL */
 	{sizeof(MCol) * 4, "MCol", 4, N_("PreviewCol"), NULL, NULL, layerInterp_mcol,
 	 layerSwap_mcol, layerDefault_mcol},
-	/* 21: CD_ID_MCOL */
-	{sizeof(MCol) * 4, "MCol", 4, N_("IDCol"), NULL, NULL, layerInterp_mcol,
-	 layerSwap_mcol, layerDefault_mcol},
+	/* 21: CD_ID_MCOL */  /* DEPRECATED */
+	{sizeof(MCol) * 4, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
 	/* 22: CD_TEXTURE_MCOL */
 	{sizeof(MCol) * 4, "MCol", 4, N_("TexturedCol"), NULL, NULL, layerInterp_mcol,
 	 layerSwap_mcol, layerDefault_mcol},
@@ -1336,20 +1334,20 @@ const CustomDataMask CD_MASK_BAREMESH =
     CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE | CD_MASK_MLOOP | CD_MASK_MPOLY | CD_MASK_BWEIGHT;
 const CustomDataMask CD_MASK_MESH =
     CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE |
-    CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE | CD_MASK_MCOL |
+    CD_MASK_MDEFORMVERT | CD_MASK_MTFACE | CD_MASK_MCOL |
     CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR | CD_MASK_MDISPS |
     CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL | CD_MASK_MPOLY | CD_MASK_MLOOP |
     CD_MASK_MTEXPOLY | CD_MASK_RECAST | CD_MASK_PAINT_MASK |
     CD_MASK_GRID_PAINT_MASK | CD_MASK_MVERT_SKIN | CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE |
     CD_MASK_CUSTOMLOOPNORMAL;
 const CustomDataMask CD_MASK_EDITMESH =
-    CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE | CD_MASK_MLOOPUV |
+    CD_MASK_MDEFORMVERT | CD_MASK_MTFACE | CD_MASK_MLOOPUV |
     CD_MASK_MLOOPCOL | CD_MASK_MTEXPOLY | CD_MASK_SHAPE_KEYINDEX |
     CD_MASK_MCOL | CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR |
     CD_MASK_MDISPS | CD_MASK_SHAPEKEY | CD_MASK_RECAST | CD_MASK_PAINT_MASK |
     CD_MASK_GRID_PAINT_MASK | CD_MASK_MVERT_SKIN | CD_MASK_CUSTOMLOOPNORMAL;
 const CustomDataMask CD_MASK_DERIVEDMESH =
-    CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE |
+    CD_MASK_MDEFORMVERT | CD_MASK_MTFACE |
     CD_MASK_MCOL | CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_CLOTH_ORCO |
     CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL | CD_MASK_MTEXPOLY | CD_MASK_PREVIEW_MLOOPCOL |
     CD_MASK_PROP_STR | CD_MASK_ORIGSPACE | CD_MASK_ORIGSPACE_MLOOP | CD_MASK_ORCO | CD_MASK_TANGENT |
@@ -1358,7 +1356,7 @@ const CustomDataMask CD_MASK_DERIVEDMESH =
     CD_MASK_CUSTOMLOOPNORMAL;
 const CustomDataMask CD_MASK_BMESH =
     CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL | CD_MASK_MTEXPOLY |
-    CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_PROP_FLT | CD_MASK_PROP_INT |
+    CD_MASK_MDEFORMVERT | CD_MASK_PROP_FLT | CD_MASK_PROP_INT |
     CD_MASK_PROP_STR | CD_MASK_SHAPEKEY | CD_MASK_SHAPE_KEYINDEX | CD_MASK_MDISPS |
     CD_MASK_CREASE | CD_MASK_BWEIGHT | CD_MASK_RECAST | CD_MASK_PAINT_MASK |
     CD_MASK_GRID_PAINT_MASK | CD_MASK_MVERT_SKIN | CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE |
@@ -1367,7 +1365,7 @@ const CustomDataMask CD_MASK_FACECORNERS =  /* XXX Not used anywhere! */
     CD_MASK_MTFACE | CD_MASK_MCOL | CD_MASK_MTEXPOLY | CD_MASK_MLOOPUV |
     CD_MASK_MLOOPCOL | CD_MASK_NORMAL | CD_MASK_MLOOPTANGENT;
 const CustomDataMask CD_MASK_EVERYTHING =
-    CD_MASK_MVERT | CD_MASK_MSTICKY /* DEPRECATED */ | CD_MASK_MDEFORMVERT | CD_MASK_MEDGE | CD_MASK_MFACE |
+    CD_MASK_MVERT | CD_MASK_MDEFORMVERT | CD_MASK_MEDGE | CD_MASK_MFACE |
     CD_MASK_MTFACE | CD_MASK_MCOL | CD_MASK_ORIGINDEX | CD_MASK_NORMAL /* | CD_MASK_POLYINDEX */ | CD_MASK_PROP_FLT |
     CD_MASK_PROP_INT | CD_MASK_PROP_STR | CD_MASK_ORIGSPACE | CD_MASK_ORCO | CD_MASK_MTEXPOLY | CD_MASK_MLOOPUV |
     CD_MASK_MLOOPCOL | CD_MASK_TANGENT | CD_MASK_MDISPS | CD_MASK_PREVIEW_MCOL | CD_MASK_CLOTH_ORCO | CD_MASK_RECAST |
@@ -1542,7 +1540,7 @@ static void CustomData_external_free(CustomData *data)
 void CustomData_reset(CustomData *data)
 {
 	memset(data, 0, sizeof(*data));
-	fill_vn_i(data->typemap, CD_NUMTYPES, -1);
+	copy_vn_i(data->typemap, CD_NUMTYPES, -1);
 }
 
 void CustomData_free(CustomData *data, int totelem)
@@ -2294,7 +2292,7 @@ void CustomData_interp(const CustomData *source, CustomData *dest,
 		}
 	}
 
-	if (count > SOURCE_BUF_SIZE) MEM_freeN(sources);
+	if (count > SOURCE_BUF_SIZE) MEM_freeN((void *)sources);
 }
 
 void CustomData_swap(struct CustomData *data, int index, const int *corner_indices)
@@ -3852,7 +3850,7 @@ void CustomData_data_transfer(const MeshPairRemap *me_remap, const CustomDataTra
 		if (tmp_data_src) {
 			if (UNLIKELY(sources_num > tmp_buff_size)) {
 				tmp_buff_size = (size_t)sources_num;
-				tmp_data_src = MEM_reallocN(tmp_data_src, sizeof(*tmp_data_src) * tmp_buff_size);
+				tmp_data_src = MEM_reallocN((void *)tmp_data_src, sizeof(*tmp_data_src) * tmp_buff_size);
 			}
 
 			for (j = 0; j < sources_num; j++) {
