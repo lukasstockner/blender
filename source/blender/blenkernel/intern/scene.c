@@ -459,6 +459,8 @@ void BKE_scene_init(Scene *sce)
 	const char *colorspace_name;
 	SceneRenderView *srv;
 
+	BLI_assert(MEMCMP_NULL_STRUCT_OFS(sce, id));
+
 	sce->lay = sce->layact = 1;
 	
 	sce->r.mode = R_GAMMA | R_OSA | R_SHADOW | R_SSS | R_ENVMAP | R_RAYTRACE;

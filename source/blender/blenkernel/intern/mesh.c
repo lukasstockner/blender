@@ -492,6 +492,8 @@ static void mesh_tessface_clear_intern(Mesh *mesh, int free_customdata)
 
 void BKE_mesh_init(Mesh *me)
 {
+	BLI_assert(MEMCMP_NULL_STRUCT_OFS(me, id));
+
 	me->size[0] = me->size[1] = me->size[2] = 1.0;
 	me->smoothresh = 30;
 	me->texflag = ME_AUTOSPACE;

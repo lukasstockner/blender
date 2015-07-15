@@ -133,6 +133,8 @@ static void brush_defaults(Brush *brush)
 
 void BKE_brush_init(Brush *brush)
 {
+	BLI_assert(MEMCMP_NULL_STRUCT_OFS(brush, id));
+
 	/* enable fake user by default */
 	brush->id.flag |= LIB_FAKEUSER;
 
