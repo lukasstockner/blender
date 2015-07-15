@@ -35,10 +35,17 @@ typedef struct OpenSubdiv_TopologyRefinerDescr OpenSubdiv_TopologyRefinerDescr;
 
 typedef struct OpenSubdiv_Converter OpenSubdiv_Converter;
 
+typedef enum OpenSubdiv_SchemeType {
+	OSD_SCHEME_BILINEAR,
+	OSD_SCHEME_CATMARK,
+	OSD_SCHEME_LOOP,
+} OpenSubdiv_SchemeType;
+
 typedef struct OpenSubdiv_Converter {
 	/* TODO(sergey): Needs to be implemented. */
-	/* OpenSubdiv::Sdc::SchemeType get_type() const; */
 	/* OpenSubdiv::Sdc::Options get_options() const; */
+
+	OpenSubdiv_SchemeType (*get_type)(const OpenSubdiv_Converter *converter);
 
 	int (*get_num_faces)(const OpenSubdiv_Converter *converter);
 	int (*get_num_edges)(const OpenSubdiv_Converter *converter);

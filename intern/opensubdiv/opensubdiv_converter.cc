@@ -186,12 +186,30 @@ inline void TopologyRefinerFactory<OpenSubdiv_Converter>::reportInvalidTopology(
 }  /* namespace OPENSUBDIV_VERSION */
 }  /* namespace OpenSubdiv */
 
+namespace {
+
+OpenSubdiv::Sdc::SchemeType get_capi_scheme_type(OpenSubdiv_SchemeType type)
+{
+	switch(type) {
+		case OSD_SCHEME_BILINEAR:
+			return OpenSubdiv::Sdc::SCHEME_BILINEAR;
+		case OSD_SCHEME_CATMARK:
+			return OpenSubdiv::Sdc::SCHEME_CATMARK;
+		case OSD_SCHEME_LOOP:
+			return OpenSubdiv::Sdc::SCHEME_LOOP;
+	}
+	assert(!"Unknown sceme type passed via C-API");
+	return OpenSubdiv::Sdc::SCHEME_CATMARK;
+}
+
+}  /* namespace */
 
 struct OpenSubdiv_TopologyRefinerDescr *openSubdiv_createTopologyRefinerDescr(
         OpenSubdiv_Converter *converter)
 {
 	using OpenSubdiv::Far::TopologyRefinerFactory;
-	OpenSubdiv::Sdc::SchemeType scheme_type = OpenSubdiv::Sdc::SCHEME_CATMARK;
+	OpenSubdiv::Sdc::SchemeType scheme_type =
+	        get_capi_scheme_type(converter->get_type(converter));
 	OpenSubdiv::Sdc::Options options;
 	options.SetVtxBoundaryInterpolation(OpenSubdiv::Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
 	options.SetFVarLinearInterpolation(OpenSubdiv::Sdc::Options::FVAR_LINEAR_ALL);

@@ -44,6 +44,12 @@
 
 #define OSD_LOG if (false) printf
 
+static OpenSubdiv_SchemeType conv_dm_get_type(
+        const OpenSubdiv_Converter *UNUSED(converter))
+{
+	return OSD_SCHEME_CATMARK;
+}
+
 /* TODO(sergey): Move converters API to own file for clearity of code. */
 static int conv_dm_get_num_faces(const OpenSubdiv_Converter *converter)
 {
@@ -229,6 +235,8 @@ static void converter_setup_from_derivedmesh(
         DerivedMesh *dm,
         OpenSubdiv_Converter *converter)
 {
+	converter->get_type = conv_dm_get_type;
+
 	converter->get_num_faces = conv_dm_get_num_faces;
 	converter->get_num_edges = conv_dm_get_num_edges;
 	converter->get_num_verts = conv_dm_get_num_verts;

@@ -169,7 +169,7 @@ BLI_INLINE void *ccg_face_getIFCoEdge(CCGFace *f, CCGEdge *e, int f_ed_idx, int 
 	int spacing = ccg_spacing(levels, lvl);
 	int x, y, cx, cy;
 
-	BLI_assert(f_ed_idx == _face_getEdgeIndex(f, e));
+	BLI_assert(f_ed_idx == ccg_face_getEdgeIndex(f, e));
 
 	eX = eX * spacing;
 	eY = eY * spacing;
