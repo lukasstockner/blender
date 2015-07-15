@@ -955,7 +955,9 @@ static void node_shader_buts_tex_pointdensity(uiLayout *layout, bContext *UNUSED
 	uiItemR(layout, ptr, "radius", 0, NULL, ICON_NONE);
 	uiItemR(layout, ptr, "interpolation", 0, NULL, ICON_NONE);
 	uiItemR(layout, ptr, "resolution", 0, NULL, ICON_NONE);
-	uiItemR(layout, ptr, "color_source", 0, NULL, ICON_NONE);
+	if (shader_point_density->point_source == SHD_POINTDENSITY_SOURCE_PSYS) {
+		uiItemR(layout, ptr, "color_source", 0, NULL, ICON_NONE);
+	}
 }
 
 static void node_shader_buts_tex_coord(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
