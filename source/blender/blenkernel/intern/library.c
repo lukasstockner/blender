@@ -794,6 +794,7 @@ void BKE_libblock_init_empty(ID *id)
 			BKE_scene_init((Scene *)id);
 			break;
 		case ID_LI:
+			/* Nothing to do. */
 			break;
 		case ID_OB:
 		{
@@ -809,57 +810,90 @@ void BKE_libblock_init_empty(ID *id)
 			BKE_curve_init((Curve *)id);
 			break;
 		case ID_MB:
+			BKE_mball_init((MetaBall *)id);
 			break;
 		case ID_MA:
+			BKE_init_material((Material *)id);
 			break;
 		case ID_TE:
+			BKE_texture_default((Tex *)id);
 			break;
 		case ID_IM:
+			/* Image is a bit complicated, for now assume NULLified im is OK. */
 			break;
 		case ID_LT:
+			BKE_lattice_init((Lattice *)id);
 			break;
 		case ID_LA:
+			BKE_lamp_init((Lamp *)id);
 			break;
 		case ID_SPK:
+			BKE_speaker_init((Speaker *)id);
 			break;
 		case ID_CA:
+			BKE_camera_init((Camera *)id);
 			break;
 		case ID_IP:
+			/* Should not be needed - animation from lib pre-2.5 is broken anyway. */
+			/* TDOD: check this does not break completely at least. */
 			break;
 		case ID_KE:
+			/* XXX Shapekeys are a complex topic too - they depend on their 'user' data type...
+			 *     I think it should never reach here anyway (afaik you cannot link skeys).
+			 *     Adding an assert to be sure. */
+			BLI_assert(0);
 			break;
 		case ID_WO:
+			BKE_world_init((World *)id);
 			break;
 		case ID_SCR:
+			/* Nothing to do. */
 			break;
 		case ID_VF:
+			BKE_vfont_init((VFont *)id);
 			break;
 		case ID_TXT:
+			BKE_text_init((Text *)id);
 			break;
 		case ID_SCRIPT:
+			BLI_assert(0);
 			break;
 		case ID_SO:
+			/* XXX Another fuzzy case, thing NULLified content is OK here... */
 			break;
 		case ID_GR:
+			/* Nothing to do. */
 			break;
 		case ID_AR:
+			/* Nothing to do. */
 			break;
 		case ID_AC:
+			/* Nothing to do. */
 			break;
 		case ID_NT:
+			ntreeInitDefault((bNodeTree *)id);
 			break;
 		case ID_BR:
 			BKE_brush_init((Brush *)id);
 			break;
 		case ID_PA:
+			/* Nothing to do. */
+			break;
+		case ID_PC:
+			/* Nothing to do. */
 			break;
 		case ID_WM:
+			/* We should never reach this. */
+			BLI_assert(0);
 			break;
 		case ID_GD:
+			/* Nothing to do. */
 			break;
 		case ID_MSK:
+			/* Nothing to do. */
 			break;
 		case ID_LS:
+			BKE_linestyle_init((FreestyleLineStyle *)id);
 			break;
 	}
 }

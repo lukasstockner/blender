@@ -83,12 +83,10 @@ void BKE_world_free(World *wrld)
 	BKE_world_free_ex(wrld, true);
 }
 
-World *add_world(Main *bmain, const char *name)
+void BKE_world_init(World *wrld)
 {
-	World *wrld;
+	BLI_assert(MEMCMP_NULL_STRUCT_OFS(wrld, id));
 
-	wrld = BKE_libblock_alloc(bmain, ID_WO, name);
-	
 	wrld->horr = 0.05f;
 	wrld->horg = 0.05f;
 	wrld->horb = 0.05f;
@@ -109,10 +107,19 @@ World *add_world(Main *bmain, const char *name)
 	wrld->aobias = 0.05f;
 	wrld->ao_samp_method = WO_AOSAMP_HAMMERSLEY;
 	wrld->ao_approx_error = 0.25f;
-	
+
 	wrld->preview = NULL;
 	wrld->miststa = 5.0f;
 	wrld->mistdist = 25.0f;
+}
+
+World *add_world(Main *bmain, const char *name)
+{
+	World *wrld;
+
+	wrld = BKE_libblock_alloc(bmain, ID_WO, name);
+	
+	BKE_world_init(wrld);
 
 	return wrld;
 }
