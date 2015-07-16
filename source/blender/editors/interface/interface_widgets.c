@@ -1301,7 +1301,12 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			wt.wcol_theme = &btheme->tui.wcol_menu_back;
 			wt.draw_type = draw_style->menu_back;
 			break;
-			
+
+		case UI_WTYPE_MENU_ITEM_PREVIEW:
+			wt.wcol_theme = &btheme->tui.wcol_menu_item;
+			wt.draw_type = draw_style->menu_item_preview;
+			break;
+
 		/* specials */
 		case UI_WTYPE_ICON:
 			wt.draw_type = draw_style->icon;
@@ -1663,7 +1668,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 
 		if (disabled)
 			glEnable(GL_BLEND);
-		wt->draw_type->text(fstyle, &wt->wcol, but, rect);
+		wt->draw_type->text(fstyle, &wt->wcol, but, rect, but->drawstr, but->icon);
 
 		if (disabled)
 			glDisable(GL_BLEND);
@@ -1931,45 +1936,12 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 	}
 }
 
-#define PREVIEW_PAD 4
-
 void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state)
 {
-	rcti trect = *rect;
-	const float text_size = UI_UNIT_Y;
-	float font_dims[2] = {0.0f, 0.0f};
-	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
-	
+	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM_PREVIEW);
+
 	/* drawing button background */
 	wt->draw_type->state(wt, state);
 	wt->draw_type->draw(&wt->wcol, rect, 0, 0);
-	
-	/* draw icon in rect above the space reserved for the label */
-	rect->ymin += text_size;
-	glEnable(GL_BLEND);
-	widget_draw_preview(iconid, 1.0f, rect);
-	glDisable(GL_BLEND);
-	
-	BLF_width_and_height(fstyle->uifont_id, name, BLF_DRAW_STR_DUMMY_MAX, &font_dims[0], &font_dims[1]);
-
-	/* text rect */
-	trect.xmin += 0;
-	trect.xmax = trect.xmin + font_dims[0] + U.widget_unit / 2;
-	trect.ymin += U.widget_unit / 2;
-	trect.ymax = trect.ymin + font_dims[1];
-	if (trect.xmax > rect->xmax - PREVIEW_PAD)
-		trect.xmax = rect->xmax - PREVIEW_PAD;
-
-	{
-		char drawstr[UI_MAX_DRAW_STR];
-		const float okwidth = (float)BLI_rcti_size_x(&trect);
-		const size_t max_len = sizeof(drawstr);
-		const float minwidth = (float)(UI_DPI_ICON_SIZE);
-
-		BLI_strncpy(drawstr, name, sizeof(drawstr));
-		UI_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len, '\0');
-
-		glColor4ubv((unsigned char *)wt->wcol.text);
-		UI_fontstyle_draw(fstyle, &trect, drawstr);
-	}
+	wt->draw_type->text(fstyle, &wt->wcol, NULL, rect, name, iconid);
 }

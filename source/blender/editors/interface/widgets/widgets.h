@@ -59,7 +59,7 @@ typedef struct uiWidgetDrawType {
 	/* XXX uiBut and uiFontStyle shouldn't be needed/used at this level,
 	 * the needed data should be transferred using uiWidget API instead */
 	void (*custom)(struct uiBut *, struct uiWidgetColors *, rcti *, int state, int roundboxalign);
-	void (*text)(struct uiFontStyle *, struct uiWidgetColors *, struct uiBut *, rcti *);
+	void (*text)(struct uiFontStyle *, struct uiWidgetColors *, struct uiBut *, rcti *, const char *str, const int iconid);
 } uiWidgetDrawType;
 
 #if 0 /* uiWidgetDrawType init template */
@@ -85,6 +85,7 @@ typedef struct uiWidgetDrawStyle {
 	                 *menu_back,
 	                 *menu_icon_radio,
 	                 *menu_item,
+	                 *menu_item_preview,
 	                 *menu_item_radial,
 	                 *menu_label,
 	                 *menu_node_link,

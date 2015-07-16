@@ -29,10 +29,6 @@
  * \brief Blender widget drawing module
  */
 
-#include "UI_resources.h"
-
-
-
 /* Struct Declarations */
 
 struct uiBut;
@@ -81,7 +77,9 @@ typedef struct uiWidgetBase {
 	uiWidgetTrias tria2;
 } uiWidgetBase;
 
+
 /* widgets_draw.c - shared low-level drawing functions */
+
 void widgetbase_init(uiWidgetBase *wtb);
 
 void round_box_edges(uiWidgetBase *wt, int roundboxalign, const rcti *rect, float rad); /* XXX rename to widgetbase_roundboxedges_set */
@@ -100,9 +98,15 @@ void widget_softshadow(const rcti *rect, int roundboxalign, const float radin);
 
 void widgetbase_draw(uiWidgetBase *wtb, struct uiWidgetColors *wcol);
 
-/* TODO temp */
-void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect);
-void widget_draw_preview(BIFIconID icon, float alpha, const rcti *rect);
+
+/* widgets_draw_text.c - shared low-level text formatting/drawing functions */
+
+void widget_draw_text_icon(
+        uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but,
+        rcti *rect, const char *str, const int iconid);
+void widget_draw_text_preview_item(
+        uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *UNUSED(but),
+        rcti *rect, const char *str, const int iconid);
 
 #endif  /* __WIDGETS_DRAW_INTERN_H__ */
 

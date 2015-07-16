@@ -26,8 +26,11 @@
 
 #include "BIF_gl.h"
 
+#include "BLF_api.h"
+
 #include "BLI_math.h"
 #include "BLI_rect.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_screen_types.h"
@@ -634,6 +637,7 @@ static void widget_unitvec(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNU
 	ui_draw_but_UNITVEC(but, wcol, rect);
 }
 
+
 /* states ************************************* */
 
 static void widget_state_blend(char cp[3], const char cpstate[3], const float fac)
@@ -848,6 +852,12 @@ static void widget_state_numslider(uiWidgetType *wt, int state)
 	}
 }
 
+
+/* text *************************************** */
+
+/* nothing here yet - currently we call widgets_draw_text.c functions directly */
+
+
 /* helper calls *************************************** */
 
 /**
@@ -934,6 +944,13 @@ uiWidgetDrawType drawtype_classic_menu_item = {
 	/* draw */   widget_menu_itembut,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
+};
+
+uiWidgetDrawType drawtype_classic_menu_item_preview = {
+	/* state */  widget_state_menu_item,
+	/* draw */   widget_menu_itembut,
+	/* custom */ NULL,
+	/* text */   widget_draw_text_preview_item,
 };
 
 uiWidgetDrawType drawtype_classic_menu_item_radial = {
@@ -1068,6 +1085,7 @@ uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* menu_back */         &drawtype_classic_menu_back,
 	/* menu_icon_radio */   &drawtype_classic_menu_icon_radio,
 	/* menu_item */         &drawtype_classic_menu_item,
+	/* menu_item_preview */ &drawtype_classic_menu_item_preview,
 	/* menu_item_radial */  &drawtype_classic_menu_item_radial,
 	/* menu_item_label */   &drawtype_classic_menu_label,
 	/* menu_node_link */    &drawtype_classic_menu_node_link,

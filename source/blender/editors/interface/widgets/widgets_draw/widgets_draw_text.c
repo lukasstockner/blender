@@ -55,9 +55,10 @@
 /* icons are 80% of height of button (16 pixels inside 20 height) */
 #define ICON_SIZE_FROM_BUTRECT(rect) (0.8f * BLI_rcti_size_y(rect))
 
+
 #define PREVIEW_PAD 4
 
-void widget_draw_preview(BIFIconID icon, float alpha, const rcti *rect)
+static void widget_draw_preview(BIFIconID icon, float alpha, const rcti *rect)
 {
 	int w, h, size;
 
@@ -74,6 +75,44 @@ void widget_draw_preview(BIFIconID icon, float alpha, const rcti *rect)
 		int y = rect->ymin + h / 2 - size / 2;
 
 		UI_icon_draw_preview_aspect_size(x, y, icon, 1.0f, alpha, size);
+	}
+}
+
+void widget_draw_text_preview_item(
+        uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *UNUSED(but),
+        rcti *rect, const char *str, const int iconid)
+{
+	rcti trect = *rect;
+	const float text_size = UI_UNIT_Y;
+	float font_dims[2] = {0.0f, 0.0f};
+
+	/* draw icon in rect above the space reserved for the label */
+	rect->ymin += text_size;
+	glEnable(GL_BLEND);
+	widget_draw_preview(iconid, 1.0f, rect);
+	glDisable(GL_BLEND);
+
+	BLF_width_and_height(fstyle->uifont_id, str, BLF_DRAW_STR_DUMMY_MAX, &font_dims[0], &font_dims[1]);
+
+	/* text rect */
+	trect.xmin += 0;
+	trect.xmax = trect.xmin + font_dims[0] + U.widget_unit / 2;
+	trect.ymin += U.widget_unit / 2;
+	trect.ymax = trect.ymin + font_dims[1];
+	if (trect.xmax > rect->xmax - PREVIEW_PAD)
+		trect.xmax = rect->xmax - PREVIEW_PAD;
+
+	{
+		char drawstr[UI_MAX_DRAW_STR];
+		const float okwidth = (float)BLI_rcti_size_x(&trect);
+		const size_t max_len = sizeof(drawstr);
+		const float minwidth = (float)(UI_DPI_ICON_SIZE);
+
+		BLI_strncpy(drawstr, str, sizeof(drawstr));
+		UI_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len, '\0');
+
+		glColor4ubv((unsigned char *)wcol->text);
+		UI_fontstyle_draw(fstyle, &trect, drawstr);
 	}
 }
 
@@ -530,10 +569,9 @@ static void widget_draw_text_ime_underline(
 }
 #endif  /* WITH_INPUT_IME */
 
-static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect)
+static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect, const char *drawstr)
 {
 	int drawstr_left_len = UI_MAX_DRAW_STR;
-	const char *drawstr = but->drawstr;
 	const char *drawstr_right = NULL;
 	bool use_right_only = false;
 
@@ -750,7 +788,9 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 }
 
 /* draws text and icons for buttons */
-void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect)
+void widget_draw_text_icon(
+        uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but,
+        rcti *rect, const char *str, const int iconid)
 {
 	const bool show_menu_icon = ui_but_draw_menu_icon(but);
 	float alpha = (float)wcol->text[3] / 255.0f;
@@ -771,7 +811,7 @@ void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but
 
 	/* Big previews with optional text label below */
 	if (but->flag & UI_BUT_ICON_PREVIEW && ui_block_is_menu(but->block)) {
-		const BIFIconID icon = (but->flag & UI_HAS_ICON) ? but->icon + but->iconadd : ICON_NONE;
+		const BIFIconID icon = (but->flag & UI_HAS_ICON) ? iconid + but->iconadd : ICON_NONE;
 		int icon_size = BLI_rcti_size_y(rect);
 		int text_size = 0;
 
@@ -797,7 +837,7 @@ void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but
 	}
 	/* Icons on the left with optional text label on the right */
 	else if (but->flag & UI_HAS_ICON || show_menu_icon) {
-		const BIFIconID icon = (but->flag & UI_HAS_ICON) ? but->icon + but->iconadd : ICON_NONE;
+		const BIFIconID icon = (but->flag & UI_HAS_ICON) ? iconid + but->iconadd : ICON_NONE;
 		const float icon_size = ICON_SIZE_FROM_BUTRECT(rect);
 
 		/* menu item - add some more padding so menus don't feel cramped. it must
@@ -863,7 +903,7 @@ void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but
 	}
 
 	/* always draw text for textbutton cursor */
-	widget_draw_text(fstyle, wcol, but, rect);
+	widget_draw_text(fstyle, wcol, but, rect, str);
 
 	ui_but_text_password_hide(password_str, but, true);
 }
