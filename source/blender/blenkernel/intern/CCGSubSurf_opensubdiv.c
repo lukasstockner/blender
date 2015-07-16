@@ -83,19 +83,14 @@ static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
 {
 	BLI_assert(ss->meshIFC.numLayers == 3);
 	openSubdiv_osdGLMeshUpdateVertexBuffer(ss->osd_mesh,
-	                                       (float *) ss->osd_coarse_positions,
+	                                       (float *) ss->osd_coarse_coords,
 	                                       0,
-	                                       ss->osd_num_coarse_positions);
+	                                       ss->osd_num_coarse_coords);
 }
 
 bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 {
 	int compute_type;
-
-	/* Happens for meshes without faces. */
-	//if (UNLIKELY(ss->osd_evaluator == NULL)) {
-	//	return false;
-	//}
 
 	switch (U.opensubdiv_compute_type) {
 #define CHECK_COMPUTE_TYPE(type) \
@@ -153,11 +148,11 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
-	else if (ss->osd_coords_invalid) {
+	else if (ss->osd_coarse_coords_invalid) {
 		ccgSubSurf__updateGLMeshCoords(ss);
 		openSubdiv_osdGLMeshRefine(ss->osd_mesh);
 		openSubdiv_osdGLMeshSynchronize(ss->osd_mesh);
-		ss->osd_coords_invalid = false;
+		ss->osd_coarse_coords_invalid = false;
 	}
 
 	openSubdiv_osdGLMeshDisplayPrepare(use_osd_glsl, ss->osd_uv_index);
@@ -412,63 +407,6 @@ static void opensubdiv_updateEvaluatorCoarsePositions(CCGSubSurf *ss)
 	                                       num_basis_verts);
 
 	MEM_freeN(positions);
-}
-
-static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
-{
-	int i;
-	int normalDataOffset = ss->normalDataOffset;
-	int vertDataSize = ss->meshIFC.vertDataSize;
-
-	if (ss->meshIFC.numLayers != 3) {
-		return;
-	}
-
-#pragma omp parallel for
-	for (i = 0; i < ss->vMap->curSize; ++i) {
-		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
-		for (; v; v = v->next) {
-			float *no = VERT_getNo(v, 0);
-			zero_v3(no);
-		}
-	}
-
-#pragma omp parallel for
-	for (i = 0; i < ss->fMap->curSize; ++i) {
-		CCGFace *f = (CCGFace *) ss->fMap->buckets[i];
-		for (; f; f = f->next) {
-			int S;
-			float face_no[3] = {0.0f, 0.0f, 0.0f};
-			CCGVert *v_prev = FACE_getVerts(f)[f->numVerts - 1];
-			float *co_prev = VERT_getCo(v_prev, 0);
-			for (S = 0; S < f->numVerts; S++) {
-				CCGVert *v_curr = FACE_getVerts(f)[S];
-				float *co_curr = VERT_getCo(v_curr, 0);
-				add_newell_cross_v3_v3v3(face_no, co_prev, co_curr);
-				co_prev = co_curr;
-			}
-			if (UNLIKELY(normalize_v3(face_no) == 0.0f)) {
-				face_no[2] = 1.0f; /* other axis set to 0.0 */
-			}
-#pragma omp critical
-			{
-				for (S = 0; S < f->numVerts; S++) {
-					CCGVert *v = FACE_getVerts(f)[S];
-					float *no = VERT_getNo(v, 0);
-					add_v3_v3(no, face_no);
-				}
-			}
-		}
-	}
-
-#pragma omp parallel for
-	for (i = 0; i < ss->vMap->curSize; ++i) {
-		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
-		for (; v; v = v->next) {
-			float *no = VERT_getNo(v, 0);
-			normalize_v3(no);
-		}
-	}
 }
 
 static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
@@ -792,22 +730,22 @@ void ccgSubSurf_prepareTopologyRefiner(CCGSubSurf *ss,
 		const int num_verts = dm->getNumVerts(dm);
 		const MVert *mvert = dm->getVertArray(dm);
 		int vert;
-		if (ss->osd_coarse_positions != NULL &&
-		    num_verts != ss->osd_num_coarse_positions)
+		if (ss->osd_coarse_coords != NULL &&
+		    num_verts != ss->osd_num_coarse_coords)
 		{
-			MEM_freeN(ss->osd_coarse_positions);
-			ss->osd_coarse_positions = NULL;
+			MEM_freeN(ss->osd_coarse_coords);
+			ss->osd_coarse_coords = NULL;
 		}
-		if (ss->osd_coarse_positions == NULL) {
-			ss->osd_coarse_positions = MEM_mallocN(sizeof(float) * 6 * num_verts, "osd coarse positions");
+		if (ss->osd_coarse_coords == NULL) {
+			ss->osd_coarse_coords = MEM_mallocN(sizeof(float) * 6 * num_verts, "osd coarse positions");
 		}
 		for (vert = 0; vert < num_verts; vert++) {
-			copy_v3_v3(ss->osd_coarse_positions[vert * 2 + 0], mvert[vert].co);
+			copy_v3_v3(ss->osd_coarse_coords[vert * 2 + 0], mvert[vert].co);
 			/* TODO(sergey): Support proper normals here. */
-			zero_v3(ss->osd_coarse_positions[vert * 2 + 1]);
+			zero_v3(ss->osd_coarse_coords[vert * 2 + 1]);
 		}
-		ss->osd_num_coarse_positions = num_verts;
-		ss->osd_coords_invalid = true;
+		ss->osd_num_coarse_coords = num_verts;
+		ss->osd_coarse_coords_invalid = true;
 	}
 }
 
@@ -838,7 +776,6 @@ void ccgSubSurf__sync_opensubdiv(CCGSubSurf *ss)
 			ss->osd_uvs_invalid = true;
 			ss->osd_compute = U.opensubdiv_compute_type;
 		}
-		opensubdiv_updateCoarseNormals(ss);
 	}
 
 #ifdef DUMP_RESULT_GRIDS

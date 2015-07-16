@@ -308,16 +308,16 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 		ss->osd_mesh = NULL;
 		ss->osd_topology_refiner = NULL;
 		ss->osd_mesh_invalid = false;
-		ss->osd_coords_invalid = false;
+		ss->osd_coarse_coords_invalid = false;
 		ss->osd_vao = 0;
 		ss->skip_grids = false;
 		ss->osd_compute = 0;
 		ss->osd_uvs_invalid = true;
 		ss->osd_subsurf_uv = 0;
 		ss->osd_uv_index = -1;
-		ss->osd_next_face_index = 0;
-		ss->osd_coarse_positions = NULL;
-		ss->osd_num_coarse_positions = 0;
+		ss->osd_next_face_ptex_index = 0;
+		ss->osd_coarse_coords = NULL;
+		ss->osd_num_coarse_coords = 0;
 #endif
 
 		return ss;
@@ -339,8 +339,8 @@ void ccgSubSurf_free(CCGSubSurf *ss)
 	if (ss->osd_vao != 0) {
 		glDeleteVertexArrays(1, &ss->osd_vao);
 	}
-	if (ss->osd_coarse_positions != NULL) {
-		MEM_freeN(ss->osd_coarse_positions);
+	if (ss->osd_coarse_coords != NULL) {
+		MEM_freeN(ss->osd_coarse_coords);
 	}
 	/* TODO(sergey): This is not valid when viewport is not visible. */
 	BLI_assert(ss->osd_topology_refiner == NULL);
@@ -508,7 +508,7 @@ CCGError ccgSubSurf_initFullSync(CCGSubSurf *ss)
 	ss->tempEdges = MEM_mallocN(sizeof(*ss->tempEdges) * ss->lenTempArrays, "CCGSubsurf tempEdges");
 
 	ss->syncState = eSyncState_Vert;
-	ss->osd_next_face_index = 0;
+	ss->osd_next_face_ptex_index = 0;
 
 	return eCCGError_None;
 }
@@ -835,12 +835,12 @@ CCGError ccgSubSurf_syncFace(CCGSubSurf *ss, CCGFaceHDL fHDL, int numVerts, CCGV
 			}
 		}
 #ifdef WITH_OPENSUBDIV
-		f->osd_index = ss->osd_next_face_index;
+		f->osd_index = ss->osd_next_face_ptex_index;
 		if (numVerts == 4) {
-			ss->osd_next_face_index++;
+			ss->osd_next_face_ptex_index++;
 		}
 		else {
-			ss->osd_next_face_index += numVerts;
+			ss->osd_next_face_ptex_index += numVerts;
 		}
 #endif
 	}
