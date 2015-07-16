@@ -316,6 +316,9 @@ void ccgSubSurf_converter_setup_from_ccg(
         CCGSubSurf *ss,
         struct OpenSubdiv_Converter *converter);
 
+void ccgSubSurf_converter_free(
+        struct OpenSubdiv_Converter *converter);
+
 /* * CCGSubSurf_util.c * */
 
 #ifdef DUMP_RESULT_GRIDS

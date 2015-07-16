@@ -129,6 +129,7 @@ static bool compare_osd_derivedmesh_topology(CCGSubSurf *ss, DerivedMesh *dm)
 {
 	const OpenSubdiv_TopologyRefinerDescr *topology_refiner;
 	OpenSubdiv_Converter converter;
+	bool result;
 	if (ss->osd_mesh == NULL && ss->osd_topology_refiner == NULL) {
 		return true;
 	}
@@ -139,8 +140,10 @@ static bool compare_osd_derivedmesh_topology(CCGSubSurf *ss, DerivedMesh *dm)
 		topology_refiner = openSubdiv_getGLMeshTopologyRefiner(ss->osd_mesh);
 	}
 	ccgSubSurf_converter_setup_from_derivedmesh(ss, dm, &converter);
-	return openSubdiv_topologyRefnerCompareConverter(topology_refiner,
-	                                                 &converter);
+	result = openSubdiv_topologyRefnerCompareConverter(topology_refiner,
+	                                                   &converter);
+	ccgSubSurf_converter_free(&converter);
+	return result;
 }
 
 static bool opensubdiv_is_topology_changed(CCGSubSurf *ss, DerivedMesh *dm)
@@ -435,6 +438,7 @@ static bool opensubdiv_createEvaluator(CCGSubSurf *ss)
 	OpenSubdiv_TopologyRefinerDescr *topology_refiner;
 	ccgSubSurf_converter_setup_from_ccg(ss, &converter);
 	topology_refiner = openSubdiv_createTopologyRefinerDescr(&converter);
+	ccgSubSurf_converter_free(&converter);
 	ss->osd_evaluator =
 	        openSubdiv_createEvaluatorDescr(topology_refiner,
 	                                        ss->subdivLevels);
@@ -807,6 +811,7 @@ void ccgSubSurf_prepareTopologyRefiner(CCGSubSurf *ss, DerivedMesh *dm)
 		ccgSubSurf_converter_setup_from_derivedmesh(ss, dm, &converter);
 		/* TODO(sergey): Remove possibly previously allocated refiner. */
 		ss->osd_topology_refiner = openSubdiv_createTopologyRefinerDescr(&converter);
+		ccgSubSurf_converter_free(&converter);
 	}
 
 	/* Update number of grids, needed for thinhs liek final faces

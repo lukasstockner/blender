@@ -83,6 +83,7 @@ typedef struct OpenSubdiv_Converter {
 	                       int vert,
 	                       int *vert_faces);
 
+	void (*free_user_data)(const OpenSubdiv_Converter *converter);
 	void *user_data;
 } OpenSubdiv_Converter;
 
