@@ -1677,7 +1677,7 @@ int file_directory_new_exec(bContext *C, wmOperator *op)
 {
 	char name[FILE_MAXFILE];
 	char path[FILE_MAX];
-	int generate_name = 1;
+	bool generate_name = true;
 	PropertyRNA *prop;
 
 	wmWindowManager *wm = CTX_wm_manager(C);
@@ -1693,7 +1693,9 @@ int file_directory_new_exec(bContext *C, wmOperator *op)
 
 	if ((prop = RNA_struct_find_property(op->ptr, "directory"))) {
 		RNA_property_string_get(op->ptr, prop, path);
-		if (path[0] != '\0') generate_name = 0;
+		if (path[0] != '\0') {
+			generate_name = false;
+		}
 	}
 
 	if (generate_name) {
@@ -1703,10 +1705,23 @@ int file_directory_new_exec(bContext *C, wmOperator *op)
 			return OPERATOR_CANCELLED;
 		}
 	}
+	else { /* We assume we are able to generate a valid name! */
+		char org_path[FILE_MAX];
+
+		BLI_strncpy(org_path, path, sizeof(org_path));
+		if (BLI_path_make_safe(path)) {
+			BKE_reportf(op->reports, RPT_WARNING, "'%s' given path is OS-invalid, creating '%s' path instead",
+			            org_path, path);
+		}
+	}
 
 	/* create the file */
-	BLI_dir_create_recursive(path);
+	if (!BLI_dir_create_recursive(path)) {
+		BKE_report(op->reports, RPT_ERROR, "Could not create new folder");
+		return OPERATOR_CANCELLED;
+	}
 
+	/* Should no more be needed, now that BLI_dir_create_recursive returns a success state - but kept just in case. */
 	if (!BLI_exists(path)) {
 		BKE_report(op->reports, RPT_ERROR, "Could not create new folder");
 		return OPERATOR_CANCELLED;
@@ -1754,6 +1769,7 @@ void FILE_OT_directory_new(struct wmOperatorType *ot)
 }
 
 
+/* TODO This should go to BLI_path_utils. */
 static void file_expand_directory(bContext *C)
 {
 	SpaceFile *sfile = CTX_wm_space_file(C);
@@ -1794,6 +1810,7 @@ static void file_expand_directory(bContext *C)
 	}
 }
 
+/* TODO check we still need this, it's annoying to have OS-specific code here... :/ */
 #if defined(WIN32)
 static bool can_create_dir(const char *dir)
 {
@@ -1875,6 +1892,8 @@ void file_filename_enter_handle(bContext *C, void *UNUSED(arg_unused), void *arg
 		int matches;
 		matched_file[0] = '\0';
 		filepath[0] = '\0';
+
+		BLI_filename_make_safe(sfile->params->file);
 
 		file_expand_directory(C);
 
@@ -2052,7 +2071,7 @@ static int file_rename_exec(bContext *C, wmOperator *UNUSED(op))
 	if (sfile->params) {
 		int idx = sfile->params->highlight_file;
 		int numfiles = filelist_files_ensure(sfile->files, sfile->params);
-		if ( (0 <= idx) && (idx < numfiles) ) {
+		if ((0 <= idx) && (idx < numfiles)) {
 			FileDirEntry *file = filelist_file(sfile->files, idx);
 			filelist_entry_select_index_set(sfile->files, idx, FILE_SEL_ADD, FILE_SEL_EDITING, CHECK_ALL);
 			BLI_strncpy(sfile->params->renameedit, file->relpath, FILE_MAXFILE);

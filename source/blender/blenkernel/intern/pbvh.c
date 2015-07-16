@@ -1087,7 +1087,8 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode)
 						GPU_build_grid_pbvh_buffers(node->prim_indices,
 					                           node->totprim,
 					                           bvh->grid_hidden,
-					                           bvh->gridkey.grid_size);
+					                           bvh->gridkey.grid_size,
+					                           &bvh->gridkey);
 					break;
 				case PBVH_FACES:
 					node->draw_buffers =
@@ -1679,6 +1680,7 @@ void BKE_pbvh_raycast_project_ray_root(
 typedef struct {
 	DMSetMaterial setMaterial;
 	bool wireframe;
+	bool fast;
 } PBVHNodeDrawData;
 
 void BKE_pbvh_node_draw(PBVHNode *node, void *data_v)
@@ -1705,7 +1707,8 @@ void BKE_pbvh_node_draw(PBVHNode *node, void *data_v)
 	if (!(node->flag & PBVH_FullyHidden)) {
 		GPU_draw_pbvh_buffers(node->draw_buffers,
 		                 data->setMaterial,
-		                 data->wireframe);
+		                 data->wireframe,
+		                 data->fast);
 	}
 }
 
@@ -1775,9 +1778,9 @@ static void pbvh_node_check_diffuse_changed(PBVH *bvh, PBVHNode *node)
 }
 
 void BKE_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3],
-                   DMSetMaterial setMaterial, bool wireframe)
+                   DMSetMaterial setMaterial, bool wireframe, bool fast)
 {
-	PBVHNodeDrawData draw_data = {setMaterial, wireframe};
+	PBVHNodeDrawData draw_data = {setMaterial, wireframe, fast};
 	PBVHNode **nodes;
 	int a, totnode;
 
