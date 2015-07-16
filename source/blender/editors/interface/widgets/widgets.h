@@ -39,6 +39,51 @@
 struct uiBut;
 struct uiWidgetType;
 
+typedef enum {
+	/* default */
+	UI_WTYPE_REGULAR,
+
+	/* standard set */
+	UI_WTYPE_LABEL,
+	UI_WTYPE_TOGGLE,
+	UI_WTYPE_CHECKBOX,
+	UI_WTYPE_RADIO,
+	UI_WTYPE_NUMBER,
+	UI_WTYPE_SLIDER,
+	UI_WTYPE_EXEC,
+	UI_WTYPE_TOOLTIP,
+
+	/* strings */
+	UI_WTYPE_NAME,
+	UI_WTYPE_NAME_LINK,
+	UI_WTYPE_POINTER_LINK,
+	UI_WTYPE_FILENAME,
+
+	/* menus */
+	UI_WTYPE_MENU_RADIO,
+	UI_WTYPE_MENU_ICON_RADIO,
+	UI_WTYPE_MENU_POINTER_LINK,
+	UI_WTYPE_MENU_NODE_LINK,
+
+	UI_WTYPE_PULLDOWN,
+	UI_WTYPE_MENU_LABEL,
+	UI_WTYPE_MENU_ITEM,
+	UI_WTYPE_MENU_ITEM_PREVIEW,
+	UI_WTYPE_MENU_ITEM_RADIAL,
+	UI_WTYPE_MENU_BACK,
+
+	/* specials */
+	UI_WTYPE_ICON,
+	UI_WTYPE_SWATCH,
+	UI_WTYPE_RGB_PICKER,
+	UI_WTYPE_UNITVEC,
+	UI_WTYPE_BOX,
+	UI_WTYPE_SCROLL,
+	UI_WTYPE_LISTITEM,
+	UI_WTYPE_PROGRESSBAR,
+	UI_WTYPE_LINK,
+} uiWidgetTypeEnum;
+
 /** uiWidgetType: for time being only for visual appearance,
  * later, a handling callback can be added too
  */
@@ -143,9 +188,10 @@ uiWidgetDrawStyle WidgetStyle_xxx = {
 };
 #endif
 
-extern struct uiWidgetDrawStyle WidgetStyle_Classic;
-
+uiWidgetType *widget_type(const uiWidgetTypeEnum type);
 uiWidgetDrawStyle *widget_drawstyle_get(const int widget_style_type);
+
+extern struct uiWidgetDrawStyle WidgetStyle_Classic;
 
 #endif  /* __WIDGETS_H__ */
 
