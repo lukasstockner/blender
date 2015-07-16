@@ -870,182 +870,182 @@ uiWidgetDrawType drawtype_classic_box = {
 	/* state */  widget_state,
 	/* draw */   widget_but,
 	/* custom */ widget_box,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_checkbox = {
 	/* state */  widget_state,
 	/* draw */   widget_checkbox,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_exec = {
 	/* state */  widget_state,
 	/* draw */   widget_roundbut,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_icon = {
 	/* state */  widget_state,
 	/* draw */   NULL,
 	/* custom */ widget_icon_has_anim,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_label = {
 	/* state */  widget_state_label,
 	/* draw */   NULL,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_link = {
 	/* state */  widget_state,
 	/* draw */   NULL,
 	/* custom */ widget_link,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_listitem = {
 	/* state */  widget_state,
 	/* draw */   widget_list_itembut,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_menu_back = {
 	/* state */  widget_state,
 	/* draw */   widget_menu_back,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_menu_icon_radio = {
 	/* state */  widget_state,
 	/* draw */   widget_menuiconbut,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_menu_item = {
 	/* state */  widget_state_menu_item,
 	/* draw */   widget_menu_itembut,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_menu_item_radial = {
 	/* state */  widget_state_pie_menu_item,
 	/* draw */   NULL,
 	/* custom */ widget_menu_radial_itembut,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_menu_node_link = {
 	/* state */  widget_state,
 	/* draw */   widget_menunodebut,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_menu_pointer_link = {
 	/* state */  widget_state,
 	/* draw */   widget_menubut,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_menu_radio = {
 	/* state */  widget_state,
 	/* draw */   widget_menubut,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_name = {
 	/* state */  widget_state,
 	/* draw */   widget_textbut,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_number = {
 	/* state */  widget_state,
 	/* draw */   widget_numbut,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_progressbar = {
 	/* state */  widget_state,
 	/* draw */   NULL,
 	/* custom */ widget_progressbar,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_pulldown = {
 	/* state */  widget_state_pulldown,
 	/* draw */   widget_pulldownbut,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_radio = {
 	/* state */  widget_state,
 	/* draw */   widget_radiobut,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_regular = {
 	/* state */  widget_state,
 	/* draw */   widget_but,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_scroll = {
 	/* state */  widget_state_nothing,
 	/* draw */   NULL,
 	/* custom */ widget_scroll,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_numslider = {
 	/* state */  widget_state_numslider,
 	/* draw */   NULL,
 	/* custom */ widget_numslider,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_swatch = {
 	/* state */  widget_state,
 	/* draw */   NULL,
 	/* custom */ widget_swatch,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_toggle = {
 	/* state */  widget_state,
 	/* draw */   widget_but,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_tooltip = {
 	/* state */  widget_state,
 	/* draw */   widget_menu_back,
 	/* custom */ NULL,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_unitvec = {
 	/* state */  widget_state,
 	/* draw */   NULL,
 	/* custom */ widget_unitvec,
-	/* text */   NULL,
+	/* text */   widget_draw_text_icon,
 };
 
 

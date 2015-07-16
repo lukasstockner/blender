@@ -60,6 +60,7 @@ set(SRC
 	widgets/widgets.c
 	widgets/widgets_draw/drawstyle_classic.c
 	widgets/widgets_draw/widgets_draw.c
+	widgets/widgets_draw/widgets_draw_text.c
 
 	interface_intern.h
 	widgets/widgets.h

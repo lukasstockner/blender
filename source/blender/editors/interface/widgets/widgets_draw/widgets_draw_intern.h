@@ -29,6 +29,10 @@
  * \brief Blender widget drawing module
  */
 
+#include "UI_resources.h"
+
+
+
 /* Struct Declarations */
 
 struct uiBut;
@@ -95,6 +99,10 @@ void widget_check_trias(uiWidgetTrias *tria, const rcti *rect);
 void widget_softshadow(const rcti *rect, int roundboxalign, const float radin);
 
 void widgetbase_draw(uiWidgetBase *wtb, struct uiWidgetColors *wcol);
+
+/* TODO temp */
+void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect);
+void widget_draw_preview(BIFIconID icon, float alpha, const rcti *rect);
 
 #endif  /* __WIDGETS_DRAW_INTERN_H__ */
 

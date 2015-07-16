@@ -51,8 +51,6 @@ typedef struct uiWidgetType {
 	uiWidgetColors wcol;
 
 	struct uiWidgetDrawType *draw_type;
-
-	void (*text)(uiFontStyle *, uiWidgetColors *, uiBut *, rcti *);
 } uiWidgetType;
 
 typedef struct uiWidgetDrawType {
