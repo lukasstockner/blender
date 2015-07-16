@@ -31,6 +31,6 @@ struct ID;
 struct SpaceOops;
 
 /* Used to check whether a given texture context is valid in current context. */
-void ED_outliner_id_unref(struct SpaceOops *so, const struct ID *id);
+void ED_outliner_id_remap(struct SpaceOops *so, const struct ID *old_id, struct ID *new_id);
 
 #endif /*  __ED_OUTLINER_H__ */

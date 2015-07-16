@@ -326,21 +326,23 @@ void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *ar, void *arg_info
 /**
  * Use to free ID references within runtime data (stored outside of DNA)
  *
+ * \param new_id may be NULL...
+ *
  * \note Typically notifiers take care of this,
  * but there are times we have to free references immediately, see: T44376
  */
-void ED_spacedata_id_unref(struct SpaceLink *sl, const ID *id)
+void ED_spacedata_id_remap(struct SpaceLink *sl, const ID *old_id, ID *new_id)
 {
 
 	switch (sl->spacetype) {
 		case SPACE_OUTLINER:
-			ED_outliner_id_unref((SpaceOops *)sl, id);
+			ED_outliner_id_remap((SpaceOops *)sl, old_id, new_id);
 			break;
 		case SPACE_BUTS:
-			ED_buttons_id_unref((SpaceButs *)sl, id);
+			ED_buttons_id_remap((SpaceButs *)sl, old_id, new_id);
 			break;
 		case SPACE_NODE:
-			ED_node_id_unref((SpaceNode *)sl, id);
+			ED_node_id_remap((SpaceNode *)sl, old_id, new_id);
 			break;
 	}
 }

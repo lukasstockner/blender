@@ -1957,17 +1957,17 @@ void OUTLINER_OT_group_link(wmOperatorType *ot)
 	RNA_def_string(ot->srna, "object", "Object", MAX_ID_NAME, "Object", "Target Object");
 }
 
-/******** Utils to clear any ref to freed ID... **********/
+/******** Utils to clear any ref to freed ID, or update ref to reloaded ID... **********/
 
-void ED_outliner_id_unref(SpaceOops *so, const ID *id)
+void ED_outliner_id_remap(SpaceOops *so, const ID *old_id, ID *new_id)
 {
 	/* Some early out checks. */
-	if (!TREESTORE_ID_TYPE(id)) {
+	if (!TREESTORE_ID_TYPE(old_id)) {
 		return;  /* ID type is not used by outilner... */
 	}
 
-	if (so->search_tse.id == id) {
-		so->search_tse.id = NULL;
+	if (so->search_tse.id == old_id) {
+		so->search_tse.id = new_id;
 	}
 
 	if (so->treestore) {
@@ -1977,8 +1977,8 @@ void ED_outliner_id_unref(SpaceOops *so, const ID *id)
 
 		BLI_mempool_iternew(so->treestore, &iter);
 		while ((tselem = BLI_mempool_iterstep(&iter))) {
-			if (tselem->id == id) {
-				tselem->id = NULL;
+			if (tselem->id == old_id) {
+				tselem->id = new_id;
 				changed = true;
 			}
 		}

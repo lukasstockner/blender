@@ -876,16 +876,16 @@ void BKE_library_callback_free_window_manager_set(void (*func)(bContext *C, wmWi
 
 static void (*free_notifier_reference_cb)(const void *) = NULL;
 
-void BKE_library_callback_free_notifier_reference_set(void (*func)(const void *) )
+void BKE_library_callback_free_notifier_reference_set(void (*func)(const void *))
 {
 	free_notifier_reference_cb = func;
 }
 
-static void (*free_editor_id_reference_cb)(const ID *) = NULL;
+static void (*remap_editor_id_reference_cb)(const ID *, ID *) = NULL;
 
-void BKE_library_callback_free_editor_id_reference_set(void (*func)(const ID *))
+void BKE_library_callback_remap_editor_id_reference_set(void (*func)(const ID *, ID *))
 {
-	free_editor_id_reference_cb = func;
+	remap_editor_id_reference_cb = func;
 }
 
 static void animdata_dtar_clear_cb(ID *UNUSED(id), AnimData *adt, void *userdata)
@@ -1048,8 +1048,8 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 		free_notifier_reference_cb(id);
 	}
 
-	if (free_editor_id_reference_cb) {
-		free_editor_id_reference_cb(id);
+	if (remap_editor_id_reference_cb) {
+		remap_editor_id_reference_cb(id, NULL);
 	}
 
 	BLI_remlink(lb, id);

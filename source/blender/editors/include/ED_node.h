@@ -103,7 +103,7 @@ void ED_node_set_active(struct Main *bmain, struct bNodeTree *ntree, struct bNod
 
 void ED_node_composite_job(const struct bContext *C, struct bNodeTree *nodetree, struct Scene *scene_owner);
 
-void ED_node_id_unref(struct SpaceNode *snode, const ID *id);
+void ED_node_id_remap(struct SpaceNode *snode, const ID *old_id, ID *new_id);
 
 /* node_ops.c */
 void ED_operatormacros_node(void);

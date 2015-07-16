@@ -42,7 +42,7 @@ void    ED_editors_exit(struct bContext *C);
 
 bool    ED_editors_flush_edits(const struct bContext *C, bool for_render);
 
-void ED_spacedata_id_unref(struct SpaceLink *sl, const struct ID *id);
+void ED_spacedata_id_remap(struct SpaceLink *sl, const struct ID *old_id, ID *new_id);
 
 /* ************** Undo ************************ */
 

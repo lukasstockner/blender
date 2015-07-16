@@ -272,17 +272,18 @@ void BKE_spacedata_draw_locks(int set)
 	}
 }
 
-static void (*spacedata_id_unref_cb)(struct SpaceLink *sl, const struct ID *id) = NULL;
+static void (*spacedata_id_remap_cb)(struct SpaceLink *sl, const ID *old_id, ID *new_id) = NULL;
 
-void BKE_spacedata_callback_id_unref_set(void (*func)(struct SpaceLink *sl, const struct ID *))
+void BKE_spacedata_callback_id_remap_set(void (*func)(struct SpaceLink *sl, const ID *, ID *))
 {
-	spacedata_id_unref_cb = func;
+	spacedata_id_remap_cb = func;
 }
 
+/* UNUSED!!! */
 void BKE_spacedata_id_unref(struct SpaceLink *sl, const struct ID *id)
 {
-	if (spacedata_id_unref_cb) {
-		spacedata_id_unref_cb(sl, id);
+	if (spacedata_id_remap_cb) {
+		spacedata_id_remap_cb(sl, id, NULL);
 	}
 }
 

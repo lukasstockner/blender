@@ -1181,11 +1181,13 @@ ID *buttons_context_id_path(const bContext *C)
 	return NULL;
 }
 
-void ED_buttons_id_unref(SpaceButs *sbuts, const ID *id)
+void ED_buttons_id_remap(SpaceButs *sbuts, const ID *old_id, ID *new_id)
 {
-	if (sbuts->pinid == id) {
-		sbuts->pinid = NULL;
-		sbuts->flag &= ~SB_PIN_CONTEXT;
+	if (sbuts->pinid == old_id) {
+		sbuts->pinid = new_id;
+		if (new_id == NULL) {
+			sbuts->flag &= ~SB_PIN_CONTEXT;
+		}
 	}
 
 	if (sbuts->path) {
@@ -1193,7 +1195,7 @@ void ED_buttons_id_unref(SpaceButs *sbuts, const ID *id)
 		int i;
 
 		for (i = 0; i < path->len; i++) {
-			if (path->ptr[i].id.data == id) {
+			if (path->ptr[i].id.data == old_id) {
 				break;
 			}
 		}
@@ -1201,12 +1203,17 @@ void ED_buttons_id_unref(SpaceButs *sbuts, const ID *id)
 		if (i == path->len) {
 			/* pass */
 		}
-		else if (i == 0) {
-			MEM_SAFE_FREE(sbuts->path);
+		else if (new_id == NULL) {
+			if (i == 0) {
+				MEM_SAFE_FREE(sbuts->path);
+			}
+			else {
+				memset(&path->ptr[i], 0, sizeof(path->ptr[i]) * (path->len - i));
+				path->len = i;
+			}
 		}
 		else {
-			memset(&path->ptr[i], 0, sizeof(path->ptr[i]) * (path->len - i));
-			path->len = i;
+			RNA_id_pointer_create(new_id, &path->ptr[i]);
 		}
 	}
 }
