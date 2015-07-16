@@ -66,23 +66,6 @@
 /* icons are 80% of height of button (16 pixels inside 20 height) */
 #define ICON_SIZE_FROM_BUTRECT(rect) (0.8f * BLI_rcti_size_y(rect))
 
-/** uiWidgetType: for time being only for visual appearance,
- * later, a handling callback can be added too 
- */
-typedef struct uiWidgetType {
-	/* pointer to theme color definition */
-	uiWidgetColors *wcol_theme;
-	uiWidgetStateColors *wcol_state;
-	
-	/* converted colors for state */
-	uiWidgetColors wcol;
-	
-	uiWidgetDrawType *draw_type;
-
-	void (*state)(struct uiWidgetType *, int state);
-	void (*text)(uiFontStyle *, uiWidgetColors *, uiBut *, rcti *);
-} uiWidgetType;
-
 
 /* *********************** draw data ************************** */
 
@@ -1429,39 +1412,6 @@ static void widget_state(uiWidgetType *wt, int state)
 	}
 }
 
-/* sliders use special hack which sets 'item' as inner when drawing filling */
-static void widget_state_numslider(uiWidgetType *wt, int state)
-{
-	uiWidgetStateColors *wcol_state = wt->wcol_state;
-	float blend = wcol_state->blend - 0.2f; /* XXX special tweak to make sure that bar will still be visible */
-
-	/* call this for option button */
-	widget_state(wt, state);
-	
-	/* now, set the inner-part so that it reflects state settings too */
-	/* TODO: maybe we should have separate settings for the blending colors used for this case? */
-	if (state & UI_SELECT) {
-		
-		if (state & UI_BUT_ANIMATED_KEY)
-			widget_state_blend(wt->wcol.item, wcol_state->inner_key_sel, blend);
-		else if (state & UI_BUT_ANIMATED)
-			widget_state_blend(wt->wcol.item, wcol_state->inner_anim_sel, blend);
-		else if (state & UI_BUT_DRIVEN)
-			widget_state_blend(wt->wcol.item, wcol_state->inner_driven_sel, blend);
-		
-		if (state & UI_SELECT)
-			SWAP(short, wt->wcol.shadetop, wt->wcol.shadedown);
-	}
-	else {
-		if (state & UI_BUT_ANIMATED_KEY)
-			widget_state_blend(wt->wcol.item, wcol_state->inner_key, blend);
-		else if (state & UI_BUT_ANIMATED)
-			widget_state_blend(wt->wcol.item, wcol_state->inner_anim, blend);
-		else if (state & UI_BUT_DRIVEN)
-			widget_state_blend(wt->wcol.item, wcol_state->inner_driven, blend);
-	}
-}
-
 /* labels use theme colors for text */
 static void widget_state_option_menu(uiWidgetType *wt, int state)
 {
@@ -1475,76 +1425,6 @@ static void widget_state_option_menu(uiWidgetType *wt, int state)
 		copy_v3_v3_char(wt->wcol.text, btheme->tui.wcol_menu_back.text_sel);
 	else
 		copy_v3_v3_char(wt->wcol.text, btheme->tui.wcol_menu_back.text);
-}
-
-
-static void widget_state_nothing(uiWidgetType *wt, int UNUSED(state))
-{
-	wt->wcol = *(wt->wcol_theme);
-}	
-
-/* special case, button that calls pulldown */
-static void widget_state_pulldown(uiWidgetType *wt, int state)
-{
-	wt->wcol = *(wt->wcol_theme);
-	
-	copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
-	copy_v3_v3_char(wt->wcol.outline, wt->wcol.inner);
-
-	if (state & UI_ACTIVE)
-		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
-}
-
-/* special case, pie menu items */
-static void widget_state_pie_menu_item(uiWidgetType *wt, int state)
-{
-	wt->wcol = *(wt->wcol_theme);
-
-	/* active and disabled (not so common) */
-	if ((state & UI_BUT_DISABLED) && (state & UI_ACTIVE)) {
-		widget_state_blend(wt->wcol.text, wt->wcol.text_sel, 0.5f);
-		/* draw the backdrop at low alpha, helps navigating with keys
-		 * when disabled items are active */
-		copy_v4_v4_char(wt->wcol.inner, wt->wcol.item);
-		wt->wcol.inner[3] = 64;
-	}
-	/* regular disabled */
-	else if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
-		widget_state_blend(wt->wcol.text, wt->wcol.inner, 0.5f);
-	}
-	/* regular active */
-	else if (state & UI_SELECT) {
-		copy_v4_v4_char(wt->wcol.outline, wt->wcol.inner_sel);
-		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
-	}
-	else if (state & UI_ACTIVE) {
-		copy_v4_v4_char(wt->wcol.inner, wt->wcol.item);
-		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
-	}
-}
-
-/* special case, menu items */
-static void widget_state_menu_item(uiWidgetType *wt, int state)
-{
-	wt->wcol = *(wt->wcol_theme);
-	
-	/* active and disabled (not so common) */
-	if ((state & UI_BUT_DISABLED) && (state & UI_ACTIVE)) {
-		widget_state_blend(wt->wcol.text, wt->wcol.text_sel, 0.5f);
-		/* draw the backdrop at low alpha, helps navigating with keys
-		 * when disabled items are active */
-		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
-		wt->wcol.inner[3] = 64;
-	}
-	/* regular disabled */
-	else if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
-		widget_state_blend(wt->wcol.text, wt->wcol.inner, 0.5f);
-	}
-	/* regular active */
-	else if (state & UI_ACTIVE) {
-		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
-		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
-	}
 }
 
 
@@ -2101,26 +1981,6 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
 	}
 }
 
-/* labels use Editor theme colors for text */
-static void widget_state_label(uiWidgetType *wt, int state)
-{
-	if (state & UI_BUT_LIST_ITEM) {
-		/* Override default label theme's colors. */
-		bTheme *btheme = UI_GetTheme();
-		wt->wcol_theme = &btheme->tui.wcol_list_item;
-		/* call this for option button */
-		widget_state(wt, state);
-	}
-	else {
-		/* call this for option button */
-		widget_state(wt, state);
-		if (state & UI_SELECT)
-			UI_GetThemeColor3ubv(TH_TEXT_HI, (unsigned char *)wt->wcol.text);
-		else
-			UI_GetThemeColor3ubv(TH_TEXT, (unsigned char *)wt->wcol.text);
-	}
-}
-
 static void widget_draw_extra_mask(const bContext *C, uiBut *but, uiWidgetType *wt, rcti *rect)
 {
 	uiWidgetBase wtb;
@@ -2164,7 +2024,6 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 	wt.draw_type = NULL;
 
 	/* XXX remove usages, use wt.draw_type */
-	wt.state = widget_state;
 	wt.text = widget_draw_text_icon;
 
 	switch (type) {
@@ -2174,7 +2033,6 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 
 		case UI_WTYPE_LABEL:
 			wt.draw_type = draw_style->label;
-			wt.state = widget_state_label;
 			break;
 			
 		case UI_WTYPE_TOGGLE:
@@ -2200,7 +2058,6 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 		case UI_WTYPE_SLIDER:
 			wt.wcol_theme = &btheme->tui.wcol_numslider;
 			wt.draw_type = draw_style->slider;
-			wt.state = widget_state_numslider;
 			break;
 			
 		case UI_WTYPE_EXEC:
@@ -2254,14 +2111,12 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 		case UI_WTYPE_PULLDOWN:
 			wt.wcol_theme = &btheme->tui.wcol_pulldown;
 			wt.draw_type = draw_style->pulldown;
-			wt.state = widget_state_pulldown;
 			break;
 			
 		/* in menus */
 		case UI_WTYPE_MENU_ITEM:
 			wt.wcol_theme = &btheme->tui.wcol_menu_item;
 			wt.draw_type = draw_style->menu_item;
-			wt.state = widget_state_menu_item;
 			break;
 			
 		case UI_WTYPE_MENU_BACK:
@@ -2292,7 +2147,6 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 
 		case UI_WTYPE_SCROLL:
 			wt.wcol_theme = &btheme->tui.wcol_scroll;
-			wt.state = widget_state_nothing;
 			wt.draw_type = draw_style->scroll;
 			break;
 
@@ -2309,7 +2163,6 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 		case UI_WTYPE_MENU_ITEM_RADIAL:
 			wt.wcol_theme = &btheme->tui.wcol_pie_menu;
 			wt.draw_type = draw_style->menu_item_radial;
-			wt.state = widget_state_pie_menu_item;
 			break;
 
 		case UI_WTYPE_LINK:
@@ -2469,9 +2322,10 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				else
 					wt = widget_type(UI_WTYPE_TOGGLE);
 				
+				/* XXX this should really not be here! */
 				/* option buttons have strings outside, on menus use different colors */
 				if (but->block->flag & UI_BLOCK_LOOP)
-					wt->state = widget_state_option_menu;
+					wt->draw_type->state = widget_state_option_menu;
 				
 				break;
 				
@@ -2615,7 +2469,8 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 		if (disabled)
 			ui_widget_color_disabled(wt);
 
-		wt->state(wt, state);
+		wt->draw_type->state(wt, state);
+
 		if (wt->draw_type->custom) {
 			wt->draw_type->custom(but, &wt->wcol, rect, state, roundboxalign);
 		}
@@ -2641,7 +2496,7 @@ void ui_draw_menu_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 	const int flag = block ? block->flag : 0;
 	const char dir = block ? block->direction : 0;
 
-	wt->state(wt, 0);
+	wt->draw_type->state(wt, 0);
 	wt->draw_type->draw(&wt->wcol, rect, flag, dir);
 
 	if (block) {
@@ -2793,12 +2648,8 @@ uiWidgetColors *ui_tooltip_get_theme(void)
 void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock *UNUSED(block), rcti *rect)
 {
 	uiWidgetType *wt = widget_type(UI_WTYPE_TOOLTIP);
-	wt->state(wt, 0);
-	if (wt->draw_type) {
-		if (wt->draw_type->draw) {
-			wt->draw_type->draw(&wt->wcol, rect, 0, 0);
-		}
-	}
+	wt->draw_type->state(wt, 0);
+	wt->draw_type->draw(&wt->wcol, rect, 0, 0);
 }
 
 void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
@@ -2809,7 +2660,7 @@ void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 	widget_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit);
 	glDisable(GL_BLEND);
 
-	wt->state(wt, 0);
+	wt->draw_type->state(wt, 0);
 	if (block)
 		wt->draw_type->draw(&wt->wcol, rect, block->flag, UI_CNR_ALL);
 	else
@@ -2825,7 +2676,7 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 	rcti _rect = *rect;
 	char *cpoin = NULL;
 
-	wt->state(wt, state);
+	wt->draw_type->state(wt, state);
 	wt->draw_type->draw(&wt->wcol, rect, 0, 0);
 
 	UI_fontstyle_set(fstyle);
@@ -2904,7 +2755,7 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
 	
 	/* drawing button background */
-	wt->state(wt, state);
+	wt->draw_type->state(wt, state);
 	wt->draw_type->draw(&wt->wcol, rect, 0, 0);
 	
 	/* draw icon in rect above the space reserved for the label */

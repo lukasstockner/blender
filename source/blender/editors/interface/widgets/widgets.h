@@ -32,10 +32,28 @@
  * use this for widget handling as well and basically make it a standalone blenwidget module
  */
 
+#include "DNA_userdef_types.h"
+
 #include "widgets_draw_intern.h" /* XXX */
 
 struct uiBut;
 struct uiWidgetType;
+
+/** uiWidgetType: for time being only for visual appearance,
+ * later, a handling callback can be added too
+ */
+typedef struct uiWidgetType {
+	/* pointer to theme color definition */
+	uiWidgetColors *wcol_theme;
+	uiWidgetStateColors *wcol_state;
+
+	/* converted colors for state */
+	uiWidgetColors wcol;
+
+	struct uiWidgetDrawType *draw_type;
+
+	void (*text)(uiFontStyle *, uiWidgetColors *, uiBut *, rcti *);
+} uiWidgetType;
 
 typedef struct uiWidgetDrawType {
 	void (*state)(struct uiWidgetType *, int state);

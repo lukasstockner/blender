@@ -634,6 +634,220 @@ static void widget_unitvec(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNU
 	ui_draw_but_UNITVEC(but, wcol, rect);
 }
 
+/* states ************************************* */
+
+static void widget_state_blend(char cp[3], const char cpstate[3], const float fac)
+{
+	if (fac != 0.0f) {
+		cp[0] = (int)((1.0f - fac) * cp[0] + fac * cpstate[0]);
+		cp[1] = (int)((1.0f - fac) * cp[1] + fac * cpstate[1]);
+		cp[2] = (int)((1.0f - fac) * cp[2] + fac * cpstate[2]);
+	}
+}
+
+/* put all widget colors on half alpha, use local storage */
+static void ui_widget_color_disabled(uiWidgetType *wt)
+{
+	static uiWidgetColors wcol_theme_s;
+
+	wcol_theme_s = *wt->wcol_theme;
+
+	wcol_theme_s.outline[3] *= 0.5;
+	wcol_theme_s.inner[3] *= 0.5;
+	wcol_theme_s.inner_sel[3] *= 0.5;
+	wcol_theme_s.item[3] *= 0.5;
+	wcol_theme_s.text[3] *= 0.5;
+	wcol_theme_s.text_sel[3] *= 0.5;
+
+	wt->wcol_theme = &wcol_theme_s;
+}
+
+/* copy colors from theme, and set changes in it based on state */
+static void widget_state(uiWidgetType *wt, int state)
+{
+	uiWidgetStateColors *wcol_state = wt->wcol_state;
+
+	if ((state & UI_BUT_LIST_ITEM) && !(state & UI_TEXTINPUT)) {
+		/* Override default widget's colors. */
+		bTheme *btheme = UI_GetTheme();
+		wt->wcol_theme = &btheme->tui.wcol_list_item;
+
+		if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
+			ui_widget_color_disabled(wt);
+		}
+	}
+
+	wt->wcol = *(wt->wcol_theme);
+
+	if (state & UI_SELECT) {
+		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
+
+		if (state & UI_BUT_ANIMATED_KEY)
+			widget_state_blend(wt->wcol.inner, wcol_state->inner_key_sel, wcol_state->blend);
+		else if (state & UI_BUT_ANIMATED)
+			widget_state_blend(wt->wcol.inner, wcol_state->inner_anim_sel, wcol_state->blend);
+		else if (state & UI_BUT_DRIVEN)
+			widget_state_blend(wt->wcol.inner, wcol_state->inner_driven_sel, wcol_state->blend);
+
+		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
+
+		if (state & UI_SELECT)
+			SWAP(short, wt->wcol.shadetop, wt->wcol.shadedown);
+	}
+	else {
+		if (state & UI_BUT_ANIMATED_KEY)
+			widget_state_blend(wt->wcol.inner, wcol_state->inner_key, wcol_state->blend);
+		else if (state & UI_BUT_ANIMATED)
+			widget_state_blend(wt->wcol.inner, wcol_state->inner_anim, wcol_state->blend);
+		else if (state & UI_BUT_DRIVEN)
+			widget_state_blend(wt->wcol.inner, wcol_state->inner_driven, wcol_state->blend);
+
+		if (state & UI_ACTIVE) { /* mouse over? */
+			wt->wcol.inner[0] = wt->wcol.inner[0] >= 240 ? 255 : wt->wcol.inner[0] + 15;
+			wt->wcol.inner[1] = wt->wcol.inner[1] >= 240 ? 255 : wt->wcol.inner[1] + 15;
+			wt->wcol.inner[2] = wt->wcol.inner[2] >= 240 ? 255 : wt->wcol.inner[2] + 15;
+		}
+	}
+
+	if (state & UI_BUT_REDALERT) {
+		char red[4] = {255, 0, 0};
+		widget_state_blend(wt->wcol.inner, red, 0.4f);
+	}
+
+	if (state & UI_BUT_DRAG_MULTI) {
+		/* the button isn't SELECT but we're editing this so draw with sel color */
+		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
+		SWAP(short, wt->wcol.shadetop, wt->wcol.shadedown);
+		widget_state_blend(wt->wcol.text, wt->wcol.text_sel, 0.85f);
+	}
+
+	if (state & UI_BUT_NODE_ACTIVE) {
+		char blue[4] = {86, 128, 194};
+		widget_state_blend(wt->wcol.inner, blue, 0.3f);
+	}
+}
+
+/* labels use Editor theme colors for text */
+static void widget_state_label(uiWidgetType *wt, int state)
+{
+	if (state & UI_BUT_LIST_ITEM) {
+		/* Override default label theme's colors. */
+		bTheme *btheme = UI_GetTheme();
+		wt->wcol_theme = &btheme->tui.wcol_list_item;
+		/* call this for option button */
+		widget_state(wt, state);
+	}
+	else {
+		/* call this for option button */
+		widget_state(wt, state);
+		if (state & UI_SELECT)
+			UI_GetThemeColor3ubv(TH_TEXT_HI, (unsigned char *)wt->wcol.text);
+		else
+			UI_GetThemeColor3ubv(TH_TEXT, (unsigned char *)wt->wcol.text);
+	}
+}
+
+/* special case, menu items */
+static void widget_state_menu_item(uiWidgetType *wt, int state)
+{
+	wt->wcol = *(wt->wcol_theme);
+
+	/* active and disabled (not so common) */
+	if ((state & UI_BUT_DISABLED) && (state & UI_ACTIVE)) {
+		widget_state_blend(wt->wcol.text, wt->wcol.text_sel, 0.5f);
+		/* draw the backdrop at low alpha, helps navigating with keys
+		 * when disabled items are active */
+		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
+		wt->wcol.inner[3] = 64;
+	}
+	/* regular disabled */
+	else if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
+		widget_state_blend(wt->wcol.text, wt->wcol.inner, 0.5f);
+	}
+	/* regular active */
+	else if (state & UI_ACTIVE) {
+		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
+		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
+	}
+}
+
+/* special case, pie menu items */
+static void widget_state_pie_menu_item(uiWidgetType *wt, int state)
+{
+	wt->wcol = *(wt->wcol_theme);
+
+	/* active and disabled (not so common) */
+	if ((state & UI_BUT_DISABLED) && (state & UI_ACTIVE)) {
+		widget_state_blend(wt->wcol.text, wt->wcol.text_sel, 0.5f);
+		/* draw the backdrop at low alpha, helps navigating with keys
+		 * when disabled items are active */
+		copy_v4_v4_char(wt->wcol.inner, wt->wcol.item);
+		wt->wcol.inner[3] = 64;
+	}
+	/* regular disabled */
+	else if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
+		widget_state_blend(wt->wcol.text, wt->wcol.inner, 0.5f);
+	}
+	/* regular active */
+	else if (state & UI_SELECT) {
+		copy_v4_v4_char(wt->wcol.outline, wt->wcol.inner_sel);
+		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
+	}
+	else if (state & UI_ACTIVE) {
+		copy_v4_v4_char(wt->wcol.inner, wt->wcol.item);
+		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
+	}
+}
+
+/* special case, button that calls pulldown */
+static void widget_state_pulldown(uiWidgetType *wt, int state)
+{
+	wt->wcol = *(wt->wcol_theme);
+
+	copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
+	copy_v3_v3_char(wt->wcol.outline, wt->wcol.inner);
+
+	if (state & UI_ACTIVE)
+		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
+}
+
+static void widget_state_nothing(uiWidgetType *wt, int UNUSED(state))
+{
+	wt->wcol = *(wt->wcol_theme);
+}
+
+/* sliders use special hack which sets 'item' as inner when drawing filling */
+static void widget_state_numslider(uiWidgetType *wt, int state)
+{
+	uiWidgetStateColors *wcol_state = wt->wcol_state;
+	float blend = wcol_state->blend - 0.2f; /* XXX special tweak to make sure that bar will still be visible */
+
+	/* call this for option button */
+	widget_state(wt, state);
+
+	/* now, set the inner-part so that it reflects state settings too */
+	/* TODO: maybe we should have separate settings for the blending colors used for this case? */
+	if (state & UI_SELECT) {
+		if (state & UI_BUT_ANIMATED_KEY)
+			widget_state_blend(wt->wcol.item, wcol_state->inner_key_sel, blend);
+		else if (state & UI_BUT_ANIMATED)
+			widget_state_blend(wt->wcol.item, wcol_state->inner_anim_sel, blend);
+		else if (state & UI_BUT_DRIVEN)
+			widget_state_blend(wt->wcol.item, wcol_state->inner_driven_sel, blend);
+
+		if (state & UI_SELECT)
+			SWAP(short, wt->wcol.shadetop, wt->wcol.shadedown);
+	}
+	else {
+		if (state & UI_BUT_ANIMATED_KEY)
+			widget_state_blend(wt->wcol.item, wcol_state->inner_key, blend);
+		else if (state & UI_BUT_ANIMATED)
+			widget_state_blend(wt->wcol.item, wcol_state->inner_anim, blend);
+		else if (state & UI_BUT_DRIVEN)
+			widget_state_blend(wt->wcol.item, wcol_state->inner_driven, blend);
+	}
+}
+
 /* helper calls *************************************** */
 
 /**
@@ -653,182 +867,182 @@ static void widget_numbut(uiWidgetColors *wcol, rcti *rect, int state, int round
 /* uiWidget struct initialization ********************* */
 
 uiWidgetDrawType drawtype_classic_box = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_but,
 	/* custom */ widget_box,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_checkbox = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_checkbox,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_exec = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_roundbut,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_icon = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   NULL,
 	/* custom */ widget_icon_has_anim,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_label = {
-	/* state */  NULL,
+	/* state */  widget_state_label,
 	/* draw */   NULL,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_link = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   NULL,
 	/* custom */ widget_link,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_listitem = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_list_itembut,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_menu_back = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_menu_back,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_menu_icon_radio = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_menuiconbut,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_menu_item = {
-	/* state */  NULL,
+	/* state */  widget_state_menu_item,
 	/* draw */   widget_menu_itembut,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_menu_item_radial = {
-	/* state */  NULL,
+	/* state */  widget_state_pie_menu_item,
 	/* draw */   NULL,
 	/* custom */ widget_menu_radial_itembut,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_menu_node_link = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_menunodebut,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_menu_pointer_link = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_menubut,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_menu_radio = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_menubut,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_name = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_textbut,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_number = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_numbut,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_progressbar = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   NULL,
 	/* custom */ widget_progressbar,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_pulldown = {
-	/* state */  NULL,
+	/* state */  widget_state_pulldown,
 	/* draw */   widget_pulldownbut,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_radio = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_radiobut,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_regular = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_but,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_scroll = {
-	/* state */  NULL,
+	/* state */  widget_state_nothing,
 	/* draw */   NULL,
 	/* custom */ widget_scroll,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_numslider = {
-	/* state */  NULL,
+	/* state */  widget_state_numslider,
 	/* draw */   NULL,
 	/* custom */ widget_numslider,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_swatch = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   NULL,
 	/* custom */ widget_swatch,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_toggle = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_but,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_tooltip = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   widget_menu_back,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_unitvec = {
-	/* state */  NULL,
+	/* state */  widget_state,
 	/* draw */   NULL,
 	/* custom */ widget_unitvec,
 	/* text */   NULL,
