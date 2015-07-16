@@ -382,6 +382,7 @@ void ccgSubSurf_evaluatorSetFVarUV(CCGSubSurf *ss,
 			 */
 		}
 	}
+	(void)ss;
 }
 
 void ccgSubSurf_evaluatorFVarUV(CCGSubSurf *ss,
