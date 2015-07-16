@@ -213,7 +213,7 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromTopologyRefiner(
 		(OpenSubdiv_GLMesh *) OBJECT_GUARDED_NEW(OpenSubdiv_GLMesh);
 	gl_mesh->evaluator_type = evaluator_type;
 	gl_mesh->descriptor = (OpenSubdiv_GLMeshDescr *) mesh;
-	gl_mesh->level = level;
+	gl_mesh->topology_refiner = (OpenSubdiv_TopologyRefinerDescr*)refiner;
 
 	return gl_mesh;
 }
@@ -288,6 +288,12 @@ void openSubdiv_osdGLMeshSynchronize(struct OpenSubdiv_GLMesh *gl_mesh)
 void openSubdiv_osdGLMeshBindVertexBuffer(OpenSubdiv_GLMesh *gl_mesh)
 {
 	((GLMeshInterface *)gl_mesh->descriptor)->BindVertexBuffer();
+}
+
+const struct OpenSubdiv_TopologyRefinerDescr *openSubdiv_getGLMeshTopologyRefiner(
+        OpenSubdiv_GLMesh *gl_mesh)
+{
+	return gl_mesh->topology_refiner;;
 }
 
 int openSubdiv_supportGPUDisplay(void)

@@ -44,40 +44,145 @@
 
 #define OSD_LOG if (false) printf
 
-#if 0
-static bool ccgSubSurf_checkDMTopologyChanged(DerivedMesh *dm, DerivedMesh *dm2)
+static bool compare_ccg_derivedmesh_topology(CCGSubSurf *ss, DerivedMesh *dm)
 {
 	const int num_verts = dm->getNumVerts(dm);
+	const int num_edges = dm->getNumEdges(dm);
 	const int num_polys = dm->getNumPolys(dm);
-	const MPoly *mpoly = dm->getPolyArray(dm);
-	const MPoly *mpoly2 = dm2->getPolyArray(dm2);
+	const MEdge *medge = dm->getEdgeArray(dm);
 	const MLoop *mloop = dm->getLoopArray(dm);
-	const MLoop *mloop2 = dm2->getLoopArray(dm2);
-	int poly_index;
+	const MPoly *mpoly = dm->getPolyArray(dm);
 
-	/* Quick tests based on the number of verts and facces. */
-	if (num_verts != dm2->getNumVerts(dm2) ||
-	    num_polys != dm2->getNumPolys(dm2))
+	/* Quick preliminary tests based on the number of verts and facces. */
 	{
-		return true;
+		if (num_verts != ss->vMap->numEntries ||
+		    num_edges != ss->eMap->numEntries ||
+		    num_polys != ss->fMap->numEntries)
+		{
+			return false;
+		}
 	}
 
 	/* Rather slow check for faces topology change. */
-	for (poly_index = 0; poly_index < num_polys; poly_index++, mpoly++, mpoly2++) {
-		int S;
-		if (mpoly->totloop != mpoly2->totloop) {
-			return true;
-		}
-		for (S = 0; S < mpoly->totloop; ++S) {
-			if (mloop[mpoly->loopstart + S].v != mloop2[mpoly2->loopstart + S].v) {
-				return true;
+	{
+		CCGFaceIterator ccg_face_iter;
+		for (ccgSubSurf_initFaceIterator(ss, &ccg_face_iter);
+		     !ccgFaceIterator_isStopped(&ccg_face_iter);
+		     ccgFaceIterator_next(&ccg_face_iter))
+		{
+			/*const*/ CCGFace *ccg_face = ccgFaceIterator_getCurrent(&ccg_face_iter);
+			const int poly_index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(ccg_face));
+			const MPoly *mp = &mpoly[poly_index];
+			int corner;
+			if (ccg_face->numVerts != mp->totloop) {
+				return false;
+			}
+			for (corner = 0; corner < ccg_face->numVerts; corner++) {
+				/*const*/ CCGVert *ccg_vert = FACE_getVerts(ccg_face)[corner];
+				const int vert_index = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(ccg_vert));
+				if (vert_index != mloop[mp->loopstart + corner].v) {
+					return false;
+				}
 			}
 		}
 	}
-	/* TODO(sergey): Check whether crease changed. */
+
+	/* Check for edge topology change. */
+	{
+		CCGEdgeIterator ccg_edge_iter;
+		for (ccgSubSurf_initEdgeIterator(ss, &ccg_edge_iter);
+		     !ccgEdgeIterator_isStopped(&ccg_edge_iter);
+		     ccgEdgeIterator_next(&ccg_edge_iter))
+		{
+			/* const */ CCGEdge *ccg_edge = ccgEdgeIterator_getCurrent(&ccg_edge_iter);
+			/* const */ CCGVert *ccg_vert1 = ccg_edge->v0;
+			/* const */ CCGVert *ccg_vert2 = ccg_edge->v1;
+			const int ccg_vert1_index = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(ccg_vert1));
+			const int ccg_vert2_index = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(ccg_vert2));
+			const int edge_index = GET_INT_FROM_POINTER(ccgSubSurf_getEdgeEdgeHandle(ccg_edge));
+			const MEdge *me = &medge[edge_index];
+			if (me->v1 != ccg_vert1_index || me->v2 != ccg_vert2_index) {
+				return false;
+			}
+		}
+	}
+
+	/* TODO(sergey): Crease topology changes detection. */
+
+	return true;
+}
+
+static bool compare_osd_derivedmesh_topology(CCGSubSurf *ss, DerivedMesh *dm)
+{
+	const OpenSubdiv_TopologyRefinerDescr *topology_refiner;
+	OpenSubdiv_Converter converter;
+	if (ss->osd_mesh == NULL && ss->osd_topology_refiner == NULL) {
+		return true;
+	}
+	if (ss->osd_topology_refiner != NULL) {
+		topology_refiner = ss->osd_topology_refiner;
+	}
+	else {
+		topology_refiner = openSubdiv_getGLMeshTopologyRefiner(ss->osd_mesh);
+	}
+	ccgSubSurf_converter_setup_from_derivedmesh(ss, dm, &converter);
+	return openSubdiv_topologyRefnerCompareConverter(topology_refiner,
+	                                                 &converter);
+}
+
+static bool opensubdiv_is_topology_changed(CCGSubSurf *ss, DerivedMesh *dm)
+{
+	if (ss->osd_compute != U.opensubdiv_compute_type) {
+		return true;
+	}
+	if (ss->osd_topology_refiner != NULL) {
+		int levels = openSubdiv_topologyRefinerGetSubdivLevel(
+		        ss->osd_topology_refiner);
+		BLI_assert(ss->osd_mesh_invalid == true);
+		if (levels != ss->subdivLevels) {
+			return true;
+		}
+	}
+	if (ss->osd_mesh != NULL && ss->osd_mesh_invalid == false) {
+		const OpenSubdiv_TopologyRefinerDescr *topology_refiner =
+		        openSubdiv_getGLMeshTopologyRefiner(ss->osd_mesh);
+		int levels = openSubdiv_topologyRefinerGetSubdivLevel(topology_refiner);
+		BLI_assert(ss->osd_topology_refiner == NULL);
+		if (levels != ss->subdivLevels) {
+			return true;
+		}
+	}
+	if (ss->skip_grids == false) {
+		return compare_ccg_derivedmesh_topology(ss, dm) == false;
+	}
+	else {
+		return compare_osd_derivedmesh_topology(ss, dm) == false;
+	}
 	return false;
 }
-#endif
+
+void ccgSubSurf_checkTopologyChanged(CCGSubSurf *ss, DerivedMesh *dm)
+{
+	if (opensubdiv_is_topology_changed(ss, dm)) {
+		/* ** Make sure both GPU and CPU backends are properly reset. ** */
+
+		ss->osd_coarse_coords_invalid = true;
+		ss->osd_uvs_invalid = true;
+
+		/* Reset GPU part. */
+		ss->osd_mesh_invalid = true;
+		if (ss->osd_topology_refiner != NULL) {
+			openSubdiv_deleteTopologyRefinerDescr(ss->osd_topology_refiner);
+			ss->osd_topology_refiner = NULL;
+		}
+
+		/* Reste CPU side. */
+		if (ss->osd_evaluator != NULL) {
+			openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
+			ss->osd_evaluator = NULL;
+		}
+	}
+}
 
 static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
 {
@@ -111,8 +216,10 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 	}
 
 	if (ss->osd_mesh_invalid) {
-		openSubdiv_deleteOsdGLMesh(ss->osd_mesh);
-		ss->osd_mesh = NULL;
+		if (ss->osd_mesh != NULL) {
+			openSubdiv_deleteOsdGLMesh(ss->osd_mesh);
+			ss->osd_mesh = NULL;
+		}
 		ss->osd_mesh_invalid = false;
 	}
 
@@ -309,22 +416,12 @@ void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss,
 	}
 }
 
-static bool check_topology_changed(CCGSubSurf *ss)
-{
-	if (ss->osd_compute != U.opensubdiv_compute_type) {
-		return true;
-	}
-	/* TODO(sergey): Do proper check here. */
-	return false;
-}
-
 static bool opensubdiv_createEvaluator(CCGSubSurf *ss)
 {
 	OpenSubdiv_Converter converter;
 	OpenSubdiv_TopologyRefinerDescr *topology_refiner;
 	ccgSubSurf_converter_setup_from_ccg(ss, &converter);
 	topology_refiner = openSubdiv_createTopologyRefinerDescr(&converter);
-	ss->osd_compute = U.opensubdiv_compute_type;
 	ss->osd_evaluator =
 	        openSubdiv_createEvaluatorDescr(topology_refiner,
 	                                        ss->subdivLevels);
@@ -333,31 +430,9 @@ static bool opensubdiv_createEvaluator(CCGSubSurf *ss)
 
 static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 {
-	if (ss->osd_evaluator != NULL) {
-		if (check_topology_changed(ss)) {
-			/* If topology changes then we are to re-create evaluator
-			 * from the very scratch.
-			 */
-			openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
-			ss->osd_evaluator = NULL;
-
-			/* We would also need to re-create gl mesh from sratch
-			 * if the topology changes.
-			 * Here we only tag for free, actual free should happen
-			 * from the main thread.
-			 */
-			if (ss->osd_mesh != NULL) {
-				ss->osd_mesh_invalid = true;
-			}
-
-			ss->osd_uvs_invalid = true;
-		}
-	}
 	if (ss->osd_evaluator == NULL) {
 		OSD_LOG("Allocating new evaluator, %d verts\n", ss->vMap->numEntries);
 		opensubdiv_createEvaluator(ss);
-	} else {
-		OSD_LOG("Re-using old evaluator\n");
 	}
 	return ss->osd_evaluator != NULL;
 }
@@ -703,8 +778,16 @@ static void opensubdiv_evaluateGrids(CCGSubSurf *ss)
 	}
 }
 
-void ccgSubSurf_prepareTopologyRefiner(CCGSubSurf *ss,
-                                       DerivedMesh *dm)
+CCGError ccgSubSurf_initOpenSubdivSync(CCGSubSurf *ss)
+{
+	if (ss->syncState != eSyncState_None) {
+		return eCCGError_InvalidSyncState;
+	}
+	ss->syncState = eSyncState_OpenSubdiv;
+	return eCCGError_None;
+}
+
+void ccgSubSurf_prepareTopologyRefiner(CCGSubSurf *ss, DerivedMesh *dm)
 {
 	if (ss->osd_mesh == NULL || ss->osd_mesh_invalid) {
 		OpenSubdiv_Converter converter;
@@ -753,6 +836,9 @@ void ccgSubSurf__sync_opensubdiv(CCGSubSurf *ss)
 {
 	BLI_assert(ss->meshIFC.numLayers == 2 || ss->meshIFC.numLayers == 3);
 
+	/* Common synchronization steps */
+	ss->osd_compute = U.opensubdiv_compute_type;
+
 	if (ss->skip_grids == false) {
 		/* Make sure OSD evaluator is up-to-date. */
 		if (opensubdiv_ensureEvaluator(ss)) {
@@ -768,14 +854,6 @@ void ccgSubSurf__sync_opensubdiv(CCGSubSurf *ss)
 	}
 	else {
 		BLI_assert(ss->meshIFC.numLayers == 3);
-		/* TODO(sergey): De-duplicate with the case of evalautor. */
-		if (check_topology_changed(ss)) {
-			if (ss->osd_mesh) {
-				ss->osd_mesh_invalid = true;
-			}
-			ss->osd_uvs_invalid = true;
-			ss->osd_compute = U.opensubdiv_compute_type;
-		}
 	}
 
 #ifdef DUMP_RESULT_GRIDS

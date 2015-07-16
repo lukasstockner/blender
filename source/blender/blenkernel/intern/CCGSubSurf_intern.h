@@ -160,7 +160,10 @@ typedef enum {
 	eSyncState_Vert,
 	eSyncState_Edge,
 	eSyncState_Face,
-	eSyncState_Partial
+	eSyncState_Partial,
+#ifdef WITH_OPENSUBDIV
+	eSyncState_OpenSubdiv,
+#endif
 } SyncState;
 
 struct CCGSubSurf {

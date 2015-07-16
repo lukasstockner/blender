@@ -87,6 +87,20 @@ typedef struct OpenSubdiv_Converter {
 OpenSubdiv_TopologyRefinerDescr *openSubdiv_createTopologyRefinerDescr(
         OpenSubdiv_Converter *converter);
 
+void openSubdiv_deleteTopologyRefinerDescr(
+        OpenSubdiv_TopologyRefinerDescr *topology_refiner);
+
+/* TODO(sergey): Those calls are not strictly related on conversion.
+ * needs some dedicated fiel perhaps.
+ */
+
+int openSubdiv_topologyRefinerGetSubdivLevel(
+        const OpenSubdiv_TopologyRefinerDescr *topology_refiner);
+
+int openSubdiv_topologyRefnerCompareConverter(
+        const OpenSubdiv_TopologyRefinerDescr *topology_refiner,
+        OpenSubdiv_Converter *converter);
+
 #ifdef __cplusplus
 }
 #endif

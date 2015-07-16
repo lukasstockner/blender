@@ -23,7 +23,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include <stdio.h>
+#include <cstdio>
+#include <vector>
 
 #include <opensubdiv/far/topologyRefinerFactory.h>
 
@@ -219,8 +220,81 @@ struct OpenSubdiv_TopologyRefinerDescr *openSubdiv_createTopologyRefinerDescr(
 #ifdef OPENSUBDIV_VALIDATE_TOPOLOGY
 	topology_options.validateFullTopology = true;
 #endif
+	/* We don't use guarded allocation here so we can re-use the refiner
+	 * for GL mesh creation directly.
+	 */
 	return (struct OpenSubdiv_TopologyRefinerDescr*)
 	        TopologyRefinerFactory<OpenSubdiv_Converter>::Create(
 	                *converter,
 	                topology_options);
+}
+
+void openSubdiv_deleteTopologyRefinerDescr(
+        OpenSubdiv_TopologyRefinerDescr *topology_refiner)
+{
+	delete (OpenSubdiv::Far::TopologyRefiner *)topology_refiner;
+}
+
+int openSubdiv_topologyRefinerGetSubdivLevel(
+        const OpenSubdiv_TopologyRefinerDescr *topology_refiner)
+{
+	using OpenSubdiv::Far::TopologyRefiner;
+	const TopologyRefiner *refiner = (const TopologyRefiner *)topology_refiner;
+	return refiner->GetMaxLevel();
+}
+
+int openSubdiv_topologyRefnerCompareConverter(
+        const OpenSubdiv_TopologyRefinerDescr *topology_refiner,
+        OpenSubdiv_Converter *converter)
+{
+	using OpenSubdiv::Far::ConstIndexArray;
+	using OpenSubdiv::Far::TopologyRefiner;
+	using OpenSubdiv::Far::TopologyLevel;
+	const TopologyRefiner *refiner = (const TopologyRefiner *)topology_refiner;
+	const TopologyLevel &base_level = refiner->GetLevel(0);
+	const int num_verts = base_level.GetNumVertices();
+	const int num_edges = base_level.GetNumEdges();
+	const int num_faces = base_level.GetNumFaces();
+	/* Quick preliminary check. */
+	OpenSubdiv::Sdc::SchemeType scheme_type =
+	        get_capi_scheme_type(converter->get_type(converter));
+	if (scheme_type != refiner->GetSchemeType()) {
+		return false;
+	}
+	if (converter->get_num_verts(converter) != num_verts ||
+	    converter->get_num_edges(converter) != num_edges ||
+	    converter->get_num_faces(converter) != num_faces)
+	{
+		return false;
+	}
+	/* Compare all edges. */
+	for (int edge = 0; edge < num_edges; ++edge) {
+		ConstIndexArray edge_verts = base_level.GetEdgeVertices(edge);
+		int conv_edge_verts[2];
+		converter->get_edge_verts(converter, edge, conv_edge_verts);
+		if (conv_edge_verts[0] != edge_verts[0] ||
+		    conv_edge_verts[1] != edge_verts[1])
+		{
+			return false;
+		}
+	}
+	/* Compare all faces. */
+	std::vector<int> conv_face_verts;
+	for (int face = 0; face < num_faces; ++face) {
+		ConstIndexArray face_verts = base_level.GetFaceVertices(face);
+		if (face_verts.size() != converter->get_num_face_verts(converter,
+		                                                       face))
+		{
+			return false;
+		}
+		conv_face_verts.resize(face_verts.size());
+		converter->get_face_verts(converter, face, &conv_face_verts[0]);
+		for (int i = 0; i < face_verts.size(); ++i) {
+			if (conv_face_verts[i] != face_verts[i]) {
+				return false;
+			}
+		}
+	}
+	/* TODO(sergey): Edge crease comparison. */
+	return true;
 }

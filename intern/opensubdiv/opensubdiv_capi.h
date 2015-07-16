@@ -41,7 +41,7 @@ struct OpenSubdiv_GLMeshDescr;
 typedef struct OpenSubdiv_GLMesh {
 	int evaluator_type;
 	OpenSubdiv_GLMeshDescr *descriptor;
-	int level;
+	OpenSubdiv_TopologyRefinerDescr *topology_refiner;
 } OpenSubdiv_GLMesh;
 #endif
 
@@ -81,6 +81,9 @@ void openSubdiv_osdGLMeshUpdateVertexBuffer(OpenSubdiv_GLMesh *gl_mesh,
 void openSubdiv_osdGLMeshRefine(OpenSubdiv_GLMesh *gl_mesh);
 void openSubdiv_osdGLMeshSynchronize(OpenSubdiv_GLMesh *gl_mesh);
 void openSubdiv_osdGLMeshBindVertexBuffer(OpenSubdiv_GLMesh *gl_mesh);
+
+const struct OpenSubdiv_TopologyRefinerDescr *openSubdiv_getGLMeshTopologyRefiner(
+        OpenSubdiv_GLMesh *gl_mesh);
 
 /* ** Initialize/Deinitialize global OpenGL drawing buffers/GLSL programs ** */
 void openSubdiv_osdGLDisplayInit(void);

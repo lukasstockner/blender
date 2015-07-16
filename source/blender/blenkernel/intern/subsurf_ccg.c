@@ -679,7 +679,9 @@ static void ss_sync_ccg_from_derivedmesh(CCGSubSurf *ss,
 static void ss_sync_osd_from_derivedmesh(CCGSubSurf *ss,
                                          DerivedMesh *dm)
 {
+	ccgSubSurf_initFullSync(ss);
 	ccgSubSurf_prepareTopologyRefiner(ss, dm);
+	ccgSubSurf_processSync(ss);
 }
 #endif  /* WITH_OPENSUBDIV */
 
@@ -689,6 +691,10 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss,
                                      int use_flat_subdiv)
 {
 #ifdef WITH_OPENSUBDIV
+	/* Reset all related descriptors if actual mesh topology changed or if
+	 * other evlauation-related settings changed.
+	 */
+	ccgSubSurf_checkTopologyChanged(ss, dm);
 	if (!ccgSubSurf_needGrids(ss)) {
 		/* TODO(sergey): Use vertex coordinates and flat subdiv flag. */
 		ss_sync_osd_from_derivedmesh(ss, dm);

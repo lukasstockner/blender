@@ -39,6 +39,7 @@
 
 #ifdef WITH_OPENSUBDIV
 #  include "opensubdiv_capi.h"
+#  include "opensubdiv_converter_capi.h"
 #endif
 
 #include "GL/glew.h"
@@ -342,8 +343,9 @@ void ccgSubSurf_free(CCGSubSurf *ss)
 	if (ss->osd_coarse_coords != NULL) {
 		MEM_freeN(ss->osd_coarse_coords);
 	}
-	/* TODO(sergey): This is not valid when viewport is not visible. */
-	BLI_assert(ss->osd_topology_refiner == NULL);
+	if (ss->osd_topology_refiner != NULL) {
+		openSubdiv_deleteTopologyRefinerDescr(ss->osd_topology_refiner);
+	}
 #endif
 
 	if (ss->syncState) {
@@ -404,9 +406,6 @@ CCGError ccgSubSurf_setSubdivisionLevels(CCGSubSurf *ss, int subdivisionLevels)
 		return eCCGError_InvalidValue;
 	}
 	else if (subdivisionLevels != ss->subdivLevels) {
-#ifdef WITH_OPENSUBDIV
-		ss->osd_mesh_invalid = true;
-#endif
 		ss->numGrids = 0;
 		ss->subdivLevels = subdivisionLevels;
 		ccg_ehash_free(ss->vMap, (EHEntryFreeFP) _vert_free, ss);
