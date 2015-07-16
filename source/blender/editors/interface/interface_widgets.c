@@ -69,12 +69,6 @@
 
 /* *********************** draw data ************************** */
 
-static const float cornervec[WIDGET_CURVE_RESOLU][2] = {
-	{0.0, 0.0}, {0.195, 0.02}, {0.383, 0.067},
-	{0.55, 0.169}, {0.707, 0.293}, {0.831, 0.45},
-	{0.924, 0.617}, {0.98, 0.805}, {1.0, 1.0}
-};
-
 #define WIDGET_AA_JITTER 8
 static const float jit[WIDGET_AA_JITTER][2] = {
 	{ 0.468813, -0.481430}, {-0.155755, -0.352820},
@@ -145,9 +139,9 @@ void ui_draw_anti_roundbox(int mode, float minx, float miny, float maxx, float m
 }
 
 
-static void widget_scroll_circle(uiWidgetTrias *tria, const rcti *rect, float triasize, char where)
+static void widget_scroll_circle(uiWidgetDrawBaseTrias *tria, const rcti *rect, float triasize, char where)
 {
-	widget_draw_tria_ex(
+	widget_drawbase_tria_ex(
 	        tria, rect, triasize, where,
 	        scroll_circle_vert, ARRAY_SIZE(scroll_circle_vert),
 	        scroll_circle_face, ARRAY_SIZE(scroll_circle_face));
@@ -180,7 +174,7 @@ static void round_box_shade_col4_r(unsigned char r_col[4], const char col1[4], c
 	r_col[3] = (faci * col1[3] + facm * col2[3]) / 256;
 }
 
-static void widget_verts_to_triangle_strip(uiWidgetBase *wtb, const int totvert, float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2])
+static void widget_verts_to_triangle_strip(uiWidgetDrawBase *wtb, const int totvert, float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2])
 {
 	int a;
 	for (a = 0; a < totvert; a++) {
@@ -191,7 +185,7 @@ static void widget_verts_to_triangle_strip(uiWidgetBase *wtb, const int totvert,
 	copy_v2_v2(triangle_strip[a * 2 + 1], wtb->inner_v[0]);
 }
 
-static void widgetbase_outline(uiWidgetBase *wtb)
+static void widget_drawbase_outline(uiWidgetDrawBase *wtb)
 {
 	float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2]; /* + 2 because the last pair is wrapped */
 	widget_verts_to_triangle_strip(wtb, wtb->totvert, triangle_strip);
@@ -963,7 +957,7 @@ static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
 /* vertical 'value' slider, using new widget code */
 static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	const float rad = 0.5f * BLI_rcti_size_x(rect);
 	float x, y;
 	float rgb[3], hsv[3], v;
@@ -989,10 +983,10 @@ static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
 		v = (v - but->softmin) / range;
 	}
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 	
 	/* fully rounded */
-	round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
+	widget_drawbase_roundboxedges_set(&wtb, UI_CNR_ALL, rect, rad);
 	
 	/* setup temp colors */
 	wcol_tmp.outline[0] = wcol_tmp.outline[1] = wcol_tmp.outline[2] = 0;
@@ -1001,7 +995,7 @@ static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
 	wcol_tmp.shadedown = -128;
 	wcol_tmp.shaded = 1;
 	
-	widgetbase_draw(&wtb, &wcol_tmp);
+	widget_drawbase_draw(&wtb, &wcol_tmp);
 
 	/* cursor */
 	x = rect->xmin + 0.5f * BLI_rcti_size_x(rect);
@@ -1081,12 +1075,12 @@ void ui_draw_link_bezier(const rcti *rect)
 /* function in use for buttons and for view2d sliders */
 void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *slider, int state)
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	int horizontal;
 	float rad;
 	bool outline = false;
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	/* determine horizontal/vertical */
 	horizontal = (BLI_rcti_size_x(rect) > BLI_rcti_size_y(rect));
@@ -1102,8 +1096,8 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
 	if (horizontal)
 		SWAP(short, wcol->shadetop, wcol->shadedown);
 	
-	round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_roundboxedges_set(&wtb, UI_CNR_ALL, rect, rad);
+	widget_drawbase_draw(&wtb, wcol);
 	
 	/* slider */
 	if ((BLI_rcti_size_x(slider) < 2) || (BLI_rcti_size_y(slider) < 2)) {
@@ -1132,7 +1126,7 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
 			SWAP(bool, outline, wtb.draw_outline);
 		}
 		
-		round_box_edges(&wtb, UI_CNR_ALL, slider, rad);
+		widget_drawbase_roundboxedges_set(&wtb, UI_CNR_ALL, slider, rad);
 		
 		if (state & UI_SCROLL_ARROWS) {
 			if (wcol->item[0] > 48) wcol->item[0] -= 48;
@@ -1149,7 +1143,7 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
 				widget_scroll_circle(&wtb.tria2, slider, 0.6f, 't');
 			}
 		}
-		widgetbase_draw(&wtb, wcol);
+		widget_drawbase_draw(&wtb, wcol);
 		
 		if (state & UI_SCROLL_NO_OUTLINE) {
 			SWAP(bool, outline, wtb.draw_outline);
@@ -1159,14 +1153,14 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
 
 static void widget_draw_extra_mask(const bContext *C, uiBut *but, uiWidgetType *wt, rcti *rect)
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	const float rad = 0.25f * U.widget_unit;
 	unsigned char col[4];
 	
 	/* state copy! */
 	wt->wcol = *(wt->wcol_theme);
 	
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 	
 	if (but->block->drawextra) {
 		/* note: drawextra can change rect +1 or -1, to match round errors of existing previews */
@@ -1177,14 +1171,14 @@ static void widget_draw_extra_mask(const bContext *C, uiBut *but, uiWidgetType *
 		glColor3ubv(col);
 		
 		round_box__edges(&wtb, UI_CNR_ALL, rect, 0.0f, rad);
-		widgetbase_outline(&wtb);
+		widget_drawbase_outline(&wtb);
 	}
 	
 	/* outline */
-	round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
+	widget_drawbase_roundboxedges_set(&wtb, UI_CNR_ALL, rect, rad);
 	wtb.draw_outline = true;
 	wtb.draw_inner = false;
-	widgetbase_draw(&wtb, &wt->wcol);
+	widget_drawbase_draw(&wtb, &wt->wcol);
 }
 
 
@@ -1257,22 +1251,22 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 	if (but->dt == UI_EMBOSS_PULLDOWN) {
 		switch (but->type) {
 			case UI_BTYPE_LABEL:
-				wt = widget_type(UI_WTYPE_MENU_LABEL);
+				wt = WidgetTypeInit(UI_WTYPE_MENU_LABEL);
 				break;
 			case UI_BTYPE_SEPR_LINE:
 				ui_draw_separator(rect, &tui->wcol_menu_item);
 				break;
 			default:
-				wt = widget_type(UI_WTYPE_MENU_ITEM);
+				wt = WidgetTypeInit(UI_WTYPE_MENU_ITEM);
 				break;
 		}
 	}
 	else if (but->dt == UI_EMBOSS_NONE) {
 		/* "nothing" */
-		wt = widget_type(UI_WTYPE_ICON);
+		wt = WidgetTypeInit(UI_WTYPE_ICON);
 	}
 	else if (but->dt == UI_EMBOSS_RADIAL) {
-		wt = widget_type(UI_WTYPE_MENU_ITEM_RADIAL);
+		wt = WidgetTypeInit(UI_WTYPE_MENU_ITEM_RADIAL);
 	}
 	else {
 		BLI_assert(but->dt == UI_EMBOSS);
@@ -1280,10 +1274,10 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 		switch (but->type) {
 			case UI_BTYPE_LABEL:
 				if (but->block->flag & UI_BLOCK_LOOP) {
-					wt = widget_type(UI_WTYPE_MENU_LABEL);
+					wt = WidgetTypeInit(UI_WTYPE_MENU_LABEL);
 				}
 				else {
-					wt = widget_type(UI_WTYPE_LABEL);
+					wt = WidgetTypeInit(UI_WTYPE_LABEL);
 				}
 				fstyle = &style->widgetlabel;
 				break;
@@ -1293,31 +1287,31 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				break;
 				
 			case UI_BTYPE_BUT:
-				wt = widget_type(UI_WTYPE_EXEC);
+				wt = WidgetTypeInit(UI_WTYPE_EXEC);
 				break;
 
 			case UI_BTYPE_NUM:
-				wt = widget_type(UI_WTYPE_NUMBER);
+				wt = WidgetTypeInit(UI_WTYPE_NUMBER);
 				break;
 				
 			case UI_BTYPE_NUM_SLIDER:
-				wt = widget_type(UI_WTYPE_SLIDER);
+				wt = WidgetTypeInit(UI_WTYPE_SLIDER);
 				break;
 				
 			case UI_BTYPE_ROW:
-				wt = widget_type(UI_WTYPE_RADIO);
+				wt = WidgetTypeInit(UI_WTYPE_RADIO);
 				break;
 
 			case UI_BTYPE_LISTROW:
-				wt = widget_type(UI_WTYPE_LISTITEM);
+				wt = WidgetTypeInit(UI_WTYPE_LISTITEM);
 				break;
 				
 			case UI_BTYPE_TEXT:
-				wt = widget_type(UI_WTYPE_NAME);
+				wt = WidgetTypeInit(UI_WTYPE_NAME);
 				break;
 
 			case UI_BTYPE_SEARCH_MENU:
-				wt = widget_type(UI_WTYPE_NAME);
+				wt = WidgetTypeInit(UI_WTYPE_NAME);
 				if (but->block->flag & UI_BLOCK_LOOP)
 					wt->wcol_theme = &btheme->tui.wcol_menu_back;
 				break;
@@ -1325,17 +1319,17 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 			case UI_BTYPE_BUT_TOGGLE:
 			case UI_BTYPE_TOGGLE:
 			case UI_BTYPE_TOGGLE_N:
-				wt = widget_type(UI_WTYPE_TOGGLE);
+				wt = WidgetTypeInit(UI_WTYPE_TOGGLE);
 				break;
 				
 			case UI_BTYPE_CHECKBOX:
 			case UI_BTYPE_CHECKBOX_N:
 				if (!(but->flag & UI_HAS_ICON)) {
-					wt = widget_type(UI_WTYPE_CHECKBOX);
+					wt = WidgetTypeInit(UI_WTYPE_CHECKBOX);
 					but->drawflag |= UI_BUT_TEXT_LEFT;
 				}
 				else
-					wt = widget_type(UI_WTYPE_TOGGLE);
+					wt = WidgetTypeInit(UI_WTYPE_TOGGLE);
 				
 				/* XXX this should really not be here! */
 				/* option buttons have strings outside, on menus use different colors */
@@ -1348,7 +1342,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 			case UI_BTYPE_BLOCK:
 				if (but->flag & UI_BUT_NODE_LINK) {
 					/* new node-link button, not active yet XXX */
-					wt = widget_type(UI_WTYPE_MENU_NODE_LINK);
+					wt = WidgetTypeInit(UI_WTYPE_MENU_NODE_LINK);
 				}
 				else {
 					/* with menu arrows */
@@ -1360,38 +1354,38 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 					    (but->flag & UI_BUT_ICON_PREVIEW))
 					{
 						/* no arrows */
-						wt = widget_type(UI_WTYPE_MENU_ICON_RADIO);
+						wt = WidgetTypeInit(UI_WTYPE_MENU_ICON_RADIO);
 					}
 					else {
-						wt = widget_type(UI_WTYPE_MENU_RADIO);
+						wt = WidgetTypeInit(UI_WTYPE_MENU_RADIO);
 					}
 				}
 				break;
 				
 			case UI_BTYPE_PULLDOWN:
-				wt = widget_type(UI_WTYPE_PULLDOWN);
+				wt = WidgetTypeInit(UI_WTYPE_PULLDOWN);
 				break;
 			
 			case UI_BTYPE_BUT_MENU:
-				wt = widget_type(UI_WTYPE_MENU_ITEM);
+				wt = WidgetTypeInit(UI_WTYPE_MENU_ITEM);
 				break;
 				
 			case UI_BTYPE_COLOR:
-				wt = widget_type(UI_WTYPE_SWATCH);
+				wt = WidgetTypeInit(UI_WTYPE_SWATCH);
 				break;
 				
 			case UI_BTYPE_ROUNDBOX:
 			case UI_BTYPE_LISTBOX:
-				wt = widget_type(UI_WTYPE_BOX);
+				wt = WidgetTypeInit(UI_WTYPE_BOX);
 				break;
 				
 			case UI_BTYPE_LINK:
 			case UI_BTYPE_INLINK:
-				wt = widget_type(UI_WTYPE_LINK);
+				wt = WidgetTypeInit(UI_WTYPE_LINK);
 				break;
 			
 			case UI_BTYPE_EXTRA:
-				widget_draw_extra_mask(C, but, widget_type(UI_WTYPE_BOX), rect);
+				widget_draw_extra_mask(C, but, WidgetTypeInit(UI_WTYPE_BOX), rect);
 				break;
 				
 			case UI_BTYPE_HSVCUBE:
@@ -1412,7 +1406,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				break;
 				
 			case UI_BTYPE_UNITVEC:
-				wt = widget_type(UI_WTYPE_UNITVEC);
+				wt = WidgetTypeInit(UI_WTYPE_UNITVEC);
 				break;
 				
 			case UI_BTYPE_IMAGE:
@@ -1436,16 +1430,16 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				break;
 				
 			case UI_BTYPE_PROGRESS_BAR:
-				wt = widget_type(UI_WTYPE_PROGRESSBAR);
+				wt = WidgetTypeInit(UI_WTYPE_PROGRESSBAR);
 				fstyle = &style->widgetlabel;
 				break;
 
 			case UI_BTYPE_SCROLL:
-				wt = widget_type(UI_WTYPE_SCROLL);
+				wt = WidgetTypeInit(UI_WTYPE_SCROLL);
 				break;
 
 			case UI_BTYPE_GRIP:
-				wt = widget_type(UI_WTYPE_ICON);
+				wt = WidgetTypeInit(UI_WTYPE_ICON);
 				break;
 
 			case UI_BTYPE_TRACK_PREVIEW:
@@ -1457,7 +1451,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				break;
 
 			default:
-				wt = widget_type(UI_WTYPE_REGULAR);
+				wt = WidgetTypeInit(UI_WTYPE_REGULAR);
 				break;
 		}
 	}
@@ -1512,7 +1506,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 
 void ui_draw_menu_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 {
-	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_BACK);
+	uiWidgetType *wt = WidgetTypeInit(UI_WTYPE_MENU_BACK);
 	const int flag = block ? block->flag : 0;
 	const char dir = block ? block->direction : 0;
 
@@ -1661,23 +1655,23 @@ void ui_draw_pie_center(uiBlock *block)
 
 uiWidgetColors *ui_tooltip_get_theme(void)
 {
-	uiWidgetType *wt = widget_type(UI_WTYPE_TOOLTIP);
+	uiWidgetType *wt = WidgetTypeInit(UI_WTYPE_TOOLTIP);
 	return wt->wcol_theme;
 }
 
 void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock *UNUSED(block), rcti *rect)
 {
-	uiWidgetType *wt = widget_type(UI_WTYPE_TOOLTIP);
+	uiWidgetType *wt = WidgetTypeInit(UI_WTYPE_TOOLTIP);
 	wt->draw_type->state(wt, 0);
 	wt->draw_type->draw(&wt->wcol, rect, 0, 0);
 }
 
 void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 {
-	uiWidgetType *wt = widget_type(UI_WTYPE_BOX);
+	uiWidgetType *wt = WidgetTypeInit(UI_WTYPE_BOX);
 	
 	glEnable(GL_BLEND);
-	widget_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit);
+	widget_drawbase_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit);
 	glDisable(GL_BLEND);
 
 	wt->draw_type->state(wt, 0);
@@ -1692,7 +1686,7 @@ void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 /* state: UI_ACTIVE or 0 */
 void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state, bool use_sep)
 {
-	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
+	uiWidgetType *wt = WidgetTypeInit(UI_WTYPE_MENU_ITEM);
 	rcti _rect = *rect;
 	char *cpoin = NULL;
 
@@ -1769,7 +1763,7 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 
 void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state)
 {
-	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM_PREVIEW);
+	uiWidgetType *wt = WidgetTypeInit(UI_WTYPE_MENU_ITEM_PREVIEW);
 
 	/* drawing button background */
 	wt->draw_type->state(wt, state);

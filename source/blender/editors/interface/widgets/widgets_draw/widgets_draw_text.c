@@ -41,9 +41,8 @@
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
-#include "UI_resources.h"
 
-#include "../interface_intern.h"
+#include "../interface_intern.h" /* XXX currently needed, but not so nice on this level */
 
 
 #include "widgets_draw_intern.h"

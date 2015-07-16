@@ -38,8 +38,6 @@
 #include "UI_interface.h"
 #include "UI_resources.h"
 
-#include "../interface_intern.h" /* XXX */
-
 
 #include "widgets_draw_intern.h" /* own include */
 
@@ -87,7 +85,7 @@ static const unsigned int menu_tria_face[2][3] = {{2, 0, 1}, {3, 5, 4}};
 
 /* ************************************************* */
 
-void widgetbase_init(uiWidgetBase *wtb)
+void widget_drawbase_init(uiWidgetDrawBase *wtb)
 {
 	wtb->totvert = wtb->halfwayvert = 0;
 	wtb->tria1.tot = 0;
@@ -106,7 +104,7 @@ void widgetbase_init(uiWidgetBase *wtb)
 /* roundbox stuff ************* */
 
 /* this call has 1 extra arg to allow mask outline */
-void round_box__edges(uiWidgetBase *wt, int roundboxalign, const rcti *rect, float rad, float radi)
+void round_box__edges(uiWidgetDrawBase *wt, int roundboxalign, const rcti *rect, float rad, float radi)
 {
 	float vec[WIDGET_CURVE_RESOLU][2], veci[WIDGET_CURVE_RESOLU][2];
 	float minx = rect->xmin, miny = rect->ymin, maxx = rect->xmax, maxy = rect->ymax;
@@ -250,7 +248,7 @@ void round_box__edges(uiWidgetBase *wt, int roundboxalign, const rcti *rect, flo
 	wt->totvert = tot;
 }
 
-void round_box_edges(uiWidgetBase *wt, int roundboxalign, const rcti *rect, float rad)
+void widget_drawbase_roundboxedges_set(uiWidgetDrawBase *wt, int roundboxalign, const rcti *rect, float rad)
 {
 	round_box__edges(wt, roundboxalign, rect, rad, rad - U.pixelsize);
 }
@@ -283,7 +281,7 @@ static void round_box_shade_col4_r(unsigned char r_col[4], const char col1[4], c
 
 /* triangle stuff ************* */
 
-static void widget_verts_to_triangle_strip(uiWidgetBase *wtb, const int totvert, float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2])
+static void widget_verts_to_triangle_strip(uiWidgetDrawBase *wtb, const int totvert, float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2])
 {
 	int a;
 	for (a = 0; a < totvert; a++) {
@@ -294,7 +292,7 @@ static void widget_verts_to_triangle_strip(uiWidgetBase *wtb, const int totvert,
 	copy_v2_v2(triangle_strip[a * 2 + 1], wtb->inner_v[0]);
 }
 
-static void widget_verts_to_triangle_strip_open(uiWidgetBase *wtb, const int totvert, float triangle_strip[WIDGET_SIZE_MAX * 2][2])
+static void widget_verts_to_triangle_strip_open(uiWidgetDrawBase *wtb, const int totvert, float triangle_strip[WIDGET_SIZE_MAX * 2][2])
 {
 	int a;
 	for (a = 0; a < totvert; a++) {
@@ -307,8 +305,8 @@ static void widget_verts_to_triangle_strip_open(uiWidgetBase *wtb, const int tot
 
 /* based on button rect, return scaled array of triangles */
 /* XXX tmp, could be static */
-/* static */ void widget_draw_tria_ex(
-        uiWidgetTrias *tria, const rcti *rect, float triasize, char where,
+/* static */ void widget_drawbase_tria_ex(
+        uiWidgetDrawBaseTrias *tria, const rcti *rect, float triasize, char where,
         /* input data */
         const float verts[][2], const int verts_tot,
         const unsigned int tris[][3], const int tris_tot)
@@ -346,15 +344,15 @@ static void widget_verts_to_triangle_strip_open(uiWidgetBase *wtb, const int tot
 	tria->index = tris;
 }
 
-void widget_num_tria(uiWidgetTrias *tria, const rcti *rect, float triasize, char where)
+void widget_drawbase_num_tria(uiWidgetDrawBaseTrias *tria, const rcti *rect, float triasize, char where)
 {
-	widget_draw_tria_ex(
+	widget_drawbase_tria_ex(
 	        tria, rect, triasize, where,
 	        num_tria_vert, ARRAY_SIZE(num_tria_vert),
 	        num_tria_face, ARRAY_SIZE(num_tria_face));
 }
 
-void widget_menu_trias(uiWidgetTrias *tria, const rcti *rect)
+void widget_drawbase_menu_trias(uiWidgetDrawBaseTrias *tria, const rcti *rect)
 {
 	float centx, centy, size;
 	int a;
@@ -373,7 +371,7 @@ void widget_menu_trias(uiWidgetTrias *tria, const rcti *rect)
 	tria->index = menu_tria_face;
 }
 
-void widget_check_trias(uiWidgetTrias *tria, const rcti *rect)
+void widget_drawbase_check_trias(uiWidgetDrawBaseTrias *tria, const rcti *rect)
 {
 	float centx, centy, size;
 	int a;
@@ -477,10 +475,10 @@ static int round_box_shadow_edges(float (*vert)[2], const rcti *rect, float rad,
 /* actual drawing ********************************** */
 
 /* outside of rect, rad to left/bottom/right */
-void widget_softshadow(const rcti *rect, int roundboxalign, const float radin)
+void widget_drawbase_softshadow(const rcti *rect, int roundboxalign, const float radin)
 {
 	bTheme *btheme = UI_GetTheme();
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	rcti rect1 = *rect;
 	float alphastep;
 	int step, totvert;
@@ -521,7 +519,7 @@ void widget_softshadow(const rcti *rect, int roundboxalign, const float radin)
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
-static void widget_trias_draw(uiWidgetTrias *tria)
+static void widget_trias_draw(uiWidgetDrawBaseTrias *tria)
 {
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(2, GL_FLOAT, 0, tria->vec);
@@ -529,7 +527,7 @@ static void widget_trias_draw(uiWidgetTrias *tria)
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
-void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
+void widget_drawbase_draw(uiWidgetDrawBase *wtb, uiWidgetColors *wcol)
 {
 	int j, a;
 

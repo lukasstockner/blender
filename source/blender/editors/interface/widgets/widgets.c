@@ -54,12 +54,11 @@ uiWidgetDrawStyle *widget_drawstyle_get(const int widget_style_type) /* TODO wid
 #endif
 }
 
-uiWidgetType *widget_type(const uiWidgetTypeEnum type)
+uiWidgetType *WidgetTypeInit(const uiWidgetTypeEnum type)
 {
 	bTheme *btheme = UI_GetTheme();
 	const uiWidgetDrawStyle *draw_style = widget_drawstyle_get(0); /* TODO drawstyles aren't in use yet */
 	static uiWidgetType wt;
-
 
 	/* defaults */
 	wt.wcol_theme = &btheme->tui.wcol_regular;
@@ -67,6 +66,8 @@ uiWidgetType *widget_type(const uiWidgetTypeEnum type)
 	wt.draw_type = NULL;
 
 	switch (type) {
+		/* let's keep this in a nice alphabetical order! */
+
 		case UI_WTYPE_BOX:
 			wt.wcol_theme = &btheme->tui.wcol_box;
 			wt.draw_type = draw_style->box;

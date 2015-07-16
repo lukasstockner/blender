@@ -56,11 +56,11 @@ static void widget_numbut_embossn(uiBut *but, uiWidgetColors *wcol, rcti *rect, 
 
 static void widget_box(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	float rad;
 	char old_col[3];
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	copy_v3_v3_char(old_col, wcol->inner);
 
@@ -73,35 +73,35 @@ static void widget_box(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(
 
 	/* half rounded */
 	rad = 0.2f * U.widget_unit;
-	round_box_edges(&wtb, roundboxalign, rect, rad);
+	widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
 
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 
 	copy_v3_v3_char(wcol->inner, old_col);
 }
 
 static void widget_but(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	float rad;
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	/* half rounded */
 	rad = 0.2f * U.widget_unit;
-	round_box_edges(&wtb, roundboxalign, rect, rad);
+	widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
 
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 }
 
 static void widget_checkbox(uiWidgetColors *wcol, rcti *rect, int state, int UNUSED(roundboxalign))
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	rcti recttemp = *rect;
 	float rad;
 	int delta;
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	/* square */
 	recttemp.xmax = recttemp.xmin + BLI_rcti_size_y(&recttemp);
@@ -115,14 +115,14 @@ static void widget_checkbox(uiWidgetColors *wcol, rcti *rect, int state, int UNU
 
 	/* half rounded */
 	rad = 0.2f * U.widget_unit;
-	round_box_edges(&wtb, UI_CNR_ALL, &recttemp, rad);
+	widget_drawbase_roundboxedges_set(&wtb, UI_CNR_ALL, &recttemp, rad);
 
 	/* decoration */
 	if (state & UI_SELECT) {
-		widget_check_trias(&wtb.tria1, &recttemp);
+		widget_drawbase_check_trias(&wtb.tria1, &recttemp);
 	}
 
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 
 	/* text space */
 	rect->xmin += BLI_rcti_size_y(rect) * 0.7 + delta;
@@ -130,30 +130,30 @@ static void widget_checkbox(uiWidgetColors *wcol, rcti *rect, int state, int UNU
 
 static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	const float rad = 0.25f * U.widget_unit;
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	/* half rounded */
-	round_box_edges(&wtb, roundboxalign, rect, rad);
+	widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
 
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 }
 
 static void widget_icon_has_anim(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
 	if (state & (UI_BUT_ANIMATED | UI_BUT_ANIMATED_KEY | UI_BUT_DRIVEN | UI_BUT_REDALERT)) {
-		uiWidgetBase wtb;
+		uiWidgetDrawBase wtb;
 		float rad;
 
-		widgetbase_init(&wtb);
+		widget_drawbase_init(&wtb);
 		wtb.draw_outline = false;
 
 		/* rounded */
 		rad = 0.5f * BLI_rcti_size_y(rect);
-		round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
-		widgetbase_draw(&wtb, wcol);
+		widget_drawbase_roundboxedges_set(&wtb, UI_CNR_ALL, rect, rad);
+		widget_drawbase_draw(&wtb, wcol);
 	}
 	else if (but->type == UI_BTYPE_NUM) {
 		/* Draw number buttons still with left/right
@@ -180,25 +180,25 @@ static void widget_link(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect, in
 
 static void widget_list_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	float rad;
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	/* rounded, but no outline */
 	wtb.draw_outline = false;
 	rad = 0.2f * U.widget_unit;
-	round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
+	widget_drawbase_roundboxedges_set(&wtb, UI_CNR_ALL, rect, rad);
 
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 }
 
 static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int direction)
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	int roundboxalign = UI_CNR_ALL;
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	/* menu is 2nd level or deeper */
 	if (flag & UI_BLOCK_POPUP) {
@@ -215,55 +215,55 @@ static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int dir
 	}
 
 	glEnable(GL_BLEND);
-	widget_softshadow(rect, roundboxalign, 0.25f * U.widget_unit);
+	widget_drawbase_softshadow(rect, roundboxalign, 0.25f * U.widget_unit);
 
-	round_box_edges(&wtb, roundboxalign, rect, 0.25f * U.widget_unit);
+	widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, 0.25f * U.widget_unit);
 	wtb.draw_emboss = false;
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 
 	glDisable(GL_BLEND);
 }
 
 static void widget_menuiconbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	float rad;
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	/* half rounded */
 	rad = 0.2f * U.widget_unit;
-	round_box_edges(&wtb, roundboxalign, rect, rad);
+	widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
 
 	/* decoration */
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 }
 
 static void widget_menu_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	/* not rounded, no outline */
 	wtb.draw_outline = false;
-	round_box_edges(&wtb, 0, rect, 0.0f);
+	widget_drawbase_roundboxedges_set(&wtb, 0, rect, 0.0f);
 
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 }
 
 static void widget_menu_radial_itembut(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	float rad;
 	float fac = but->block->pie_data.alphafac;
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	wtb.draw_emboss = false;
 
 	rad = 0.5f * BLI_rcti_size_y(rect);
-	round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
+	widget_drawbase_roundboxedges_set(&wtb, UI_CNR_ALL, rect, rad);
 
 	wcol->inner[3] *= fac;
 	wcol->inner_sel[3] *= fac;
@@ -272,21 +272,21 @@ static void widget_menu_radial_itembut(uiBut *but, uiWidgetColors *wcol, rcti *r
 	wcol->text_sel[3] *= fac;
 	wcol->outline[3] *= fac;
 
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 }
 
 static void widget_menunodebut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
 	/* silly node link button hacks */
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	uiWidgetColors wcol_backup = *wcol;
 	float rad;
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	/* half rounded */
 	rad = 0.2f * U.widget_unit;
-	round_box_edges(&wtb, roundboxalign, rect, rad);
+	widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
 
 	wcol->inner[0] = min_ii(wcol->inner[0] + 15, 255);
 	wcol->inner[1] = min_ii(wcol->inner[1] + 15, 255);
@@ -296,25 +296,25 @@ static void widget_menunodebut(uiWidgetColors *wcol, rcti *rect, int UNUSED(stat
 	wcol->outline[2] = min_ii(wcol->outline[2] + 15, 255);
 
 	/* decoration */
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 	*wcol = wcol_backup;
 }
 
 static void widget_menubut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	float rad;
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	/* half rounded */
 	rad = 0.2f * U.widget_unit;
-	round_box_edges(&wtb, roundboxalign, rect, rad);
+	widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
 
 	/* decoration */
-	widget_menu_trias(&wtb.tria1, rect);
+	widget_drawbase_menu_trias(&wtb.tria1, rect);
 
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 
 	/* text space, arrows are about 0.6 height of button */
 	rect->xmax -= (6 * BLI_rcti_size_y(rect)) / 10;
@@ -322,43 +322,43 @@ static void widget_menubut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), 
 
 static void widget_textbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	float rad;
 
 	if (state & UI_SELECT)
 		SWAP(short, wcol->shadetop, wcol->shadedown);
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	/* half rounded */
 	rad = 0.2f * U.widget_unit;
-	round_box_edges(&wtb, roundboxalign, rect, rad);
+	widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
 
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 }
 
 static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, bool emboss)
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	const float rad = 0.5f * BLI_rcti_size_y(rect);
 	float textofs = rad * 0.85f;
 
 	if (state & UI_SELECT)
 		SWAP(short, wcol->shadetop, wcol->shadedown);
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	if (!emboss) {
-		round_box_edges(&wtb, roundboxalign, rect, rad);
+		widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
 	}
 
 	/* decoration */
 	if (!(state & UI_TEXTINPUT)) {
-		widget_num_tria(&wtb.tria1, rect, 0.6f, 'l');
-		widget_num_tria(&wtb.tria2, rect, 0.6f, 'r');
+		widget_drawbase_num_tria(&wtb.tria1, rect, 0.6f, 'l');
+		widget_drawbase_num_tria(&wtb.tria2, rect, 0.6f, 'r');
 	}
 
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 
 	if (!(state & UI_TEXTINPUT)) {
 		/* text space */
@@ -396,30 +396,30 @@ static void widget_progressbar(uiBut *but, uiWidgetColors *wcol, rcti *rect, int
 static void widget_pulldownbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
 	if (state & UI_ACTIVE) {
-		uiWidgetBase wtb;
+		uiWidgetDrawBase wtb;
 		const float rad = 0.2f * U.widget_unit;
 
-		widgetbase_init(&wtb);
+		widget_drawbase_init(&wtb);
 
 		/* half rounded */
-		round_box_edges(&wtb, roundboxalign, rect, rad);
+		widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
 
-		widgetbase_draw(&wtb, wcol);
+		widget_drawbase_draw(&wtb, wcol);
 	}
 }
 
 static void widget_radiobut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	float rad;
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	/* half rounded */
 	rad = 0.2f * U.widget_unit;
-	round_box_edges(&wtb, roundboxalign, rect, rad);
+	widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
 
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 }
 
 static void widget_scroll(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int UNUSED(roundboxalign))
@@ -485,24 +485,24 @@ static void widget_scroll(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 
 static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
-	uiWidgetBase wtb, wtb1;
+	uiWidgetDrawBase wtb, wtb1;
 	rcti rect1;
 	double value;
 	float offs, toffs, fac = 0;
 	char outline[3];
 
-	widgetbase_init(&wtb);
-	widgetbase_init(&wtb1);
+	widget_drawbase_init(&wtb);
+	widget_drawbase_init(&wtb1);
 
 	/* backdrop first */
 
 	/* fully rounded */
 	offs = 0.5f * BLI_rcti_size_y(rect);
 	toffs = offs * 0.75f;
-	round_box_edges(&wtb, roundboxalign, rect, offs);
+	widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, offs);
 
 	wtb.draw_outline = false;
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 
 	/* draw left/right parts only when not in text editing */
 	if (!(state & UI_TEXTINPUT)) {
@@ -525,9 +525,9 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 
 		/* left part of slider, always rounded */
 		rect1.xmax = rect1.xmin + ceil(offs + U.pixelsize);
-		round_box_edges(&wtb1, roundboxalign & ~(UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT), &rect1, offs);
+		widget_drawbase_roundboxedges_set(&wtb1, roundboxalign & ~(UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT), &rect1, offs);
 		wtb1.draw_outline = false;
-		widgetbase_draw(&wtb1, wcol);
+		widget_drawbase_draw(&wtb1, wcol);
 
 		/* right part of slider, interpolate roundness */
 		rect1.xmax = rect1.xmin + fac + offs;
@@ -541,9 +541,9 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 			roundboxalign_slider = 0;
 			offs = 0.0f;
 		}
-		round_box_edges(&wtb1, roundboxalign_slider, &rect1, offs);
+		widget_drawbase_roundboxedges_set(&wtb1, roundboxalign_slider, &rect1, offs);
 
-		widgetbase_draw(&wtb1, wcol);
+		widget_drawbase_draw(&wtb1, wcol);
 		copy_v3_v3_char(wcol->outline, outline);
 
 		if (!(state & UI_SELECT))
@@ -553,7 +553,7 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	/* outline */
 	wtb.draw_outline = true;
 	wtb.draw_inner = false;
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 
 	/* add space at either side of the button so text aligns with numbuttons (which have arrow icons) */
 	if (!(state & UI_TEXTINPUT)) {
@@ -567,7 +567,7 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 
 static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
-	uiWidgetBase wtb;
+	uiWidgetDrawBase wtb;
 	float rad, col[4];
 	bool color_profile = but->block->color_profile;
 
@@ -584,17 +584,17 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 		}
 	}
 
-	widgetbase_init(&wtb);
+	widget_drawbase_init(&wtb);
 
 	/* half rounded */
 	rad = 0.25f * U.widget_unit;
-	round_box_edges(&wtb, roundboxalign, rect, rad);
+	widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
 
 	ui_but_v3_get(but, col);
 
 	if (state & (UI_BUT_ANIMATED | UI_BUT_ANIMATED_KEY | UI_BUT_DRIVEN | UI_BUT_REDALERT)) {
 		/* draw based on state - color for keyed etc */
-		widgetbase_draw(&wtb, wcol);
+		widget_drawbase_draw(&wtb, wcol);
 
 		/* inset to draw swatch color */
 		rect->xmin += SWATCH_KEYED_BORDER;
@@ -602,7 +602,7 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 		rect->ymin += SWATCH_KEYED_BORDER;
 		rect->ymax -= SWATCH_KEYED_BORDER;
 
-		round_box_edges(&wtb, roundboxalign, rect, rad);
+		widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
 	}
 
 	if (color_profile)
@@ -613,7 +613,7 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 	wcol->shaded = 0;
 	wcol->alpha_check = (wcol->inner[3] < 255);
 
-	widgetbase_draw(&wtb, wcol);
+	widget_drawbase_draw(&wtb, wcol);
 
 	if (but->a1 == UI_PALETTE_COLOR && ((Palette *)but->rnapoin.id.data)->active_color == (int)but->a2) {
 		float width = rect->xmax - rect->xmin;

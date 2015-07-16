@@ -26,7 +26,7 @@
 /** \file blender/editors/interface/widgets/widgets.h
  *  \ingroup edinterface
  * 
- * \brief Blender Widget API
+ * \brief Blender widget API and internal functions
  * 
  * Seems a bit overkill do have such an isolated module just for widget drawing but plan is to
  * use this for widget handling as well and basically make it a standalone blenwidget module
@@ -107,16 +107,6 @@ typedef struct uiWidgetDrawType {
 	void (*text)(struct uiFontStyle *, struct uiWidgetColors *, struct uiBut *, rcti *, const char *str, const int iconid);
 } uiWidgetDrawType;
 
-#if 0 /* uiWidgetDrawType init template */
-
-uiWidgetDrawType drawtype_xxx_xxx = {
-	/* state */  NULL,
-	/* draw */   widget_roundbut,
-	/* custom */ NULL,
-	/* text */   NULL,
-};
-#endif
-
 typedef struct uiWidgetDrawStyle {
 	/* let's keep this in a nice alphabetical order! */
 	uiWidgetDrawType *box,
@@ -153,42 +143,14 @@ typedef struct uiWidgetDrawStyle {
 	                 *unitvec;
 } uiWidgetDrawStyle;
 
-#if 0 /* uiWidgetDrawStyle init template */
 
-uiWidgetDrawStyle WidgetStyle_xxx = {
-	/* box */               NULL,
-	/* checkbox */          NULL,
-	/* exec */              NULL,
-	/* filename */          NULL,
-	/* icon */              NULL,
-	/* label */             NULL,
-	/* listitem */          NULL,
-	/* menu_back */         NULL,
-	/* menu_icon_radio */   NULL,
-	/* menu_item */         NULL,
-	/* menu_item_radial */  NULL,
-	/* menu_node_link */    NULL,
-	/* menu_pointer_link */ NULL,
-	/* menu_radio */        NULL,
-	/* name */              NULL,
-	/* name_link */         NULL,
-	/* number */            NULL,
-	/* pointer_link */      NULL,
-	/* progressbar */       NULL,
-	/* pulldown */          NULL,
-	/* radio */             NULL,
-	/* regular */           NULL,
-	/* rgb_picker */        NULL,
-	/* scroll */            NULL,
-	/* slider */            NULL,
-	/* swatch */            NULL,
-	/* toggle */            NULL,
-	/* tooltip */           NULL,
-	/* unitvec */           NULL,
-};
-#endif
+/* *** external API *** */
 
-uiWidgetType *widget_type(const uiWidgetTypeEnum type);
+uiWidgetType *WidgetTypeInit(const uiWidgetTypeEnum type);
+
+
+/* *** internal *** */
+
 uiWidgetDrawStyle *widget_drawstyle_get(const int widget_style_type);
 
 extern struct uiWidgetDrawStyle WidgetStyle_Classic;

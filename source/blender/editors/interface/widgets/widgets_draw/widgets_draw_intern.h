@@ -57,15 +57,14 @@ struct rcti;
 #define WIDGET_CURVE_RESOLU 9
 #define WIDGET_SIZE_MAX (WIDGET_CURVE_RESOLU * 4)
 
-typedef struct uiWidgetTrias {
+typedef struct uiWidgetDrawBaseTrias {
 	unsigned int tot;
 
 	float vec[16][2];
 	const unsigned int (*index)[3];
-} uiWidgetTrias;
+} uiWidgetDrawBaseTrias;
 
-/* XXX rename to uiWidgetDrawBase or uiWidgetDrawData */
-typedef struct uiWidgetBase {
+typedef struct uiWidgetDrawBase {
 	int totvert, halfwayvert;
 	float outer_v[WIDGET_SIZE_MAX][2];
 	float inner_v[WIDGET_SIZE_MAX][2];
@@ -73,30 +72,28 @@ typedef struct uiWidgetBase {
 
 	bool draw_inner, draw_outline, draw_emboss, draw_shadedir;
 
-	uiWidgetTrias tria1;
-	uiWidgetTrias tria2;
-} uiWidgetBase;
+	uiWidgetDrawBaseTrias tria1;
+	uiWidgetDrawBaseTrias tria2;
+} uiWidgetDrawBase;
 
 
 /* widgets_draw.c - shared low-level drawing functions */
 
-void widgetbase_init(uiWidgetBase *wtb);
+void widget_drawbase_init(uiWidgetDrawBase *wtb);
 
-void round_box_edges(uiWidgetBase *wt, int roundboxalign, const rcti *rect, float rad); /* XXX rename to widgetbase_roundboxedges_set */
-void round_box__edges(uiWidgetBase *wt, int roundboxalign, const rcti *rect, float rad, float radi);
+void widget_drawbase_roundboxedges_set(uiWidgetDrawBase *wt, int roundboxalign, const rcti *rect, float rad);
+void round_box__edges(uiWidgetDrawBase *wt, int roundboxalign, const rcti *rect, float rad, float radi);
 
-void widget_draw_tria_ex( /* XXX tmp, could be static */
-        uiWidgetTrias *tria, const rcti *rect, float triasize, char where,
+void widget_drawbase_tria_ex( /* XXX tmp, could be static */
+        uiWidgetDrawBaseTrias *tria, const rcti *rect, float triasize, char where,
         /* input data */
         const float verts[][2], const int verts_tot,
         const unsigned int tris[][3], const int tris_tot);
-void widget_num_tria(uiWidgetTrias *tria, const rcti *rect, float triasize, char where);
-void widget_menu_trias(uiWidgetTrias *tria, const rcti *rect);
-void widget_check_trias(uiWidgetTrias *tria, const rcti *rect);
-
-void widget_softshadow(const rcti *rect, int roundboxalign, const float radin);
-
-void widgetbase_draw(uiWidgetBase *wtb, struct uiWidgetColors *wcol);
+void widget_drawbase_num_tria(uiWidgetDrawBaseTrias *tria, const rcti *rect, float triasize, char where);
+void widget_drawbase_menu_trias(uiWidgetDrawBaseTrias *tria, const rcti *rect);
+void widget_drawbase_check_trias(uiWidgetDrawBaseTrias *tria, const rcti *rect);
+void widget_drawbase_softshadow(const rcti *rect, int roundboxalign, const float radin);
+void widget_drawbase_draw(uiWidgetDrawBase *wtb, struct uiWidgetColors *wcol);
 
 
 /* widgets_draw_text.c - shared low-level text formatting/drawing functions */
