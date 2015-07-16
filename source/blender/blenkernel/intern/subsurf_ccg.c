@@ -269,6 +269,7 @@ static int getFaceIndex(CCGSubSurf *ss, CCGFace *f, int S, int x, int y, int edg
 	}
 }
 
+#ifndef WITH_OPENSUBDIV
 static void get_face_uv_map_vert(UvVertMap *vmap, struct MPoly *mpoly, struct MLoop *ml, int fi, CCGVertHDL *fverts)
 {
 	UvMapVert *v, *nv;
@@ -410,7 +411,96 @@ static int ss_sync_from_uv(CCGSubSurf *ss, CCGSubSurf *origss, DerivedMesh *dm, 
 
 	return 1;
 }
+#endif  /* WITH_OPENSUBDIV */
 
+#ifdef WITH_OPENSUBDIV
+static void set_subsurf_ccg_uv(CCGSubSurf *ss,
+                               DerivedMesh *dm,
+                               DerivedMesh *result,
+                               int layer_index)
+{
+	CCGFace **faceMap;
+	MTFace *tf;
+	MLoopUV *mluv;
+	CCGFaceIterator fi;
+	int index, gridSize, gridFaces, totface, x, y, S;
+	MLoopUV *dmloopuv = CustomData_get_layer_n(&dm->loopData, CD_MLOOPUV, layer_index);
+	/* need to update both CD_MTFACE & CD_MLOOPUV, hrmf, we could get away with
+	 * just tface except applying the modifier then looses subsurf UV */
+	MTFace *tface = CustomData_get_layer_n(&result->faceData, CD_MTFACE, layer_index);
+	MLoopUV *mloopuv = CustomData_get_layer_n(&result->loopData, CD_MLOOPUV, layer_index);
+
+	if (dmloopuv == NULL || (tface == NULL && mloopuv == NULL)) {
+		return;
+	}
+
+	ccgSubSurf_evaluatorSetFVarUV(ss, dm, layer_index);
+
+	/* get some info from CCGSubSurf */
+	totface = ccgSubSurf_getNumFaces(ss);
+	gridSize = ccgSubSurf_getGridSize(ss);
+	gridFaces = gridSize - 1;
+
+	/* make a map from original faces to CCGFaces */
+	faceMap = MEM_mallocN(totface * sizeof(*faceMap), "facemapuv");
+	for (ccgSubSurf_initFaceIterator(ss, &fi); !ccgFaceIterator_isStopped(&fi); ccgFaceIterator_next(&fi)) {
+		CCGFace *f = ccgFaceIterator_getCurrent(&fi);
+		faceMap[GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f))] = f;
+	}
+
+	/* load coordinates from uvss into tface */
+	tf = tface;
+	mluv = mloopuv;
+	for (index = 0; index < totface; index++) {
+		CCGFace *f = faceMap[index];
+		int numVerts = ccgSubSurf_getFaceNumVerts(f);
+		for (S = 0; S < numVerts; S++) {
+			for (y = 0; y < gridFaces; y++) {
+				for (x = 0; x < gridFaces; x++) {
+					float grid_u = ((float)(x)) / (gridSize - 1),
+					      grid_v = ((float)(y)) / (gridSize - 1);
+					float uv[2];
+					/* TODO(sergey): Evaluator all 4 corners. */
+					ccgSubSurf_evaluatorFVarUV(ss,
+					                           index,
+					                           S,
+					                           grid_u, grid_v,
+					                           uv);
+					if (tf) {
+						copy_v2_v2(tf->uv[0], uv);
+						copy_v2_v2(tf->uv[1], uv);
+						copy_v2_v2(tf->uv[2], uv);
+						copy_v2_v2(tf->uv[3], uv);
+						tf++;
+					}
+					if (mluv) {
+						copy_v2_v2(mluv[0].uv, uv);
+						copy_v2_v2(mluv[1].uv, uv);
+						copy_v2_v2(mluv[2].uv, uv);
+						copy_v2_v2(mluv[3].uv, uv);
+						mluv += 4;
+					}
+				}
+			}
+		}
+	}
+	MEM_freeN(faceMap);
+}
+
+static void set_subsurf_uv(CCGSubSurf *ss,
+                           DerivedMesh *dm,
+                           DerivedMesh *result,
+                           int layer_index)
+{
+	if(!ccgSubSurf_needGrids(ss)) {
+		/* GPU backend is used, no need to evaluate UVs on CPU. */
+		/* TODO(sergey): Think of how to support edit mode of UVs. */
+	}
+	else {
+		set_subsurf_ccg_uv(ss, dm, result, layer_index);
+	}
+}
+#else  /* WITH_OPENSUBDIV */
 static void set_subsurf_uv(CCGSubSurf *ss, DerivedMesh *dm, DerivedMesh *result, int n)
 {
 	CCGSubSurf *uvss;
@@ -491,6 +581,7 @@ static void set_subsurf_uv(CCGSubSurf *ss, DerivedMesh *dm, DerivedMesh *result,
 	ccgSubSurf_free(uvss);
 	MEM_freeN(faceMap);
 }
+#endif  /* WITH_OPENSUBDIV */
 
 /* face weighting */
 typedef struct FaceVertWeightEntry {

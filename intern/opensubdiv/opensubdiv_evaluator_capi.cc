@@ -283,7 +283,8 @@ public:
 		}
 	}
 
-	void EvalPatchesVarying(PatchCoord& patch_coord) {
+	void EvalPatchVarying(PatchCoord& patch_coord,
+	                      float varying[3]) {
 		StackAllocatedBuffer<3, 1> varying_data;
 		BufferDescriptor varying_desc(0, 3, 3);
 		SinglePatchCoordBuffer patch_coord_buffer(patch_coord);
@@ -294,10 +295,12 @@ public:
 			                                         device_context_);
 
 		EVALUATOR::EvalPatches(src_varying_data_, src_varying_desc_,
-		                       varying_data, varying_desc,
+		                       &varying_data, varying_desc,
 		                       patch_coord_buffer.GetNumVertices(),
-		                       patch_coord_buffer,
+		                       &patch_coord_buffer,
 		                       patch_table_, eval_instance, device_context_);
+		float *refined_varying = varying_data.BindCpuBuffer();
+		memcpy(varying, refined_varying, sizeof(float) * 3);
 	}
 private:
 	SRC_VERTEX_BUFFER *src_data_;
@@ -453,6 +456,8 @@ void openSubdiv_setEvaluatorVaryingData(OpenSubdiv_EvaluatorDescr *evaluator_des
 {
 	/* TODO(sergey): Add sanity check on indices. */
 	evaluator_descr->eval_output->UpdateVaryingData(varying_data, start_vert, num_verts);
+	/* TODO(sergey): Get rid of this ASAP. */
+	evaluator_descr->eval_output->Refine();
 }
 
 void openSubdiv_evaluateLimit(OpenSubdiv_EvaluatorDescr *evaluator_descr,
@@ -475,4 +480,16 @@ void openSubdiv_evaluateLimit(OpenSubdiv_EvaluatorDescr *evaluator_descr,
 	else {
 		evaluator_descr->eval_output->EvalPatchCoord(patch_coord, P);
 	}
+}
+
+void openSubdiv_evaluateVarying(OpenSubdiv_EvaluatorDescr *evaluator_descr,
+                               int osd_face_index,
+                               float face_u, float face_v,
+                               float varying[3])
+{
+	assert((face_u >= 0.0f) && (face_u <= 1.0f) && (face_v >= 0.0f) && (face_v <= 1.0f));
+	const PatchTable::PatchHandle *handle =
+	        evaluator_descr->patch_map->FindPatch(osd_face_index, face_u, face_v);
+	PatchCoord patch_coord(*handle, face_u, face_v);
+	evaluator_descr->eval_output->EvalPatchVarying(patch_coord, varying);
 }

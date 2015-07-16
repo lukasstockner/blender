@@ -104,7 +104,6 @@ void openSubdiv_setEvaluatorCoarsePositions(OpenSubdiv_EvaluatorDescr *evaluator
                                             int start_vert,
                                             int num_vert);
 
-/* TODO(sergey): Currently optimized for UVs. */
 void openSubdiv_setEvaluatorVaryingData(OpenSubdiv_EvaluatorDescr *evaluator_descr,
                                         float *varying_data,
                                         int start_vert,
@@ -116,6 +115,11 @@ void openSubdiv_evaluateLimit(OpenSubdiv_EvaluatorDescr *evaluator_descr,
                               float P[3],
                               float dPdu[3],
                               float dPdv[3]);
+
+void openSubdiv_evaluateVarying(OpenSubdiv_EvaluatorDescr *evaluator_descr,
+                               int osd_face_index,
+                               float face_u, float face_v,
+                               float varying[3]);
 
 /* ** Actual drawing ** */
 

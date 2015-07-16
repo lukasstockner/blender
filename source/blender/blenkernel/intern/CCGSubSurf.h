@@ -215,13 +215,25 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl);
 void ccgSubSurf_drawGLMesh(CCGSubSurf *ss, bool fill_quads,
                            int start_partition, int num_partitions);
 
+/* Controls whether CCG are needed (Cmeaning CPU evaluation) or fully GPU compute
+ * and draw is allowed.
+ */
 void ccgSubSurf_setSkipGrids(CCGSubSurf *ss, bool skip_grids);
-
 bool ccgSubSurf_needGrids(CCGSubSurf *ss);
 
-void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss,
-                                  struct DerivedMesh *dm,
-                                  bool subdivide_uvs);
+/* Set evaluator's face varying data from UV coordinates.
+ * Used for CPU evaluation.
+ */
+void ccgSubSurf_evaluatorSetFVarUV(CCGSubSurf *ss,
+                                   struct DerivedMesh *dm,
+                                   int layer_index);
+
+/* TODO(sergey): Temporary call to test things. */
+void ccgSubSurf_evaluatorFVarUV(CCGSubSurf *ss,
+                                int face_index, int S,
+                                float grid_u, float grid_v,
+                                float uv[2]);
+
 #endif
 
 #endif  /* __CCGSUBSURF_H__ */

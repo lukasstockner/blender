@@ -362,72 +362,41 @@ BLI_INLINE void ccgSubSurf__mapEdgeToFace(int S,
 	}
 }
 
-void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss,
-                                  DerivedMesh *dm,
-                                  bool subdivide_uvs)
+void ccgSubSurf_evaluatorSetFVarUV(CCGSubSurf *ss,
+                                   DerivedMesh *dm,
+                                   int layer_index)
 {
-	CustomData *loop_data = &dm->loopData;
-	int /*layer,*/ num_layer = CustomData_number_of_layers(loop_data, CD_MLOOPUV);
-	bool mpoly_allocated;
-	MPoly *mpoly;
-
-	ss->osd_uv_index = CustomData_get_active_layer(&dm->loopData,
-	                                               CD_MLOOPUV);
-
-	if (subdivide_uvs != ss->osd_subsurf_uv) {
-		ss->osd_uvs_invalid = true;
-	}
-
-	if (num_layer == 0 || !ss->osd_uvs_invalid) {
-		return;
-	}
-
-	ss->osd_uvs_invalid = false;
-	ss->osd_subsurf_uv = subdivide_uvs;
-	if (ss->osd_mesh) {
-		ss->osd_mesh_invalid = true;
-	}
-
-	mpoly = DM_get_poly_array(dm, &mpoly_allocated);
-
-	/* TODO(sergey): Need proper port. */
-#if 0
-	openSubdiv_evaluatorFVDataClear(ss->osd_evaluator);
-
-	for (layer = 0; layer < num_layer; ++layer) {
-		openSubdiv_evaluatorFVNamePush(ss->osd_evaluator, "u");
-		openSubdiv_evaluatorFVNamePush(ss->osd_evaluator, "v");
-	}
-
-	{
-		int i;
-		for (i = 0; i < ss->fMap->curSize; ++i) {
-			CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
-			for (; face; face = face->next) {
-				int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(face));
-				MPoly *mp = &mpoly[index];
-				int S;
-				for (S = 0; S < face->numVerts; ++S) {
-					for (layer = 0; layer < num_layer; ++layer) {
-						MLoopUV *mloopuv = CustomData_get_layer_n(loop_data,
-						                                          CD_MLOOPUV,
-						                                          layer);
-
-						MLoopUV *loopuv = &mloopuv[mp->loopstart + S];
-						openSubdiv_evaluatorFVDataPush(ss->osd_evaluator,
-						                               loopuv->uv[0]);
-						openSubdiv_evaluatorFVDataPush(ss->osd_evaluator,
-						                               loopuv->uv[1]);
-					}
-				}
-			}
+	MPoly *mpoly = dm->getPolyArray(dm);
+	MLoopUV *mloopuv = CustomData_get_layer_n(&dm->loopData, CD_MLOOPUV, layer_index);
+	int num_polys = dm->getNumPolys(dm);
+	int index, poly;
+	BLI_assert(ss->osd_evaluator != NULL);
+	for (poly = 0, index = 0; poly < num_polys; poly++) {
+		int loop;
+		MPoly *mp = &mpoly[poly];
+		for (loop = 0; loop < mp->totloop; loop++, index++) {
+			MLoopUV *mluv = &mloopuv[loop + mp->loopstart];
+			(void)mluv;
+			/* TODO(sergey): Send mluv->uv to the evaluator's face varying
+			 * buffer.
+			 */
 		}
 	}
-#endif
+}
 
-	if (mpoly_allocated) {
-		MEM_freeN(mpoly);
-	}
+void ccgSubSurf_evaluatorFVarUV(CCGSubSurf *ss,
+                                int face_index, int S,
+                                float grid_u, float grid_v,
+                                float uv[2])
+{
+	float face_u, face_v;
+	ccgSubSurf__mapGridToFace(S,
+	                          grid_u, grid_v,
+	                          &face_u, &face_v);
+	(void)ss;
+	(void)face_index;
+	/* TODO(sergey): Evaluate face varying coordinate. */
+	zero_v2(uv);
 }
 
 static bool opensubdiv_createEvaluator(CCGSubSurf *ss)
