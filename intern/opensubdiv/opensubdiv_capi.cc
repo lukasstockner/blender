@@ -145,8 +145,6 @@ typedef PartitionedMesh<GLVertexBuffer,
 struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromTopologyRefiner(
         OpenSubdiv_TopologyRefinerDescr *topology_refiner,
         int evaluator_type,
-        int level,
-        int /*scheme*/,
         int /*subdivide_uvs*/)
 {
 	using OpenSubdiv::Far::TopologyRefiner;
@@ -175,7 +173,7 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromTopologyRefiner(
 			mesh = new class(refiner, \
 			                 num_vertex_elements, \
 			                 num_varying_elements, \
-			                 level, \
+			                 refiner->GetMaxLevel(), \
 			                 bits); \
 			break;
 

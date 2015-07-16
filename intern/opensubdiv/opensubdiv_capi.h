@@ -66,8 +66,6 @@ enum {
 OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromTopologyRefiner(
     struct OpenSubdiv_TopologyRefinerDescr *topology_refiner,
     int evaluator_type,
-    int level,
-    int scheme,
     int subdivide_uvs);
 
 void openSubdiv_deleteOsdGLMesh(OpenSubdiv_GLMesh *gl_mesh);
