@@ -166,10 +166,10 @@ inline bool TopologyRefinerFactory<OpenSubdiv_Converter>::assignComponentTags(
         TopologyRefiner& refiner,
         const OpenSubdiv_Converter& conv)
 {
-	/* TODO(sergey): Use real sharpness. */
 	int num_edges = conv.get_num_edges(&conv);
 	for (int edge = 0; edge < num_edges; ++edge) {
-		setBaseEdgeSharpness(refiner, edge, 0.0f);
+		float sharpness = conv.get_edge_sharpness(&conv, edge);
+		setBaseEdgeSharpness(refiner, edge, sharpness);
 	}
 	return true;
 }
@@ -295,6 +295,13 @@ int openSubdiv_topologyRefnerCompareConverter(
 			}
 		}
 	}
-	/* TODO(sergey): Edge crease comparison. */
+	/* Compare sharpness. */
+	for (int edge = 0; edge < num_edges; ++edge) {
+		float sharpness = base_level.GetEdgeSharpness(edge);
+		float conv_sharpness = converter->get_edge_sharpness(converter, edge);
+		if (sharpness != conv_sharpness) {
+			return false;
+		}
+	}
 	return true;
 }

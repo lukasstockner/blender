@@ -168,6 +168,14 @@ static void conv_dm_get_edge_faces(const OpenSubdiv_Converter *converter,
 	}
 }
 
+static float conv_dm_get_edge_sharpness(const OpenSubdiv_Converter *converter,
+                                        int edge)
+{
+	DerivedMesh *dm = converter->user_data;
+	const MEdge *medge = dm->getEdgeArray(dm);
+	return (float)medge[edge].crease / 255.0f;
+}
+
 static int conv_dm_get_num_vert_edges(const OpenSubdiv_Converter *converter,
                                       int vert)
 {
@@ -261,6 +269,7 @@ void ccgSubSurf_converter_setup_from_derivedmesh(
 	converter->get_edge_verts = conv_dm_get_edge_verts;
 	converter->get_num_edge_faces = conv_dm_get_num_edge_faces;
 	converter->get_edge_faces = conv_dm_get_edge_faces;
+	converter->get_edge_sharpness = conv_dm_get_edge_sharpness;
 
 	converter->get_num_vert_edges = conv_dm_get_num_vert_edges;
 	converter->get_vert_edges = conv_dm_get_vert_edges;
@@ -374,6 +383,14 @@ static void conv_ccg_get_edge_faces(const OpenSubdiv_Converter *converter,
 	}
 }
 
+static float conv_ccg_get_edge_sharpness(const OpenSubdiv_Converter *converter,
+                                         int edge)
+{
+	CCGSubSurf *ss = converter->user_data;
+	CCGEdge *ccg_edge = ccgSubSurf_getEdge(ss, SET_INT_IN_POINTER(edge));
+	return ccg_edge->crease;
+}
+
 static int conv_ccg_get_num_vert_edges(const OpenSubdiv_Converter *converter,
                                        int vert)
 {
@@ -434,6 +451,7 @@ void ccgSubSurf_converter_setup_from_ccg(CCGSubSurf *ss,
 	converter->get_edge_verts = conv_ccg_get_edge_verts;
 	converter->get_num_edge_faces = conv_ccg_get_num_edge_faces;
 	converter->get_edge_faces = conv_ccg_get_edge_faces;
+	converter->get_edge_sharpness = conv_ccg_get_edge_sharpness;
 
 	converter->get_num_vert_edges = conv_ccg_get_num_vert_edges;
 	converter->get_vert_edges = conv_ccg_get_vert_edges;

@@ -108,6 +108,19 @@ static bool compare_ccg_derivedmesh_topology(CCGSubSurf *ss, DerivedMesh *dm)
 	}
 
 	/* TODO(sergey): Crease topology changes detection. */
+	{
+		CCGEdgeIterator ccg_edge_iter;
+		for (ccgSubSurf_initEdgeIterator(ss, &ccg_edge_iter);
+		     !ccgEdgeIterator_isStopped(&ccg_edge_iter);
+		     ccgEdgeIterator_next(&ccg_edge_iter))
+		{
+			/* const */ CCGEdge *ccg_edge = ccgEdgeIterator_getCurrent(&ccg_edge_iter);
+			const int edge_index = GET_INT_FROM_POINTER(ccgSubSurf_getEdgeEdgeHandle(ccg_edge));
+			if (ccg_edge->crease != medge[edge_index].crease) {
+				return false;
+			}
+		}
+	}
 
 	return true;
 }

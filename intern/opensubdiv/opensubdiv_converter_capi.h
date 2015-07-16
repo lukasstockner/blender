@@ -70,6 +70,8 @@ typedef struct OpenSubdiv_Converter {
 	void (*get_edge_faces)(const OpenSubdiv_Converter *converter,
 	                       int edge,
 	                       int *edge_faces);
+	float (*get_edge_sharpness)(const OpenSubdiv_Converter *converter,
+	                            int edge);
 
 	/* Vertex relationships. */
 	int (*get_num_vert_edges)(const OpenSubdiv_Converter *converter, int vert);
