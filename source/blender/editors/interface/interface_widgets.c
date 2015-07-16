@@ -1287,6 +1287,11 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			break;
 			
 		/* in menus */
+		case UI_WTYPE_MENU_LABEL:
+			wt.wcol_theme = &btheme->tui.wcol_menu_back;
+			wt.draw_type = draw_style->menu_label;
+			break;
+
 		case UI_WTYPE_MENU_ITEM:
 			wt.wcol_theme = &btheme->tui.wcol_menu_item;
 			wt.draw_type = draw_style->menu_item;
@@ -1416,7 +1421,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 	if (but->dt == UI_EMBOSS_PULLDOWN) {
 		switch (but->type) {
 			case UI_BTYPE_LABEL:
-				widget_draw_text_icon(&style->widgetlabel, &tui->wcol_menu_back, but, rect);
+				wt = widget_type(UI_WTYPE_MENU_LABEL);
 				break;
 			case UI_BTYPE_SEPR_LINE:
 				ui_draw_separator(rect, &tui->wcol_menu_item);
@@ -1438,12 +1443,13 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 
 		switch (but->type) {
 			case UI_BTYPE_LABEL:
-				if (but->block->flag & UI_BLOCK_LOOP)
-					widget_draw_text_icon(&style->widgetlabel, &tui->wcol_menu_back, but, rect);
+				if (but->block->flag & UI_BLOCK_LOOP) {
+					wt = widget_type(UI_WTYPE_MENU_LABEL);
+				}
 				else {
 					wt = widget_type(UI_WTYPE_LABEL);
-					fstyle = &style->widgetlabel;
 				}
+				fstyle = &style->widgetlabel;
 				break;
 
 			case UI_BTYPE_SEPR:
@@ -1642,7 +1648,11 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 		if (disabled)
 			ui_widget_color_disabled(wt);
 
-		wt->draw_type->state(wt, state);
+		/* *** callback routine *** */
+
+		if (wt->draw_type->state) {
+			wt->draw_type->state(wt, state);
+		}
 
 		if (wt->draw_type->custom) {
 			wt->draw_type->custom(but, &wt->wcol, rect, state, roundboxalign);

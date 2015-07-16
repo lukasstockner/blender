@@ -943,6 +943,13 @@ uiWidgetDrawType drawtype_classic_menu_item_radial = {
 	/* text */   widget_draw_text_icon,
 };
 
+uiWidgetDrawType drawtype_classic_menu_label = {
+	/* state */  widget_state_nothing,
+	/* draw */   NULL,
+	/* custom */ NULL,
+	/* text */   widget_draw_text_icon,
+};
+
 uiWidgetDrawType drawtype_classic_menu_node_link = {
 	/* state */  widget_state,
 	/* draw */   widget_menunodebut,
@@ -1062,6 +1069,7 @@ uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* menu_icon_radio */   &drawtype_classic_menu_icon_radio,
 	/* menu_item */         &drawtype_classic_menu_item,
 	/* menu_item_radial */  &drawtype_classic_menu_item_radial,
+	/* menu_item_label */   &drawtype_classic_menu_label,
 	/* menu_node_link */    &drawtype_classic_menu_node_link,
 	/* menu_pointer_link */ &drawtype_classic_menu_pointer_link, /* not used (yet?) */
 	/* menu_radio */        &drawtype_classic_menu_radio,

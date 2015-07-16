@@ -86,6 +86,7 @@ typedef struct uiWidgetDrawStyle {
 	                 *menu_icon_radio,
 	                 *menu_item,
 	                 *menu_item_radial,
+	                 *menu_label,
 	                 *menu_node_link,
 	                 *menu_pointer_link,
 	                 *menu_radio,
