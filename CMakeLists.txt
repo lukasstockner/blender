@@ -1511,8 +1511,8 @@ elseif(WIN32)
 
 		if(WITH_OPENSUBDIV)
 			set(OPENSUBDIV_INCLUDE_DIR ${LIBDIR}/opensubdiv/include)
-			set(OPENSUBDIV_LIBRARIES "osdutil osdCPU osdGPU")
 			set(OPENSUBDIV_LIBPATH ${LIBDIR}/opensubdiv/lib)
+			set(OPENSUBDIV_LIBRARIES ${OPENSUBDIV_LIBPATH}/osdCPU.lib ${OPENSUBDIV_LIBPATH}/osdGPU.lib)
 			find_package(OpenSubdiv)
 		endif()
 

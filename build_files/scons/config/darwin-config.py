@@ -216,7 +216,7 @@ WITH_BF_OPENMP = True
 WITH_BF_OPENSUBDIV = True
 BF_OPENSUBDIV = LIBDIR + '/opensubdiv'
 BF_OPENSUBDIV_INC = '${BF_OPENSUBDIV}/include'
-BF_OPENSUBDIV_LIB = 'osdutil osdCPU osdGPU'
+BF_OPENSUBDIV_LIB = 'osdCPU osdGPU'
 BF_OPENSUBDIV_LIBPATH = '${BF_OPENSUBDIV}/lib'
 
 #Ray trace optimization

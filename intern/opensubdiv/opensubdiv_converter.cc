@@ -26,6 +26,10 @@
 #include <cstdio>
 #include <vector>
 
+#ifdef _MSC_VER
+#  include "iso646.h"
+#endif
+
 #include <opensubdiv/far/topologyRefinerFactory.h>
 
 #include "opensubdiv_converter_capi.h"

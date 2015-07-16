@@ -28,6 +28,10 @@
 #include <cstdio>
 #include <vector>
 
+#ifdef _MSC_VER
+#  include "iso646.h"
+#endif
+
 #include <opensubdiv/far/patchMap.h>
 #include <opensubdiv/far/patchTable.h>
 #include <opensubdiv/far/patchTableFactory.h>

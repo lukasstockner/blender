@@ -26,6 +26,10 @@
 
 #ifdef OPENSUBDIV_HAS_CUDA
 
+#ifdef _MSC_VER
+#  include "iso646.h"
+#endif
+
 #include "opensubdiv_device_context_cuda.h"
 
 #if defined(_WIN32)

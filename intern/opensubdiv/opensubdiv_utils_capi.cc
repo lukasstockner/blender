@@ -28,6 +28,10 @@
 
 #include <GL/glew.h>
 
+#ifdef _MSC_VER
+#  include "iso646.h"
+#endif
+
 #ifdef OPENSUBDIV_HAS_OPENCL
 #  include "opensubdiv_device_context_opencl.h"
 #endif  /* OPENSUBDIV_HAS_OPENCL */
