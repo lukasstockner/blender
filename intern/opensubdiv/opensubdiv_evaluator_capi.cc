@@ -135,204 +135,9 @@ protected:
 	float data_[element_size * num_verts];
 };
 
-/* Non-volatile evaluator which can't be used from threads but capable of
- * evaluating multiple patch coords at once.
- */
-template<typename SRC_VERTEX_BUFFER,
-         typename EVAL_VERTEX_BUFFER,
-         typename STENCIL_TABLE,
-         typename PATCH_TABLE,
-         typename EVALUATOR,
-         typename DEVICE_CONTEXT = void>
-class EvalOutput {
-public:
-	typedef OpenSubdiv::Osd::EvaluatorCacheT<EVALUATOR> EvaluatorCache;
-
-	EvalOutput(const StencilTable *vertex_stencils,
-	           const StencilTable *varying_stencils,
-	           int num_coarse_verts,
-	           int num_total_verts,
-	           int num_output_verts,
-	           const PatchTable *patch_table,
-	           EvaluatorCache *evaluator_cache = NULL,
-	           DEVICE_CONTEXT *device_context = NULL)
-	    : src_desc_(        /*offset*/ 0, /*length*/ 3, /*stride*/ 3),
-	      src_varying_desc_(/*offset*/ 0, /*length*/ 3, /*stride*/ 3),
-	      vertex_desc_(     /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6),
-	      varying_desc_(    /*offset*/ 3, /*legnth*/ 3, /*stride*/ 6),
-	      du_desc_(         /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6),
-	      dv_desc_(         /*offset*/ 3, /*legnth*/ 3, /*stride*/ 6),
-	      num_coarse_verts_(num_coarse_verts),
-	      evaluator_cache_ (evaluator_cache),
-	      device_context_(device_context)
-	{
-		using OpenSubdiv::Osd::convertToCompatibleStencilTable;
-		src_data_ = SRC_VERTEX_BUFFER::Create(3, num_total_verts, device_context_);
-		src_varying_data_ = SRC_VERTEX_BUFFER::Create(3, num_total_verts, device_context_);
-		vertex_data_ = EVAL_VERTEX_BUFFER::Create(6, num_output_verts, device_context_);
-		derivatives_ = EVAL_VERTEX_BUFFER::Create(6, num_output_verts, device_context_);
-		patch_table_ = PATCH_TABLE::Create(patch_table, device_context_);
-		patch_coords_ = NULL;
-		vertex_stencils_ = convertToCompatibleStencilTable<STENCIL_TABLE>(vertex_stencils,
-		                                                                  device_context_);
-		varying_stencils_ = convertToCompatibleStencilTable<STENCIL_TABLE>(varying_stencils,
-		                                                                   device_context_);
-	}
-
-	~EvalOutput()
-	{
-		delete src_data_;
-		delete src_varying_data_;
-		delete vertex_data_;
-		delete derivatives_;
-		delete patch_table_;
-		delete patch_coords_;
-		delete vertex_stencils_;
-		delete varying_stencils_;
-	}
-
-	float *BindCpuVertexData() const
-	{
-		return vertex_data_->BindCpuBuffer();
-	}
-
-	float *BindCpuDerivativesData() const
-	{
-		return derivatives_->BindCpuBuffer();
-	}
-
-	void UpdateData(const float *src, int start_vertex, int num_vertices)
-	{
-		src_data_->UpdateData(src, start_vertex, num_vertices, device_context_);
-	}
-
-	void UpdateVaryingData(const float *src, int start_vertex, int num_vertices)
-	{
-		src_varying_data_->UpdateData(src,
-		                              start_vertex,
-		                              num_vertices,
-		                              device_context_);
-	}
-
-	void Refine()
-	{
-		BufferDescriptor dst_desc = src_desc_;
-		dst_desc.offset += num_coarse_verts_ * src_desc_.stride;
-
-		const EVALUATOR *eval_instance =
-		        OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(evaluator_cache_,
-		                                                 src_desc_,
-		                                                 dst_desc,
-		                                                 device_context_);
-
-		EVALUATOR::EvalStencils(src_data_, src_desc_,
-		                        src_data_, dst_desc,
-		                        vertex_stencils_,
-		                        eval_instance,
-		                        device_context_);
-
-		dst_desc = src_varying_desc_;
-		dst_desc.offset += num_coarse_verts_ * src_varying_desc_.stride;
-		eval_instance =
-		        OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(evaluator_cache_,
-		                                                 src_varying_desc_,
-		                                                 dst_desc,
-		                                                 device_context_);
-
-		EVALUATOR::EvalStencils(src_varying_data_, src_varying_desc_,
-		                        src_varying_data_, dst_desc,
-		                        varying_stencils_,
-		                        eval_instance,
-		                        device_context_);
-	}
-
-	void EvalPatches()
-	{
-		const EVALUATOR *eval_instance =
-		        OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(evaluator_cache_,
-		                                                 src_desc_,
-		                                                 vertex_desc_,
-		                                                 device_context_);
-
-		EVALUATOR::EvalPatches(src_data_, src_desc_,
-		                       vertex_data_, vertex_desc_,
-		                       patch_coords_->GetNumVertices(),
-		                       patch_coords_,
-		                       patch_table_, eval_instance, device_context_);
-	}
-
-	void EvalPatchesWithDerivatives()
-	{
-		const EVALUATOR *eval_instance =
-		        OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(evaluator_cache_,
-		                                                 src_desc_,
-		                                                 vertex_desc_,
-		                                                 du_desc_,
-		                                                 dv_desc_,
-		                                                 device_context_);
-		EVALUATOR::EvalPatches(src_data_, src_desc_,
-		                       vertex_data_, vertex_desc_,
-		                       derivatives_, du_desc_,
-		                       derivatives_, dv_desc_,
-		                       patch_coords_->GetNumVertices(),
-		                       patch_coords_,
-		                       patch_table_, eval_instance, device_context_);
-	}
-
-	void EvalPatchesVarying()
-	{
-		const EVALUATOR *eval_instance =
-		        OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(evaluator_cache_,
-		                                                 src_varying_desc_,
-		                                                 varying_desc_,
-		                                                 device_context_);
-
-		EVALUATOR::EvalPatches(src_varying_data_, src_varying_desc_,
-		                       /* Varying data is interleved in vertexData. */
-		                       vertex_data_, varying_desc_,
-		                       patch_coords_->GetNumVertices(),
-		                       patch_coords_,
-		                       patch_table_, eval_instance, device_context_);
-	}
-
-	void UpdatePatchCoords(const std::vector<PatchCoord> &patch_coords)
-	{
-		int new_size = (int)patch_coords.size();
-		if (patch_coords_ != NULL && patch_coords_->GetNumVertices() != new_size) {
-			delete patch_coords_;
-			patch_coords_ = NULL;
-		}
-		if (patch_coords_ == NULL) {
-			patch_coords_ = PatchCoordBuffer::Create(new_size);
-		}
-		patch_coords_->UpdateData(&patch_coords[0], new_size);
-	}
-private:
-	SRC_VERTEX_BUFFER *src_data_;
-	SRC_VERTEX_BUFFER *src_varying_data_;
-	EVAL_VERTEX_BUFFER *vertex_data_;
-	EVAL_VERTEX_BUFFER *derivatives_;
-	EVAL_VERTEX_BUFFER *varying_data_;
-	PatchCoordBuffer *patch_coords_;
-	PATCH_TABLE *patch_table_;
-	BufferDescriptor src_desc_;
-	BufferDescriptor src_varying_desc_;
-	BufferDescriptor vertex_desc_;
-	BufferDescriptor varying_desc_;
-	BufferDescriptor du_desc_;
-	BufferDescriptor dv_desc_;
-	int num_coarse_verts_;
-
-	const STENCIL_TABLE *vertex_stencils_;
-	const STENCIL_TABLE *varying_stencils_;
-
-	EvaluatorCache *evaluator_cache_;
-	DEVICE_CONTEXT *device_context_;
-};
-
 /* Volatile evaluator which can be used from threads.
  *
- * TODO(sergey): Make it possible to evaluate coordinates in chuncks as well.
+ * TODO(sergey): Make it possible to evaluate coordinates in chuncks.
  */
 template<typename SRC_VERTEX_BUFFER,
          typename EVAL_VERTEX_BUFFER,
@@ -476,6 +281,23 @@ public:
 				memcpy(dPdv, refined_drivatives + 3, sizeof(float) * 3);
 			}
 		}
+	}
+
+	void EvalPatchesVarying(PatchCoord& patch_coord) {
+		StackAllocatedBuffer<3, 1> varying_data;
+		BufferDescriptor varying_desc(0, 3, 3);
+		SinglePatchCoordBuffer patch_coord_buffer(patch_coord);
+		EVALUATOR const *eval_instance =
+			OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(evaluator_cache_,
+			                                         src_varying_desc_,
+			                                         varying_desc,
+			                                         device_context_);
+
+		EVALUATOR::EvalPatches(src_varying_data_, src_varying_desc_,
+		                       varying_data, varying_desc,
+		                       patch_coord_buffer.GetNumVertices(),
+		                       patch_coord_buffer,
+		                       patch_table_, eval_instance, device_context_);
 	}
 private:
 	SRC_VERTEX_BUFFER *src_data_;
@@ -622,6 +444,15 @@ void openSubdiv_setEvaluatorCoarsePositions(OpenSubdiv_EvaluatorDescr *evaluator
 	 * so we can updatwe coordinates in chunks.
 	 */
 	evaluator_descr->eval_output->Refine();
+}
+
+void openSubdiv_setEvaluatorVaryingData(OpenSubdiv_EvaluatorDescr *evaluator_descr,
+                                        float *varying_data,
+                                        int start_vert,
+                                        int num_verts)
+{
+	/* TODO(sergey): Add sanity check on indices. */
+	evaluator_descr->eval_output->UpdateVaryingData(varying_data, start_vert, num_verts);
 }
 
 void openSubdiv_evaluateLimit(OpenSubdiv_EvaluatorDescr *evaluator_descr,

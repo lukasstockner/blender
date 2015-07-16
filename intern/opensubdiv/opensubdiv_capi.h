@@ -101,8 +101,14 @@ void openSubdiv_deleteEvaluatorDescr(OpenSubdiv_EvaluatorDescr *evaluator_descr)
 
 void openSubdiv_setEvaluatorCoarsePositions(OpenSubdiv_EvaluatorDescr *evaluator_descr,
                                             float *positions,
-                                            int start_vertex,
-                                            int num_vertex);
+                                            int start_vert,
+                                            int num_vert);
+
+/* TODO(sergey): Currently optimized for UVs. */
+void openSubdiv_setEvaluatorVaryingData(OpenSubdiv_EvaluatorDescr *evaluator_descr,
+                                        float *varying_data,
+                                        int start_vert,
+                                        int num_vert);
 
 void openSubdiv_evaluateLimit(OpenSubdiv_EvaluatorDescr *evaluator_descr,
                               int osd_face_index,

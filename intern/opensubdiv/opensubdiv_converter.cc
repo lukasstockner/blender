@@ -212,7 +212,7 @@ struct OpenSubdiv_TopologyRefinerDescr *openSubdiv_createTopologyRefinerDescr(
 	OpenSubdiv::Sdc::SchemeType scheme_type =
 	        get_capi_scheme_type(converter->get_type(converter));
 	OpenSubdiv::Sdc::Options options;
-	options.SetVtxBoundaryInterpolation(OpenSubdiv::Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
+	options.SetVtxBoundaryInterpolation(OpenSubdiv::Sdc::Options::VTX_BOUNDARY_EDGE_AND_CORNER);
 	options.SetFVarLinearInterpolation(OpenSubdiv::Sdc::Options::FVAR_LINEAR_ALL);
 
 	TopologyRefinerFactory<OpenSubdiv_Converter>::Options
