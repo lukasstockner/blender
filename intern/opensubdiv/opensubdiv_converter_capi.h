@@ -100,6 +100,15 @@ void openSubdiv_deleteTopologyRefinerDescr(
 int openSubdiv_topologyRefinerGetSubdivLevel(
         const OpenSubdiv_TopologyRefinerDescr *topology_refiner);
 
+int openSubdiv_topologyRefinerGetNumVerts(
+        const OpenSubdiv_TopologyRefinerDescr *topology_refiner);
+
+int openSubdiv_topologyRefinerGetNumEdges(
+        const OpenSubdiv_TopologyRefinerDescr *topology_refiner);
+
+int openSubdiv_topologyRefinerGetNumFaces(
+        const OpenSubdiv_TopologyRefinerDescr *topology_refiner);
+
 int openSubdiv_topologyRefnerCompareConverter(
         const OpenSubdiv_TopologyRefinerDescr *topology_refiner,
         OpenSubdiv_Converter *converter);

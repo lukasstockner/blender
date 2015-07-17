@@ -1858,6 +1858,13 @@ static void ccgDM_drawLooseEdges(DerivedMesh *dm)
 	int totedge = ccgSubSurf_getNumEdges(ss);
 	int i, j, edgeSize = ccgSubSurf_getEdgeSize(ss);
 
+#ifdef WITH_OPENSUBDIV
+	if (ccgdm->useGpuBackend) {
+		/* TODO(sergey): Needs implementation. */
+		return;
+	}
+#endif
+
 	CCG_key_top_level(&key, ss);
 
 	for (j = 0; j < totedge; j++) {
@@ -2394,9 +2401,25 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 #ifdef WITH_OPENSUBDIV
 	if (ccgdm->useGpuBackend) {
 		CCGSubSurf *ss = ccgdm->ss;
+		DMFlagMat *faceFlags = ccgdm->faceFlags;
+		int new_matnr;
+		bool draw_smooth;
 		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, setMaterial != NULL) == false)) {
 			return;
 		}
+		/* TODO(sergey): Single matierial currently. */
+		if (faceFlags) {
+			draw_smooth = (faceFlags[0].flag & ME_SMOOTH);
+			new_matnr = (faceFlags[0].mat_nr + 1);
+		}
+		else {
+			draw_smooth = true;
+			new_matnr = 1;
+		}
+		if (setMaterial) {
+			setMaterial(new_matnr, NULL);
+		}
+		glShadeModel(draw_smooth ? GL_SMOOTH : GL_FLAT);
 		ccgSubSurf_drawGLMesh(ss, true, -1, -1);
 		return;
 	}
@@ -2436,11 +2459,22 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 
 #ifdef WITH_OPENSUBDIV
 	if (ccgdm->useGpuBackend) {
-		int new_matnr = faceFlags[0].mat_nr + 1;
+		int new_matnr;
+		bool draw_smooth;
 		GPU_draw_update_fvar_offset(dm);
 		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, false) == false)) {
 			return;
 		}
+		/* TODO(sergey): Single matierial currently. */
+		if (faceFlags) {
+			draw_smooth = (faceFlags[0].flag & ME_SMOOTH);
+			new_matnr = (faceFlags[0].mat_nr + 1);
+		}
+		else {
+			draw_smooth = true;
+			new_matnr = 1;
+		}
+		glShadeModel(draw_smooth ? GL_SMOOTH : GL_FLAT);
 		setMaterial(new_matnr, &gattribs);
 		ccgSubSurf_drawGLMesh(ss, true, -1, -1);
 		return;
@@ -3318,9 +3352,11 @@ static void ccgDM_release(DerivedMesh *dm)
 		if (ccgdm->pmap_mem) MEM_freeN(ccgdm->pmap_mem);
 		MEM_freeN(ccgdm->edgeFlags);
 		MEM_freeN(ccgdm->faceFlags);
-		MEM_freeN(ccgdm->vertMap);
-		MEM_freeN(ccgdm->edgeMap);
-		MEM_freeN(ccgdm->faceMap);
+		if (ccgdm->useGpuBackend == false) {
+			MEM_freeN(ccgdm->vertMap);
+			MEM_freeN(ccgdm->edgeMap);
+			MEM_freeN(ccgdm->faceMap);
+		}
 		MEM_freeN(ccgdm);
 	}
 }
@@ -4302,11 +4338,8 @@ static void set_ccgdm_gpu_geometry(CCGDerivedMesh *ccgdm,
 	DMFlagMat *faceFlags = ccgdm->faceFlags;
 
 	for (index = 0; index < totface; index++) {
-		CCGFace *f = ccgdm->faceMap[index].face;
-		int origIndex = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
-
-		faceFlags->flag = mpoly ?  mpoly[origIndex].flag : 0;
-		faceFlags->mat_nr = mpoly ? mpoly[origIndex].mat_nr : 0;
+		faceFlags->flag = mpoly ?  mpoly[index].flag : 0;
+		faceFlags->mat_nr = mpoly ? mpoly[index].mat_nr : 0;
 		faceFlags++;
 	}
 
@@ -4364,6 +4397,8 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 		ccgdm->reverseFaceMap =
 			MEM_callocN(sizeof(int) * ccgSubSurf_getNumFinalFaces(ss),
 			            "reverseFaceMap");
+
+		create_ccgdm_maps(ccgdm, ss);
 	}
 	else {
 		DM_from_template(&ccgdm->dm, dm, DM_TYPE_CCGDM,
@@ -4374,7 +4409,6 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	}
 
 	set_default_ccgdm_callbacks(ccgdm);
-	create_ccgdm_maps(ccgdm, ss);
 
 	ccgdm->ss = ss;
 	ccgdm->drawInteriorEdges = drawInteriorEdges;

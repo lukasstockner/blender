@@ -133,6 +133,9 @@ static bool compare_osd_derivedmesh_topology(CCGSubSurf *ss, DerivedMesh *dm)
 	if (ss->osd_mesh == NULL && ss->osd_topology_refiner == NULL) {
 		return true;
 	}
+	/* TODO(sergey): De-duplicate with topology counter at the bottom of
+	 * the file.
+	 */
 	if (ss->osd_topology_refiner != NULL) {
 		topology_refiner = ss->osd_topology_refiner;
 	}
@@ -811,8 +814,7 @@ void ccgSubSurf_prepareTopologyRefiner(CCGSubSurf *ss, DerivedMesh *dm)
 		}
 		for (vert = 0; vert < num_verts; vert++) {
 			copy_v3_v3(ss->osd_coarse_coords[vert * 2 + 0], mvert[vert].co);
-			/* TODO(sergey): Support proper normals here. */
-			zero_v3(ss->osd_coarse_coords[vert * 2 + 1]);
+			normal_short_to_float_v3(ss->osd_coarse_coords[vert * 2 + 1], mvert[vert].no);
 		}
 		ss->osd_num_coarse_coords = num_verts;
 		ss->osd_coarse_coords_invalid = true;
@@ -848,6 +850,34 @@ void ccgSubSurf__sync_opensubdiv(CCGSubSurf *ss)
 #endif
 }
 
-#undef OSD_LOG
+static const OpenSubdiv_TopologyRefinerDescr* get_effective_refiner(
+        const CCGSubSurf *ss)
+{
+	if (ss->osd_topology_refiner) {
+		return ss->osd_topology_refiner;
+	}
+	return openSubdiv_getGLMeshTopologyRefiner(ss->osd_mesh);
+}
+
+int ccgSubSurf__getNumOsdBaseVerts(const CCGSubSurf *ss)
+{
+	const OpenSubdiv_TopologyRefinerDescr *topology_refiner =
+	        get_effective_refiner(ss);
+	return openSubdiv_topologyRefinerGetNumVerts(topology_refiner);
+}
+
+int ccgSubSurf__getNumOsdBaseEdges(const CCGSubSurf *ss)
+{
+	const OpenSubdiv_TopologyRefinerDescr *topology_refiner =
+	        get_effective_refiner(ss);
+	return openSubdiv_topologyRefinerGetNumEdges(topology_refiner);
+}
+
+int ccgSubSurf__getNumOsdBaseFaces(const CCGSubSurf *ss)
+{
+	const OpenSubdiv_TopologyRefinerDescr *topology_refiner =
+	        get_effective_refiner(ss);
+	return openSubdiv_topologyRefinerGetNumFaces(topology_refiner);
+}
 
 #endif  /* WITH_OPENSUBDIV */

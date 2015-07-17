@@ -247,6 +247,36 @@ int openSubdiv_topologyRefinerGetSubdivLevel(
 	return refiner->GetMaxLevel();
 }
 
+int openSubdiv_topologyRefinerGetNumVerts(
+        const OpenSubdiv_TopologyRefinerDescr *topology_refiner)
+{
+	using OpenSubdiv::Far::TopologyLevel;
+	using OpenSubdiv::Far::TopologyRefiner;
+	const TopologyRefiner *refiner = (const TopologyRefiner *)topology_refiner;
+	const TopologyLevel &base_level = refiner->GetLevel(0);
+	return base_level.GetNumVertices();
+}
+
+int openSubdiv_topologyRefinerGetNumEdges(
+        const OpenSubdiv_TopologyRefinerDescr *topology_refiner)
+{
+	using OpenSubdiv::Far::TopologyLevel;
+	using OpenSubdiv::Far::TopologyRefiner;
+	const TopologyRefiner *refiner = (const TopologyRefiner *)topology_refiner;
+	const TopologyLevel &base_level = refiner->GetLevel(0);
+	return base_level.GetNumEdges();
+}
+
+int openSubdiv_topologyRefinerGetNumFaces(
+        const OpenSubdiv_TopologyRefinerDescr *topology_refiner)
+{
+	using OpenSubdiv::Far::TopologyLevel;
+	using OpenSubdiv::Far::TopologyRefiner;
+	const TopologyRefiner *refiner = (const TopologyRefiner *)topology_refiner;
+	const TopologyLevel &base_level = refiner->GetLevel(0);
+	return base_level.GetNumFaces();
+}
+
 int openSubdiv_topologyRefnerCompareConverter(
         const OpenSubdiv_TopologyRefinerDescr *topology_refiner,
         OpenSubdiv_Converter *converter)
