@@ -959,6 +959,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	int totface = dm->getNumTessFaces(dm);
 	const char *tfaceName = "";
 
+	/* needs to be rewritten for loopdata */
 	if (tface) {
 		DM_add_tangent_layer(dm);
 		tangent = (float(*)[4])dm->getTessFaceDataArray(dm, CD_TANGENT);

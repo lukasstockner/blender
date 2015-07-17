@@ -2995,7 +2995,7 @@ void DM_add_tangent_layer(DerivedMesh *dm)
 	float (*fnors)[3];
 	short (*tlnors)[4][3];
 
-	if (CustomData_get_layer_index(&dm->faceData, CD_TANGENT) != -1)
+	if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) != -1)
 		return;
 
 	fnors = dm->getTessFaceDataArray(dm, CD_NORMAL);
@@ -3019,8 +3019,8 @@ void DM_add_tangent_layer(DerivedMesh *dm)
 	}
 	
 	/* create tangent layer */
-	DM_add_tessface_layer(dm, CD_TANGENT, CD_CALLOC, NULL);
-	tangent = DM_get_tessface_data_layer(dm, CD_TANGENT);
+	DM_add_loop_layer(dm, CD_TANGENT, CD_CALLOC, NULL);
+	tangent = DM_get_loop_data_layer(dm, CD_TANGENT);
 	
 	/* new computation method */
 	{
@@ -3202,7 +3202,7 @@ void DM_calc_auto_bump_scale(DerivedMesh *dm)
 
 void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, DMVertexAttribs *attribs)
 {
-	CustomData *vdata, *fdata, *tfdata = NULL;
+	CustomData *vdata;
 	int a, b, layer;
 
 	/* From the layers requested by the GLSL shader, figure out which ones are
@@ -3211,7 +3211,6 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 	memset(attribs, 0, sizeof(DMVertexAttribs));
 
 	vdata = &dm->vertData;
-	fdata = tfdata = dm->getTessFaceDataLayout(dm);
 	
 	/* calc auto bump scale if necessary */
 	if (dm->auto_bump_scale <= 0.0f)
@@ -3219,10 +3218,11 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 
 	/* add a tangent layer if necessary */
 	for (b = 0; b < gattribs->totlayer; b++)
-		if (gattribs->layer[b].type == CD_TANGENT)
-			if (CustomData_get_layer_index(fdata, CD_TANGENT) == -1)
+		if (gattribs->layer[b].type == CD_TANGENT) {
+			CustomData *ldata = dm->getLoopDataLayout(dm);
+			if (CustomData_get_layer_index(ldata, CD_TANGENT) == -1)
 				DM_add_tangent_layer(dm);
-
+		}
 	for (b = 0; b < gattribs->totlayer; b++) {
 		if (gattribs->layer[b].type == CD_MTFACE) {
 			/* uv coordinates */
@@ -3328,13 +3328,14 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 		}
 		else if (gattribs->layer[b].type == CD_TANGENT) {
 			/* tangents */
-			layer = CustomData_get_layer_index(fdata, CD_TANGENT);
+			CustomData *ldata = dm->getLoopDataLayout(dm);
+			layer = CustomData_get_layer_index(ldata, CD_TANGENT);
 
 			attribs->tottang = 1;
 
 			if (layer != -1) {
-				attribs->tang.array = fdata->layers[layer].data;
-				attribs->tang.em_offset = fdata->layers[layer].offset;
+				attribs->tang.array = ldata->layers[layer].data;
+				attribs->tang.em_offset = ldata->layers[layer].offset;
 			}
 			else {
 				attribs->tang.array = NULL;
