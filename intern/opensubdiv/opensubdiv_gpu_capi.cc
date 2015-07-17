@@ -607,20 +607,20 @@ static void draw_partition_patches_range(PartitionedGLMeshInterface *mesh,
 static void draw_all_patches(PartitionedGLMeshInterface *mesh,
                              GLuint program)
 {
-    OpenSubdiv::Osd::PatchArrayVector const & patches =
-        mesh->GetPatchTable()->GetPatchArrays();
+	OpenSubdiv::Osd::PatchArrayVector const & patches =
+	        mesh->GetPatchTable()->GetPatchArrays();
 
-    for (int i = 0; i < (int)patches.size(); ++i) {
-	    OpenSubdiv::Osd::PatchArray const &patch = patches[i];
-	    OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
-	    OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
+	for (int i = 0; i < (int)patches.size(); ++i) {
+		OpenSubdiv::Osd::PatchArray const &patch = patches[i];
+		OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
+		OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
 
-	    if (patchType == OpenSubdiv::Far::PatchDescriptor::QUADS) {
+		if (patchType == OpenSubdiv::Far::PatchDescriptor::QUADS) {
 			perform_drawElements(program,
 			                     i,
 			                     patch.GetNumPatches() * desc.GetNumControlVertices(),
 			                     patch.GetIndexBase());
-	    }
+		}
     }
 }
 
