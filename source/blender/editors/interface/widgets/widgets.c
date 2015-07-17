@@ -103,6 +103,11 @@ uiWidgetType *WidgetTypeInit(const uiWidgetTypeEnum type)
 			wt.draw_type = draw_style->listitem;
 			break;
 
+		case UI_WTYPE_LISTSCROLL:
+			wt.wcol_theme = &btheme->tui.wcol_scroll;
+			wt.draw_type = draw_style->listscroll;
+			break;
+
 		case UI_WTYPE_MENU_BACK:
 			wt.wcol_theme = &btheme->tui.wcol_menu_back;
 			wt.draw_type = draw_style->menu_back;
@@ -186,9 +191,12 @@ uiWidgetType *WidgetTypeInit(const uiWidgetTypeEnum type)
 		case UI_WTYPE_RGB_PICKER:
 			break;
 
-		case UI_WTYPE_SCROLL:
-			wt.wcol_theme = &btheme->tui.wcol_scroll;
-			wt.draw_type = draw_style->scroll;
+		case UI_WTYPE_SCROLL_BACK:
+			wt.draw_type = draw_style->scroll_back;
+			break;
+
+		case UI_WTYPE_SCROLL_INNER:
+			wt.draw_type = draw_style->scroll_inner;
 			break;
 
 		case UI_WTYPE_SLIDER:

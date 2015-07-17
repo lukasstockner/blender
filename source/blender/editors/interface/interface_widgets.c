@@ -77,18 +77,6 @@ static const float jit[WIDGET_AA_JITTER][2] = {
 	{-0.272855,  0.269918}, { 0.095909,  0.388710}
 };
 
-static const float scroll_circle_vert[16][2] = {
-	{0.382684, 0.923879}, {0.000001, 1.000000}, {-0.382683, 0.923880}, {-0.707107, 0.707107},
-	{-0.923879, 0.382684}, {-1.000000, 0.000000}, {-0.923880, -0.382684}, {-0.707107, -0.707107},
-	{-0.382683, -0.923880}, {0.000000, -1.000000}, {0.382684, -0.923880}, {0.707107, -0.707107},
-	{0.923880, -0.382684}, {1.000000, -0.000000}, {0.923880, 0.382683}, {0.707107, 0.707107}
-};
-
-static const unsigned int scroll_circle_face[14][3] = {
-	{0, 1, 2}, {2, 0, 3}, {3, 0, 15}, {3, 15, 4}, {4, 15, 14}, {4, 14, 5}, {5, 14, 13}, {5, 13, 6},
-	{6, 13, 12}, {6, 12, 7}, {7, 12, 11}, {7, 11, 8}, {8, 11, 10}, {8, 10, 9}
-};
-
 /* ************************************************* */
 
 void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3)
@@ -136,15 +124,6 @@ void ui_draw_anti_roundbox(int mode, float minx, float miny, float maxx, float m
 	}
 
 	glDisable(GL_BLEND);
-}
-
-
-static void widget_scroll_circle(uiWidgetDrawBaseTrias *tria, const rcti *rect, float triasize, char where)
-{
-	widget_drawbase_tria_ex(
-	        tria, rect, triasize, where,
-	        scroll_circle_vert, ARRAY_SIZE(scroll_circle_vert),
-	        scroll_circle_face, ARRAY_SIZE(scroll_circle_face));
 }
 
 
@@ -1075,79 +1054,19 @@ void ui_draw_link_bezier(const rcti *rect)
 /* function in use for buttons and for view2d sliders */
 void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *slider, int state)
 {
-	uiWidgetDrawBase wtb;
-	int horizontal;
-	float rad;
-	bool outline = false;
+	uiWidgetType *wt_back = WidgetTypeInit(UI_WTYPE_SCROLL_BACK);
+	wt_back->wcol_theme = wcol;
 
-	widget_drawbase_init(&wtb);
+	wt_back->draw_type->state(wt_back, state);
+	wt_back->draw_type->draw(wcol, (rcti *)rect, state, UI_CNR_ALL);
 
-	/* determine horizontal/vertical */
-	horizontal = (BLI_rcti_size_x(rect) > BLI_rcti_size_y(rect));
-
-	if (horizontal)
-		rad = 0.5f * BLI_rcti_size_y(rect);
-	else
-		rad = 0.5f * BLI_rcti_size_x(rect);
-	
-	wtb.draw_shadedir = (horizontal) ? true : false;
-	
-	/* draw back part, colors swapped and shading inverted */
-	if (horizontal)
-		SWAP(short, wcol->shadetop, wcol->shadedown);
-	
-	widget_drawbase_roundboxedges_set(&wtb, UI_CNR_ALL, rect, rad);
-	widget_drawbase_draw(&wtb, wcol);
-	
 	/* slider */
-	if ((BLI_rcti_size_x(slider) < 2) || (BLI_rcti_size_y(slider) < 2)) {
-		/* pass */
-	}
-	else {
-		SWAP(short, wcol->shadetop, wcol->shadedown);
-		
-		copy_v4_v4_char(wcol->inner, wcol->item);
-		
-		if (wcol->shadetop > wcol->shadedown)
-			wcol->shadetop += 20;   /* XXX violates themes... */
-		else wcol->shadedown += 20;
-		
-		if (state & UI_SCROLL_PRESSED) {
-			wcol->inner[0] = wcol->inner[0] >= 250 ? 255 : wcol->inner[0] + 5;
-			wcol->inner[1] = wcol->inner[1] >= 250 ? 255 : wcol->inner[1] + 5;
-			wcol->inner[2] = wcol->inner[2] >= 250 ? 255 : wcol->inner[2] + 5;
-		}
+	if ((BLI_rcti_size_x(slider) > 2) && (BLI_rcti_size_y(slider) > 2)) {
+		uiWidgetType *wt_inner = WidgetTypeInit(UI_WTYPE_SCROLL_INNER);
+		wt_inner->wcol_theme = wcol;
 
-		/* draw */
-		wtb.draw_emboss = false; /* only emboss once */
-		
-		/* exception for progress bar */
-		if (state & UI_SCROLL_NO_OUTLINE) {
-			SWAP(bool, outline, wtb.draw_outline);
-		}
-		
-		widget_drawbase_roundboxedges_set(&wtb, UI_CNR_ALL, slider, rad);
-		
-		if (state & UI_SCROLL_ARROWS) {
-			if (wcol->item[0] > 48) wcol->item[0] -= 48;
-			if (wcol->item[1] > 48) wcol->item[1] -= 48;
-			if (wcol->item[2] > 48) wcol->item[2] -= 48;
-			wcol->item[3] = 255;
-			
-			if (horizontal) {
-				widget_scroll_circle(&wtb.tria1, slider, 0.6f, 'l');
-				widget_scroll_circle(&wtb.tria2, slider, 0.6f, 'r');
-			}
-			else {
-				widget_scroll_circle(&wtb.tria1, slider, 0.6f, 'b');
-				widget_scroll_circle(&wtb.tria2, slider, 0.6f, 't');
-			}
-		}
-		widget_drawbase_draw(&wtb, wcol);
-		
-		if (state & UI_SCROLL_NO_OUTLINE) {
-			SWAP(bool, outline, wtb.draw_outline);
-		}
+		wt_inner->draw_type->state(wt_inner, state);
+		wt_inner->draw_type->draw(wcol, (rcti *)slider, state, UI_CNR_ALL);
 	}
 }
 
@@ -1435,7 +1354,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				break;
 
 			case UI_BTYPE_SCROLL:
-				wt = WidgetTypeInit(UI_WTYPE_SCROLL);
+				wt = WidgetTypeInit(UI_WTYPE_LISTSCROLL);
 				break;
 
 			case UI_BTYPE_GRIP:
@@ -1480,6 +1399,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 
 		/* *** callback routine *** */
 
+		/* TODO add utility function for drawing routine */
 		if (wt->draw_type->state) {
 			wt->draw_type->state(wt, state);
 		}
@@ -1491,16 +1411,15 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 			wt->draw_type->draw(&wt->wcol, rect, state, roundboxalign);
 		}
 
-		if (disabled)
-			glEnable(GL_BLEND);
-		wt->draw_type->text(fstyle, &wt->wcol, but, rect, but->drawstr, but->icon);
-
-		if (disabled)
-			glDisable(GL_BLEND);
-		
-//		if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE))
-//			if (but->dt != UI_EMBOSS_PULLDOWN)
-//				widget_disabled(&disablerect);
+		if (wt->draw_type->text) {
+			if (disabled) {
+				glEnable(GL_BLEND);
+			}
+			wt->draw_type->text(fstyle, &wt->wcol, but, rect, but->drawstr, but->icon);
+			if (disabled) {
+				glDisable(GL_BLEND);
+			}
+		}
 	}
 }
 

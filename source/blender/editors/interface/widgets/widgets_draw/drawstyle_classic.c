@@ -193,6 +193,67 @@ static void widget_list_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(sta
 	widget_drawbase_draw(&wtb, wcol);
 }
 
+static void widget_listscroll(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int UNUSED(roundboxalign))
+{
+	rcti rect1;
+	double value;
+	float fac, size, min;
+	int horizontal;
+
+	/* calculate slider part */
+	value = ui_but_value_get(but);
+
+	size = (but->softmax + but->a1 - but->softmin);
+	size = max_ff(size, 2.0f);
+
+	/* position */
+	rect1 = *rect;
+
+	/* determine horizontal/vertical */
+	horizontal = (BLI_rcti_size_x(rect) > BLI_rcti_size_y(rect));
+
+	if (horizontal) {
+		fac = BLI_rcti_size_x(rect) / size;
+		rect1.xmin = rect1.xmin + ceilf(fac * ((float)value - but->softmin));
+		rect1.xmax = rect1.xmin + ceilf(fac * (but->a1 - but->softmin));
+
+		/* ensure minimium size */
+		min = BLI_rcti_size_y(rect);
+
+		if (BLI_rcti_size_x(&rect1) < min) {
+			rect1.xmax = rect1.xmin + min;
+
+			if (rect1.xmax > rect->xmax) {
+				rect1.xmax = rect->xmax;
+				rect1.xmin = max_ii(rect1.xmax - min, rect->xmin);
+			}
+		}
+	}
+	else {
+		fac = BLI_rcti_size_y(rect) / size;
+		rect1.ymax = rect1.ymax - ceilf(fac * ((float)value - but->softmin));
+		rect1.ymin = rect1.ymax - ceilf(fac * (but->a1 - but->softmin));
+
+		/* ensure minimium size */
+		min = BLI_rcti_size_x(rect);
+
+		if (BLI_rcti_size_y(&rect1) < min) {
+			rect1.ymax = rect1.ymin + min;
+
+			if (rect1.ymax > rect->ymax) {
+				rect1.ymax = rect->ymax;
+				rect1.ymin = max_ii(rect1.ymax - min, rect->ymin);
+			}
+		}
+	}
+
+	if (state & UI_SELECT)
+		state = UI_SCROLL_PRESSED;
+	else
+		state = 0;
+	UI_draw_widget_scroll(wcol, rect, &rect1, state);
+}
+
 static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int direction)
 {
 	uiWidgetDrawBase wtb;
@@ -422,65 +483,63 @@ static void widget_radiobut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state),
 	widget_drawbase_draw(&wtb, wcol);
 }
 
-static void widget_scroll(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int UNUSED(roundboxalign))
+/* draw back part, colors swapped and shading inverted */
+static void widget_scroll_back(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
-	rcti rect1;
-	double value;
-	float fac, size, min;
-	int horizontal;
+	uiWidgetDrawBase wtb;
+	const bool horizontal = (BLI_rcti_size_x(rect) > BLI_rcti_size_y(rect));
+	const float rad = horizontal ? 0.5f * BLI_rcti_size_y(rect) : 0.5f * BLI_rcti_size_x(rect);
 
-	/* calculate slider part */
-	value = ui_but_value_get(but);
-
-	size = (but->softmax + but->a1 - but->softmin);
-	size = max_ff(size, 2.0f);
-
-	/* position */
-	rect1 = *rect;
-
-	/* determine horizontal/vertical */
-	horizontal = (BLI_rcti_size_x(rect) > BLI_rcti_size_y(rect));
+	widget_drawbase_init(&wtb);
 
 	if (horizontal) {
-		fac = BLI_rcti_size_x(rect) / size;
-		rect1.xmin = rect1.xmin + ceilf(fac * ((float)value - but->softmin));
-		rect1.xmax = rect1.xmin + ceilf(fac * (but->a1 - but->softmin));
-
-		/* ensure minimium size */
-		min = BLI_rcti_size_y(rect);
-
-		if (BLI_rcti_size_x(&rect1) < min) {
-			rect1.xmax = rect1.xmin + min;
-
-			if (rect1.xmax > rect->xmax) {
-				rect1.xmax = rect->xmax;
-				rect1.xmin = max_ii(rect1.xmax - min, rect->xmin);
-			}
-		}
-	}
-	else {
-		fac = BLI_rcti_size_y(rect) / size;
-		rect1.ymax = rect1.ymax - ceilf(fac * ((float)value - but->softmin));
-		rect1.ymin = rect1.ymax - ceilf(fac * (but->a1 - but->softmin));
-
-		/* ensure minimium size */
-		min = BLI_rcti_size_x(rect);
-
-		if (BLI_rcti_size_y(&rect1) < min) {
-			rect1.ymax = rect1.ymin + min;
-
-			if (rect1.ymax > rect->ymax) {
-				rect1.ymax = rect->ymax;
-				rect1.ymin = max_ii(rect1.ymax - min, rect->ymin);
-			}
-		}
+		SWAP(short, wcol->shadetop, wcol->shadedown);
 	}
 
-	if (state & UI_SELECT)
-		state = UI_SCROLL_PRESSED;
-	else
-		state = 0;
-	UI_draw_widget_scroll(wcol, rect, &rect1, state);
+	wtb.draw_shadedir = (horizontal) ? true : false;
+
+	widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
+	widget_drawbase_draw(&wtb, wcol);
+}
+
+/* draw inner part */
+static void widget_scroll_inner(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+{
+	uiWidgetDrawBase wtb;
+	const bool horizontal = (BLI_rcti_size_x(rect) > BLI_rcti_size_y(rect));
+	const float rad = horizontal ? 0.5f * BLI_rcti_size_y(rect) : 0.5f * BLI_rcti_size_x(rect);
+	bool outline = false;
+
+	wtb.draw_emboss = false; /* only emboss for back */
+
+	/* exception for progress bar */
+	if (state & UI_SCROLL_NO_OUTLINE) {
+		SWAP(bool, outline, wtb.draw_outline);
+	}
+
+	widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
+
+	if (state & UI_SCROLL_ARROWS) {
+		if (wcol->item[0] > 48) wcol->item[0] -= 48;
+		if (wcol->item[1] > 48) wcol->item[1] -= 48;
+		if (wcol->item[2] > 48) wcol->item[2] -= 48;
+		wcol->item[3] = 255;
+
+		if (horizontal) {
+			widget_drawbase_scroll_circle(&wtb.tria1, rect, 0.6f, 'l');
+			widget_drawbase_scroll_circle(&wtb.tria2, rect, 0.6f, 'r');
+		}
+		else {
+			widget_drawbase_scroll_circle(&wtb.tria1, rect, 0.6f, 'b');
+			widget_drawbase_scroll_circle(&wtb.tria2, rect, 0.6f, 't');
+		}
+	}
+	widget_drawbase_draw(&wtb, wcol);
+
+	if (state & UI_SCROLL_NO_OUTLINE) {
+		SWAP(bool, outline, wtb.draw_outline);
+	}
+
 }
 
 static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
@@ -852,6 +911,26 @@ static void widget_state_numslider(uiWidgetType *wt, int state)
 	}
 }
 
+static void widget_state_scroll_inner(uiWidgetType *wt, int state)
+{
+	uiWidgetColors *wcol = wt->wcol_theme;
+	wt->wcol = *(wt->wcol_theme);
+
+	SWAP(short, wcol->shadetop, wcol->shadedown);
+
+	copy_v4_v4_char(wcol->inner, wcol->item);
+
+	if (wcol->shadetop > wcol->shadedown)
+		wcol->shadetop += 20;   /* XXX violates themes... */
+	else wcol->shadedown += 20;
+
+	if (state & UI_SCROLL_PRESSED) {
+		wcol->inner[0] = wcol->inner[0] >= 250 ? 255 : wcol->inner[0] + 5;
+		wcol->inner[1] = wcol->inner[1] >= 250 ? 255 : wcol->inner[1] + 5;
+		wcol->inner[2] = wcol->inner[2] >= 250 ? 255 : wcol->inner[2] + 5;
+	}
+}
+
 
 /* text *************************************** */
 
@@ -922,6 +1001,13 @@ uiWidgetDrawType drawtype_classic_listitem = {
 	/* state */  widget_state,
 	/* draw */   widget_list_itembut,
 	/* custom */ NULL,
+	/* text */   widget_draw_text_icon,
+};
+
+uiWidgetDrawType drawtype_classic_listscroll = {
+    /* state */  widget_state_nothing,
+	/* draw */   NULL,
+	/* custom */ widget_listscroll,
 	/* text */   widget_draw_text_icon,
 };
 
@@ -1030,11 +1116,18 @@ uiWidgetDrawType drawtype_classic_regular = {
 	/* text */   widget_draw_text_icon,
 };
 
-uiWidgetDrawType drawtype_classic_scroll = {
+uiWidgetDrawType drawtype_classic_scroll_back = {
 	/* state */  widget_state_nothing,
-	/* draw */   NULL,
-	/* custom */ widget_scroll,
-	/* text */   widget_draw_text_icon,
+	/* draw */   widget_scroll_back,
+	/* custom */ NULL,
+	/* text */   NULL,
+};
+
+uiWidgetDrawType drawtype_classic_scroll_inner = {
+	/* state */  widget_state_scroll_inner,
+	/* draw */   widget_scroll_inner,
+	/* custom */ NULL,
+	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_numslider = {
@@ -1082,6 +1175,7 @@ uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* label */             &drawtype_classic_label,
 	/* link */              &drawtype_classic_link,
 	/* listitem */          &drawtype_classic_listitem,
+	/* listscroll */        &drawtype_classic_listscroll,
 	/* menu_back */         &drawtype_classic_menu_back,
 	/* menu_icon_radio */   &drawtype_classic_menu_icon_radio,
 	/* menu_item */         &drawtype_classic_menu_item,
@@ -1100,7 +1194,8 @@ uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* radio */             &drawtype_classic_radio,
 	/* regular */           &drawtype_classic_regular,
 	/* rgb_picker */        NULL, /* not used (yet?) */
-	/* scroll */            &drawtype_classic_scroll,
+	/* scroll_back */       &drawtype_classic_scroll_back,
+	/* scroll_inner */      &drawtype_classic_scroll_inner,
 	/* slider */            &drawtype_classic_numslider,
 	/* swatch */            &drawtype_classic_swatch,
 	/* toggle */            &drawtype_classic_toggle,
