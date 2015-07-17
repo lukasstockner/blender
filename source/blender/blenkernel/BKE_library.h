@@ -53,6 +53,9 @@ void *BKE_libblock_copy_nolib(struct ID *id, const bool do_action) ATTR_NONNULL(
 void *BKE_libblock_copy(struct ID *id) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 void  BKE_libblock_copy_data(struct ID *id, const struct ID *id_from, const bool do_action);
 
+/* Note: Requiring new_id to be non-null, this *may* not be the case ultimately, but makes things simpler for now. */
+void BKE_libblock_remap(struct Main *bmain, struct ID *old_id, struct ID *new_id) ATTR_NONNULL();
+
 void BKE_id_lib_local_paths(struct Main *bmain, struct Library *lib, struct ID *id);
 void id_lib_extern(struct ID *id);
 void BKE_library_filepath_set(struct Library *lib, const char *filepath);

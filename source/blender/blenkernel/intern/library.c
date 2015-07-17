@@ -95,6 +95,7 @@
 #include "BKE_lamp.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
+#include "BKE_library_query.h"
 #include "BKE_linestyle.h"
 #include "BKE_mesh.h"
 #include "BKE_material.h"
@@ -886,6 +887,78 @@ static void (*remap_editor_id_reference_cb)(const ID *, ID *) = NULL;
 void BKE_library_callback_remap_editor_id_reference_set(void (*func)(const ID *, ID *))
 {
 	remap_editor_id_reference_cb = func;
+}
+
+
+static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUSED(cb_flag))
+{
+	Main *bmain = ((void **)user_data)[0];
+	ID *old_id = ((void **)user_data)[1];
+	ID *new_id = ((void **)user_data)[2];
+	ID *id = ((void **)user_data)[3];
+
+	if (*id_p == old_id) {
+		*id_p = new_id;
+		DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB);
+	}
+
+	return true;
+}
+
+/** Replace all references in .blend file to \a old_id by \a new_id. */
+void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
+{
+	void *user_data[4] = {(void *)bmain, (void *)old_id, (void *)new_id, NULL};
+	ListBase lb_array[MAX_LIBARRAY];
+	int i = MAX_LIBARRAY;
+
+	BLI_assert(GS(old_id->name) == GS(new_id->name));
+
+	set_listbasepointers(bmain, (ListBase **)&lb_array);
+
+	BKE_main_lock(bmain);
+
+	/* Note that this is a very 'bruteforce' approach, maybe we could use some depsgraph to only process
+	 * objects actually using given old_id... But for now this will do. */
+
+	while (i--) {
+		ID *id;
+		for (id = lb_array[i].first; id; id = id->next) {
+			user_data[3] = (void *)id;
+			BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)user_data, IDWALK_NOP);
+		}
+	}
+
+	if (free_notifier_reference_cb) {
+		free_notifier_reference_cb(old_id);
+	}
+
+	if (remap_editor_id_reference_cb) {
+		remap_editor_id_reference_cb(old_id, new_id);
+	}
+
+	/* All ID 'users' do not actually incref it, so we just assume all uses of this ID have been cleared... */
+	if ((old_id->us > 1) && (old_id->flag & LIB_FAKEUSER)) {
+		new_id->us += old_id->us - 1;
+		if (new_id->flag & LIB_INDIRECT) {
+			new_id->flag &= ~LIB_INDIRECT;
+			new_id->flag |= LIB_EXTERN;
+		}
+		old_id->us = 1;
+	}
+	else if (old_id->us > 0){
+		new_id->us += old_id->us;
+		if (new_id->flag & LIB_INDIRECT) {
+			new_id->flag &= ~LIB_INDIRECT;
+			new_id->flag |= LIB_EXTERN;
+		}
+		old_id->us = 0;
+	}
+
+	/* Full rebuild of DAG! */
+	DAG_relations_tag_update(bmain);
+
+	BKE_main_unlock(bmain);
 }
 
 static void animdata_dtar_clear_cb(ID *UNUSED(id), AnimData *adt, void *userdata)
