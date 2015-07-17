@@ -243,6 +243,7 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 		ss->osd_mesh = openSubdiv_createOsdGLMeshFromTopologyRefiner(
 		        ss->osd_topology_refiner,
 		        compute_type,
+		        ss->subdivLevels,
 		        ss->osd_subsurf_uv);
 		ss->osd_topology_refiner = NULL;
 

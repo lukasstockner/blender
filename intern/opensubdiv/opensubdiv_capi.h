@@ -64,9 +64,10 @@ enum {
 
 /* TODO(sergey): Re-name and avoid bad level data access. */
 OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromTopologyRefiner(
-    struct OpenSubdiv_TopologyRefinerDescr *topology_refiner,
-    int evaluator_type,
-    int subdivide_uvs);
+        struct OpenSubdiv_TopologyRefinerDescr *topology_refiner,
+        int evaluator_type,
+        int level,
+        int subdivide_uvs);
 
 void openSubdiv_deleteOsdGLMesh(OpenSubdiv_GLMesh *gl_mesh);
 unsigned int openSubdiv_getOsdGLMeshPatchIndexBuffer(
