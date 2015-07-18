@@ -510,6 +510,8 @@ static void widget_scroll_inner(uiWidgetColors *wcol, rcti *rect, int state, int
 	const float rad = horizontal ? 0.5f * BLI_rcti_size_y(rect) : 0.5f * BLI_rcti_size_x(rect);
 	bool outline = false;
 
+	widget_drawbase_init(&wtb);
+
 	wtb.draw_emboss = false; /* only emboss for back */
 
 	/* exception for progress bar */
