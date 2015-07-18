@@ -959,7 +959,7 @@ static void widget_numbut(uiWidgetColors *wcol, rcti *rect, int state, int round
 
 uiWidgetDrawType drawtype_classic_box = {
 	/* state */  widget_state,
-	/* draw */   widget_but,
+	/* draw */   NULL,
 	/* custom */ widget_box,
 	/* text */   widget_draw_text_icon,
 };
