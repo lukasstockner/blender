@@ -151,6 +151,11 @@ typedef struct uiWidgetDrawStyle {
 /* *** external API *** */
 
 uiWidgetType *WidgetTypeInit(const uiWidgetTypeEnum type);
+void WidgetDraw(
+        uiWidgetType *wt,
+        uiFontStyle *fstyle, uiBut *but, rcti *rect,
+        int state, int roundboxalign, const int iconid, const char *str,
+        const bool use_text_blend);
 
 
 /* *** internal *** */

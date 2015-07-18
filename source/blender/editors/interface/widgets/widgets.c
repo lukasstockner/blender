@@ -24,6 +24,8 @@
  *  \ingroup edinterface
  */
 
+#include "BIF_gl.h"
+
 #include "BLI_utildefines.h"
 
 #include "DNA_screen_types.h"
@@ -224,4 +226,40 @@ uiWidgetType *WidgetTypeInit(const uiWidgetTypeEnum type)
 	}
 
 	return &wt;
+}
+
+/**
+ * \brief Widget main draw routine
+ * 
+ * passing NULL for \a but disables draw_type->custom and draw_type->text,
+ * passing NULl for \a fstyle or \a str disables draw_type->text
+ */
+void WidgetDraw(
+        uiWidgetType *wt,
+        uiFontStyle *fstyle, uiBut *but, rcti *rect,
+        int state, int roundboxalign, const int iconid, const char *str,
+        const bool use_text_blend)
+{
+	uiWidgetDrawType *dtype = wt->draw_type;
+
+	if (dtype->state) {
+		dtype->state(wt, state);
+	}
+
+	if (dtype->custom && but) {
+		dtype->custom(but, &wt->wcol, rect, state, roundboxalign);
+	}
+	else if (dtype->draw) {
+		dtype->draw(&wt->wcol, rect, state, roundboxalign);
+	}
+
+	if (dtype->text && but && fstyle && str) {
+		if (use_text_blend) {
+			glEnable(GL_BLEND);
+		}
+		dtype->text(fstyle, &wt->wcol, but, rect, str, iconid);
+		if (use_text_blend) {
+			glDisable(GL_BLEND);
+		}
+	}
 }

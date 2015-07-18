@@ -1057,16 +1057,14 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
 	uiWidgetType *wt_back = WidgetTypeInit(UI_WTYPE_SCROLL_BACK);
 	wt_back->wcol_theme = wcol;
 
-	wt_back->draw_type->state(wt_back, state);
-	wt_back->draw_type->draw(wcol, (rcti *)rect, state, UI_CNR_ALL);
+	WidgetDraw(wt_back, NULL, NULL, (rcti *)rect, state, UI_CNR_ALL, 0, NULL, false);
 
 	/* slider */
 	if ((BLI_rcti_size_x(slider) > 2) && (BLI_rcti_size_y(slider) > 2)) {
 		uiWidgetType *wt_inner = WidgetTypeInit(UI_WTYPE_SCROLL_INNER);
 		wt_inner->wcol_theme = wcol;
 
-		wt_inner->draw_type->state(wt_inner, state);
-		wt_inner->draw_type->draw(wcol, (rcti *)slider, state, UI_CNR_ALL);
+		WidgetDraw(wt_inner, NULL, NULL, (rcti *)slider, state, UI_CNR_ALL, 0, NULL, false);
 	}
 }
 
@@ -1397,29 +1395,8 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 		if (disabled)
 			ui_widget_color_disabled(wt);
 
-		/* *** callback routine *** */
-
-		/* TODO add utility function for drawing routine */
-		if (wt->draw_type->state) {
-			wt->draw_type->state(wt, state);
-		}
-
-		if (wt->draw_type->custom) {
-			wt->draw_type->custom(but, &wt->wcol, rect, state, roundboxalign);
-		}
-		else if (wt->draw_type->draw) {
-			wt->draw_type->draw(&wt->wcol, rect, state, roundboxalign);
-		}
-
-		if (wt->draw_type->text) {
-			if (disabled) {
-				glEnable(GL_BLEND);
-			}
-			wt->draw_type->text(fstyle, &wt->wcol, but, rect, but->drawstr, but->icon);
-			if (disabled) {
-				glDisable(GL_BLEND);
-			}
-		}
+		/* callback routine */
+		WidgetDraw(wt, fstyle, but, rect, state, roundboxalign, but->icon, but->drawstr, disabled);
 	}
 }
 
@@ -1429,8 +1406,7 @@ void ui_draw_menu_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 	const int flag = block ? block->flag : 0;
 	const char dir = block ? block->direction : 0;
 
-	wt->draw_type->state(wt, 0);
-	wt->draw_type->draw(&wt->wcol, rect, flag, dir);
+	WidgetDraw(wt, NULL, NULL, rect, flag, dir, 0, NULL, false);
 
 	if (block) {
 		if (block->flag & UI_BLOCK_CLIPTOP) {
@@ -1581,8 +1557,7 @@ uiWidgetColors *ui_tooltip_get_theme(void)
 void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock *UNUSED(block), rcti *rect)
 {
 	uiWidgetType *wt = WidgetTypeInit(UI_WTYPE_TOOLTIP);
-	wt->draw_type->state(wt, 0);
-	wt->draw_type->draw(&wt->wcol, rect, 0, 0);
+	WidgetDraw(wt, NULL, NULL, rect, 0, 0, 0, NULL, false);
 }
 
 void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
@@ -1593,11 +1568,10 @@ void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 	widget_drawbase_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit);
 	glDisable(GL_BLEND);
 
-	wt->draw_type->state(wt, 0);
 	if (block)
-		wt->draw_type->draw(&wt->wcol, rect, block->flag, UI_CNR_ALL);
+		WidgetDraw(wt, NULL, NULL, rect, block->flag, UI_CNR_ALL, 0, NULL, false);
 	else
-		wt->draw_type->draw(&wt->wcol, rect, 0, UI_CNR_ALL);
+		WidgetDraw(wt, NULL, NULL, rect, 0, UI_CNR_ALL, 0, NULL, false);
 }
 
 
@@ -1609,8 +1583,7 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 	rcti _rect = *rect;
 	char *cpoin = NULL;
 
-	wt->draw_type->state(wt, state);
-	wt->draw_type->draw(&wt->wcol, rect, 0, 0);
+	WidgetDraw(wt, NULL, NULL, rect, state, 0, 0, NULL, false);
 
 	UI_fontstyle_set(fstyle);
 	fstyle->align = UI_STYLE_TEXT_LEFT;
@@ -1685,7 +1658,7 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 	uiWidgetType *wt = WidgetTypeInit(UI_WTYPE_MENU_ITEM_PREVIEW);
 
 	/* drawing button background */
-	wt->draw_type->state(wt, state);
-	wt->draw_type->draw(&wt->wcol, rect, 0, 0);
+	WidgetDraw(wt, fstyle, NULL, rect, state, UI_CNR_ALL, iconid, name, false);
+	/* XXX special case: we don't have a but here so NULL pointer needs to be allowed for it. */
 	wt->draw_type->text(fstyle, &wt->wcol, NULL, rect, name, iconid);
 }

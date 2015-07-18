@@ -915,7 +915,7 @@ static void widget_state_numslider(uiWidgetType *wt, int state)
 
 static void widget_state_scroll_inner(uiWidgetType *wt, int state)
 {
-	uiWidgetColors *wcol = wt->wcol_theme;
+	uiWidgetColors *wcol = &wt->wcol;
 	wt->wcol = *(wt->wcol_theme);
 
 	SWAP(short, wcol->shadetop, wcol->shadedown);
@@ -1014,7 +1014,7 @@ uiWidgetDrawType drawtype_classic_listscroll = {
 };
 
 uiWidgetDrawType drawtype_classic_menu_back = {
-	/* state */  widget_state,
+	/* state */  widget_state_nothing,
 	/* draw */   widget_menu_back,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
