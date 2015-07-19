@@ -707,3 +707,21 @@ void widget_drawbase_draw(uiWidgetDrawBase *wtb, uiWidgetColors *wcol)
 
 	glDisable(GL_BLEND);
 }
+
+void ui_hsv_cursor(float x, float y)
+{
+	glPushMatrix();
+	glTranslatef(x, y, 0.0f);
+
+	glColor3f(1.0f, 1.0f, 1.0f);
+	glutil_draw_filled_arc(0.0f, M_PI * 2.0, 3.0f * U.pixelsize, 8);
+
+	glEnable(GL_BLEND);
+	glEnable(GL_LINE_SMOOTH);
+	glColor3f(0.0f, 0.0f, 0.0f);
+	glutil_draw_lined_arc(0.0f, M_PI * 2.0, 3.0f * U.pixelsize, 12);
+	glDisable(GL_BLEND);
+	glDisable(GL_LINE_SMOOTH);
+
+	glPopMatrix();
+}

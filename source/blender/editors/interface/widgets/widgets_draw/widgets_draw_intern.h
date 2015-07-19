@@ -94,6 +94,7 @@ void widget_drawbase_menu_trias(uiWidgetDrawBaseTrias *tria, const rcti *rect);
 void widget_drawbase_check_trias(uiWidgetDrawBaseTrias *tria, const rcti *rect);
 void widget_drawbase_softshadow(const rcti *rect, int roundboxalign, const float radin);
 void widget_drawbase_draw(uiWidgetDrawBase *wtb, struct uiWidgetColors *wcol);
+void ui_hsv_cursor(float x, float y);
 void widget_drawbase_scroll_circle(uiWidgetDrawBaseTrias *tria, const rcti *rect, float triasize, char where);
 
 

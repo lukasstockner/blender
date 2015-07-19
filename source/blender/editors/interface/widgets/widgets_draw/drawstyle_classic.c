@@ -141,6 +141,61 @@ static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state),
 	widget_drawbase_draw(&wtb, wcol);
 }
 
+static void widget_hsv_vert(
+        uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect,
+        int UNUSED(state), int UNUSED(roundboxalign))
+{
+	uiWidgetDrawBase wtb;
+	uiWidgetColors wcol_tmp;
+	const float rad = 0.5f * BLI_rcti_size_x(rect);
+	float x, y;
+	float rgb[3], hsv[3], v;
+	bool color_profile = but->block->color_profile;
+
+	if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
+		color_profile = false;
+
+	ui_but_v3_get(but, rgb);
+
+	if (color_profile)
+		ui_block_cm_to_display_space_v3(but->block, rgb);
+
+	if (but->a1 == UI_GRAD_L_ALT)
+		rgb_to_hsl_v(rgb, hsv);
+	else
+		rgb_to_hsv_v(rgb, hsv);
+	v = hsv[2];
+
+	/* map v from property range to [0,1] */
+	if (but->a1 == UI_GRAD_V_ALT) {
+		float range = but->softmax - but->softmin;
+		v = (v - but->softmin) / range;
+	}
+
+	widget_drawbase_init(&wtb);
+
+	/* fully rounded */
+	widget_drawbase_roundboxedges_set(&wtb, UI_CNR_ALL, rect, rad);
+
+	/* setup temp colors */
+	wcol_tmp.outline[0] = wcol_tmp.outline[1] = wcol_tmp.outline[2] = 0;
+	wcol_tmp.outline[3] = 255;
+	wcol_tmp.inner[0] = wcol_tmp.inner[1] = wcol_tmp.inner[2] = 128;
+	wcol_tmp.inner[3] = 255;
+	wcol_tmp.shadetop = 127;
+	wcol_tmp.shadedown = -128;
+	wcol_tmp.shaded = 1;
+
+	widget_drawbase_draw(&wtb, &wcol_tmp);
+
+	/* cursor */
+	x = rect->xmin + 0.5f * BLI_rcti_size_x(rect);
+	y = rect->ymin + v    * BLI_rcti_size_y(rect);
+	CLAMP(y, rect->ymin + 3.0f, rect->ymax - 3.0f);
+
+	ui_hsv_cursor(x, y);
+}
+
 static void widget_icon_has_anim(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
 	if (state & (UI_BUT_ANIMATED | UI_BUT_ANIMATED_KEY | UI_BUT_DRIVEN | UI_BUT_REDALERT)) {
@@ -978,6 +1033,13 @@ uiWidgetDrawType drawtype_classic_exec = {
 	/* text */   widget_draw_text_icon,
 };
 
+uiWidgetDrawType drawtype_classic_hsv_vert = {
+	/* state */  NULL,
+	/* draw */   NULL,
+	/* custom */ widget_hsv_vert,
+	/* text */   NULL,
+};
+
 uiWidgetDrawType drawtype_classic_icon = {
 	/* state */  widget_state,
 	/* draw */   NULL,
@@ -1173,6 +1235,7 @@ uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* checkbox */          &drawtype_classic_checkbox,
 	/* exec */              &drawtype_classic_exec,
 	/* filename */          NULL, /* not used (yet?) */
+	/* hsv_vert*/           &drawtype_classic_hsv_vert,
 	/* icon */              &drawtype_classic_icon,
 	/* label */             &drawtype_classic_label,
 	/* link */              &drawtype_classic_link,

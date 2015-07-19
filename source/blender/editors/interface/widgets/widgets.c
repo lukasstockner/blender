@@ -88,6 +88,10 @@ uiWidgetType *WidgetTypeInit(const uiWidgetTypeEnum type)
 		case UI_WTYPE_FILENAME:
 			break;
 
+		case UI_WTYPE_HSV_VERT:
+			wt.draw_type = draw_style->hsv_vert;
+			break;
+
 		case UI_WTYPE_ICON:
 			wt.draw_type = draw_style->icon;
 			break;

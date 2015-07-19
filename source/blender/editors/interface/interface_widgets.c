@@ -466,6 +466,9 @@ void ui_widget_color_init(ThemeUI *tui)
 	tui->wcol_progress = wcol_progress;
 
 	tui->wcol_state = wcol_state_colors;
+
+	/* just to get rid of unused warning */
+	(void)wcol_tmp;
 }
 
 /* ************ button callbacks, state ***************** */
@@ -579,24 +582,6 @@ static void widget_state_option_menu(uiWidgetType *wt, int state)
 
 /* ************ menu backdrop ************************* */
 
-
-static void ui_hsv_cursor(float x, float y)
-{
-	glPushMatrix();
-	glTranslatef(x, y, 0.0f);
-	
-	glColor3f(1.0f, 1.0f, 1.0f);
-	glutil_draw_filled_arc(0.0f, M_PI * 2.0, 3.0f * U.pixelsize, 8);
-	
-	glEnable(GL_BLEND);
-	glEnable(GL_LINE_SMOOTH);
-	glColor3f(0.0f, 0.0f, 0.0f);
-	glutil_draw_lined_arc(0.0f, M_PI * 2.0, 3.0f * U.pixelsize, 12);
-	glDisable(GL_BLEND);
-	glDisable(GL_LINE_SMOOTH);
-	
-	glPopMatrix();
-}
 
 void ui_hsvcircle_vals_from_pos(float *val_rad, float *val_dist, const rcti *rect,
                                 const float mx, const float my)
@@ -933,57 +918,6 @@ static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
 	fdrawbox((rect->xmin), (rect->ymin), (rect->xmax), (rect->ymax));
 }
 
-/* vertical 'value' slider, using new widget code */
-static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
-{
-	uiWidgetDrawBase wtb;
-	const float rad = 0.5f * BLI_rcti_size_x(rect);
-	float x, y;
-	float rgb[3], hsv[3], v;
-	bool color_profile = but->block->color_profile;
-	
-	if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
-		color_profile = false;
-
-	ui_but_v3_get(but, rgb);
-
-	if (color_profile)
-		ui_block_cm_to_display_space_v3(but->block, rgb);
-
-	if (but->a1 == UI_GRAD_L_ALT)
-		rgb_to_hsl_v(rgb, hsv);
-	else
-		rgb_to_hsv_v(rgb, hsv);
-	v = hsv[2];
-	
-	/* map v from property range to [0,1] */
-	if (but->a1 == UI_GRAD_V_ALT) {
-		float range = but->softmax - but->softmin;
-		v = (v - but->softmin) / range;
-	}
-
-	widget_drawbase_init(&wtb);
-	
-	/* fully rounded */
-	widget_drawbase_roundboxedges_set(&wtb, UI_CNR_ALL, rect, rad);
-	
-	/* setup temp colors */
-	wcol_tmp.outline[0] = wcol_tmp.outline[1] = wcol_tmp.outline[2] = 0;
-	wcol_tmp.inner[0] = wcol_tmp.inner[1] = wcol_tmp.inner[2] = 128;
-	wcol_tmp.shadetop = 127;
-	wcol_tmp.shadedown = -128;
-	wcol_tmp.shaded = 1;
-	
-	widget_drawbase_draw(&wtb, &wcol_tmp);
-
-	/* cursor */
-	x = rect->xmin + 0.5f * BLI_rcti_size_x(rect);
-	y = rect->ymin + v    * BLI_rcti_size_y(rect);
-	CLAMP(y, rect->ymin + 3.0f, rect->ymax - 3.0f);
-
-	ui_hsv_cursor(x, y);
-}
-
 
 /* ************ separator, for menus etc ***************** */
 static void ui_draw_separator(const rcti *rect,  uiWidgetColors *wcol)
@@ -1306,10 +1240,12 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				break;
 				
 			case UI_BTYPE_HSVCUBE:
-				if (ELEM(but->a1, UI_GRAD_V_ALT, UI_GRAD_L_ALT)) {  /* vertical V slider, uses new widget draw now */
-					ui_draw_but_HSV_v(but, rect);
+				/* vertical V slider */
+				if (ELEM(but->a1, UI_GRAD_V_ALT, UI_GRAD_L_ALT)) {
+					wt = WidgetTypeInit(UI_WTYPE_HSV_VERT);
 				}
-				else {  /* other HSV pickers... */
+				/* other HSV pickers */
+				else {
 					ui_draw_but_HSVCUBE(but, rect);
 				}
 				break;
