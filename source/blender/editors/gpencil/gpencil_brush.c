@@ -41,6 +41,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_math.h"
+#include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
@@ -412,6 +413,7 @@ static void gp_brush_grab_calc_dvec(tGP_BrushEditData *gso)
 	}
 	else {
 		/* 2D - just copy */
+		// XXX: view2d?
 		gso->dvec[0] = (float)(gso->mval[0] - gso->mval_prev[0]);
 		gso->dvec[1] = (float)(gso->mval[1] - gso->mval_prev[1]);
 		gso->dvec[2] = 0.0f;  /* unused */
@@ -545,6 +547,76 @@ static bool gp_brush_pinch_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 	
 	/* 3) Translate back to original space, with the shrinkage applied */
 	add_v3_v3v3(&pt->x, gso->dvec, vec);
+	
+	/* done */
+	return true;
+}
+
+/* ----------------------------------------------- */
+/* Randomise Brush */
+
+/* Apply some random jitter to the point */
+static bool gp_brush_randomise_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
+                                     const int radius, const int co[2])
+{
+	bGPDspoint *pt = gps->points + i;
+	
+	/* Amount of jitter to apply depends on the distance of the point to the cursor,
+	 * as well as the strength of the brush
+	 */
+	const float inf = gp_brush_influence_calc(gso, radius, co);
+	
+	//const float dist = (float)len_v2v2_int(gso->mval, co);
+	const float fac = BLI_frand() * inf;
+	
+	/* Jitter is applied perpendicular to the mouse movement vector
+	 * - We compute all effects in screenspace (since it's easier)
+	 *   and then project these to get the points/distances in
+	 *   viewspace as needed
+	 */
+	float mvec[2], svec[2], nco[2];
+	
+	/* mouse movement in ints -> floats */
+	mvec[0] = (float)(gso->mval[0] - gso->mval_prev[0]);
+	mvec[1] = (float)(gso->mval[1] - gso->mval_prev[1]);
+	
+	/* rotate mvec by 90 degrees... */
+	svec[0] = -mvec[1];
+	svec[1] =  mvec[0];
+	
+	printf("svec = %f %f, ", svec[0], svec[1]);
+	
+	/* scale the displacement by the random displacement, and apply */
+	normalize_v2(svec);
+	mul_v2_fl(svec, fac);
+	
+	nco[0] = (float)co[0] + svec[0];
+	nco[1] = (float)co[1] + svec[1];
+	
+	printf("%f %f (%f), nco = {%f %f}, co = %d %d\n", svec[0], svec[1], fac, nco[0], nco[1], co[0], co[1]);
+	
+	/* convert to dataspace */
+	// XXX: this step is going wrong!
+	if (gps->flag & GP_STROKE_3DSPACE) {
+		/* 3D: Project to 3D space */
+		if (gso->sa->spacetype == SPACE_VIEW3D) {
+			View3D *v3d = gso->sa->spacedata.first;
+			RegionView3D *rv3d = gso->ar->regiondata;
+			float *rvec = ED_view3d_cursor3d_get(gso->scene, v3d);
+			float zfac = ED_view3d_calc_zfac(rv3d, rvec, NULL);
+			
+			ED_view3d_win_to_delta(gso->ar, nco, &pt->x, zfac);
+		}
+		else {
+			/* ERROR */
+			BLI_assert("3D stroke being sculpted in non-3D view");
+		}
+	}
+	else {
+		/* 2D: As-is */
+		// XXX: v2d scaling/offset?
+		copy_v2_v2(&pt->x, nco);
+	}
 	
 	/* done */
 	return true;
@@ -821,6 +893,13 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 			break;
 		}
 		
+		case GP_EDITBRUSH_TYPE_RANDOMISE: /* Random jitter */
+		{
+			/* compute the displacement vector for the cursor (in data space) */
+			gp_brush_grab_calc_dvec(gso);
+			break;
+		}
+		
 		default:
 			break;
 	}
@@ -874,7 +953,7 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 			
 			case GP_EDITBRUSH_TYPE_RANDOMISE: /* Apply jitter */
 			{
-				//changed |= gpsculpt_brush_do_stroke(gso, gps, apply);
+				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_randomise_apply);
 			}
 			break;
 			
@@ -1065,7 +1144,7 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 			/* MMB is often used for view manipulations */
 			case MIDDLEMOUSE:
 				return OPERATOR_PASS_THROUGH;
-				
+			
 			/* Mouse movements should update the brush cursor - Just redraw the active region */
 			case MOUSEMOVE:
 			case INBETWEEN_MOUSEMOVE:
@@ -1104,7 +1183,6 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 			
 			/* Unhandled event */
 			default:
-				// TODO: allow MMB viewnav to pass through
 				break;
 		}
 	}
