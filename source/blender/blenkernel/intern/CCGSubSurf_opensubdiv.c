@@ -269,7 +269,7 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
 		                      sizeof(GLfloat) * 6, 0);
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE,
-		                      sizeof(GLfloat) * 6, (float*)12);
+		                      sizeof(GLfloat) * 6, (float *)12);
 
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
@@ -466,7 +466,7 @@ static void opensubdiv_updateEvaluatorCoarsePositions(CCGSubSurf *ss)
 	}
 
 	openSubdiv_setEvaluatorCoarsePositions(ss->osd_evaluator,
-	                                       (float*)positions,
+	                                       (float *)positions,
 	                                       0,
 	                                       num_basis_verts);
 

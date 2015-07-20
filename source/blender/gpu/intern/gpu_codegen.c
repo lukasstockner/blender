@@ -862,8 +862,7 @@ static char *code_generate_geometry(ListBase *nodes, bool use_opensubdiv)
 		return code;
 	}
 #else
-	(void) nodes;
-	(void) use_opensubdiv;
+	UNUSED_VARS(nodes, use_opensubdiv);
 #endif
 	return NULL;
 }

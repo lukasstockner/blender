@@ -568,7 +568,7 @@ static EnumPropertyItem *rna_userdef_opensubdiv_compute_type_itemf(bContext *UNU
 #define APPEND_COMPUTE(compute) \
 	if (evaluators & OPENSUBDIV_EVALUATOR_## compute) { \
 		RNA_enum_items_add_value(&item, &totitem, opensubdiv_compute_type_items, USER_OPENSUBDIV_COMPUTE_ ## compute); \
-	}
+	} ((void)0)
 
 	APPEND_COMPUTE(CPU);
 	APPEND_COMPUTE(OPENMP);
