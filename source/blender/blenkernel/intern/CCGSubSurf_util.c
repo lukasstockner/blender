@@ -18,7 +18,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenkernel/intern/CCGSubSurf.c
+/** \file blender/blenkernel/intern/CCGSubSurf_util.c
  *  \ingroup bke
  */
 

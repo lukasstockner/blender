@@ -540,7 +540,7 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 		for (x = 0; x < gridSize; x++) {
 			VertDataCopy(FACE_getIECo(face, subdivLevels, S, x),
 			             FACE_getIFCo(face, subdivLevels, S, x, 0), ss);
-			if (do_normals){
+			if (do_normals) {
 				VertDataCopy(FACE_getIENo(face, subdivLevels, S, x),
 				             FACE_getIFNo(face, subdivLevels, S, x, 0), ss);
 			}
@@ -850,7 +850,7 @@ void ccgSubSurf__sync_opensubdiv(CCGSubSurf *ss)
 #endif
 }
 
-static const OpenSubdiv_TopologyRefinerDescr* get_effective_refiner(
+static const OpenSubdiv_TopologyRefinerDescr *get_effective_refiner(
         const CCGSubSurf *ss)
 {
 	if (ss->osd_topology_refiner) {

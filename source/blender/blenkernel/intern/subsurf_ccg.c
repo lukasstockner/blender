@@ -493,7 +493,7 @@ static void set_subsurf_uv(CCGSubSurf *ss,
                            DerivedMesh *result,
                            int layer_index)
 {
-	if(!ccgSubSurf_needGrids(ss)) {
+	if (!ccgSubSurf_needGrids(ss)) {
 		/* GPU backend is used, no need to evaluate UVs on CPU. */
 		/* TODO(sergey): Think of how to support edit mode of UVs. */
 	}

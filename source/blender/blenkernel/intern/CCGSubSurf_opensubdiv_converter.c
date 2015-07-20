@@ -18,7 +18,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenkernel/intern/CCGSubSurf_opensubdiv.c
+/** \file blender/blenkernel/intern/CCGSubSurf_opensubdiv_converter.c
  *  \ingroup bke
  */
 
@@ -104,7 +104,7 @@ static void conv_dm_get_face_verts(const OpenSubdiv_Converter *converter,
 	const MPoly *mp = dm->getPolyArray(dm);
 	const MPoly *mpoly = &mp[face];
 	int loop;
-	for(loop = 0; loop < mpoly->totloop; loop++) {
+	for (loop = 0; loop < mpoly->totloop; loop++) {
 		face_verts[loop] = ml[mpoly->loopstart + loop].v;
 	}
 }
@@ -119,7 +119,7 @@ static void conv_dm_get_face_edges(const OpenSubdiv_Converter *converter,
 	const MPoly *mp = dm->getPolyArray(dm);
 	const MPoly *mpoly = &mp[face];
 	int loop;
-	for(loop = 0; loop < mpoly->totloop; loop++) {
+	for (loop = 0; loop < mpoly->totloop; loop++) {
 		face_edges[loop] = ml[mpoly->loopstart + loop].e;
 	}
 }
@@ -355,7 +355,7 @@ static void conv_ccg_get_face_verts(const OpenSubdiv_Converter *converter,
 	CCGFace *ccg_face = ccgSubSurf_getFace(ss, SET_INT_IN_POINTER(face));
 	int num_face_verts = ccgSubSurf_getFaceNumVerts(ccg_face);
 	int loop;
-	for(loop = 0; loop < num_face_verts; loop++) {
+	for (loop = 0; loop < num_face_verts; loop++) {
 		CCGVert *ccg_vert = ccgSubSurf_getFaceVert(ccg_face, loop);
 		face_verts[loop] = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(ccg_vert));
 	}
@@ -369,7 +369,7 @@ static void conv_ccg_get_face_edges(const OpenSubdiv_Converter *converter,
 	CCGFace *ccg_face = ccgSubSurf_getFace(ss, SET_INT_IN_POINTER(face));
 	int num_face_verts = ccgSubSurf_getFaceNumVerts(ccg_face);
 	int loop;
-	for(loop = 0; loop < num_face_verts; loop++) {
+	for (loop = 0; loop < num_face_verts; loop++) {
 		CCGEdge *ccg_edge = ccgSubSurf_getFaceEdge(ccg_face, loop);
 		face_edges[loop] = GET_INT_FROM_POINTER(ccgSubSurf_getEdgeEdgeHandle(ccg_edge));
 	}
