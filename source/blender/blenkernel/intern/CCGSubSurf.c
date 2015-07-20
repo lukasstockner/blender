@@ -507,7 +507,9 @@ CCGError ccgSubSurf_initFullSync(CCGSubSurf *ss)
 	ss->tempEdges = MEM_mallocN(sizeof(*ss->tempEdges) * ss->lenTempArrays, "CCGSubsurf tempEdges");
 
 	ss->syncState = eSyncState_Vert;
+#ifdef WITH_OPENSUBDIV
 	ss->osd_next_face_ptex_index = 0;
+#endif
 
 	return eCCGError_None;
 }
