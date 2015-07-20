@@ -135,7 +135,7 @@ static void widget_checkbox(uiWidgetColors *wcol, rcti *rect, int state, int UNU
 
 
 static void widget_colorband(
-        uiBut *but, uiWidgetColors *wcol, rcti *rect,
+        uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect,
         int UNUSED(state), int UNUSED(roundboxalign))
 {
 	ColorBand *coba;
