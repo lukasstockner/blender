@@ -1529,8 +1529,14 @@ static void shader_print_errors(const char *task, const char *log, const char **
 	fprintf(stderr, "%s\n", log);
 }
 
-static const char *gpu_shader_version(void)
+static const char *gpu_shader_version(bool use_opensubdiv)
 {
+#ifdef WITH_OPENSUBDIV
+	if (use_opensubdiv) {
+		return "#version 150";
+	}
+#endif
+
 	/* turn on glsl 1.30 for bicubic bump mapping and ATI clipping support */
 	if (GLEW_VERSION_3_0 &&
 	    (GPU_bicubic_bump_support() || GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)))
@@ -1670,7 +1676,10 @@ void GPU_program_parameter_4f(GPUProgram *program, unsigned int location, float 
 
 GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const char *geocode, const char *libcode, const char *defines, int input, int output, int number)
 {
-	/* TODO(sergey): Use real check here. */
+	/* TODO(sergey): used to add #version 150 to the geometry shader.
+	 * Could safely be renamed to "use_geometry_code" since it's evry much
+	 * liely any of geometry code will want to use GLSL 1.5.
+	 */
 	bool use_opensubdiv = geocode != NULL;
 	GLint status;
 	GLcharARB log[5000];
@@ -1711,7 +1720,7 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 		/* custom limit, may be too small, beware */
 		int num_source = 0;
 
-		source[num_source++] = gpu_shader_version();
+		source[num_source++] = gpu_shader_version(use_opensubdiv);
 		source[num_source++] = standard_extensions;
 		source[num_source++] = standard_defines;
 
@@ -1737,11 +1746,12 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 		const char *source[7];
 		int num_source = 0;
 
-		source[num_source++] = gpu_shader_version();
+		source[num_source++] = gpu_shader_version(use_opensubdiv);
 		source[num_source++] = standard_extensions;
 		source[num_source++] = standard_defines;
 
 #ifdef WITH_OPENSUBDIV
+		/* TODO(sergey): Move to fragment shader source code generation. */
 		if (use_opensubdiv) {
 			source[num_source++] =
 			        "#ifdef USE_OPENSUBDIV\n"
@@ -1775,7 +1785,7 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 		const char *source[6];
 		int num_source = 0;
 
-		source[num_source++] = gpu_shader_version();
+		source[num_source++] = gpu_shader_version(use_opensubdiv);
 		source[num_source++] = standard_extensions;
 		source[num_source++] = standard_defines;
 

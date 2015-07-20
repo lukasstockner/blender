@@ -25,7 +25,6 @@
 
 /* ***** Vertex shader ***** */
 
-#version 130
 #extension GL_EXT_geometry_shader4 : enable
 #extension GL_ARB_gpu_shader5 : enable
 #extension GL_ARB_explicit_attrib_location : require
