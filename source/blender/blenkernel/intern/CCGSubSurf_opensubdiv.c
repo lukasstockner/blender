@@ -786,7 +786,7 @@ void ccgSubSurf_prepareTopologyRefiner(CCGSubSurf *ss, DerivedMesh *dm)
 		ccgSubSurf_converter_free(&converter);
 	}
 
-	/* Update number of grids, needed for thinhs liek final faces
+	/* Update number of grids, needed for things like final faces
 	 * counter, used by display drawing.
 	 */
 	{

@@ -414,7 +414,7 @@ static float conv_ccg_get_edge_sharpness(const OpenSubdiv_Converter *converter,
 {
 	CCGSubSurf *ss = converter->user_data;
 	CCGEdge *ccg_edge = ccgSubSurf_getEdge(ss, SET_INT_IN_POINTER(edge));
-	/* TODO(sergey): Bultiply by subdivision level once CPU evaluator
+	/* TODO(sergey): Multiply by subdivision level once CPU evaluator
 	 * is switched to uniform subdivision type.
 	 */
 	return ccg_edge->crease;
