@@ -1260,7 +1260,7 @@ static void widget_numbut(uiWidgetColors *wcol, rcti *rect, int state, int round
 
 uiWidgetDrawType drawtype_classic_box = {
 	/* state */  widget_state,
-	/* draw */   NULL,
+	/* draw */   widget_but, /* used for search menus */
 	/* custom */ widget_box,
 	/* text */   widget_draw_text_icon,
 };
