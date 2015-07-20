@@ -4452,6 +4452,7 @@ static bool subsurf_use_gpu_backend(SubsurfFlags flags)
 	        (U.opensubdiv_compute_type != USER_OPENSUBDIV_COMPUTE_NONE) &&
 	        (openSubdiv_supportGPUDisplay());
 #else
+	(void)flags;
 	return false;
 #endif
 }
@@ -4482,7 +4483,9 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 
 		smd->emCache = _getSubSurf(smd->emCache, levels, 3, useSimple | useAging | CCG_CALC_NORMALS);
 
+#ifdef WITH_OPENSUBDIV
 		ccgSubSurf_setSkipGrids(smd->emCache, use_gpu_backend);
+#endif
 		ss_sync_from_derivedmesh(smd->emCache, dm, vertCos, useSimple);
 		result = getCCGDerivedMesh(smd->emCache,
 		                           drawInteriorEdges,
@@ -4562,7 +4565,9 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 				ccg_flags |= CCG_ALLOC_MASK;
 
 			ss = _getSubSurf(prevSS, levels, 3, ccg_flags);
+#ifdef WITH_OPENSUBDIV
 			ccgSubSurf_setSkipGrids(ss, use_gpu_backend);
+#endif
 			ss_sync_from_derivedmesh(ss, dm, vertCos, useSimple);
 
 			result = getCCGDerivedMesh(ss, drawInteriorEdges, useSubsurfUv, dm, use_gpu_backend);
