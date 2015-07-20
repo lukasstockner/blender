@@ -32,6 +32,8 @@
 #include "BLI_math.h"
 #include "BLI_rect.h"
 
+#include "IMB_colormanagement.h"
+
 #include "DNA_userdef_types.h"
 #include "DNA_screen_types.h"
 
@@ -724,4 +726,159 @@ void ui_hsv_cursor(float x, float y)
 	glDisable(GL_LINE_SMOOTH);
 
 	glPopMatrix();
+}
+
+static void ui_draw_colorband_handle_tri_hlight(float x1, float y1, float halfwidth, float height)
+{
+	float v[2];
+
+	glEnable(GL_LINE_SMOOTH);
+
+	glBegin(GL_LINE_STRIP);
+	copy_v2_fl2(v, x1 + halfwidth, y1);
+	glVertex2fv(v);
+	copy_v2_fl2(v, x1, y1 + height);
+	glVertex2fv(v);
+	copy_v2_fl2(v, x1 - halfwidth, y1);
+	glVertex2fv(v);
+	glEnd();
+
+	glDisable(GL_LINE_SMOOTH);
+}
+
+static void ui_draw_colorband_handle_tri(float x1, float y1, float halfwidth, float height, bool fill)
+{
+	float v[2];
+
+	if (fill) {
+		glPolygonMode(GL_FRONT, GL_FILL);
+		glEnable(GL_POLYGON_SMOOTH);
+	}
+	else {
+		glPolygonMode(GL_FRONT, GL_LINE);
+		glEnable(GL_LINE_SMOOTH);
+	}
+
+	glBegin(GL_TRIANGLES);
+	copy_v2_fl2(v, x1 + halfwidth, y1);
+	glVertex2fv(v);
+	copy_v2_fl2(v, x1, y1 + height);
+	glVertex2fv(v);
+	copy_v2_fl2(v, x1 - halfwidth, y1);
+	glVertex2fv(v);
+	glEnd();
+
+	if (fill) {
+		glDisable(GL_POLYGON_SMOOTH);
+	}
+	else {
+		glDisable(GL_LINE_SMOOTH);
+		glPolygonMode(GL_FRONT, GL_FILL);
+	}
+}
+
+static void ui_draw_colorband_handle_box(float x1, float y1, float x2, float y2, bool fill)
+{
+	float v[2];
+
+	if (fill) {
+		glPolygonMode(GL_FRONT, GL_FILL);
+	}
+	else {
+		glPolygonMode(GL_FRONT, GL_LINE);
+	}
+
+	glBegin(GL_QUADS);
+	copy_v2_fl2(v, x1, y1);
+	glVertex2fv(v);
+	copy_v2_fl2(v, x1, y2);
+	glVertex2fv(v);
+	copy_v2_fl2(v, x2, y2);
+	glVertex2fv(v);
+	copy_v2_fl2(v, x2, y1);
+	glVertex2fv(v);
+	glEnd();
+
+	if (!fill) {
+		glPolygonMode(GL_FRONT, GL_FILL);
+	}
+}
+
+void ui_draw_colorband_handle(
+        const rcti *rect, float x,
+        const float rgb[3], struct ColorManagedDisplay *display,
+        bool active)
+{
+	const float sizey = BLI_rcti_size_y(rect);
+	const float min_width = 3.0f;
+	float half_width, height, y1, y2;
+	float colf[3] = {UNPACK3(rgb)};
+
+	half_width = floorf(sizey / 3.5f);
+	height = half_width * 1.4f;
+
+	y1 = rect->ymin + (sizey * 0.16f);
+	y2 = rect->ymax;
+
+	/* align to pixels */
+	x  = floorf(x  + 0.5f);
+	y1 = floorf(y1 + 0.5f);
+
+	if (active || half_width < min_width) {
+		glBegin(GL_LINES);
+		glColor3ub(0, 0, 0);
+		glVertex2f(x, y1);
+		glVertex2f(x, y2);
+		glEnd();
+		setlinestyle(active ? 2 : 1);
+		glBegin(GL_LINES);
+		glColor3ub(200, 200, 200);
+		glVertex2f(x, y1);
+		glVertex2f(x, y2);
+		glEnd();
+		setlinestyle(0);
+
+		/* hide handles when zoomed out too far */
+		if (half_width < min_width) {
+			return;
+		}
+	}
+
+	/* shift handle down */
+	y1 = y1 - half_width;
+
+	glColor3ub(0, 0, 0);
+	ui_draw_colorband_handle_box(x - half_width, y1 - 1, x + half_width, y1 + height, false);
+
+	/* draw all triangles blended */
+	glEnable(GL_BLEND);
+
+	ui_draw_colorband_handle_tri(x, y1 + height, half_width, half_width, true);
+
+	if (active)
+		glColor3ub(196, 196, 196);
+	else
+		glColor3ub(96, 96, 96);
+	ui_draw_colorband_handle_tri(x, y1 + height, half_width, half_width, true);
+
+	if (active)
+		glColor3ub(255, 255, 255);
+	else
+		glColor3ub(128, 128, 128);
+	ui_draw_colorband_handle_tri_hlight(x, y1 + height - 1, (half_width - 1), (half_width - 1));
+
+	glColor3ub(0, 0, 0);
+	ui_draw_colorband_handle_tri_hlight(x, y1 + height, half_width, half_width);
+
+	glDisable(GL_BLEND);
+
+	glColor3ub(128, 128, 128);
+	ui_draw_colorband_handle_box(x - (half_width - 1), y1, x + (half_width - 1), y1 + height, true);
+
+	if (display) {
+		IMB_colormanagement_scene_linear_to_display_v3(colf, display);
+	}
+
+	glColor3fv(colf);
+	ui_draw_colorband_handle_box(x - (half_width - 2), y1 + 1, x + (half_width - 2), y1 + height - 2, true);
 }

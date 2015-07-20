@@ -80,6 +80,10 @@ uiWidgetType *WidgetTypeInit(const uiWidgetTypeEnum type)
 			wt.draw_type = draw_style->checkbox;
 			break;
 
+		case UI_WTYPE_COLORBAND:
+			wt.draw_type = draw_style->colorband;
+			break;
+
 		case UI_WTYPE_EXEC:
 			wt.wcol_theme = &btheme->tui.wcol_tool;
 			wt.draw_type = draw_style->exec;

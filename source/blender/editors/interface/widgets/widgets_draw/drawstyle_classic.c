@@ -38,6 +38,10 @@
 #include "DNA_userdef_types.h"
 #include "DNA_brush_types.h"
 
+#include "BKE_texture.h"
+
+#include "IMB_colormanagement.h"
+
 #include "RNA_access.h"
 
 #include "UI_interface.h"
@@ -127,6 +131,113 @@ static void widget_checkbox(uiWidgetColors *wcol, rcti *rect, int state, int UNU
 
 	/* text space */
 	rect->xmin += BLI_rcti_size_y(rect) * 0.7 + delta;
+}
+
+
+static void widget_colorband(
+        uiBut *but, uiWidgetColors *wcol, rcti *rect,
+        int UNUSED(state), int UNUSED(roundboxalign))
+{
+	ColorBand *coba;
+	CBData *cbd;
+	float x1, y1, sizex, sizey, sizey_solid;
+	float v1[2], v2[2];
+	int a;
+	float pos, colf[4] = {0, 0, 0, 0}; /* initialize in case the colorband isn't valid */
+	struct ColorManagedDisplay *display = NULL;
+
+	coba = (ColorBand *)(but->editcoba ? but->editcoba : but->poin);
+	if (coba == NULL) return;
+
+	if (but->block->color_profile)
+		display = ui_block_cm_display_get(but->block);
+
+	x1 = rect->xmin;
+	sizex = rect->xmax - x1;
+	sizey = BLI_rcti_size_y(rect);
+	sizey_solid = sizey / 4;
+	y1 = rect->ymin;
+
+	/* layer: background, to show tranparency */
+	glColor4ub(UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, 255);
+	glRectf(x1, y1, x1 + sizex, rect->ymax);
+	glEnable(GL_POLYGON_STIPPLE);
+	glColor4ub(UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, 255);
+	glPolygonStipple(stipple_checker_8px);
+	glRectf(x1, y1, x1 + sizex, rect->ymax);
+	glDisable(GL_POLYGON_STIPPLE);
+
+	/* layer: color ramp */
+	glShadeModel(GL_FLAT);
+	glEnable(GL_BLEND);
+
+	cbd = coba->data;
+
+	v1[1] = y1 + sizey_solid;
+	v2[1] = rect->ymax;
+
+	glBegin(GL_TRIANGLE_STRIP);
+	for (a = 0; a <= sizex; a++) {
+		pos = ((float)a) / sizex;
+		do_colorband(coba, pos, colf);
+		if (display)
+			IMB_colormanagement_scene_linear_to_display_v3(colf, display);
+		v1[0] = v2[0] = x1 + a;
+
+		glColor4fv(colf);
+		glVertex2fv(v1);
+		glVertex2fv(v2);
+	}
+	glEnd();
+
+	/* layer: color ramp without alpha for reference when manipulating ramp properties */
+	v1[1] = y1;
+	v2[1] = y1 + sizey_solid;
+
+	glBegin(GL_TRIANGLE_STRIP);
+	for (a = 0; a <= sizex; a++) {
+		pos = ((float)a) / sizex;
+		do_colorband(coba, pos, colf);
+		if (display)
+			IMB_colormanagement_scene_linear_to_display_v3(colf, display);
+
+		v1[0] = v2[0] = x1 + a;
+
+		glColor4f(colf[0], colf[1], colf[2], 1.0f);
+		glVertex2fv(v1);
+		glVertex2fv(v2);
+	}
+	glEnd();
+
+	glDisable(GL_BLEND);
+	glShadeModel(GL_SMOOTH);
+
+	/* layer: box outline */
+	glColor4f(0.0, 0.0, 0.0, 1.0);
+	fdrawbox(x1, y1, x1 + sizex, rect->ymax);
+
+	/* layer: box outline */
+	glEnable(GL_BLEND);
+	glColor4f(0.0f, 0.0f, 0.0f, 0.5f);
+	fdrawline(x1, y1, x1 + sizex, y1);
+	glColor4f(1.0f, 1.0f, 1.0f, 0.25f);
+	fdrawline(x1, y1 - 1, x1 + sizex, y1 - 1);
+	glDisable(GL_BLEND);
+
+	/* layer: draw handles */
+	for (a = 0; a < coba->tot; a++, cbd++) {
+		if (a != coba->cur) {
+			pos = x1 + cbd->pos * (sizex - 1) + 1;
+			ui_draw_colorband_handle(rect, pos, &cbd->r, display, false);
+		}
+	}
+
+	/* layer: active handle */
+	if (coba->tot != 0) {
+		cbd = &coba->data[coba->cur];
+		pos = x1 + cbd->pos * (sizex - 1) + 1;
+		ui_draw_colorband_handle(rect, pos, &cbd->r, display, true);
+	}
 }
 
 static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
@@ -1145,6 +1256,13 @@ uiWidgetDrawType drawtype_classic_checkbox = {
 	/* text */   widget_draw_text_icon,
 };
 
+uiWidgetDrawType drawtype_classic_colorband = {
+	/* state */  NULL,
+	/* draw */   NULL,
+	/* custom */ widget_colorband,
+	/* text */   NULL,
+};
+
 uiWidgetDrawType drawtype_classic_exec = {
 	/* state */  widget_state,
 	/* draw */   widget_roundbut,
@@ -1366,6 +1484,7 @@ uiWidgetDrawType drawtype_classic_unitvec = {
 uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* box */               &drawtype_classic_box,
 	/* checkbox */          &drawtype_classic_checkbox,
+	/* colorband */         &drawtype_classic_colorband,
 	/* exec */              &drawtype_classic_exec,
 	/* filename */          NULL, /* not used (yet?) */
 	/* hsv_circle */        &drawtype_classic_hsv_circle,

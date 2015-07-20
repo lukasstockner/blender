@@ -77,6 +77,7 @@ typedef enum {
 	UI_WTYPE_SWATCH,
 	UI_WTYPE_RGB_PICKER,
 	UI_WTYPE_UNITVEC,
+	UI_WTYPE_COLORBAND,
 	UI_WTYPE_HSV_CIRCLE,
 	UI_WTYPE_HSV_CUBE,
 	UI_WTYPE_HSV_VERT,
@@ -116,6 +117,7 @@ typedef struct uiWidgetDrawStyle {
 	/* let's keep this in a nice alphabetical order! */
 	uiWidgetDrawType *box,
 	                 *checkbox,
+	                 *colorband,
 	                 *exec,
 	                 *filename,
 	                 *hsv_circle,

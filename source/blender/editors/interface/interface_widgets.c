@@ -1142,7 +1142,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				break;
 				
 			case UI_BTYPE_COLORBAND:
-				ui_draw_but_COLORBAND(but, &tui->wcol_regular, rect);
+				wt = WidgetTypeInit(UI_WTYPE_COLORBAND);
 				break;
 				
 			case UI_BTYPE_UNITVEC:
