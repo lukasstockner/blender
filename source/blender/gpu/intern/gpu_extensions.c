@@ -1676,11 +1676,15 @@ void GPU_program_parameter_4f(GPUProgram *program, unsigned int location, float 
 
 GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const char *geocode, const char *libcode, const char *defines, int input, int output, int number)
 {
+#ifdef WITH_OPENSUBDIF
 	/* TODO(sergey): used to add #version 150 to the geometry shader.
 	 * Could safely be renamed to "use_geometry_code" since it's evry much
 	 * liely any of geometry code will want to use GLSL 1.5.
 	 */
 	bool use_opensubdiv = geocode != NULL;
+#else
+	bool use_opensubdiv = false;
+#endif
 	GLint status;
 	GLcharARB log[5000];
 	GLsizei length = 0;
@@ -1821,18 +1825,11 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 	if (use_opensubdiv) {
 		glBindAttribLocation(shader->object, 0, "position");
 		glBindAttribLocation(shader->object, 1, "normal");
+		GPU_shader_geometry_stage_primitive_io(shader,
+		                                       GL_LINES_ADJACENCY_EXT,
+		                                       GL_TRIANGLE_STRIP,
+		                                       4);
 
-		glProgramParameteriEXT(shader->object,
-		                       GL_GEOMETRY_INPUT_TYPE_EXT,
-		                       GL_LINES_ADJACENCY_EXT);
-
-		glProgramParameteriEXT(shader->object,
-		                       GL_GEOMETRY_OUTPUT_TYPE_EXT,
-		                       GL_TRIANGLE_STRIP);
-
-		glProgramParameteriEXT(shader->object,
-		                       GL_GEOMETRY_VERTICES_OUT_EXT,
-		                       4);
 	}
 #endif
 
