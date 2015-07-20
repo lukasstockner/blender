@@ -652,7 +652,7 @@ static void cdDM_drawMappedFaces(
 	totpoly = dm->getNumPolys(dm);
 
 	/* if we do selection, fill the selection buffer color */
-	if (G.f & G_BACKBUFSEL) {
+	if ((G.f & G_BACKBUFSEL) && !(flag & DM_DRAW_SKIP_SELECT)) {
 		Mesh *me = userData;
 		unsigned int *fi_map;
 
@@ -3157,8 +3157,8 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 	}
 	
 	/*create new cddm*/
-	cddm2 = (CDDerivedMesh *)CDDM_from_template((
-	        DerivedMesh *)cddm, STACK_SIZE(mvert), STACK_SIZE(medge), 0, STACK_SIZE(mloop), STACK_SIZE(mpoly));
+	cddm2 = (CDDerivedMesh *)CDDM_from_template(
+	        (DerivedMesh *)cddm, STACK_SIZE(mvert), STACK_SIZE(medge), 0, STACK_SIZE(mloop), STACK_SIZE(mpoly));
 	
 	/*update edge indices and copy customdata*/
 	med = medge;
