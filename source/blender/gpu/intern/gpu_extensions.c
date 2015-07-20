@@ -1597,6 +1597,8 @@ static void gpu_shader_standard_defines(bool use_opensubdiv,
 		                "  vec2 uv;"
 		                "};\n");
 	}
+#else
+	UNUSED_VARS(use_opensubdiv);
 #endif
 
 	return;
