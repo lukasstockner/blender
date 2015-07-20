@@ -88,6 +88,14 @@ uiWidgetType *WidgetTypeInit(const uiWidgetTypeEnum type)
 		case UI_WTYPE_FILENAME:
 			break;
 
+		case UI_WTYPE_HSV_CIRCLE:
+			wt.draw_type = draw_style->hsv_circle;
+			break;
+
+		case UI_WTYPE_HSV_CUBE:
+			wt.draw_type = draw_style->hsv_cube;
+			break;
+
 		case UI_WTYPE_HSV_VERT:
 			wt.draw_type = draw_style->hsv_vert;
 			break;

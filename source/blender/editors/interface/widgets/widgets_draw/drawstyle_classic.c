@@ -25,6 +25,7 @@
  */
 
 #include "BIF_gl.h"
+#include "BIF_glutil.h"
 
 #include "BLF_api.h"
 
@@ -140,6 +141,124 @@ static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state),
 
 	widget_drawbase_draw(&wtb, wcol);
 }
+
+static void widget_hsv_circle(
+        uiBut *but, uiWidgetColors *wcol, rcti *rect,
+        int UNUSED(state), int UNUSED(roundboxalign))
+{
+	const int tot = 64;
+	const float radstep = 2.0f * (float)M_PI / (float)tot;
+	const float centx = BLI_rcti_cent_x_fl(rect);
+	const float centy = BLI_rcti_cent_y_fl(rect);
+	float radius = (float)min_ii(BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)) / 2.0f;
+
+	/* gouraud triangle fan */
+	ColorPicker *cpicker = but->custom_data;
+	const float *hsv_ptr = cpicker->color_data;
+	float xpos, ypos, ang = 0.0f;
+	float rgb[3], hsvo[3], hsv[3], col[3], colcent[3];
+	int a;
+	bool color_profile = ui_but_is_colorpicker_display_space(but);
+
+	/* color */
+	ui_but_v3_get(but, rgb);
+
+	/* since we use compat functions on both 'hsv' and 'hsvo', they need to be initialized */
+	hsvo[0] = hsv[0] = hsv_ptr[0];
+	hsvo[1] = hsv[1] = hsv_ptr[1];
+	hsvo[2] = hsv[2] = hsv_ptr[2];
+
+	if (color_profile)
+		ui_block_cm_to_display_space_v3(but->block, rgb);
+
+	ui_rgb_to_color_picker_compat_v(rgb, hsv);
+	copy_v3_v3(hsvo, hsv);
+
+	CLAMP(hsv[2], 0.0f, 1.0f); /* for display only */
+
+	/* exception: if 'lock' is set
+	 * lock the value of the color wheel to 1.
+	 * Useful for color correction tools where you're only interested in hue. */
+	if (but->flag & UI_BUT_COLOR_LOCK) {
+		if (U.color_picker_type == USER_CP_CIRCLE_HSV)
+			hsv[2] = 1.0f;
+		else
+			hsv[2] = 0.5f;
+	}
+
+	ui_color_picker_to_rgb(0.0f, 0.0f, hsv[2], colcent, colcent + 1, colcent + 2);
+
+	glShadeModel(GL_SMOOTH);
+
+	glBegin(GL_TRIANGLE_FAN);
+	glColor3fv(colcent);
+	glVertex2f(centx, centy);
+
+	for (a = 0; a <= tot; a++, ang += radstep) {
+		float si = sinf(ang);
+		float co = cosf(ang);
+
+		ui_hsvcircle_vals_from_pos(hsv, hsv + 1, rect, centx + co * radius, centy + si * radius);
+
+		ui_color_picker_to_rgb_v(hsv, col);
+
+		glColor3fv(col);
+		glVertex2f(centx + co * radius, centy + si * radius);
+	}
+	glEnd();
+
+	glShadeModel(GL_FLAT);
+
+	/* fully rounded outline */
+	glPushMatrix();
+	glTranslatef(centx, centy, 0.0f);
+	glEnable(GL_BLEND);
+	glEnable(GL_LINE_SMOOTH);
+	glColor3ubv((unsigned char *)wcol->outline);
+	glutil_draw_lined_arc(0.0f, M_PI * 2.0, radius, tot + 1);
+	glDisable(GL_BLEND);
+	glDisable(GL_LINE_SMOOTH);
+	glPopMatrix();
+
+	/* cursor */
+	ui_hsvcircle_pos_from_vals(but, rect, hsvo, &xpos, &ypos);
+
+	ui_hsv_cursor(xpos, ypos);
+}
+
+static void widget_hsv_cube(
+        uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect,
+        int UNUSED(state), int UNUSED(roundboxalign))
+{
+	float rgb[3];
+	float x = 0.0f, y = 0.0f;
+	ColorPicker *cpicker = but->custom_data;
+	float *hsv = cpicker->color_data;
+	float hsv_n[3];
+	bool use_display_colorspace = ui_but_is_colorpicker_display_space(but);
+
+	copy_v3_v3(hsv_n, hsv);
+
+	ui_but_v3_get(but, rgb);
+
+	if (use_display_colorspace)
+		ui_block_cm_to_display_space_v3(but->block, rgb);
+
+	rgb_to_hsv_compat_v(rgb, hsv_n);
+
+	ui_draw_gradient(rect, hsv_n, but->a1, 1.0f);
+
+	ui_hsvcube_pos_from_vals(but, rect, hsv_n, &x, &y);
+	CLAMP(x, rect->xmin + 3.0f, rect->xmax - 3.0f);
+	CLAMP(y, rect->ymin + 3.0f, rect->ymax - 3.0f);
+
+	ui_hsv_cursor(x, y);
+
+	/* outline */
+	glColor3ub(0, 0, 0);
+	fdrawbox((rect->xmin), (rect->ymin), (rect->xmax), (rect->ymax));
+}
+
 
 static void widget_hsv_vert(
         uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect,
@@ -1033,6 +1152,20 @@ uiWidgetDrawType drawtype_classic_exec = {
 	/* text */   widget_draw_text_icon,
 };
 
+uiWidgetDrawType drawtype_classic_hsv_circle = {
+	/* state */  NULL,
+	/* draw */   NULL,
+	/* custom */ widget_hsv_circle,
+	/* text */   NULL,
+};
+
+uiWidgetDrawType drawtype_classic_hsv_cube = {
+	/* state */  NULL,
+	/* draw */   NULL,
+	/* custom */ widget_hsv_cube,
+	/* text */   NULL,
+};
+
 uiWidgetDrawType drawtype_classic_hsv_vert = {
 	/* state */  NULL,
 	/* draw */   NULL,
@@ -1235,6 +1368,8 @@ uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* checkbox */          &drawtype_classic_checkbox,
 	/* exec */              &drawtype_classic_exec,
 	/* filename */          NULL, /* not used (yet?) */
+	/* hsv_circle */        &drawtype_classic_hsv_circle,
+	/* hsv_cube */          &drawtype_classic_hsv_cube,
 	/* hsv_vert*/           &drawtype_classic_hsv_vert,
 	/* icon */              &drawtype_classic_icon,
 	/* label */             &drawtype_classic_label,
