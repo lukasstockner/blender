@@ -217,6 +217,11 @@ uiWidgetType *WidgetTypeInit(const uiWidgetTypeEnum type)
 			wt.draw_type = draw_style->scroll_inner;
 			break;
 
+		case UI_WTYPE_SEPARATOR:
+			wt.wcol_theme = &btheme->tui.wcol_menu_item;
+			wt.draw_type = draw_style->separator;
+			break;
+
 		case UI_WTYPE_SLIDER:
 			wt.wcol_theme = &btheme->tui.wcol_numslider;
 			wt.draw_type = draw_style->slider;

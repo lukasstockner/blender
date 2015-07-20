@@ -826,7 +826,23 @@ static void widget_scroll_inner(uiWidgetColors *wcol, rcti *rect, int state, int
 	if (state & UI_SCROLL_NO_OUTLINE) {
 		SWAP(bool, outline, wtb.draw_outline);
 	}
+}
 
+/* separator, for menus etc */
+static void widget_separator(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+{
+	int y = rect->ymin + BLI_rcti_size_y(rect) / 2 - 1;
+	unsigned char col[4];
+
+	col[0] = wcol->text[0];
+	col[1] = wcol->text[1];
+	col[2] = wcol->text[2];
+	col[3] = 30;
+
+	glEnable(GL_BLEND);
+	glColor4ubv(col);
+	sdrawline(rect->xmin, y, rect->xmax, y);
+	glDisable(GL_BLEND);
 }
 
 static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
@@ -1445,6 +1461,13 @@ uiWidgetDrawType drawtype_classic_scroll_inner = {
 	/* text */   NULL,
 };
 
+uiWidgetDrawType drawtype_classic_separator = {
+	/* state */  widget_state_nothing,
+	/* draw */   widget_separator,
+	/* custom */ NULL,
+	/* text */   NULL,
+};
+
 uiWidgetDrawType drawtype_classic_numslider = {
 	/* state */  widget_state_numslider,
 	/* draw */   NULL,
@@ -1515,6 +1538,7 @@ uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* rgb_picker */        NULL, /* not used (yet?) */
 	/* scroll_back */       &drawtype_classic_scroll_back,
 	/* scroll_inner */      &drawtype_classic_scroll_inner,
+	/* separator */         &drawtype_classic_separator,
 	/* slider */            &drawtype_classic_numslider,
 	/* swatch */            &drawtype_classic_swatch,
 	/* toggle */            &drawtype_classic_toggle,

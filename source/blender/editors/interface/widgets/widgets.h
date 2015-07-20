@@ -88,6 +88,7 @@ typedef enum {
 	UI_WTYPE_LISTITEM,
 	UI_WTYPE_PROGRESSBAR,
 	UI_WTYPE_LINK,
+	UI_WTYPE_SEPARATOR,
 } uiWidgetTypeEnum;
 
 /** uiWidgetType: for time being only for visual appearance,
@@ -148,6 +149,7 @@ typedef struct uiWidgetDrawStyle {
 	                 *rgb_picker,
 	                 *scroll_back,
 	                 *scroll_inner,
+	                 *separator,
 	                 *slider,
 	                 *swatch,
 	                 *toggle,

@@ -806,23 +806,6 @@ void ui_hsvcube_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float *x
 }
 
 
-/* ************ separator, for menus etc ***************** */
-static void ui_draw_separator(const rcti *rect,  uiWidgetColors *wcol)
-{
-	int y = rect->ymin + BLI_rcti_size_y(rect) / 2 - 1;
-	unsigned char col[4];
-	
-	col[0] = wcol->text[0];
-	col[1] = wcol->text[1];
-	col[2] = wcol->text[2];
-	col[3] = 30;
-	
-	glEnable(GL_BLEND);
-	glColor4ubv(col);
-	sdrawline(rect->xmin, y, rect->xmax, y);
-	glDisable(GL_BLEND);
-}
-
 /* ************ button callbacks, draw ***************** */
 
 bool ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol)
@@ -992,7 +975,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				wt = WidgetTypeInit(UI_WTYPE_MENU_LABEL);
 				break;
 			case UI_BTYPE_SEPR_LINE:
-				ui_draw_separator(rect, &tui->wcol_menu_item);
+				wt = WidgetTypeInit(UI_WTYPE_SEPARATOR);
 				break;
 			default:
 				wt = WidgetTypeInit(UI_WTYPE_MENU_ITEM);
