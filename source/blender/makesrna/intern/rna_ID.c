@@ -333,6 +333,11 @@ static void rna_ID_user_clear(ID *id)
 	id->flag &= ~LIB_FAKEUSER;
 }
 
+static void rna_ID_user_remap(ID *id, Main *bmain, ID *new_id)
+{
+	BKE_libblock_remap(bmain, id, new_id);
+}
+
 static AnimData * rna_ID_animation_data_create(ID *id, Main *bmain)
 {
 	AnimData *adt = BKE_animdata_add_id(id);
@@ -849,6 +854,12 @@ static void rna_def_ID(BlenderRNA *brna)
 	func = RNA_def_function(srna, "user_clear", "rna_ID_user_clear");
 	RNA_def_function_ui_description(func, "Clear the user count of a datablock so its not saved, "
 	                                "on reload the data will be removed");
+
+	func = RNA_def_function(srna, "user_remap", "rna_ID_user_remap");
+	RNA_def_function_ui_description(func, "Replace all usage in the .blend file of this ID by new given one");
+	RNA_def_function_flag(func, FUNC_USE_MAIN);
+	parm = RNA_def_pointer(func, "new_id", "ID", "", "New ID to use");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL);
 
 	func = RNA_def_function(srna, "animation_data_create", "rna_ID_animation_data_create");
 	RNA_def_function_flag(func, FUNC_USE_MAIN);

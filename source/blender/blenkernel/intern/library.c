@@ -899,7 +899,7 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUS
 
 	if (*id_p == old_id) {
 		*id_p = new_id;
-		DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB);
+		DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB | OB_RECALC_DATA);
 	}
 
 	return true;
@@ -909,12 +909,14 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUS
 void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
 {
 	void *user_data[4] = {(void *)bmain, (void *)old_id, (void *)new_id, NULL};
-	ListBase lb_array[MAX_LIBARRAY];
-	int i = MAX_LIBARRAY;
+	ListBase *lb_array[MAX_LIBARRAY];
+	int i;
 
 	BLI_assert(GS(old_id->name) == GS(new_id->name));
 
-	set_listbasepointers(bmain, (ListBase **)&lb_array);
+	printf("%s: %s replaced by %s\n", __func__, old_id->name, new_id->name);
+
+	i = set_listbasepointers(bmain, lb_array);
 
 	BKE_main_lock(bmain);
 
@@ -923,7 +925,8 @@ void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
 
 	while (i--) {
 		ID *id;
-		for (id = lb_array[i].first; id; id = id->next) {
+		for (id = lb_array[i]->first; id; id = id->next) {
+			printf("\tchecking id %s (%p)\n", id->name, id);
 			user_data[3] = (void *)id;
 			BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)user_data, IDWALK_NOP);
 		}

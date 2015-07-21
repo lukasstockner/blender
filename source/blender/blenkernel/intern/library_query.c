@@ -229,6 +229,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 		case ID_OB:
 		{
 			Object *object = (Object *) id;
+			CALLBACK_INVOKE_ID(object->data, IDWALK_NOP);
 			CALLBACK_INVOKE(object->parent, IDWALK_NOP);
 			CALLBACK_INVOKE(object->track, IDWALK_NOP);
 			CALLBACK_INVOKE(object->proxy, IDWALK_NOP);
