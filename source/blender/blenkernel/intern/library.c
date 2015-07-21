@@ -896,11 +896,30 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUS
 	ID *old_id = ((void **)user_data)[1];
 	ID *new_id = ((void **)user_data)[2];
 	ID *id = ((void **)user_data)[3];
+	int skipped = GET_INT_FROM_POINTER(((void **)user_data)[4]);
+
+	/* Special hack in case it's Object->data, this is *not* covered by foreach_ID_link.
+	 * Here we simply do nothing in case we are in edit mode, otherwise we replace the ID! */
+	if (GS(id->name) == ID_OB) {
+		Object *ob = (Object *)id;
+
+		if (ob->data == old_id) {
+			if (BKE_object_is_in_editmode(ob)) {
+				skipped++;
+			}
+			else {
+				ob->data = new_id;
+				DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB | OB_RECALC_DATA);
+			}
+		}
+	}
 
 	if (*id_p == old_id) {
 		*id_p = new_id;
 		DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB | OB_RECALC_DATA);
 	}
+
+	((void **)user_data)[4] = SET_INT_IN_POINTER(skipped);
 
 	return true;
 }
@@ -908,11 +927,13 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUS
 /** Replace all references in .blend file to \a old_id by \a new_id. */
 void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
 {
-	void *user_data[4] = {(void *)bmain, (void *)old_id, (void *)new_id, NULL};
+	void *user_data[5] = {(void *)bmain, (void *)old_id, (void *)new_id, NULL, SET_INT_IN_POINTER(0)};
 	ListBase *lb_array[MAX_LIBARRAY];
+	int skipped;
 	int i;
 
 	BLI_assert(GS(old_id->name) == GS(new_id->name));
+	BLI_assert(old_id != new_id);
 
 	printf("%s: %s replaced by %s\n", __func__, old_id->name, new_id->name);
 
@@ -941,21 +962,26 @@ void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
 	}
 
 	/* All ID 'users' do not actually incref it, so we just assume all uses of this ID have been cleared... */
-	if ((old_id->us > 1) && (old_id->flag & LIB_FAKEUSER)) {
-		new_id->us += old_id->us - 1;
-		if (new_id->flag & LIB_INDIRECT) {
-			new_id->flag &= ~LIB_INDIRECT;
-			new_id->flag |= LIB_EXTERN;
+	skipped = GET_INT_FROM_POINTER(((void **)user_data)[4]);
+	if (old_id->flag & LIB_FAKEUSER) {
+		BLI_assert(old_id->us - 1 - skipped >= 0);
+		if (old_id->us > 1) {
+			new_id->us += old_id->us - 1 - skipped;
+			if (new_id->flag & LIB_INDIRECT) {
+				new_id->flag &= ~LIB_INDIRECT;
+				new_id->flag |= LIB_EXTERN;
+			}
+			old_id->us = 1 + skipped;
 		}
-		old_id->us = 1;
 	}
-	else if (old_id->us > 0){
-		new_id->us += old_id->us;
+	else if (old_id->us > 0) {
+		BLI_assert(old_id->us - skipped >= 0);
+		new_id->us += old_id->us - skipped;
 		if (new_id->flag & LIB_INDIRECT) {
 			new_id->flag &= ~LIB_INDIRECT;
 			new_id->flag |= LIB_EXTERN;
 		}
-		old_id->us = 0;
+		old_id->us = skipped;
 	}
 
 	/* Full rebuild of DAG! */

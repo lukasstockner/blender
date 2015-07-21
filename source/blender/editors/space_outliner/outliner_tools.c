@@ -133,14 +133,14 @@ static void set_operation_types(SpaceOops *soops, ListBase *lb,
 }
 
 static void unlink_action_cb(bContext *C, Scene *UNUSED(scene), TreeElement *UNUSED(te),
-                             TreeStoreElem *tsep, TreeStoreElem *UNUSED(tselem))
+                             TreeStoreElem *tsep, TreeStoreElem *UNUSED(tselem), void *UNUSED(user_data))
 {
 	/* just set action to NULL */
 	BKE_animdata_set_action(CTX_wm_reports(C), tsep->id, NULL);
 }
 
 static void unlink_material_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeElement *te,
-                               TreeStoreElem *tsep, TreeStoreElem *UNUSED(tselem))
+                               TreeStoreElem *tsep, TreeStoreElem *UNUSED(tselem), void *UNUSED(user_data))
 {
 	Material **matar = NULL;
 	int a, totcol = 0;
@@ -180,7 +180,7 @@ static void unlink_material_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeEl
 }
 
 static void unlink_texture_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeElement *te,
-                              TreeStoreElem *tsep, TreeStoreElem *UNUSED(tselem))
+                              TreeStoreElem *tsep, TreeStoreElem *UNUSED(tselem), void *UNUSED(user_data))
 {
 	MTex **mtex = NULL;
 	int a;
@@ -216,7 +216,7 @@ static void unlink_texture_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeEle
 }
 
 static void unlink_group_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeElement *UNUSED(te),
-                            TreeStoreElem *tsep, TreeStoreElem *tselem)
+                            TreeStoreElem *tsep, TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Group *group = (Group *)tselem->id;
 	
@@ -232,7 +232,7 @@ static void unlink_group_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeEleme
 }
 
 static void unlink_world_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeElement *UNUSED(te),
-                            TreeStoreElem *tsep, TreeStoreElem *tselem)
+                            TreeStoreElem *tsep, TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Scene *parscene = (Scene *)tsep->id;
 	World *wo = (World *)tselem->id;
@@ -244,7 +244,8 @@ static void unlink_world_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeEleme
 
 static void outliner_do_libdata_operation(bContext *C, Scene *scene, SpaceOops *soops, ListBase *lb, 
                                           void (*operation_cb)(bContext *C, Scene *scene, TreeElement *,
-                                                               TreeStoreElem *, TreeStoreElem *))
+                                                               TreeStoreElem *, TreeStoreElem *, void *),
+                                          void *user_data)
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
@@ -254,11 +255,11 @@ static void outliner_do_libdata_operation(bContext *C, Scene *scene, SpaceOops *
 		if (tselem->flag & TSE_SELECTED) {
 			if (tselem->type == 0) {
 				TreeStoreElem *tsep = te->parent ? TREESTORE(te->parent) : NULL;
-				operation_cb(C, scene, te, tsep, tselem);
+				operation_cb(C, scene, te, tsep, tselem, user_data);
 			}
 		}
 		if (TSELEM_OPEN(tselem, soops)) {
-			outliner_do_libdata_operation(C, scene, soops, &te->subtree, operation_cb);
+			outliner_do_libdata_operation(C, scene, soops, &te->subtree, operation_cb, user_data);
 		}
 	}
 }
@@ -266,7 +267,7 @@ static void outliner_do_libdata_operation(bContext *C, Scene *scene, SpaceOops *
 /* */
 
 static void object_select_cb(bContext *UNUSED(C), Scene *scene, TreeElement *te,
-                             TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                             TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Base *base = (Base *)te->directdata;
 	
@@ -278,7 +279,7 @@ static void object_select_cb(bContext *UNUSED(C), Scene *scene, TreeElement *te,
 }
 
 static void object_select_hierarchy_cb(bContext *C, Scene *UNUSED(scene), TreeElement *UNUSED(te),
-                             TreeStoreElem *UNUSED(tsep), TreeStoreElem *UNUSED(tselem))
+                             TreeStoreElem *UNUSED(tsep), TreeStoreElem *UNUSED(tselem), void *UNUSED(user_data))
 {
 	/* From where do i get the x,y coordinate of the mouse event ? */
 	wmWindow *win = CTX_wm_window(C);
@@ -289,7 +290,7 @@ static void object_select_hierarchy_cb(bContext *C, Scene *UNUSED(scene), TreeEl
 
 
 static void object_deselect_cb(bContext *UNUSED(C), Scene *scene, TreeElement *te,
-                               TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                               TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Base *base = (Base *)te->directdata;
 	
@@ -301,7 +302,7 @@ static void object_deselect_cb(bContext *UNUSED(C), Scene *scene, TreeElement *t
 }
 
 static void object_delete_cb(bContext *C, Scene *scene, TreeElement *te,
-                             TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                             TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Base *base = (Base *)te->directdata;
 	
@@ -319,7 +320,7 @@ static void object_delete_cb(bContext *C, Scene *scene, TreeElement *te,
 }
 
 static void id_local_cb(bContext *C, Scene *UNUSED(scene), TreeElement *UNUSED(te),
-                        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	if (tselem->id->lib && (tselem->id->flag & LIB_EXTERN)) {
 		/* if the ID type has no special local function,
@@ -332,7 +333,7 @@ static void id_local_cb(bContext *C, Scene *UNUSED(scene), TreeElement *UNUSED(t
 }
 
 static void id_fake_user_set_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeElement *UNUSED(te),
-                                TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                                TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	ID *id = tselem->id;
 	
@@ -343,7 +344,7 @@ static void id_fake_user_set_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeE
 }
 
 static void id_fake_user_clear_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeElement *UNUSED(te),
-                                  TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                                  TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	ID *id = tselem->id;
 	
@@ -354,7 +355,7 @@ static void id_fake_user_clear_cb(bContext *UNUSED(C), Scene *UNUSED(scene), Tre
 }
 
 static void id_select_linked_cb(bContext *C, Scene *UNUSED(scene), TreeElement *UNUSED(te),
-                                TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                                TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	ID *id = tselem->id;
 
@@ -362,7 +363,7 @@ static void id_select_linked_cb(bContext *C, Scene *UNUSED(scene), TreeElement *
 }
 
 static void singleuser_action_cb(bContext *C, Scene *UNUSED(scene), TreeElement *UNUSED(te),
-                                 TreeStoreElem *tsep, TreeStoreElem *tselem)
+                                 TreeStoreElem *tsep, TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	ID *id = tselem->id;
 	
@@ -379,7 +380,7 @@ static void singleuser_action_cb(bContext *C, Scene *UNUSED(scene), TreeElement 
 }
 
 static void singleuser_world_cb(bContext *C, Scene *UNUSED(scene), TreeElement *UNUSED(te),
-                                TreeStoreElem *tsep, TreeStoreElem *tselem)
+                                TreeStoreElem *tsep, TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	ID *id = tselem->id;
 	
@@ -397,7 +398,7 @@ static void singleuser_world_cb(bContext *C, Scene *UNUSED(scene), TreeElement *
 }
 
 static void group_linkobs2scene_cb(bContext *UNUSED(C), Scene *scene, TreeElement *UNUSED(te),
-                                   TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                                   TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Group *group = (Group *)tselem->id;
 	GroupObject *gob;
@@ -423,7 +424,7 @@ static void group_linkobs2scene_cb(bContext *UNUSED(C), Scene *scene, TreeElemen
 }
 
 static void group_instance_cb(bContext *C, Scene *scene, TreeElement *UNUSED(te),
-                              TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                              TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Group *group = (Group *)tselem->id;
 
@@ -435,7 +436,7 @@ static void group_instance_cb(bContext *C, Scene *scene, TreeElement *UNUSED(te)
 
 void outliner_do_object_operation(bContext *C, Scene *scene_act, SpaceOops *soops, ListBase *lb, 
                                   void (*operation_cb)(bContext *C, Scene *scene, TreeElement *,
-                                                       TreeStoreElem *, TreeStoreElem *))
+                                                       TreeStoreElem *, TreeStoreElem *, void *))
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
@@ -452,7 +453,7 @@ void outliner_do_object_operation(bContext *C, Scene *scene_act, SpaceOops *soop
 				/* important to use 'scene_owner' not scene_act else deleting objects can crash.
 				 * only use 'scene_act' when 'scene_owner' is NULL, which can happen when the
 				 * outliner isn't showing scenes: Visible Layer draw mode for eg. */
-				operation_cb(C, scene_owner ? scene_owner : scene_act, te, NULL, tselem);
+				operation_cb(C, scene_owner ? scene_owner : scene_act, te, NULL, tselem, NULL);
 			}
 		}
 		if (TSELEM_OPEN(tselem, soops)) {
@@ -716,7 +717,7 @@ static Base *outline_delete_hierarchy(bContext *C, Scene *scene, Base *base)
 }
 
 static void object_delete_hierarchy_cb(
-        bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+        bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Base *base = (Base *)te->directdata;
 	Object *obedit = scene->obedit;
@@ -747,6 +748,7 @@ enum {
 	OL_OP_SELECT_HIERARCHY,
 	OL_OP_DELETE,
 	OL_OP_DELETE_HIERARCHY,
+	OL_OP_REMAP,
 	OL_OP_LOCALIZED,  /* disabled, see below */
 	OL_OP_TOGVIS,
 	OL_OP_TOGSEL,
@@ -760,6 +762,8 @@ static EnumPropertyItem prop_object_op_types[] = {
 	{OL_OP_SELECT_HIERARCHY, "SELECT_HIERARCHY", 0, "Select Hierarchy", ""},
 	{OL_OP_DELETE, "DELETE", 0, "Delete", ""},
 	{OL_OP_DELETE_HIERARCHY, "DELETE_HIERARCHY", 0, "Delete Hierarchy", ""},
+    {OL_OP_REMAP, "REMAP",   0, "Remap Users",
+     "Make all users of selected datablocks to use instead current (clicked) one"},
 	{OL_OP_TOGVIS, "TOGVIS", 0, "Toggle Visible", ""},
 	{OL_OP_TOGSEL, "TOGSEL", 0, "Toggle Selectable", ""},
 	{OL_OP_TOGREN, "TOGREN", 0, "Toggle Renderable", ""},
@@ -829,6 +833,10 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 		str = "Delete Object Hierarchy";
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
 	}
+	else if (event == OL_OP_REMAP) {
+		WM_operator_name_call(C, "OUTLINER_OT_id_remap", WM_OP_INVOKE_REGION_WIN, NULL);
+		str = "Remap ID";
+	}
 	else if (event == OL_OP_LOCALIZED) {    /* disabled, see above enum (ton) */
 		outliner_do_object_operation(C, scene, soops, &soops->tree, id_local_cb);
 		str = "Localized Objects";
@@ -886,6 +894,7 @@ typedef enum eOutliner_PropGroupOps {
 	OL_GROUPOP_UNLINK = 1,
 	OL_GROUPOP_LOCAL,
 	OL_GROUPOP_LINK,
+	OL_GROUPOP_REMAP,
 	OL_GROUPOP_INSTANCE,
 	OL_GROUPOP_TOGVIS,
 	OL_GROUPOP_TOGSEL,
@@ -897,6 +906,8 @@ static EnumPropertyItem prop_group_op_types[] = {
 	{OL_GROUPOP_UNLINK, "UNLINK",     0, "Unlink Group", ""},
 	{OL_GROUPOP_LOCAL, "LOCAL",       0, "Make Local Group", ""},
 	{OL_GROUPOP_LINK, "LINK",         0, "Link Group Objects to Scene", ""},
+    {OL_GROUPOP_REMAP, "REMAP",       0, "Remap Users",
+     "Make all users of selected datablocks to use instead current (clicked) one"},
 	{OL_GROUPOP_INSTANCE, "INSTANCE", 0, "Instance Groups in Scene", ""},
 	{OL_GROUPOP_TOGVIS, "TOGVIS",     0, "Toggle Visible Group", ""},
 	{OL_GROUPOP_TOGSEL, "TOGSEL",     0, "Toggle Selectable", ""},
@@ -919,28 +930,31 @@ static int outliner_group_operation_exec(bContext *C, wmOperator *op)
 
 	switch (event) {
 		case OL_GROUPOP_UNLINK:
-			outliner_do_libdata_operation(C, scene, soops, &soops->tree, unlink_group_cb);
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, unlink_group_cb, NULL);
 			break;
 		case OL_GROUPOP_LOCAL:
-			outliner_do_libdata_operation(C, scene, soops, &soops->tree, id_local_cb);
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, id_local_cb, NULL);
 			break;
 		case OL_GROUPOP_LINK:
-			outliner_do_libdata_operation(C, scene, soops, &soops->tree, group_linkobs2scene_cb);
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, group_linkobs2scene_cb, NULL);
 			break;
 		case OL_GROUPOP_INSTANCE:
-			outliner_do_libdata_operation(C, scene, soops, &soops->tree, group_instance_cb);
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, group_instance_cb, NULL);
+			break;
+		case OL_GROUPOP_REMAP:
+			WM_operator_name_call(C, "OUTLINER_OT_id_remap", WM_OP_INVOKE_REGION_WIN, NULL);
 			break;
 		case OL_GROUPOP_TOGVIS:
-			outliner_do_libdata_operation(C, scene, soops, &soops->tree, group_toggle_visibility_cb);
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, group_toggle_visibility_cb, NULL);
 			break;
 		case OL_GROUPOP_TOGSEL:
-			outliner_do_libdata_operation(C, scene, soops, &soops->tree, group_toggle_selectability_cb);
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, group_toggle_selectability_cb, NULL);
 			break;
 		case OL_GROUPOP_TOGREN:
-			outliner_do_libdata_operation(C, scene, soops, &soops->tree, group_toggle_renderability_cb);
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, group_toggle_renderability_cb, NULL);
 			break;
 		case OL_GROUPOP_RENAME:
-			outliner_do_libdata_operation(C, scene, soops, &soops->tree, item_rename_cb);
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, item_rename_cb, NULL);
 			break;
 		default:
 			BLI_assert(0);
@@ -983,6 +997,7 @@ typedef enum eOutlinerIdOpTypes {
 	OUTLINER_IDOP_UNLINK,
 	OUTLINER_IDOP_LOCAL,
 	OUTLINER_IDOP_SINGLE,
+	OUTLINER_IDOP_REMAP,
 	
 	OUTLINER_IDOP_FAKE_ADD,
 	OUTLINER_IDOP_FAKE_CLEAR,
@@ -996,6 +1011,8 @@ static EnumPropertyItem prop_id_op_types[] = {
 	{OUTLINER_IDOP_UNLINK, "UNLINK", 0, "Unlink", ""},
 	{OUTLINER_IDOP_LOCAL, "LOCAL", 0, "Make Local", ""},
 	{OUTLINER_IDOP_SINGLE, "SINGLE", 0, "Make Single User", ""},
+    {OUTLINER_IDOP_REMAP, "REMAP", 0, "Remap Users",
+     "Make all users of selected datablocks to use instead current (clicked) one"},
 	{OUTLINER_IDOP_FAKE_ADD, "ADD_FAKE", 0, "Add Fake User",
 	 "Ensure datablock gets saved even if it isn't in use (e.g. for motion and material libraries)"},
 	{OUTLINER_IDOP_FAKE_CLEAR, "CLEAR_FAKE", 0, "Clear Fake User", ""},
@@ -1025,25 +1042,25 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 			/* unlink datablock from its parent */
 			switch (idlevel) {
 				case ID_AC:
-					outliner_do_libdata_operation(C, scene, soops, &soops->tree, unlink_action_cb);
+					outliner_do_libdata_operation(C, scene, soops, &soops->tree, unlink_action_cb, NULL);
 					
 					WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, NULL);
 					ED_undo_push(C, "Unlink action");
 					break;
 				case ID_MA:
-					outliner_do_libdata_operation(C, scene, soops, &soops->tree, unlink_material_cb);
+					outliner_do_libdata_operation(C, scene, soops, &soops->tree, unlink_material_cb, NULL);
 					
 					WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, NULL);
 					ED_undo_push(C, "Unlink material");
 					break;
 				case ID_TE:
-					outliner_do_libdata_operation(C, scene, soops, &soops->tree, unlink_texture_cb);
+					outliner_do_libdata_operation(C, scene, soops, &soops->tree, unlink_texture_cb, NULL);
 					
 					WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, NULL);
 					ED_undo_push(C, "Unlink texture");
 					break;
 				case ID_WO:
-					outliner_do_libdata_operation(C, scene, soops, &soops->tree, unlink_world_cb);
+					outliner_do_libdata_operation(C, scene, soops, &soops->tree, unlink_world_cb, NULL);
 					
 					WM_event_add_notifier(C, NC_SCENE | ND_WORLD, NULL);
 					ED_undo_push(C, "Unlink world");
@@ -1057,7 +1074,7 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 		case OUTLINER_IDOP_LOCAL:
 		{
 			/* make local */
-			outliner_do_libdata_operation(C, scene, soops, &soops->tree, id_local_cb);
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, id_local_cb, NULL);
 			ED_undo_push(C, "Localized Data");
 			break;
 		}
@@ -1066,14 +1083,14 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 			/* make single user */
 			switch (idlevel) {
 				case ID_AC:
-					outliner_do_libdata_operation(C, scene, soops, &soops->tree, singleuser_action_cb);
+					outliner_do_libdata_operation(C, scene, soops, &soops->tree, singleuser_action_cb, NULL);
 					
 					WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, NULL);
 					ED_undo_push(C, "Single-User Action");
 					break;
 					
 				case ID_WO:
-					outliner_do_libdata_operation(C, scene, soops, &soops->tree, singleuser_world_cb);
+					outliner_do_libdata_operation(C, scene, soops, &soops->tree, singleuser_world_cb, NULL);
 					
 					WM_event_add_notifier(C, NC_SCENE | ND_WORLD, NULL);
 					ED_undo_push(C, "Single-User World");
@@ -1085,10 +1102,17 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 			}
 			break;
 		}
+		case OUTLINER_IDOP_REMAP:
+		{
+			if (idlevel > 0) {
+				WM_operator_name_call(C, "OUTLINER_OT_id_remap", WM_OP_INVOKE_REGION_WIN, NULL);
+			}
+			break;
+		}
 		case OUTLINER_IDOP_FAKE_ADD:
 		{
 			/* set fake user */
-			outliner_do_libdata_operation(C, scene, soops, &soops->tree, id_fake_user_set_cb);
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, id_fake_user_set_cb, NULL);
 			
 			WM_event_add_notifier(C, NC_ID | NA_EDITED, NULL);
 			ED_undo_push(C, "Add Fake User");
@@ -1097,7 +1121,7 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 		case OUTLINER_IDOP_FAKE_CLEAR:
 		{
 			/* clear fake user */
-			outliner_do_libdata_operation(C, scene, soops, &soops->tree, id_fake_user_clear_cb);
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, id_fake_user_clear_cb, NULL);
 			
 			WM_event_add_notifier(C, NC_ID | NA_EDITED, NULL);
 			ED_undo_push(C, "Clear Fake User");
@@ -1106,14 +1130,14 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 		case OUTLINER_IDOP_RENAME:
 		{
 			/* rename */
-			outliner_do_libdata_operation(C, scene, soops, &soops->tree, item_rename_cb);
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, item_rename_cb, NULL);
 			
 			WM_event_add_notifier(C, NC_ID | NA_EDITED, NULL);
 			ED_undo_push(C, "Rename");
 			break;
 		}
 		case OUTLINER_IDOP_SELECT_LINKED:
-			outliner_do_libdata_operation(C, scene, soops, &soops->tree, id_select_linked_cb);
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, id_select_linked_cb, NULL);
 			ED_undo_push(C, "Select");
 			break;
 			
@@ -1147,6 +1171,119 @@ void OUTLINER_OT_id_operation(wmOperatorType *ot)
 	ot->flag = 0;
 	
 	ot->prop = RNA_def_enum(ot->srna, "type", prop_id_op_types, 0, "ID data Operation", "");
+}
+
+static void remap_action_cb(bContext *C, Scene *UNUSED(scene), TreeElement *UNUSED(te),
+                             TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *user_data)
+{
+	ID *new_id = user_data;
+
+	if (tselem->id && (tselem->id != new_id) && (GS(tselem->id->name) == GS(new_id->name))) {
+		BKE_libblock_remap(CTX_data_main(C), tselem->id, new_id);
+	}
+}
+
+static int outliner_id_remap_exec(bContext *C, wmOperator *op)
+{
+	Scene *scene = CTX_data_scene(C);
+	SpaceOops *soops = CTX_wm_space_outliner(C);
+
+	short id_type = (short)RNA_enum_get(op->ptr, "id_type");
+	ID *new_id = BLI_findlink(which_libbase(CTX_data_main(C), id_type), RNA_enum_get(op->ptr, "new_id"));
+
+	/* check for invalid states */
+	if (soops == NULL)
+		return OPERATOR_CANCELLED;
+
+	outliner_do_libdata_operation(C, scene, soops, &soops->tree, remap_action_cb, new_id);
+
+	ED_undo_push(C, "Remap ID action");
+
+	/* We want to redraw everything... */
+	WM_event_add_notifier(C, NC_WM | ND_DRAW, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+static bool outliner_id_remap_find_tree_element(bContext *C, wmOperator *op, ListBase *tree, const float y)
+{
+	TreeElement *te;
+
+	for (te = tree->first; te; te = te->next) {
+		if (y > te->ys && y < te->ys + UI_UNIT_Y) {
+			TreeStoreElem *tselem = TREESTORE(te);
+
+			if (tselem->type == 0 && tselem->id) {
+				printf("found id %s (%p)!\n", tselem->id->name, tselem->id);
+
+				RNA_enum_set(op->ptr, "id_type", GS(tselem->id->name));
+				RNA_enum_set_identifier(op->ptr, "new_id", tselem->id->name + 2);
+				return true;
+			}
+		}
+		if (outliner_id_remap_find_tree_element(C, op, &te->subtree, y)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static int outliner_id_remap_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	SpaceOops *soops = CTX_wm_space_outliner(C);
+	ARegion *ar = CTX_wm_region(C);
+	float fmval[2];
+
+	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+
+	outliner_id_remap_find_tree_element(C, op, &soops->tree, fmval[1]);
+
+	return WM_operator_props_dialog_popup(C, op, 200, 100);
+//	UI_popup_block_invoke(C, wm_enum_search_menu, op);
+//	return OPERATOR_INTERFACE;
+}
+
+static EnumPropertyItem *outliner_id_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
+{
+	EnumPropertyItem item_tmp = {0}, *item = NULL;
+	int totitem = 0;
+	int i = 0;
+
+	short id_type = (short)RNA_enum_get(ptr, "id_type");
+	ID *id = which_libbase(CTX_data_main(C), id_type)->first;
+
+	for (; id; id = id->next) {
+		item_tmp.identifier = item_tmp.name = id->name + 2;
+		item_tmp.value = i++;
+		RNA_enum_item_add(&item, &totitem, &item_tmp);
+	}
+
+	RNA_enum_item_end(&item, &totitem);
+	*r_free = true;
+
+	return item;
+}
+
+void OUTLINER_OT_id_remap(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Outliner ID data Remap";
+	ot->idname = "OUTLINER_OT_id_remap";
+	ot->description = "";
+
+	/* callbacks */
+	ot->invoke = outliner_id_remap_invoke;
+	ot->exec = outliner_id_remap_exec;
+	ot->poll = ED_operator_outliner_active;
+
+	ot->flag = 0;
+
+	RNA_def_enum(ot->srna, "id_type", id_type_items, ID_OB, "ID Type", "");
+
+	ot->prop = RNA_def_enum(ot->srna, "new_id", DummyRNA_NULL_items, 0,
+	                        "New ID", "New ID to remap all selected IDs' users to");
+	RNA_def_property_enum_funcs_runtime(ot->prop, NULL, NULL, outliner_id_itemf);
+	RNA_def_property_flag(ot->prop, PROP_ENUM_NO_TRANSLATE);
 }
 
 /* **************************************** */

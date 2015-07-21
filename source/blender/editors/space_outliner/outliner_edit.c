@@ -230,7 +230,7 @@ static void do_item_rename(ARegion *ar, TreeElement *te, TreeStoreElem *tselem, 
 }
 
 void item_rename_cb(bContext *C, Scene *UNUSED(scene), TreeElement *te,
-                    TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                    TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	ARegion *ar = CTX_wm_region(C);
 	ReportList *reports = CTX_wm_reports(C); // XXX
@@ -370,7 +370,7 @@ int common_restrict_check(bContext *C, Object *ob)
 /* Toggle Visibility ---------------------------------------- */
 
 void object_toggle_visibility_cb(bContext *C, Scene *scene, TreeElement *te,
-                                 TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                                 TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Base *base = (Base *)te->directdata;
 	Object *ob = (Object *)tselem->id;
@@ -386,7 +386,7 @@ void object_toggle_visibility_cb(bContext *C, Scene *scene, TreeElement *te,
 }
 
 void group_toggle_visibility_cb(bContext *UNUSED(C), Scene *scene, TreeElement *UNUSED(te),
-                                TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                                TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Group *group = (Group *)tselem->id;
 	restrictbutton_gr_restrict_flag(scene, group, OB_RESTRICT_VIEW);
@@ -425,7 +425,7 @@ void OUTLINER_OT_visibility_toggle(wmOperatorType *ot)
 /* Toggle Selectability ---------------------------------------- */
 
 void object_toggle_selectability_cb(bContext *UNUSED(C), Scene *scene, TreeElement *te,
-                                    TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                                    TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Base *base = (Base *)te->directdata;
 	
@@ -436,7 +436,7 @@ void object_toggle_selectability_cb(bContext *UNUSED(C), Scene *scene, TreeEleme
 }
 
 void group_toggle_selectability_cb(bContext *UNUSED(C), Scene *scene, TreeElement *UNUSED(te),
-                                   TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                                   TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Group *group = (Group *)tselem->id;
 	restrictbutton_gr_restrict_flag(scene, group, OB_RESTRICT_SELECT);
@@ -473,7 +473,7 @@ void OUTLINER_OT_selectability_toggle(wmOperatorType *ot)
 /* Toggle Renderability ---------------------------------------- */
 
 void object_toggle_renderability_cb(bContext *UNUSED(C), Scene *scene, TreeElement *te,
-                                    TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                                    TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Base *base = (Base *)te->directdata;
 	
@@ -484,7 +484,7 @@ void object_toggle_renderability_cb(bContext *UNUSED(C), Scene *scene, TreeEleme
 }
 
 void group_toggle_renderability_cb(bContext *UNUSED(C), Scene *scene, TreeElement *UNUSED(te),
-                                   TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+                                   TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Group *group = (Group *)tselem->id;
 	restrictbutton_gr_restrict_flag(scene, group, OB_RESTRICT_RENDER);
