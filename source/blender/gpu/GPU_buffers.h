@@ -39,6 +39,8 @@
 #  define DEBUG_VBO(X)
 #endif
 
+#include <stddef.h>
+
 struct BMesh;
 struct CCGElem;
 struct CCGKey;
@@ -50,7 +52,7 @@ struct PBVH;
 struct MVert;
 
 typedef struct GPUBuffer {
-	int size;        /* in bytes */
+	size_t size;        /* in bytes */
 	void *pointer;   /* used with vertex arrays */
 	unsigned int id; /* used with vertex buffer objects */
 	bool use_vbo;    /* true for VBOs, false for vertex arrays */
@@ -58,12 +60,12 @@ typedef struct GPUBuffer {
 
 typedef struct GPUBufferMaterial {
 	/* range of points used for this material */
-	int start;
-	int totelements;
-	int totloops;
-	int *polys; /* array of polygons for this material */
-	int totpolys; /* total polygons in polys */
-	int counter; /* general purpose counter, initialize first! */
+	unsigned int start;
+	unsigned int totelements;
+	unsigned int totloops;
+	unsigned int *polys; /* array of polygons for this material */
+	unsigned int totpolys; /* total polygons in polys */
+	unsigned int counter; /* general purpose counter, initialize first! */
 
 	/* original material index */
 	short mat_nr;
@@ -106,23 +108,22 @@ typedef struct GPUDrawObject {
 #endif
 	
 	int colType;
-	int index_setup; /* how indices are setup, starting from start of buffer or start of material */
 
 	GPUBufferMaterial *materials;
 	int totmaterial;
 	
-	int tot_triangle_point;
-	int tot_loose_point;
+	unsigned int tot_triangle_point;
+	unsigned int tot_loose_point;
 	/* different than total loops since ngons get tesselated still */
-	int tot_loop_verts;
+	unsigned int tot_loop_verts;
 	
 	/* caches of the original DerivedMesh values */
-	int totvert;
-	int totedge;
+	unsigned int totvert;
+	unsigned int totedge;
 
-	int loose_edge_offset;
-	int tot_loose_edge_drawn;
-	int tot_edge_drawn;
+	unsigned int loose_edge_offset;
+	unsigned int tot_loose_edge_drawn;
+	unsigned int tot_edge_drawn;
 } GPUDrawObject;
 
 /* currently unused */
@@ -190,6 +191,7 @@ int GPU_attrib_element_size(GPUAttrib data[], int numdata);
 void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata, int element_size);
 
 void GPU_buffer_bind(GPUBuffer *buffer, GPUBindingType binding);
+void GPU_buffer_unbind(GPUBuffer *buffer, GPUBindingType binding);
 
 /* can't lock more than one buffer at once */
 void *GPU_buffer_lock(GPUBuffer *buffer, GPUBindingType binding);
@@ -203,7 +205,7 @@ void GPU_color_switch(int mode);
 void GPU_buffer_draw_elements(GPUBuffer *elements, unsigned int mode, int start, int count);
 
 /* called after drawing */
-void GPU_buffer_unbind(void);
+void GPU_buffers_unbind(void);
 
 /* only unbind interleaved data */
 void GPU_interleaved_attrib_unbind(void);
@@ -212,9 +214,12 @@ void GPU_interleaved_attrib_unbind(void);
 typedef struct GPU_PBVH_Buffers GPU_PBVH_Buffers;
 
 /* build */
-GPU_PBVH_Buffers *GPU_build_mesh_pbvh_buffers(const int (*face_vert_indices)[4],
-        const struct MFace *mface, const struct MVert *mvert,
-        const int *face_indices, int totface);
+GPU_PBVH_Buffers *GPU_build_mesh_pbvh_buffers(
+        const int (*face_vert_indices)[4],
+        const struct MPoly *mpoly, const struct MLoop *mloop, const struct MLoopTri *looptri,
+        const struct MVert *verts,
+        const int *face_indices,
+        const int  face_indices_len);
 
 GPU_PBVH_Buffers *GPU_build_grid_pbvh_buffers(int *grid_indices, int totgrid,
                                     unsigned int **grid_hidden, int gridsize, const struct CCGKey *key);

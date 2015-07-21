@@ -640,8 +640,9 @@ static void write_fmodifiers(WriteData *wd, ListBase *fmodifiers)
 					/* write coefficients array */
 					if (data->coefficients)
 						writedata(wd, DATA, sizeof(float)*(data->arraysize), data->coefficients);
-				}
+
 					break;
+				}
 				case FMODIFIER_TYPE_ENVELOPE:
 				{
 					FMod_Envelope *data= (FMod_Envelope *)fcm->data;
@@ -649,8 +650,9 @@ static void write_fmodifiers(WriteData *wd, ListBase *fmodifiers)
 					/* write envelope data */
 					if (data->data)
 						writestruct(wd, DATA, "FCM_EnvelopeData", data->totvert, data->data);
-				}
+
 					break;
+				}
 				case FMODIFIER_TYPE_PYTHON:
 				{
 					FMod_Python *data = (FMod_Python *)fcm->data;
@@ -658,8 +660,9 @@ static void write_fmodifiers(WriteData *wd, ListBase *fmodifiers)
 					/* Write ID Properties -- and copy this comment EXACTLY for easy finding
 					 * of library blocks that implement this.*/
 					IDP_WriteProperty(data->prop, wd);
-				}
+
 					break;
+				}
 			}
 		}
 	}
@@ -1452,16 +1455,18 @@ static void write_constraints(WriteData *wd, ListBase *conlist)
 					/* Write ID Properties -- and copy this comment EXACTLY for easy finding
 					 * of library blocks that implement this.*/
 					IDP_WriteProperty(data->prop, wd);
-				}
+
 					break;
+				}
 				case CONSTRAINT_TYPE_SPLINEIK: 
 				{
 					bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
 					
 					/* write points array */
 					writedata(wd, DATA, sizeof(float)*(data->numpoints), data->points);
-				}
+
 					break;
+				}
 			}
 		}
 		
