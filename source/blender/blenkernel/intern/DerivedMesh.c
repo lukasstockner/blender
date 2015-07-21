@@ -220,6 +220,11 @@ static MPoly *dm_dupPolyArray(DerivedMesh *dm)
 	return tmp;
 }
 
+static int dm_getNumLoopTri(DerivedMesh *dm)
+{
+	return dm->looptris.num;
+}
+
 static CustomData *dm_getVertCData(DerivedMesh *dm)
 {
 	return &dm->vertData;
@@ -262,6 +267,9 @@ void DM_init_funcs(DerivedMesh *dm)
 	dm->dupTessFaceArray = dm_dupFaceArray;
 	dm->dupLoopArray = dm_dupLoopArray;
 	dm->dupPolyArray = dm_dupPolyArray;
+
+	/* subtypes handle getting actual data */
+	dm->getNumLoopTri = dm_getNumLoopTri;
 
 	dm->getVertDataLayout = dm_getVertCData;
 	dm->getEdgeDataLayout = dm_getEdgeCData;
@@ -364,6 +372,10 @@ int DM_release(DerivedMesh *dm)
 			dm->totmat = 0;
 		}
 
+		MEM_SAFE_FREE(dm->looptris.array);
+		dm->looptris.num = 0;
+		dm->looptris.num_alloc = 0;
+
 		return 1;
 	}
 	else {
@@ -438,6 +450,47 @@ void DM_ensure_tessface(DerivedMesh *dm)
 	}
 
 	dm->dirty &= ~DM_DIRTY_TESS_CDLAYERS;
+}
+
+/**
+ * Ensure the array is large enough
+ */
+void DM_ensure_looptri_data(DerivedMesh *dm)
+{
+	const unsigned int totpoly = dm->numPolyData;
+	const unsigned int totloop = dm->numLoopData;
+	const int looptris_num = poly_to_tri_count(totpoly, totloop);
+
+	if ((looptris_num > dm->looptris.num_alloc) ||
+	    (looptris_num < dm->looptris.num_alloc * 2) ||
+	    (totpoly == 0))
+	{
+		MEM_SAFE_FREE(dm->looptris.array);
+		dm->looptris.num_alloc = 0;
+		dm->looptris.num = 0;
+	}
+
+	if (totpoly) {
+		if (dm->looptris.array == NULL) {
+			dm->looptris.array = MEM_mallocN(sizeof(*dm->looptris.array) * looptris_num, __func__);
+			dm->looptris.num_alloc = looptris_num;
+		}
+
+		dm->looptris.num = looptris_num;
+	}
+}
+
+/**
+ * The purpose of this function is that we can call:
+ * `dm->getLoopTriArray(dm)` and get the array returned.
+ */
+void DM_ensure_looptri(DerivedMesh *dm)
+{
+	const int numPolys =  dm->getNumPolys(dm);
+
+	if ((dm->looptris.num == 0) && (numPolys != 0)) {
+		dm->recalcLoopTri(dm);
+	}
 }
 
 /* Update tessface CD data from loop/poly ones. Needed when not retessellating after modstack evaluation. */
@@ -523,27 +576,27 @@ void DM_update_materials(DerivedMesh *dm, Object *ob)
 	}
 }
 
-MTFace *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr)
+MLoopUV *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr)
 {
-	MTFace *tf_base;
+	MLoopUV *uv_base;
 
 	BLI_assert(mat_nr < dm->totmat);
 
 	if (dm->mat[mat_nr] && dm->mat[mat_nr]->texpaintslot &&
 	    dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname)
 	{
-		tf_base = CustomData_get_layer_named(&dm->faceData, CD_MTFACE,
+		uv_base = CustomData_get_layer_named(&dm->loopData, CD_MLOOPUV,
 		                                     dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname);
 		/* This can fail if we have changed the name in the UV layer list and have assigned the old name in the material
 		 * texture slot.*/
-		if (!tf_base)
-			tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+		if (!uv_base)
+			uv_base = CustomData_get_layer(&dm->loopData, CD_MLOOPUV);
 	}
 	else {
-		tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+		uv_base = CustomData_get_layer(&dm->loopData, CD_MLOOPUV);
 	}
 
-	return tf_base;
+	return uv_base;
 }
 
 void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask, bool take_ownership)
@@ -1568,6 +1621,7 @@ static void mesh_calc_modifiers(
         const bool useRenderParams, int useDeform,
         const bool need_mapping, CustomDataMask dataMask,
         const int index, const bool useCache, const bool build_shapekey_layers,
+        const bool allow_gpu,
         /* return args */
         DerivedMesh **r_deform, DerivedMesh **r_final)
 {
@@ -1610,6 +1664,8 @@ static void mesh_calc_modifiers(
 
 	if (useCache)
 		app_flags |= MOD_APPLY_USECACHE;
+	if (allow_gpu)
+		app_flags |= MOD_APPLY_ALLOW_GPU;
 	if (useDeform)
 		deform_app_flags |= MOD_APPLY_USECACHE;
 
@@ -2031,7 +2087,11 @@ static void mesh_calc_modifiers(
 	}
 
 	if (sculpt_dyntopo == false) {
-		DM_ensure_tessface(finaldm);
+		/* watch this! after 2.75a we move to from tessface to looptri (by default) */
+		if (dataMask & CD_MASK_MFACE) {
+			DM_ensure_tessface(finaldm);
+		}
+		DM_ensure_looptri(finaldm);
 
 		/* without this, drawing ngon tri's faces will show ugly tessellated face
 		 * normals and will also have to calculate normals on the fly, try avoid
@@ -2270,9 +2330,9 @@ static void editbmesh_calc_modifiers(
 			}
 
 			if (mti->applyModifierEM)
-				ndm = modwrap_applyModifierEM(md, ob, em, dm, MOD_APPLY_USECACHE);
+				ndm = modwrap_applyModifierEM(md, ob, em, dm, MOD_APPLY_USECACHE | MOD_APPLY_ALLOW_GPU);
 			else
-				ndm = modwrap_applyModifier(md, ob, dm, MOD_APPLY_USECACHE);
+				ndm = modwrap_applyModifier(md, ob, dm, MOD_APPLY_USECACHE | MOD_APPLY_ALLOW_GPU);
 			ASSERT_IS_VALID_DM(ndm);
 
 			if (ndm) {
@@ -2358,18 +2418,19 @@ static void editbmesh_calc_modifiers(
 		}
 	}
 
-	/* --- */
 	/* BMESH_ONLY, ensure tessface's used for drawing,
 	 * but don't recalculate if the last modifier in the stack gives us tessfaces
 	 * check if the derived meshes are DM_TYPE_EDITBMESH before calling, this isn't essential
 	 * but quiets annoying error messages since tessfaces wont be created. */
-	if ((*r_final)->type != DM_TYPE_EDITBMESH) {
-		DM_ensure_tessface(*r_final);
-	}
-	if (r_cage && *r_cage) {
-		if ((*r_cage)->type != DM_TYPE_EDITBMESH) {
-			if (*r_cage != *r_final) {
-				DM_ensure_tessface(*r_cage);
+	if (dataMask & CD_MASK_MFACE) {
+		if ((*r_final)->type != DM_TYPE_EDITBMESH) {
+			DM_ensure_tessface(*r_final);
+		}
+		if (r_cage && *r_cage) {
+			if ((*r_cage)->type != DM_TYPE_EDITBMESH) {
+				if (*r_cage != *r_final) {
+					DM_ensure_tessface(*r_cage);
+				}
 			}
 		}
 	}
@@ -2391,6 +2452,23 @@ static void editbmesh_calc_modifiers(
 		MEM_freeN(deformedVerts);
 }
 
+#ifdef WITH_OPENSUBDIV
+/* The idea is to skip CPU-side ORCO calculation when
+ * we'll be using GPU backend of OpenSubdiv. This is so
+ * playback performance is kept as high as posssible.
+ */
+static bool calc_modifiers_skip_orco(const Object *ob)
+{
+	const ModifierData *last_md = ob->modifiers.last;
+	if (last_md != NULL &&
+	    last_md->type == eModifierType_Subsurf)
+	{
+		return true;
+	}
+	return false;
+}
+#endif
+
 static void mesh_build_data(
         Scene *scene, Object *ob, CustomDataMask dataMask,
         const bool build_shapekey_layers, const bool need_mapping)
@@ -2400,8 +2478,15 @@ static void mesh_build_data(
 	BKE_object_free_derived_caches(ob);
 	BKE_object_sculpt_modifiers_changed(ob);
 
+#ifdef WITH_OPENSUBDIV
+	if (calc_modifiers_skip_orco(ob)) {
+		dataMask &= ~CD_MASK_ORCO;
+	}
+#endif
+
 	mesh_calc_modifiers(
 	        scene, ob, NULL, false, 1, need_mapping, dataMask, -1, true, build_shapekey_layers,
+	        true,
 	        &ob->derivedDeform, &ob->derivedFinal);
 
 	DM_set_object_boundbox(ob, ob->derivedFinal);
@@ -2427,6 +2512,12 @@ static void editbmesh_build_data(Scene *scene, Object *obedit, BMEditMesh *em, C
 	BKE_object_sculpt_modifiers_changed(obedit);
 
 	BKE_editmesh_free_derivedmesh(em);
+
+#ifdef WITH_OPENSUBDIV
+	if (calc_modifiers_skip_orco(obedit)) {
+		dataMask &= ~CD_MASK_ORCO;
+	}
+#endif
 
 	editbmesh_calc_modifiers(
 	        scene, obedit, em, dataMask,
@@ -2539,7 +2630,7 @@ DerivedMesh *mesh_create_derived_render(Scene *scene, Object *ob, CustomDataMask
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers(
-	        scene, ob, NULL, true, 1, false, dataMask, -1, false, false,
+	        scene, ob, NULL, true, 1, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -2550,7 +2641,7 @@ DerivedMesh *mesh_create_derived_index_render(Scene *scene, Object *ob, CustomDa
 	DerivedMesh *final;
 
 	mesh_calc_modifiers(
-	        scene, ob, NULL, true, 1, false, dataMask, index, false, false,
+	        scene, ob, NULL, true, 1, false, dataMask, index, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -2569,7 +2660,7 @@ DerivedMesh *mesh_create_derived_view(
 	ob->transflag |= OB_NO_PSYS_UPDATE;
 
 	mesh_calc_modifiers(
-	        scene, ob, NULL, false, 1, false, dataMask, -1, false, false,
+	        scene, ob, NULL, false, 1, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	ob->transflag &= ~OB_NO_PSYS_UPDATE;
@@ -2584,7 +2675,7 @@ DerivedMesh *mesh_create_derived_no_deform(
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers(
-	        scene, ob, vertCos, false, 0, false, dataMask, -1, false, false,
+	        scene, ob, vertCos, false, 0, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -2597,7 +2688,7 @@ DerivedMesh *mesh_create_derived_no_virtual(
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers(
-	        scene, ob, vertCos, false, -1, false, dataMask, -1, false, false,
+	        scene, ob, vertCos, false, -1, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -2610,7 +2701,7 @@ DerivedMesh *mesh_create_derived_physics(
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers(
-	        scene, ob, vertCos, false, -1, true, dataMask, -1, false, false,
+	        scene, ob, vertCos, false, -1, true, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -2624,7 +2715,7 @@ DerivedMesh *mesh_create_derived_no_deform_render(
 	DerivedMesh *final;
 
 	mesh_calc_modifiers(
-	        scene, ob, vertCos, true, 0, false, dataMask, -1, false, false,
+	        scene, ob, vertCos, true, 0, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -3160,17 +3251,20 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 				attribs->tface[a].gl_texco = gattribs->layer[b].gltexco;
 			}
 			else {
+				/* exception .. */
+				CustomData *ldata = dm->getLoopDataLayout(dm);
+
 				if (gattribs->layer[b].name[0])
-					layer = CustomData_get_named_layer_index(tfdata, CD_MTFACE,
+					layer = CustomData_get_named_layer_index(ldata, CD_MLOOPUV,
 					                                         gattribs->layer[b].name);
 				else
-					layer = CustomData_get_active_layer_index(tfdata, CD_MTFACE);
+					layer = CustomData_get_active_layer_index(ldata, CD_MLOOPUV);
 
 				a = attribs->tottface++;
 
 				if (layer != -1) {
-					attribs->tface[a].array = tfdata->layers[layer].data;
-					attribs->tface[a].em_offset = tfdata->layers[layer].offset;
+					attribs->tface[a].array = ldata->layers[layer].data;
+					attribs->tface[a].em_offset = ldata->layers[layer].offset;
 				}
 				else {
 					attribs->tface[a].array = NULL;
@@ -3207,19 +3301,22 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 				attribs->mcol[a].gl_index = gattribs->layer[b].glindex;
 			}
 			else {
+				/* exception .. */
+				CustomData *ldata = dm->getLoopDataLayout(dm);
+
 				/* vertex colors */
 				if (gattribs->layer[b].name[0])
-					layer = CustomData_get_named_layer_index(tfdata, CD_MCOL,
+					layer = CustomData_get_named_layer_index(ldata, CD_MLOOPCOL,
 					                                         gattribs->layer[b].name);
 				else
-					layer = CustomData_get_active_layer_index(tfdata, CD_MCOL);
+					layer = CustomData_get_active_layer_index(ldata, CD_MLOOPCOL);
 
 				a = attribs->totmcol++;
 
 				if (layer != -1) {
-					attribs->mcol[a].array = tfdata->layers[layer].data;
+					attribs->mcol[a].array = ldata->layers[layer].data;
 					/* odd, store the offset for a different layer type here, but editmode draw code expects it */
-					attribs->mcol[a].em_offset = tfdata->layers[layer].offset;
+					attribs->mcol[a].em_offset = ldata->layers[layer].offset;
 				}
 				else {
 					attribs->mcol[a].array = NULL;
@@ -3266,13 +3363,15 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 	}
 }
 
-/* Set vertex shader attribute inputs for a particular tessface vert
+/**
+ * Set vertex shader attribute inputs for a particular tessface vert
  *
- * a: tessface index
- * index: vertex index
- * vert: corner index (0, 1, 2, 3)
+ * \param a: tessface index
+ * \param index: vertex index
+ * \param vert: corner index (0, 1, 2, 3)
+ * \param loop: absolute loop corner index
  */
-void DM_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert)
+void DM_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert, int loop)
 {
 	const float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 	int b;
@@ -3293,8 +3392,8 @@ void DM_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert)
 		const float *uv;
 
 		if (attribs->tface[b].array) {
-			MTFace *tf = &attribs->tface[b].array[a];
-			uv = tf->uv[vert];
+			const MLoopUV *mloopuv = &attribs->tface[b].array[loop];
+			uv = mloopuv->uv;
 		}
 		else {
 			uv = zero;
@@ -3311,8 +3410,8 @@ void DM_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert)
 		GLubyte col[4];
 
 		if (attribs->mcol[b].array) {
-			MCol *cp = &attribs->mcol[b].array[a * 4 + vert];
-			col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
+			const MLoopCol *cp = &attribs->mcol[b].array[loop];
+			copy_v4_v4_char((char *)col, &cp->r);
 		}
 		else {
 			col[0] = 0; col[1] = 0; col[2] = 0; col[3] = 0;
@@ -3334,9 +3433,18 @@ void DM_set_object_boundbox(Object *ob, DerivedMesh *dm)
 {
 	float min[3], max[3];
 
-	INIT_MINMAX(min, max);
-
-	dm->getMinMax(dm, min, max);
+#ifdef WITH_OPENSUBDIV
+	/* TODO(sergey): Currently no way to access bounding box from hi-res mesh. */
+	if (dm->type == DM_TYPE_CCGDM) {
+		copy_v3_fl3(min, -1.0f, -1.0f, -1.0f);
+		copy_v3_fl3(max, 1.0f, 1.0f, 1.0f);
+	}
+	else
+#endif
+	{
+		INIT_MINMAX(min, max);
+		dm->getMinMax(dm, min, max);
+	}
 
 	if (!ob->bb)
 		ob->bb = MEM_callocN(sizeof(BoundBox), "DM-BoundBox");
@@ -3424,24 +3532,21 @@ static void navmesh_drawColored(DerivedMesh *dm)
 	glEnable(GL_LIGHTING);
 }
 
-static void navmesh_DM_drawFacesTex(DerivedMesh *dm,
-                                    DMSetDrawOptionsTex setDrawOptions,
-                                    DMCompareDrawOptions compareDrawOptions,
-                                    void *userData, DMDrawFlag UNUSED(flag))
+static void navmesh_DM_drawFacesTex(
+        DerivedMesh *dm,
+        DMSetDrawOptionsTex UNUSED(setDrawOptions),
+        DMCompareDrawOptions UNUSED(compareDrawOptions),
+        void *UNUSED(userData), DMDrawFlag UNUSED(flag))
 {
-	(void) setDrawOptions;
-	(void) compareDrawOptions;
-	(void) userData;
-
 	navmesh_drawColored(dm);
 }
 
-static void navmesh_DM_drawFacesSolid(DerivedMesh *dm,
-                                      float (*partial_redraw_planes)[4],
-                                      bool UNUSED(fast), DMSetMaterial setMaterial)
+static void navmesh_DM_drawFacesSolid(
+        DerivedMesh *dm,
+        float (*partial_redraw_planes)[4],
+        bool UNUSED(fast), DMSetMaterial UNUSED(setMaterial))
 {
-	(void) partial_redraw_planes;
-	(void) setMaterial;
+	UNUSED_VARS(partial_redraw_planes);
 
 	//drawFacesSolid_original(dm, partial_redraw_planes, fast, setMaterial);
 	navmesh_drawColored(dm);
