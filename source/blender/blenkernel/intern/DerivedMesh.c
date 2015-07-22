@@ -2893,9 +2893,11 @@ void mesh_get_mapped_verts_coords(DerivedMesh *dm, float (*r_cos)[3], const int 
 
 typedef struct {
 	float (*precomputedFaceNormals)[3];
-	short (*precomputedLoopNormals)[4][3];
-	MTFace *mtface;     /* texture coordinates */
-	MFace *mface;       /* indices */
+	float (*precomputedLoopNormals)[3];
+	const MLoopTri *looptri;
+	MLoopUV *mloopuv;   /* texture coordinates */
+	MPoly *mpoly;       /* indices */
+	MLoop *mloop;       /* indices */
 	MVert *mvert;       /* vertices & normals */
 	float (*orco)[3];
 	float (*tangent)[4];    /* destination */
@@ -2914,15 +2916,17 @@ static int GetNumFaces(const SMikkTSpaceContext *pContext)
 
 static int GetNumVertsOfFace(const SMikkTSpaceContext *pContext, const int face_num)
 {
-	SGLSLMeshToTangent *pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
-	return pMesh->mface[face_num].v4 != 0 ? 4 : 3;
+	//SGLSLMeshToTangent *pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
+	UNUSED_VARS(pContext, face_num);
+	return 3;
 }
 
 static void GetPosition(const SMikkTSpaceContext *pContext, float r_co[3], const int face_num, const int vert_index)
 {
 	//assert(vert_index >= 0 && vert_index < 4);
 	SGLSLMeshToTangent *pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
-	const float *co = pMesh->mvert[(&pMesh->mface[face_num].v1)[vert_index]].co;
+	const MLoopTri *lt = &pMesh->looptri[face_num];
+	const float *co = pMesh->mvert[pMesh->mloop[lt->tri[vert_index]].v].co;
 	copy_v3_v3(r_co, co);
 }
 
@@ -2930,13 +2934,14 @@ static void GetTextureCoordinate(const SMikkTSpaceContext *pContext, float r_uv[
 {
 	//assert(vert_index >= 0 && vert_index < 4);
 	SGLSLMeshToTangent *pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
+	const MLoopTri *lt = &pMesh->looptri[face_num];
 
-	if (pMesh->mtface != NULL) {
-		const float *uv = pMesh->mtface[face_num].uv[vert_index];
+	if (pMesh->mloopuv != NULL) {
+		const float *uv = pMesh->mloopuv[lt->tri[vert_index]].uv;
 		copy_v2_v2(r_uv, uv);
 	}
 	else {
-		const float *orco = pMesh->orco[(&pMesh->mface[face_num].v1)[vert_index]];
+		const float *orco = pMesh->orco[pMesh->mloop[lt->tri[vert_index]].v];
 		map_to_sphere(&r_uv[0], &r_uv[1], orco[0], orco[1], orco[2]);
 	}
 }
@@ -2945,41 +2950,36 @@ static void GetNormal(const SMikkTSpaceContext *pContext, float r_no[3], const i
 {
 	//assert(vert_index >= 0 && vert_index < 4);
 	SGLSLMeshToTangent *pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
-	const bool smoothnormal = (pMesh->mface[face_num].flag & ME_SMOOTH) != 0;
+	const MLoopTri *lt = &pMesh->looptri[face_num];
+	const bool smoothnormal = (pMesh->mpoly[lt->poly].flag & ME_SMOOTH) != 0;
 
 	if (pMesh->precomputedLoopNormals) {
-		normal_short_to_float_v3(r_no, pMesh->precomputedLoopNormals[face_num][vert_index]);
+		copy_v3_v3(r_no, pMesh->precomputedLoopNormals[lt->tri[vert_index]]);
 	}
 	else if (!smoothnormal) {    // flat
 		if (pMesh->precomputedFaceNormals) {
-			copy_v3_v3(r_no, pMesh->precomputedFaceNormals[face_num]);
+			copy_v3_v3(r_no, pMesh->precomputedFaceNormals[lt->poly]);
 		}
 		else {
-			MFace *mf = &pMesh->mface[face_num];
-			const float *p0 = pMesh->mvert[mf->v1].co;
-			const float *p1 = pMesh->mvert[mf->v2].co;
-			const float *p2 = pMesh->mvert[mf->v3].co;
+			const float *p0 = pMesh->mvert[pMesh->mloop[lt->tri[0]].v].co;
+			const float *p1 = pMesh->mvert[pMesh->mloop[lt->tri[1]].v].co;
+			const float *p2 = pMesh->mvert[pMesh->mloop[lt->tri[2]].v].co;
 
-			if (mf->v4) {
-				const float *p3 = pMesh->mvert[mf->v4].co;
-				normal_quad_v3(r_no, p0, p1, p2, p3);
-			}
-			else {
-				normal_tri_v3(r_no, p0, p1, p2);
-			}
+			normal_tri_v3(r_no, p0, p1, p2);
 		}
 	}
 	else {
-		const short *no = pMesh->mvert[(&pMesh->mface[face_num].v1)[vert_index]].no;
+		const short *no = pMesh->mvert[pMesh->mloop[lt->tri[0]].v].no;
 		normal_short_to_float_v3(r_no, no);
 	}
 }
 
-static void SetTSpace(const SMikkTSpaceContext *pContext, const float fvTangent[3], const float fSign, const int face_num, const int iVert)
+static void SetTSpace(const SMikkTSpaceContext *pContext, const float fvTangent[3], const float fSign, const int face_num, const int vert_index)
 {
 	//assert(vert_index >= 0 && vert_index < 4);
 	SGLSLMeshToTangent *pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
-	float *pRes = pMesh->tangent[4 * face_num + iVert];
+	const MLoopTri *lt = &pMesh->looptri[face_num];
+	float *pRes = pMesh->tangent[lt->tri[vert_index]];
 	copy_v3_v3(pRes, fvTangent);
 	pRes[3] = fSign;
 }
@@ -2987,32 +2987,36 @@ static void SetTSpace(const SMikkTSpaceContext *pContext, const float fvTangent[
 void DM_add_tangent_layer(DerivedMesh *dm)
 {
 	/* mesh vars */
+	const MLoopTri *looptri;
 	MVert *mvert;
-	MTFace *mtface;
-	MFace *mface;
+	MLoopUV *mloopuv;
+	MPoly *mpoly;
+	MLoop *mloop;
 	float (*orco)[3] = NULL, (*tangent)[4];
 	int /* totvert, */ totface;
 	float (*fnors)[3];
-	short (*tlnors)[4][3];
+	float (*tlnors)[3];
 
 	if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) != -1)
 		return;
 
-	fnors = dm->getTessFaceDataArray(dm, CD_NORMAL);
+	fnors = dm->getPolyDataArray(dm, CD_NORMAL);
 	/* Note, we assume we do have tessellated loop normals at this point (in case it is object-enabled),
 	 * have to check this is valid...
 	 */
-	tlnors = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
+	tlnors = dm->getLoopDataArray(dm, CD_NORMAL);
 
 	/* check we have all the needed layers */
 	/* totvert = dm->getNumVerts(dm); */ /* UNUSED */
-	totface = dm->getNumTessFaces(dm);
+	looptri = dm->getLoopTriArray(dm);
+	totface = dm->getNumLoopTri(dm);
 
 	mvert = dm->getVertArray(dm);
-	mface = dm->getTessFaceArray(dm);
-	mtface = dm->getTessFaceDataArray(dm, CD_MTFACE);
+	mpoly = dm->getPolyArray(dm);
+	mloop = dm->getLoopArray(dm);
+	mloopuv = dm->getLoopDataArray(dm, CD_MLOOPUV);
 
-	if (!mtface) {
+	if (!mloopuv) {
 		orco = dm->getVertDataArray(dm, CD_ORCO);
 		if (!orco)
 			return;
@@ -3030,8 +3034,10 @@ void DM_add_tangent_layer(DerivedMesh *dm)
 
 		mesh2tangent.precomputedFaceNormals = fnors;
 		mesh2tangent.precomputedLoopNormals = tlnors;
-		mesh2tangent.mtface = mtface;
-		mesh2tangent.mface = mface;
+		mesh2tangent.looptri = looptri;
+		mesh2tangent.mloopuv = mloopuv;
+		mesh2tangent.mpoly = mpoly;
+		mesh2tangent.mloop = mloop;
 		mesh2tangent.mvert = mvert;
 		mesh2tangent.orco = orco;
 		mesh2tangent.tangent = tangent;
@@ -3202,7 +3208,11 @@ void DM_calc_auto_bump_scale(DerivedMesh *dm)
 
 void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, DMVertexAttribs *attribs)
 {
+<<<<<<< HEAD
 	CustomData *vdata;
+=======
+	CustomData *vdata, *ldata;
+>>>>>>> campbell_tangents
 	int a, b, layer;
 
 	/* From the layers requested by the GLSL shader, figure out which ones are
@@ -3211,6 +3221,10 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 	memset(attribs, 0, sizeof(DMVertexAttribs));
 
 	vdata = &dm->vertData;
+<<<<<<< HEAD
+=======
+	ldata = dm->getLoopDataLayout(dm);
+>>>>>>> campbell_tangents
 	
 	/* calc auto bump scale if necessary */
 	if (dm->auto_bump_scale <= 0.0f)
@@ -3218,8 +3232,12 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 
 	/* add a tangent layer if necessary */
 	for (b = 0; b < gattribs->totlayer; b++)
+<<<<<<< HEAD
 		if (gattribs->layer[b].type == CD_TANGENT) {
 			CustomData *ldata = dm->getLoopDataLayout(dm);
+=======
+		if (gattribs->layer[b].type == CD_TANGENT)
+>>>>>>> campbell_tangents
 			if (CustomData_get_layer_index(ldata, CD_TANGENT) == -1)
 				DM_add_tangent_layer(dm);
 		}
@@ -3251,9 +3269,6 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 				attribs->tface[a].gl_texco = gattribs->layer[b].gltexco;
 			}
 			else {
-				/* exception .. */
-				CustomData *ldata = dm->getLoopDataLayout(dm);
-
 				if (gattribs->layer[b].name[0])
 					layer = CustomData_get_named_layer_index(ldata, CD_MLOOPUV,
 					                                         gattribs->layer[b].name);
@@ -3277,9 +3292,6 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 		}
 		else if (gattribs->layer[b].type == CD_MCOL) {
 			if (dm->type == DM_TYPE_EDITBMESH) {
-				/* exception .. */
-				CustomData *ldata = dm->getLoopDataLayout(dm);
-
 				if (gattribs->layer[b].name[0])
 					layer = CustomData_get_named_layer_index(ldata, CD_MLOOPCOL,
 					                                         gattribs->layer[b].name);
@@ -3301,9 +3313,6 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 				attribs->mcol[a].gl_index = gattribs->layer[b].glindex;
 			}
 			else {
-				/* exception .. */
-				CustomData *ldata = dm->getLoopDataLayout(dm);
-
 				/* vertex colors */
 				if (gattribs->layer[b].name[0])
 					layer = CustomData_get_named_layer_index(ldata, CD_MLOOPCOL,
@@ -3327,8 +3336,11 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 			}
 		}
 		else if (gattribs->layer[b].type == CD_TANGENT) {
+<<<<<<< HEAD
 			/* tangents */
 			CustomData *ldata = dm->getLoopDataLayout(dm);
+=======
+>>>>>>> campbell_tangents
 			layer = CustomData_get_layer_index(ldata, CD_TANGENT);
 
 			attribs->tottang = 1;
@@ -3377,6 +3389,8 @@ void DM_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert,
 	const float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 	int b;
 
+	UNUSED_VARS(a, vert);
+
 	/* orco texture coordinates */
 	if (attribs->totorco) {
 		/*const*/ float (*array)[3] = attribs->orco.array;
@@ -3424,7 +3438,7 @@ void DM_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert,
 	/* tangent for normal mapping */
 	if (attribs->tottang) {
 		/*const*/ float (*array)[4] = attribs->tang.array;
-		const float *tang = (array) ? array[a * 4 + vert] : zero;
+		const float *tang = (array) ? array[loop] : zero;
 		glVertexAttrib4fvARB(attribs->tang.gl_index, tang);
 	}
 }
