@@ -605,7 +605,23 @@ static bool gp_brush_randomise_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 			float *rvec = ED_view3d_cursor3d_get(gso->scene, v3d);
 			float zfac = ED_view3d_calc_zfac(rv3d, rvec, NULL);
 			
-			ED_view3d_win_to_delta(gso->ar, nco, &pt->x, zfac);
+			float sco[2] = {(float)co[0], (float)co[1]};
+			float dvec[3], out[3];
+			
+			float *mval_f = nco;
+			float mval_prj[2];
+			
+			if (ED_view3d_project_float_global(gso->ar, rvec, mval_prj, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
+				sub_v2_v2v2(mval_f, mval_prj, mval_f);
+				ED_view3d_win_to_delta(gso->ar, mval_f, dvec, zfac);
+				sub_v3_v3v3(out, rvec, dvec);
+			}
+			else {
+				zero_v3(out);
+			}
+			
+			printf("  out vs pt = (%f, %f, %f)  -> (%f, %f, %f)\n", out[0], out[1], out[2], pt->x, pt->y, pt->z);
+			copy_v3_v3(&pt->x, out);
 		}
 		else {
 			/* ERROR */
