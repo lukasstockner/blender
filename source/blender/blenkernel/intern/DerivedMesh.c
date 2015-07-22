@@ -3208,11 +3208,7 @@ void DM_calc_auto_bump_scale(DerivedMesh *dm)
 
 void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, DMVertexAttribs *attribs)
 {
-<<<<<<< HEAD
-	CustomData *vdata;
-=======
 	CustomData *vdata, *ldata;
->>>>>>> campbell_tangents
 	int a, b, layer;
 
 	/* From the layers requested by the GLSL shader, figure out which ones are
@@ -3221,10 +3217,7 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 	memset(attribs, 0, sizeof(DMVertexAttribs));
 
 	vdata = &dm->vertData;
-<<<<<<< HEAD
-=======
 	ldata = dm->getLoopDataLayout(dm);
->>>>>>> campbell_tangents
 	
 	/* calc auto bump scale if necessary */
 	if (dm->auto_bump_scale <= 0.0f)
@@ -3232,15 +3225,10 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 
 	/* add a tangent layer if necessary */
 	for (b = 0; b < gattribs->totlayer; b++)
-<<<<<<< HEAD
-		if (gattribs->layer[b].type == CD_TANGENT) {
-			CustomData *ldata = dm->getLoopDataLayout(dm);
-=======
 		if (gattribs->layer[b].type == CD_TANGENT)
->>>>>>> campbell_tangents
 			if (CustomData_get_layer_index(ldata, CD_TANGENT) == -1)
 				DM_add_tangent_layer(dm);
-		}
+
 	for (b = 0; b < gattribs->totlayer; b++) {
 		if (gattribs->layer[b].type == CD_MTFACE) {
 			/* uv coordinates */
@@ -3336,11 +3324,6 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 			}
 		}
 		else if (gattribs->layer[b].type == CD_TANGENT) {
-<<<<<<< HEAD
-			/* tangents */
-			CustomData *ldata = dm->getLoopDataLayout(dm);
-=======
->>>>>>> campbell_tangents
 			layer = CustomData_get_layer_index(ldata, CD_TANGENT);
 
 			attribs->tottang = 1;
