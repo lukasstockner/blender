@@ -564,7 +564,7 @@ static bool gp_brush_randomise_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 	/* Amount of jitter to apply depends on the distance of the point to the cursor,
 	 * as well as the strength of the brush
 	 */
-	const float inf = gp_brush_influence_calc(gso, radius, co);
+	const float inf = gp_brush_influence_calc(gso, radius, co) / 2.0f;
 	
 	//const float dist = (float)len_v2v2_int(gso->mval, co);
 	const float fac = BLI_frand() * inf;
@@ -587,8 +587,13 @@ static bool gp_brush_randomise_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 	printf("svec = %f %f, ", svec[0], svec[1]);
 	
 	/* scale the displacement by the random displacement, and apply */
-	normalize_v2(svec);
-	mul_v2_fl(svec, fac);
+	//normalize_v2(svec);
+	if (BLI_frand() > 0.5f) {
+		mul_v2_fl(svec, -fac);
+	}
+	else {
+		mul_v2_fl(svec, fac);
+	}
 	
 	nco[0] = (float)co[0] + svec[0];
 	nco[1] = (float)co[1] + svec[1];
