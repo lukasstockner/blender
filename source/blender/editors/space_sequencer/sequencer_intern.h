@@ -138,6 +138,8 @@ void SEQUENCER_OT_enable_proxies(struct wmOperatorType *ot);
 void SEQUENCER_OT_overdrop_transform(struct wmOperatorType *ot);
 void SEQUENCER_OT_image_transform_widget(struct wmOperatorType *ot);
 
+void SEQUENCER_OT_export_subtitles(struct wmOperatorType *ot);
+
 /* preview specific operators */
 void SEQUENCER_OT_view_all_preview(struct wmOperatorType *ot);
 

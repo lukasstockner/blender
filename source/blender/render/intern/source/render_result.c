@@ -459,9 +459,10 @@ static int passtype_from_name(const char *str)
 
 static void set_pass_name(char *passname, int passtype, int channel, const char *view)
 {
-	const char *end;
+	const char delims[] = {'.', '\0'};
+	const char *sep;
 	const char *token;
-	int len;
+	size_t len;
 
 	const char *passtype_name = name_from_passtype(passtype, channel);
 
@@ -470,13 +471,14 @@ static void set_pass_name(char *passname, int passtype, int channel, const char 
 		return;
 	}
 
-	end = passtype_name + strlen(passtype_name);
-	len = IMB_exr_split_token(passtype_name, end, &token);
+	len = BLI_str_rpartition(passtype_name, delims, &sep, &token);
 
-	if (len == strlen(passtype_name))
-		sprintf(passname, "%s.%s", passtype_name, view);
-	else
-		sprintf(passname, "%.*s%s.%s", (int)(end-passtype_name) - len, passtype_name, view, token);
+	if (sep) {
+		BLI_snprintf(passname, EXR_PASS_MAXNAME, "%.*s.%s.%s", (int)len, passtype_name, view, token);
+	}
+	else {
+		BLI_snprintf(passname, EXR_PASS_MAXNAME, "%s.%s", passtype_name, view);
+	}
 }
 
 /********************************** New **************************************/
@@ -1038,7 +1040,7 @@ bool RE_WriteRenderResult(ReportList *reports, RenderResult *rr, const char *fil
 	size_t width, height;
 
 	const bool is_mono = view && !multiview;
-	const bool use_half_float = (imf->depth == R_IMF_CHAN_DEPTH_16);
+	const bool use_half_float = (imf != NULL) ? (imf->depth == R_IMF_CHAN_DEPTH_16) : false;
 
 	width = rr->rectx;
 	height = rr->recty;
@@ -1321,9 +1323,9 @@ void render_result_exr_file_merge(RenderResult *rr, RenderResult *rrpart, const 
 /* path to temporary exr file */
 void render_result_exr_file_path(Scene *scene, const char *layname, int sample, char *filepath)
 {
-	char name[FILE_MAXFILE + MAX_ID_NAME + MAX_ID_NAME + 100], fi[FILE_MAXFILE];
+	char name[FILE_MAXFILE + MAX_ID_NAME + MAX_ID_NAME + 100];
+	const char *fi = BLI_path_basename(G.main->name);
 	
-	BLI_split_file_part(G.main->name, fi, sizeof(fi));
 	if (sample == 0) {
 		BLI_snprintf(name, sizeof(name), "%s_%s_%s.exr", fi, scene->id.name + 2, layname);
 	}

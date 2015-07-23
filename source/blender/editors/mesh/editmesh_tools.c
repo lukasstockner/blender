@@ -2204,6 +2204,11 @@ static int edbm_merge_exec(bContext *C, wmOperator *op)
 
 	EDBM_update_generic(em, true, true);
 
+	/* once collapsed, we can't have edge/face selection */
+	if ((em->selectmode & SCE_SELECT_VERTEX) == 0) {
+		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+	}
+
 	return OPERATOR_FINISHED;
 }
 
@@ -4270,6 +4275,8 @@ static int edbm_delete_edgeloop_exec(bContext *C, wmOperator *op)
 	}
 
 	BM_mesh_elem_hflag_enable_test(em->bm, BM_FACE, BM_ELEM_SELECT, true, false, BM_ELEM_TAG);
+
+	EDBM_selectmode_flush_ex(em, SCE_SELECT_VERTEX);
 
 	EDBM_update_generic(em, true, true);
 

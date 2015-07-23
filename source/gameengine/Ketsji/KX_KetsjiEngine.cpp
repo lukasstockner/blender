@@ -41,11 +41,11 @@
 
 #include "KX_KetsjiEngine.h"
 
-#include "ListValue.h"
-#include "IntValue.h"
-#include "VectorValue.h"
-#include "BoolValue.h"
-#include "FloatValue.h"
+#include "EXP_ListValue.h"
+#include "EXP_IntValue.h"
+#include "EXP_VectorValue.h"
+#include "EXP_BoolValue.h"
+#include "EXP_FloatValue.h"
 
 #include "RAS_BucketManager.h"
 #include "RAS_Rect.h"
@@ -1159,6 +1159,8 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 				nearfrust,
 				farfrust,
 				cam->GetSensorFit(),
+				cam->GetShiftHorizontal(),
+				cam->GetShiftVertical(),
 				frustum
 			);
 			if (!cam->GetViewport()) {
@@ -1179,6 +1181,8 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 				cam->GetSensorWidth(),
 				cam->GetSensorHeight(),
 				cam->GetSensorFit(),
+				cam->GetShiftHorizontal(),
+				cam->GetShiftVertical(),
 				nearfrust,
 				farfrust,
 				frustum

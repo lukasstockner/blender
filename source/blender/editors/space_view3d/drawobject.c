@@ -177,7 +177,6 @@ typedef struct drawDMFacesSel_userData {
 	BMesh *bm;
 
 	BMFace *efa_act;
-	const int *orig_index_mf_to_mpoly;
 	const int *orig_index_mp_to_orig;
 } drawDMFacesSel_userData;
 
@@ -3015,12 +3014,9 @@ static int draw_dm_faces_sel__compareDrawOptions(void *userData, int index, int 
 
 	unsigned char *col, *next_col;
 
-	if (!data->orig_index_mf_to_mpoly)
-		return 0;
-
-	i = DM_origindex_mface_mpoly(data->orig_index_mf_to_mpoly, data->orig_index_mp_to_orig, index);
+	i = data->orig_index_mp_to_orig ? data->orig_index_mp_to_orig[index] : index;
 	efa = (i != ORIGINDEX_NONE) ? BM_face_at_index(data->bm, i) : NULL;
-	i = DM_origindex_mface_mpoly(data->orig_index_mf_to_mpoly, data->orig_index_mp_to_orig, next_index);
+	i = data->orig_index_mp_to_orig ? data->orig_index_mp_to_orig[next_index] : next_index;
 	next_efa = (i != ORIGINDEX_NONE) ? BM_face_at_index(data->bm, i) : NULL;
 
 	if (ELEM(NULL, efa, next_efa))
@@ -3066,11 +3062,7 @@ static void draw_dm_faces_sel(BMEditMesh *em, DerivedMesh *dm, unsigned char *ba
 #endif
 	data.efa_act = efa_act;
 	/* double lookup */
-	data.orig_index_mf_to_mpoly = DM_get_tessface_data_layer(dm, CD_ORIGINDEX);
 	data.orig_index_mp_to_orig  = DM_get_poly_data_layer(dm, CD_ORIGINDEX);
-	if ((data.orig_index_mf_to_mpoly && data.orig_index_mp_to_orig) == false) {
-		data.orig_index_mf_to_mpoly = data.orig_index_mp_to_orig = NULL;
-	}
 
 	dm->drawMappedFaces(dm, draw_dm_faces_sel__setDrawOptions, NULL, draw_dm_faces_sel__compareDrawOptions, &data, 0);
 }
@@ -3579,7 +3571,12 @@ static void draw_em_measure_stats(ARegion *ar, View3D *v3d, Object *ob, BMEditMe
 				bool is_first = true;
 
 				BM_ITER_ELEM (loop, &liter, efa, BM_LOOPS_OF_FACE) {
-					if (is_face_sel || (do_moving && BM_elem_flag_test(loop->v, BM_ELEM_SELECT))) {
+					if (is_face_sel ||
+					    (do_moving &&
+					     (BM_elem_flag_test(loop->v, BM_ELEM_SELECT) ||
+					      BM_elem_flag_test(loop->prev->v, BM_ELEM_SELECT) ||
+					      BM_elem_flag_test(loop->next->v, BM_ELEM_SELECT))))
+					{
 						float angle;
 						float v2_local[3];
 
@@ -4024,7 +4021,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 
 	/* Check to draw dynamic paint colors (or weights from WeightVG modifiers).
 	 * Note: Last "preview-active" modifier in stack will win! */
-	if (DM_get_tessface_data_layer(dm, CD_PREVIEW_MCOL) && modifiers_isPreview(ob))
+	if (DM_get_poly_data_layer(dm, CD_PREVIEW_MLOOPCOL) && modifiers_isPreview(ob))
 		draw_flags |= DRAW_MODIFIERS_PREVIEW;
 
 	/* Unwanted combination */
@@ -4311,8 +4308,9 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 		if (obedit != ob)
 			finalDM = cageDM = editbmesh_get_derived_base(ob, em);
 		else
-			cageDM = editbmesh_get_derived_cage_and_final(scene, ob, em, &finalDM,
-			                                              scene->customdata_mask);
+			cageDM = editbmesh_get_derived_cage_and_final(
+			        scene, ob, em, scene->customdata_mask,
+			        &finalDM);
 
 		DM_update_materials(finalDM, ob);
 		if (cageDM != finalDM) {
@@ -6253,8 +6251,8 @@ static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, const 
 			if (bezt->hide == 0) {
 				if (sel == 1 && bezt == vert) {
 					UI_ThemeColor(TH_ACTIVE_VERT);
-					bglVertex3fv(bezt->vec[1]);
 
+					if (bezt->f2 & SELECT) bglVertex3fv(bezt->vec[1]);
 					if (!hide_handles) {
 						if (bezt->f1 & SELECT) bglVertex3fv(bezt->vec[0]);
 						if (bezt->f3 & SELECT) bglVertex3fv(bezt->vec[2]);
@@ -8465,7 +8463,7 @@ static void bbs_mesh_solid_EM(BMEditMesh *em, Scene *scene, View3D *v3d,
 
 	}
 	else {
-		dm->drawMappedFaces(dm, bbs_mesh_mask__setSolidDrawOptions, NULL, NULL, em->bm, 0);
+		dm->drawMappedFaces(dm, bbs_mesh_mask__setSolidDrawOptions, NULL, NULL, em->bm, DM_DRAW_SKIP_SELECT);
 	}
 }
 
@@ -8526,7 +8524,7 @@ static void bbs_mesh_solid_faces(Scene *scene, Object *ob)
 	DM_update_materials(dm, ob);
 
 	if ((me->editflag & ME_EDIT_PAINT_FACE_SEL))
-		dm->drawMappedFaces(dm, bbs_mesh_solid_hide__setDrawOpts, NULL, NULL, me, 0);
+		dm->drawMappedFaces(dm, bbs_mesh_solid_hide__setDrawOpts, NULL, NULL, me, DM_DRAW_SKIP_HIDDEN);
 	else
 		dm->drawMappedFaces(dm, bbs_mesh_solid__setDrawOpts, NULL, NULL, me, 0);
 
@@ -8693,7 +8691,7 @@ void ED_draw_object_facemap(Scene *scene, struct Object *ob, int facemap)
 	}
 	glPopAttrib();
 
-	GPU_buffer_unbind();
+	GPU_buffer_unbind(dm->drawObject->facemapindices, GPU_BINDING_INDEX);
 
 	glPolygonOffset(0.0, 0.0);
 	dm->release(dm);
