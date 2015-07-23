@@ -565,8 +565,6 @@ static bool gp_brush_randomise_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 	 * as well as the strength of the brush
 	 */
 	const float inf = gp_brush_influence_calc(gso, radius, co) / 2.0f;
-	
-	//const float dist = (float)len_v2v2_int(gso->mval, co);
 	const float fac = BLI_frand() * inf;
 	
 	/* Jitter is applied perpendicular to the mouse movement vector
@@ -584,10 +582,9 @@ static bool gp_brush_randomise_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 	svec[0] = -mvec[1];
 	svec[1] =  mvec[0];
 	
-	printf("svec = %f %f, ", svec[0], svec[1]);
+	//printf("svec = %f %f, ", svec[0], svec[1]);
 	
 	/* scale the displacement by the random displacement, and apply */
-	//normalize_v2(svec);
 	if (BLI_frand() > 0.5f) {
 		mul_v2_fl(svec, -fac);
 	}
@@ -598,10 +595,9 @@ static bool gp_brush_randomise_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 	nco[0] = (float)co[0] + svec[0];
 	nco[1] = (float)co[1] + svec[1];
 	
-	printf("%f %f (%f), nco = {%f %f}, co = %d %d\n", svec[0], svec[1], fac, nco[0], nco[1], co[0], co[1]);
+	//printf("%f %f (%f), nco = {%f %f}, co = %d %d\n", svec[0], svec[1], fac, nco[0], nco[1], co[0], co[1]);
 	
 	/* convert to dataspace */
-	// XXX: this step is going wrong!
 	if (gps->flag & GP_STROKE_3DSPACE) {
 		/* 3D: Project to 3D space */
 		if (gso->sa->spacetype == SPACE_VIEW3D) {
@@ -610,7 +606,6 @@ static bool gp_brush_randomise_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 			float *rvec = ED_view3d_cursor3d_get(gso->scene, v3d);
 			float zfac = ED_view3d_calc_zfac(rv3d, rvec, NULL);
 			
-			float sco[2] = {(float)co[0], (float)co[1]};
 			float dvec[3], out[3];
 			
 			float *mval_f = nco;
@@ -625,7 +620,7 @@ static bool gp_brush_randomise_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 				zero_v3(out);
 			}
 			
-			printf("  out vs pt = (%f, %f, %f)  -> (%f, %f, %f)\n", out[0], out[1], out[2], pt->x, pt->y, pt->z);
+			//printf("  out vs pt = (%f, %f, %f)  -> (%f, %f, %f)\n", out[0], out[1], out[2], pt->x, pt->y, pt->z);
 			copy_v3_v3(&pt->x, out);
 		}
 		else {
