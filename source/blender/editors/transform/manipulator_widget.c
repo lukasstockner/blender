@@ -1721,8 +1721,10 @@ static void WIDGET_manipulator_draw(const bContext *C, wmWidget *UNUSED(widget))
 	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
 
-	if (v3d->twflag & V3D_DRAW_MANIPULATOR) {
+	if (G.debug_value == 0)
+		return;
 
+	if (v3d->twflag & V3D_DRAW_MANIPULATOR) {
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
 		if (v3d->twtype & V3D_MANIP_ROTATE) {
