@@ -114,6 +114,9 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", TABKEY, KM_PRESS, 0, 0);
 	RNA_string_set(kmi->ptr, "data_path", "gpencil_data.use_stroke_edit_mode");
 	
+	/* Pie Menu - For settings/tools easy access */
+	WM_keymap_add_menu_pie(keymap, "GPENCIL_PIE_sculpt", EKEY, KM_PRESS, 0, DKEY);
+	
 	/* Brush Settings */
 	/* NOTE: We cannot expose these in the standard keymap, as they will interfere with regular hotkeys
 	 *       in other modes. However, when we are dealing with Stroke Edit Mode, we know for certain

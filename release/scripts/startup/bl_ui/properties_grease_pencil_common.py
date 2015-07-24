@@ -339,6 +339,39 @@ class GPENCIL_PIE_tools_more(Menu):
         pie.operator("wm.call_menu_pie", text="Back to Main Palette...").name = "GPENCIL_PIE_tool_palette"
 
 
+class GPENCIL_PIE_sculpt(Menu):
+    """A pie menu for accessing Grease Pencil stroke sculpting settings"""
+    bl_label = "Grease Pencil Sculpt"
+
+    @classmethod
+    def poll(cls, context):
+        gpd = context.gpencil_data
+        return bool(gpd and gpd.use_stroke_edit_mode and context.editable_gpencil_strokes)
+
+    def draw(self, context):
+        layout = self.layout
+
+        pie = layout.menu_pie()
+
+        settings = context.tool_settings.gpencil_sculpt
+        brush = settings.brush
+
+        col = pie.column()
+        #col.label("Tool:")
+        col.prop(settings, "tool", text="")
+        col.operator("gpencil.brush_paint", text="Sculpt", icon='SCULPTMODE_HLT')
+
+        col = pie.column(align=True)
+        col.prop(brush, "size", slider=True)
+        row = col.row(align=True)
+        row.prop(brush, "strength", slider=True)
+       # row.prop(brush, "use_pressure_strength", text="", icon_only=True)
+        col.prop(brush, "use_falloff")
+
+
+###############################
+
+
 class GPENCIL_UL_layer(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         # assert(isinstance(item, bpy.types.GPencilLayer)
