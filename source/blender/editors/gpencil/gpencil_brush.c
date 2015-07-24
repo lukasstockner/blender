@@ -90,6 +90,9 @@ typedef struct tGP_BrushEditData {
 	ScrArea *sa;
 	ARegion *ar;
 	
+	/* Current GPencil datablock */
+	bGPdata *gpd;
+	
 	/* Brush Settings */
 	GP_BrushEdit_Settings *settings;
 	GP_EditBrush_Data *brush;
@@ -106,6 +109,9 @@ typedef struct tGP_BrushEditData {
 	
 	/* Start of new sculpt stroke */
 	bool first;
+	
+	/* Current frame */
+	int cfra;
 	
 	
 	/* Brush Runtime Data: */
@@ -705,8 +711,12 @@ static bool gpsculpt_brush_init(bContext *C, wmOperator *op)
 	
 	gso->brush_type = gso->settings->brushtype;
 	
+	
 	gso->is_painting = false;
 	gso->first = true;
+	
+	gso->gpd = ED_gpencil_data_get_active(C);
+	gso->cfra = INT_MAX; /* NOTE: So that first stroke will get handled in init_stroke() */
 	
 	gso->scene = scene;
 	
@@ -771,6 +781,81 @@ static int gpsculpt_brush_poll(bContext *C)
 {
 	/* NOTE: this is a bit slower, but is the most accurate... */
 	return CTX_DATA_COUNT(C, editable_gpencil_strokes) != 0;
+}
+
+/* Init Sculpt Stroke ---------------------------------- */
+
+static void gpsculpt_brush_init_stroke(tGP_BrushEditData *gso)
+{
+	Scene *scene = gso->scene;
+	bGPdata *gpd = gso->gpd;
+	bGPDlayer *gpl;
+	int cfra = CFRA;
+	
+	/* only try to add a new frame if this is the first stroke, or the frame has changed */
+	if ((gpd == NULL) || (cfra == gso->cfra))
+		return;
+	
+	/* go through each layer, and ensure that */
+	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+		/* only editable and visible layers are considered */
+		if ((gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED)) == 0 &&
+			(gpl->actframe != NULL))
+		{
+			bGPDframe *gpf = gpl->actframe;
+			
+			/* Make a new frame to work on if the layer's frame and the current scene frame don't match up 
+			 * - This is useful when animating as it saves that "uh-oh" moment when you realize you've
+			 *   spent too much time editing the wrong frame...
+			 */
+			// XXX: should this be allowed when framelock is enabled?
+			// XXX: the logic below should be deduplicated, as the transform conversion code also does it
+			if (gpf->framenum != cfra) {
+				bGPDframe *new_frame = gpencil_frame_duplicate(gpf);
+				bGPDframe *gf;
+				bool found = false;
+				
+				/* Find frame to insert it before */
+				for (gf = gpf->next; gf; gf = gf->next) {
+					if (gf->framenum > cfra) {
+						/* Add it here */
+						BLI_insertlinkbefore(&gpl->frames, gf, new_frame);
+						
+						found = true;
+						break;
+					}
+					else if (gf->framenum == cfra) {
+						/* This only happens when we're editing with framelock on...
+						 * - Delete the new frame and don't do anything else here...
+						 */
+						//printf("GP Sculpt init stroke - Copy aborted for frame %d -> %d\n", gpf->framenum, gf->framenum);
+						free_gpencil_strokes(new_frame);
+						MEM_freeN(new_frame);
+						new_frame = NULL;
+						
+						found = true;
+						break;
+					}
+				}
+				
+				if (found == false) {
+					/* Add new frame to the end */
+					BLI_addtail(&gpl->frames, new_frame);
+				}
+				
+				/* Edit the new frame instead, if it did get created + added */
+				if (new_frame) {
+					// TODO: tag this one as being "newly created" so that we can remove it if the edit is cancelled
+					new_frame->framenum = cfra;
+					
+					gpl->actframe = gpf = new_frame;
+				}
+			}
+		}
+	}
+	
+	/* save off new current frame, so that next update works fine */
+	gso->cfra = cfra;
 }
 
 /* Apply ----------------------------------------------- */
@@ -1147,6 +1232,7 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 				gso->is_painting = true;
 				gso->first = true;
 				
+				gpsculpt_brush_init_stroke(gso);
 				gpsculpt_brush_apply_event(C, op, event);
 				break;
 				
@@ -1196,6 +1282,13 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 					
 				redraw_region = true;
 				break;
+			
+			/* Change Frame - Allowed */
+			case LEFTARROWKEY:
+			case RIGHTARROWKEY:
+			case UPARROWKEY:
+			case DOWNARROWKEY:
+				return OPERATOR_PASS_THROUGH;
 			
 			/* Unhandled event */
 			default:
