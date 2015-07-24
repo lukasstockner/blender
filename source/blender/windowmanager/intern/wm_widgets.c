@@ -234,20 +234,20 @@ static void wm_widget_delete(ListBase *widgetlist, wmWidget *widget)
 
 static void widget_calculate_scale(wmWidget *widget, const bContext *C)
 {
+	const RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	float scale = 1.0f;
-	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
-	if (rv3d && !(U.tw_flag & V3D_3D_WIDGETS) && (widget->flag & WM_WIDGET_SCALE_3D)) {
+	if (rv3d && (U.tw_flag & V3D_3D_WIDGETS) == 0 && (widget->flag & WM_WIDGET_SCALE_3D)) {
 		ED_view3d_update_viewmat(CTX_data_scene(C), CTX_wm_view3d(C), CTX_wm_region(C), NULL, NULL);
 
 		if (widget->get_final_position) {
 			float position[3];
 
 			widget->get_final_position(widget, position);
-			scale = ED_view3d_pixel_size(rv3d, position) * U.tw_size;
+			scale = ED_view3d_pixel_size(rv3d, position) * (float)U.tw_size;
 		}
 		else {
-			scale = ED_view3d_pixel_size(rv3d, widget->origin) * U.tw_size;
+			scale = ED_view3d_pixel_size(rv3d, widget->origin) * (float)U.tw_size;
 		}
 	}
 
