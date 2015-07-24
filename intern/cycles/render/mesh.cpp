@@ -1332,6 +1332,7 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 			if(object->mesh->bvh != NULL) {
 				delete object->mesh->bvh;
 				object->mesh->bvh = NULL;
+				object->mesh->tag_update(scene, true);
 			}
 		}
 	}
