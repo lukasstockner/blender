@@ -102,7 +102,8 @@ GHOST_ContextGLX::~GHOST_ContextGLX()
 		}
 
 #ifdef WITH_GLEW_MX
-		delete m_glxewContext;
+		if (m_glxewContext)
+			delete m_glxewContext;
 #endif
 	}
 }
@@ -135,7 +136,8 @@ void GHOST_ContextGLX::initContextGLXEW()
 	glxewContext = new GLXEWContext;
 	memset(glxewContext, 0, sizeof(GLXEWContext));
 
-	delete m_glxewContext;
+	if (m_glxewContext)
+		delete m_glxewContext;
 	m_glxewContext = glxewContext;
 #endif
 
@@ -153,7 +155,9 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 #endif
 
 	/* needed so 'GLXEW_ARB_create_context' is valid */
+	mxIgnoreNoVersion(1);
 	initContextGLXEW();
+	mxIgnoreNoVersion(0);
 
 	if (GLXEW_ARB_create_context) {
 		int profileBitCore   = m_contextProfileMask & GLX_CONTEXT_CORE_PROFILE_BIT_ARB;
@@ -261,6 +265,9 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 
 		initClearGL();
 		::glXSwapBuffers(m_display, m_window);
+
+		/* re initialize to get the extensions properly */
+		initContextGLXEW();
 
 		success = GHOST_kSuccess;
 	}

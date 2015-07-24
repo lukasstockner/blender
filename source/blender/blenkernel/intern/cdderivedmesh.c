@@ -359,7 +359,7 @@ static void cdDM_drawVerts(DerivedMesh *dm)
 		glDrawArrays(GL_POINTS, 0, dm->drawObject->tot_loop_verts);
 	else
 		glDrawArrays(GL_POINTS, 0, dm->drawObject->tot_loose_point);
-	GPU_buffer_unbind();
+	GPU_buffers_unbind();
 }
 
 static void cdDM_drawUVEdges(DerivedMesh *dm)
@@ -389,7 +389,7 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 	if (prevdraw && (curpos != prevstart)) {
 		glDrawArrays(GL_LINES, prevstart, curpos - prevstart);
 	}
-	GPU_buffer_unbind();
+	GPU_buffers_unbind();
 }
 
 static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdges)
@@ -418,7 +418,7 @@ static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdg
 			GPU_buffer_draw_elements(gdo->edges, GL_LINES, gdo->loose_edge_offset * 2, dm->drawObject->tot_loose_edge_drawn * 2);
 		}
 	}
-	GPU_buffer_unbind();
+	GPU_buffers_unbind();
 }
 
 static void cdDM_drawLooseEdges(DerivedMesh *dm)
@@ -435,7 +435,7 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
 		GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, start, count);
 	}
 
-	GPU_buffer_unbind();
+	GPU_buffers_unbind();
 }
 
 static void cdDM_drawFacesSolid(
@@ -469,7 +469,7 @@ static void cdDM_drawFacesSolid(
 			            dm->drawObject->materials[a].start, dm->drawObject->materials[a].totelements);
 		}
 	}
-	GPU_buffer_unbind();
+	GPU_buffers_unbind();
 
 	glShadeModel(GL_FLAT);
 }
@@ -611,7 +611,7 @@ static void cdDM_drawFacesTex_common(
 		}
 	}
 
-	GPU_buffer_unbind();
+	GPU_buffers_unbind();
 	glShadeModel(GL_FLAT);
 	
 }
@@ -639,7 +639,7 @@ static void cdDM_drawMappedFaces(
 	int i, j;
 	int start_element = 0, tot_element, tot_drawn;
 	int totpoly;
-	int tottri;
+	int tot_tri_elem;
 	int mat_index;
 	GPUBuffer *findex_buffer = NULL;
 
@@ -705,14 +705,14 @@ static void cdDM_drawMappedFaces(
 
 	glShadeModel(GL_SMOOTH);
 
-	tottri = dm->drawObject->tot_triangle_point;
+	tot_tri_elem = dm->drawObject->tot_triangle_point;
 
-	if (tottri == 0) {
+	if (tot_tri_elem == 0) {
 		/* avoid buffer problems in following code */
 	}
 	else if (setDrawOptions == NULL) {
 		/* just draw the entire face array */
-		GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, 0, tottri);
+		GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, 0, tot_tri_elem);
 	}
 	else {
 		for (mat_index = 0; mat_index < dm->drawObject->totmaterial; mat_index++) {
@@ -790,7 +790,7 @@ static void cdDM_drawMappedFaces(
 
 	glShadeModel(GL_FLAT);
 
-	GPU_buffer_unbind();
+	GPU_buffers_unbind();
 
 	if (G.f & G_BACKBUFSEL)
 		GPU_buffer_free(findex_buffer);
@@ -1020,7 +1020,7 @@ static void cdDM_drawMappedFacesGLSL(
 			}
 			varray = GPU_buffer_lock_stream(buffer, GPU_BINDING_ARRAY);
 			if (varray == NULL) {
-				GPU_buffer_unbind();
+				GPU_buffers_unbind();
 				GPU_buffer_free(buffer);
 				MEM_freeN(mat_orig_to_new);
 				MEM_freeN(matconv);
@@ -1090,7 +1090,7 @@ static void cdDM_drawMappedFacesGLSL(
 			}
 		}
 
-		GPU_buffer_unbind();
+		GPU_buffers_unbind();
 		if (buffer)
 			GPU_buffer_free(buffer);
 
@@ -1281,9 +1281,9 @@ static void cdDM_buffer_copy_vertex(
 	}
 
 	/* copy loose points */
-	j = dm->drawObject->tot_triangle_point * 3;
+	j = dm->drawObject->tot_loop_verts * 3;
 	for (i = 0; i < dm->drawObject->totvert; i++) {
-		if (dm->drawObject->vert_points[i].point_index >= dm->drawObject->tot_triangle_point) {
+		if (dm->drawObject->vert_points[i].point_index >= dm->drawObject->tot_loop_verts) {
 			copy_v3_v3(&varray[j], mvert[i].co);
 			j += 3;
 		}
@@ -1607,7 +1607,7 @@ static void cdDM_drawobject_init_vert_points(
 	gdo->vert_points = MEM_mallocN(sizeof(GPUVertPointLink) * gdo->totvert,
 	                               "GPUDrawObject.vert_points");
 #ifdef USE_GPU_POINT_LINK
-	gdo->vert_points_mem = MEM_callocN(sizeof(GPUVertPointLink) * gdo->tot_triangle_point,
+	gdo->vert_points_mem = MEM_callocN(sizeof(GPUVertPointLink) * gdo->totvert,
 	                                   "GPUDrawObject.vert_points_mem");
 	gdo->vert_points_usage = 0;
 #endif
@@ -1644,7 +1644,7 @@ static void cdDM_drawobject_init_vert_points(
 	/* map any unused vertices to loose points */
 	for (i = 0; i < gdo->totvert; i++) {
 		if (gdo->vert_points[i].point_index == -1) {
-			gdo->vert_points[i].point_index = gdo->tot_triangle_point + gdo->tot_loose_point;
+			gdo->vert_points[i].point_index = gdo->tot_loop_verts + gdo->tot_loose_point;
 			gdo->tot_loose_point++;
 		}
 	}
