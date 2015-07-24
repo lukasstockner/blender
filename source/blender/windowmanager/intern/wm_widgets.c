@@ -236,7 +236,10 @@ static void widget_calculate_scale(wmWidget *widget, const bContext *C)
 {
 	float scale = 1.0f;
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
+
 	if (rv3d && !(U.tw_flag & V3D_3D_WIDGETS) && (widget->flag & WM_WIDGET_SCALE_3D)) {
+		ED_view3d_update_viewmat(CTX_data_scene(C), CTX_wm_view3d(C), CTX_wm_region(C), NULL, NULL);
+
 		if (widget->get_final_position) {
 			float position[3];
 
