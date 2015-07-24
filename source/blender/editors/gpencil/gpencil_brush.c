@@ -66,6 +66,7 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "UI_view2d.h"
 
@@ -692,6 +693,25 @@ static void gpencil_toggle_brush_cursor(bContext *C, bool enable)
 
 
 /* ************************************************ */
+/* Header Info for GPencil Sculpt */
+
+static void gpsculpt_brush_header_set(bContext *C, tGP_BrushEditData *gso)
+{
+	const char *brush_name = NULL;
+	char str[256] = "";
+	
+	RNA_enum_name(gpencil_sculpt_brush_items, gso->brush_type, &brush_name);
+	
+	BLI_snprintf(str, sizeof(str),
+	             IFACE_("GPencil Sculpt: %s Stroke  | LMB to paint | RMB/Escape to Exit"
+	                    " | Ctrl to Invert Action | Wheel Up/Down for Size "
+						" | Shift-Wheel Up/Down for Strength"),
+	             (brush_name) ? brush_name : "<?>");
+	
+	ED_area_headerprint(CTX_wm_area(C), str);
+}
+
+/* ************************************************ */
 /* Grease Pencil Sculpting Operator */
 
 /* Init/Exit ----------------------------------------------- */
@@ -727,9 +747,7 @@ static bool gpsculpt_brush_init(bContext *C, wmOperator *op)
 	gp_point_conversion_init(C, &gso->gsc);
 	
 	/* update header */
-	ED_area_headerprint(CTX_wm_area(C),
-	                    IFACE_("Grease Pencil: Stroke Sculptmode | LMB to paint | RMB/Escape to Exit"
-	                           " | Ctrl to Invert Action"));
+	gpsculpt_brush_header_set(C, gso);
 	
 	/* setup cursor drawing */
 	WM_cursor_modal_set(CTX_wm_window(C), BC_CROSSCURSOR);
