@@ -2107,8 +2107,9 @@ static void lib_link_fmodifiers(FileData *fd, ID *id, ListBase *list)
 			{
 				FMod_Python *data = (FMod_Python *)fcm->data;
 				data->script = newlibadr(fd, id->lib, data->script);
-			}
+
 				break;
+			}
 		}
 	}
 }
@@ -2166,23 +2167,26 @@ static void direct_link_fmodifiers(FileData *fd, ListBase *list)
 				if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
 					BLI_endian_switch_float_array(data->coefficients, data->arraysize);
 				}
-			}
+
 				break;
+			}
 			case FMODIFIER_TYPE_ENVELOPE:
 			{
 				FMod_Envelope *data=  (FMod_Envelope *)fcm->data;
 				
 				data->data= newdataadr(fd, data->data);
-			}
+
 				break;
+			}
 			case FMODIFIER_TYPE_PYTHON:
 			{
 				FMod_Python *data = (FMod_Python *)fcm->data;
 				
 				data->prop = newdataadr(fd, data->prop);
 				IDP_DirectLinkGroup_OrFree(&data->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
-			}
+
 				break;
+			}
 		}
 	}
 }
@@ -4554,7 +4558,7 @@ static void lib_link_object(FileData *fd, Main *main)
 					bCameraActuator *ca = act->data;
 					ca->ob= newlibadr(fd, ob->id.lib, ca->ob);
 				}
-					/* leave this one, it's obsolete but necessary to read for conversion */
+				/* leave this one, it's obsolete but necessary to read for conversion */
 				else if (act->type == ACT_ADD_OBJECT) {
 					bAddObjectActuator *eoa = act->data;
 					if (eoa) eoa->ob= newlibadr(fd, ob->id.lib, eoa->ob);
@@ -7372,6 +7376,30 @@ static void direct_link_linestyle_color_modifier(FileData *fd, LineStyleModifier
 			m->color_ramp = newdataadr(fd, m->color_ramp);
 		}
 		break;
+	case LS_MODIFIER_TANGENT:
+		{
+			LineStyleColorModifier_Tangent *m = (LineStyleColorModifier_Tangent *)modifier;
+			m->color_ramp = newdataadr(fd, m->color_ramp);
+		}
+		break;
+	case LS_MODIFIER_NOISE:
+		{
+			LineStyleColorModifier_Noise *m = (LineStyleColorModifier_Noise *)modifier;
+			m->color_ramp = newdataadr(fd, m->color_ramp);
+		}
+		break;
+	case LS_MODIFIER_CREASE_ANGLE:
+		{
+			LineStyleColorModifier_CreaseAngle *m = (LineStyleColorModifier_CreaseAngle *)modifier;
+			m->color_ramp = newdataadr(fd, m->color_ramp);
+		}
+		break;
+	case LS_MODIFIER_CURVATURE_3D:
+		{
+			LineStyleColorModifier_Curvature_3D *m = (LineStyleColorModifier_Curvature_3D *)modifier;
+			m->color_ramp = newdataadr(fd, m->color_ramp);
+		}
+		break;
 	}
 }
 
@@ -7406,6 +7434,34 @@ static void direct_link_linestyle_alpha_modifier(FileData *fd, LineStyleModifier
 			direct_link_curvemapping(fd, m->curve);
 		}
 		break;
+	case LS_MODIFIER_TANGENT:
+		{
+			LineStyleAlphaModifier_Tangent *m = (LineStyleAlphaModifier_Tangent *)modifier;
+			m->curve = newdataadr(fd, m->curve);
+			direct_link_curvemapping(fd, m->curve);
+		}
+		break;
+	case LS_MODIFIER_NOISE:
+		{
+			LineStyleAlphaModifier_Noise *m = (LineStyleAlphaModifier_Noise *)modifier;
+			m->curve = newdataadr(fd, m->curve);
+			direct_link_curvemapping(fd, m->curve);
+		}
+		break;
+	case LS_MODIFIER_CREASE_ANGLE:
+		{
+			LineStyleAlphaModifier_CreaseAngle *m = (LineStyleAlphaModifier_CreaseAngle *)modifier;
+			m->curve = newdataadr(fd, m->curve);
+			direct_link_curvemapping(fd, m->curve);
+		}
+		break;
+	case LS_MODIFIER_CURVATURE_3D:
+		{
+			LineStyleAlphaModifier_Curvature_3D *m = (LineStyleAlphaModifier_Curvature_3D *)modifier;
+			m->curve = newdataadr(fd, m->curve);
+			direct_link_curvemapping(fd, m->curve);
+		}
+		break;
 	}
 }
 
@@ -7436,6 +7492,27 @@ static void direct_link_linestyle_thickness_modifier(FileData *fd, LineStyleModi
 	case LS_MODIFIER_MATERIAL:
 		{
 			LineStyleThicknessModifier_Material *m = (LineStyleThicknessModifier_Material *)modifier;
+			m->curve = newdataadr(fd, m->curve);
+			direct_link_curvemapping(fd, m->curve);
+		}
+		break;
+	case LS_MODIFIER_TANGENT:
+		{
+			LineStyleThicknessModifier_Tangent *m = (LineStyleThicknessModifier_Tangent *)modifier;
+			m->curve = newdataadr(fd, m->curve);
+			direct_link_curvemapping(fd, m->curve);
+		}
+		break;
+	case LS_MODIFIER_CREASE_ANGLE:
+		{
+			LineStyleThicknessModifier_CreaseAngle *m = (LineStyleThicknessModifier_CreaseAngle *)modifier;
+			m->curve = newdataadr(fd, m->curve);
+			direct_link_curvemapping(fd, m->curve);
+		}
+		break;
+	case LS_MODIFIER_CURVATURE_3D:
+		{
+			LineStyleThicknessModifier_Curvature_3D *m = (LineStyleThicknessModifier_Curvature_3D *)modifier;
 			m->curve = newdataadr(fd, m->curve);
 			direct_link_curvemapping(fd, m->curve);
 		}
@@ -8303,8 +8380,9 @@ static void expand_fmodifiers(FileData *fd, Main *mainvar, ListBase *list)
 				FMod_Python *data = (FMod_Python *)fcm->data;
 				
 				expand_doit(fd, mainvar, data->script);
-			}
+
 				break;
+			}
 		}
 	}
 }
