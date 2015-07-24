@@ -585,6 +585,7 @@ wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, int style)
 	dial->widget.draw = widget_dial_draw;
 	dial->widget.intersect = NULL;
 	dial->widget.render_3d_intersection = widget_dial_render_3d_intersect;
+	dial->widget.flag |= WM_WIDGET_SCALE_3D;
 
 	dial->style = style;
 	copy_v3_v3(dial->direction, dir_default);
