@@ -1602,7 +1602,7 @@ static void dm_ensure_display_normals(DerivedMesh *dm)
 	/* BLI_assert((CustomData_has_layer(&dm->polyData, CD_NORMAL) == false)); */
 
 	if ((dm->type == DM_TYPE_CDDM) &&
-	    ((dm->dirty & DM_DIRTY_NORMALS) || CustomData_has_layer(&dm->faceData, CD_NORMAL) == false))
+	    ((dm->dirty & DM_DIRTY_NORMALS) || CustomData_has_layer(&dm->polyData, CD_NORMAL) == false))
 	{
 		/* if normals are dirty we want to calculate vertex normals too */
 		CDDM_calc_normals_mapping_ex(dm, (dm->dirty & DM_DIRTY_NORMALS) ? false : true);
@@ -1649,7 +1649,7 @@ static void mesh_calc_modifiers(
 	const bool do_final_wmcol = (scene->toolsettings->weights_preview == WP_WPREVIEW_FINAL) && do_wmcol;
 #endif
 	const bool do_final_wmcol = false;
-	const bool do_init_wmcol = ((dataMask & CD_MASK_PREVIEW_MCOL) && (ob->mode & OB_MODE_WEIGHT_PAINT) && !do_final_wmcol);
+	const bool do_init_wmcol = ((dataMask & CD_MASK_PREVIEW_MLOOPCOL) && (ob->mode & OB_MODE_WEIGHT_PAINT) && !do_final_wmcol);
 	/* XXX Same as above... For now, only weights preview in WPaint mode. */
 	const bool do_mod_wmcol = do_init_wmcol;
 
@@ -2186,8 +2186,12 @@ static void editbmesh_calc_modifiers(
 #if 0 /* XXX Will re-enable this when we have global mod stack options. */
 	const bool do_final_wmcol = (scene->toolsettings->weights_preview == WP_WPREVIEW_FINAL) && do_wmcol;
 #endif
+#ifndef WITH_OPENSUBDIV
 	const bool do_final_wmcol = false;
 	const bool do_init_wmcol = ((((Mesh *)ob->data)->drawflag & ME_DRAWEIGHT) && !do_final_wmcol);
+#else
+	const bool do_init_wmcol = false;
+#endif
 	const bool do_init_statvis = ((((Mesh *)ob->data)->drawflag & ME_DRAW_STATVIS) && !do_init_wmcol);
 	const bool do_mod_wmcol = do_init_wmcol;
 	VirtualModifierData virtualModifierData;
@@ -2480,7 +2484,7 @@ static void mesh_build_data(
 
 #ifdef WITH_OPENSUBDIV
 	if (calc_modifiers_skip_orco(ob)) {
-		dataMask &= ~CD_MASK_ORCO;
+		dataMask &= ~(CD_MASK_ORCO | CD_MASK_PREVIEW_MCOL);
 	}
 #endif
 
@@ -2515,7 +2519,7 @@ static void editbmesh_build_data(Scene *scene, Object *obedit, BMEditMesh *em, C
 
 #ifdef WITH_OPENSUBDIV
 	if (calc_modifiers_skip_orco(obedit)) {
-		dataMask &= ~CD_MASK_ORCO;
+		dataMask &= ~(CD_MASK_ORCO | CD_MASK_PREVIEW_MCOL);
 	}
 #endif
 
@@ -2551,16 +2555,16 @@ static CustomDataMask object_get_datamask(const Scene *scene, Object *ob, bool *
 
 		/* check if we need tfaces & mcols due to face select or texture paint */
 		if ((ob->mode & OB_MODE_TEXTURE_PAINT) || editing) {
-			mask |= CD_MASK_MTFACE | CD_MASK_MCOL;
+			mask |= CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL;
 		}
 
 		/* check if we need mcols due to vertex paint or weightpaint */
 		if (ob->mode & OB_MODE_VERTEX_PAINT) {
-			mask |= CD_MASK_MCOL;
+			mask |= CD_MASK_MLOOPCOL;
 		}
 
 		if (ob->mode & OB_MODE_WEIGHT_PAINT) {
-			mask |= CD_MASK_PREVIEW_MCOL;
+			mask |= CD_MASK_PREVIEW_MLOOPCOL;
 		}
 
 		if (ob->mode & OB_MODE_EDIT)
@@ -3224,10 +3228,14 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 		DM_calc_auto_bump_scale(dm);
 
 	/* add a tangent layer if necessary */
-	for (b = 0; b < gattribs->totlayer; b++)
-		if (gattribs->layer[b].type == CD_TANGENT)
-			if (CustomData_get_layer_index(ldata, CD_TANGENT) == -1)
+	for (b = 0; b < gattribs->totlayer; b++) {
+		if (gattribs->layer[b].type == CD_TANGENT) {
+			if (CustomData_get_layer_index(ldata, CD_TANGENT) == -1) {
 				DM_add_tangent_layer(dm);
+				break;
+			}
+		}
+	}
 
 	for (b = 0; b < gattribs->totlayer; b++) {
 		if (gattribs->layer[b].type == CD_MTFACE) {
@@ -3828,41 +3836,41 @@ MEdge *DM_get_edge_array(DerivedMesh *dm, bool *allocated)
 	return medge;
 }
 
-MLoop *DM_get_loop_array(DerivedMesh *dm, bool *allocated)
+MLoop *DM_get_loop_array(DerivedMesh *dm, bool *r_allocated)
 {
 	CustomData *loop_data = dm->getEdgeDataLayout(dm);
 	MLoop *mloop = CustomData_get_layer(loop_data, CD_MLOOP);
-	*allocated = false;
+	*r_allocated = false;
 
 	if (mloop == NULL) {
 		mloop = MEM_mallocN(sizeof(MLoop) * dm->getNumLoops(dm), "dm loop data array");
 		dm->copyLoopArray(dm, mloop);
-		*allocated = true;
+		*r_allocated = true;
 	}
 
 	return mloop;
 }
 
-MPoly *DM_get_poly_array(DerivedMesh *dm, bool *allocated)
+MPoly *DM_get_poly_array(DerivedMesh *dm, bool *r_allocated)
 {
 	CustomData *poly_data = dm->getPolyDataLayout(dm);
 	MPoly *mpoly = CustomData_get_layer(poly_data, CD_MPOLY);
-	*allocated = false;
+	*r_allocated = false;
 
 	if (mpoly == NULL) {
 		mpoly = MEM_mallocN(sizeof(MPoly) * dm->getNumPolys(dm), "dm poly data array");
 		dm->copyPolyArray(dm, mpoly);
-		*allocated = true;
+		*r_allocated = true;
 	}
 
 	return mpoly;
 }
 
-MFace *DM_get_tessface_array(DerivedMesh *dm, bool *allocated)
+MFace *DM_get_tessface_array(DerivedMesh *dm, bool *r_allocated)
 {
 	CustomData *tessface_data = dm->getTessFaceDataLayout(dm);
 	MFace *mface = CustomData_get_layer(tessface_data, CD_MFACE);
-	*allocated = false;
+	*r_allocated = false;
 
 	if (mface == NULL) {
 		int numTessFaces = dm->getNumTessFaces(dm);
@@ -3870,9 +3878,41 @@ MFace *DM_get_tessface_array(DerivedMesh *dm, bool *allocated)
 		if (numTessFaces > 0) {
 			mface = MEM_mallocN(sizeof(MFace) * numTessFaces, "bvh mface data array");
 			dm->copyTessFaceArray(dm, mface);
-			*allocated = true;
+			*r_allocated = true;
 		}
 	}
 
 	return mface;
+}
+
+const MLoopTri *DM_get_looptri_array(
+        DerivedMesh *dm,
+        const MVert *mvert,
+        const MPoly *mpoly, int mpoly_len,
+        const MLoop *mloop, int mloop_len,
+        bool *r_allocated)
+{
+	const MLoopTri *looptri = dm->getLoopTriArray(dm);
+	*r_allocated = false;
+
+	if (looptri == NULL) {
+		if (mpoly_len > 0) {
+			const int looptris_num = poly_to_tri_count(mpoly_len, mloop_len);
+			MLoopTri *looptri_data;
+
+			looptri_data = MEM_mallocN(sizeof(MLoopTri) * looptris_num, __func__);
+
+			BKE_mesh_recalc_looptri(
+			        mloop, mpoly,
+			        mvert,
+			        mloop_len, mpoly_len,
+			        looptri_data);
+
+			looptri = looptri_data;
+
+			*r_allocated = true;
+		}
+	}
+
+	return looptri;
 }
