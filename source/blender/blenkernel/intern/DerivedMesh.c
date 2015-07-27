@@ -521,7 +521,8 @@ void DM_update_tessface_data(DerivedMesh *dm)
 	    CustomData_has_layer(fdata, CD_MCOL) ||
 	    CustomData_has_layer(fdata, CD_PREVIEW_MCOL) ||
 	    CustomData_has_layer(fdata, CD_ORIGSPACE) ||
-	    CustomData_has_layer(fdata, CD_TESSLOOPNORMAL))
+	    CustomData_has_layer(fdata, CD_TESSLOOPNORMAL) ||
+	    CustomData_has_layer(fdata, CD_TANGENT))
 	{
 		loopindex = MEM_mallocN(sizeof(*loopindex) * totface, __func__);
 
@@ -556,6 +557,69 @@ void DM_update_tessface_data(DerivedMesh *dm)
 
 	dm->dirty &= ~DM_DIRTY_TESS_CDLAYERS;
 }
+
+void DM_generate_tangent_tessface_data(DerivedMesh *dm, bool generate)
+{
+	int i;
+	MFace *mf, *mface = dm->getTessFaceArray(dm);
+	MPoly *mp = dm->getPolyArray(dm);
+	MLoop *ml = dm->getLoopArray(dm);
+
+	CustomData *fdata = dm->getTessFaceDataLayout(dm);
+	CustomData *pdata = dm->getPolyDataLayout(dm);
+	CustomData *ldata = dm->getLoopDataLayout(dm);
+
+	const int totface = dm->getNumTessFaces(dm);
+	int mf_idx;
+
+	int *polyindex = CustomData_get_layer(fdata, CD_ORIGINDEX);
+	unsigned int (*loopindex)[4];
+
+	/* Should never occure, but better abort than segfault! */
+	if (!polyindex)
+		return;
+
+	CustomData_from_bmeshpoly(fdata, pdata, ldata, totface);
+
+	if (generate) {
+		for (i = 0; i < ldata->totlayer; i++) {
+			if (ldata->layers[i].type == CD_TANGENT)
+				CustomData_add_layer_named(fdata, CD_TANGENT, CD_CALLOC, NULL, totface, ldata->layers[i].name);
+		}
+		CustomData_bmesh_update_active_layers(fdata, pdata, ldata);
+	}
+
+	loopindex = MEM_mallocN(sizeof(*loopindex) * totface, __func__);
+
+	for (mf_idx = 0, mf = mface; mf_idx < totface; mf_idx++, mf++) {
+		const int mf_len = mf->v4 ? 4 : 3;
+		unsigned int *ml_idx = loopindex[mf_idx];
+		int i, not_done;
+
+		/* Find out loop indices. */
+		/* NOTE: This assumes tessface are valid and in sync with loop/poly... Else, most likely, segfault! */
+		for (i = mp[polyindex[mf_idx]].loopstart, not_done = mf_len; not_done; i++) {
+			const int tf_v = BKE_MESH_TESSFACE_VINDEX_ORDER(mf, ml[i].v);
+			if (tf_v != -1) {
+				ml_idx[tf_v] = i;
+				not_done--;
+			}
+		}
+	}
+
+	/* NOTE: quad detection issue - forth vertidx vs forth loopidx:
+	 * Here, our tfaces' forth vertex index is never 0 for a quad. However, we know our forth loop index may be
+	 * 0 for quads (because our quads may have been rotated compared to their org poly, see tessellation code).
+	 * So we pass the MFace's, and BKE_mesh_loops_to_tessdata will use MFace->v4 index as quad test.
+	 */
+	BKE_mesh_tangent_loops_to_tessdata(fdata, ldata, mface, polyindex, loopindex, totface);
+
+	MEM_freeN(loopindex);
+
+	if (G.debug & G_DEBUG)
+		printf("%s: Updated tessellated tangents of dm %p\n", __func__, dm);
+}
+
 
 void DM_update_materials(DerivedMesh *dm, Object *ob)
 {
