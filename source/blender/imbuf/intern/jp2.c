@@ -616,7 +616,7 @@ static opj_image_t *ibuftoimage(ImBuf *ibuf, opj_cparameters_t *parameters)
 			cinema_parameters(parameters);
 		}
 		
-		color_space = (ibuf->foptions.flag & JP2_YCC) ? CLRSPC_SYCC : CLRSPC_SRGB;
+		color_space = (ibuf->ftype & JP2_YCC) ? CLRSPC_SYCC : CLRSPC_SRGB;
 		prec = 12;
 		numcomps = 3;
 	}
