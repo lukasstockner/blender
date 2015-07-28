@@ -114,6 +114,36 @@ static int mres_prev_gridsize = -1;
 static GLenum mres_prev_index_type = 0;
 static unsigned mres_prev_totquad = 0;
 
+void GPU_buffer_material_finalize(GPUDrawObject *gdo, GPUBufferMaterial *matinfo, int totmat)
+{
+	int i, curmat, curelement;
+
+	/* count the number of materials used by this DerivedMesh */
+	for (i = 0; i < totmat; i++) {
+		if (matinfo[i].totelements > 0)
+			gdo->totmaterial++;
+	}
+
+	/* allocate an array of materials used by this DerivedMesh */
+	gdo->materials = MEM_mallocN(sizeof(GPUBufferMaterial) * gdo->totmaterial,
+	                             "GPUDrawObject.materials");
+
+	/* initialize the materials array */
+	for (i = 0, curmat = 0, curelement = 0; i < totmat; i++) {
+		if (matinfo[i].totelements > 0) {
+			gdo->materials[curmat] = matinfo[i];
+			gdo->materials[curmat].start = curelement;
+			gdo->materials[curmat].mat_nr = i;
+			gdo->materials[curmat].polys = MEM_mallocN(sizeof(int) * matinfo[i].totpolys, "GPUBufferMaterial.polys");
+
+			curelement += matinfo[i].totelements;
+			curmat++;
+		}
+	}
+
+	MEM_freeN(matinfo);
+}
+
 
 /* stores recently-deleted buffers so that new buffers won't have to
  * be recreated as often
@@ -499,7 +529,6 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	int i;
 	const GPUBufferTypeSettings *ts = &gpu_buffer_type_settings[type];
 	GLenum target = ts->gl_buffer_type;
-	int num_components = ts->num_components;
 	size_t size = gpu_buffer_size_from_type(dm, type);
 	bool use_VBOs = (GLEW_ARB_vertex_buffer_object) && !(U.gameflags & USER_DISABLE_VBO);
 	GLboolean uploaded;
@@ -517,9 +546,6 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	mat_orig_to_new = MEM_mallocN(sizeof(*mat_orig_to_new) * dm->totmat,
 	                              "GPU_buffer_setup.mat_orig_to_new");
 	for (i = 0; i < object->totmaterial; i++) {
-		/* for each material, the current index to copy data to */
-		object->materials[i].counter = object->materials[i].start * num_components;
-
 		/* map from original material index to new
 		 * GPUBufferMaterial index */
 		mat_orig_to_new[object->materials[i].mat_nr] = i;

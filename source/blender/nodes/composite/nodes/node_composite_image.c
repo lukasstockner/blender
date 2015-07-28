@@ -39,6 +39,10 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 
+#ifdef WITH_CYCLES_DEBUG
+#  include "RE_pipeline.h"
+#endif
+
 /* **************** IMAGE (and RenderResult, multilayer image) ******************** */
 
 static bNodeSocketTemplate cmp_node_rlayers_out[] = {
@@ -74,7 +78,7 @@ static bNodeSocketTemplate cmp_node_rlayers_out[] = {
 	{	SOCK_RGBA, 0, N_("Subsurface Indirect"),	0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_RGBA, 0, N_("Subsurface Color"),		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 #ifdef WITH_CYCLES_DEBUG
-	{	SOCK_FLOAT, 0, N_("Debug"),		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA, 0, N_("Debug"),					0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 #endif
 	{	-1, 0, ""	}
 };
@@ -453,7 +457,7 @@ void node_cmp_rlayers_force_hidden_passes(bNode *node)
 	set_output_visible(node, passflag, RRES_OUT_SUBSURFACE_COLOR,       SCE_PASS_SUBSURFACE_COLOR);
 
 #ifdef WITH_CYCLES_DEBUG
-	set_output_visible(node, passflag, RRES_OUT_DEBUG,                  SCE_PASS_DEBUG);
+	set_output_visible(node, passflag, RRES_OUT_DEBUG, SCE_PASS_DEBUG);
 #endif
 }
 
