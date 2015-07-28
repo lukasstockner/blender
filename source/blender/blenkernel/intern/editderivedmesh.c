@@ -55,6 +55,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "GPU_buffers.h"
 #include "GPU_extensions.h"
 #include "GPU_glew.h"
 
@@ -347,6 +348,246 @@ static void emDM_foreachMappedEdge(
 	}
 }
 
+static void emDM_buffer_copy_vertex(
+        DerivedMesh *dm, float *varray)
+{
+	BMIter iter, iterv;
+	EditDerivedBMesh *bmdm = (EditDerivedBMesh *)dm;
+	BMEditMesh *em = bmdm->em;
+	BMesh *bm = em->bm;
+
+	BMVert *v;
+	BMFace *efa;
+
+	int start = 0;
+
+	BM_ITER_MESH(efa, &iter, bm, BM_FACES_OF_MESH) {
+		BM_ITER_ELEM(v, &iterv, efa, BM_VERTS_OF_FACE) {
+			copy_v3_v3(&varray[start], v->co);
+			start += 3;
+		}
+	}
+
+	/* copy loose points
+	j = dm->drawObject->tot_loop_verts * 3;
+	for (i = 0; i < dm->drawObject->totvert; i++) {
+		if (dm->drawObject->vert_points[i].point_index >= dm->drawObject->tot_loop_verts) {
+			copy_v3_v3(&varray[j], mvert[i].co);
+			j += 3;
+		}
+	}
+	*/
+}
+
+static void emDM_buffer_copy_normal(
+        DerivedMesh *dm, short *varray)
+{
+	BMIter iter, iterl;
+	EditDerivedBMesh *bmdm = (EditDerivedBMesh *)dm;
+	BMEditMesh *em = bmdm->em;
+	BMesh *bm = em->bm;
+	BMLoop *l;
+	BMFace *efa;
+
+	int i;
+	int start;
+
+	const float (*lnors)[3] = dm->getLoopDataArray(dm, CD_NORMAL);
+
+	const float (*polyNos)[3] = NULL;
+	const float (*vertexNos)[3] = NULL;
+
+	if (bmdm->vertexCos) {
+		emDM_ensureVertNormals(bmdm);
+		emDM_ensurePolyNormals(bmdm);
+		polyNos = bmdm->polyNos;
+		vertexNos = bmdm->vertexNos;
+	}
+
+	start = 0;
+
+	BM_ITER_MESH_INDEX(efa, &iter, bm, BM_FACES_OF_MESH, i) {
+		const bool smoothnormal = BM_elem_flag_test(efa, BM_ELEM_SMOOTH);
+
+		BM_ITER_ELEM(l, &iterl, efa, BM_LOOPS_OF_FACE) {
+			if (lnors) {
+				/* Copy loop normals */
+				normal_float_to_short_v3(&varray[start], lnors[BM_elem_index_get(l)]);
+			}
+			else if (smoothnormal) {
+				/* Copy vertex normal */
+				if (vertexNos)
+					normal_float_to_short_v3(&varray[start], vertexNos[BM_elem_index_get(l->v)]);
+				else
+					normal_float_to_short_v3(&varray[start], l->v->no);
+			}
+			else {
+				if (polyNos)
+					normal_float_to_short_v3(&varray[start], polyNos[i]);
+				else
+					normal_float_to_short_v3(&varray[start], efa->no);
+			}
+			start += 4;
+		}
+	}
+}
+
+typedef struct FaceCount {
+	unsigned int i_visible;
+	unsigned int i_hidden;
+	unsigned int i_tri_visible;
+	unsigned int i_tri_hidden;
+} FaceCount;
+
+static void emDM_buffer_copy_triangles(
+        DerivedMesh *dm, unsigned int *varray,
+        const int *mat_orig_to_new)
+{
+	GPUBufferMaterial *gpumat, *gpumaterials = dm->drawObject->materials;
+	int i, j, start;
+
+	BMIter iter;
+	EditDerivedBMesh *bmdm = (EditDerivedBMesh *)dm;
+	BMEditMesh *em = bmdm->em;
+	BMesh *bm = em->bm;
+	BMLoop *(*lt)[3] = bmdm->em->looptris;
+
+	BMFace *efa;
+
+	const int totmat = dm->drawObject->totmaterial;
+
+	FaceCount *fc = MEM_mallocN(sizeof(*fc) * totmat, "gpumaterial.facecount");
+
+	for (i = 0; i < totmat; i++) {
+		fc[i].i_visible = 0;
+		fc[i].i_tri_visible = 0;
+		fc[i].i_hidden = gpumaterials[i].totpolys - 1;
+		fc[i].i_tri_hidden = gpumaterials[i].totelements - 1;
+	}
+
+	BM_mesh_elem_index_ensure(bm, BM_LOOP);
+
+	BM_ITER_MESH(efa, &iter, bm, BM_FACES_OF_MESH) {
+		int tottri = efa->len - 2;
+		int mati = mat_orig_to_new[efa->mat_nr];
+		gpumat = gpumaterials + mati;
+
+		if (BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
+			for (j = 0; j < tottri; j++, lt++) {
+				start = gpumat->start + fc[mati].i_tri_hidden;
+				/* v1 v2 v3 */
+				varray[start--] = BM_elem_index_get((*lt)[2]);
+				varray[start--] = BM_elem_index_get((*lt)[1]);
+				varray[start--] = BM_elem_index_get((*lt)[0]);
+				fc[mati].i_tri_hidden -= 3;
+			}
+			gpumat->polys[fc[mati].i_hidden--] = i;
+		}
+		else {
+			for (j = 0; j < tottri; j++, lt++) {
+				start = gpumat->start + fc[mati].i_tri_visible;
+				/* v1 v2 v3 */
+				varray[start++] = BM_elem_index_get((*lt)[0]);
+				varray[start++] = BM_elem_index_get((*lt)[1]);
+				varray[start++] = BM_elem_index_get((*lt)[2]);
+				fc[mati].i_tri_visible += 3;
+			}
+			gpumat->polys[fc[mati].i_visible++] = i;
+		}
+	}
+
+	/* set the visible polygons */
+	for (i = 0; i < totmat; i++) {
+		gpumaterials[i].totvisiblepolys = fc[i].i_visible;
+	}
+
+	MEM_freeN(fc);
+}
+
+static void emDM_copy_gpu_data(
+        DerivedMesh *dm, int type, void *varray_p,
+        const int *mat_orig_to_new, const void *UNUSED(user_data))
+{
+	/* 'varray_p' cast is redundant but include for self-documentation */
+	switch (type) {
+		case GPU_BUFFER_VERTEX:
+			emDM_buffer_copy_vertex(dm, (float *)varray_p);
+			break;
+		case GPU_BUFFER_NORMAL:
+			emDM_buffer_copy_normal(dm, (short *)varray_p);
+			break;
+		case GPU_BUFFER_COLOR:
+//			cdDM_buffer_copy_mcol(dm, (unsigned char *)varray_p, user_data);
+			break;
+		case GPU_BUFFER_UV:
+//			cdDM_buffer_copy_uv(dm, (float *)varray_p);
+			break;
+		case GPU_BUFFER_UV_TEXPAINT:
+//			cdDM_buffer_copy_uv_texpaint(dm, (float *)varray_p);
+			break;
+		case GPU_BUFFER_EDGE:
+//			cdDM_buffer_copy_edge(dm, (unsigned int *)varray_p);
+			break;
+		case GPU_BUFFER_UVEDGE:
+//			cdDM_buffer_copy_uvedge(dm, (float *)varray_p);
+			break;
+		case GPU_BUFFER_TRIANGLES:
+			emDM_buffer_copy_triangles(dm, (unsigned int *)varray_p, mat_orig_to_new);
+			break;
+		default:
+			break;
+	}
+}
+
+
+/* see GPUDrawObject's structure definition for a description of the
+ * data being initialized here */
+static GPUDrawObject *emDM_GPUobject_new(DerivedMesh *dm)
+{
+	EditDerivedBMesh *bmdm = (EditDerivedBMesh *)dm;
+	BMEditMesh *em = bmdm->em;
+	BMesh *bm = em->bm;
+	GPUDrawObject *gdo;
+
+	BMIter iter;
+	const BMFace *efa;
+	const int tottri = bmdm->em->tottri;
+
+	int totmat = dm->totmat;
+	GPUBufferMaterial *mat_info;
+	int i;
+
+	/* object contains at least one material (default included) so zero means uninitialized dm */
+	BLI_assert(totmat != 0);
+
+	/* get the number of points used by each material, treating
+	 * each quad as two triangles */
+	mat_info = MEM_callocN(sizeof(*mat_info) * totmat, "GPU_drawobject_new.mat_orig_to_new");
+
+	BM_ITER_MESH_INDEX(efa, &iter, bm, BM_FACES_OF_MESH, i) {
+		const int mat_nr = efa->mat_nr;
+		mat_info[mat_nr].totpolys++;
+		mat_info[mat_nr].totelements += 3 * (efa->len - 2);
+		mat_info[mat_nr].totloops += efa->len;
+	}
+
+	/* create the GPUDrawObject */
+	gdo = MEM_callocN(sizeof(GPUDrawObject), "GPUDrawObject");
+
+	gdo->totvert = bm->totvert;
+	gdo->totedge = bm->totedge;
+
+	GPU_buffer_material_finalize(gdo, mat_info, totmat);
+
+	gdo->tot_loop_verts = dm->getNumLoops(dm);
+
+	/* store total number of points used for triangles */
+	gdo->tot_triangle_point = tottri * 3;
+
+	return gdo;
+}
+
+
 static void emDM_drawMappedEdges(
         DerivedMesh *dm,
         DMSetDrawOptions setDrawOptions,
@@ -555,7 +796,6 @@ static void emDM_drawMappedFaces(
 	DMDrawOption draw_option;
 	int i, flush;
 	const int skip_normals = !glIsEnabled(GL_LIGHTING); /* could be passed as an arg */
-
 	const float (*lnors)[3] = dm->getLoopDataArray(dm, CD_NORMAL);
 	MLoopCol *lcol[3] = {NULL} /* , dummylcol = {0} */;
 	unsigned char(*color_vert_array)[4] = em->derivedVertColor;
@@ -579,6 +819,15 @@ static void emDM_drawMappedFaces(
 		flag |= DM_DRAW_ALWAYS_SMOOTH;
 		glDisable(GL_LIGHTING);  /* grr */
 	}
+
+	GPU_vertex_setup(dm);
+	GPU_normal_setup(dm);
+	GPU_triangle_setup(dm);
+	if (dm->drawObject->triangles) {
+		GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, 0, dm->drawObject->materials[0].totelements);
+	}
+	GPU_buffers_unbind();
+	return;
 
 	if (bmdm->vertexCos) {
 		short prev_mat_nr = -1;
@@ -1882,6 +2131,9 @@ DerivedMesh *getEditDerivedBMesh(
 	bmdm->dm.drawFacesTex = emDM_drawFacesTex;
 	bmdm->dm.drawFacesGLSL = emDM_drawFacesGLSL;
 	bmdm->dm.drawUVEdges = emDM_drawUVEdges;
+
+	bmdm->dm.gpuObjectNew = emDM_GPUobject_new;
+	bmdm->dm.copy_gpu_data = emDM_copy_gpu_data;
 
 	bmdm->dm.release = emDM_release;
 
