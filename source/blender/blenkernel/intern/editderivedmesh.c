@@ -50,6 +50,8 @@
 #include "BKE_editmesh.h"
 #include "BKE_editmesh_bvh.h"
 
+#include "BKE_global.h"
+
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 
@@ -58,6 +60,8 @@
 #include "GPU_buffers.h"
 #include "GPU_extensions.h"
 #include "GPU_glew.h"
+
+#include "WM_api.h"
 
 extern GLubyte stipple_quarttone[128]; /* glutil.c, bad level data */
 
@@ -805,6 +809,7 @@ static void emDM_drawMappedFaces(
 	bool has_vcol_preview = (color_vert_array != NULL) && !skip_normals;
 	bool has_fcol_preview = (color_face_array != NULL) && !skip_normals;
 	bool has_vcol_any = has_vcol_preview;
+	GPUBuffer *findex_buffer = NULL;
 
 	/* GL_ZERO is used to detect if drawing has started or not */
 	GLenum poly_prev = GL_ZERO;
@@ -823,7 +828,40 @@ static void emDM_drawMappedFaces(
 	}
 
 	GPU_vertex_setup(dm);
-	GPU_normal_setup(dm);
+
+	/* if we do selection, fill the selection buffer color */
+	if (G.f & G_BACKBUFSEL) {
+		if (!(flag & DM_DRAW_SKIP_SELECT)) {
+			unsigned int *fi_map;
+			unsigned int start_element = 0;
+
+			findex_buffer = GPU_buffer_alloc(dm->drawObject->tot_loop_verts * sizeof(int), false);
+			fi_map = GPU_buffer_lock(findex_buffer, GPU_BINDING_ARRAY);
+
+			if (fi_map) {
+				BMIter iter;
+				int j;
+
+				BM_ITER_MESH_INDEX(efa, &iter, bm, BM_FACES_OF_MESH, i) {
+					int selcol = 0xFFFFFFFF;
+
+					if (!skip_hidden || !BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
+						WM_framebuffer_index_get(i + 1, &selcol);
+					}
+
+					for (j = 0; j < efa->len; j++)
+						fi_map[start_element++] = selcol;
+				}
+
+				GPU_buffer_unlock(findex_buffer, GPU_BINDING_ARRAY);
+				GPU_buffer_bind_as_color(findex_buffer);
+			}
+		}
+	}
+	else {
+		/* no need to setup normals when selecting */
+		GPU_normal_setup(dm);
+	}
 	GPU_triangle_setup(dm);
 	glShadeModel(GL_SMOOTH);
 	for (i = 0; i < dm->drawObject->totmaterial; i++) {
@@ -836,6 +874,9 @@ static void emDM_drawMappedFaces(
 	}
 	glShadeModel(GL_FLAT);
 	GPU_buffers_unbind();
+
+	if (findex_buffer)
+		GPU_buffer_free(findex_buffer);
 	return;
 
 	if (bmdm->vertexCos) {
