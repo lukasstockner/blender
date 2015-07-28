@@ -499,6 +499,7 @@ static void emDM_buffer_copy_triangles(
 	/* set the visible polygons */
 	for (i = 0; i < totmat; i++) {
 		gpumaterials[i].totvisiblepolys = fc[i].i_visible;
+		gpumaterials[i].totvisibleelems = fc[i].i_tri_visible;
 	}
 
 	MEM_freeN(fc);
@@ -790,6 +791,7 @@ static void emDM_drawMappedFaces(
 	BMEditMesh *em = bmdm->em;
 	BMesh *bm = em->bm;
 	BMFace *efa;
+	bool skip_hidden = (flag & DM_DRAW_SKIP_HIDDEN) != 0;
 	struct BMLoop *(*looptris)[3] = bmdm->em->looptris;
 	const int tottri = bmdm->em->tottri;
 	const int lasttri = tottri - 1; /* compare agasint this a lot */
@@ -823,9 +825,16 @@ static void emDM_drawMappedFaces(
 	GPU_vertex_setup(dm);
 	GPU_normal_setup(dm);
 	GPU_triangle_setup(dm);
-	if (dm->drawObject->triangles) {
-		GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, 0, dm->drawObject->materials[0].totelements);
+	glShadeModel(GL_SMOOTH);
+	for (i = 0; i < dm->drawObject->totmaterial; i++) {
+		if (!setMaterial || setMaterial(dm->drawObject->materials[i].mat_nr + 1, NULL)) {
+			unsigned int totalelem = (skip_hidden) ? dm->drawObject->materials[i].totvisibleelems :
+			                                         dm->drawObject->materials[i].totelements;
+			GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES,
+			                         dm->drawObject->materials[i].start, totalelem);
+		}
 	}
+	glShadeModel(GL_FLAT);
 	GPU_buffers_unbind();
 	return;
 

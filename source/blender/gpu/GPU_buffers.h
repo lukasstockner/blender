@@ -67,6 +67,7 @@ typedef struct GPUBufferMaterial {
 	unsigned int *polys; /* array of polygons for this material */
 	unsigned int totpolys; /* total polygons in polys */
 	unsigned int totvisiblepolys; /* total visible polygons */
+	unsigned int totvisibleelems; /* total visible elements */
 
 	/* original material index */
 	short mat_nr;
