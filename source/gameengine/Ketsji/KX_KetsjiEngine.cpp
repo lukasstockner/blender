@@ -62,11 +62,6 @@
 #include "KX_PyConstraintBinding.h"
 #include "PHY_IPhysicsEnvironment.h"
 
-#ifdef WITH_AUDASPACE
-#  include "AUD_C-API.h"
-#  include "AUD_I3DDevice.h"
-#endif
-
 #include "NG_NetworkScene.h"
 #include "NG_NetworkDeviceInterface.h"
 
