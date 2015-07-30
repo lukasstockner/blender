@@ -96,6 +96,8 @@ const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
     {GL_ELEMENT_ARRAY_BUFFER_ARB, 1},
     /* fast triangles */
     {GL_ELEMENT_ARRAY_BUFFER_ARB, 1},
+    /* editface colors */
+    {GL_ARRAY_BUFFER_ARB, 4},
 };
 
 #define MAX_GPU_ATTRIB_DATA 32
@@ -498,6 +500,7 @@ void GPU_drawobject_free(DerivedMesh *dm)
 	GPU_buffer_free(gdo->edges);
 	GPU_buffer_free(gdo->uvedges);
 	GPU_buffer_free(gdo->triangles);
+	GPU_buffer_free(gdo->editfacecolors);
 
 	MEM_freeN(gdo);
 	dm->drawObject = NULL;
@@ -629,6 +632,8 @@ static GPUBuffer **gpu_drawobject_buffer_from_type(GPUDrawObject *gdo, GPUBuffer
 			return &gdo->uvedges;
 		case GPU_BUFFER_TRIANGLES:
 			return &gdo->triangles;
+		case GPU_BUFFER_EDITFACE_COLORS:
+			return &gdo->editfacecolors;
 		default:
 			return NULL;
 	}
@@ -643,6 +648,8 @@ static size_t gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 		case GPU_BUFFER_NORMAL:
 			return sizeof(short) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_loop_verts;
 		case GPU_BUFFER_COLOR:
+			return sizeof(char) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_loop_verts;
+		case GPU_BUFFER_EDITFACE_COLORS:
 			return sizeof(char) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_loop_verts;
 		case GPU_BUFFER_UV:
 			return sizeof(float) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_loop_verts;

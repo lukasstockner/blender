@@ -101,6 +101,8 @@ typedef struct GPUDrawObject {
 	GPUBuffer *uvedges;
 	GPUBuffer *triangles; /* triangle index buffer */
 
+	GPUBuffer *editfacecolors; /* colors for edit mode */
+
 	/* for each original vertex, the list of related points */
 	struct GPUVertPointLink *vert_points;
 
@@ -174,7 +176,9 @@ typedef enum {
 	GPU_BUFFER_UV_TEXPAINT,
 	GPU_BUFFER_EDGE,
 	GPU_BUFFER_UVEDGE,
-	GPU_BUFFER_TRIANGLES
+	GPU_BUFFER_TRIANGLES,
+
+	GPU_BUFFER_EDITFACE_COLORS,
 } GPUBufferType;
 
 typedef enum {
