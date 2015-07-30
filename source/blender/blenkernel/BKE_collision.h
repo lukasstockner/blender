@@ -47,6 +47,8 @@ struct CollisionModifierData;
 struct Group;
 struct MFace;
 struct MVert;
+struct MLoop;
+struct MLoopTri;
 struct Object;
 struct Scene;
 
@@ -124,8 +126,17 @@ FaceCollPair;
 // used in modifier.c from collision.c
 /////////////////////////////////////////////////
 
-BVHTree *bvhtree_build_from_mvert(struct MFace *mfaces, unsigned int numfaces, struct MVert *x, unsigned int numverts, float epsilon);
-void bvhtree_update_from_mvert(BVHTree *bvhtree, struct MFace *faces, int numfaces, struct MVert *x, struct MVert *xnew, int numverts, int moving);
+BVHTree *bvhtree_build_from_mvert(
+        const struct MVert *mvert,
+        const struct MLoop *mloop,
+        const struct MLoopTri *looptri, int looptri_num,
+        float epsilon);
+void bvhtree_update_from_mvert(
+        BVHTree *bvhtree,
+        const struct MVert *mvert, const struct MVert *mvert_moving,
+        const struct MLoop *mloop,
+        const struct MLoopTri *looptri, int looptri_num,
+        bool moving);
 
 /////////////////////////////////////////////////
 

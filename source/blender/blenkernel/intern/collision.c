@@ -71,82 +71,92 @@ void collision_move_object(CollisionModifierData *collmd, float step, float prev
 	float tv[3] = {0, 0, 0};
 	unsigned int i = 0;
 
-	for ( i = 0; i < collmd->numverts; i++ ) {
+	for (i = 0; i < collmd->mvert_num; i++) {
 		sub_v3_v3v3(tv, collmd->xnew[i].co, collmd->x[i].co);
 		VECADDS(collmd->current_x[i].co, collmd->x[i].co, tv, prevstep);
 		VECADDS(collmd->current_xnew[i].co, collmd->x[i].co, tv, step);
 		sub_v3_v3v3(collmd->current_v[i].co, collmd->current_xnew[i].co, collmd->current_x[i].co);
 	}
 
-	bvhtree_update_from_mvert ( collmd->bvhtree, collmd->mfaces, collmd->numfaces, collmd->current_x, collmd->current_xnew, collmd->numverts, 1 );
+	bvhtree_update_from_mvert(
+	        collmd->bvhtree, collmd->current_x, collmd->current_xnew,
+	        collmd->mloop, collmd->looptri, collmd->looptri_num, true);
 }
 
-BVHTree *bvhtree_build_from_mvert ( MFace *mfaces, unsigned int numfaces, MVert *x, unsigned int UNUSED(numverts), float epsilon )
+BVHTree *bvhtree_build_from_mvert(
+        const MVert *mvert, const MLoop *mloop,
+        const MLoopTri *looptri, int looptri_num,
+        float epsilon)
 {
 	BVHTree *tree;
-	float co[12];
-	unsigned int i;
-	MFace *tface = mfaces;
+	const MLoopTri *lt;
+	int i;
 
-	tree = BLI_bvhtree_new ( numfaces*2, epsilon, 4, 26 );
+	tree = BLI_bvhtree_new(looptri_num, epsilon, 4, 26);
 
-	// fill tree
-	for ( i = 0; i < numfaces; i++, tface++ ) {
-		copy_v3_v3 ( &co[0*3], x[tface->v1].co );
-		copy_v3_v3 ( &co[1*3], x[tface->v2].co );
-		copy_v3_v3 ( &co[2*3], x[tface->v3].co );
-		if ( tface->v4 )
-			copy_v3_v3 ( &co[3*3], x[tface->v4].co );
+	/* fill tree */
+	for (i = 0, lt = looptri; i < looptri_num; i++, lt++) {
+		float co[3][3];
 
-		BLI_bvhtree_insert ( tree, i, co, ( mfaces->v4 ? 4 : 3 ) );
+		copy_v3_v3(co[0], mvert[mloop[lt->tri[0]].v].co);
+		copy_v3_v3(co[1], mvert[mloop[lt->tri[1]].v].co);
+		copy_v3_v3(co[2], mvert[mloop[lt->tri[2]].v].co);
+
+		BLI_bvhtree_insert(tree, i, co[0], 3);
 	}
 
-	// balance tree
-	BLI_bvhtree_balance ( tree );
+	/* balance tree */
+	BLI_bvhtree_balance(tree);
 
 	return tree;
 }
 
-void bvhtree_update_from_mvert(BVHTree *bvhtree, MFace *faces, int numfaces, MVert *x, MVert *xnew, int UNUSED(numverts), int moving )
+void bvhtree_update_from_mvert(
+        BVHTree *bvhtree,
+        const MVert *mvert, const MVert *mvert_moving, const MLoop *mloop,
+        const MLoopTri *looptri, int looptri_num,
+        bool moving)
 {
+	const MLoopTri *lt;
 	int i;
-	MFace *mfaces = faces;
-	float co[12], co_moving[12];
-	bool ret = false;
 
-	if ( !bvhtree )
+	if ((bvhtree == NULL) || (mvert == NULL)) {
 		return;
+	}
 
-	if ( x ) {
-		for ( i = 0; i < numfaces; i++, mfaces++ ) {
-			copy_v3_v3 ( &co[0*3], x[mfaces->v1].co );
-			copy_v3_v3 ( &co[1*3], x[mfaces->v2].co );
-			copy_v3_v3 ( &co[2*3], x[mfaces->v3].co );
-			if ( mfaces->v4 )
-				copy_v3_v3 ( &co[3*3], x[mfaces->v4].co );
+	if (mvert_moving == NULL) {
+		moving = false;
+	}
 
-			// copy new locations into array
-			if ( moving && xnew ) {
-				// update moving positions
-				copy_v3_v3 ( &co_moving[0*3], xnew[mfaces->v1].co );
-				copy_v3_v3 ( &co_moving[1*3], xnew[mfaces->v2].co );
-				copy_v3_v3 ( &co_moving[2*3], xnew[mfaces->v3].co );
-				if ( mfaces->v4 )
-					copy_v3_v3 ( &co_moving[3*3], xnew[mfaces->v4].co );
+	for (i = 0, lt = looptri; i < looptri_num; i++, lt++) {
+		float co[3][3];
+		bool ret;
 
-				ret = BLI_bvhtree_update_node ( bvhtree, i, co, co_moving, ( mfaces->v4 ? 4 : 3 ) );
-			}
-			else {
-				ret = BLI_bvhtree_update_node ( bvhtree, i, co, NULL, ( mfaces->v4 ? 4 : 3 ) );
-			}
+		copy_v3_v3(co[0], mvert[mloop[lt->tri[0]].v].co);
+		copy_v3_v3(co[1], mvert[mloop[lt->tri[1]].v].co);
+		copy_v3_v3(co[2], mvert[mloop[lt->tri[2]].v].co);
 
-			// check if tree is already full
-			if ( !ret )
-				break;
+		/* copy new locations into array */
+		if (moving) {
+			float co_moving[3][3];
+			/* update moving positions */
+			copy_v3_v3(co_moving[0], mvert_moving[mloop[lt->tri[0]].v].co);
+			copy_v3_v3(co_moving[1], mvert_moving[mloop[lt->tri[1]].v].co);
+			copy_v3_v3(co_moving[2], mvert_moving[mloop[lt->tri[2]].v].co);
+
+			ret = BLI_bvhtree_update_node(bvhtree, i, &co[0][0], &co_moving[0][0], 3);
+		}
+		else {
+			ret = BLI_bvhtree_update_node(bvhtree, i, &co[0][0], NULL, 3);
 		}
 
-		BLI_bvhtree_update_tree ( bvhtree );
+		/* check if tree is already full */
+		if (ret == false) {
+			break;
+		}
 	}
+
+	BLI_bvhtree_update_tree(bvhtree);
 }
 
 /***********************************
@@ -380,80 +390,33 @@ static CollPair* cloth_collision(ModifierData *md1, ModifierData *md2,
 	ClothModifierData *clmd = (ClothModifierData *)md1;
 	CollisionModifierData *collmd = (CollisionModifierData *) md2;
 	/* Cloth *cloth = clmd->clothObject; */ /* UNUSED */
-	MFace *face1=NULL, *face2 = NULL;
+	const MLoop *mloop_a, *mloop_b;
+	const MLoopTri *lt_a, *lt_b;
 #ifdef WITH_BULLET
 	ClothVertex *verts1 = clmd->clothObject->verts;
 #endif
 	double distance = 0;
 	float epsilon1 = clmd->coll_parms->epsilon;
 	float epsilon2 = BLI_bvhtree_getepsilon ( collmd->bvhtree );
-	int i;
 
-	face1 = & ( clmd->clothObject->mfaces[overlap->indexA] );
-	face2 = & ( collmd->mfaces[overlap->indexB] );
+	mloop_a = clmd->clothObject->mloop;
+	lt_a = &clmd->clothObject->looptri[overlap->indexA];
 
-	// check all 4 possible collisions
-	for ( i = 0; i < 4; i++ ) {
-		if ( i == 0 ) {
-			// fill faceA
-			collpair->ap1 = face1->v1;
-			collpair->ap2 = face1->v2;
-			collpair->ap3 = face1->v3;
+	mloop_b = collmd->mloop;
+	lt_b = &collmd->looptri[overlap->indexB];
 
-			// fill faceB
-			collpair->bp1 = face2->v1;
-			collpair->bp2 = face2->v2;
-			collpair->bp3 = face2->v3;
-		}
-		else if ( i == 1 ) {
-			if ( face1->v4 ) {
-				// fill faceA
-				collpair->ap1 = face1->v1;
-				collpair->ap2 = face1->v3;
-				collpair->ap3 = face1->v4;
+	/* fill face_a */
+	collpair->ap1 = mloop_a[lt_a->tri[0]].v;
+	collpair->ap2 = mloop_a[lt_a->tri[1]].v;
+	collpair->ap3 = mloop_a[lt_a->tri[2]].v;
 
-				// fill faceB
-				collpair->bp1 = face2->v1;
-				collpair->bp2 = face2->v2;
-				collpair->bp3 = face2->v3;
-			}
-			else {
-				i++;
-			}
-		}
-		if ( i == 2 ) {
-			if ( face2->v4 ) {
-				// fill faceA
-				collpair->ap1 = face1->v1;
-				collpair->ap2 = face1->v2;
-				collpair->ap3 = face1->v3;
+	/* fill face_b */
+	collpair->bp1 = mloop_b[lt_b->tri[0]].v;
+	collpair->bp2 = mloop_b[lt_b->tri[1]].v;
+	collpair->bp3 = mloop_b[lt_b->tri[2]].v;
 
-				// fill faceB
-				collpair->bp1 = face2->v1;
-				collpair->bp2 = face2->v4;
-				collpair->bp3 = face2->v3;
-			}
-			else {
-				break;
-			}
-		}
-		else if ( i == 3 ) {
-			if ( face1->v4 && face2->v4 ) {
-				// fill faceA
-				collpair->ap1 = face1->v1;
-				collpair->ap2 = face1->v3;
-				collpair->ap3 = face1->v4;
+	{
 
-				// fill faceB
-				collpair->bp1 = face2->v1;
-				collpair->bp2 = face2->v3;
-				collpair->bp3 = face2->v4;
-			}
-			else {
-				break;
-			}
-		}
-		
 #ifdef WITH_BULLET
 		// calc distance + normal
 		distance = plNearestPoints (
@@ -662,12 +625,12 @@ static void cloth_bvh_objcollisions_nearcheck ( ClothModifierData * clmd, Collis
 static int cloth_bvh_objcollisions_resolve ( ClothModifierData * clmd, CollisionModifierData *collmd, CollPair *collisions, CollPair *collisions_index)
 {
 	Cloth *cloth = clmd->clothObject;
-	int i=0, j = 0, /*numfaces = 0, */ numverts = 0;
+	int i=0, j = 0, /*numfaces = 0, */ mvert_num = 0;
 	ClothVertex *verts = NULL;
 	int ret = 0;
 	int result = 0;
 	
-	numverts = clmd->clothObject->numverts;
+	mvert_num = clmd->clothObject->mvert_num;
 	verts = cloth->verts;
 	
 	// process all collisions (calculate impulses, TODO: also repulses if distance too short)
@@ -680,7 +643,7 @@ static int cloth_bvh_objcollisions_resolve ( ClothModifierData * clmd, Collision
 
 			// apply impulses in parallel
 			if (result) {
-				for (i = 0; i < numverts; i++) {
+				for (i = 0; i < mvert_num; i++) {
 					// calculate "velocities" (just xnew = xold + v; no dt in v)
 					if (verts[i].impulse_count) {
 						// VECADDMUL ( verts[i].tv, verts[i].impulse, 1.0f / verts[i].impulse_count );
@@ -706,7 +669,7 @@ int cloth_bvh_objcollision(Object *ob, ClothModifierData *clmd, float step, floa
 {
 	Cloth *cloth= clmd->clothObject;
 	BVHTree *cloth_bvh= cloth->bvhtree;
-	unsigned int i=0, /* numfaces = 0, */ /* UNUSED */ numverts = 0, k, l, j;
+	unsigned int i=0, /* numfaces = 0, */ /* UNUSED */ mvert_num = 0, k, l, j;
 	int rounds = 0; // result counts applied collisions; ic is for debug output;
 	ClothVertex *verts = NULL;
 	int ret = 0, ret2 = 0;
@@ -718,7 +681,7 @@ int cloth_bvh_objcollision(Object *ob, ClothModifierData *clmd, float step, floa
 	
 	verts = cloth->verts;
 	/* numfaces = cloth->numfaces; */ /* UNUSED */
-	numverts = cloth->numverts;
+	mvert_num = cloth->mvert_num;
 
 	////////////////////////////////////////////////////////////
 	// static collisions
@@ -794,8 +757,8 @@ int cloth_bvh_objcollision(Object *ob, ClothModifierData *clmd, float step, floa
 		// this is needed for bvh_calc_DOP_hull_moving() [kdop.c]
 		////////////////////////////////////////////////////////////
 
-		// verts come from clmd
-		for ( i = 0; i < numverts; i++ ) {
+		/* verts come from clmd */
+		for (i = 0; i < mvert_num; i++) {
 			if ( clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL ) {
 				if ( verts [i].flags & CLOTH_VERT_FLAG_PINNED ) {
 					continue;
@@ -820,7 +783,7 @@ int cloth_bvh_objcollision(Object *ob, ClothModifierData *clmd, float step, floa
 				verts = cloth->verts; // needed for openMP
 	
 				/* numfaces = cloth->numfaces; */ /* UNUSED */
-				numverts = cloth->numverts;
+				mvert_num = cloth->mvert_num;
 	
 				verts = cloth->verts;
 	
@@ -898,8 +861,8 @@ int cloth_bvh_objcollision(Object *ob, ClothModifierData *clmd, float step, floa
 			////////////////////////////////////////////////////////////
 			// SELFCOLLISIONS: update velocities
 			////////////////////////////////////////////////////////////
-			if ( ret2 ) {
-				for ( i = 0; i < cloth->numverts; i++ ) {
+			if (ret2) {
+				for (i = 0; i < cloth->mvert_num; i++) {
 					if ( ! ( verts [i].flags & CLOTH_VERT_FLAG_PINNED ) ) {
 						sub_v3_v3v3(verts[i].tv, verts[i].tx, verts[i].txold);
 					}
@@ -1104,10 +1067,11 @@ BLI_INLINE bool cloth_point_face_collision_params(const float p1[3], const float
 #endif
 }
 
-static CollPair *cloth_point_collpair(float p1[3], float p2[3], MVert *mverts, int bp1, int bp2, int bp3,
-                                      int index_cloth, int index_coll, float epsilon, CollPair *collpair)
+static CollPair *cloth_point_collpair(
+        float p1[3], float p2[3], const MVert *mverts, int bp1, int bp2, int bp3,
+        int index_cloth, int index_coll, float epsilon, CollPair *collpair)
 {
-	float *co1 = mverts[bp1].co, *co2 = mverts[bp2].co, *co3 = mverts[bp3].co;
+	const float *co1 = mverts[bp1].co, *co2 = mverts[bp2].co, *co3 = mverts[bp3].co;
 	float lambda /*, distance1 */, distance2;
 	float facenor[3], v1p1[3], v1p2[3];
 	float w[4];
@@ -1149,22 +1113,27 @@ static CollPair *cloth_point_collpair(float p1[3], float p2[3], MVert *mverts, i
 }
 
 //Determines collisions on overlap, collisions are written to collpair[i] and collision+number_collision_found is returned
-static CollPair* cloth_point_collision(ModifierData *md1, ModifierData *md2,
-                                       BVHTreeOverlap *overlap, float epsilon, CollPair *collpair, float UNUSED(dt))
+static CollPair *cloth_point_collision(
+        ModifierData *md1, ModifierData *md2,
+        BVHTreeOverlap *overlap, float epsilon, CollPair *collpair, float UNUSED(dt))
 {
 	ClothModifierData *clmd = (ClothModifierData *)md1;
 	CollisionModifierData *collmd = (CollisionModifierData *) md2;
 	/* Cloth *cloth = clmd->clothObject; */ /* UNUSED */
 	ClothVertex *vert = NULL;
-	MFace *face = NULL;
-	MVert *mverts = collmd->current_x;
+	const MLoop *mloop;
+	const MLoopTri *lt;
+	const MVert *mverts = collmd->current_x;
 
 	vert = &clmd->clothObject->verts[overlap->indexA];
-	face = &collmd->mfaces[overlap->indexB];
+	mloop = collmd->mloop;
+	lt = &collmd->looptri[overlap->indexB];
 
-	collpair = cloth_point_collpair(vert->tx, vert->x, mverts, face->v1, face->v2, face->v3, overlap->indexA, overlap->indexB, epsilon, collpair);
-	if (face->v4)
-		collpair = cloth_point_collpair(vert->tx, vert->x, mverts, face->v3, face->v4, face->v1, overlap->indexA, overlap->indexB, epsilon, collpair);
+	collpair = cloth_point_collpair(
+	        vert->tx, vert->x, mverts,
+	        mloop[lt->tri[0]].v, mloop[lt->tri[1]].v, mloop[lt->tri[2]].v,
+	        overlap->indexA, overlap->indexB,
+	        epsilon, collpair);
 
 	return collpair;
 }
@@ -1189,7 +1158,7 @@ static int cloth_points_objcollisions_resolve(ClothModifierData * clmd, Collisio
                                               CollPair *collisions, CollPair *collisions_index, float dt)
 {
 	Cloth *cloth = clmd->clothObject;
-	int i=0, numverts = clmd->clothObject->numverts;
+	int i = 0, mvert_num = clmd->clothObject->mvert_num;
 	ClothVertex *verts = cloth->verts;
 	int ret = 0;
 	
@@ -1199,7 +1168,7 @@ static int cloth_points_objcollisions_resolve(ClothModifierData * clmd, Collisio
 		
 		// apply impulses in parallel
 		if (result) {
-			for (i = 0; i < numverts; i++) {
+			for (i = 0; i < mvert_num; i++) {
 				// calculate "velocities" (just xnew = xold + v; no dt in v)
 				if (verts[i].impulse_count) {
 					// VECADDMUL ( verts[i].tv, verts[i].impulse, 1.0f / verts[i].impulse_count );
@@ -1223,23 +1192,23 @@ int cloth_points_objcollision(Object *ob, ClothModifierData *clmd, float step, f
 	BVHTree *cloth_bvh;
 	int rounds = 0; // result counts applied collisions; ic is for debug output;
 	float round_dt = dt / (float)clmd->coll_parms->loop_count;
-	unsigned int i=0, numverts = 0;
+	unsigned int i = 0, mvert_num = 0;
 	ClothVertex *verts = NULL;
 	int ret = 0, ret2 = 0;
 	Object **collobjs = NULL;
 	unsigned int numcollobj = 0;
 	
 	verts = cloth->verts;
-	numverts = cloth->numverts;
+	mvert_num = cloth->mvert_num;
 	
 	////////////////////////////////////////////////////////////
 	// static collisions
 	////////////////////////////////////////////////////////////
 	
 	// create temporary cloth points bvh
-	cloth_bvh = BLI_bvhtree_new(numverts, MAX2(clmd->coll_parms->epsilon, clmd->coll_parms->distance_repel), 4, 6);
+	cloth_bvh = BLI_bvhtree_new(mvert_num, MAX2(clmd->coll_parms->epsilon, clmd->coll_parms->distance_repel), 4, 6);
 	/* fill tree */
-	for (i = 0; i < numverts; i++) {
+	for (i = 0; i < mvert_num; i++) {
 		float co[6];
 		
 		copy_v3_v3(&co[0*3], verts[i].x);
@@ -1318,7 +1287,7 @@ int cloth_points_objcollision(Object *ob, ClothModifierData *clmd, float step, f
 		////////////////////////////////////////////////////////////
 
 		// verts come from clmd
-		for ( i = 0; i < numverts; i++ ) {
+		for (i = 0; i < mvert_num; i++) {
 			if ( clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL ) {
 				if ( verts [i].flags & CLOTH_VERT_FLAG_PINNED ) {
 					continue;
@@ -1344,7 +1313,7 @@ void cloth_find_point_contacts(Object *ob, ClothModifierData *clmd, float step, 
 {
 	Cloth *cloth= clmd->clothObject;
 	BVHTree *cloth_bvh;
-	unsigned int i=0, numverts = 0;
+	unsigned int i = 0, mvert_num = 0;
 	ClothVertex *verts = NULL;
 	
 	ColliderContacts *collider_contacts;
@@ -1353,16 +1322,16 @@ void cloth_find_point_contacts(Object *ob, ClothModifierData *clmd, float step, 
 	unsigned int numcollobj = 0;
 	
 	verts = cloth->verts;
-	numverts = cloth->numverts;
+	mvert_num = cloth->mvert_num;
 	
 	////////////////////////////////////////////////////////////
 	// static collisions
 	////////////////////////////////////////////////////////////
 	
 	// create temporary cloth points bvh
-	cloth_bvh = BLI_bvhtree_new(numverts, MAX2(clmd->coll_parms->epsilon, clmd->coll_parms->distance_repel), 4, 6);
+	cloth_bvh = BLI_bvhtree_new(mvert_num, MAX2(clmd->coll_parms->epsilon, clmd->coll_parms->distance_repel), 4, 6);
 	/* fill tree */
-	for (i = 0; i < numverts; i++) {
+	for (i = 0; i < mvert_num; i++) {
 		float co[6];
 		
 		copy_v3_v3(&co[0*3], verts[i].x);
@@ -1442,7 +1411,7 @@ void cloth_find_point_contacts(Object *ob, ClothModifierData *clmd, float step, 
 	////////////////////////////////////////////////////////////
 	
 	// verts come from clmd
-	for (i = 0; i < numverts; i++) {
+	for (i = 0; i < mvert_num; i++) {
 		if (clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) {
 			if (verts [i].flags & CLOTH_VERT_FLAG_PINNED) {
 				continue;
