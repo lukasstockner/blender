@@ -51,6 +51,7 @@
 #include "BKE_ccg.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_paint.h"
+#include "BKE_mesh.h"
 #include "BKE_pbvh.h"
 
 #include "DNA_userdef_types.h"
@@ -113,6 +114,36 @@ static GPUBuffer *mres_glob_buffer = NULL;
 static int mres_prev_gridsize = -1;
 static GLenum mres_prev_index_type = 0;
 static unsigned mres_prev_totquad = 0;
+
+void GPU_buffer_material_finalize(GPUDrawObject *gdo, GPUBufferMaterial *matinfo, int totmat)
+{
+	int i, curmat, curelement;
+
+	/* count the number of materials used by this DerivedMesh */
+	for (i = 0; i < totmat; i++) {
+		if (matinfo[i].totelements > 0)
+			gdo->totmaterial++;
+	}
+
+	/* allocate an array of materials used by this DerivedMesh */
+	gdo->materials = MEM_mallocN(sizeof(GPUBufferMaterial) * gdo->totmaterial,
+	                             "GPUDrawObject.materials");
+
+	/* initialize the materials array */
+	for (i = 0, curmat = 0, curelement = 0; i < totmat; i++) {
+		if (matinfo[i].totelements > 0) {
+			gdo->materials[curmat] = matinfo[i];
+			gdo->materials[curmat].start = curelement;
+			gdo->materials[curmat].mat_nr = i;
+			gdo->materials[curmat].polys = MEM_mallocN(sizeof(int) * matinfo[i].totpolys, "GPUBufferMaterial.polys");
+
+			curelement += matinfo[i].totelements;
+			curmat++;
+		}
+	}
+
+	MEM_freeN(matinfo);
+}
 
 
 /* stores recently-deleted buffers so that new buffers won't have to
@@ -499,7 +530,6 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	int i;
 	const GPUBufferTypeSettings *ts = &gpu_buffer_type_settings[type];
 	GLenum target = ts->gl_buffer_type;
-	int num_components = ts->num_components;
 	size_t size = gpu_buffer_size_from_type(dm, type);
 	bool use_VBOs = (GLEW_ARB_vertex_buffer_object) && !(U.gameflags & USER_DISABLE_VBO);
 	GLboolean uploaded;
@@ -517,9 +547,6 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	mat_orig_to_new = MEM_mallocN(sizeof(*mat_orig_to_new) * dm->totmat,
 	                              "GPU_buffer_setup.mat_orig_to_new");
 	for (i = 0; i < object->totmaterial; i++) {
-		/* for each material, the current index to copy data to */
-		object->materials[i].counter = object->materials[i].start * num_components;
-
 		/* map from original material index to new
 		 * GPUBufferMaterial index */
 		mat_orig_to_new[object->materials[i].mat_nr] = i;
@@ -1249,6 +1276,10 @@ void GPU_update_mesh_pbvh_buffers(
 #undef UPDATE_VERTEX
 			}
 			else {
+				/* calculate normal for each polygon only once */
+				unsigned int mpoly_prev = UINT_MAX;
+				short no[3];
+
 				for (i = 0; i < buffers->face_indices_len; ++i) {
 					const MLoopTri *lt = &buffers->looptri[buffers->face_indices[i]];
 					const unsigned int vtri[3] = {
@@ -1256,8 +1287,6 @@ void GPU_update_mesh_pbvh_buffers(
 					    buffers->mloop[lt->tri[1]].v,
 					    buffers->mloop[lt->tri[2]].v,
 					};
-					float fno[3];
-					short no[3];
 
 					float fmask;
 
@@ -1265,16 +1294,19 @@ void GPU_update_mesh_pbvh_buffers(
 						continue;
 
 					/* Face normal and mask */
-					normal_tri_v3(fno,
-					              mvert[vtri[0]].co,
-					              mvert[vtri[1]].co,
-					              mvert[vtri[2]].co);
+					if (lt->poly != mpoly_prev) {
+						const MPoly *mp = &buffers->mpoly[lt->poly];
+						float fno[3];
+						BKE_mesh_calc_poly_normal(mp, &buffers->mloop[mp->loopstart], mvert, fno);
+						normal_float_to_short_v3(no, fno);
+						mpoly_prev = lt->poly;
+					}
+
 					if (vmask) {
 						fmask = (vmask[vtri[0]] +
 						         vmask[vtri[1]] +
 						         vmask[vtri[2]]) / 3.0f;
 					}
-					normal_float_to_short_v3(no, fno);
 
 					for (j = 0; j < 3; j++) {
 						const MVert *v = &mvert[vtri[j]];

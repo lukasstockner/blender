@@ -151,6 +151,7 @@ typedef enum DMDrawFlag {
 	DM_DRAW_USE_TEXPAINT_UV     = (1 << 3),
 	DM_DRAW_SKIP_HIDDEN         = (1 << 4),
 	DM_DRAW_SKIP_SELECT         = (1 << 5),
+	DM_DRAW_SELECT_USE_EDITMODE = (1 << 6)
 } DMDrawFlag;
 
 typedef enum DMForeachFlag {
@@ -612,8 +613,10 @@ void DM_ensure_tessface(DerivedMesh *dm);
 
 void DM_ensure_looptri_data(DerivedMesh *dm);
 void DM_ensure_looptri(DerivedMesh *dm);
+void DM_verttri_from_looptri(MVertTri *verttri, const MLoop *mloop, const MLoopTri *looptri, int looptri_num);
 
 void DM_update_tessface_data(DerivedMesh *dm);
+void DM_generate_tangent_tessface_data(DerivedMesh *dm, bool generate);
 
 void DM_update_materials(DerivedMesh *dm, struct Object *ob);
 struct MLoopUV *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr);
