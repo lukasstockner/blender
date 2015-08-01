@@ -872,10 +872,10 @@ static bool ConvertMaterial(
 		material->matname	=(mat->id.name);
 
 	if (tface) {
-		material->tface		= *tface;
+		ME_MTEXFACE_CPY(&material->mtexpoly, tface);
 	}
 	else {
-		memset(&material->tface, 0, sizeof(material->tface));
+		memset(&material->mtexpoly, 0, sizeof(material->mtexpoly));
 	}
 	material->material	= mat;
 	return true;
@@ -959,8 +959,16 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	int totface = dm->getNumTessFaces(dm);
 	const char *tfaceName = "";
 
+	/* needs to be rewritten for loopdata */
 	if (tface) {
-		DM_add_tangent_layer(dm);
+		if (CustomData_get_layer_index(&dm->faceData, CD_TANGENT) == -1) {
+			bool generate_data = false;
+			if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) == -1) {
+				DM_add_tangent_layer(dm);
+				generate_data = true;
+			}
+			DM_generate_tangent_tessface_data(dm, generate_data);
+		}
 		tangent = (float(*)[4])dm->getTessFaceDataArray(dm, CD_TANGENT);
 	}
 
@@ -1200,7 +1208,9 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blendero
 //	velocity clamping XXX
 	shapeProps->m_clamp_vel_min = blenderobject->min_vel;
 	shapeProps->m_clamp_vel_max = blenderobject->max_vel;
-	
+	shapeProps->m_clamp_angvel_min = blenderobject->min_angvel;
+	shapeProps->m_clamp_angvel_max = blenderobject->max_angvel;
+
 //  Character physics properties
 	shapeProps->m_step_height = blenderobject->step_height;
 	shapeProps->m_jump_speed = blenderobject->jump_speed;
@@ -1389,16 +1399,6 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	if ((blenderobject->gameflag & OB_RECORD_ANIMATION) != 0)
 		gameobj->SetRecordAnimation(true);
 
-	// store materialname in auxinfo, needed for touchsensors
-	if (meshobj)
-	{
-		const STR_String& matname=meshobj->GetMaterialName(0);
-		gameobj->getClientInfo()->m_auxilary_info = (matname.Length() ? (void*)(matname.ReadPtr()+2) : NULL);
-	} else
-	{
-		gameobj->getClientInfo()->m_auxilary_info = 0;
-	}
-
 	delete shapeprops;
 	delete smmaterial;
 	if (dm) {
@@ -1459,7 +1459,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, KX_BlenderSceneConverter *converter)
 {
 	Camera* ca = static_cast<Camera*>(ob->data);
-	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist);
+	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->shiftx, ca->shifty, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist);
 	KX_Camera *gamecamera;
 	
 	gamecamera= new KX_Camera(kxscene, KX_Scene::m_callbacks, camdata);
@@ -2172,8 +2172,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			case PARSKEL: // skinned - ignore
 				break;
 			case PAROBJECT:
-			case PARCURVE:
-			case PARKEY:
 			case PARVERT3:
 			default:
 				// unhandled
