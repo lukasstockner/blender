@@ -159,7 +159,7 @@ static void userpref_tab_area_init(wmWindowManager *wm, ARegion *ar)
 
 static void userpref_tab_area_draw(const bContext *C, ARegion *ar)
 {
-	ED_region_panels(C, ar, 1, NULL, -1);
+	ED_region_panels(C, ar, NULL, -1, true);
 
 	ar->v2d.keepofs = (V2D_LOCKOFS_Y);
 }

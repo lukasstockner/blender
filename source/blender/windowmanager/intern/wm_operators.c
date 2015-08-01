@@ -89,7 +89,6 @@
 
 #include "BKE_idcode.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h" /* for paint cursor */
 #include "BLF_api.h"
 
@@ -543,7 +542,7 @@ void WM_operator_py_idname(char *to, const char *from)
 		/* note, we use ascii tolower instead of system tolower, because the
 		 * latter depends on the locale, and can lead to idname mismatch */
 		memcpy(to, from, sizeof(char) * ofs);
-		BLI_ascii_strtolower(to, ofs);
+		BLI_str_tolower_ascii(to, ofs);
 
 		to[ofs] = '.';
 		BLI_strncpy(to + (ofs + 1), sep + 4, OP_MAX_TYPENAME - (ofs + 1));
@@ -564,7 +563,7 @@ void WM_operator_bl_idname(char *to, const char *from)
 			int ofs = (sep - from);
 
 			memcpy(to, from, sizeof(char) * ofs);
-			BLI_ascii_strtoupper(to, ofs);
+			BLI_str_toupper_ascii(to, ofs);
 			strcpy(to + ofs, "_OT_");
 			strcpy(to + (ofs + 4), sep + 1);
 		}
@@ -4487,7 +4486,7 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 							break;
 						case PROP_PERCENTAGE:
 							new_value = ((dist - WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE) / WM_RADIAL_CONTROL_DISPLAY_WIDTH) * 100.0f;
-							if (snap) new_value = ((int)(new_value + 2.5)) / 5 * 5;
+							if (snap) new_value = ((int)(new_value + 2.5f)) / 5 * 5;
 							break;
 						case PROP_FACTOR:
 							new_value = (WM_RADIAL_CONTROL_DISPLAY_SIZE - dist) / WM_RADIAL_CONTROL_DISPLAY_WIDTH;
@@ -4735,7 +4734,7 @@ static int redraw_timer_exec(bContext *C, wmOperator *op)
 		redraw_timer_step(C, bmain, scene, win, sa, ar, type, cfra);
 		iter_steps += 1;
 
-		if (time_limit != 0.0f) {
+		if (time_limit != 0.0) {
 			if ((PIL_check_seconds_timer() - time_start) > time_limit) {
 				break;
 			}

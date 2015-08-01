@@ -45,8 +45,6 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
-
 #include "BIF_gl.h"
 
 #include "GPU_extensions.h"
@@ -460,6 +458,18 @@ void WM_framebuffer_index_set(int index)
 	const int col = index_to_framebuffer(index);
 	cpack(col);
 }
+
+void WM_framebuffer_index_get(int index, int *r_col)
+{
+	const int col = index_to_framebuffer(index);
+	char *c_col = (char *)r_col;
+	c_col[0] = (col & 0xFF); /* red */
+	c_col[1] = ((col >>  8) & 0xFF); /* green */
+	c_col[2] = ((col >> 16) & 0xFF); /* blue */
+	c_col[3] = 0xFF; /* alpha */
+}
+
+
 
 #define INDEX_FROM_BUF_8(col)     (((col & 0xC00000) >> 18) + ((col & 0xC000) >> 12) + ((col & 0xC0) >> 6))
 #define INDEX_FROM_BUF_12(col)    (((col & 0xF00000) >> 12) + ((col & 0xF000) >> 8)  + ((col & 0xF0) >> 4))

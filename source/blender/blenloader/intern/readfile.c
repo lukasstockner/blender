@@ -2107,8 +2107,9 @@ static void lib_link_fmodifiers(FileData *fd, ID *id, ListBase *list)
 			{
 				FMod_Python *data = (FMod_Python *)fcm->data;
 				data->script = newlibadr(fd, id->lib, data->script);
-			}
+
 				break;
+			}
 		}
 	}
 }
@@ -2166,23 +2167,26 @@ static void direct_link_fmodifiers(FileData *fd, ListBase *list)
 				if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
 					BLI_endian_switch_float_array(data->coefficients, data->arraysize);
 				}
-			}
+
 				break;
+			}
 			case FMODIFIER_TYPE_ENVELOPE:
 			{
 				FMod_Envelope *data=  (FMod_Envelope *)fcm->data;
 				
 				data->data= newdataadr(fd, data->data);
-			}
+
 				break;
+			}
 			case FMODIFIER_TYPE_PYTHON:
 			{
 				FMod_Python *data = (FMod_Python *)fcm->data;
 				
 				data->prop = newdataadr(fd, data->prop);
 				IDP_DirectLinkGroup_OrFree(&data->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
-			}
+
 				break;
+			}
 		}
 	}
 }
@@ -4554,7 +4558,7 @@ static void lib_link_object(FileData *fd, Main *main)
 					bCameraActuator *ca = act->data;
 					ca->ob= newlibadr(fd, ob->id.lib, ca->ob);
 				}
-					/* leave this one, it's obsolete but necessary to read for conversion */
+				/* leave this one, it's obsolete but necessary to read for conversion */
 				else if (act->type == ACT_ADD_OBJECT) {
 					bAddObjectActuator *eoa = act->data;
 					if (eoa) eoa->ob= newlibadr(fd, ob->id.lib, eoa->ob);
@@ -4890,9 +4894,10 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			collmd->current_xnew = NULL;
 			collmd->current_v = NULL;
 			collmd->time_x = collmd->time_xnew = -1000;
-			collmd->numverts = 0;
+			collmd->mvert_num = 0;
+			collmd->tri_num = 0;
 			collmd->bvhtree = NULL;
-			collmd->mfaces = NULL;
+			collmd->tri = NULL;
 			
 		}
 		else if (md->type == eModifierType_Surface) {
@@ -5944,6 +5949,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 				sc->scene = main->scene.first;
 
 			sc->animtimer = NULL; /* saved in rare cases */
+			sc->scrubbing = false;
 			
 			for (sa = sc->areabase.first; sa; sa = sa->next) {
 				SpaceLink *sl;
@@ -6572,6 +6578,8 @@ void blo_do_versions_view3d_split_250(View3D *v3d, ListBase *regions)
 	/* this was not initialized correct always */
 	if (v3d->twtype == 0)
 		v3d->twtype = V3D_MANIP_TRANSLATE;
+	if (v3d->gridsubdiv == 0)
+		v3d->gridsubdiv = 10;
 }
 
 static bool direct_link_screen(FileData *fd, bScreen *sc)
@@ -6764,6 +6772,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				
 				link_list(fd, &snode->treepath);
 				snode->edittree = NULL;
+				snode->iofsd = NULL;
 				BLI_listbase_clear(&snode->linkdrag);
 			}
 			else if (sl->spacetype == SPACE_TEXT) {
@@ -8375,8 +8384,9 @@ static void expand_fmodifiers(FileData *fd, Main *mainvar, ListBase *list)
 				FMod_Python *data = (FMod_Python *)fcm->data;
 				
 				expand_doit(fd, mainvar, data->script);
-			}
+
 				break;
+			}
 		}
 	}
 }

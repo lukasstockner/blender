@@ -328,6 +328,52 @@ void BKE_mesh_calc_normals_tessface(
 		MEM_freeN(fnors);
 }
 
+void BKE_mesh_calc_normals_looptri(
+        MVert *mverts, int numVerts,
+        const MLoop *mloop,
+        const MLoopTri *looptri, int looptri_num,
+        float (*r_tri_nors)[3])
+{
+	float (*tnorms)[3] = MEM_callocN(sizeof(*tnorms) * (size_t)numVerts, "tnorms");
+	float (*fnors)[3] = (r_tri_nors) ? r_tri_nors : MEM_callocN(sizeof(*fnors) * (size_t)looptri_num, "meshnormals");
+	int i;
+
+	for (i = 0; i < looptri_num; i++) {
+		const MLoopTri *lt = &looptri[i];
+		float *f_no = fnors[i];
+		const unsigned int vtri[3] = {
+		    mloop[lt->tri[0]].v,
+		    mloop[lt->tri[1]].v,
+		    mloop[lt->tri[2]].v,
+		};
+
+		normal_tri_v3(
+		        f_no,
+		        mverts[vtri[0]].co, mverts[vtri[1]].co, mverts[vtri[2]].co);
+
+		accumulate_vertex_normals_tri(
+		        tnorms[vtri[0]], tnorms[vtri[1]], tnorms[vtri[2]],
+		        f_no, mverts[vtri[0]].co, mverts[vtri[1]].co, mverts[vtri[2]].co);
+	}
+
+	/* following Mesh convention; we use vertex coordinate itself for normal in this case */
+	for (i = 0; i < numVerts; i++) {
+		MVert *mv = &mverts[i];
+		float *no = tnorms[i];
+
+		if (UNLIKELY(normalize_v3(no) == 0.0f)) {
+			normalize_v3_v3(no, mv->co);
+		}
+
+		normal_float_to_short_v3(mv->no, no);
+	}
+
+	MEM_freeN(tnorms);
+
+	if (fnors != r_tri_nors)
+		MEM_freeN(fnors);
+}
+
 void BKE_lnor_spacearr_init(MLoopNorSpaceArray *lnors_spacearr, const int numLoops)
 {
 	if (!(lnors_spacearr->lspacearr && lnors_spacearr->loops_pool)) {
@@ -2000,25 +2046,24 @@ bool BKE_mesh_center_centroid(const Mesh *me, float r_cent[3])
  * \{ */
 
 static bool mesh_calc_center_centroid_ex(
-        const MVert *mverts, int UNUSED(numVerts),
-        const MFace *mfaces, int numFaces,
-        float r_center[3])
+        const MVert *mverts, int UNUSED(mverts_num),
+        const MLoopTri *looptri, int looptri_num,
+        const MLoop *mloop, float r_center[3])
 {
+	const MLoopTri *lt;
 	float totweight;
-	int f;
+	int i;
 	
 	zero_v3(r_center);
 	
-	if (numFaces == 0)
+	if (looptri_num == 0)
 		return false;
 	
 	totweight = 0.0f;
-	for (f = 0; f < numFaces; ++f) {
-		const MFace *face = &mfaces[f];
-		const MVert *v1 = &mverts[face->v1];
-		const MVert *v2 = &mverts[face->v2];
-		const MVert *v3 = &mverts[face->v3];
-		const MVert *v4 = &mverts[face->v4];
+	for (i = 0, lt = looptri; i < looptri_num; i++, lt++) {
+		const MVert *v1 = &mverts[mloop[lt->tri[0]].v];
+		const MVert *v2 = &mverts[mloop[lt->tri[1]].v];
+		const MVert *v3 = &mverts[mloop[lt->tri[2]].v];
 		float area;
 		
 		area = area_tri_v3(v1->co, v2->co, v3->co);
@@ -2026,14 +2071,6 @@ static bool mesh_calc_center_centroid_ex(
 		madd_v3_v3fl(r_center, v2->co, area);
 		madd_v3_v3fl(r_center, v3->co, area);
 		totweight += area;
-		
-		if (face->v4) {
-			area = area_tri_v3(v3->co, v4->co, v1->co);
-			madd_v3_v3fl(r_center, v3->co, area);
-			madd_v3_v3fl(r_center, v4->co, area);
-			madd_v3_v3fl(r_center, v1->co, area);
-			totweight += area;
-		}
 	}
 	if (totweight == 0.0f)
 		return false;
@@ -2043,58 +2080,52 @@ static bool mesh_calc_center_centroid_ex(
 	return true;
 }
 
+/**
+ * Calculate the volume and center.
+ *
+ * \param r_volume: Volume (unsigned).
+ * \param r_center: Center of mass.
+ */
 void BKE_mesh_calc_volume(
-        const MVert *mverts, const int numVerts,
-        const MFace *mfaces, const int numFaces,
-        float *r_vol, float *r_com)
+        const MVert *mverts, const int mverts_num,
+        const MLoopTri *looptri, const int looptri_num,
+        const MLoop *mloop,
+        float *r_volume, float r_center[3])
 {
+	const MLoopTri *lt;
 	float center[3];
 	float totvol;
-	int f;
+	int i;
 	
-	if (r_vol) *r_vol = 0.0f;
-	if (r_com) zero_v3(r_com);
+	if (r_volume)
+		*r_volume = 0.0f;
+	if (r_center)
+		zero_v3(r_center);
 	
-	if (numFaces == 0)
+	if (looptri_num == 0)
 		return;
 	
-	if (!mesh_calc_center_centroid_ex(mverts, numVerts, mfaces, numFaces, center))
+	if (!mesh_calc_center_centroid_ex(mverts, mverts_num, looptri, looptri_num, mloop, center))
 		return;
 	
 	totvol = 0.0f;
-	for (f = 0; f < numFaces; ++f) {
-		const MFace *face = &mfaces[f];
-		const MVert *v1 = &mverts[face->v1];
-		const MVert *v2 = &mverts[face->v2];
-		const MVert *v3 = &mverts[face->v3];
-		const MVert *v4 = &mverts[face->v4];
+
+	for (i = 0, lt = looptri; i < looptri_num; i++, lt++) {
+		const MVert *v1 = &mverts[mloop[lt->tri[0]].v];
+		const MVert *v2 = &mverts[mloop[lt->tri[1]].v];
+		const MVert *v3 = &mverts[mloop[lt->tri[2]].v];
 		float vol;
 		
 		vol = volume_tetrahedron_signed_v3(center, v1->co, v2->co, v3->co);
-		if (r_vol) {
+		if (r_volume) {
 			totvol += vol;
 		}
-		if (r_com) {
+		if (r_center) {
 			/* averaging factor 1/4 is applied in the end */
-			madd_v3_v3fl(r_com, center, vol); // XXX could extract this
-			madd_v3_v3fl(r_com, v1->co, vol);
-			madd_v3_v3fl(r_com, v2->co, vol);
-			madd_v3_v3fl(r_com, v3->co, vol);
-		}
-		
-		if (face->v4) {
-			vol = volume_tetrahedron_signed_v3(center, v3->co, v4->co, v1->co);
-			
-			if (r_vol) {
-				totvol += vol;
-			}
-			if (r_com) {
-				/* averaging factor 1/4 is applied in the end */
-				madd_v3_v3fl(r_com, center, vol); // XXX could extract this
-				madd_v3_v3fl(r_com, v3->co, vol);
-				madd_v3_v3fl(r_com, v4->co, vol);
-				madd_v3_v3fl(r_com, v1->co, vol);
-			}
+			madd_v3_v3fl(r_center, center, vol);  /* XXX could extract this */
+			madd_v3_v3fl(r_center, v1->co, vol);
+			madd_v3_v3fl(r_center, v2->co, vol);
+			madd_v3_v3fl(r_center, v3->co, vol);
 		}
 	}
 	
@@ -2102,15 +2133,15 @@ void BKE_mesh_calc_volume(
 	 * totvol can become negative even for a valid mesh.
 	 * The true value is always the positive value.
 	 */
-	if (r_vol) {
-		*r_vol = fabsf(totvol);
+	if (r_volume) {
+		*r_volume = fabsf(totvol);
 	}
-	if (r_com) {
+	if (r_center) {
 		/* Note: Factor 1/4 is applied once for all vertices here.
 		 * This also automatically negates the vector if totvol is negative.
 		 */
 		if (totvol != 0.0f)
-			mul_v3_fl(r_com, 0.25f / totvol);
+			mul_v3_fl(r_center, 0.25f / totvol);
 	}
 }
 
@@ -2212,6 +2243,7 @@ void BKE_mesh_loops_to_tessdata(CustomData *fdata, CustomData *ldata, CustomData
 	const bool hasPCol = CustomData_has_layer(ldata, CD_PREVIEW_MLOOPCOL);
 	const bool hasOrigSpace = CustomData_has_layer(ldata, CD_ORIGSPACE_MLOOP);
 	const bool hasLoopNormal = CustomData_has_layer(ldata, CD_NORMAL);
+	const bool hasLoopTangent = CustomData_has_layer(ldata, CD_TANGENT);
 	int findex, i, j;
 	const int *pidx;
 	unsigned int (*lidx)[4];
@@ -2276,6 +2308,51 @@ void BKE_mesh_loops_to_tessdata(CustomData *fdata, CustomData *ldata, CustomData
 			}
 		}
 	}
+
+	if (hasLoopTangent) {
+		/* need to do for all uv maps at some point */
+		float (*ftangents)[4] = CustomData_get_layer(fdata, CD_TANGENT);
+		float (*ltangents)[4] = CustomData_get_layer(ldata, CD_TANGENT);
+
+		for (findex = 0, pidx = polyindices, lidx = loopindices;
+		     findex < num_faces;
+		     pidx++, lidx++, findex++)
+		{
+			int nverts = (mface ? mface[findex].v4 : (*lidx)[3]) ? 4 : 3;
+			for (j = nverts; j--;) {
+				copy_v4_v4(ftangents[findex * 4 + j], ltangents[(*lidx)[j]]);
+			}
+		}
+	}
+}
+
+void BKE_mesh_tangent_loops_to_tessdata(CustomData *fdata, CustomData *ldata, MFace *mface,
+                                        int *polyindices, unsigned int (*loopindices)[4], const int num_faces)
+{
+	/* Note: performances are sub-optimal when we get a NULL mface, we could be ~25% quicker with dedicated code...
+	 *       Issue is, unless having two different functions with nearly the same code, there's not much ways to solve
+	 *       this. Better imho to live with it for now. :/ --mont29
+	 */
+	const bool hasLoopTangent = CustomData_has_layer(ldata, CD_TANGENT);
+	int findex, j;
+	const int *pidx;
+	unsigned int (*lidx)[4];
+
+	if (hasLoopTangent) {
+		/* need to do for all uv maps at some point */
+		float (*ftangents)[4] = CustomData_get_layer(fdata, CD_TANGENT);
+		float (*ltangents)[4] = CustomData_get_layer(ldata, CD_TANGENT);
+
+		for (findex = 0, pidx = polyindices, lidx = loopindices;
+		     findex < num_faces;
+		     pidx++, lidx++, findex++)
+		{
+			int nverts = (mface ? mface[findex].v4 : (*lidx)[3]) ? 4 : 3;
+			for (j = nverts; j--;) {
+				copy_v4_v4(ftangents[findex * 4 + j], ltangents[(*lidx)[j]]);
+			}
+		}
+	}
 }
 
 /**
@@ -2300,7 +2377,7 @@ int BKE_mesh_recalc_tessellation(
 /* We abuse MFace->edcode to tag quad faces. See below for details. */
 #define TESSFACE_IS_QUAD 1
 
-	const int looptris_tot = poly_to_tri_count(totpoly, totloop);
+	const int looptri_num = poly_to_tri_count(totpoly, totloop);
 
 	MPoly *mp, *mpoly;
 	MLoop *ml, *mloop;
@@ -2317,9 +2394,9 @@ int BKE_mesh_recalc_tessellation(
 	/* allocate the length of totfaces, avoid many small reallocs,
 	 * if all faces are tri's it will be correct, quads == 2x allocs */
 	/* take care. we are _not_ calloc'ing so be sure to initialize each field */
-	mface_to_poly_map = MEM_mallocN(sizeof(*mface_to_poly_map) * (size_t)looptris_tot, __func__);
-	mface             = MEM_mallocN(sizeof(*mface) *             (size_t)looptris_tot, __func__);
-	lindices          = MEM_mallocN(sizeof(*lindices) *          (size_t)looptris_tot, __func__);
+	mface_to_poly_map = MEM_mallocN(sizeof(*mface_to_poly_map) * (size_t)looptri_num, __func__);
+	mface             = MEM_mallocN(sizeof(*mface) *             (size_t)looptri_num, __func__);
+	lindices          = MEM_mallocN(sizeof(*lindices) *          (size_t)looptri_num, __func__);
 
 	mface_index = 0;
 	mp = mpoly;
@@ -2420,7 +2497,7 @@ int BKE_mesh_recalc_tessellation(
 			co_prev = mvert[ml[mp_totloop - 1].v].co;
 			for (j = 0; j < mp_totloop; j++, ml++) {
 				co_curr = mvert[ml->v].co;
-				add_newell_cross_v3_v3v3(normal, co_curr, co_prev);
+				add_newell_cross_v3_v3v3(normal, co_prev, co_curr);
 				co_prev = co_curr;
 			}
 			if (UNLIKELY(normalize_v3(normal) == 0.0f)) {
@@ -2428,7 +2505,7 @@ int BKE_mesh_recalc_tessellation(
 			}
 
 			/* project verts to 2d */
-			axis_dominant_v3_to_m3(axis_mat, normal);
+			axis_dominant_v3_to_m3_negate(axis_mat, normal);
 
 			ml = mloop + mp_loopstart;
 			for (j = 0; j < mp_totloop; j++, ml++) {
@@ -2479,10 +2556,10 @@ int BKE_mesh_recalc_tessellation(
 	CustomData_free(fdata, totface);
 	totface = mface_index;
 
-	BLI_assert(totface <= looptris_tot);
+	BLI_assert(totface <= looptri_num);
 
 	/* not essential but without this we store over-alloc'd memory in the CustomData layers */
-	if (LIKELY(looptris_tot != totface)) {
+	if (LIKELY(looptri_num != totface)) {
 		mface = MEM_reallocN(mface, sizeof(*mface) * (size_t)totface);
 		mface_to_poly_map = MEM_reallocN(mface_to_poly_map, sizeof(*mface_to_poly_map) * (size_t)totface);
 	}
@@ -2540,6 +2617,137 @@ int BKE_mesh_recalc_tessellation(
 #undef ML_TO_MF_QUAD
 
 }
+
+/**
+ * Calculate tessellation into #MLoopTri which exist only for this purpose.
+ */
+void BKE_mesh_recalc_looptri(
+        const MLoop *mloop, const MPoly *mpoly,
+        const MVert *mvert,
+        int totloop, int totpoly,
+        MLoopTri *mlooptri)
+{
+	/* use this to avoid locking pthread for _every_ polygon
+	 * and calling the fill function */
+
+#define USE_TESSFACE_SPEEDUP
+
+	const MPoly *mp;
+	const MLoop *ml;
+	MLoopTri *mlt;
+	MemArena *arena = NULL;
+	int poly_index, mlooptri_index;
+	unsigned int j;
+
+	mlooptri_index = 0;
+	mp = mpoly;
+	for (poly_index = 0; poly_index < totpoly; poly_index++, mp++) {
+		const unsigned int mp_loopstart = (unsigned int)mp->loopstart;
+		const unsigned int mp_totloop = (unsigned int)mp->totloop;
+		unsigned int l1, l2, l3;
+		if (mp_totloop < 3) {
+			/* do nothing */
+		}
+
+#ifdef USE_TESSFACE_SPEEDUP
+
+#define ML_TO_MLT(i1, i2, i3)  { \
+			mlt = &mlooptri[mlooptri_index]; \
+			l1 = mp_loopstart + i1; \
+			l2 = mp_loopstart + i2; \
+			l3 = mp_loopstart + i3; \
+			ARRAY_SET_ITEMS(mlt->tri, l1, l2, l3); \
+			mlt->poly = (unsigned int)poly_index; \
+		} ((void)0)
+
+		else if (mp_totloop == 3) {
+			ML_TO_MLT(0, 1, 2);
+			mlooptri_index++;
+		}
+		else if (mp_totloop == 4) {
+			ML_TO_MLT(0, 1, 2);
+			mlooptri_index++;
+			ML_TO_MLT(0, 2, 3);
+			mlooptri_index++;
+		}
+#endif /* USE_TESSFACE_SPEEDUP */
+		else {
+			const float *co_curr, *co_prev;
+
+			float normal[3];
+
+			float axis_mat[3][3];
+			float (*projverts)[2];
+			unsigned int (*tris)[3];
+
+			const unsigned int totfilltri = mp_totloop - 2;
+
+			if (UNLIKELY(arena == NULL)) {
+				arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
+			}
+
+			tris = BLI_memarena_alloc(arena, sizeof(*tris) * (size_t)totfilltri);
+			projverts = BLI_memarena_alloc(arena, sizeof(*projverts) * (size_t)mp_totloop);
+
+			zero_v3(normal);
+
+			/* calc normal, flipped: to get a positive 2d cross product */
+			ml = mloop + mp_loopstart;
+			co_prev = mvert[ml[mp_totloop - 1].v].co;
+			for (j = 0; j < mp_totloop; j++, ml++) {
+				co_curr = mvert[ml->v].co;
+				add_newell_cross_v3_v3v3(normal, co_prev, co_curr);
+				co_prev = co_curr;
+			}
+			if (UNLIKELY(normalize_v3(normal) == 0.0f)) {
+				normal[2] = 1.0f;
+			}
+
+			/* project verts to 2d */
+			axis_dominant_v3_to_m3_negate(axis_mat, normal);
+
+			ml = mloop + mp_loopstart;
+			for (j = 0; j < mp_totloop; j++, ml++) {
+				mul_v2_m3v3(projverts[j], axis_mat, mvert[ml->v].co);
+			}
+
+			BLI_polyfill_calc_arena((const float (*)[2])projverts, mp_totloop, 1, tris, arena);
+
+			/* apply fill */
+			for (j = 0; j < totfilltri; j++) {
+				unsigned int *tri = tris[j];
+
+				mlt = &mlooptri[mlooptri_index];
+
+				/* set loop indices, transformed to vert indices later */
+				l1 = mp_loopstart + tri[0];
+				l2 = mp_loopstart + tri[1];
+				l3 = mp_loopstart + tri[2];
+
+				ARRAY_SET_ITEMS(mlt->tri, l1, l2, l3);
+				mlt->poly = (unsigned int)poly_index;
+
+				mlooptri_index++;
+			}
+
+			BLI_memarena_clear(arena);
+		}
+	}
+
+	if (arena) {
+		BLI_memarena_free(arena);
+		arena = NULL;
+	}
+
+	BLI_assert(mlooptri_index == poly_to_tri_count(totpoly, totloop));
+	UNUSED_VARS_NDEBUG(totloop);
+
+#undef USE_TESSFACE_SPEEDUP
+#undef ML_TO_MLT
+}
+
+/* -------------------------------------------------------------------- */
+
 
 #ifdef USE_BMESH_SAVE_AS_COMPAT
 

@@ -467,11 +467,11 @@ static EnumPropertyItem *rna_Object_parent_type_itemf(bContext *UNUSED(C), Point
 		
 		if (par->type == OB_LATTICE) {
 			/* special hack: prevents this overriding others */
-			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[4], PARSKEL);
+			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[2], PARSKEL);
 		}
 		else if (par->type == OB_ARMATURE) {
 			/* special hack: prevents this being overrided */
-			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[3], PARSKEL);
+			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[1], PARSKEL);
 			RNA_enum_items_add_value(&item, &totitem, parent_type_items, PARBONE);
 		}
 
@@ -1134,7 +1134,7 @@ static void rna_GameObjectSettings_state_get(PointerRNA *ptr, int *values)
 
 	memset(values, 0, sizeof(int) * OB_MAX_STATES);
 	for (i = 0; i < OB_MAX_STATES; i++) {
-		values[i] = (ob->state & (1 << i)) | all_states;
+		values[i] = (ob->state & (1 << i)) ? 1 : 0 | all_states;
 	}
 }
 
