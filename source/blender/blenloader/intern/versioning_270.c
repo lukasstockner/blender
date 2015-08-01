@@ -842,6 +842,16 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 275, 3)) {
+		Brush *br;
+#define BRUSH_TORUS (1 << 1)
+		for (br = main->brush.first; br; br = br->id.next) {
+			br->flag &= ~BRUSH_TORUS;
+		}
+#undef BRUSH_TORUS
+	}
+
 	{
 		if (!DNA_struct_elem_find(fd->filesdna, "SpaceNode", "float", "backdrop_zoom")) {
 			bScreen *sc;
