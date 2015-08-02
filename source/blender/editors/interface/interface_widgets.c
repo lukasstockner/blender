@@ -1316,11 +1316,7 @@ void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock *UNUSED(block), 
 
 void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 {
-	uiWidgetType *wt = WidgetTypeInit(UI_WTYPE_BOX);
-	
-	glEnable(GL_BLEND);
-	widget_drawbase_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit);
-	glDisable(GL_BLEND);
+	uiWidgetType *wt = WidgetTypeInit(UI_WTYPE_SEARCH_BACK);
 
 	if (block)
 		WidgetDraw(wt, NULL, NULL, rect, block->flag, UI_CNR_ALL, 0, NULL, false);

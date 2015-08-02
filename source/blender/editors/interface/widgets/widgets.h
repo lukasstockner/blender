@@ -71,6 +71,7 @@ typedef enum {
 	UI_WTYPE_MENU_ITEM_PREVIEW,
 	UI_WTYPE_MENU_ITEM_RADIAL,
 	UI_WTYPE_MENU_BACK,
+	UI_WTYPE_SEARCH_BACK,
 
 	/* specials */
 	UI_WTYPE_ICON,
@@ -151,6 +152,7 @@ typedef struct uiWidgetDrawStyle {
 	                 *rgb_picker,
 	                 *scroll_back,
 	                 *scroll_inner,
+	                 *search_back,
 	                 *separator,
 	                 *slider,
 	                 *swatch,

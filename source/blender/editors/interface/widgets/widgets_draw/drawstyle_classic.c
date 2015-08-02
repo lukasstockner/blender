@@ -859,6 +859,22 @@ static void widget_scroll_inner(uiWidgetColors *wcol, rcti *rect, int state, int
 	}
 }
 
+static void widget_search_back(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+{
+	uiWidgetDrawBase wtb;
+	const float rad = 0.25f * U.widget_unit;
+
+	widget_drawbase_init(&wtb);
+
+	glEnable(GL_BLEND);
+	widget_drawbase_softshadow(rect, roundboxalign, rad);
+	glDisable(GL_BLEND);
+
+	widget_drawbase_roundboxedges_set(&wtb, roundboxalign, rect, rad);
+
+	widget_drawbase_draw(&wtb, wcol);
+}
+
 /* separator, for menus etc */
 static void widget_separator(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
@@ -1384,7 +1400,7 @@ uiWidgetDrawType drawtype_classic_menu_back = {
 	/* state */  widget_state_nothing,
 	/* draw */   widget_menu_back,
 	/* custom */ NULL,
-	/* text */   widget_draw_text_icon,
+	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_menu_icon_radio = {
@@ -1499,6 +1515,13 @@ uiWidgetDrawType drawtype_classic_scroll_inner = {
 	/* text */   NULL,
 };
 
+uiWidgetDrawType drawtype_classic_search_back = {
+	/* state */  widget_state_nothing,
+	/* draw */   widget_search_back,
+	/* custom */ NULL,
+	/* text */   NULL,
+};
+
 uiWidgetDrawType drawtype_classic_separator = {
 	/* state */  widget_state_nothing,
 	/* draw */   widget_separator,
@@ -1577,6 +1600,7 @@ uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* rgb_picker */        NULL, /* not used (yet?) */
 	/* scroll_back */       &drawtype_classic_scroll_back,
 	/* scroll_inner */      &drawtype_classic_scroll_inner,
+	/* search_back */       &drawtype_classic_search_back,
 	/* separator */         &drawtype_classic_separator,
 	/* slider */            &drawtype_classic_numslider,
 	/* swatch */            &drawtype_classic_swatch,
