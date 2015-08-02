@@ -229,9 +229,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	ED_render_clear_mtex_copybuf();
 
 	// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		
-	ED_preview_init_dbase();
-	
+
 	wm_read_history();
 
 	/* allow a path of "", this is what happens when making a new file */
@@ -430,7 +428,7 @@ void WM_exit_ext(bContext *C, const bool do_python)
 				/* save the undo state as quit.blend */
 				char filename[FILE_MAX];
 				bool has_edited;
-				int fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY | G_FILE_LOCK | G_FILE_SIGN | G_FILE_HISTORY);
+				int fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY | G_FILE_HISTORY);
 
 				BLI_make_file_string("/", filename, BKE_tempdir_base(), BLENDER_QUIT_FILE);
 
