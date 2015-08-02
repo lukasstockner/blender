@@ -84,12 +84,6 @@ void widget_drawbase_init(uiWidgetDrawBase *wtb);
 
 void widget_drawbase_roundboxedges_set(uiWidgetDrawBase *wt, int roundboxalign, const rcti *rect, float rad);
 void round_box__edges(uiWidgetDrawBase *wt, int roundboxalign, const rcti *rect, float rad, float radi);
-
-void widget_drawbase_tria_ex( /* XXX tmp, could be static */
-        uiWidgetDrawBaseTrias *tria, const rcti *rect, float triasize, char where,
-        /* input data */
-        const float verts[][2], const int verts_tot,
-        const unsigned int tris[][3], const int tris_tot);
 void widget_drawbase_num_tria(uiWidgetDrawBaseTrias *tria, const rcti *rect, float triasize, char where);
 void widget_drawbase_menu_trias(uiWidgetDrawBaseTrias *tria, const rcti *rect);
 void widget_drawbase_check_trias(uiWidgetDrawBaseTrias *tria, const rcti *rect);

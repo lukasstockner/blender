@@ -46,7 +46,7 @@
 
 #include "UI_interface.h"
 
-#include "../interface_intern.h" /* XXX */
+#include "../interface_intern.h" /* XXX currently needed, but not so nice on this level */
 
 
 #include "widgets.h"

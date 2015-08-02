@@ -318,8 +318,7 @@ static void widget_verts_to_triangle_strip_open(uiWidgetDrawBase *wtb, const int
 }
 
 /* based on button rect, return scaled array of triangles */
-/* XXX tmp, could be static */
-/* static */ void widget_drawbase_tria_ex(
+static void widget_drawbase_tria_ex(
         uiWidgetDrawBaseTrias *tria, const rcti *rect, float triasize, char where,
         /* input data */
         const float verts[][2], const int verts_tot,
