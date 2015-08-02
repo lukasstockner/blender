@@ -74,6 +74,7 @@ typedef enum {
 
 	/* specials */
 	UI_WTYPE_ICON,
+	UI_WTYPE_EXTRA,
 	UI_WTYPE_SWATCH,
 	UI_WTYPE_RGB_PICKER,
 	UI_WTYPE_UNITVEC,
@@ -120,6 +121,7 @@ typedef struct uiWidgetDrawStyle {
 	                 *checkbox,
 	                 *colorband,
 	                 *exec,
+	                 *extra_mask,
 	                 *filename,
 	                 *hsv_circle,
 	                 *hsv_cube,

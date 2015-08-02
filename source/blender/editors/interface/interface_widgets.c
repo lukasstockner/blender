@@ -153,28 +153,6 @@ static void round_box_shade_col4_r(unsigned char r_col[4], const char col1[4], c
 	r_col[3] = (faci * col1[3] + facm * col2[3]) / 256;
 }
 
-static void widget_verts_to_triangle_strip(uiWidgetDrawBase *wtb, const int totvert, float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2])
-{
-	int a;
-	for (a = 0; a < totvert; a++) {
-		copy_v2_v2(triangle_strip[a * 2], wtb->outer_v[a]);
-		copy_v2_v2(triangle_strip[a * 2 + 1], wtb->inner_v[a]);
-	}
-	copy_v2_v2(triangle_strip[a * 2], wtb->outer_v[0]);
-	copy_v2_v2(triangle_strip[a * 2 + 1], wtb->inner_v[0]);
-}
-
-static void widget_drawbase_outline(uiWidgetDrawBase *wtb)
-{
-	float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2]; /* + 2 because the last pair is wrapped */
-	widget_verts_to_triangle_strip(wtb, wtb->totvert, triangle_strip);
-
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(2, GL_FLOAT, 0, triangle_strip);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, wtb->totvert * 2 + 2);
-	glDisableClientState(GL_VERTEX_ARRAY);
-}
-
 /* *********************** widget types ************************************* */
 
 static struct uiWidgetStateColors wcol_state_colors = {
@@ -872,36 +850,6 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
 	}
 }
 
-static void widget_draw_extra_mask(const bContext *C, uiBut *but, uiWidgetType *wt, rcti *rect)
-{
-	uiWidgetDrawBase wtb;
-	const float rad = 0.25f * U.widget_unit;
-	unsigned char col[4];
-	
-	/* state copy! */
-	wt->wcol = *(wt->wcol_theme);
-	
-	widget_drawbase_init(&wtb);
-	
-	if (but->block->drawextra) {
-		/* note: drawextra can change rect +1 or -1, to match round errors of existing previews */
-		but->block->drawextra(C, but->poin, but->block->drawextra_arg1, but->block->drawextra_arg2, rect);
-		
-		/* make mask to draw over image */
-		UI_GetThemeColor3ubv(TH_BACK, col);
-		glColor3ubv(col);
-		
-		round_box__edges(&wtb, UI_CNR_ALL, rect, 0.0f, rad);
-		widget_drawbase_outline(&wtb);
-	}
-	
-	/* outline */
-	widget_drawbase_roundboxedges_set(&wtb, UI_CNR_ALL, rect, rad);
-	wtb.draw_outline = true;
-	wtb.draw_inner = false;
-	widget_drawbase_draw(&wtb, &wt->wcol);
-}
-
 
 static int widget_roundbox_set(uiBut *but, rcti *rect)
 {
@@ -961,7 +909,7 @@ static int widget_roundbox_set(uiBut *but, rcti *rect)
 }
 
 /* conversion from old to new buttons, so still messy */
-void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rcti *rect)
+void ui_draw_but(ARegion *ar, uiStyle *style, uiBut *but, rcti *rect)
 {
 	bTheme *btheme = UI_GetTheme();
 	ThemeUI *tui = &btheme->tui;
@@ -1106,7 +1054,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				break;
 			
 			case UI_BTYPE_EXTRA:
-				widget_draw_extra_mask(C, but, WidgetTypeInit(UI_WTYPE_BOX), rect);
+				wt = WidgetTypeInit(UI_WTYPE_EXTRA);
 				break;
 				
 			case UI_BTYPE_HSVCUBE:

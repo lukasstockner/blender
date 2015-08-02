@@ -548,6 +548,17 @@ static void widget_trias_draw(uiWidgetDrawBaseTrias *tria)
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
+void widget_drawbase_outline(uiWidgetDrawBase *wtb)
+{
+	float triangle_strip[WIDGET_SIZE_MAX * 2 + 2][2]; /* + 2 because the last pair is wrapped */
+	widget_verts_to_triangle_strip(wtb, wtb->totvert, triangle_strip);
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(2, GL_FLOAT, 0, triangle_strip);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, wtb->totvert * 2 + 2);
+	glDisableClientState(GL_VERTEX_ARRAY);
+}
+
 void widget_drawbase_draw(uiWidgetDrawBase *wtb, uiWidgetColors *wcol)
 {
 	int j, a;

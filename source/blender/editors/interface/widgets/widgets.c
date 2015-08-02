@@ -89,6 +89,10 @@ uiWidgetType *WidgetTypeInit(const uiWidgetTypeEnum type)
 			wt.draw_type = draw_style->exec;
 			break;
 
+		case UI_WTYPE_EXTRA:
+			wt.draw_type = draw_style->extra_mask;
+			break;
+
 		case UI_WTYPE_FILENAME:
 			break;
 

@@ -253,6 +253,37 @@ static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state),
 	widget_drawbase_draw(&wtb, wcol);
 }
 
+static void widget_draw_extra_mask(uiBut *but, uiWidgetColors *wcol, rcti *rect,
+                                    int UNUSED(state), int UNUSED(roundboxalign))
+{
+	uiWidgetDrawBase wtb;
+	const float rad = 0.25f * U.widget_unit;
+	unsigned char col[4];
+
+	widget_drawbase_init(&wtb);
+
+	if (but->block->drawextra) {
+		BLI_assert(but->block->evil_C);
+
+		/* note: drawextra can change rect +1 or -1, to match round errors of existing previews */
+		but->block->drawextra(but->block->evil_C, but->poin, but->block->drawextra_arg1,
+		                      but->block->drawextra_arg2, rect);
+
+		/* make mask to draw over image */
+		UI_GetThemeColor3ubv(TH_BACK, col);
+		glColor3ubv(col);
+
+		round_box__edges(&wtb, UI_CNR_ALL, rect, 0.0f, rad);
+		widget_drawbase_outline(&wtb);
+	}
+
+	/* outline */
+	widget_drawbase_roundboxedges_set(&wtb, UI_CNR_ALL, rect, rad);
+	wtb.draw_outline = true;
+	wtb.draw_inner = false;
+	widget_drawbase_draw(&wtb, wcol);
+}
+
 static void widget_hsv_circle(
         uiBut *but, uiWidgetColors *wcol, rcti *rect,
         int UNUSED(state), int UNUSED(roundboxalign))
@@ -1286,6 +1317,13 @@ uiWidgetDrawType drawtype_classic_exec = {
 	/* text */   widget_draw_text_icon,
 };
 
+uiWidgetDrawType drawtype_classic_extra_mask = {
+	/* state */  widget_state_nothing,
+	/* draw */   NULL,
+	/* custom */ widget_draw_extra_mask,
+	/* text */   widget_draw_text_icon,
+};
+
 uiWidgetDrawType drawtype_classic_hsv_circle = {
 	/* state */  NULL,
 	/* draw */   NULL,
@@ -1509,6 +1547,7 @@ uiWidgetDrawStyle WidgetStyle_Classic = {
 	/* checkbox */          &drawtype_classic_checkbox,
 	/* colorband */         &drawtype_classic_colorband,
 	/* exec */              &drawtype_classic_exec,
+	/* extra_mask */        &drawtype_classic_extra_mask,
 	/* filename */          NULL, /* not used (yet?) */
 	/* hsv_circle */        &drawtype_classic_hsv_circle,
 	/* hsv_cube */          &drawtype_classic_hsv_cube,
