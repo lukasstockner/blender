@@ -54,12 +54,12 @@
 
 
 
-static void widget_numbut_embossn(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign);
+static void widget_draw_numbut_embossn(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign);
 
 
 /* widget drawing ************************************* */
 
-static void widget_box(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+static void widget_custom_box(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
 	uiWidgetDrawBase wtb;
 	float rad;
@@ -85,7 +85,7 @@ static void widget_box(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(
 	copy_v3_v3_char(wcol->inner, old_col);
 }
 
-static void widget_but(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+static void widget_draw_but(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
 	uiWidgetDrawBase wtb;
 	float rad;
@@ -99,7 +99,7 @@ static void widget_but(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int 
 	widget_drawbase_draw(&wtb, wcol);
 }
 
-static void widget_checkbox(uiWidgetColors *wcol, rcti *rect, int state, int UNUSED(roundboxalign))
+static void widget_draw_checkbox(uiWidgetColors *wcol, rcti *rect, int state, int UNUSED(roundboxalign))
 {
 	uiWidgetDrawBase wtb;
 	rcti recttemp = *rect;
@@ -134,7 +134,7 @@ static void widget_checkbox(uiWidgetColors *wcol, rcti *rect, int state, int UNU
 }
 
 
-static void widget_colorband(
+static void widget_custom_colorband(
         uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect,
         int UNUSED(state), int UNUSED(roundboxalign))
 {
@@ -240,7 +240,7 @@ static void widget_colorband(
 	}
 }
 
-static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+static void widget_draw_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
 	uiWidgetDrawBase wtb;
 	const float rad = 0.25f * U.widget_unit;
@@ -284,7 +284,7 @@ static void widget_draw_extra_mask(uiBut *but, uiWidgetColors *wcol, rcti *rect,
 	widget_drawbase_draw(&wtb, wcol);
 }
 
-static void widget_hsv_circle(
+static void widget_custom_hsv_circle(
         uiBut *but, uiWidgetColors *wcol, rcti *rect,
         int UNUSED(state), int UNUSED(roundboxalign))
 {
@@ -368,7 +368,7 @@ static void widget_hsv_circle(
 	ui_hsv_cursor(xpos, ypos);
 }
 
-static void widget_hsv_cube(
+static void widget_custom_hsv_cube(
         uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect,
         int UNUSED(state), int UNUSED(roundboxalign))
 {
@@ -402,7 +402,7 @@ static void widget_hsv_cube(
 }
 
 
-static void widget_hsv_vert(
+static void widget_custom_hsv_vert(
         uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect,
         int UNUSED(state), int UNUSED(roundboxalign))
 {
@@ -457,7 +457,7 @@ static void widget_hsv_vert(
 	ui_hsv_cursor(x, y);
 }
 
-static void widget_icon_has_anim(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+static void widget_custom_icon_has_anim(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
 	if (state & (UI_BUT_ANIMATED | UI_BUT_ANIMATED_KEY | UI_BUT_DRIVEN | UI_BUT_REDALERT)) {
 		uiWidgetDrawBase wtb;
@@ -474,11 +474,11 @@ static void widget_icon_has_anim(uiBut *but, uiWidgetColors *wcol, rcti *rect, i
 	else if (but->type == UI_BTYPE_NUM) {
 		/* Draw number buttons still with left/right
 		 * triangles when field is not embossed */
-		widget_numbut_embossn(but, wcol, rect, state, roundboxalign);
+		widget_draw_numbut_embossn(but, wcol, rect, state, roundboxalign);
 	}
 }
 
-static void widget_link(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+static void widget_custom_link(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
 	if (but->flag & UI_SELECT) {
 		rcti rectlink;
@@ -494,7 +494,7 @@ static void widget_link(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect, in
 	}
 }
 
-static void widget_list_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+static void widget_draw_list_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
 	uiWidgetDrawBase wtb;
 	float rad;
@@ -509,7 +509,7 @@ static void widget_list_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(sta
 	widget_drawbase_draw(&wtb, wcol);
 }
 
-static void widget_listscroll(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int UNUSED(roundboxalign))
+static void widget_custom_listscroll(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int UNUSED(roundboxalign))
 {
 	rcti rect1;
 	double value;
@@ -570,7 +570,7 @@ static void widget_listscroll(uiBut *but, uiWidgetColors *wcol, rcti *rect, int 
 	UI_draw_widget_scroll(wcol, rect, &rect1, state);
 }
 
-static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int direction)
+static void widget_draw_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int direction)
 {
 	uiWidgetDrawBase wtb;
 	int roundboxalign = UI_CNR_ALL;
@@ -601,7 +601,7 @@ static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int dir
 	glDisable(GL_BLEND);
 }
 
-static void widget_menuiconbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+static void widget_draw_menuiconbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
 	uiWidgetDrawBase wtb;
 	float rad;
@@ -616,7 +616,7 @@ static void widget_menuiconbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(stat
 	widget_drawbase_draw(&wtb, wcol);
 }
 
-static void widget_menu_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+static void widget_draw_menu_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
 	uiWidgetDrawBase wtb;
 
@@ -629,7 +629,7 @@ static void widget_menu_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(sta
 	widget_drawbase_draw(&wtb, wcol);
 }
 
-static void widget_menu_radial_itembut(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+static void widget_custom_menu_radial_itembut(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
 	uiWidgetDrawBase wtb;
 	float rad;
@@ -652,7 +652,7 @@ static void widget_menu_radial_itembut(uiBut *but, uiWidgetColors *wcol, rcti *r
 	widget_drawbase_draw(&wtb, wcol);
 }
 
-static void widget_menunodebut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+static void widget_draw_menunodebut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
 	/* silly node link button hacks */
 	uiWidgetDrawBase wtb;
@@ -677,7 +677,7 @@ static void widget_menunodebut(uiWidgetColors *wcol, rcti *rect, int UNUSED(stat
 	*wcol = wcol_backup;
 }
 
-static void widget_menubut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+static void widget_draw_menubut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
 	uiWidgetDrawBase wtb;
 	float rad;
@@ -697,7 +697,7 @@ static void widget_menubut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), 
 	rect->xmax -= (6 * BLI_rcti_size_y(rect)) / 10;
 }
 
-static void widget_textbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+static void widget_draw_textbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
 	uiWidgetDrawBase wtb;
 	float rad;
@@ -714,7 +714,7 @@ static void widget_textbut(uiWidgetColors *wcol, rcti *rect, int state, int roun
 	widget_drawbase_draw(&wtb, wcol);
 }
 
-static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, bool emboss)
+static void widget_draw_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, bool emboss)
 {
 	uiWidgetDrawBase wtb;
 	const float rad = 0.5f * BLI_rcti_size_y(rect);
@@ -744,7 +744,7 @@ static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int 
 	}
 }
 
-static void widget_progressbar(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+static void widget_custom_progressbar(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
 	rcti rect_prog = *rect, rect_bar = *rect;
 	float value = but->a1;
@@ -770,7 +770,7 @@ static void widget_progressbar(uiBut *but, uiWidgetColors *wcol, rcti *rect, int
 	rect->xmin -= 6 * UI_DPI_FAC;
 }
 
-static void widget_pulldownbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+static void widget_draw_pulldownbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
 	if (state & UI_ACTIVE) {
 		uiWidgetDrawBase wtb;
@@ -785,7 +785,7 @@ static void widget_pulldownbut(uiWidgetColors *wcol, rcti *rect, int state, int 
 	}
 }
 
-static void widget_radiobut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+static void widget_draw_radiobut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
 	uiWidgetDrawBase wtb;
 	float rad;
@@ -800,7 +800,7 @@ static void widget_radiobut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state),
 }
 
 /* draw back part, colors swapped and shading inverted */
-static void widget_scroll_back(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+static void widget_draw_scroll_back(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
 	uiWidgetDrawBase wtb;
 	const bool horizontal = (BLI_rcti_size_x(rect) > BLI_rcti_size_y(rect));
@@ -819,7 +819,7 @@ static void widget_scroll_back(uiWidgetColors *wcol, rcti *rect, int UNUSED(stat
 }
 
 /* draw inner part */
-static void widget_scroll_inner(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+static void widget_draw_scroll_inner(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
 	uiWidgetDrawBase wtb;
 	const bool horizontal = (BLI_rcti_size_x(rect) > BLI_rcti_size_y(rect));
@@ -859,7 +859,7 @@ static void widget_scroll_inner(uiWidgetColors *wcol, rcti *rect, int state, int
 	}
 }
 
-static void widget_search_back(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+static void widget_draw_search_back(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
 	uiWidgetDrawBase wtb;
 	const float rad = 0.25f * U.widget_unit;
@@ -876,7 +876,7 @@ static void widget_search_back(uiWidgetColors *wcol, rcti *rect, int UNUSED(stat
 }
 
 /* separator, for menus etc */
-static void widget_separator(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+static void widget_draw_separator(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
 	int y = rect->ymin + BLI_rcti_size_y(rect) / 2 - 1;
 	unsigned char col[4];
@@ -892,7 +892,7 @@ static void widget_separator(uiWidgetColors *wcol, rcti *rect, int UNUSED(state)
 	glDisable(GL_BLEND);
 }
 
-static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+static void widget_custom_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
 	uiWidgetDrawBase wtb, wtb1;
 	rcti rect1;
@@ -974,7 +974,7 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 /* I think 3 is sufficient border to indicate keyed status */
 #define SWATCH_KEYED_BORDER 3
 
-static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+static void widget_custom_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
 	uiWidgetDrawBase wtb;
 	float rad, col[4];
@@ -1041,7 +1041,7 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 	}
 }
 
-static void widget_unitvec(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+static void widget_custom_unitvec(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
 	ui_draw_but_UNITVEC(but, wcol, rect);
 }
@@ -1076,7 +1076,7 @@ static void ui_widget_color_disabled(uiWidgetType *wt)
 }
 
 /* copy colors from theme, and set changes in it based on state */
-static void widget_state(uiWidgetType *wt, int state)
+static void widget_state_regular(uiWidgetType *wt, int state)
 {
 	uiWidgetStateColors *wcol_state = wt->wcol_state;
 
@@ -1148,11 +1148,11 @@ static void widget_state_label(uiWidgetType *wt, int state)
 		bTheme *btheme = UI_GetTheme();
 		wt->wcol_theme = &btheme->tui.wcol_list_item;
 		/* call this for option button */
-		widget_state(wt, state);
+		widget_state_regular(wt, state);
 	}
 	else {
 		/* call this for option button */
-		widget_state(wt, state);
+		widget_state_regular(wt, state);
 		if (state & UI_SELECT)
 			UI_GetThemeColor3ubv(TH_TEXT_HI, (unsigned char *)wt->wcol.text);
 		else
@@ -1236,7 +1236,7 @@ static void widget_state_numslider(uiWidgetType *wt, int state)
 	float blend = wcol_state->blend - 0.2f; /* XXX special tweak to make sure that bar will still be visible */
 
 	/* call this for option button */
-	widget_state(wt, state);
+	widget_state_regular(wt, state);
 
 	/* now, set the inner-part so that it reflects state settings too */
 	/* TODO: maybe we should have separate settings for the blending colors used for this case? */
@@ -1292,29 +1292,29 @@ static void widget_state_scroll_inner(uiWidgetType *wt, int state)
 /**
  * Draw number buttons still with triangles when field is not embossed
  */
-static void widget_numbut_embossn(uiBut *UNUSED(but), uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+static void widget_draw_numbut_embossn(uiBut *UNUSED(but), uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
-	widget_numbut_draw(wcol, rect, state, roundboxalign, true);
+	widget_draw_numbut_draw(wcol, rect, state, roundboxalign, true);
 }
 
-static void widget_numbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
+static void widget_draw_numbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
-	widget_numbut_draw(wcol, rect, state, roundboxalign, false);
+	widget_draw_numbut_draw(wcol, rect, state, roundboxalign, false);
 }
 
 
 /* uiWidget struct initialization ********************* */
 
 uiWidgetDrawType drawtype_classic_box = {
-	/* state */  widget_state,
-	/* draw */   widget_but, /* used for search menus */
-	/* custom */ widget_box,
+	/* state */  widget_state_regular,
+	/* draw */   widget_draw_but, /* used for search menus */
+	/* custom */ widget_custom_box,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_checkbox = {
-	/* state */  widget_state,
-	/* draw */   widget_checkbox,
+	/* state */  widget_state_regular,
+	/* draw */   widget_draw_checkbox,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
@@ -1322,13 +1322,13 @@ uiWidgetDrawType drawtype_classic_checkbox = {
 uiWidgetDrawType drawtype_classic_colorband = {
 	/* state */  NULL,
 	/* draw */   NULL,
-	/* custom */ widget_colorband,
+	/* custom */ widget_custom_colorband,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_exec = {
-	/* state */  widget_state,
-	/* draw */   widget_roundbut,
+	/* state */  widget_state_regular,
+	/* draw */   widget_draw_roundbut,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
@@ -1343,28 +1343,28 @@ uiWidgetDrawType drawtype_classic_extra_mask = {
 uiWidgetDrawType drawtype_classic_hsv_circle = {
 	/* state */  NULL,
 	/* draw */   NULL,
-	/* custom */ widget_hsv_circle,
+	/* custom */ widget_custom_hsv_circle,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_hsv_cube = {
 	/* state */  NULL,
 	/* draw */   NULL,
-	/* custom */ widget_hsv_cube,
+	/* custom */ widget_custom_hsv_cube,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_hsv_vert = {
 	/* state */  NULL,
 	/* draw */   NULL,
-	/* custom */ widget_hsv_vert,
+	/* custom */ widget_custom_hsv_vert,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_icon = {
-	/* state */  widget_state,
+	/* state */  widget_state_regular,
 	/* draw */   NULL,
-	/* custom */ widget_icon_has_anim,
+	/* custom */ widget_custom_icon_has_anim,
 	/* text */   widget_draw_text_icon,
 };
 
@@ -1376,15 +1376,15 @@ uiWidgetDrawType drawtype_classic_label = {
 };
 
 uiWidgetDrawType drawtype_classic_link = {
-	/* state */  widget_state,
+	/* state */  widget_state_regular,
 	/* draw */   NULL,
-	/* custom */ widget_link,
+	/* custom */ widget_custom_link,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_listitem = {
-	/* state */  widget_state,
-	/* draw */   widget_list_itembut,
+	/* state */  widget_state_regular,
+	/* draw */   widget_draw_list_itembut,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
@@ -1392,34 +1392,34 @@ uiWidgetDrawType drawtype_classic_listitem = {
 uiWidgetDrawType drawtype_classic_listscroll = {
     /* state */  widget_state_nothing,
 	/* draw */   NULL,
-	/* custom */ widget_listscroll,
+	/* custom */ widget_custom_listscroll,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_menu_back = {
 	/* state */  widget_state_nothing,
-	/* draw */   widget_menu_back,
+	/* draw */   widget_draw_menu_back,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_menu_icon_radio = {
-	/* state */  widget_state,
-	/* draw */   widget_menuiconbut,
+	/* state */  widget_state_regular,
+	/* draw */   widget_draw_menuiconbut,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_menu_item = {
 	/* state */  widget_state_menu_item,
-	/* draw */   widget_menu_itembut,
+	/* draw */   widget_draw_menu_itembut,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_menu_item_preview = {
 	/* state */  widget_state_menu_item,
-	/* draw */   widget_menu_itembut,
+	/* draw */   widget_draw_menu_itembut,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_preview_item,
 };
@@ -1427,7 +1427,7 @@ uiWidgetDrawType drawtype_classic_menu_item_preview = {
 uiWidgetDrawType drawtype_classic_menu_item_radial = {
 	/* state */  widget_state_pie_menu_item,
 	/* draw */   NULL,
-	/* custom */ widget_menu_radial_itembut,
+	/* custom */ widget_custom_menu_radial_itembut,
 	/* text */   widget_draw_text_icon,
 };
 
@@ -1439,92 +1439,92 @@ uiWidgetDrawType drawtype_classic_menu_label = {
 };
 
 uiWidgetDrawType drawtype_classic_menu_node_link = {
-	/* state */  widget_state,
-	/* draw */   widget_menunodebut,
+	/* state */  widget_state_regular,
+	/* draw */   widget_draw_menunodebut,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_menu_pointer_link = {
-	/* state */  widget_state,
-	/* draw */   widget_menubut,
+	/* state */  widget_state_regular,
+	/* draw */   widget_draw_menubut,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_menu_radio = {
-	/* state */  widget_state,
-	/* draw */   widget_menubut,
+	/* state */  widget_state_regular,
+	/* draw */   widget_draw_menubut,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_name = {
-	/* state */  widget_state,
-	/* draw */   widget_textbut,
+	/* state */  widget_state_regular,
+	/* draw */   widget_draw_textbut,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_number = {
-	/* state */  widget_state,
-	/* draw */   widget_numbut,
+	/* state */  widget_state_regular,
+	/* draw */   widget_draw_numbut,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_progressbar = {
-	/* state */  widget_state,
+	/* state */  widget_state_regular,
 	/* draw */   NULL,
-	/* custom */ widget_progressbar,
+	/* custom */ widget_custom_progressbar,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_pulldown = {
 	/* state */  widget_state_pulldown,
-	/* draw */   widget_pulldownbut,
+	/* draw */   widget_draw_pulldownbut,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_radio = {
-	/* state */  widget_state,
-	/* draw */   widget_radiobut,
+	/* state */  widget_state_regular,
+	/* draw */   widget_draw_radiobut,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_regular = {
-	/* state */  widget_state,
-	/* draw */   widget_but,
+	/* state */  widget_state_regular,
+	/* draw */   widget_draw_but,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_scroll_back = {
 	/* state */  widget_state_nothing,
-	/* draw */   widget_scroll_back,
+	/* draw */   widget_draw_scroll_back,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_scroll_inner = {
 	/* state */  widget_state_scroll_inner,
-	/* draw */   widget_scroll_inner,
+	/* draw */   widget_draw_scroll_inner,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_search_back = {
 	/* state */  widget_state_nothing,
-	/* draw */   widget_search_back,
+	/* draw */   widget_draw_search_back,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
 
 uiWidgetDrawType drawtype_classic_separator = {
 	/* state */  widget_state_nothing,
-	/* draw */   widget_separator,
+	/* draw */   widget_draw_separator,
 	/* custom */ NULL,
 	/* text */   NULL,
 };
@@ -1532,35 +1532,35 @@ uiWidgetDrawType drawtype_classic_separator = {
 uiWidgetDrawType drawtype_classic_numslider = {
 	/* state */  widget_state_numslider,
 	/* draw */   NULL,
-	/* custom */ widget_numslider,
+	/* custom */ widget_custom_numslider,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_swatch = {
-	/* state */  widget_state,
+	/* state */  widget_state_regular,
 	/* draw */   NULL,
-	/* custom */ widget_swatch,
+	/* custom */ widget_custom_swatch,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_toggle = {
-	/* state */  widget_state,
-	/* draw */   widget_but,
+	/* state */  widget_state_regular,
+	/* draw */   widget_draw_but,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_tooltip = {
-	/* state */  widget_state,
-	/* draw */   widget_menu_back,
+	/* state */  widget_state_regular,
+	/* draw */   widget_draw_menu_back,
 	/* custom */ NULL,
 	/* text */   widget_draw_text_icon,
 };
 
 uiWidgetDrawType drawtype_classic_unitvec = {
-	/* state */  widget_state,
+	/* state */  widget_state_regular,
 	/* draw */   NULL,
-	/* custom */ widget_unitvec,
+	/* custom */ widget_custom_unitvec,
 	/* text */   widget_draw_text_icon,
 };
 

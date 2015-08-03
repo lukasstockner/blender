@@ -478,7 +478,7 @@ static void ui_widget_color_disabled(uiWidgetType *wt)
 }
 
 /* copy colors from theme, and set changes in it based on state */
-static void widget_state(uiWidgetType *wt, int state)
+static void widget_state_regular(uiWidgetType *wt, int state)
 {
 	uiWidgetStateColors *wcol_state = wt->wcol_state;
 
@@ -548,7 +548,7 @@ static void widget_state_option_menu(uiWidgetType *wt, int state)
 	bTheme *btheme = UI_GetTheme(); /* XXX */
 	
 	/* call this for option button */
-	widget_state(wt, state);
+	widget_state_regular(wt, state);
 	
 	/* if not selected we get theme from menu back */
 	if (state & UI_SELECT)

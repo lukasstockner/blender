@@ -34,8 +34,6 @@
 
 #include "DNA_userdef_types.h"
 
-#include "widgets_draw_intern.h" /* XXX */
-
 struct uiBut;
 struct uiWidgetType;
 
