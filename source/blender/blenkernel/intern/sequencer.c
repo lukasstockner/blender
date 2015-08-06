@@ -88,7 +88,7 @@
 #include "BKE_sound.h"
 
 #ifdef WITH_AUDASPACE
-#  include "AUD_C-API.h"
+#  include AUD_SPECIAL_H
 #endif
 
 static ImBuf *seq_render_strip_stack(const SeqRenderData *context, ListBase *seqbasep, float cfra, int chanshown);
@@ -5286,7 +5286,10 @@ static void seq_new_fix_links_recursive(Sequence *seq)
 
 Sequence *BKE_sequence_dupli_recursive(Scene *scene, Scene *scene_to, Sequence *seq, int dupe_flag)
 {
-	Sequence *seqn = seq_dupli(scene, scene_to, seq, dupe_flag);
+	Sequence *seqn;
+
+	seq->tmp = NULL;
+	seqn = seq_dupli(scene, scene_to, seq, dupe_flag);
 	if (seq->type == SEQ_TYPE_META) {
 		Sequence *s;
 		for (s = seq->seqbase.first; s; s = s->next) {

@@ -423,7 +423,9 @@ class GreasePencilDataPanel:
         layout.template_ID(gpd_owner, "grease_pencil", new="gpencil.data_add", unlink="gpencil.data_unlink")
 
         # Grease Pencil data...
-        if gpd:
+        if (gpd is None) or (not gpd.layers):
+            layout.operator("gpencil.layer_add", text="New Layer")
+        else:
             self.draw_layers(context, layout, gpd)
 
     def draw_layers(self, context, layout, gpd):

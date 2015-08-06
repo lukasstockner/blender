@@ -51,6 +51,7 @@
 #include "BKE_ccg.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_paint.h"
+#include "BKE_mesh.h"
 #include "BKE_pbvh.h"
 
 #include "DNA_userdef_types.h"
@@ -113,6 +114,36 @@ static GPUBuffer *mres_glob_buffer = NULL;
 static int mres_prev_gridsize = -1;
 static GLenum mres_prev_index_type = 0;
 static unsigned mres_prev_totquad = 0;
+
+void GPU_buffer_material_finalize(GPUDrawObject *gdo, GPUBufferMaterial *matinfo, int totmat)
+{
+	int i, curmat, curelement;
+
+	/* count the number of materials used by this DerivedMesh */
+	for (i = 0; i < totmat; i++) {
+		if (matinfo[i].totelements > 0)
+			gdo->totmaterial++;
+	}
+
+	/* allocate an array of materials used by this DerivedMesh */
+	gdo->materials = MEM_mallocN(sizeof(GPUBufferMaterial) * gdo->totmaterial,
+	                             "GPUDrawObject.materials");
+
+	/* initialize the materials array */
+	for (i = 0, curmat = 0, curelement = 0; i < totmat; i++) {
+		if (matinfo[i].totelements > 0) {
+			gdo->materials[curmat] = matinfo[i];
+			gdo->materials[curmat].start = curelement;
+			gdo->materials[curmat].mat_nr = i;
+			gdo->materials[curmat].polys = MEM_mallocN(sizeof(int) * matinfo[i].totpolys, "GPUBufferMaterial.polys");
+
+			curelement += matinfo[i].totelements;
+			curmat++;
+		}
+	}
+
+	MEM_freeN(matinfo);
+}
 
 
 /* stores recently-deleted buffers so that new buffers won't have to
@@ -499,7 +530,6 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	int i;
 	const GPUBufferTypeSettings *ts = &gpu_buffer_type_settings[type];
 	GLenum target = ts->gl_buffer_type;
-	int num_components = ts->num_components;
 	size_t size = gpu_buffer_size_from_type(dm, type);
 	bool use_VBOs = (GLEW_ARB_vertex_buffer_object) && !(U.gameflags & USER_DISABLE_VBO);
 	GLboolean uploaded;
@@ -517,9 +547,6 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	mat_orig_to_new = MEM_mallocN(sizeof(*mat_orig_to_new) * dm->totmat,
 	                              "GPU_buffer_setup.mat_orig_to_new");
 	for (i = 0; i < object->totmaterial; i++) {
-		/* for each material, the current index to copy data to */
-		object->materials[i].counter = object->materials[i].start * num_components;
-
 		/* map from original material index to new
 		 * GPUBufferMaterial index */
 		mat_orig_to_new[object->materials[i].mat_nr] = i;
@@ -1094,6 +1121,9 @@ struct GPU_PBVH_Buffers {
 	GPUBuffer *vert_buf, *index_buf, *index_buf_fast;
 	GLenum index_type;
 
+	int *baseelemarray;
+	void **baseindex;
+
 	/* mesh pointers in case buffer allocation fails */
 	const MPoly *mpoly;
 	const MLoop *mloop;
@@ -1249,6 +1279,10 @@ void GPU_update_mesh_pbvh_buffers(
 #undef UPDATE_VERTEX
 			}
 			else {
+				/* calculate normal for each polygon only once */
+				unsigned int mpoly_prev = UINT_MAX;
+				short no[3];
+
 				for (i = 0; i < buffers->face_indices_len; ++i) {
 					const MLoopTri *lt = &buffers->looptri[buffers->face_indices[i]];
 					const unsigned int vtri[3] = {
@@ -1256,8 +1290,6 @@ void GPU_update_mesh_pbvh_buffers(
 					    buffers->mloop[lt->tri[1]].v,
 					    buffers->mloop[lt->tri[2]].v,
 					};
-					float fno[3];
-					short no[3];
 
 					float fmask;
 
@@ -1265,16 +1297,19 @@ void GPU_update_mesh_pbvh_buffers(
 						continue;
 
 					/* Face normal and mask */
-					normal_tri_v3(fno,
-					              mvert[vtri[0]].co,
-					              mvert[vtri[1]].co,
-					              mvert[vtri[2]].co);
+					if (lt->poly != mpoly_prev) {
+						const MPoly *mp = &buffers->mpoly[lt->poly];
+						float fno[3];
+						BKE_mesh_calc_poly_normal(mp, &buffers->mloop[mp->loopstart], mvert, fno);
+						normal_float_to_short_v3(no, fno);
+						mpoly_prev = lt->poly;
+					}
+
 					if (vmask) {
 						fmask = (vmask[vtri[0]] +
 						         vmask[vtri[1]] +
 						         vmask[vtri[2]]) / 3.0f;
 					}
-					normal_float_to_short_v3(no, fno);
 
 					for (j = 0; j < 3; j++) {
 						const MVert *v = &mvert[vtri[j]];
@@ -1575,26 +1610,26 @@ static GPUBuffer *gpu_get_grid_buffer(int gridsize, GLenum *index_type, unsigned
 
 #define FILL_FAST_BUFFER(type_) \
 { \
-    type_ *buffer; \
-    buffers->index_buf_fast = GPU_buffer_alloc(sizeof(type_) * 6 * totgrid, false); \
-    buffer = GPU_buffer_lock(buffers->index_buf_fast, GPU_BINDING_INDEX); \
-    if (buffer) { \
-        int i; \
-        for (i = 0; i < totgrid; i++) { \
-            int currentquad = i * 6; \
-            buffer[currentquad] = i * gridsize * gridsize; \
-            buffer[currentquad + 1] = i * gridsize * gridsize + gridsize - 1; \
-            buffer[currentquad + 2] = (i + 1) * gridsize * gridsize - gridsize; \
-            buffer[currentquad + 3] = (i + 1) * gridsize * gridsize - 1; \
-            buffer[currentquad + 4] = i * gridsize * gridsize + gridsize - 1; \
-            buffer[currentquad + 5] = (i + 1) * gridsize * gridsize - gridsize; \
-        } \
-        GPU_buffer_unlock(buffers->index_buf_fast, GPU_BINDING_INDEX); \
+	type_ *buffer; \
+	buffers->index_buf_fast = GPU_buffer_alloc(sizeof(type_) * 6 * totgrid, false); \
+	buffer = GPU_buffer_lock(buffers->index_buf_fast, GPU_BINDING_INDEX); \
+	if (buffer) { \
+		int i; \
+		for (i = 0; i < totgrid; i++) { \
+			int currentquad = i * 6; \
+			buffer[currentquad]     = i * gridsize * gridsize + gridsize - 1; \
+			buffer[currentquad + 1] = i * gridsize * gridsize; \
+			buffer[currentquad + 2] = (i + 1) * gridsize * gridsize - gridsize; \
+			buffer[currentquad + 3] = (i + 1) * gridsize * gridsize - 1; \
+			buffer[currentquad + 4] = i * gridsize * gridsize + gridsize - 1; \
+			buffer[currentquad + 5] = (i + 1) * gridsize * gridsize - gridsize; \
+		} \
+		GPU_buffer_unlock(buffers->index_buf_fast, GPU_BINDING_INDEX); \
 	} \
 	else { \
-        GPU_buffer_free(buffers->index_buf_fast); \
-        buffers->index_buf_fast = NULL; \
-    } \
+		GPU_buffer_free(buffers->index_buf_fast); \
+		buffers->index_buf_fast = NULL; \
+	} \
 } (void)0
 
 GPU_PBVH_Buffers *GPU_build_grid_pbvh_buffers(int *grid_indices, int totgrid,
@@ -1648,6 +1683,18 @@ GPU_PBVH_Buffers *GPU_build_grid_pbvh_buffers(int *grid_indices, int totgrid,
 	/* Build coord/normal VBO */
 	if (buffers->index_buf)
 		buffers->vert_buf = GPU_buffer_alloc(sizeof(VertexBufferFormat) * totgrid * key->grid_area, false);
+
+	if (GLEW_ARB_draw_elements_base_vertex) {
+		int i;
+		buffers->baseelemarray = MEM_mallocN(sizeof(int) * totgrid * 2, "GPU_PBVH_Buffers.baseelemarray");
+		buffers->baseindex = MEM_mallocN(sizeof(void *) * totgrid, "GPU_PBVH_Buffers.baseindex");
+		for (i = 0; i < totgrid; i++) {
+			buffers->baseelemarray[i] = buffers->tot_quad * 6;
+			buffers->baseelemarray[i + totgrid] = i * key->grid_area;
+			buffers->baseindex[i] = buffers->index_buf && !buffers->index_buf->use_vbo ?
+			                                      buffers->index_buf->pointer : NULL;
+		}
+	}
 
 	return buffers;
 }
@@ -1980,21 +2027,40 @@ void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
 
 		if (buffers->tot_quad) {
 			const char *offset = base;
-			int i, last = buffers->has_hidden ? 1 : buffers->totgrid;
-			for (i = 0; i < last; i++) {
+			const bool drawall = !(buffers->has_hidden || do_fast);
+
+			if (GLEW_ARB_draw_elements_base_vertex && drawall) {
+
 				glVertexPointer(3, GL_FLOAT, sizeof(VertexBufferFormat),
 				                offset + offsetof(VertexBufferFormat, co));
 				glNormalPointer(GL_SHORT, sizeof(VertexBufferFormat),
 				                offset + offsetof(VertexBufferFormat, no));
 				glColorPointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat),
 				               offset + offsetof(VertexBufferFormat, color));
-				
-				if (do_fast)
-					glDrawElements(GL_TRIANGLES, buffers->totgrid * 6, buffers->index_type, index_base);
-				else
-					glDrawElements(GL_TRIANGLES, buffers->tot_quad * 6, buffers->index_type, index_base);
 
-				offset += buffers->gridkey.grid_area * sizeof(VertexBufferFormat);
+				glMultiDrawElementsBaseVertex(GL_TRIANGLES, buffers->baseelemarray, buffers->index_type,
+				                              (const void * const *)buffers->baseindex,
+				                              buffers->totgrid, &buffers->baseelemarray[buffers->totgrid]);
+			}
+			else {
+				int i, last = drawall ? buffers->totgrid : 1;
+
+				/* we could optimize this to one draw call, but it would need more memory */
+				for (i = 0; i < last; i++) {
+					glVertexPointer(3, GL_FLOAT, sizeof(VertexBufferFormat),
+					                offset + offsetof(VertexBufferFormat, co));
+					glNormalPointer(GL_SHORT, sizeof(VertexBufferFormat),
+					                offset + offsetof(VertexBufferFormat, no));
+					glColorPointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat),
+					               offset + offsetof(VertexBufferFormat, color));
+
+					if (do_fast)
+						glDrawElements(GL_TRIANGLES, buffers->totgrid * 6, buffers->index_type, index_base);
+					else
+						glDrawElements(GL_TRIANGLES, buffers->tot_quad * 6, buffers->index_type, index_base);
+
+					offset += buffers->gridkey.grid_area * sizeof(VertexBufferFormat);
+				}
 			}
 		}
 		else if (buffers->tot_tri) {
@@ -2080,6 +2146,10 @@ void GPU_free_pbvh_buffers(GPU_PBVH_Buffers *buffers)
 			GPU_buffer_free(buffers->index_buf);
 		if (buffers->index_buf_fast)
 			GPU_buffer_free(buffers->index_buf_fast);
+		if (buffers->baseelemarray)
+			MEM_freeN(buffers->baseelemarray);
+		if (buffers->baseindex)
+			MEM_freeN(buffers->baseindex);
 
 		MEM_freeN(buffers);
 	}

@@ -3625,6 +3625,7 @@ static void def_sh_tex_image(StructRNA *srna)
 
 	static EnumPropertyItem prop_image_extension[] = {
 		{SHD_IMAGE_EXTENSION_REPEAT, "REPEAT", 0, "Repeat", "Cause the image to repeat horizontally and vertically"},
+		{SHD_IMAGE_EXTENSION_EXTEND, "EXTEND", 0, "Extend", "Extend by repeating edge pixels of the image"},
 		{SHD_IMAGE_EXTENSION_CLIP, "CLIP", 0, "Clip", "Clip to image size and set exterior pixels as transparent"},
 		{0, NULL, 0, NULL, NULL}
 	};
@@ -4956,9 +4957,9 @@ static void def_cmp_color_spill(StructRNA *srna)
 	};
 
 	static EnumPropertyItem limit_channel_items[] = {
-		{1, "R", 0, "R", "Limit by Red"},
-		{2, "G", 0, "G", "Limit by Green"},
-		{3, "B", 0, "B", "Limit by Blue"},
+		{0, "R", 0, "R", "Limit by Red"},
+		{1, "G", 0, "G", "Limit by Green"},
+		{2, "B", 0, "B", "Limit by Blue"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
