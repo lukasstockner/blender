@@ -2358,7 +2358,7 @@ void ED_view3d_draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d)
 	glEnable(GL_DEPTH_TEST);
 
 	if (v3d->flag2 & V3D_SHOW_GPENCIL) {
-		ED_gpencil_draw_view3d(scene, v3d, ar, true);
+		ED_gpencil_draw_view3d(NULL, scene, v3d, ar, true);
 	}
 	
 	v3d->zbuf = zbuf;
@@ -2865,9 +2865,11 @@ static void view3d_draw_objects(
 
 	/* must be before xray draw which clears the depth buffer */
 	if (v3d->flag2 & V3D_SHOW_GPENCIL) {
+		wmWindowManager *wm = (C != NULL) ? CTX_wm_manager(C) : NULL;
+		
 		/* must be before xray draw which clears the depth buffer */
 		if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
-		ED_gpencil_draw_view3d(scene, v3d, ar, true);
+		ED_gpencil_draw_view3d(wm, scene, v3d, ar, true);
 		if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 	}
 
@@ -3239,7 +3241,7 @@ void ED_view3d_draw_offscreen(
 
 		if (v3d->flag2 & V3D_SHOW_GPENCIL) {
 			/* draw grease-pencil stuff - needed to get paint-buffer shown too (since it's 2D) */
-			ED_gpencil_draw_view3d(scene, v3d, ar, false);
+			ED_gpencil_draw_view3d(NULL, scene, v3d, ar, false);
 		}
 
 		/* freeing the images again here could be done after the operator runs, leaving for now */
@@ -3825,6 +3827,7 @@ static void view3d_main_area_draw_info(const bContext *C, Scene *scene,
                                        ARegion *ar, View3D *v3d,
                                        const char *grid_unit, bool render_border)
 {
+	wmWindowManager *wm = CTX_wm_manager(C);
 	RegionView3D *rv3d = ar->regiondata;
 	rcti rect;
 	
@@ -3848,7 +3851,7 @@ static void view3d_main_area_draw_info(const bContext *C, Scene *scene,
 
 	if (v3d->flag2 & V3D_SHOW_GPENCIL) {
 		/* draw grease-pencil stuff - needed to get paint-buffer shown too (since it's 2D) */
-		ED_gpencil_draw_view3d(scene, v3d, ar, false);
+		ED_gpencil_draw_view3d(wm, scene, v3d, ar, false);
 	}
 
 	if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
@@ -3875,8 +3878,6 @@ static void view3d_main_area_draw_info(const bContext *C, Scene *scene,
 	}
 
 	if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
-		wmWindowManager *wm = CTX_wm_manager(C);
-
 		if ((U.uiflag & USER_SHOW_FPS) && ED_screen_animation_playing(wm)) {
 			ED_scene_draw_fps(scene, &rect);
 		}
