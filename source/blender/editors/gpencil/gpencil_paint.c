@@ -1417,6 +1417,17 @@ static void gpencil_draw_toggle_eraser_cursor(bContext *C, tGPsdata *p, short en
 	}
 }
 
+/* Check if tablet eraser is being used (when processing events) */
+static bool gpencil_is_tablet_eraser_active(const wmEvent *event)
+{
+	if (event->tablet_data) {
+		const wmTabletData *wmtab = event->tablet_data;
+		return (wmtab->Active == EVT_TABLET_ERASER);
+	}
+	
+	return false;
+}
+
 /* ------------------------------- */
 
 
@@ -1622,9 +1633,6 @@ static void gpencil_draw_apply_event(wmOperator *op, const wmEvent *event)
 		
 		tablet = (wmtab->Active != EVT_TABLET_NONE);
 		p->pressure = wmtab->Pressure;
-		
-		/* if (wmtab->Active == EVT_TABLET_ERASER) */
-		/* TODO... this should get caught by the keymaps which call drawing in the first place */
 	}
 	else
 		p->pressure = 1.0f;
@@ -1819,7 +1827,6 @@ static tGPsdata *gpencil_stroke_begin(bContext *C, wmOperator *op)
 	/* we may need to set up paint env again if we're resuming */
 	/* XXX: watch it with the paintmode! in future,
 	 *      it'd be nice to allow changing paint-mode when in sketching-sessions */
-	/* XXX: with tablet events, we may event want to check for eraser here, for nicer tablet support */
 	
 	if (gp_session_initdata(C, p))
 		gp_paint_initstroke(p, p->paintmode);
@@ -2008,13 +2015,13 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				/* Switch paintmode (temporarily if need be) based on which button was used
 				 * NOTE: This is to make it more convenient to erase strokes when using drawing sessions
 				 */
-				if (event->type == LEFTMOUSE) {
-					/* restore drawmode to default */
-					p->paintmode = RNA_enum_get(op->ptr, "mode");
-				}
-				else if (event->type == RIGHTMOUSE) {
+				if ((event->type == RIGHTMOUSE) || gpencil_is_tablet_eraser_active(event)) {
 					/* turn on eraser */
 					p->paintmode = GP_PAINTMODE_ERASER;
+				}
+				else if (event->type == LEFTMOUSE) {
+					/* restore drawmode to default */
+					p->paintmode = RNA_enum_get(op->ptr, "mode");
 				}
 				
 				gpencil_draw_toggle_eraser_cursor(C, p, p->paintmode == GP_PAINTMODE_ERASER);
