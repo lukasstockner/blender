@@ -1607,7 +1607,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *ar, void *userData)
 
 	/* intentionally don't use 'UI_BLOCK_MOVEMOUSE_QUIT', some dialogues have many items
 	 * where quitting by accident is very annoying */
-	UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN);
+	UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_NUMSELECT);
 
 	layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, data->width, data->height, 0, style);
 	
@@ -2301,7 +2301,7 @@ static void WM_OT_read_history(wmOperatorType *ot)
 	ot->description = "Reloads history and bookmarks";
 
 	ot->invoke = WM_operator_confirm;
-	ot->exec = wm_history_read_exec;
+	ot->exec = wm_history_file_read_exec;
 
 	/* this operator is only used for loading settings from a previous blender install */
 	ot->flag = OPTYPE_INTERNAL;
