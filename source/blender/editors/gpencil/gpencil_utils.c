@@ -372,4 +372,36 @@ void gp_point_to_xy(GP_SpaceConversion *gsc, bGPDstroke *gps, bGPDspoint *pt,
 	}
 }
 
+/* Project screenspace coordinates to 3D-space
+ * NOTE: We include this as a utility function, since the standard method
+ *       involves quite a few steps, which are invariably always the same
+ *       for all GPencil operations. So, it's nicer to just centralise these.
+ * WARNING: Assumes that it is getting called in a 3D view only
+ */
+bool gp_point_xy_to_3d(GP_SpaceConversion *gsc, Scene *scene, const float screen_co[2], float r_out[3])
+{
+	View3D *v3d = gso->sa->spacedata.first;
+	RegionView3D *rv3d = gso->ar->regiondata;
+	float *rvec = ED_view3d_cursor3d_get(scene, v3d);
+	float zfac = ED_view3d_calc_zfac(rv3d, rvec, NULL);
+	
+	float mval_f[2], mval_prj[2];
+	float dvec[3];
+	
+	copy_v2_v2(mval_f, screen_co);
+	
+	if (ED_view3d_project_float_global(gsc->ar, rvec, mval_prj, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
+		sub_v2_v2v2(mval_f, mval_prj, mval_f);
+		ED_view3d_win_to_delta(gso->ar, mval_f, dvec, zfac);
+		sub_v3_v3v3(r_out, rvec, dvec);
+		
+		return true;
+	}
+	else {
+		zero_v3(r_out);
+		
+		return false;
+	}
+}
+
 /* ******************************************************** */

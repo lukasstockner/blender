@@ -96,6 +96,17 @@ void gp_point_conversion_init(struct bContext *C, GP_SpaceConversion *r_gsc);
 void gp_point_to_xy(GP_SpaceConversion *settings, struct bGPDstroke *gps, struct bGPDspoint *pt,
                     int *r_x, int *r_y);
 
+/**
+ * Convert a screenspace point to a 3D Grease Pencil coordinate.
+ *
+ * For use with editing tools where it is easier to perform the operations in 2D,
+ * and then later convert the transformed points back to 3D.
+ *
+ * \param screeN_co    The screenspace 2D coordinates to convert to 
+ * \param[out] r_out  The resulting 3D coordinates of the input point
+ */
+bool gp_point_xy_to_3d(GP_SpaceConversion *gsc, Scene *scene, const float screen_co[2], float r_out[3]);
+
 /* Poll Callbacks ------------------------------------ */
 /* gpencil_utils.c */
 
