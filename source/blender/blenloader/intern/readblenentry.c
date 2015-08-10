@@ -161,7 +161,6 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *to
 				case ID_IM: /* fall through */
 				case ID_WO: /* fall through */
 				case ID_LA: /* fall through */
-				case ID_BR: /* fall through */
 				case ID_OB: /* fall through */
 				case ID_GR: /* fall through */
 				case ID_SCE: /* fall through */

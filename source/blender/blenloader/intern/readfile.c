@@ -2013,7 +2013,7 @@ static void direct_link_brush(FileData *fd, Brush *brush)
 	else
 		BKE_brush_curve_preset(brush, CURVE_PRESET_SHARP);
 
-	brush->preview = direct_link_preview_image(fd, brush->preview);
+	brush->preview = NULL;
 	brush->icon_imbuf = NULL;
 }
 
