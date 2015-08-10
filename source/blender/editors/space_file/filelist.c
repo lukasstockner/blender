@@ -1058,7 +1058,7 @@ static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid
 	FileListEntryCache *cache = taskdata;
 	FileListEntryPreview *preview;
 
-	printf("%s: Start (%d)...\n", __func__, threadid);
+//	printf("%s: Start (%d)...\n", __func__, threadid);
 
 	/* Note we wait on queue here. */
 	while (!BLI_task_pool_canceled(pool) && (preview = BLI_thread_queue_pop(cache->previews_todo))) {
@@ -1087,7 +1087,7 @@ static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid
 		BLI_thread_queue_push(cache->previews_done, preview);
 	}
 
-	printf("%s: End (%d)...\n", __func__, threadid);
+//	printf("%s: End (%d)...\n", __func__, threadid);
 }
 
 static void filelist_cache_preview_ensure_running(FileListEntryCache *cache)
@@ -2553,8 +2553,8 @@ static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update
 {
 	FileListReadJob *flrj = flrjv;
 
-	printf("START filelist reading (%d files, main thread: %d)\n",
-	       flrj->filelist->filelist.nbr_entries, BLI_thread_is_main());
+//	printf("START filelist reading (%d files, main thread: %d)\n",
+//	       flrj->filelist->filelist.nbr_entries, BLI_thread_is_main());
 
 	BLI_mutex_lock(&flrj->lock);
 
@@ -2626,7 +2626,7 @@ static void filelist_readjob_free(void *flrjv)
 {
 	FileListReadJob *flrj = flrjv;
 
-	printf("END filelist reading (%d files)\n", flrj->filelist->filelist.nbr_entries);
+//	printf("END filelist reading (%d files)\n", flrj->filelist->filelist.nbr_entries);
 
 	if (flrj->tmp_filelist) {
 		/* tmp_filelist shall never ever be filtered! */
