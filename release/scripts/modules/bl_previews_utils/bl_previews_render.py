@@ -193,6 +193,7 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
                 if render_context.backup_camera is None:
                     if scene is not None:
                         scene.camera = None
+                        scene.objects.unlink(camera)
                     camera.user_clear()
                     bpy.data.objects.remove(camera)
                     bpy.data.cameras.remove(bpy.data.cameras[render_context.camera_data])
@@ -207,6 +208,8 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
             try:
                 lamp = bpy.data.objects[render_context.lamp]
                 if render_context.backup_lamp is None:
+                    if scene is not None:
+                        scene.objects.unlink(lamp)
                     lamp.user_clear()
                     bpy.data.objects.remove(lamp)
                     bpy.data.lamps.remove(bpy.data.lamps[render_context.lamp_data])
