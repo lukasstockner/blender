@@ -7225,10 +7225,19 @@ static void ui_blocks_set_tooltips(ARegion *ar, const bool enable)
 
 static bool ui_region_contains_point_px(ARegion *ar, int x, int y)
 {
-	uiBlock *block;
-	
+	uiBlock *block = ar->uiblocks.first;
+	rcti rect = ar->winrct;
+	const bool is_block_loop = block->flag & UI_BLOCK_LOOP;
+
+	/* scale down area rect to exclude shadow */
+	if (is_block_loop) {
+		const int shadow_xy = UI_ThemeMenuShadowWidth();
+		BLI_rcti_resize(&rect, BLI_rcti_size_x(&ar->winrct) - shadow_xy * 2,
+		                BLI_rcti_size_y(&ar->winrct) - shadow_xy * 2);
+	}
+
 	/* check if the mouse is in the region */
-	if (!BLI_rcti_isect_pt(&ar->winrct, x, y)) {
+	if (!BLI_rcti_isect_pt(&rect, x, y)) {
 		for (block = ar->uiblocks.first; block; block = block->next)
 			block->auto_open = false;
 		
@@ -9694,14 +9703,15 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void *UNUSE
 		uiBut *but_other;
 		uiHandleButtonData *data;
 		bool is_inside_menu = false;
+		const int shadow_xy = UI_ThemeMenuShadowWidth();
 
 		/* look for a popup menu containing the mouse */
 		for (ar_temp = screen->regionbase.first; ar_temp; ar_temp = ar_temp->next) {
 			rcti rect = ar_temp->winrct;
 
 			/* resize region rect to ignore shadow */
-			BLI_rcti_resize(&rect, (BLI_rcti_size_x(&ar_temp->winrct) - UI_ThemeMenuShadowWidth() * 2),
-			                (BLI_rcti_size_y(&ar_temp->winrct) - UI_ThemeMenuShadowWidth() * 2));
+			BLI_rcti_resize(&rect, BLI_rcti_size_x(&ar_temp->winrct) - shadow_xy * 2,
+			                BLI_rcti_size_y(&ar_temp->winrct) - shadow_xy * 2);
 			if (BLI_rcti_isect_pt_v(&rect, &event->x)) {
 				BLI_assert(ar_temp->type->regionid == RGN_TYPE_TEMPORARY);
 
