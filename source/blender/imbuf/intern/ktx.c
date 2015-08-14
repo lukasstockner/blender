@@ -40,8 +40,10 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_path_util.h"
+#include "BLI_sys_types.h"
 
 #include <string.h>
+#include <stdlib.h>
 
 static char KTX_HEAD[] = {0xAB, 0x4B, 0x54, 0x58, 0x20, 0x31, 0x31, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A};
 
@@ -72,17 +74,21 @@ struct ImBuf *imb_loadktx(const unsigned char *mem, size_t size, int flags, char
 	GLenum glerror;
 	GLboolean isMipmapped;
 	KTX_error_code ktxerror;
+	unsigned int numKeys;
+	unsigned char *keys;
 
 	/* thumbnails are run from a thread so opengl generation below will fail */
 	if (flags & IB_thumbnail) {
 		return NULL;
 	}
 
-	ktxerror = ktxLoadTextureM(mem, size, &texture, &target, NULL, &isMipmapped, &glerror, 0, NULL);
+	ktxerror = ktxLoadTextureM(mem, size, &texture, &target, NULL, &isMipmapped, &glerror, &numKeys, &keys);
 
-	if (KTX_SUCCESS == ktxerror) {
+	if (ktxerror == KTX_SUCCESS) {
 		ImBuf *ibuf;
 		int xsize, ysize;
+		int internal_format;
+		bool flipx = false, flipy = false;
 		glEnable(target);
 
 		if (isMipmapped)
@@ -96,11 +102,56 @@ struct ImBuf *imb_loadktx(const unsigned char *mem, size_t size, int flags, char
 		ibuf = IMB_allocImBuf(xsize, ysize, 32, (int)IB_rect);
 
 		glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
+		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED, &internal_format);
 
 		glDeleteTextures(1, &texture);
 
+		if (internal_format) {
+			flipx = flipy = true;
+		}
+		else {
+			if (keys) {
+				KTX_hash_table table;
+				ktxerror = ktxHashTable_Deserialize(numKeys, keys, &table);
+				if (ktxerror == KTX_SUCCESS) {
+					unsigned int valLength;
+					unsigned char *value;
+					ktxerror = ktxHashTable_FindValue(table, KTX_ORIENTATION_KEY, &valLength, (void **)&value);
+
+					if (ktxerror == KTX_SUCCESS) {
+						if (value[6] == 'd')
+							flipy = true;
+					}
+				}
+			}
+		}
+
+		if (flipx && flipy) {
+			int i;
+			size_t imbuf_size = ibuf->x * ibuf->y;
+
+			for (i = 0; i < imbuf_size / 2; i++) {
+				SWAP(unsigned int, ibuf->rect[i], ibuf->rect[imbuf_size - i -1]);
+			}
+		}
+		else if (flipy) {
+			size_t i, j;
+			for (j = 0; j < ibuf->y / 2; j++) {
+				for (i = 0; i < ibuf->x; i++) {
+					SWAP(unsigned int, ibuf->rect[i + j * ibuf->x], ibuf->rect[i + (ibuf->y - j - 1) * ibuf->x]);
+				}
+			}
+		}
+
+		if (keys)
+			free(keys);
+
 		return ibuf;
 	}
+
+	if (keys)
+		free(keys);
+
 	return NULL;
 }
 
