@@ -668,7 +668,7 @@ static uiBut *ui_item_with_label(uiLayout *layout, uiBlock *block, const char *n
 		if (RNA_struct_is_a(ptr->type, &RNA_KeyMapItem)) {
 			char buf[128];
 
-			WM_keymap_item_to_string(ptr->data, buf, sizeof(buf));
+			WM_keymap_item_to_string(ptr->data, false, sizeof(buf), buf);
 
 			but = uiDefButR_prop(block, UI_BTYPE_HOTKEY_EVENT, 0, buf, x, y, w, h, ptr, prop, 0, 0, 0, -1, -1, NULL);
 			UI_but_func_set(but, ui_keymap_but_cb, but, NULL);
@@ -683,14 +683,17 @@ static uiBut *ui_item_with_label(uiLayout *layout, uiBlock *block, const char *n
 	return but;
 }
 
-void UI_context_active_but_prop_get_filebrowser(const bContext *C, PointerRNA *ptr, PropertyRNA **prop)
+void UI_context_active_but_prop_get_filebrowser(
+        const bContext *C,
+        PointerRNA *r_ptr, PropertyRNA **r_prop, bool *r_is_undo)
 {
 	ARegion *ar = CTX_wm_region(C);
 	uiBlock *block;
 	uiBut *but, *prevbut;
 
-	memset(ptr, 0, sizeof(*ptr));
-	*prop = NULL;
+	memset(r_ptr, 0, sizeof(*r_ptr));
+	*r_prop = NULL;
+	*r_is_undo = false;
 
 	if (!ar)
 		return;
@@ -702,8 +705,9 @@ void UI_context_active_but_prop_get_filebrowser(const bContext *C, PointerRNA *p
 			/* find the button before the active one */
 			if ((but->flag & UI_BUT_LAST_ACTIVE) && prevbut && prevbut->rnapoin.data) {
 				if (RNA_property_type(prevbut->rnaprop) == PROP_STRING) {
-					*ptr = prevbut->rnapoin;
-					*prop = prevbut->rnaprop;
+					*r_ptr = prevbut->rnapoin;
+					*r_prop = prevbut->rnaprop;
+					*r_is_undo = (prevbut->flag & UI_BUT_UNDO) != 0;
 					return;
 				}
 			}
@@ -1917,7 +1921,7 @@ void uiItemMenuEnumO(uiLayout *layout, bContext *C, const char *opname, const ch
 	{
 		char keybuf[128];
 		if (WM_key_event_operator_string(C, ot->idname, layout->root->opcontext, NULL, false,
-		                                 keybuf, sizeof(keybuf)))
+		                                 sizeof(keybuf), keybuf))
 		{
 			ui_but_add_shortcut(but, keybuf, false);
 		}

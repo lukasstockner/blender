@@ -181,6 +181,9 @@ void		WM_event_add_mousemove(struct bContext *C);
 bool        WM_modal_tweak_exit(const struct wmEvent *event, int tweak_event);
 bool		WM_event_is_absolute(const struct wmEvent *event);
 
+			/* 3D mouse */
+void		WM_ndof_deadzone_set(float deadzone);
+
 			/* notifiers */
 void		WM_event_add_notifier(const struct bContext *C, unsigned int type, void *reference);
 void		WM_main_add_notifier(unsigned int type, void *reference);
@@ -205,7 +208,9 @@ void wm_event_init_from_window(struct wmWindow *win, struct wmEvent *event);
 
 			/* at maximum, every timestep seconds it triggers event_type events */
 struct wmTimer *WM_event_add_timer(struct wmWindowManager *wm, struct wmWindow *win, int event_type, double timestep);
+struct wmTimer *WM_event_add_timer_notifier(struct wmWindowManager *wm, struct wmWindow *win, unsigned int type, double timestep);
 void		WM_event_remove_timer(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer);
+void		WM_event_remove_timer_notifier(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer);
 void        WM_event_timer_sleep(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer, bool do_sleep);
 
 		/* operator api, default callbacks */
@@ -389,7 +394,9 @@ void		wmOrtho2_pixelspace(const float x, const float y);
 
 			/* utilities */
 void		WM_framebuffer_index_set(int index);
+void		WM_framebuffer_index_get(int index, int *r_col);
 int			WM_framebuffer_to_index(unsigned int col);
+void		WM_framebuffer_to_index_array(unsigned int *col, const unsigned int size);
 
 			/* threaded Jobs Manager */
 enum {

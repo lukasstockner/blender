@@ -87,6 +87,7 @@
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_group.h"
+#include "BKE_icons.h"
 #include "BKE_key.h"
 #include "BKE_lamp.h"
 #include "BKE_lattice.h"
@@ -351,7 +352,7 @@ void BKE_object_free_caches(Object *object)
 		     psys = psys->next)
 		{
 			psys_free_path_cache(psys, psys->edit);
-			update_flag |= PSYS_RECALC;
+			update_flag |= PSYS_RECALC_REDO;
 		}
 	}
 
@@ -363,6 +364,7 @@ void BKE_object_free_caches(Object *object)
 				psmd->dm->needsFree = 1;
 				psmd->dm->release(psmd->dm);
 				psmd->dm = NULL;
+				psmd->flag |= eParticleSystemFlag_file_loaded;
 				update_flag |= OB_RECALC_DATA;
 			}
 		}
@@ -456,6 +458,8 @@ void BKE_object_free_ex(Object *ob, bool do_id_user)
 			free_path(ob->curve_cache->path);
 		MEM_freeN(ob->curve_cache);
 	}
+
+	BKE_previewimg_free(&ob->preview);
 }
 
 void BKE_object_free(Object *ob)
@@ -1039,6 +1043,7 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 	ob->fall_speed = 55.0f;
 	ob->col_group = 0x01;
 	ob->col_mask = 0xffff;
+	ob->preview = NULL;
 
 	/* NT fluid sim defaults */
 	ob->fluidsimSettings = NULL;
@@ -1556,6 +1561,8 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 		BKE_id_lib_local_paths(bmain, ob->id.lib, &obn->id);
 	}
 
+	/* Do not copy object's preview (mostly due to the fact renderers create temp copy of objects). */
+
 	return obn;
 }
 
@@ -1592,6 +1599,8 @@ static void extern_local_object(Object *ob)
 		id_lib_extern((ID *)psys->part);
 
 	modifiers_foreachIDLink(ob, extern_local_object__modifiersForeachIDLink, NULL);
+
+	ob->preview = NULL;
 }
 
 void BKE_object_make_local(Object *ob)
@@ -1608,7 +1617,7 @@ void BKE_object_make_local(Object *ob)
 
 	if (ob->id.lib == NULL) return;
 	
-	ob->proxy = ob->proxy_from = NULL;
+	ob->proxy = ob->proxy_from  = ob->proxy_group = NULL;
 	
 	if (ob->id.us == 1) {
 		id_clear_lib_data(bmain, &ob->id);
@@ -2643,6 +2652,12 @@ BoundBox *BKE_object_boundbox_get(Object *ob)
 	else if (ob->type == OB_MBALL) {
 		bb = ob->bb;
 	}
+	else if (ob->type == OB_LATTICE) {
+		bb = BKE_lattice_boundbox_get(ob);
+	}
+	else if (ob->type == OB_ARMATURE) {
+		bb = BKE_armature_boundbox_get(ob);
+	}
 	return bb;
 }
 
@@ -3358,7 +3373,7 @@ static KeyBlock *insert_curvekey(Object *ob, const char *name, const bool from_m
 	return kb;
 }
 
-KeyBlock *BKE_object_insert_shape_key(Object *ob, const char *name, const bool from_mix)
+KeyBlock *BKE_object_shapekey_insert(Object *ob, const char *name, const bool from_mix)
 {	
 	switch (ob->type) {
 		case OB_MESH:
@@ -3372,6 +3387,85 @@ KeyBlock *BKE_object_insert_shape_key(Object *ob, const char *name, const bool f
 			return NULL;
 	}
 
+}
+
+bool BKE_object_shapekey_free(Main *bmain, Object *ob)
+{
+	Key **key_p, *key;
+
+	key_p = BKE_key_from_object_p(ob);
+	if (ELEM(NULL, key_p, *key_p)) {
+		return false;
+	}
+
+	key = *key_p;
+	*key_p = NULL;
+
+	BKE_libblock_free_us(bmain, key);
+
+	return false;
+}
+
+bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
+{
+	KeyBlock *rkb;
+	Key *key = BKE_key_from_object(ob);
+	short kb_index;
+
+	if (key == NULL) {
+		return false;
+	}
+
+	kb_index = BLI_findindex(&key->block, kb);
+	BLI_assert(kb_index != -1);
+
+	for (rkb = key->block.first; rkb; rkb = rkb->next) {
+		if (rkb->relative == kb_index) {
+			/* remap to the 'Basis' */
+			rkb->relative = 0;
+		}
+		else if (rkb->relative >= kb_index) {
+			/* Fix positional shift of the keys when kb is deleted from the list */
+			rkb->relative -= 1;
+		}
+	}
+
+	BLI_remlink(&key->block, kb);
+	key->totkey--;
+	if (key->refkey == kb) {
+		key->refkey = key->block.first;
+
+		if (key->refkey) {
+			/* apply new basis key on original data */
+			switch (ob->type) {
+				case OB_MESH:
+					BKE_keyblock_convert_to_mesh(key->refkey, ob->data);
+					break;
+				case OB_CURVE:
+				case OB_SURF:
+					BKE_keyblock_convert_to_curve(key->refkey, ob->data, BKE_curve_nurbs_get(ob->data));
+					break;
+				case OB_LATTICE:
+					BKE_keyblock_convert_to_lattice(key->refkey, ob->data);
+					break;
+			}
+		}
+	}
+
+	if (kb->data) {
+		MEM_freeN(kb->data);
+	}
+	MEM_freeN(kb);
+
+	if (ob->shapenr > 1) {
+		ob->shapenr--;
+	}
+
+	if (key->totkey == 0) {
+		BKE_object_shapekey_free(bmain, ob);
+	}
+
+	return true;
 }
 
 bool BKE_object_flag_test_recursive(const Object *ob, short flag)

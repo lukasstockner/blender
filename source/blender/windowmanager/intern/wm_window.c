@@ -76,8 +76,6 @@
 #include "GPU_init_exit.h"
 #include "GPU_glew.h"
 
-#include "UI_interface.h"
-
 /* for assert */
 #ifndef NDEBUG
 #  include "BLI_threads.h"
@@ -244,30 +242,53 @@ wmWindow *wm_window_new(bContext *C)
 
 
 /* part of wm_window.c api */
-wmWindow *wm_window_copy(bContext *C, wmWindow *winorig)
+wmWindow *wm_window_copy(bContext *C, wmWindow *win_src)
 {
-	wmWindow *win = wm_window_new(C);
+	wmWindow *win_dst = wm_window_new(C);
 	
-	win->posx = winorig->posx + 10;
-	win->posy = winorig->posy;
-	win->sizex = winorig->sizex;
-	win->sizey = winorig->sizey;
+	win_dst->posx = win_src->posx + 10;
+	win_dst->posy = win_src->posy;
+	win_dst->sizex = win_src->sizex;
+	win_dst->sizey = win_src->sizey;
 	
 	/* duplicate assigns to window */
-	win->screen = ED_screen_duplicate(win, winorig->screen);
-	BLI_strncpy(win->screenname, win->screen->id.name + 2, sizeof(win->screenname));
-	win->screen->winid = win->winid;
+	win_dst->screen = ED_screen_duplicate(win_dst, win_src->screen);
+	BLI_strncpy(win_dst->screenname, win_dst->screen->id.name + 2, sizeof(win_dst->screenname));
+	win_dst->screen->winid = win_dst->winid;
 
-	win->screen->do_refresh = true;
-	win->screen->do_draw = true;
+	win_dst->screen->do_refresh = true;
+	win_dst->screen->do_draw = true;
 
-	win->drawmethod = U.wmdrawmethod;
+	win_dst->drawmethod = U.wmdrawmethod;
 
-	BLI_listbase_clear(&win->drawdata);
+	BLI_listbase_clear(&win_dst->drawdata);
 
-	*win->stereo3d_format = *winorig->stereo3d_format;
+	*win_dst->stereo3d_format = *win_src->stereo3d_format;
 
-	return win;
+	return win_dst;
+}
+
+/**
+ * A higher level version of copy that tests the new window can be added.
+ * (called from the operator directly)
+ */
+wmWindow *wm_window_copy_test(bContext *C, wmWindow *win_src)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win_dst;
+
+	win_dst = wm_window_copy(C, win_src);
+
+	WM_check(C);
+
+	if (win_dst->ghostwin) {
+		WM_event_add_notifier(C, NC_WINDOW | NA_ADDED, NULL);
+		return win_dst;
+	}
+	else {
+		wm_window_close(C, wm, win_dst);
+		return NULL;
+	}
 }
 
 /* this is event from ghost, or exit-blender op */
@@ -377,6 +398,10 @@ static void wm_window_add_ghostwindow(wmWindowManager *wm, const char *title, wm
 	if (win->stereo3d_format->display_mode == S3D_DISPLAY_PAGEFLIP)
 		glSettings.flags |= GHOST_glStereoVisual;
 
+	if (G.debug & G_DEBUG_GPU) {
+		glSettings.flags |= GHOST_glDebugContext;
+	}
+
 	if (!(U.uiflag2 & USER_OPENGL_NO_WARN_SUPPORT))
 		glSettings.flags |= GHOST_glWarnSupport;
 
@@ -456,11 +481,11 @@ void wm_window_add_ghostwindows(wmWindowManager *wm)
 	if (wm_init_state.size_x == 0) {
 		wm_get_screensize(&wm_init_state.size_x, &wm_init_state.size_y);
 		
-	/* note!, this isnt quite correct, active screen maybe offset 1000s if PX,
-	 * we'd need a wm_get_screensize like function that gives offset,
-	 * in practice the window manager will likely move to the correct monitor */
-	wm_init_state.start_x = 0;
-	wm_init_state.start_y = 0;
+		/* note!, this isnt quite correct, active screen maybe offset 1000s if PX,
+		 * we'd need a wm_get_screensize like function that gives offset,
+		 * in practice the window manager will likely move to the correct monitor */
+		wm_init_state.start_x = 0;
+		wm_init_state.start_y = 0;
 
 #ifdef WITH_X11 /* X11 */
 		/* X11, start maximized but use default sane size */
@@ -489,6 +514,11 @@ void wm_window_add_ghostwindows(wmWindowManager *wm)
 			if (wm_init_state.override_flag & WIN_OVERRIDE_WINSTATE) {
 				win->windowstate = wm_init_state.windowstate;
 				wm_init_state.override_flag &= ~WIN_OVERRIDE_WINSTATE;
+			}
+
+			/* without this, cursor restore may fail, T45456 */
+			if (win->cursor == 0) {
+				win->cursor = CURSOR_STD;
 			}
 
 			wm_window_add_ghostwindow(wm, "Blender", win);
@@ -615,22 +645,12 @@ void WM_window_open_temp(bContext *C, rcti *position, int type)
 /* operator callback */
 int wm_window_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	wmWindowManager *wm = CTX_wm_manager(C);
 	wmWindow *win_src = CTX_wm_window(C);
-	wmWindow *win_dst;
+	bool ok;
 
-	win_dst = wm_window_copy(C, win_src);
+	ok = (wm_window_copy_test(C, win_src) != NULL);
 
-	WM_check(C);
-
-	if (win_dst->ghostwin) {
-		WM_event_add_notifier(C, NC_WINDOW | NA_ADDED, NULL);
-		return OPERATOR_FINISHED;
-	}
-	else {
-		wm_window_close(C, wm, win_dst);
-		return OPERATOR_CANCELLED;
-	}
+	return ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 
@@ -1146,6 +1166,8 @@ static int wm_window_timer(const bContext *C)
 					wm_jobs_timer(C, wm, wt);
 				else if (wt->event_type == TIMERAUTOSAVE)
 					wm_autosave_timer(C, wm, wt);
+				else if (wt->event_type == TIMERNOTIFIER)
+					WM_main_add_notifier(GET_UINT_FROM_POINTER(wt->customdata), NULL);
 				else if (win) {
 					wmEvent event;
 					wm_event_init_from_window(win, &event);
@@ -1265,6 +1287,23 @@ wmTimer *WM_event_add_timer(wmWindowManager *wm, wmWindow *win, int event_type, 
 	return wt;
 }
 
+wmTimer *WM_event_add_timer_notifier(wmWindowManager *wm, wmWindow *win, unsigned int type, double timestep)
+{
+	wmTimer *wt = MEM_callocN(sizeof(wmTimer), "window timer");
+
+	wt->event_type = TIMERNOTIFIER;
+	wt->ltime = PIL_check_seconds_timer();
+	wt->ntime = wt->ltime + timestep;
+	wt->stime = wt->ltime;
+	wt->timestep = timestep;
+	wt->win = win;
+	wt->customdata = SET_UINT_IN_POINTER(type);
+
+	BLI_addtail(&wm->timers, wt);
+
+	return wt;
+}
+
 void WM_event_remove_timer(wmWindowManager *wm, wmWindow *UNUSED(win), wmTimer *timer)
 {
 	wmTimer *wt;
@@ -1295,6 +1334,12 @@ void WM_event_remove_timer(wmWindowManager *wm, wmWindow *UNUSED(win), wmTimer *
 			}
 		}
 	}
+}
+
+void WM_event_remove_timer_notifier(wmWindowManager *wm, wmWindow *win, wmTimer *timer)
+{
+	timer->customdata = NULL;
+	WM_event_remove_timer(wm, win, timer);
 }
 
 /* ******************* clipboard **************** */

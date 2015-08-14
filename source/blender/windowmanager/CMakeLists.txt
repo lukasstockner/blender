@@ -79,6 +79,14 @@ set(SRC
 	wm_window.h
 )
 
+if(WITH_AUDASPACE)
+	add_definitions(${AUDASPACE_DEFINITIONS})
+
+	list(APPEND INC_SYS
+		${AUDASPACE_C_INCLUDE_DIRS}
+	)
+endif()
+
 add_definitions(${GL_DEFINITIONS})
 
 if(WITH_INTERNATIONAL)
@@ -129,6 +137,13 @@ endif()
 
 if(WITH_BUILDINFO)
 	add_definitions(-DWITH_BUILDINFO)
+endif()
+
+if(WITH_OPENSUBDIV)
+	add_definitions(-DWITH_OPENSUBDIV)
+	list(APPEND INC
+		../../../intern/opensubdiv
+	)
 endif()
 
 if(WIN32)

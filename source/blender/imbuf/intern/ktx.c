@@ -51,7 +51,7 @@ void imb_initktx(void)
 
 }
 
-int check_ktx(unsigned char *mem)
+int check_ktx(const unsigned char *mem)
 {
 	return memcmp(KTX_HEAD, mem, sizeof(KTX_HEAD)) ? 0 : 1;
 }
@@ -65,7 +65,7 @@ int imb_is_a_ktx(const char *filename)
 
 	return BLI_testextensie_array(filename, ctx_extension);
 }
-struct ImBuf *imb_loadktx(unsigned char *mem, size_t size, int flags, char UNUSED(colorspace[IM_MAX_SPACE]))
+struct ImBuf *imb_loadktx(const unsigned char *mem, size_t size, int flags, char * UNUSED(colorspace))
 {
 	GLuint texture = 0;
 	GLenum target;

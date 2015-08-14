@@ -55,10 +55,10 @@
 #include "IMB_colormanagement_intern.h"
 
 // #define IS_jpg(x)       (x->ftype & JPG) // UNUSED
-#define IS_stdjpg(x)    ((x->foptions & JPG_MSK) == JPG_STD)
+#define IS_stdjpg(x)    ((x->foptions.flag & JPG_MSK) == JPG_STD)
 // #define IS_vidjpg(x)    ((x->foptions & JPG_MSK) == JPG_VID) // UNUSED
-#define IS_jstjpg(x)    ((x->foptions & JPG_MSK) == JPG_JST)
-#define IS_maxjpg(x)    ((x->foptions & JPG_MSK) == JPG_MAX)
+#define IS_jstjpg(x)    ((x->foptions.flag & JPG_MSK) == JPG_JST)
+#define IS_maxjpg(x)    ((x->foptions.flag & JPG_MSK) == JPG_MAX)
 
 /* the types are from the jpeg lib */
 static void jpeg_error(j_common_ptr cinfo) ATTR_NORETURN;
@@ -66,7 +66,7 @@ static void init_source(j_decompress_ptr cinfo);
 static boolean fill_input_buffer(j_decompress_ptr cinfo);
 static void skip_input_data(j_decompress_ptr cinfo, long num_bytes);
 static void term_source(j_decompress_ptr cinfo);
-static void memory_source(j_decompress_ptr cinfo, unsigned char *buffer, size_t size);
+static void memory_source(j_decompress_ptr cinfo, const unsigned char *buffer, size_t size);
 static boolean handle_app1(j_decompress_ptr cinfo);
 static ImBuf *ibJpegImageFromCinfo(struct jpeg_decompress_struct *cinfo, int flags);
 
@@ -87,7 +87,7 @@ static ImBuf *ibJpegImageFromCinfo(struct jpeg_decompress_struct *cinfo, int fla
 static int jpeg_default_quality;
 static int ibuf_foptions;
 
-int imb_is_a_jpeg(unsigned char *mem)
+int imb_is_a_jpeg(const unsigned char *mem)
 {
 	if ((mem[0] == 0xFF) && (mem[1] == 0xD8)) return 1;
 	return 0;
@@ -133,7 +133,7 @@ typedef struct {
 typedef struct {
 	struct jpeg_source_mgr pub; /* public fields */
 
-	unsigned char  *buffer;
+	const unsigned char  *buffer;
 	int             size;
 	JOCTET          terminal[2];
 } my_source_mgr;
@@ -182,7 +182,7 @@ static void term_source(j_decompress_ptr cinfo)
 	(void)cinfo; /* unused */
 }
 
-static void memory_source(j_decompress_ptr cinfo, unsigned char *buffer, size_t size)
+static void memory_source(j_decompress_ptr cinfo, const unsigned char *buffer, size_t size)
 {
 	my_src_ptr src;
 
@@ -255,8 +255,7 @@ static void memory_source(j_decompress_ptr cinfo, unsigned char *buffer, size_t 
 	      V += GETJOCTET(*next_input_byte++); )
 
 
-static boolean
-handle_app1(j_decompress_ptr cinfo)
+static boolean handle_app1(j_decompress_ptr cinfo)
 {
 	INT32 length; /* initialized by the macro */
 	INT32 i;
@@ -436,15 +435,15 @@ next_stamp_marker:
 		
 		jpeg_destroy((j_common_ptr) cinfo);
 		if (ibuf) {
-			ibuf->ftype = JPG;
-			ibuf->foptions = ibuf_foptions;
+			ibuf->ftype = IMB_FTYPE_JPG;
+			ibuf->foptions.flag = ibuf_foptions;
 		}
 	}
 
 	return(ibuf);
 }
 
-ImBuf *imb_load_jpeg(unsigned char *buffer, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+ImBuf *imb_load_jpeg(const unsigned char *buffer, size_t size, int flags, char colorspace[IM_MAX_SPACE])
 {
 	struct jpeg_decompress_struct _cinfo, *cinfo = &_cinfo;
 	struct my_error_mgr jerr;
@@ -487,7 +486,7 @@ static void write_jpeg(struct jpeg_compress_struct *cinfo, struct ImBuf *ibuf)
 	jpeg_start_compress(cinfo, true);
 
 	strcpy(neogeo, "NeoGeo");
-	ibuf_foptions = BIG_LONG(ibuf->foptions);
+	ibuf_foptions = BIG_LONG((((int)ibuf->foptions.flag) << 8) | (int)ibuf->foptions.quality);
 	
 	memcpy(neogeo + 6, &ibuf_foptions, 4);
 	jpeg_write_marker(cinfo, 0xe1, (JOCTET *) neogeo, 10);
@@ -564,7 +563,7 @@ static int init_jpeg(FILE *outfile, struct jpeg_compress_struct *cinfo, struct I
 {
 	int quality;
 
-	quality = ibuf->foptions & 0xff;
+	quality = ibuf->foptions.quality;
 	if (quality <= 0) quality = jpeg_default_quality;
 	if (quality > 100) quality = 100;
 

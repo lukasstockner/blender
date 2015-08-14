@@ -66,7 +66,7 @@ EnumPropertyItem id_type_items[] = {
 	{ID_MA, "MATERIAL", ICON_MATERIAL_DATA, "Material", ""},
 	{ID_MB, "META", ICON_META_DATA, "MetaBall", ""},
 	{ID_ME, "MESH", ICON_MESH_DATA, "Mesh", ""},
-    {ID_MC, "MOVIECLIP", ICON_CLIP, "MovieClip", ""},
+	{ID_MC, "MOVIECLIP", ICON_CLIP, "MovieClip", ""},
 	{ID_NT, "NODETREE", ICON_NODETREE, "NodeTree", ""},
 	{ID_OB, "OBJECT", ICON_OBJECT_DATA, "Object", ""},
 	{ID_PC, "PAINTCURVE", ICON_CURVE_BEZCURVE, "Paint Curve", ""},
@@ -74,16 +74,18 @@ EnumPropertyItem id_type_items[] = {
 	{ID_PA, "PARTICLE", ICON_PARTICLE_DATA, "Particle", ""},
 	{ID_SCE, "SCENE", ICON_SCENE_DATA, "Scene", ""},
 	{ID_SCR, "SCREEN", ICON_SPLITSCREEN, "Screen", ""},
-    {ID_SO, "SOUND", ICON_PLAY_AUDIO, "Sound", ""},
+	{ID_SO, "SOUND", ICON_PLAY_AUDIO, "Sound", ""},
 	{ID_SPK, "SPEAKER", ICON_SPEAKER, "Speaker", ""},
 	{ID_TXT, "TEXT", ICON_TEXT, "Text", ""},
 	{ID_TE, "TEXTURE", ICON_TEXTURE_DATA, "Texture", ""},
 	{ID_WM, "WINDOWMANAGER", ICON_FULLSCREEN, "Window Manager", ""},
-    {ID_WO, "WORLD", ICON_WORLD_DATA, "World", ""},
+	{ID_WO, "WORLD", ICON_WORLD_DATA, "World", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
 #ifdef RNA_RUNTIME
+
+#include "DNA_anim_types.h"
 
 #include "BKE_font.h"
 #include "BKE_idprop.h"
@@ -331,6 +333,19 @@ static void rna_ID_user_clear(ID *id)
 	id->flag &= ~LIB_FAKEUSER;
 }
 
+static AnimData * rna_ID_animation_data_create(ID *id, Main *bmain)
+{
+	AnimData *adt = BKE_animdata_add_id(id);
+	DAG_relations_tag_update(bmain);
+	return adt;
+}
+
+static void rna_ID_animation_data_free(ID *id, Main *bmain)
+{
+	BKE_animdata_free(id);
+	DAG_relations_tag_update(bmain);
+}
+
 static void rna_IDPArray_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	IDProperty *prop = (IDProperty *)ptr->data;
@@ -457,14 +472,14 @@ static void rna_ImagePreview_size_set(PointerRNA *ptr, const int *values, enum e
 		BLI_assert(prv_img == BKE_previewimg_id_ensure(id));
 	}
 
-	BKE_previewimg_ensure(prv_img, size);
+	BKE_previewimg_clear_single(prv_img, size);
 
 	if (values[0] && values[1]) {
 		prv_img->rect[size] = MEM_callocN(values[0] * values[1] * sizeof(unsigned int), "prv_rect");
-	}
 
-	prv_img->w[size] = values[0];
-	prv_img->h[size] = values[1];
+		prv_img->w[size] = values[0];
+		prv_img->h[size] = values[1];
+	}
 
 	prv_img->flag[size] |= (PRV_CHANGED | PRV_USER_EDITED);
 }
@@ -583,6 +598,14 @@ static void rna_ImagePreview_icon_reload(PreviewImage *prv)
 	if (!(prv->flag[ICON_SIZE_ICON] & PRV_USER_EDITED) && !(prv->flag[ICON_SIZE_PREVIEW] & PRV_USER_EDITED)) {
 		BKE_previewimg_clear(prv);
 	}
+}
+
+static PointerRNA rna_IDPreview_get(PointerRNA *ptr)
+{
+	ID *id = (ID *)ptr->data;
+	PreviewImage *prv_img = BKE_previewimg_id_ensure(id);
+
+	return rna_pointer_inherit_refine(ptr, &RNA_ImagePreview, prv_img);
 }
 
 #else
@@ -825,6 +848,11 @@ static void rna_def_ID(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Library", "Library file the datablock is linked from");
 
+	prop = RNA_def_pointer(srna, "preview", "ImagePreview", "Preview",
+	                       "Preview image and icon of this datablock (None if not supported for this type of data)");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_pointer_funcs(prop, "rna_IDPreview_get", NULL, NULL, NULL);
+
 	/* functions */
 	func = RNA_def_function(srna, "copy", "rna_ID_copy");
 	RNA_def_function_ui_description(func, "Create a copy of this datablock (not supported for all datablocks)");
@@ -835,12 +863,14 @@ static void rna_def_ID(BlenderRNA *brna)
 	RNA_def_function_ui_description(func, "Clear the user count of a datablock so its not saved, "
 	                                "on reload the data will be removed");
 
-	func = RNA_def_function(srna, "animation_data_create", "BKE_animdata_add_id");
+	func = RNA_def_function(srna, "animation_data_create", "rna_ID_animation_data_create");
+	RNA_def_function_flag(func, FUNC_USE_MAIN);
 	RNA_def_function_ui_description(func, "Create animation data to this ID, note that not all ID types support this");
 	parm = RNA_def_pointer(func, "anim_data", "AnimData", "", "New animation data or NULL");
 	RNA_def_function_return(func, parm);
 
-	func = RNA_def_function(srna, "animation_data_clear", "BKE_animdata_free");
+	func = RNA_def_function(srna, "animation_data_clear", "rna_ID_animation_data_free");
+	RNA_def_function_flag(func, FUNC_USE_MAIN);
 	RNA_def_function_ui_description(func, "Clear animation on this this ID");
 
 	func = RNA_def_function(srna, "update_tag", "rna_ID_update_tag");

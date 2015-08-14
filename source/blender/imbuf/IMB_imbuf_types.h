@@ -47,8 +47,8 @@
  * contains an Amiga-format file).
  */
 
-#define IB_MIPMAP_LEVELS	20
-#define IB_FILENAME_SIZE	1024
+#define IMB_MIPMAP_LEVELS	20
+#define IMB_FILENAME_SIZE	1024
 
 typedef struct DDSData {
 	unsigned int fourcc; /* DDS fourcc info */
@@ -68,38 +68,35 @@ typedef struct DDSData {
 
 /* ibuf->ftype flag, main image types */
 enum eImbTypes {
-	PNG = 1,
-	TGA,
-	JPG,
-	BMP,
-	OPENEXR,
-	IMAGIC,
+	IMB_FTYPE_PNG = 1,
+	IMB_FTYPE_TGA,
+	IMB_FTYPE_JPG,
+	IMB_FTYPE_BMP,
+	IMB_FTYPE_OPENEXR,
+	IMB_FTYPE_IMAGIC,
 #ifdef WITH_OPENIMAGEIO
-	PSD,
+	IMB_FTYPE_PSD,
 #endif
 #ifdef WITH_OPENJPEG
-	JP2,
-#endif
-#ifdef WITH_QUICKTIME
-	QUICKTIME,
+	IMB_FTYPE_JP2,
 #endif
 #ifdef WITH_HDR
-	RADHDR,
+	IMB_FTYPE_RADHDR,
 #endif
 #ifdef WITH_TIFF
-	TIF,
+	IMB_FTYPE_TIF,
 #endif
 #ifdef WITH_CINEON
-	CINEON,
-	DPX,
+	IMB_FTYPE_CINEON,
+	IMB_FTYPE_DPX,
 #endif
 
 #ifdef WITH_DDS
-	DDS,
+	IMB_FTYPE_DDS,
 #endif
 
 #ifdef WITH_KTX
-	KTX,
+	IMB_FTYPE_KTX,
 #endif
 };
 
@@ -107,6 +104,7 @@ enum eImbTypes {
  * Some formats include compression rations on some bits */
 
 #define OPENEXR_HALF	(1 << 8 )
+/* careful changing this, it's used in DNA as well */
 #define OPENEXR_COMPRESS (15)
 
 #ifdef WITH_CINEON
@@ -117,29 +115,33 @@ enum eImbTypes {
 #endif
 
 #ifdef WITH_OPENJPEG
-#define JP2_12BIT		(1 << 17)
-#define JP2_16BIT		(1 << 16)
-#define JP2_YCC			(1 << 15)
-#define JP2_CINE		(1 << 14)
-#define JP2_CINE_48FPS	(1 << 13)
-#define JP2_JP2	(1 << 12)
-#define JP2_J2K	(1 << 11)
+#define JP2_12BIT		(1 << 9)
+#define JP2_16BIT		(1 << 8)
+#define JP2_YCC			(1 << 7)
+#define JP2_CINE		(1 << 6)
+#define JP2_CINE_48FPS	(1 << 5)
+#define JP2_JP2	(1 << 4)
+#define JP2_J2K	(1 << 3)
 #endif
 
 #define PNG_16BIT			(1 << 10)
 
 #define RAWTGA	        1
 
-#define JPG_STD	        (JPG | (0 << 8))
-#define JPG_VID	        (JPG | (1 << 8))
-#define JPG_JST	        (JPG | (2 << 8))
-#define JPG_MAX	        (JPG | (3 << 8))
-#define JPG_MSK	        (0xffffff00)
+#define JPG_STD	        0
+#define JPG_VID	        1
+#define JPG_JST	        2
+#define JPG_MAX	        3
+#define JPG_MSK	        0x03
 
 #ifdef WITH_TIFF
 #define TIF_16BIT		(1 << 8 )
 #endif
 
+typedef struct ImbFormatOptions {
+	short flag;
+	char quality; /* quality serves dual purpose as quality number for jpeg or compression amount for png */
+} ImbFormatOptions;
 
 typedef struct ImBuf {
 	struct ImBuf *next, *prev;	/**< allow lists of ImBufs, for caches or flipbooks */
@@ -179,7 +181,7 @@ typedef struct ImBuf {
 	float dither;				/* random dither value, for conversion from float -> byte rect */
 
 	/* mipmapping */
-	struct ImBuf *mipmap[IB_MIPMAP_LEVELS]; /* MipMap levels, a series of halved images */
+	struct ImBuf *mipmap[IMB_MIPMAP_LEVELS]; /* MipMap levels, a series of halved images */
 	int miptot, miplevel;
 
 	/* externally used data */
@@ -189,10 +191,10 @@ typedef struct ImBuf {
 	void *userdata;					/* temporary storage */
 
 	/* file information */
-	enum eImbTypes	ftype;							/* file type we are going to save as */
-	int foptions;						/* file format specific flags */
-	char name[IB_FILENAME_SIZE];		/* filename associated with this image */
-	char cachename[IB_FILENAME_SIZE];	/* full filename used for reading from cache */
+	enum eImbTypes	ftype;				/* file type we are going to save as */
+	ImbFormatOptions foptions;			/* file format specific flags */
+	char name[IMB_FILENAME_SIZE];		/* filename associated with this image */
+	char cachename[IMB_FILENAME_SIZE];	/* full filename used for reading from cache */
 
 	/* memory cache limiter */
 	struct MEM_CacheLimiterHandle_s *c_handle; /* handle for cache limiter */

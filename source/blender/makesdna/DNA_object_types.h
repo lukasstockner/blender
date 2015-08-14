@@ -192,7 +192,8 @@ typedef struct Object {
 	int dupon, dupoff, dupsta, dupend;
 
 	/* did last modifier stack generation need mapping support? */
-	int lastNeedMapping;
+	char lastNeedMapping;  /* bool */
+	char pad[3];
 
 	/* during realtime */
 
@@ -214,6 +215,8 @@ typedef struct Object {
 	float margin;
 	float max_vel; /* clamp the maximum velocity 0.0 is disabled */
 	float min_vel; /* clamp the minimum velocity 0.0 is disabled */
+	float max_angvel; /* clamp the maximum angular velocity, 0.0 is disabled */
+	float min_angvel; /* clamp the minimum angular velocity, 0.0 is disabled */
 	float obstacleRad;
 	
 	/* "Character" physics properties */
@@ -293,6 +296,8 @@ typedef struct Object {
 
 	ListBase lodlevels;		/* contains data for levels of detail */
 	LodLevel *currentlod;
+
+	struct PreviewImage *preview;
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */
@@ -378,8 +383,10 @@ enum {
 enum {
 	PARTYPE       = (1 << 4) - 1,
 	PAROBJECT     = 0,
-	PARCURVE      = 1,
-	PARKEY        = 2,
+#ifdef DNA_DEPRECATED
+	PARCURVE      = 1,  /* Deprecated. */
+#endif
+	PARKEY        = 2,  /* XXX Unused, deprecated? */
 
 	PARSKEL       = 4,
 	PARVERT1      = 5,
