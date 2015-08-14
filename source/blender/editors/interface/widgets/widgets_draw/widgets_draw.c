@@ -97,21 +97,6 @@ static const unsigned int scroll_circle_face[14][3] = {
 
 static const unsigned int menu_tria_face[2][3] = {{2, 0, 1}, {3, 5, 4}};
 
-/* ************************************************* */
-
-void widget_drawbase_init(uiWidgetDrawBase *wtb)
-{
-	wtb->totvert = wtb->halfwayvert = 0;
-	wtb->tria1.tot = 0;
-	wtb->tria2.tot = 0;
-
-	wtb->draw_inner = true;
-	wtb->draw_outline = true;
-	wtb->draw_emboss = true;
-	wtb->draw_shadedir = true;
-}
-
-
 
 /* prepare drawing ********************************* */
 

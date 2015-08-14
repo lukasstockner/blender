@@ -38,7 +38,7 @@
 
 
 
-uiWidgetDrawStyle *widget_drawstyle_get(const int widget_style_type) /* TODO widget draw styles are for later */
+uiWidgetDrawStyle *widget_drawstyle_get(const short drawstyle_type) /* TODO widget draw styles are for later */
 {
 #if 0
 	switch (widget_style_type) {
@@ -52,7 +52,7 @@ uiWidgetDrawStyle *widget_drawstyle_get(const int widget_style_type) /* TODO wid
 #else
 	return &WidgetStyle_Classic;
 
-	(void)widget_style_type;
+	(void)drawstyle_type;
 #endif
 }
 

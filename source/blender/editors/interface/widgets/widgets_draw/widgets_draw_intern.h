@@ -80,8 +80,6 @@ typedef struct uiWidgetDrawBase {
 
 /* widgets_draw.c - shared low-level drawing functions */
 
-void widget_drawbase_init(uiWidgetDrawBase *wtb);
-
 void widget_drawbase_roundboxedges_set(uiWidgetDrawBase *wt, int roundboxalign, const rcti *rect, float rad);
 void round_box__edges(uiWidgetDrawBase *wt, int roundboxalign, const rcti *rect, float rad, float radi);
 void widget_drawbase_num_tria(uiWidgetDrawBaseTrias *tria, const rcti *rect, float triasize, char where);

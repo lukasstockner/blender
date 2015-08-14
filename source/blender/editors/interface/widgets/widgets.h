@@ -172,8 +172,9 @@ void WidgetDraw(
 
 /* *** internal *** */
 
-uiWidgetDrawStyle *widget_drawstyle_get(const int widget_style_type);
+uiWidgetDrawStyle *widget_drawstyle_get(const short drawstyle_type);
 
+/* draw-styles */
 extern struct uiWidgetDrawStyle WidgetStyle_Classic;
 
 #endif  /* __WIDGETS_H__ */
