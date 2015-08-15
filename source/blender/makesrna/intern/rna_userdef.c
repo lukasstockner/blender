@@ -646,6 +646,9 @@ static EnumPropertyItem *rna_userdef_audio_device_itemf(bContext *UNUSED(C), Poi
 #endif
 #endif
 
+	/* may be unused */
+	UNUSED_VARS(index, audio_device_items);
+
 	RNA_enum_item_end(&item, &totitem);
 	*r_free = true;
 
@@ -4304,7 +4307,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "opensubdiv_compute_type");
 	RNA_def_property_enum_items(prop, opensubdiv_compute_type_items);
 	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_userdef_opensubdiv_compute_type_itemf");
-	RNA_def_property_ui_text(prop, "OpenSubdiv Compute Type", "Type of computer backend used with OpenSubdiv");
+	RNA_def_property_ui_text(prop, "OpenSubdiv Compute Type", "Type of computer back-end used with OpenSubdiv");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, "rna_userdef_opensubdiv_update");
 #endif
 }
