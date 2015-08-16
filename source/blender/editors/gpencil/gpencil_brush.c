@@ -570,13 +570,21 @@ static bool gp_brush_twist_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
                                  const int radius, const int co[2])
 {
 	bGPDspoint *pt = gps->points + i;
-	float tco[2], rco[2];
+	float tco[2], rco[2], nco[2];
 	float rmat[2][2];
 	float angle, inf;
 	
 	/* Angle to rotate by */
-	inf = gp_brush_influence_calc(gso, radius, co);
-	angle = DEG2RADF(1.0f) * inf; // XXX: base value needs work
+	// FIXME: falloffs for this brush don't work that great
+	//inf = gp_brush_influence_calc(gso, radius, co);
+	//angle = DEG2RADF(1.0f) * inf; // XXX: base value needs work
+	
+	angle = DEG2RAD(1.0f);
+	
+	if (gp_brush_invert_check(gso)) {
+		/* invert angle that we rotate by */
+		angle *= -1;
+	}
 	
 	/* Express position of point relative to cursor, ready to rotate */
 	tco[0] = (float)(co[0] - gso->mval[0]);
@@ -587,14 +595,20 @@ static bool gp_brush_twist_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 	mul_v2_m2v2(rco, rmat, tco);
 	
 	/* Convert back to screen-coordinates */
-	rco[0] += (float)gso->mval[0];
-	rco[1] += (float)gso->mval[1];
+	nco[0] = rco[0] + (float)gso->mval[0];
+	nco[1] = rco[1] + (float)gso->mval[1];
+	
+	printf("C: %d %d | P: %d %d -> t: %f %f -> r: %f %f x %f -> %f %f\n",
+			gso->mval[0], gso->mval[1], co[0], co[1],
+			tco[0], tco[1],
+			rco[0], rco[1], angle,
+			nco[0], nco[1]);
 	
 	/* convert to dataspace */
 	if (gps->flag & GP_STROKE_3DSPACE) {
 		/* 3D: Project to 3D space */
 		if (gso->sa->spacetype == SPACE_VIEW3D) {
-			gp_point_xy_to_3d(&gso->gsc, gso->scene, rco, &pt->x);
+			gp_point_xy_to_3d(&gso->gsc, gso->scene, nco, &pt->x);
 		}
 		else {
 			/* ERROR */
@@ -604,7 +618,7 @@ static bool gp_brush_twist_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 	else {
 		/* 2D: As-is */
 		// XXX: v2d scaling/offset?
-		copy_v2_v2(&pt->x, rco);
+		copy_v2_v2(&pt->x, nco);
 	}
 	
 	/* done */
@@ -1039,7 +1053,7 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 		}
 		
 		case GP_EDITBRUSH_TYPE_PINCH: /* Pinch points */
-		case GP_EDITBRUSH_TYPE_TWIST: /* Twist points around midpoint */
+		//case GP_EDITBRUSH_TYPE_TWIST: /* Twist points around midpoint */
 		{
 			/* calculate midpoint of the brush (in data space) */
 			gp_brush_calc_midpoint(gso);
