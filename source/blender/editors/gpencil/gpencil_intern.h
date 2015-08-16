@@ -105,7 +105,7 @@ void gp_point_to_xy(GP_SpaceConversion *settings, struct bGPDstroke *gps, struct
  * \param screeN_co    The screenspace 2D coordinates to convert to 
  * \param[out] r_out  The resulting 3D coordinates of the input point
  */
-bool gp_point_xy_to_3d(GP_SpaceConversion *gsc, Scene *scene, const float screen_co[2], float r_out[3]);
+bool gp_point_xy_to_3d(GP_SpaceConversion *gsc, struct Scene *scene, const float screen_co[2], float r_out[3]);
 
 /* Poll Callbacks ------------------------------------ */
 /* gpencil_utils.c */

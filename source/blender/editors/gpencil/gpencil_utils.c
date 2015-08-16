@@ -380,8 +380,8 @@ void gp_point_to_xy(GP_SpaceConversion *gsc, bGPDstroke *gps, bGPDspoint *pt,
  */
 bool gp_point_xy_to_3d(GP_SpaceConversion *gsc, Scene *scene, const float screen_co[2], float r_out[3])
 {
-	View3D *v3d = gso->sa->spacedata.first;
-	RegionView3D *rv3d = gso->ar->regiondata;
+	View3D *v3d = gsc->sa->spacedata.first;
+	RegionView3D *rv3d = gsc->ar->regiondata;
 	float *rvec = ED_view3d_cursor3d_get(scene, v3d);
 	float zfac = ED_view3d_calc_zfac(rv3d, rvec, NULL);
 	
@@ -392,7 +392,7 @@ bool gp_point_xy_to_3d(GP_SpaceConversion *gsc, Scene *scene, const float screen
 	
 	if (ED_view3d_project_float_global(gsc->ar, rvec, mval_prj, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
 		sub_v2_v2v2(mval_f, mval_prj, mval_f);
-		ED_view3d_win_to_delta(gso->ar, mval_f, dvec, zfac);
+		ED_view3d_win_to_delta(gsc->ar, mval_f, dvec, zfac);
 		sub_v3_v3v3(r_out, rvec, dvec);
 		
 		return true;
