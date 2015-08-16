@@ -72,6 +72,8 @@
  *            GENERIC WIDGET LIBRARY                  *
  ******************************************************/
 
+float highlight_col[] = {1.0f, 1.0f, 0.45f, 1.0f};
+
 typedef struct WidgetDrawInfo {
 	int nverts;
 	int ntris;
@@ -213,10 +215,12 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 	glPushMatrix();
 	glMultMatrixf(&mat[0][0]);
 
-	if (highlight && !(arrow->widget.flag & WM_WIDGET_DRAW_HOVER))
-		glColor4f(1.0, 1.0, 0.0, 1.0);
-	else
+	if (highlight && !(arrow->widget.flag & WM_WIDGET_DRAW_HOVER)) {
+		glColor4fv(highlight_col);
+	}
+	else {
 		glColor4fv(arrow->color);
+	}
 
 	arrow_draw_geom(arrow, select);
 
@@ -511,7 +515,7 @@ static void dial_draw_intern(DialWidget *dial, bool select, bool highlight, floa
 	glMultMatrixf(&mat[0][0]);
 
 	if (highlight)
-		glColor4f(1.0, 1.0, 0.0, 1.0);
+		glColor4fv(highlight_col);
 	else
 		glColor4fv(dial->color);
 
