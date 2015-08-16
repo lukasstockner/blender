@@ -131,6 +131,11 @@ typedef struct tGP_BrushEditData {
 	/* Custom data for certain brushes */
 	/* - map from bGPDstroke's to structs containing custom data about those strokes */
 	GHash *stroke_customdata;
+	
+	
+	/* Timer for in-place accumulation of brush effect */
+	wmTimer *timer;
+	bool timerTick; /* is this event from a timer */
 } tGP_BrushEditData;
 
 
@@ -824,12 +829,10 @@ static void gpsculpt_brush_exit(bContext *C, wmOperator *op)
 			break;
 	}
 	
-#if 0
 	/* unregister timer (only used for realtime) */
 	if (gso->timer) {
 		WM_event_remove_timer(CTX_wm_manager(C), win, gso->timer);
 	}
-#endif
 
 	/* disable cursor and headerprints */
 	ED_area_headerprint(CTX_wm_area(C), NULL);
@@ -1214,9 +1217,7 @@ static int gpsculpt_brush_exec(bContext *C, wmOperator *op)
 static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	tGP_BrushEditData *gso = NULL;
-#if 0
 	bool needs_timer = false;
-#endif
 	
 	/* init painting data */
 	if (!gpsculpt_brush_init(C, op))
@@ -1230,18 +1231,21 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 			/* initialise the cache needed for this brush */
 			gso->stroke_customdata = BLI_ghash_ptr_new("GP Grab Brush - Strokes Hash");
 			break;
+		
+		/* Brushes requiring timer... */
+		case GP_EDITBRUSH_TYPE_TWIST:
+			needs_timer = true;
+			break;
 			
 		default:
 			break;
 	}
 	
 	/* register timer for increasing influence by hovering over an area */
-#if 0
 	if (needs_timer) {
-		GP_EditBrush_Data *brush = gpsculpt_get_brush(scene);
-		gso->timer = WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, brush->rate);
+		float brushRate = 0.01; // XXX: hardcoded
+		gso->timer = WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, brushRate);
 	}
-#endif
 	
 	/* register modal handler */
 	WM_event_add_modal_handler(C, op);
@@ -1269,16 +1273,14 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 				redraw_region = true;
 				break;
 			
-#if 0
 			/* Timer Tick - Only if this was our own timer */
 			case TIMER:
 				if (event->customdata == gso->timer) {
 					gso->timerTick = true;
 					gpsculpt_brush_apply_event(C, op, event);
-					pso->timerTick = false;
+					gso->timerTick = false;
 				}
 				break;
-#endif
 			
 			/* Painting mbut release = Stop painting (back to idle) */
 			case LEFTMOUSE:
