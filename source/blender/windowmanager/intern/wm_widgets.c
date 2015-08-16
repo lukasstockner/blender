@@ -311,8 +311,7 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 
 				if (highlighted) {
 					for (widget = wgroup->widgets.first; widget; widget = widget->next) {
-						if (widgets_compare(widget, highlighted))
-						{
+						if (widgets_compare(widget, highlighted)) {
 							widget->flag |= WM_WIDGET_HIGHLIGHT;
 							wmap->highlighted_widget = widget;
 							widget->highlighted_part = highlighted->highlighted_part;
@@ -553,7 +552,7 @@ static void widget_find_active_3D_loop(bContext *C, ListBase *visible_widgets)
 	}
 }
 
-static int wm_widget_find_highlighted_3D_intern (ListBase *visible_widgets, bContext *C, const struct wmEvent *event, float hotspot)
+static int wm_widget_find_highlighted_3D_intern(ListBase *visible_widgets, bContext *C, const struct wmEvent *event, float hotspot)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -629,7 +628,7 @@ static void wm_prepare_visible_widgets_3D(struct wmWidgetMap *wmap, ListBase *vi
 	for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
 		if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type)) {
 			for (widget = wgroup->widgets.first; widget; widget = widget->next) {
-				if (widget->render_3d_intersection) {
+				if (widget->render_3d_intersection && (widget->flag & WM_WIDGET_HIDDEN) == 0) {
 					BLI_addhead(visible_widgets, BLI_genericNodeN(widget));
 				}
 			}
@@ -647,7 +646,7 @@ wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, bContext *C, c
 	wm_prepare_visible_widgets_3D(wmap, &visible_widgets, C);
 
 	*part = 0;
-	/* set up view matrices */	
+	/* set up view matrices */
 	view3d_operator_needs_opengl(C);
 	
 	ret = wm_widget_find_highlighted_3D_intern(&visible_widgets, C, event, 0.5f * (float)U.tw_hotspot);
