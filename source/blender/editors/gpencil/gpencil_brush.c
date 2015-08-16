@@ -1218,6 +1218,7 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 {
 	tGP_BrushEditData *gso = NULL;
 	bool needs_timer = false;
+	float brush_rate = 0.0f;
 	
 	/* init painting data */
 	if (!gpsculpt_brush_init(C, op))
@@ -1233,7 +1234,13 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 			break;
 		
 		/* Brushes requiring timer... */
+		case GP_EDITBRUSH_TYPE_THICKNESS:
+			brush_rate = 0.001f; // XXX: hardcoded
+			needs_timer = true;
+			break;
+		
 		case GP_EDITBRUSH_TYPE_TWIST:
+			brush_rate = 0.01f; // XXX: hardcoded
 			needs_timer = true;
 			break;
 			
@@ -1243,8 +1250,7 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	
 	/* register timer for increasing influence by hovering over an area */
 	if (needs_timer) {
-		float brushRate = 0.01; // XXX: hardcoded
-		gso->timer = WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, brushRate);
+		gso->timer = WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, brush_rate);
 	}
 	
 	/* register modal handler */
