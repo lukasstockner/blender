@@ -1979,19 +1979,12 @@ static void WIDGETGROUP_manipulator_free(struct wmWidgetGroup *wgroup)
 static ManipulatorGroup *manipulator_widgetgroup_create(struct wmWidgetGroup *wgroup)
 {
 	ManipulatorGroup *manipulator = MEM_callocN(sizeof(ManipulatorGroup), "manipulator_data");
-	wmWidget *widget, *axis;
+	wmWidget *axis;
 
 	float color_green[4] = {0.25f, 1.0f, 0.25f, 1.0f};
 	float color_red[4] = {1.0f, 0.25f, 0.25f, 1.0f};
 	float color_blue[4] = {0.25f, 0.25f, 1.0f, 1.0f};
 	short i;
-
-	widget = WM_widget_new(WIDGET_manipulator_draw,
-	                       WIDGET_manipulator_render_3d_intersect,
-	                       NULL,
-	                       WIDGET_manipulator_handler);
-
-	wm_widget_register(wgroup, widget, "");
 
 	manipulator->translate_x = WIDGET_arrow_new(wgroup, "translate_x", WIDGET_ARROW_STYLE_NORMAL);
 	manipulator->translate_y = WIDGET_arrow_new(wgroup, "translate_y", WIDGET_ARROW_STYLE_NORMAL);
@@ -2022,7 +2015,6 @@ static ManipulatorGroup *manipulator_widgetgroup_create(struct wmWidgetGroup *wg
 				WIDGET_dial_set_color(axis, color_blue);
 				break;
 		}
-		axis->render_3d_intersection = widget->render_3d_intersection; /* XXX overides arrow/dial intersection */
 	}
 	MAN_ITER_AXES_END;
 

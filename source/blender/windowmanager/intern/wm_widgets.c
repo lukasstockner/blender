@@ -257,17 +257,7 @@ static void widget_calculate_scale(wmWidget *widget, const bContext *C)
 
 static bool widgets_compare(wmWidget *widget, wmWidget *widget2)
 {
-	int i;
-	
-	if (widget->max_prop != widget2->max_prop)
-		return false;
-	
-	for (i = 0; i < widget->max_prop; i++) {
-		if (widget->props[i] != widget2->props[i] || widget->ptr[i].data != widget2->ptr[i].data)
-			return false;
-	}
-	
-	return true;
+	return STREQ(widget->idname, widget2->idname);
 }
 
 void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
