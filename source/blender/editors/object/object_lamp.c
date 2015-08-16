@@ -222,8 +222,9 @@ void WIDGETGROUP_lamp_draw(const struct bContext *C, struct wmWidgetGroup *wgrou
 	wmWidget *widget;
 	PointerRNA ptr;
 	float dir[3];
+	const char *propname = "spot_size";
 
-	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_INVERTED);
+	widget = WIDGET_arrow_new(wgroup, propname, WIDGET_ARROW_STYLE_INVERTED);
 
 	WIDGET_arrow_set_color(widget, color_lamp);
 	

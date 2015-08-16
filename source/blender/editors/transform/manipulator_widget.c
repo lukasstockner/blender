@@ -1991,14 +1991,14 @@ static ManipulatorGroup *manipulator_widgetgroup_create(struct wmWidgetGroup *wg
 	                       NULL,
 	                       WIDGET_manipulator_handler);
 
-	wm_widget_register(wgroup, widget);
+	wm_widget_register(wgroup, widget, "");
 
-	manipulator->translate_x = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
-	manipulator->translate_y = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
-	manipulator->translate_z = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
-	manipulator->rotate_x = WIDGET_dial_new(wgroup, WIDGET_DIAL_STYLE_RING_CLIPPED);
-	manipulator->rotate_y = WIDGET_dial_new(wgroup, WIDGET_DIAL_STYLE_RING_CLIPPED);
-	manipulator->rotate_z = WIDGET_dial_new(wgroup, WIDGET_DIAL_STYLE_RING_CLIPPED);
+	manipulator->translate_x = WIDGET_arrow_new(wgroup, "translate_x", WIDGET_ARROW_STYLE_NORMAL);
+	manipulator->translate_y = WIDGET_arrow_new(wgroup, "translate_y", WIDGET_ARROW_STYLE_NORMAL);
+	manipulator->translate_z = WIDGET_arrow_new(wgroup, "translate_z", WIDGET_ARROW_STYLE_NORMAL);
+	manipulator->rotate_x = WIDGET_dial_new(wgroup, "rotate_x", WIDGET_DIAL_STYLE_RING_CLIPPED);
+	manipulator->rotate_y = WIDGET_dial_new(wgroup, "rotate_y", WIDGET_DIAL_STYLE_RING_CLIPPED);
+	manipulator->rotate_z = WIDGET_dial_new(wgroup, "rotate_z", WIDGET_DIAL_STYLE_RING_CLIPPED);
 
 	MAN_ITER_AXES_BEGIN(MAN_AXES_ALL)
 	{
@@ -2171,11 +2171,11 @@ void WIDGETGROUP_object_manipulator_draw(const struct bContext *C, struct wmWidg
 
 	copy_v3_v3(rv3d->twmat[3], scene->twcent);
 
-	manipulator->translate_x = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
+	manipulator->translate_x = WIDGET_arrow_new(wgroup, "translate_x", WIDGET_ARROW_STYLE_NORMAL);
 	WIDGET_arrow_set_color(manipulator->translate_x, color_red);
-	manipulator->translate_y = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
+	manipulator->translate_y = WIDGET_arrow_new(wgroup, "translate_y", WIDGET_ARROW_STYLE_NORMAL);
 	WIDGET_arrow_set_color(manipulator->translate_y, color_green);
-	manipulator->translate_z = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
+	manipulator->translate_z = WIDGET_arrow_new(wgroup, "translate_z", WIDGET_ARROW_STYLE_NORMAL);
 	WIDGET_arrow_set_color(manipulator->translate_z, color_blue);
 
 	test_manipulator_axis(C);

@@ -44,6 +44,7 @@
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_math.h"
+#include "BLI_path_util.h"
 
 #include "BKE_context.h"
 #include "BKE_idprop.h"
@@ -429,8 +430,28 @@ void WM_modal_handler_attach_widgetgroup(bContext *C, wmEventHandler *handler, w
 	WM_event_add_mousemove(C);
 }
 
-bool wm_widget_register(struct wmWidgetGroup *wgroup, wmWidget *widget)
+static void widget_unique_idname_set(wmWidgetGroup *wgroup, wmWidget *widget, const char *rawname)
 {
+	if (wgroup->type->idname[0]) {
+		BLI_snprintf(widget->idname, sizeof(widget->idname), "%s_%s", wgroup->type->idname, rawname);
+	}
+	else {
+		BLI_strncpy(widget->idname, rawname, sizeof(widget->idname));
+	}
+
+	/* ensure name is unique, append '.001', '.002', etc if not */
+	BLI_uniquename(&wgroup->widgets, widget, "Widget", '.', offsetof(wmWidget, idname), sizeof(widget->idname));
+}
+
+/**
+ * Register \a widget
+ *
+ * \param name  name used to create a unique idname for \a widget in \a wgroup
+ */
+bool wm_widget_register(struct wmWidgetGroup *wgroup, wmWidget *widget, const char *name)
+{
+	widget_unique_idname_set(wgroup, widget, name);
+
 	widget->user_scale = 1.0f;
 
 	/* create at least one property for interaction */

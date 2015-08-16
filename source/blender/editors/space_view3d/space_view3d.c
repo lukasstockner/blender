@@ -747,15 +747,16 @@ static void WIDGETGROUP_camera_draw(const struct bContext *C, struct wmWidgetGro
 	wmWidget *widget;
 	PointerRNA cameraptr;
 	float dir[3];
+	const char *propname = "dof_distance";
 
-	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_CROSS);
+	widget = WIDGET_arrow_new(wgroup, propname, WIDGET_ARROW_STYLE_CROSS);
 	WM_widget_set_draw_on_hover_only(widget, true);
 	WM_widget_set_3d_scale(widget, false);
 	WIDGET_arrow_set_color(widget, color_camera);
 	
 	RNA_pointer_create(&ca->id, &RNA_Camera, ca, &cameraptr);
 	WM_widget_set_origin(widget, ob->obmat[3]);
-	WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &cameraptr, "dof_distance");
+	WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &cameraptr, propname);
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(widget, dir);
 	WIDGET_arrow_set_up_vector(widget, ob->obmat[1]);
@@ -855,7 +856,7 @@ static void WIDGETGROUP_armature_facemap_draw(const struct bContext *C, struct w
 	for (; fmap; fmap = fmap->next, index++) {
 		if (BKE_pose_channel_find_name(armature->pose, fmap->name)) {
 			PointerRNA *opptr;
-			widget = WIDGET_facemap_new(wgroup, 0, ob, index);
+			widget = WIDGET_facemap_new(wgroup, fmap->name, 0, ob, index);
 			RNA_pointer_create(&ob->id, &RNA_FaceMap, fmap, &famapptr);
 			WM_widget_property(widget, FACEMAP_SLOT_FACEMAP, &famapptr, "name");
 			opptr = WM_widget_operator(widget, "TRANSFORM_OT_translate");

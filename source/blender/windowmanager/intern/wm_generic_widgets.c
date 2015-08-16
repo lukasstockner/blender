@@ -420,7 +420,7 @@ static void widget_arrow_bind_to_prop(struct wmWidget *widget, int UNUSED(slot))
 		arrow->offset = 0.0f;
 }
 
-wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, int style)
+wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, int style)
 {
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	ArrowWidget *arrow;
@@ -438,7 +438,7 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, int style)
 	if (style & WIDGET_ARROW_STYLE_INVERTED)
 		style |= WIDGET_ARROW_STYLE_CONSTRAINED;
 	
-	arrow = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
+	arrow = MEM_callocN(sizeof(ArrowWidget), name);
 	
 
 	arrow->widget.draw = widget_arrow_draw;
@@ -452,7 +452,7 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, int style)
 	arrow->style = style;
 	copy_v3_v3(arrow->direction, dir_default);
 	
-	wm_widget_register(wgroup, &arrow->widget);
+	wm_widget_register(wgroup, &arrow->widget, name);
 	
 	return (wmWidget *)arrow;
 }
@@ -566,7 +566,7 @@ static void widget_dial_draw(const struct bContext *C, struct wmWidget *widget)
 	}
 }
 
-wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, int style)
+wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, const char *name, int style)
 {
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	DialWidget *dial;
@@ -580,7 +580,7 @@ wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, int style)
 		dial_draw_info.init = true;
 	}
 
-	dial = MEM_callocN(sizeof(ArrowWidget), "arrowwidget");
+	dial = MEM_callocN(sizeof(ArrowWidget), name);
 
 	dial->widget.draw = widget_dial_draw;
 	dial->widget.intersect = NULL;
@@ -590,7 +590,7 @@ wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, int style)
 	dial->style = style;
 	copy_v3_v3(dial->direction, dir_default);
 
-	wm_widget_register(wgroup, &dial->widget);
+	wm_widget_register(wgroup, &dial->widget, name);
 
 	return (wmWidget *)dial;
 }
@@ -1026,9 +1026,9 @@ static void widget_rect_transform_bind_to_prop(struct wmWidget *widget, int slot
 		widget_rect_transform_get_property(widget, RECT_TRANSFORM_SLOT_SCALE, cage->scale);
 }
 
-struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int style, float width, float height)
+struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, const char *name, int style, float width, float height)
 {
-	RectTransformWidget *cage = MEM_callocN(sizeof(RectTransformWidget), "CageWidget");
+	RectTransformWidget *cage = MEM_callocN(sizeof(RectTransformWidget), name);
 
 	cage->widget.draw = widget_rect_transform_draw;
 	cage->widget.invoke = widget_rect_transform_invoke;
@@ -1042,7 +1042,7 @@ struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int sty
 	cage->w = width;
 	cage->h = height;
 	
-	wm_widget_register(wgroup, &cage->widget);
+	wm_widget_register(wgroup, &cage->widget, name);
 	
 	return (wmWidget *)cage;
 }
@@ -1087,7 +1087,7 @@ void WIDGET_facemap_set_color(struct wmWidget *widget, float color[4])
 	copy_v4_v4(fmap_widget->color, color);
 }
 
-struct wmWidget *WIDGET_facemap_new(struct wmWidgetGroup *wgroup, int style, struct Object *ob, int facemap)
+struct wmWidget *WIDGET_facemap_new(struct wmWidgetGroup *wgroup, const char *name, int style, struct Object *ob, int facemap)
 {
 	FacemapWidget *fmap_widget = MEM_callocN(sizeof(RectTransformWidget), "CageWidget");
 
@@ -1100,7 +1100,7 @@ struct wmWidget *WIDGET_facemap_new(struct wmWidgetGroup *wgroup, int style, str
 	fmap_widget->facemap = facemap;
 	fmap_widget->style = style;
 	
-	wm_widget_register(wgroup, &fmap_widget->widget);
+	wm_widget_register(wgroup, &fmap_widget->widget, name);
 	
 	return (wmWidget *)fmap_widget;
 }

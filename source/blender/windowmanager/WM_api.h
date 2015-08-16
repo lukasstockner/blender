@@ -567,20 +567,20 @@ enum {
 	FACEMAP_SLOT_FACEMAP = 0,
 };
 
-struct wmWidget *WIDGET_arrow_new(struct wmWidgetGroup *wgroup, int style);
+struct wmWidget *WIDGET_arrow_new(struct wmWidgetGroup *wgroup, const char *name, int style);
 void WIDGET_arrow_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_arrow_set_direction(struct wmWidget *widget, float direction[3]);
 void WIDGET_arrow_set_up_vector(struct wmWidget *widget, float direction[3]);
 void WIDGET_arrow_set_scale(struct wmWidget *widget, float scale);
 
-struct wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, int style);
+struct wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, const char *name, int style);
 void WIDGET_dial_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3]);
 
-struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int style, float width, float height);
+struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, const char *name, int style, float width, float height);
 void WIDGET_rect_transform_set_offset(struct wmWidget *widget, float offset[2]);
 
-struct wmWidget *WIDGET_facemap_new(struct wmWidgetGroup *wgroup, int style, struct Object *ob, int facemap);
+struct wmWidget *WIDGET_facemap_new(struct wmWidgetGroup *wgroup, const char *name, int style, struct Object *ob, int facemap);
 void WIDGET_facemap_set_color(struct wmWidget *widget, float color[4]);
 
 #ifdef WITH_INPUT_IME

@@ -2521,8 +2521,10 @@ static void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetG
 	int height = (scene->r.size * scene->r.ysch) / 150.0f;
 	float origin[3];
 
-	wmWidget *cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM |
-	                                           WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE, width, height);
+	wmWidget *cage = WIDGET_rect_transform_new(
+	                     wgroup, "backdrop_cage",
+	                     WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE,
+	                     width, height);
 	WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
 	WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
 

@@ -53,7 +53,7 @@ typedef struct wmPaintCursor {
 typedef struct wmWidget {
 	struct wmWidget *next, *prev;
 	
-	char idname[64];
+	char idname[MAX_NAME + 4]; /* + 4 for unique '.001', '.002', etc suffix */
 
 	/* draw widget */
 	void (*draw)(const struct bContext *C, struct wmWidget *widget);
@@ -169,7 +169,7 @@ void wm_open_init_use_scripts(wmOperator *op, bool use_prefs);
 
 /* wm_widgets.c */
 bool wm_widgetmap_is_3d(struct wmWidgetMap *wmap);
-bool wm_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget);
+bool wm_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget, const char *name);
 
 
 /* hack to store circle select size - campbell, must replace with nice operator memory */

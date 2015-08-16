@@ -275,8 +275,10 @@ static void widgetgroup_overdrop_draw(const struct bContext *C, struct wmWidgetG
 	int sizey = (sce->r.size * sce->r.ysch) / 100;
 	float origin[3];	
 	
-	wmWidget *cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | 
-	                                           WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE, sizex, sizey);
+	wmWidget *cage = WIDGET_rect_transform_new(
+	                     wgroup, "overdrop_cage",
+	                     WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE,
+	                     sizex, sizey);
 	WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
 	WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
 	
@@ -431,9 +433,10 @@ static void widgetgroup_image_transform_draw(const struct bContext *C, struct wm
 	sequencer_display_size(CTX_data_scene(C), CTX_wm_space_seq(C), viewrect);
 	UI_view2d_scale_get(v2d, &scale[0], &scale[1]);
 
-	cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM |
-	                                 WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE,
-	                                 viewrect[0] * scale[0], viewrect[1] * scale[1]);
+	cage = WIDGET_rect_transform_new(
+	           wgroup, "image_cage",
+	           WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE,
+	           viewrect[0] * scale[0], viewrect[1] * scale[1]);
 	WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
 
 	origin[0] = -(v2d->cur.xmin * scale[0]);

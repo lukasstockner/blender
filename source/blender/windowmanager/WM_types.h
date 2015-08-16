@@ -682,7 +682,7 @@ typedef struct wmWidgetGroupType wmWidgetGroupType;
 typedef struct wmWidgetGroupType {
 	struct wmWidgetGroupType *next, *prev;
 
-	char idname[64];
+	char idname[64]; /* MAX_NAME */
 
 	/* poll if widgetmap should be active */
 	int (*poll)(const struct bContext *C, struct wmWidgetGroupType *wgrouptype) ATTR_WARN_UNUSED_RESULT;

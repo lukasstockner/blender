@@ -870,7 +870,10 @@ static void WIDGETGROUP_node_transform_update(const struct bContext *C, struct w
 		w = (ibuf->x > 0) ? ibuf->x : 64.0f;
 		h = (ibuf->y > 0) ? ibuf->y : 64.0f;
 
-		cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE | WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM, w, h);
+		cage = WIDGET_rect_transform_new(
+		           wgroup, "backdrop_cage",
+		           WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE | WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM,
+		           w, h);
 		RNA_pointer_create(snode->id, &RNA_SpaceNodeEditor, snode, &nodeptr);
 		
 		WM_widget_set_origin(cage, origin);
