@@ -1976,7 +1976,7 @@ static void WIDGETGROUP_manipulator_free(struct wmWidgetGroup *wgroup)
 }
 #endif
 
-static void WIDGETGROUP_manipulator_create(const struct bContext *UNUSED(C), struct wmWidgetGroup *wgroup)
+static ManipulatorGroup *manipulator_widgetgroup_create(const struct bContext *UNUSED(C), struct wmWidgetGroup *wgroup)
 {
 	ManipulatorGroup *manipulator = MEM_callocN(sizeof(ManipulatorGroup), "manipulator_data");
 	wmWidget *widget, *axis;
@@ -2027,9 +2027,11 @@ static void WIDGETGROUP_manipulator_create(const struct bContext *UNUSED(C), str
 	MAN_ITER_AXES_END;
 
 	WM_widgetgroup_customdata_set(wgroup, manipulator);
+
+	return manipulator;
 }
 
-void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGroup *wgroup)
+void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -2042,8 +2044,7 @@ void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGro
 	int totsel;
 	short i;
 
-	WIDGETGROUP_manipulator_create(C, wgroup);
-	manipulator = WM_widgetgroup_customdata(wgroup);
+	manipulator = manipulator_widgetgroup_create(C, wgroup);
 
 	v3d->twflag &= ~V3D_DRAW_MANIPULATOR;
 
