@@ -560,6 +560,59 @@ static bool gp_brush_pinch_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 }
 
 /* ----------------------------------------------- */
+/* Twist Brush - Rotate Around midpoint */
+
+/* Take the screenspace coordinates of the point, rotate this around the brush midpoint,
+ * convert the rotated point and convert it into "data" space
+ */
+
+static bool gp_brush_twist_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
+                                 const int radius, const int co[2])
+{
+	bGPDspoint *pt = gps->points + i;
+	float tco[2], rco[2];
+	float rmat[2][2];
+	float angle, inf;
+	
+	/* Angle to rotate by */
+	inf = gp_brush_influence_calc(gso, radius, co);
+	angle = DEG2RADF(1.0f) * inf; // XXX: base value needs work
+	
+	/* Express position of point relative to cursor, ready to rotate */
+	tco[0] = (float)(co[0] - gso->mval[0]);
+	tco[1] = (float)(co[1] - gso->mval[1]);
+	
+	/* Rotate point in 2D */
+	angle_to_mat2(rmat, angle);
+	mul_v2_m2v2(rco, rmat, tco);
+	
+	/* Convert back to screen-coordinates */
+	rco[0] += (float)gso->mval[0];
+	rco[1] += (float)gso->mval[1];
+	
+	/* convert to dataspace */
+	if (gps->flag & GP_STROKE_3DSPACE) {
+		/* 3D: Project to 3D space */
+		if (gso->sa->spacetype == SPACE_VIEW3D) {
+			gp_point_xy_to_3d(&gso->gsc, gso->scene, rco, &pt->x);
+		}
+		else {
+			/* ERROR */
+			BLI_assert("3D stroke being sculpted in non-3D view");
+		}
+	}
+	else {
+		/* 2D: As-is */
+		// XXX: v2d scaling/offset?
+		copy_v2_v2(&pt->x, rco);
+	}
+	
+	/* done */
+	return true;
+}
+
+
+/* ----------------------------------------------- */
 /* Randomise Brush */
 
 /* Apply some random jitter to the point */
@@ -986,6 +1039,7 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 		}
 		
 		case GP_EDITBRUSH_TYPE_PINCH: /* Pinch points */
+		case GP_EDITBRUSH_TYPE_TWIST: /* Twist points around midpoint */
 		{
 			/* calculate midpoint of the brush (in data space) */
 			gp_brush_calc_midpoint(gso);
@@ -1047,6 +1101,12 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 			case GP_EDITBRUSH_TYPE_PINCH: /* Pinch points */
 			{
 				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_pinch_apply);
+			}
+			break;
+			
+			case GP_EDITBRUSH_TYPE_TWIST: /* Twist points around midpoint */
+			{
+				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_twist_apply);
 			}
 			break;
 			
