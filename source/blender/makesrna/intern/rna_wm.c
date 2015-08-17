@@ -34,7 +34,7 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -1173,7 +1173,7 @@ static StructRNA *rna_Operator_register(Main *bmain, ReportList *reports, void *
 	/* clear in case they are left unset */
 	_operator_idname[0] = _operator_name[0] = _operator_descr[0] = '\0';
 	/* We have to set default op context! */
-	strcpy(_operator_ctxt, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	strcpy(_operator_ctxt, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
 
 	/* validate the python class */
 	if (validate(&dummyotr, data, have_function) != 0)
@@ -1300,7 +1300,7 @@ static StructRNA *rna_MacroOperator_register(Main *bmain, ReportList *reports, v
 	/* clear in case they are left unset */
 	_operator_idname[0] = _operator_name[0] = _operator_descr[0] = '\0';
 	/* We have to set default op context! */
-	strcpy(_operator_ctxt, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	strcpy(_operator_ctxt, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
 
 	/* validate the python class */
 	if (validate(&dummyotr, data, have_function) != 0)
@@ -1637,7 +1637,7 @@ static void rna_def_operator(BlenderRNA *brna)
 #ifdef WITH_PYTHON
 	RNA_def_struct_register_funcs(srna, "rna_Operator_register", "rna_Operator_unregister", "rna_Operator_instance");
 #endif
-	RNA_def_struct_translation_context(srna, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	RNA_def_struct_translation_context(srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
 
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -1686,7 +1686,7 @@ static void rna_def_operator(BlenderRNA *brna)
 	RNA_def_property_string_sdna(prop, NULL, "type->translation_context");
 	RNA_def_property_string_maxlength(prop, RNA_DYN_DESCR_MAX); /* else it uses the pointer size! */
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Operator_bl_translation_context_set");
-	RNA_def_property_string_default(prop, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	RNA_def_property_string_default(prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
 	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
 	RNA_def_property_clear_flag(prop, PROP_NEVER_NULL); /* check for NULL */
 
@@ -1731,7 +1731,7 @@ static void rna_def_macro_operator(BlenderRNA *brna)
 	RNA_def_struct_register_funcs(srna, "rna_MacroOperator_register", "rna_Operator_unregister",
 	                              "rna_Operator_instance");
 #endif
-	RNA_def_struct_translation_context(srna, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	RNA_def_struct_translation_context(srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
 
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -1764,7 +1764,7 @@ static void rna_def_macro_operator(BlenderRNA *brna)
 	RNA_def_property_string_sdna(prop, NULL, "type->translation_context");
 	RNA_def_property_string_maxlength(prop, RNA_DYN_DESCR_MAX); /* else it uses the pointer size! */
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Operator_bl_translation_context_set");
-	RNA_def_property_string_default(prop, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	RNA_def_property_string_default(prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
 	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
 	RNA_def_property_clear_flag(prop, PROP_NEVER_NULL); /* check for NULL */
 
