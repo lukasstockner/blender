@@ -76,6 +76,8 @@
 
 /* to use custom arrows exported to arrow_widget.c */
 //#define WIDGET_USE_CUSTOM_ARROWS
+/* to use custom dials exported to arrow_widget.c */
+//#define WIDGET_USE_CUSTOM_DIAS
 
 
 float highlight_col[] = {1.0f, 1.0f, 0.45f, 1.0f};
@@ -93,7 +95,9 @@ typedef struct WidgetDrawInfo {
 #ifdef WIDGET_USE_CUSTOM_ARROWS
 WidgetDrawInfo arraw_head_draw_info = {0};
 #endif
+#ifdef WIDGET_USE_CUSTOM_DIAS
 WidgetDrawInfo dial_draw_info = {0};
+#endif
 
 static void widget_draw_intern(WidgetDrawInfo *info, bool select)
 {
@@ -180,11 +184,7 @@ static void widget_arrow_get_final_pos(struct wmWidget *widget, float pos[3])
 	add_v3_v3(pos, arrow->widget.origin);
 }
 
-#ifdef WIDGET_USE_CUSTOM_ARROWS
 static void arrow_draw_geom(ArrowWidget *arrow, bool select)
-#else
-static void arrow_draw_geom(ArrowWidget *arrow, bool UNUSED(select))
-#endif
 {
 	glEnable(GL_MULTISAMPLE_ARB);
 
@@ -204,22 +204,23 @@ static void arrow_draw_geom(ArrowWidget *arrow, bool UNUSED(select))
 #ifdef WIDGET_USE_CUSTOM_ARROWS
 		widget_draw_intern(&arraw_head_draw_info, select);
 #else
-		GLUquadricObj *qobj;
-		float len = 0.3f;
-		float width = 0.05f;
+		GLUquadricObj *qobj = gluNewQuadric();
+		const float len = 0.3f;
+		const float width = 0.05f;
 
 		glBegin(GL_LINES);
 		glVertex3f(0.0, 0.0, 0.0);
 		glVertex3f(0.0, 0.0, 1.0);
 		glEnd();
 
-		qobj = gluNewQuadric();
 		gluQuadricDrawStyle(qobj, GLU_FILL);
 		glTranslatef(0.0, 0.0, 1.0);
 		gluCylinder(qobj, width, 0.0, len, 8, 1);
 		gluQuadricOrientation(qobj, GLU_INSIDE);
 		gluDisk(qobj, 0.0, width, 8, 1);
 		gluQuadricOrientation(qobj, GLU_OUTSIDE);
+
+		(void)select;
 #endif
 	}
 
@@ -557,7 +558,20 @@ static void dial_draw_intern(DialWidget *dial, bool select, bool highlight, floa
 		glColor4fv(dial->color);
 
 	glEnable(GL_MULTISAMPLE_ARB);
+	{
+#ifdef WIDGET_USE_CUSTOM_DIAS
 	widget_draw_intern(&dial_draw_info, select);
+#else
+	GLUquadricObj *qobj = gluNewQuadric();
+	const float width = 1.0f;
+	const int resol = 32;
+
+	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
+	gluDisk(qobj, 0.0, width, resol, 1);
+
+	(void)select;
+#endif
+	}
 	glDisable(GL_MULTISAMPLE_ARB);
 
 	glPopMatrix();
@@ -614,6 +628,7 @@ wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, const char *name, int st
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	DialWidget *dial;
 
+#ifdef WIDGET_USE_CUSTOM_DIAS
 	if (!dial_draw_info.init) {
 		dial_draw_info.nverts = _WIDGET_nverts_dial,
 		dial_draw_info.ntris = _WIDGET_ntris_dial,
@@ -622,6 +637,7 @@ wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, const char *name, int st
 		dial_draw_info.indices = _WIDGET_indices_dial,
 		dial_draw_info.init = true;
 	}
+#endif
 
 	dial = MEM_callocN(sizeof(ArrowWidget), name);
 
