@@ -186,6 +186,8 @@ static void arrow_draw_geom(ArrowWidget *arrow, bool select)
 static void arrow_draw_geom(ArrowWidget *arrow, bool UNUSED(select))
 #endif
 {
+	glEnable(GL_MULTISAMPLE_ARB);
+
 	if (arrow->style & WIDGET_ARROW_STYLE_CROSS) {
 		glPushAttrib(GL_ENABLE_BIT);
 		glDisable(GL_LIGHTING);
@@ -220,6 +222,8 @@ static void arrow_draw_geom(ArrowWidget *arrow, bool UNUSED(select))
 		gluQuadricOrientation(qobj, GLU_OUTSIDE);
 #endif
 	}
+
+	glDisable(GL_MULTISAMPLE_ARB);
 }
 
 static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
@@ -552,7 +556,9 @@ static void dial_draw_intern(DialWidget *dial, bool select, bool highlight, floa
 	else
 		glColor4fv(dial->color);
 
+	glEnable(GL_MULTISAMPLE_ARB);
 	widget_draw_intern(&dial_draw_info, select);
+	glDisable(GL_MULTISAMPLE_ARB);
 
 	glPopMatrix();
 
