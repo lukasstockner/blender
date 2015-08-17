@@ -538,6 +538,29 @@ typedef struct DialWidget {
 	float color[4];
 } DialWidget;
 
+static void dial_draw_geom(const bool select)
+{
+	GLUquadricObj *qobj = gluNewQuadric();
+	const float width = 1.0f;
+	const int resol = 32;
+
+	glEnable(GL_MULTISAMPLE_ARB);
+
+#ifdef WIDGET_USE_CUSTOM_DIAS
+	widget_draw_intern(&dial_draw_info, select);
+
+	(void)qobj; (void)width; (void)resol;
+#else
+
+	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
+	gluDisk(qobj, 0.0, width, resol, 1);
+
+	(void)select;
+#endif
+
+	glDisable(GL_MULTISAMPLE_ARB);
+}
+
 static void dial_draw_intern(DialWidget *dial, bool select, bool highlight, float scale)
 {
 	float rot[3][3];
@@ -557,22 +580,7 @@ static void dial_draw_intern(DialWidget *dial, bool select, bool highlight, floa
 	else
 		glColor4fv(dial->color);
 
-	glEnable(GL_MULTISAMPLE_ARB);
-	{
-#ifdef WIDGET_USE_CUSTOM_DIAS
-	widget_draw_intern(&dial_draw_info, select);
-#else
-	GLUquadricObj *qobj = gluNewQuadric();
-	const float width = 1.0f;
-	const int resol = 32;
-
-	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
-	gluDisk(qobj, 0.0, width, resol, 1);
-
-	(void)select;
-#endif
-	}
-	glDisable(GL_MULTISAMPLE_ARB);
+	dial_draw_geom(select);
 
 	glPopMatrix();
 
