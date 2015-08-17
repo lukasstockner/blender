@@ -79,6 +79,8 @@
 /* to use custom dials exported to arrow_widget.c */
 //#define WIDGET_USE_CUSTOM_DIAS
 
+#define WIDGET_LINE_WIDTH 2.0
+
 
 float highlight_col[] = {1.0f, 1.0f, 0.45f, 1.0f};
 
@@ -205,13 +207,15 @@ static void arrow_draw_geom(ArrowWidget *arrow, bool select)
 		widget_draw_intern(&arraw_head_draw_info, select);
 #else
 		GLUquadricObj *qobj = gluNewQuadric();
-		const float len = 0.3f;
-		const float width = 0.05f;
+		const float len = 0.25f;
+		const float width = 0.06f;
 
+		glLineWidth(WIDGET_LINE_WIDTH);
 		glBegin(GL_LINES);
 		glVertex3f(0.0, 0.0, 0.0);
 		glVertex3f(0.0, 0.0, 1.0);
 		glEnd();
+		glLineWidth(1.0);
 
 		gluQuadricDrawStyle(qobj, GLU_FILL);
 		glTranslatef(0.0, 0.0, 1.0);
@@ -552,8 +556,10 @@ static void dial_draw_geom(const bool select)
 	(void)qobj; (void)width; (void)resol;
 #else
 
+	glLineWidth(WIDGET_LINE_WIDTH);
 	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
 	gluDisk(qobj, 0.0, width, resol, 1);
+	glLineWidth(1.0);
 
 	(void)select;
 #endif
