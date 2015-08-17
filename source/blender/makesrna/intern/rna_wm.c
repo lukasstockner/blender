@@ -1861,7 +1861,7 @@ static void rna_def_widgetgroup(BlenderRNA *brna)
 #ifdef WITH_PYTHON
 	RNA_def_struct_register_funcs(srna, "rna_WidgetGroup_register", "rna_WidgetGroup_unregister", "rna_WidgetGroup_instance");
 #endif
-	RNA_def_struct_translation_context(srna, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	RNA_def_struct_translation_context(srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
 
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);

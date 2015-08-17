@@ -45,8 +45,6 @@
 #include "BLI_string.h"
 #include "BLI_listbase.h"
 
-#include "BLF_translation.h"
-
 #include "MEM_guardedalloc.h"
 
 #include "ED_mesh.h"
