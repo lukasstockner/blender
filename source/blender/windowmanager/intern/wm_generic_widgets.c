@@ -56,6 +56,7 @@
 #include "GL/glew.h"
 #include "GPU_select.h"
 
+#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "MEM_guardedalloc.h"
@@ -72,6 +73,11 @@
  *            GENERIC WIDGET LIBRARY                  *
  ******************************************************/
 
+
+/* to use custom arrows exported to arrow_widget.c */
+//#define WIDGET_USE_CUSTOM_ARROWS
+
+
 float highlight_col[] = {1.0f, 1.0f, 0.45f, 1.0f};
 
 typedef struct WidgetDrawInfo {
@@ -84,7 +90,9 @@ typedef struct WidgetDrawInfo {
 } WidgetDrawInfo;
 
 
+#ifdef WIDGET_USE_CUSTOM_ARROWS
 WidgetDrawInfo arraw_head_draw_info = {0};
+#endif
 WidgetDrawInfo dial_draw_info = {0};
 
 static void widget_draw_intern(WidgetDrawInfo *info, bool select)
@@ -172,7 +180,11 @@ static void widget_arrow_get_final_pos(struct wmWidget *widget, float pos[3])
 	add_v3_v3(pos, arrow->widget.origin);
 }
 
+#ifdef WIDGET_USE_CUSTOM_ARROWS
 static void arrow_draw_geom(ArrowWidget *arrow, bool select)
+#else
+static void arrow_draw_geom(ArrowWidget *arrow, bool UNUSED(select))
+#endif
 {
 	if (arrow->style & WIDGET_ARROW_STYLE_CROSS) {
 		glPushAttrib(GL_ENABLE_BIT);
@@ -187,7 +199,26 @@ static void arrow_draw_geom(ArrowWidget *arrow, bool select)
 		glPopAttrib();
 	}
 	else {
+#ifdef WIDGET_USE_CUSTOM_ARROWS
 		widget_draw_intern(&arraw_head_draw_info, select);
+#else
+		GLUquadricObj *qobj;
+		float len = 0.3f;
+		float width = 0.05f;
+
+		glBegin(GL_LINES);
+		glVertex3f(0.0, 0.0, 0.0);
+		glVertex3f(0.0, 0.0, 1.0);
+		glEnd();
+
+		qobj = gluNewQuadric();
+		gluQuadricDrawStyle(qobj, GLU_FILL);
+		glTranslatef(0.0, 0.0, 1.0);
+		gluCylinder(qobj, width, 0.0, len, 8, 1);
+		gluQuadricOrientation(qobj, GLU_INSIDE);
+		gluDisk(qobj, 0.0, width, 8, 1);
+		gluQuadricOrientation(qobj, GLU_OUTSIDE);
+#endif
 	}
 }
 
@@ -213,7 +244,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 	mul_mat3_m4_fl(mat, arrow->widget.scale);
 
 	glPushMatrix();
-	glMultMatrixf(&mat[0][0]);
+	glMultMatrixf(mat);
 
 	if (highlight && !(arrow->widget.flag & WM_WIDGET_DRAW_HOVER)) {
 		glColor4fv(highlight_col);
@@ -234,7 +265,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, bool select, bool highlight)
 		mul_mat3_m4_fl(mat, data->orig_scale);
 
 		glPushMatrix();
-		glMultMatrixf(&mat[0][0]);
+		glMultMatrixf(mat);
 
 		glEnable(GL_BLEND);
 		glColor4f(0.5f, 0.5f, 0.5f, 0.5f);
@@ -429,6 +460,7 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, int style)
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	ArrowWidget *arrow;
 
+#ifdef WIDGET_USE_CUSTOM_ARROWS
 	if (!arraw_head_draw_info.init) {
 		arraw_head_draw_info.nverts = _WIDGET_nverts_arrow,
 		arraw_head_draw_info.ntris = _WIDGET_ntris_arrow,
@@ -437,6 +469,7 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, int style)
 		arraw_head_draw_info.indices = _WIDGET_indices_arrow,
 		arraw_head_draw_info.init = true;
 	}
+#endif
 
 	/* inverted only makes sense in a constrained arrow */
 	if (style & WIDGET_ARROW_STYLE_INVERTED)
