@@ -147,6 +147,8 @@ enum {
 #define TW_AXIS_DOT_MIN 0.02f
 #define TW_AXIS_DOT_MAX 0.1f
 
+#define MAN_AXIS_LINE_WIDTH 2.0
+
 
 /* **************** Utilities **************** */
 
@@ -949,6 +951,7 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 				WIDGET_dial_set_color(axis, col);
 			}
 			else {
+				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
 				WIDGET_arrow_set_direction(axis, rv3d->twmat[axis_idx]);
 				WIDGET_arrow_set_color(axis, col);
 			}
@@ -958,6 +961,7 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 				WIDGET_dial_set_direction(axis, rv3d->viewinv[2]);
 			}
 			else {
+				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
 				WIDGET_dial_set_direction(axis, rv3d->twmat[manipulator_index_normalize(axis_idx)]);
 			}
 			WIDGET_dial_set_color(axis, col);

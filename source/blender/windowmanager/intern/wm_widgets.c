@@ -444,6 +444,7 @@ bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *nam
 	widget_unique_idname_set(wgroup, widget, name);
 
 	widget->user_scale = 1.0f;
+	widget->line_width = 1.0f;
 
 	/* create at least one property for interaction */
 	if (widget->max_prop == 0) {
@@ -506,6 +507,11 @@ void WM_widget_set_scene_depth(wmWidget *widget, const bool scene)
 void WM_widget_set_scale(wmWidget *widget, const float scale)
 {
 	widget->user_scale = scale;
+}
+
+void WM_widget_set_line_width(wmWidget *widget, const float line_width)
+{
+	widget->line_width = line_width;
 }
 
 

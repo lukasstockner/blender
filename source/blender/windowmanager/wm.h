@@ -91,6 +91,9 @@ typedef struct wmWidget {
 	/* user defined scale, in addition to the original one */
 	float user_scale;
 
+	/* user defined width for line drawing */
+	float line_width;
+
 	/* data used during interaction */
 	void *interaction_data;
 
@@ -113,13 +116,10 @@ enum widgetflags {
 	/* states */
 	WM_WIDGET_HIGHLIGHT   = (1 << 0),
 	WM_WIDGET_ACTIVE      = (1 << 1),
-
 	WM_WIDGET_DRAW_HOVER  = (1 << 2),
-
 	WM_WIDGET_SCALE_3D    = (1 << 3),
 	WM_WIDGET_SCENE_DEPTH = (1 << 4), /* widget is depth culled with scene objects*/
-
-	WM_WIDGET_HIDDEN      = (1 << 5), /* prevent widget drawing */
+	WM_WIDGET_HIDDEN      = (1 << 5),
 };
 
 extern void wm_close_and_free(bContext *C, wmWindowManager *);

@@ -519,6 +519,7 @@ void WM_widget_flag_set(struct wmWidget *widget, const int flag, const bool enab
 void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, const bool draw);
 void WM_widget_set_scene_depth(struct wmWidget *widget, const bool scene);
 void WM_widget_set_scale(struct wmWidget *widget, float scale);
+void WM_widget_set_line_width(struct wmWidget *widget, const float line_width);
 
 struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, const int spaceid, const int regionid,
                                               const bool is_3d, const bool create);

@@ -79,8 +79,6 @@
 /* to use custom dials exported to arrow_widget.c */
 //#define WIDGET_USE_CUSTOM_DIAS
 
-#define WIDGET_LINE_WIDTH 2.0
-
 
 const float highlight_col[] = {1.0f, 1.0f, 0.45f, 1.0f};
 
@@ -186,7 +184,7 @@ static void widget_arrow_get_final_pos(wmWidget *widget, float r_pos[3])
 	add_v3_v3(r_pos, arrow->widget.origin);
 }
 
-static void arrow_draw_geom(ArrowWidget *arrow, const bool select)
+static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 {
 	glEnable(GL_MULTISAMPLE_ARB);
 
@@ -210,7 +208,7 @@ static void arrow_draw_geom(ArrowWidget *arrow, const bool select)
 		const float len = 0.25f;
 		const float width = 0.06f;
 
-		glLineWidth(WIDGET_LINE_WIDTH);
+		glLineWidth(arrow->widget.line_width);
 		glBegin(GL_LINES);
 		glVertex3f(0.0, 0.0, 0.0);
 		glVertex3f(0.0, 0.0, 1.0);
@@ -557,7 +555,7 @@ typedef struct DialWidget {
 	float color[4];
 } DialWidget;
 
-static void dial_draw_geom(const bool select)
+static void dial_draw_geom(const DialWidget *dial, const bool select)
 {
 	GLUquadricObj *qobj = gluNewQuadric();
 	const float width = 1.0f;
@@ -571,7 +569,7 @@ static void dial_draw_geom(const bool select)
 	(void)qobj; (void)width; (void)resol;
 #else
 
-	glLineWidth(WIDGET_LINE_WIDTH);
+	glLineWidth(dial->widget.line_width);
 	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
 	gluDisk(qobj, 0.0, width, resol, 1);
 	glLineWidth(1.0);
@@ -601,7 +599,7 @@ static void dial_draw_intern(DialWidget *dial, const bool select, const bool hig
 	else
 		glColor4fv(dial->color);
 
-	dial_draw_geom(select);
+	dial_draw_geom(dial, select);
 
 	glPopMatrix();
 
@@ -744,11 +742,11 @@ static void rect_transform_draw_corners(rctf *r, const float offsetx, const floa
 	glVertex2f(r->xmin, r->ymax);
 	glVertex2f(r->xmin, r->ymax);
 	glVertex2f(r->xmin + offsetx, r->ymax);
-	glEnd();	
+	glEnd();
 }
 
 static void rect_transform_draw_interaction(const int highlighted, const float half_w, const float half_h,
-                                            const float w, const float h)
+                                            const float w, const float h, const float line_width)
 {
 	float verts[4][2];
 	unsigned short elems[4] = {0, 1, 3, 2};
@@ -804,12 +802,13 @@ static void rect_transform_draw_interaction(const int highlighted, const float h
 	
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(2, GL_FLOAT, 0, verts);
-	glLineWidth(3.0);
+	glLineWidth(line_width + 3.0);
 	glColor3f(0.0, 0.0, 0.0);
 	glDrawArrays(GL_LINE_STRIP, 0, 3);
-	glLineWidth(1.0);
+	glLineWidth(line_width);
 	glColor3f(1.0, 1.0, 1.0);
 	glDrawArrays(GL_LINE_STRIP, 0, 3);
+	glLineWidth(1.0);
 
 	(void)elems;
 }
@@ -846,16 +845,18 @@ static void widget_rect_transform_draw(const bContext *UNUSED(C), wmWidget *widg
 
 	/* corner widgets */
 	glColor3f(0.0, 0.0, 0.0);
-	glLineWidth(3.0);
-		
+	glLineWidth(cage->widget.line_width + 3.0f);
+
 	rect_transform_draw_corners(&r, w, h);
 
 	/* corner widgets */
 	glColor3f(1.0, 1.0, 1.0);
-	glLineWidth(1.0);
+	glLineWidth(cage->widget.line_width);
 	rect_transform_draw_corners(&r, w, h);
-	
-	rect_transform_draw_interaction(widget->highlighted_part, half_w, half_h, w, h);
+
+	rect_transform_draw_interaction(widget->highlighted_part, half_w, half_h, w, h, cage->widget.line_width);
+
+	glLineWidth(1.0);
 	glPopMatrix();
 }
 
