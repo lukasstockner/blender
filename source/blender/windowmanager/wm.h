@@ -168,7 +168,7 @@ void wm_open_init_load_ui(wmOperator *op, bool use_prefs);
 void wm_open_init_use_scripts(wmOperator *op, bool use_prefs);
 
 /* wm_widgets.c */
-bool wm_widgetmap_is_3d(struct wmWidgetMap *wmap);
+bool wm_widgetmap_is_3d(const struct wmWidgetMap *wmap);
 bool wm_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget, const char *name);
 
 

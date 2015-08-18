@@ -79,7 +79,7 @@
  * \note There is only ever one of these for every (area, region) combination.
  */
 typedef struct wmWidgetMapType {
-	struct wmWidgetMapType *next, *prev;
+	wmWidgetMapType *next, *prev;
 	char idname[64];
 	short spaceid, regionid;
 	/**
@@ -98,14 +98,14 @@ typedef struct wmWidgetMapType {
 static ListBase widgetmaptypes = {NULL, NULL};
 
 
-struct wmWidgetGroupType *WM_widgetgrouptype_new(
-        int (*poll)(const struct bContext *C, struct wmWidgetGroupType *),
-        void (*draw)(const struct bContext *, struct wmWidgetGroup *), 
-        struct Main *bmain, const char *mapidname, short spaceid, short regionid, bool is_3d
-        )
+wmWidgetGroupType *WM_widgetgrouptype_new(
+        int (*poll)(const bContext *C, wmWidgetGroupType *),
+        void (*draw)(const bContext *, wmWidgetGroup *),
+        const Main *bmain, const char *mapidname,
+        const short spaceid, const short regionid, const bool is_3d)
 {
 	bScreen *sc;
-	struct wmWidgetMapType *wmaptype = WM_widgetmaptype_find(mapidname, spaceid, regionid, is_3d, false);
+	wmWidgetMapType *wmaptype = WM_widgetmaptype_find(mapidname, spaceid, regionid, is_3d, false);
 	wmWidgetGroupType *wgrouptype;
 	
 	if (!wmaptype) {
@@ -158,10 +158,10 @@ struct wmWidgetGroupType *WM_widgetgrouptype_new(
 	return wgrouptype;
 }
 
-wmWidget *WM_widget_new(void (*draw)(const struct bContext *C, struct wmWidget *customdata),
-                        void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, int selectionbase),
-                        int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget),
-                        int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget))
+wmWidget *WM_widget_new(void (*draw)(const bContext *C, wmWidget *customdata),
+                        void (*render_3d_intersection)(const bContext *C, wmWidget *customdata, int selectionbase),
+                        int  (*intersect)(bContext *C, const wmEvent *event, wmWidget *widget),
+                        int  (*handler)(bContext *C, const wmEvent *event, wmWidget *widget))
 {
 	wmWidget *widget;
 	
@@ -175,7 +175,7 @@ wmWidget *WM_widget_new(void (*draw)(const struct bContext *C, struct wmWidget *
 	return widget;
 }
 
-void WM_widget_property(struct wmWidget *widget, int slot, struct PointerRNA *ptr, const char *propname)
+void WM_widget_property(wmWidget *widget, const int slot, PointerRNA *ptr, const char *propname)
 {
 	if (slot < 0 || slot >= widget->max_prop) {
 		fprintf(stderr, "invalid index %d when binding property for widget type %s\n", slot, widget->idname);
@@ -191,7 +191,7 @@ void WM_widget_property(struct wmWidget *widget, int slot, struct PointerRNA *pt
 		widget->bind_to_prop(widget, slot);
 }
 
-PointerRNA *WM_widget_operator(struct wmWidget *widget, const char *opname)
+PointerRNA *WM_widget_operator(wmWidget *widget, const char *opname)
 {
 	wmOperatorType *ot = WM_operatortype_find(opname, 0);
 	
@@ -255,9 +255,9 @@ static void widget_calculate_scale(wmWidget *widget, const bContext *C)
 	widget->scale = scale * widget->user_scale;
 }
 
-static bool widgets_compare(wmWidget *widget, wmWidget *widget2)
+static bool widgets_compare(const wmWidget *a, const wmWidget *b)
 {
-	return STREQ(widget->idname, widget2->idname);
+	return STREQ(a->idname, b->idname);
 }
 
 void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
@@ -328,7 +328,7 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 	}
 }
 
-void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap, bool in_scene)
+void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_scene)
 {
 	wmWidget *widget;
 	bool use_lighting;
@@ -339,8 +339,8 @@ void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap, bool in_scene)
 	use_lighting = (U.tw_flag & V3D_SHADED_WIDGETS) != 0;
 
 	if (use_lighting) {
-		float lightpos[4] = {0.0, 0.0, 1.0, 0.0};
-		float diffuse[4] = {1.0, 1.0, 1.0, 0.0};
+		const float lightpos[4] = {0.0, 0.0, 1.0, 0.0};
+		const float diffuse[4] = {1.0, 1.0, 1.0, 0.0};
 
 		glPushAttrib(GL_LIGHTING_BIT | GL_ENABLE_BIT);
 		glEnable(GL_LIGHTING);
@@ -396,7 +396,8 @@ void WM_event_add_area_widgetmap_handlers(ARegion *ar)
 	}
 }
 
-void WM_modal_handler_attach_widgetgroup(bContext *C, wmEventHandler *handler, wmWidgetGroupType *wgrouptype, wmOperator *op)
+void WM_modal_handler_attach_widgetgroup(
+        bContext *C, wmEventHandler *handler, wmWidgetGroupType *wgrouptype, wmOperator *op)
 {
 	/* maybe overly careful, but widgetgrouptype could come from a failed creation */
 	if (!wgrouptype) {
@@ -438,7 +439,7 @@ static void widget_unique_idname_set(wmWidgetGroup *wgroup, wmWidget *widget, co
  *
  * \param name  name used to create a unique idname for \a widget in \a wgroup
  */
-bool wm_widget_register(struct wmWidgetGroup *wgroup, wmWidget *widget, const char *name)
+bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *name)
 {
 	widget_unique_idname_set(wgroup, widget, name);
 
@@ -456,12 +457,12 @@ bool wm_widget_register(struct wmWidgetGroup *wgroup, wmWidget *widget, const ch
 	return true;
 }
 
-void WM_widget_set_origin(struct wmWidget *widget, float origin[3])
+void WM_widget_set_origin(wmWidget *widget, const float origin[3])
 {
 	copy_v3_v3(widget->origin, origin);
 }
 
-void WM_widget_set_3d_scale(struct wmWidget *widget, bool scale)
+void WM_widget_set_3d_scale(wmWidget *widget, const bool scale)
 {
 	if (scale) {
 		widget->flag |= WM_WIDGET_SCALE_3D;
@@ -471,17 +472,17 @@ void WM_widget_set_3d_scale(struct wmWidget *widget, bool scale)
 	}
 }
 
-void WM_widget_flag_enable(struct wmWidget *widget, int flag)
+void WM_widget_flag_set(wmWidget *widget, const int flag, const bool enable)
 {
-	widget->flag |= flag;
+	if (enable) {
+		widget->flag |= flag;
+	}
+	else {
+		widget->flag &= ~flag;
+	}
 }
 
-void WM_widget_flag_disable(struct wmWidget *widget, int flag)
-{
-	widget->flag &= ~flag;
-}
-
-void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, bool draw)
+void WM_widget_set_draw_on_hover_only(wmWidget *widget, const bool draw)
 {
 	if (draw) {
 		widget->flag |= WM_WIDGET_DRAW_HOVER;
@@ -491,7 +492,7 @@ void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, bool draw)
 	}
 }
 
-void WM_widget_set_scene_depth(struct wmWidget *widget, bool scene)
+void WM_widget_set_scene_depth(wmWidget *widget, const bool scene)
 {
 	if (scene) {
 		widget->flag |= WM_WIDGET_SCENE_DEPTH;
@@ -502,13 +503,14 @@ void WM_widget_set_scene_depth(struct wmWidget *widget, bool scene)
 }
 
 
-void WM_widget_set_scale(struct wmWidget *widget, float scale)
+void WM_widget_set_scale(wmWidget *widget, const float scale)
 {
 	widget->user_scale = scale;
 }
 
 
-wmWidgetMapType *WM_widgetmaptype_find(const char *idname, int spaceid, int regionid, bool is_3d, bool create)
+wmWidgetMapType *WM_widgetmaptype_find(
+        const char *idname, const int spaceid, const int regionid, const bool is_3d, const bool create)
 {
 	wmWidgetMapType *wmaptype;
 
@@ -543,12 +545,12 @@ void WM_widgetmaptypes_free(void)
 	fix_linking_widget_lib();
 }
 
-bool wm_widgetmap_is_3d(struct wmWidgetMap *wmap)
+bool wm_widgetmap_is_3d(const wmWidgetMap *wmap)
 {
 	return wmap->type->is_3d;
 }
 
-static void widget_find_active_3D_loop(bContext *C, ListBase *visible_widgets)
+static void widget_find_active_3D_loop(const bContext *C, ListBase *visible_widgets)
 {
 	int selectionbase = 0;
 	LinkData *link;
@@ -563,7 +565,8 @@ static void widget_find_active_3D_loop(bContext *C, ListBase *visible_widgets)
 	}
 }
 
-static int wm_widget_find_highlighted_3D_intern(ListBase *visible_widgets, bContext *C, const struct wmEvent *event, float hotspot)
+static int wm_widget_find_highlighted_3D_intern(
+        ListBase *visible_widgets, const bContext *C, const wmEvent *event, const float hotspot)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -631,7 +634,7 @@ static int wm_widget_find_highlighted_3D_intern(ListBase *visible_widgets, bCont
 	return -1;
 }
 
-static void wm_prepare_visible_widgets_3D(struct wmWidgetMap *wmap, ListBase *visible_widgets, bContext *C)
+static void wm_prepare_visible_widgets_3D(wmWidgetMap *wmap, ListBase *visible_widgets, bContext *C)
 {
 	wmWidget *widget;
 	wmWidgetGroup *wgroup;
@@ -647,7 +650,7 @@ static void wm_prepare_visible_widgets_3D(struct wmWidgetMap *wmap, ListBase *vi
 	}
 }
 
-wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, bContext *C, const struct wmEvent *event, unsigned char *part)
+wmWidget *wm_widget_find_highlighted_3D(wmWidgetMap *wmap, bContext *C, const wmEvent *event, unsigned char *part)
 {
 	int ret;
 	wmWidget *result = NULL;
@@ -680,7 +683,7 @@ wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, bContext *C, c
 	return result;
 }
 
-wmWidget *wm_widget_find_highlighted(struct wmWidgetMap *wmap, bContext *C, const struct wmEvent *event, unsigned char *part)
+wmWidget *wm_widget_find_highlighted(wmWidgetMap *wmap, bContext *C, const wmEvent *event, unsigned char *part)
 {
 	wmWidget *widget;
 	wmWidgetGroup *wgroup;
@@ -699,7 +702,7 @@ wmWidget *wm_widget_find_highlighted(struct wmWidgetMap *wmap, bContext *C, cons
 	return NULL;
 }
 
-bool WM_widgetmap_cursor_set(wmWidgetMap *wmap, wmWindow *win)
+bool WM_widgetmap_cursor_set(const wmWidgetMap *wmap, wmWindow *win)
 {
 	for (; wmap; wmap = wmap->next) {
 		wmWidget *widget = wmap->highlighted_widget;
@@ -712,7 +715,7 @@ bool WM_widgetmap_cursor_set(wmWidgetMap *wmap, wmWindow *win)
 	return false;
 }
 
-void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget, unsigned char part)
+void wm_widgetmap_set_highlighted_widget(wmWidgetMap *wmap, bContext *C, wmWidget *widget, unsigned char part)
 {
 	if ((widget != wmap->highlighted_widget) || (widget && part != widget->highlighted_part)) {
 		if (wmap->highlighted_widget) {
@@ -744,12 +747,15 @@ void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bConte
 	}
 }
 
-struct wmWidget *wm_widgetmap_get_highlighted_widget(struct wmWidgetMap *wmap)
+wmWidget *wm_widgetmap_get_highlighted_widget(wmWidgetMap *wmap)
 {
 	return wmap->highlighted_widget;
 }
 
-void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmEvent *event, struct wmWidget *widget, bool call_op)
+void wm_widgetmap_set_active_widget(
+        wmWidgetMap *wmap, bContext *C,
+        wmEvent *event, wmWidget *widget,
+        const bool call_op)
 {
 	if (widget) {
 		if (call_op) {
@@ -766,8 +772,8 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 					wmap->active_widget = widget;
 				}
 
-				/* if operator runs modal, we will need to activate the current widgetmap on the operator handler, so it can
-				 * process events first, then pass them on to the operator */
+				/* if operator runs modal, we will need to activate the current widgetmap on the operator handler,
+				 * so it can process events first, then pass them on to the operator */
 				if (WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr) == OPERATOR_RUNNING_MODAL) {
 					/* check if operator added a a modal event handler */
 					wmEventHandler *handler = CTX_wm_window(C)->modalhandlers.first;
@@ -824,13 +830,13 @@ void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C
 	}
 }
 
-struct wmWidget *wm_widgetmap_get_active_widget(struct wmWidgetMap *wmap)
+wmWidget *wm_widgetmap_get_active_widget(wmWidgetMap *wmap)
 {
 	return wmap->active_widget;
 }
 
 
-struct wmWidgetMap *WM_widgetmap_from_type(const char *idname, int spaceid, int regionid, bool is_3d)
+wmWidgetMap *WM_widgetmap_from_type(const char *idname, const int spaceid, const int regionid, const bool is_3d)
 {
 	wmWidgetMapType *wmaptype = WM_widgetmaptype_find(idname, spaceid, regionid, is_3d, true);
 	wmWidgetGroupType *wgrouptype = wmaptype->widgetgrouptypes.first;
@@ -839,7 +845,8 @@ struct wmWidgetMap *WM_widgetmap_from_type(const char *idname, int spaceid, int 
 	wmap = MEM_callocN(sizeof(wmWidgetMap), "WidgetMap");
 	wmap->type = wmaptype;
 
-	/* create all widgetgroups for this widgetmap. We may create an empty one too in anticipation of widgets from operators etc */
+	/* create all widgetgroups for this widgetmap. We may create an empty one
+	 * too in anticipation of widgets from operators etc */
 	for (; wgrouptype; wgrouptype = wgrouptype->next) {
 		wmWidgetGroup *wgroup = MEM_callocN(sizeof(wmWidgetGroup), "widgetgroup");
 		wgroup->type = wgrouptype;
@@ -849,7 +856,7 @@ struct wmWidgetMap *WM_widgetmap_from_type(const char *idname, int spaceid, int 
 	return wmap;
 }
 
-void WM_widgetmap_delete(struct wmWidgetMap *wmap)
+void WM_widgetmap_delete(wmWidgetMap *wmap)
 {
 	wmWidgetGroup *wgroup;
 
