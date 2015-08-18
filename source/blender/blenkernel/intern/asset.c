@@ -38,7 +38,7 @@
 #include "RNA_access.h"
 #include "RNA_types.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BLI_fileops_types.h"
 #include "BLI_listbase.h"

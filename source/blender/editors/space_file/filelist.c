@@ -1026,12 +1026,12 @@ static void filelist_intern_free(FileListIntern *filelist_intern)
 	MEM_SAFE_FREE(filelist_intern->filtered);
 }
 
-static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid)
+static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int UNUSED(threadid))
 {
 	FileListEntryCache *cache = taskdata;
 	FileListEntryPreview *preview;
 
-	printf("%s: Start (%d)...\n", __func__, threadid);
+//	printf("%s: Start (%d)...\n", __func__, threadid);
 
 	/* Note we wait on queue here. */
 	while (!BLI_task_pool_canceled(pool) && (preview = BLI_thread_queue_pop(cache->previews_todo))) {
@@ -1053,14 +1053,14 @@ static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid
 			source = THB_SOURCE_FONT;
 		}
 
-		IMB_thumb_lock_path(preview->path);
+		IMB_thumb_path_lock(preview->path);
 		preview->img = IMB_thumb_manage(preview->path, THB_LARGE, source);
-		IMB_thumb_unlock_path(preview->path);
+		IMB_thumb_path_unlock(preview->path);
 
 		BLI_thread_queue_push(cache->previews_done, preview);
 	}
 
-	printf("%s: End (%d)...\n", __func__, threadid);
+//	printf("%s: End (%d)...\n", __func__, threadid);
 }
 
 static void filelist_cache_preview_ensure_running(FileListEntryCache *cache)
@@ -1068,7 +1068,7 @@ static void filelist_cache_preview_ensure_running(FileListEntryCache *cache)
 	if (!cache->previews_pool) {
 		TaskScheduler *scheduler = BLI_task_scheduler_get();
 		TaskPool *pool;
-		int num_tasks = 4;
+		int num_tasks = max_ii(2, BLI_system_thread_count() / 2);
 
 		pool = cache->previews_pool = BLI_task_pool_create(scheduler, NULL);
 		cache->previews_todo = BLI_thread_queue_init();
@@ -2724,9 +2724,6 @@ static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update
 {
 	FileListReadJob *flrj = flrjv;
 
-	printf("START filelist reading (%d files, main thread: %d)\n",
-           flrj->filelist->filelist.nbr_entries, BLI_thread_is_main());
-
 	if (flrj->filelist->ae) {
 		flrj->progress = progress;
 		flrj->stop = stop;
@@ -2832,7 +2829,7 @@ static void filelist_readjob_free(void *flrjv)
 {
 	FileListReadJob *flrj = flrjv;
 
-	printf("END filelist reading (%d files)\n", flrj->filelist->filelist.nbr_entries);
+//	printf("END filelist reading (%d files)\n", flrj->filelist->filelist.nbr_entries);
 
 	if (flrj->tmp_filelist) {
 		/* tmp_filelist shall never ever be filtered! */

@@ -94,8 +94,8 @@ bool IMB_thumb_load_font_get_hash(char *r_hash);
 /* Threading */
 void IMB_thumb_locks_acquire(void);
 void IMB_thumb_locks_release(void);
-void IMB_thumb_lock_path(const char *path);
-void IMB_thumb_unlock_path(const char *path);
+void IMB_thumb_path_lock(const char *path);
+void IMB_thumb_path_unlock(const char *path);
 
 #ifdef __cplusplus
 }

@@ -44,7 +44,7 @@
 #include "BLI_threads.h"
 #include BLI_SYSTEM_PID_H
 
-#include "BLO_readfile.h"  /* XXX Hope this is not badlevel! */
+#include "BLO_readfile.h"
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
@@ -682,7 +682,7 @@ void IMB_thumb_locks_release(void) {
 	BLI_unlock_thread(LOCK_IMAGE);
 }
 
-void IMB_thumb_lock_path(const char *path) {
+void IMB_thumb_path_lock(const char *path) {
 	void *key = BLI_strdup(path);
 
 	BLI_lock_thread(LOCK_IMAGE);
@@ -692,13 +692,12 @@ void IMB_thumb_lock_path(const char *path) {
 		while (!BLI_gset_add(thumb_locks.locked_paths, key)) {
 			BLI_condition_wait_global_mutex(&thumb_locks.cond, LOCK_IMAGE);
 		}
-//		printf("%s: locked %s\n", __func__, path);
 	}
 
 	BLI_unlock_thread(LOCK_IMAGE);
 }
 
-void IMB_thumb_unlock_path(const char *path) {
+void IMB_thumb_path_unlock(const char *path) {
 	const void *key = path;
 
 	BLI_lock_thread(LOCK_IMAGE);
@@ -709,7 +708,6 @@ void IMB_thumb_unlock_path(const char *path) {
 			BLI_assert(0);
 		}
 		BLI_condition_notify_all(&thumb_locks.cond);
-//		printf("%s: UN-locked %s\n", __func__, path);
 	}
 
 	BLI_unlock_thread(LOCK_IMAGE);

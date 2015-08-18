@@ -3181,8 +3181,6 @@ static void write_brushes(WriteData *wd, ListBase *idbase)
 				write_curvemapping(wd, brush->curve);
 			if (brush->gradient)
 				writestruct(wd, DATA, "ColorBand", 1, brush->gradient);
-
-			write_previews(wd, brush->preview);
 		}
 	}
 }

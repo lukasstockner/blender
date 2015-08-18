@@ -109,7 +109,7 @@
 
 #include "UI_interface.h"
 #include "BLF_api.h"
-#include "BLF_translation.h"
+#include "BLT_lang.h"
 
 #include "GPU_buffers.h"
 #include "GPU_draw.h"
@@ -169,7 +169,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	ED_node_init_butfuncs();
 	
 	BLF_init(11, U.dpi); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
-	BLF_lang_init();
+	BLT_lang_init();
 
 	/* Enforce loading the UI for the initial homefile */
 	G.fileflags &= ~G_FILE_NO_UI;
@@ -178,7 +178,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	wm_homefile_read(C, NULL, G.factory_startup, NULL);
 	
 
-	BLF_lang_set(NULL);
+	BLT_lang_set(NULL);
 
 	if (!G.background) {
 		/* sets 3D mouse deadzone */
@@ -232,7 +232,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 
 	// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	wm_read_history();
+	wm_history_file_read();
 
 	/* allow a path of "", this is what happens when making a new file */
 #if 0
@@ -507,7 +507,7 @@ void WM_exit_ext(bContext *C, const bool do_python)
 #ifdef WITH_INTERNATIONAL
 	BLF_free_unifont();
 	BLF_free_unifont_mono();
-	BLF_lang_free();
+	BLT_lang_free();
 #endif
 	
 	ANIM_keyingset_infos_exit();
