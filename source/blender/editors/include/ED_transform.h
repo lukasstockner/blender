@@ -161,15 +161,20 @@ void Transform_Properties(struct wmOperatorType *ot, int flags);
 /* view3d manipulators */
 
 typedef struct ManipulatorGroup {
-	struct wmWidget *translate_x;
-	struct wmWidget *translate_y;
-	struct wmWidget *translate_z;
-	struct wmWidget *translate_c;
+	struct wmWidget *translate_x,
+	                *translate_y,
+	                *translate_z,
+	                *translate_c,
 
-	struct wmWidget *rotate_x;
-	struct wmWidget *rotate_y;
-	struct wmWidget *rotate_z;
-	struct wmWidget *rotate_c;
+	                *rotate_x,
+	                *rotate_y,
+	                *rotate_z,
+	                *rotate_c,
+
+	                *scale_x,
+	                *scale_y,
+	                *scale_z,
+	                *scale_c;
 } ManipulatorGroup;
 
 int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *wgrouptype);

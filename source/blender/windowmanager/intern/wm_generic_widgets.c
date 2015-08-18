@@ -204,10 +204,6 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 #ifdef WIDGET_USE_CUSTOM_ARROWS
 		widget_draw_intern(&arraw_head_draw_info, select);
 #else
-		GLUquadricObj *qobj = gluNewQuadric();
-		const float len = 0.25f;
-		const float width = 0.06f;
-
 		glLineWidth(arrow->widget.line_width);
 		glBegin(GL_LINES);
 		glVertex3f(0.0, 0.0, 0.0);
@@ -215,12 +211,62 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 		glEnd();
 		glLineWidth(1.0);
 
-		gluQuadricDrawStyle(qobj, GLU_FILL);
+		/* draw arrow head */
+
 		glTranslatef(0.0, 0.0, 1.0);
-		gluCylinder(qobj, width, 0.0, len, 8, 1);
-		gluQuadricOrientation(qobj, GLU_INSIDE);
-		gluDisk(qobj, 0.0, width, 8, 1);
-		gluQuadricOrientation(qobj, GLU_OUTSIDE);
+
+		if (arrow->style & WIDGET_ARROW_STYLE_BOX) {
+			const float size = 0.05;
+			static float box[24][3] = {
+				/* back */
+				{-1.0f, -1.0f, -1.0f},
+				{-1.0f,  1.0f, -1.0f},
+				{ 1.0f,  1.0f, -1.0f},
+				{ 1.0f, -1.0f, -1.0f},
+				/* front */
+				{-1.0f, -1.0f,  1.0f},
+				{-1.0f,  1.0f,  1.0f},
+				{ 1.0f,  1.0f,  1.0f},
+				{ 1.0f, -1.0f,  1.0f},
+				/* left */
+				{-1.0f, -1.0f, -1.0f},
+				{-1.0f,  1.0f, -1.0f},
+				{-1.0f,  1.0f,  1.0f},
+				{-1.0f, -1.0f,  1.0f},
+				/* right */
+				{ 1.0f, -1.0f, -1.0f},
+				{ 1.0f,  1.0f, -1.0f},
+				{ 1.0f,  1.0f,  1.0f},
+				{ 1.0f, -1.0f,  1.0f},
+				/* top */
+				{-1.0f,  1.0f, -1.0f},
+				{ 1.0f,  1.0f, -1.0f},
+				{ 1.0f,  1.0f,  1.0f},
+				{-1.0f,  1.0f,  1.0f},
+				/* bottom */
+				{-1.0f, -1.0f, -1.0f},
+				{ 1.0f, -1.0f, -1.0f},
+				{ 1.0f, -1.0f,  1.0f},
+				{-1.0f, -1.0f,  1.0f},
+			};
+
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glScalef(size, size, size);
+			glVertexPointer(3, GL_FLOAT, 0, box);
+			glDrawArrays(GL_QUADS, 0, 24);
+			glDisableClientState(GL_VERTEX_ARRAY);
+		}
+		else {
+			GLUquadricObj *qobj = gluNewQuadric();
+			const float len = 0.25f;
+			const float width = 0.06f;
+
+			gluQuadricDrawStyle(qobj, GLU_FILL);
+			gluCylinder(qobj, width, 0.0, len, 8, 1);
+			gluQuadricOrientation(qobj, GLU_INSIDE);
+			gluDisk(qobj, 0.0, width, 8, 1);
+			gluQuadricOrientation(qobj, GLU_OUTSIDE);
+		}
 
 		(void)select;
 #endif

@@ -130,6 +130,13 @@ enum {
 	MAN_AXIS_ROT_Y,
 	MAN_AXIS_ROT_Z,
 	MAN_AXIS_ROT_C,
+
+	MAN_AXIS_SCALE_X,
+	MAN_AXIS_SCALE_Y,
+	MAN_AXIS_SCALE_Z,
+	MAN_AXIS_SCALE_C,
+
+	MAN_AXIS_LAST,
 };
 
 /* axis types */
@@ -137,6 +144,7 @@ enum {
 	MAN_AXES_ALL = 0,
 	MAN_AXES_TRANSLATE,
 	MAN_AXES_ROTATE,
+	MAN_AXES_SCALE,
 };
 
 /* threshold for testing view aligned manipulator axis */
@@ -149,13 +157,11 @@ enum {
 /* **************** Utilities **************** */
 
 /* loop over axes of given type */
-#define MAN_ITER_AXES_BEGIN(axis_type) \
+#define MAN_ITER_AXES_BEGIN \
 	{ \
 		wmWidget *axis; \
 		int axis_idx; \
-		for (axis_idx = (axis_type == MAN_AXES_ROTATE ? MAN_AXIS_ROT_X : MAN_AXIS_TRANS_X); \
-		     axis_idx < (axis_type == MAN_AXES_TRANSLATE ? MAN_AXIS_TRANS_C + 1 : MAN_AXIS_ROT_C + 1); \
-		     axis_idx++) \
+		for (axis_idx = 0; axis_idx < MAN_AXIS_LAST; axis_idx++) \
 		{ \
 			axis = manipulator_get_axis_from_index(man, axis_idx); \
 			if (!axis) continue;
@@ -166,7 +172,7 @@ enum {
 
 static wmWidget *manipulator_get_axis_from_index(const ManipulatorGroup *man, const short axis_idx)
 {
-	BLI_assert(IN_RANGE_INCL(axis_idx, (float)MAN_AXIS_TRANS_X, (float)MAN_AXIS_ROT_C));
+	BLI_assert(IN_RANGE_INCL(axis_idx, (float)MAN_AXIS_TRANS_X, (float)MAN_AXIS_LAST));
 
 	switch (axis_idx) {
 		case MAN_AXIS_TRANS_X:
@@ -185,6 +191,14 @@ static wmWidget *manipulator_get_axis_from_index(const ManipulatorGroup *man, co
 			return man->rotate_z;
 		case MAN_AXIS_ROT_C:
 			return man->rotate_c;
+		case MAN_AXIS_SCALE_X:
+			return man->scale_x;
+		case MAN_AXIS_SCALE_Y:
+			return man->scale_y;
+		case MAN_AXIS_SCALE_Z:
+			return man->scale_z;
+		case MAN_AXIS_SCALE_C:
+			return man->scale_c;
 	}
 
 	return NULL;
@@ -195,15 +209,18 @@ static short manipulator_get_axis_type(const ManipulatorGroup *man, const wmWidg
 	if (ELEM(axis, man->translate_x, man->translate_y, man->translate_z, man->translate_c)) {
 		return MAN_AXES_TRANSLATE;
 	}
-	else {
+	else if (ELEM(axis, man->rotate_x, man->rotate_y, man->rotate_z, man->rotate_c)){
 		return MAN_AXES_ROTATE;
+	}
+	else {
+		return MAN_AXES_SCALE;
 	}
 }
 
 /* get index within axis type, so that x == 0, y == 1 and z == 2, no matter which axis type */
 static int manipulator_index_normalize(const int axis_idx)
 {
-	return (axis_idx > MAN_AXIS_TRANS_C) ? (axis_idx - 4) : axis_idx;
+	return (axis_idx > MAN_AXIS_TRANS_C) ? (axis_idx > MAN_AXIS_ROT_C ? (axis_idx - 8) : (axis_idx - 4)) : axis_idx;
 }
 
 static bool manipulator_is_axis_visible(const RegionView3D *rv3d, const int axis_idx)
@@ -225,6 +242,14 @@ static bool manipulator_is_axis_visible(const RegionView3D *rv3d, const int axis
 			return (rv3d->twdrawflag & MAN_ROT_Z);
 		case MAN_AXIS_ROT_C:
 			return (rv3d->twdrawflag & MAN_ROT_C);
+		case MAN_AXIS_SCALE_X:
+			return (rv3d->twdrawflag & MAN_SCALE_X);
+		case MAN_AXIS_SCALE_Y:
+			return (rv3d->twdrawflag & MAN_SCALE_Y);
+		case MAN_AXIS_SCALE_Z:
+			return (rv3d->twdrawflag & MAN_SCALE_Z);
+		case MAN_AXIS_SCALE_C:
+			return (rv3d->twdrawflag & MAN_SCALE_C);
 	}
 	return false;
 }
@@ -232,31 +257,35 @@ static bool manipulator_is_axis_visible(const RegionView3D *rv3d, const int axis
 static void manipulator_get_axis_color(const RegionView3D *rv3d, const int axis_idx, float r_col[4])
 {
 	const float idot = rv3d->tw_idot[manipulator_index_normalize(axis_idx)];
+	/* get alpha fac based on axis angle, to fade axis out when hiding it because it points towards view */
+	const float alpha = (idot > TW_AXIS_DOT_MAX) ?
+	                     1.0f : (idot < TW_AXIS_DOT_MIN) ?
+	                     0.0f : ((idot - TW_AXIS_DOT_MIN) / (TW_AXIS_DOT_MAX - TW_AXIS_DOT_MIN));
 
 	switch (axis_idx) {
 		case MAN_AXIS_TRANS_X:
 		case MAN_AXIS_ROT_X:
+		case MAN_AXIS_SCALE_X:
 			UI_GetThemeColor4fv(TH_AXIS_X, r_col);
+			r_col[3] = alpha;
 			break;
 		case MAN_AXIS_TRANS_Y:
 		case MAN_AXIS_ROT_Y:
+		case MAN_AXIS_SCALE_Y:
 			UI_GetThemeColor4fv(TH_AXIS_Y, r_col);
+			r_col[3] = alpha;
 			break;
 		case MAN_AXIS_TRANS_Z:
 		case MAN_AXIS_ROT_Z:
+		case MAN_AXIS_SCALE_Z:
 			UI_GetThemeColor4fv(TH_AXIS_Z, r_col);
+			r_col[3] = alpha;
 			break;
 		case MAN_AXIS_TRANS_C:
 		case MAN_AXIS_ROT_C:
+		case MAN_AXIS_SCALE_C:
 			copy_v4_fl(r_col, 1.0f);
 			break;
-	}
-
-	/* get alpha fac based on axis angle, to fade axis out when hiding it because it points towards view */
-	if (!ELEM(axis_idx, MAN_AXIS_TRANS_C, MAN_AXIS_ROT_C)) {
-		r_col[3] = (idot > TW_AXIS_DOT_MAX) ?
-		            1.0f : (idot < TW_AXIS_DOT_MIN) ?
-		            0.0f : ((idot - TW_AXIS_DOT_MIN) / (TW_AXIS_DOT_MAX - TW_AXIS_DOT_MIN));
 	}
 }
 
@@ -864,11 +893,11 @@ static void manipulator_prepare_mat(Scene *scene, View3D *v3d, RegionView3D *rv3
 /* **************** Actual Widget Stuff **************** */
 
 static ManipulatorGroup *manipulatorgroup_init(
-        struct wmWidgetGroup *wgroup, const bool init_trans, const bool init_rot)
+        struct wmWidgetGroup *wgroup, const bool init_trans, const bool init_rot, const bool init_scale)
 {
 	ManipulatorGroup *man;
 
-	if (init_trans == false && init_rot == false)
+	if (!(init_trans || init_rot || init_scale))
 		return NULL;
 
 	man = MEM_callocN(sizeof(ManipulatorGroup), "manipulator_data");
@@ -885,6 +914,12 @@ static ManipulatorGroup *manipulatorgroup_init(
 		man->rotate_z = WIDGET_dial_new(wgroup, "rotate_z", WIDGET_DIAL_STYLE_RING_CLIPPED);
 		man->rotate_c = WIDGET_dial_new(wgroup, "rotate_c", WIDGET_DIAL_STYLE_RING);
 	}
+	if (init_scale) {
+		man->scale_x = WIDGET_arrow_new(wgroup, "scale_x", WIDGET_ARROW_STYLE_BOX);
+		man->scale_y = WIDGET_arrow_new(wgroup, "scale_y", WIDGET_ARROW_STYLE_BOX);
+		man->scale_z = WIDGET_arrow_new(wgroup, "scale_z", WIDGET_ARROW_STYLE_BOX);
+		man->scale_c = WIDGET_dial_new(wgroup, "scale_c", WIDGET_DIAL_STYLE_RING);
+	}
 
 	return man;
 }
@@ -896,10 +931,11 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
 
-	const bool any_visible = (calc_manipulator_stats(C) != 0);
-	const bool trans_visble = (any_visible && (v3d->twtype & V3D_MANIP_TRANSLATE));
-	const bool rot_visble = (any_visible && (v3d->twtype & V3D_MANIP_ROTATE));
-	const ManipulatorGroup *man = manipulatorgroup_init(wgroup, trans_visble, rot_visble);
+	const bool any_visible   = (calc_manipulator_stats(C) != 0);
+	const bool trans_visble  = (any_visible && (v3d->twtype & V3D_MANIP_TRANSLATE));
+	const bool rot_visble    = (any_visible && (v3d->twtype & V3D_MANIP_ROTATE));
+	const bool scale_visible = (any_visible && (v3d->twtype & V3D_MANIP_SCALE));
+	const ManipulatorGroup *man = manipulatorgroup_init(wgroup, trans_visble, rot_visble, scale_visible);
 
 	if (!man)
 		return;
@@ -911,7 +947,7 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 	/* when looking through a selected camera, the manipulator can be at the
 	 * exact same position as the view, skip so we don't break selection */
 	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f) {
-		MAN_ITER_AXES_BEGIN(MAN_AXES_ALL)
+		MAN_ITER_AXES_BEGIN
 		{
 			WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
 		}
@@ -925,10 +961,10 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 
 	manipulator_drawflags_refresh(rv3d);
 
-	MAN_ITER_AXES_BEGIN(MAN_AXES_ALL)
+	MAN_ITER_AXES_BEGIN
 	{
 		const short atype = manipulator_get_axis_type(man, axis);
-		const bool is_trans = (atype == MAN_AXES_TRANSLATE);
+		const int aidx_norm = manipulator_index_normalize(axis_idx);
 		float col[4];
 
 		if (manipulator_is_axis_visible(rv3d, axis_idx) == false) {
@@ -940,30 +976,59 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 
 		/* should be added according to the order of axis */
 		WM_widget_set_origin(axis, rv3d->twmat[3]);
-		if (is_trans) {
-			if (axis_idx == MAN_AXIS_TRANS_C) {
-				WM_widget_set_scale(axis, 0.2f);
-				WIDGET_dial_set_direction(axis, rv3d->viewinv[2]);
+		switch(atype) {
+			case MAN_AXES_TRANSLATE:
+				if (axis_idx == MAN_AXIS_TRANS_C) {
+					WM_widget_set_scale(axis, 0.2f);
+					WIDGET_dial_set_direction(axis, rv3d->viewinv[2]);
+					WIDGET_dial_set_color(axis, col);
+				}
+				else {
+					/* scale for combined use */
+					if (v3d->twtype & V3D_MANIP_ROTATE) {
+						WM_widget_set_scale(axis, 1.15f);
+					}
+					WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
+					WIDGET_arrow_set_direction(axis, rv3d->twmat[aidx_norm]);
+					WIDGET_arrow_set_color(axis, col);
+				}
+				WM_widget_operator(axis, "TRANSFORM_OT_translate");
+				break;
+			case MAN_AXES_ROTATE:
+				if (axis_idx == MAN_AXIS_ROT_C) {
+					WIDGET_dial_set_direction(axis, rv3d->viewinv[2]);
+				}
+				else {
+					WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
+					WIDGET_dial_set_direction(axis, rv3d->twmat[aidx_norm]);
+				}
 				WIDGET_dial_set_color(axis, col);
-			}
-			else {
-				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
-				WIDGET_arrow_set_direction(axis, rv3d->twmat[axis_idx]);
-				WIDGET_arrow_set_color(axis, col);
-			}
+				WM_widget_operator(axis, "TRANSFORM_OT_rotate");
+				break;
+			case MAN_AXES_SCALE:
+				if (axis_idx == MAN_AXIS_SCALE_C) {
+					/* only draw  */
+					if ((v3d->twtype & V3D_MANIP_TRANSLATE)) {
+						WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
+					}
+					else {
+						WM_widget_set_scale(axis, 0.2f);
+						WIDGET_dial_set_direction(axis, rv3d->viewinv[2]);
+						WIDGET_dial_set_color(axis, col);
+					}
+				}
+				else {
+					/* scale for combined use */
+					if (v3d->twtype & (V3D_MANIP_TRANSLATE | V3D_MANIP_ROTATE)) {
+						WM_widget_set_scale(axis, 0.85f);
+					}
+					WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
+					WIDGET_arrow_set_direction(axis, rv3d->twmat[aidx_norm]);
+					WIDGET_arrow_set_color(axis, col);
+				}
+				WM_widget_operator(axis, "TRANSFORM_OT_resize");
+				break;
 		}
-		else {
-			if (axis_idx == MAN_AXIS_ROT_C) {
-				WIDGET_dial_set_direction(axis, rv3d->viewinv[2]);
-			}
-			else {
-				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
-				WIDGET_dial_set_direction(axis, rv3d->twmat[manipulator_index_normalize(axis_idx)]);
-			}
-			WIDGET_dial_set_color(axis, col);
-		}
-
-		WM_widget_operator(axis, is_trans ? "TRANSFORM_OT_translate" : "TRANSFORM_OT_rotate");
 	}
 	MAN_ITER_AXES_END;
 }
