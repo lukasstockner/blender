@@ -164,10 +164,12 @@ typedef struct ManipulatorGroup {
 	struct wmWidget *translate_x;
 	struct wmWidget *translate_y;
 	struct wmWidget *translate_z;
+	struct wmWidget *translate_c;
 
 	struct wmWidget *rotate_x;
 	struct wmWidget *rotate_y;
 	struct wmWidget *rotate_z;
+	struct wmWidget *rotate_c;
 } ManipulatorGroup;
 
 int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *wgrouptype);
