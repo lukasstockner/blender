@@ -889,6 +889,35 @@ static void manipulator_prepare_mat(Scene *scene, View3D *v3d, RegionView3D *rv3
 	mul_mat3_m4_fl(rv3d->twmat, ED_view3d_pixel_size(rv3d, rv3d->twmat[3]) * U.tw_size);
 }
 
+/**
+ * Sets up \a r_vec for custom arrow widget line drawing. Needed to
+ * adjust line drawing for combined manipulator axis types.
+ */
+static void manipulator_line_vec(const View3D *v3d, float r_vec[2][3], const short axis_type)
+{
+	const float ofs = 0.2f;
+	float start[3] = {0.0f, 0.0f, 0.2f};
+	float end[3] = {0.0f, 0.0f, 1.0f};
+
+	switch (axis_type) {
+		case MAN_AXES_TRANSLATE:
+			if (v3d->twtype & V3D_MANIP_SCALE) {
+				start[2] = end[2] - ofs;
+			}
+			if (v3d->twtype & V3D_MANIP_ROTATE) {
+				end[2] += ofs;
+			}
+			break;
+		case MAN_AXES_SCALE:
+			if (v3d->twtype & (V3D_MANIP_TRANSLATE | V3D_MANIP_ROTATE)) {
+				end[2] -= ofs;
+			}
+			break;
+	}
+	copy_v3_v3(r_vec[0], start);
+	copy_v3_v3(r_vec[1], end);
+}
+
 
 /* **************** Actual Widget Stuff **************** */
 
@@ -984,13 +1013,14 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 					WIDGET_dial_set_color(axis, col);
 				}
 				else {
-					/* scale for combined use */
-					if (v3d->twtype & V3D_MANIP_ROTATE) {
-						WM_widget_set_scale(axis, 1.15f);
-					}
+					float line_vec[2][3];
+
+					manipulator_line_vec(v3d, line_vec, atype);
+
 					WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
 					WIDGET_arrow_set_direction(axis, rv3d->twmat[aidx_norm]);
 					WIDGET_arrow_set_color(axis, col);
+					WIDGET_arrow_set_line_vec(axis, (const float (*)[3])line_vec, ARRAY_SIZE(line_vec));
 				}
 				WM_widget_operator(axis, "TRANSFORM_OT_translate");
 				break;
@@ -1007,7 +1037,7 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 				break;
 			case MAN_AXES_SCALE:
 				if (axis_idx == MAN_AXIS_SCALE_C) {
-					/* only draw  */
+					/* only draw if there isn't already a circle for translate */
 					if ((v3d->twtype & V3D_MANIP_TRANSLATE)) {
 						WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
 					}
@@ -1018,13 +1048,14 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 					}
 				}
 				else {
-					/* scale for combined use */
-					if (v3d->twtype & (V3D_MANIP_TRANSLATE | V3D_MANIP_ROTATE)) {
-						WM_widget_set_scale(axis, 0.85f);
-					}
+					float line_vec[2][3];
+
+					manipulator_line_vec(v3d, line_vec, atype);
+
 					WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
 					WIDGET_arrow_set_direction(axis, rv3d->twmat[aidx_norm]);
 					WIDGET_arrow_set_color(axis, col);
+					WIDGET_arrow_set_line_vec(axis, (const float (*)[3])line_vec, ARRAY_SIZE(line_vec));
 				}
 				WM_widget_operator(axis, "TRANSFORM_OT_resize");
 				break;

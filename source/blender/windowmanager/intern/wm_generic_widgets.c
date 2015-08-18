@@ -160,6 +160,8 @@ typedef struct ArrowWidget {
 	float direction[3];
 	float up[3];
 	float color[4];
+	float (*line)[3];    /* custom coords for arrow line drawing */
+	int tot_line_points; /* amount of points for arrow line drawing */
 	float offset;
 	/* property range and minimum for constrained arrows */
 	float range, min;
@@ -205,15 +207,15 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 		widget_draw_intern(&arraw_head_draw_info, select);
 #else
 		glLineWidth(arrow->widget.line_width);
-		glBegin(GL_LINES);
-		glVertex3f(0.0, 0.0, 0.0);
-		glVertex3f(0.0, 0.0, 1.0);
-		glEnd();
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glVertexPointer(3, GL_FLOAT, 0, arrow->line);
+		glDrawArrays(GL_LINES, 0, arrow->tot_line_points);
+		glDisableClientState(GL_VERTEX_ARRAY);
 		glLineWidth(1.0);
 
 		/* draw arrow head */
 
-		glTranslatef(0.0, 0.0, 1.0);
+		glTranslatef(UNPACK3(arrow->line[arrow->tot_line_points - 1]));
 
 		if (arrow->style & WIDGET_ARROW_STYLE_BOX) {
 			const float size = 0.05;
@@ -253,7 +255,7 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glScalef(size, size, size);
 			glVertexPointer(3, GL_FLOAT, 0, box);
-			glDrawArrays(GL_QUADS, 0, 24);
+			glDrawArrays(GL_QUADS, 0, ARRAY_SIZE(box));
 			glDisableClientState(GL_VERTEX_ARRAY);
 		}
 		else {
@@ -525,6 +527,10 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 {
 	ArrowWidget *arrow;
 	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
+	const float line_default[2][3] = {
+		{0.0f, 0.0f, 0.0f},
+		{0.0f, 0.0f, 1.0f}
+	};
 	int real_style = style;
 
 #ifdef WIDGET_USE_CUSTOM_ARROWS
@@ -542,9 +548,9 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	if (real_style & WIDGET_ARROW_STYLE_INVERTED) {
 		real_style |= WIDGET_ARROW_STYLE_CONSTRAINED;
 	}
-	
+
+
 	arrow = MEM_callocN(sizeof(ArrowWidget), name);
-	
 
 	arrow->widget.draw = widget_arrow_draw;
 	arrow->widget.get_final_position = 	widget_arrow_get_final_pos;
@@ -556,9 +562,12 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	arrow->widget.flag |= WM_WIDGET_SCALE_3D;
 	arrow->style = real_style;
 	copy_v3_v3(arrow->direction, dir_default);
-	
+	arrow->tot_line_points = ARRAY_SIZE(line_default);
+	arrow->line = MEM_mallocN(sizeof(line_default), __func__);
+	memcpy(arrow->line, line_default, sizeof(line_default));
+
 	wm_widget_register(wgroup, &arrow->widget, name);
-	
+
 	return (wmWidget *)arrow;
 }
 
@@ -589,6 +598,19 @@ void WIDGET_arrow_set_up_vector(wmWidget *widget, const float direction[3])
 	else {
 		arrow->flag &= ~ARROW_UP_VECTOR_SET;
 	}
+}
+
+/**
+ * Define a custom coord vec for arrow line drawing
+ */
+void WIDGET_arrow_set_line_vec(wmWidget *widget, const float (*vec)[3], const int tot_points)
+{
+	ArrowWidget *arrow = (ArrowWidget *)widget;
+	const size_t vec_size = 3 * tot_points * sizeof(float);
+
+	arrow->tot_line_points = tot_points;
+	arrow->line = MEM_reallocN(arrow->line, vec_size);
+	memcpy(arrow->line, vec, vec_size);
 }
 
 
