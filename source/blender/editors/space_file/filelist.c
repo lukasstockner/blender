@@ -1053,7 +1053,7 @@ static void filelist_intern_free(FileListIntern *filelist_intern)
 	MEM_SAFE_FREE(filelist_intern->filtered);
 }
 
-static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid)
+static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int UNUSED(threadid))
 {
 	FileListEntryCache *cache = taskdata;
 	FileListEntryPreview *preview;
@@ -1080,9 +1080,9 @@ static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid
 			source = THB_SOURCE_FONT;
 		}
 
-		IMB_thumb_lock_path(preview->path);
+		IMB_thumb_path_lock(preview->path);
 		preview->img = IMB_thumb_manage(preview->path, THB_LARGE, source);
-		IMB_thumb_unlock_path(preview->path);
+		IMB_thumb_path_unlock(preview->path);
 
 		BLI_thread_queue_push(cache->previews_done, preview);
 	}
