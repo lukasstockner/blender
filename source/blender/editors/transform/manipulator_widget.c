@@ -151,6 +151,9 @@ enum {
 #define TW_AXIS_DOT_MIN 0.02f
 #define TW_AXIS_DOT_MAX 0.1f
 
+
+/* **************** Utilities **************** */
+
 /* loop over axes of given type */
 #define MAN_ITER_AXES_BEGIN(axis_type) \
 	{ \
@@ -169,32 +172,24 @@ enum {
 
 static wmWidget *manipulator_get_axis_from_index(const ManipulatorGroup *man, const short index)
 {
-	wmWidget *axis = NULL;
-
 	BLI_assert(IN_RANGE_INCL(index, 0.0f, 5.0f));
 
 	switch (index) {
 		case MAN_AXIS_TRANS_X:
-			axis = man->translate_x;
-			break;
+			return man->translate_x;
 		case MAN_AXIS_TRANS_Y:
-			axis = man->translate_y;
-			break;
+			return man->translate_y;
 		case MAN_AXIS_TRANS_Z:
-			axis = man->translate_z;
-			break;
+			return man->translate_z;
 		case MAN_AXIS_ROT_X:
-			axis = man->rotate_x;
-			break;
+			return man->rotate_x;
 		case MAN_AXIS_ROT_Y:
-			axis = man->rotate_y;
-			break;
+			return man->rotate_y;
 		case MAN_AXIS_ROT_Z:
-			axis = man->rotate_z;
-			break;
+			return man->rotate_z;
 	}
 
-	return axis;
+	return NULL;
 }
 
 static short manipulator_get_axis_type(const ManipulatorGroup *man, const wmWidget *axis)
@@ -206,6 +201,28 @@ static short manipulator_get_axis_type(const ManipulatorGroup *man, const wmWidg
 		return MAN_AXES_ROTATE;
 	}
 }
+
+static bool manipulator_is_axis_visible(const RegionView3D *rv3d, const int axis_idx)
+{
+	switch (axis_idx) {
+		case MAN_AXIS_TRANS_X:
+			return (rv3d->twdrawflag & MAN_TRANS_X);
+		case MAN_AXIS_TRANS_Y:
+			return (rv3d->twdrawflag & MAN_TRANS_Y);
+		case MAN_AXIS_TRANS_Z:
+			return (rv3d->twdrawflag & MAN_TRANS_Z);
+		case MAN_AXIS_ROT_X:
+			return (rv3d->twdrawflag & MAN_ROT_X);
+		case MAN_AXIS_ROT_Y:
+			return (rv3d->twdrawflag & MAN_ROT_Y);
+		case MAN_AXIS_ROT_Z:
+			return (rv3d->twdrawflag & MAN_ROT_Z);
+	}
+	return false;
+}
+
+
+/* **************** Preparation Stuff **************** */
 
 /* transform widget center calc helper for below */
 static void calc_tw_center(Scene *scene, const float co[3])
@@ -753,9 +770,8 @@ static int calc_manipulator_stats(const bContext *C)
 }
 
 /* don't draw axis perpendicular to the view */
-static void test_manipulator_axis(const bContext *C)
+static void manipulator_drawflags_refresh(RegionView3D *rv3d)
 {
-	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	float view_vec[3], axis_vec[3];
 	float idot;
 	int i;
@@ -774,22 +790,6 @@ static void test_manipulator_axis(const bContext *C)
 			rv3d->twdrawflag &= ~twdrawflag_axis[i];
 		}
 	}
-}
-
-
-/* ********************************************* */
-
-/* main call, does calc centers & orientation too */
-static int drawflags = 0xFFFF;       /* only for the calls below, belongs in scene...? */
-
-
-int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
-{
-	/* it's a given we only use this in 3D view */
-	ScrArea *sa = CTX_wm_area(C);
-	View3D *v3d = sa->spacedata.first;
-
-	return ((v3d->twflag & V3D_USE_MANIPULATOR) != 0);
 }
 
 static void manipulator_prepare_mat(Scene *scene, View3D *v3d, RegionView3D *rv3d)
@@ -820,6 +820,9 @@ static void manipulator_prepare_mat(Scene *scene, View3D *v3d, RegionView3D *rv3
 
 	mul_mat3_m4_fl(rv3d->twmat, ED_view3d_pixel_size(rv3d, rv3d->twmat[3]) * U.tw_size);
 }
+
+
+/* **************** Actual Widget Stuff **************** */
 
 static ManipulatorGroup *manipulatorgroup_init(
         struct wmWidgetGroup *wgroup, const bool init_trans, const bool init_rot)
@@ -886,13 +889,20 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 		return;
 	}
 
-	test_manipulator_axis(C);
-	drawflags = rv3d->twdrawflag;    /* set in calc_manipulator_stats */
+
+	/* *** set properties for axes *** */
+
+	manipulator_drawflags_refresh(rv3d);
 
 	MAN_ITER_AXES_BEGIN(MAN_AXES_ALL)
 	{
 		const short atype = manipulator_get_axis_type(man, axis);
 		const bool is_trans = (atype == MAN_AXES_TRANSLATE);
+
+		if (manipulator_is_axis_visible(rv3d, i) == false) {
+			WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
+			continue;
+		}
 
 		/* should be added according to the order of axis */
 		WM_widget_set_origin(axis, rv3d->twmat[3]);
@@ -917,4 +927,13 @@ void WIDGETGROUP_object_manipulator_draw(const struct bContext *C, struct wmWidg
 	}
 
 	WIDGETGROUP_manipulator_draw(C, wgroup);
+}
+
+int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
+{
+	/* it's a given we only use this in 3D view */
+	ScrArea *sa = CTX_wm_area(C);
+	View3D *v3d = sa->spacedata.first;
+
+	return ((v3d->twflag & V3D_USE_MANIPULATOR) != 0);
 }
