@@ -197,6 +197,16 @@ static wmWidget *manipulator_get_axis_from_index(const ManipulatorGroup *man, co
 	return axis;
 }
 
+static short manipulator_get_axis_type(const ManipulatorGroup *man, const wmWidget *axis)
+{
+	if (ELEM(axis, man->translate_x, man->translate_y, man->translate_z)) {
+		return MAN_AXES_TRANSLATE;
+	}
+	else {
+		return MAN_AXES_ROTATE;
+	}
+}
+
 /* transform widget center calc helper for below */
 static void calc_tw_center(Scene *scene, const float co[3])
 {
@@ -772,26 +782,6 @@ static void test_manipulator_axis(const bContext *C)
 /* main call, does calc centers & orientation too */
 static int drawflags = 0xFFFF;       /* only for the calls below, belongs in scene...? */
 
-static int manipulator_flags_from_active(const int active)
-{
-	int val;
-
-	if (active != -1) {
-		if (active == MAN_SEL_TRANS_C) {
-			val = MAN_TRANS_C;
-		}
-		else if (active == MAN_SEL_SCALE_C) {
-			val = MAN_SCALE_C;
-		}
-		else {
-			val = 1 << active;
-		}
-	}
-	else
-		val = 0;
-
-	return val;
-}
 
 int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
@@ -801,205 +791,6 @@ int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupT
 
 	return ((v3d->twflag & V3D_USE_MANIPULATOR) != 0);
 }
-
-/* return 0; nothing happened */
-static int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *UNUSED(widget))
-{
-	const ScrArea *sa = CTX_wm_area(C);
-	const View3D *v3d = sa->spacedata.first;
-	int constraint_axis[3] = {0, 0, 0};
-	int val;
-	int shift = event->shift;
-
-	struct IDProperty *properties = NULL;	/* operator properties, assigned to ptr->data and can be written to a file */
-	struct PointerRNA *ptr = NULL;			/* rna pointer to access properties */
-
-	val = manipulator_flags_from_active(0);
-
-	if (!((v3d->twflag & V3D_USE_MANIPULATOR) && (v3d->twflag & V3D_DRAW_MANIPULATOR)) ||
-	    !(event->keymodifier == 0 || event->keymodifier == KM_SHIFT) ||
-		!((event->val == KM_PRESS) && (event->type == LEFTMOUSE)))
-	{
-		return OPERATOR_PASS_THROUGH;
-	}
-
-	if (val) {
-		if (val & MAN_TRANS_C) {
-			switch (val) {
-				case MAN_TRANS_C:
-					break;
-				case MAN_TRANS_X:
-					if (shift) {
-						constraint_axis[1] = 1;
-						constraint_axis[2] = 1;
-					}
-					else
-						constraint_axis[0] = 1;
-					break;
-				case MAN_TRANS_Y:
-					if (shift) {
-						constraint_axis[0] = 1;
-						constraint_axis[2] = 1;
-					}
-					else
-						constraint_axis[1] = 1;
-					break;
-				case MAN_TRANS_Z:
-					if (shift) {
-						constraint_axis[0] = 1;
-						constraint_axis[1] = 1;
-					}
-					else
-						constraint_axis[2] = 1;
-					break;
-			}
-			WM_operator_properties_alloc(&ptr, &properties, "TRANSFORM_OT_translate");
-			/* Force orientation */
-			RNA_boolean_set(ptr, "release_confirm", true);
-			RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
-			RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
-			WM_operator_name_call(C, "TRANSFORM_OT_translate", WM_OP_INVOKE_DEFAULT, ptr);
-		}
-		else if (val & MAN_SCALE_C) {
-			switch (val) {
-				case MAN_SCALE_X:
-					if (shift) {
-						constraint_axis[1] = 1;
-						constraint_axis[2] = 1;
-					}
-					else
-						constraint_axis[0] = 1;
-					break;
-				case MAN_SCALE_Y:
-					if (shift) {
-						constraint_axis[0] = 1;
-						constraint_axis[2] = 1;
-					}
-					else
-						constraint_axis[1] = 1;
-					break;
-				case MAN_SCALE_Z:
-					if (shift) {
-						constraint_axis[0] = 1;
-						constraint_axis[1] = 1;
-					}
-					else
-						constraint_axis[2] = 1;
-					break;
-			}
-			WM_operator_properties_alloc(&ptr, &properties, "TRANSFORM_OT_resize");
-			/* Force orientation */
-			RNA_boolean_set(ptr, "release_confirm", true);
-			RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
-			RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
-			WM_operator_name_call(C, "TRANSFORM_OT_resize", WM_OP_INVOKE_DEFAULT, ptr);
-		}
-		else if (val == MAN_ROT_T) { /* trackball need special case, init is different */
-			/* Do not pass op->ptr!!! trackball has no "constraint" properties!
-			 * See [#34621], it's a miracle it did not cause more problems!!! */
-			/* However, we need to copy the "release_confirm" property, but only if defined, see T41112. */
-			PointerRNA props_ptr;
-			wmOperatorType *ot = WM_operatortype_find("TRANSFORM_OT_trackball", true);
-			WM_operator_properties_create_ptr(&props_ptr, ot);
-			RNA_boolean_set(&props_ptr, "release_confirm", true);
-			WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &props_ptr);
-			WM_operator_properties_free(&props_ptr);
-		}
-		else if (val & MAN_ROT_C) {
-			switch (val) {
-				case MAN_ROT_X:
-					constraint_axis[0] = 1;
-					break;
-				case MAN_ROT_Y:
-					constraint_axis[1] = 1;
-					break;
-				case MAN_ROT_Z:
-					constraint_axis[2] = 1;
-					break;
-			}
-			WM_operator_properties_alloc(&ptr, &properties, "TRANSFORM_OT_rotate");
-			/* Force orientation */
-			RNA_boolean_set(ptr, "release_confirm", true);
-			RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
-			RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
-			WM_operator_name_call(C, "TRANSFORM_OT_rotate", WM_OP_INVOKE_DEFAULT, ptr);
-		}
-	}
-
-	if (ptr) {
-		WM_operator_properties_free(ptr);
-		MEM_freeN(ptr);
-	}
-
-	return (val) ? OPERATOR_FINISHED : OPERATOR_PASS_THROUGH;
-}
-
-#if 0
-/* return 0; nothing happened */
-int WIDGET_manipulator_handler_trans(bContext *C, const struct wmEvent *event, wmWidget *widget, struct PointerRNA *ptr)
-{
-	ScrArea *sa = CTX_wm_area(C);
-	View3D *v3d = sa->spacedata.first;
-	int constraint_axis[3] = {0, 0, 0};
-	int shift = event->shift;
-	int direction = GET_INT_FROM_POINTER(WM_widget_customdata(widget));
-
-	if (!((v3d->twflag & V3D_USE_MANIPULATOR) && (v3d->twflag & V3D_DRAW_MANIPULATOR)) ||
-	    !(event->keymodifier == 0 || event->keymodifier == KM_SHIFT))
-	{
-		;//return OPERATOR_PASS_THROUGH;
-	}
-
-	if (shift) {
-		int d = 0;
-		for (; d < 3; d++) {
-			if (d != direction)
-				constraint_axis[d] = 1;
-		}
-	}
-	else
-		constraint_axis[direction] = 1;
-
-	/* Force orientation */
-	RNA_boolean_set(ptr, "release_confirm", true);
-	RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
-	RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
-	RNA_boolean_set(ptr, "use_widget_input", true);
-
-	return OPERATOR_FINISHED;
-}
-
-/* return 0; nothing happened */
-int WIDGET_manipulator_handler_rot(bContext *C, const struct wmEvent *UNUSED(event), wmWidget *widget, struct PointerRNA *ptr)
-{
-	ScrArea *sa = CTX_wm_area(C);
-	View3D *v3d = sa->spacedata.first;
-	int constraint_axis[3] = {0, 0, 0};
-	int direction = GET_INT_FROM_POINTER(WM_widget_customdata(widget));
-
-	if (!(v3d->twflag & V3D_USE_MANIPULATOR) && (v3d->twflag & V3D_DRAW_MANIPULATOR))
-	{
-		;//return OPERATOR_PASS_THROUGH;
-	}
-
-	constraint_axis[direction] = 1;
-
-	/* Force orientation */
-	RNA_boolean_set(ptr, "release_confirm", true);
-	RNA_enum_set(ptr, "constraint_orientation", v3d->twmode);
-	RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
-	RNA_boolean_set(ptr, "use_widget_input", true);
-
-	return OPERATOR_FINISHED;
-}
-
-static void WIDGETGROUP_manipulator_free(struct wmWidgetGroup *wgroup)
-{
-	ManipulatorGroup *man = WM_widgetgroup_customdata(wgroup);
-
-	MEM_freeN(man);
-}
-#endif
 
 static void manipulator_prepare_mat(Scene *scene, View3D *v3d, RegionView3D *rv3d)
 {
@@ -1033,11 +824,16 @@ static void manipulator_prepare_mat(Scene *scene, View3D *v3d, RegionView3D *rv3
 static ManipulatorGroup *manipulatorgroup_init(
         struct wmWidgetGroup *wgroup, const bool init_trans, const bool init_rot)
 {
-	ManipulatorGroup *man = MEM_callocN(sizeof(ManipulatorGroup), "manipulator_data");
+	ManipulatorGroup *man;
 
-	float color_green[4] = {0.27f, 1.0f, 0.27f, 1.0f};
-	float color_red[4] = {1.0f, 0.27f, 0.27f, 1.0f};
-	float color_blue[4] = {0.27f, 0.27f, 1.0f, 1.0f};
+	const float color_green[4] = {0.27f, 1.0f, 0.27f, 1.0f};
+	const float color_red[4] = {1.0f, 0.27f, 0.27f, 1.0f};
+	const float color_blue[4] = {0.27f, 0.27f, 1.0f, 1.0f};
+
+	if (init_trans == false && init_rot == false)
+		return NULL;
+
+	man = MEM_callocN(sizeof(ManipulatorGroup), "manipulator_data");
 
 	if (init_trans) {
 		man->translate_x = WIDGET_arrow_new(wgroup, "translate_x", WIDGET_ARROW_STYLE_NORMAL);
@@ -1051,7 +847,6 @@ static ManipulatorGroup *manipulatorgroup_init(
 		man->rotate_x = WIDGET_dial_new(wgroup, "rotate_x", WIDGET_DIAL_STYLE_RING_CLIPPED);
 		man->rotate_y = WIDGET_dial_new(wgroup, "rotate_y", WIDGET_DIAL_STYLE_RING_CLIPPED);
 		man->rotate_z = WIDGET_dial_new(wgroup, "rotate_z", WIDGET_DIAL_STYLE_RING_CLIPPED);
-
 		WIDGET_dial_set_color(man->rotate_x, color_red);
 		WIDGET_dial_set_color(man->rotate_y, color_green);
 		WIDGET_dial_set_color(man->rotate_z, color_blue);
@@ -1067,23 +862,14 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
 
-	const bool trans_visble = v3d->twtype & V3D_MANIP_TRANSLATE;
-	const bool rot_visble = v3d->twtype & V3D_MANIP_ROTATE;
+	const bool any_visible = (calc_manipulator_stats(C) != 0);
+	const bool trans_visble = (any_visible && (v3d->twtype & V3D_MANIP_TRANSLATE));
+	const bool rot_visble = (any_visible && (v3d->twtype & V3D_MANIP_ROTATE));
 	const ManipulatorGroup *man = manipulatorgroup_init(wgroup, trans_visble, rot_visble);
 
-
-	v3d->twflag &= ~V3D_DRAW_MANIPULATOR;
-
-	if (calc_manipulator_stats(C) == 0) {
-		MAN_ITER_AXES_BEGIN(MAN_AXES_ALL)
-		{
-			WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
-		}
-		MAN_ITER_AXES_END;
+	if (!man)
 		return;
-	}
 
-	v3d->twflag |= V3D_DRAW_MANIPULATOR;
 
 	/* now we can define center */
 	manipulator_prepare_mat(CTX_data_scene(C), v3d, rv3d);
@@ -1103,31 +889,21 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 	test_manipulator_axis(C);
 	drawflags = rv3d->twdrawflag;    /* set in calc_manipulator_stats */
 
-	MAN_ITER_AXES_BEGIN(MAN_AXES_TRANSLATE)
+	MAN_ITER_AXES_BEGIN(MAN_AXES_ALL)
 	{
-		if (trans_visble) {
-			/* should be added according to the order of axis */
-			WM_widget_set_origin(axis, rv3d->twmat[3]);
+		const short atype = manipulator_get_axis_type(man, axis);
+		const bool is_trans = (atype == MAN_AXES_TRANSLATE);
+
+		/* should be added according to the order of axis */
+		WM_widget_set_origin(axis, rv3d->twmat[3]);
+		if (is_trans) {
 			WIDGET_arrow_set_direction(axis, rv3d->twmat[i]);
-
-			WM_widget_operator(axis, "TRANSFORM_OT_translate");
 		}
-
-		WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, trans_visble == false);
-	}
-	MAN_ITER_AXES_END;
-
-	MAN_ITER_AXES_BEGIN(MAN_AXES_ROTATE)
-	{
-		if (rot_visble) {
-			/* should be added according to the order of axis */
-			WM_widget_set_origin(axis, rv3d->twmat[3]);
+		else {
 			WIDGET_dial_set_direction(axis, rv3d->twmat[i - 3]);
-
-			WM_widget_operator(axis, "TRANSFORM_OT_rotate");
 		}
 
-		WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, rot_visble == false);
+		WM_widget_operator(axis, is_trans ? "TRANSFORM_OT_translate" : "TRANSFORM_OT_rotate");
 	}
 	MAN_ITER_AXES_END;
 }

@@ -1085,19 +1085,24 @@ static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWi
 	}
 	
 	if (widget->props[RECT_TRANSFORM_SLOT_OFFSET]) {
-		RNA_property_float_set_array(&widget->ptr[RECT_TRANSFORM_SLOT_OFFSET],
-		                             widget->props[RECT_TRANSFORM_SLOT_OFFSET], cage->offset);
-		RNA_property_update(C, &widget->ptr[RECT_TRANSFORM_SLOT_OFFSET], widget->props[RECT_TRANSFORM_SLOT_OFFSET]);
+		PointerRNA ptr = widget->ptr[RECT_TRANSFORM_SLOT_OFFSET];
+		PropertyRNA *prop = widget->props[RECT_TRANSFORM_SLOT_OFFSET];
+
+		RNA_property_float_set_array(&ptr, prop, cage->offset);
+		RNA_property_update(C, &ptr, prop);
 	}
 
 	if (widget->props[RECT_TRANSFORM_SLOT_SCALE]) {
-		if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM)
-			RNA_property_float_set(&widget->ptr[RECT_TRANSFORM_SLOT_SCALE],
-			                       widget->props[RECT_TRANSFORM_SLOT_SCALE], cage->scale[0]);
-		else
-			RNA_property_float_set_array(&widget->ptr[RECT_TRANSFORM_SLOT_SCALE],
-			                             widget->props[RECT_TRANSFORM_SLOT_SCALE], cage->scale);
-		RNA_property_update(C, &widget->ptr[RECT_TRANSFORM_SLOT_SCALE], widget->props[RECT_TRANSFORM_SLOT_SCALE]);
+		PointerRNA ptr = widget->ptr[RECT_TRANSFORM_SLOT_SCALE];
+		PropertyRNA *prop = widget->props[RECT_TRANSFORM_SLOT_SCALE];
+
+		if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM){
+			RNA_property_float_set(&ptr, prop, cage->scale[0]);
+		}
+		else {
+			RNA_property_float_set_array(&ptr, prop, cage->scale);
+		}
+		RNA_property_update(C, &ptr, prop);
 	}
 	
 	/* tag the region for redraw */
