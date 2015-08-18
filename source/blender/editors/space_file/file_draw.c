@@ -50,7 +50,7 @@
 
 #include "BLO_readfile.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "IMB_imbuf_types.h"
 

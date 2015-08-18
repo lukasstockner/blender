@@ -511,7 +511,26 @@ void	CcdPhysicsEnvironment::AddCcdPhysicsController(CcdPhysicsController* ctrl)
 	assert(obj->getBroadphaseHandle());
 }
 
-		
+void CcdPhysicsEnvironment::RemoveConstraint(btTypedConstraint *con)
+{
+	btRigidBody rbA = con->getRigidBodyA();
+	btRigidBody rbB = con->getRigidBodyA();
+	rbA.activate();
+	rbB.activate();
+	m_dynamicsWorld->removeConstraint(con);
+
+	if (rbA.getUserPointer()) {
+		((CcdPhysicsController *)rbA.getUserPointer())->removeCcdConstraintRef(con);
+	}
+
+	if (rbB.getUserPointer()) {
+		((CcdPhysicsController *)rbB.getUserPointer())->removeCcdConstraintRef(con);
+	}
+
+	/* Since we remove the constraint in the onwer and the target, we can delete it,
+	 * KX_ConstraintWrapper keep the constraint id not the pointer, so no problems. */
+	delete con;
+}
 
 bool	CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController* ctrl)
 {
@@ -534,11 +553,7 @@ bool	CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController* ctr
 		for (int i = ctrl->getNumCcdConstraintRefs() - 1; i >= 0; i--)
 		{
 			btTypedConstraint* con = ctrl->getCcdConstraintRef(i);
-			con->getRigidBodyA().activate();
-			con->getRigidBodyB().activate();
-			m_dynamicsWorld->removeConstraint(con);
-			ctrl->removeCcdConstraintRef(con);
-			//delete con; //might be kept by python KX_ConstraintWrapper
+			RemoveConstraint(con);
 		}
 		m_dynamicsWorld->removeRigidBody(ctrl->GetRigidBody());
 
@@ -553,7 +568,7 @@ bool	CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController* ctr
 		}
 
 		if (vehicle_constraint > 0)
-			RemoveConstraint(vehicle_constraint);
+			RemoveConstraintById(vehicle_constraint);
 	} else
 	{
 		//if a softbody
@@ -1099,9 +1114,7 @@ int			CcdPhysicsEnvironment::CreateUniversalD6Constraint(
 	return 0;
 }
 
-
-
-void		CcdPhysicsEnvironment::RemoveConstraint(int	constraintId)
+void CcdPhysicsEnvironment::RemoveConstraintById(int constraintId)
 {
 	// For soft body constraints
 	if (constraintId == 0)
@@ -1114,9 +1127,7 @@ void		CcdPhysicsEnvironment::RemoveConstraint(int	constraintId)
 		btTypedConstraint* constraint = m_dynamicsWorld->getConstraint(i);
 		if (constraint->getUserConstraintId() == constraintId)
 		{
-			constraint->getRigidBodyA().activate();
-			constraint->getRigidBodyB().activate();
-			m_dynamicsWorld->removeConstraint(constraint);
+			RemoveConstraint(constraint);
 			break;
 		}
 	}
