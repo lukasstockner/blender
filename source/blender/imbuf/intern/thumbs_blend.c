@@ -133,6 +133,7 @@ ImBuf *IMB_thumb_load_blend(const char *blen_path, const char *blen_group, const
 	if (blen_group && blen_id) {
 		LinkNode *ln, *names, *lp, *previews = NULL;
 		struct BlendHandle *libfiledata = BLO_blendhandle_from_file(blen_path, NULL);
+		ImBuf *ima = NULL;
 		int idcode = BKE_idcode_from_name(blen_group);
 		int i, nprevs, nnames;
 
@@ -141,7 +142,7 @@ ImBuf *IMB_thumb_load_blend(const char *blen_path, const char *blen_group, const
 		}
 
 		/* Note: we should handle all previews for a same group at once, would avoid reopening .blend file
-         *       for each and every ID. However, this adds some complexity, so keep it for later. */
+		 *       for each and every ID. However, this adds some complexity, so keep it for later. */
 		names = BLO_blendhandle_get_datablock_names(libfiledata, idcode, &nnames);
 		previews = BLO_blendhandle_get_previews(libfiledata, idcode, &nprevs);
 
@@ -154,7 +155,7 @@ ImBuf *IMB_thumb_load_blend(const char *blen_path, const char *blen_group, const
 			}
 			BLI_linklist_free(previews, BKE_previewimg_freefunc);
 			BLI_linklist_free(names, free);
-			return NULL;
+			return ima;
 		}
 
 		for (i = 0, ln = names, lp = previews; i < nnames; i++, ln = ln->next, lp = lp->next) {
@@ -162,8 +163,6 @@ ImBuf *IMB_thumb_load_blend(const char *blen_path, const char *blen_group, const
 			PreviewImage *img = lp->link;
 
 			if (STREQ(blockname, blen_id)) {
-				ImBuf *ima = NULL;
-
 				if (img) {
 					unsigned int w = img->w[ICON_SIZE_PREVIEW];
 					unsigned int h = img->h[ICON_SIZE_PREVIEW];
@@ -175,12 +174,13 @@ ImBuf *IMB_thumb_load_blend(const char *blen_path, const char *blen_group, const
 						memcpy(ima->rect, rect, w * h * sizeof(unsigned int));
 					}
 				}
-				BLI_linklist_free(previews, BKE_previewimg_freefunc);
-				BLI_linklist_free(names, free);
-				return ima;
+				break;
 			}
 		}
-		return NULL;
+
+		BLI_linklist_free(previews, BKE_previewimg_freefunc);
+		BLI_linklist_free(names, free);
+		return ima;
 	}
 	else {
 		gzFile gzfile;

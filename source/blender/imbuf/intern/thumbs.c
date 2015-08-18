@@ -44,7 +44,7 @@
 #include "BLI_threads.h"
 #include BLI_SYSTEM_PID_H
 
-#include "BLO_readfile.h"  /* XXX Hope this is not badlevel! */
+#include "BLO_readfile.h"
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
