@@ -141,12 +141,6 @@ enum {
 	MAN_AXES_ROTATE,
 };
 
-/* color codes */
-
-#define MAN_RGB     0
-#define MAN_GHOST   1
-#define MAN_MOVECOL 2
-
 /* threshold for testing view aligned manipulator axis */
 #define TW_AXIS_DOT_MIN 0.02f
 #define TW_AXIS_DOT_MAX 0.1f
@@ -158,23 +152,23 @@ enum {
 #define MAN_ITER_AXES_BEGIN(axis_type) \
 	{ \
 		wmWidget *axis; \
-		int i; \
-		for (i = (axis_type == MAN_AXES_ROTATE ? MAN_AXIS_ROT_X : MAN_AXIS_TRANS_X); \
-		     i < (axis_type == MAN_AXES_TRANSLATE ? MAN_AXIS_TRANS_Z + 1 : MAN_AXIS_ROT_Z + 1); \
-		     i++) \
+		int axis_idx; \
+		for (axis_idx = (axis_type == MAN_AXES_ROTATE ? MAN_AXIS_ROT_X : MAN_AXIS_TRANS_X); \
+		     axis_idx < (axis_type == MAN_AXES_TRANSLATE ? MAN_AXIS_TRANS_Z + 1 : MAN_AXIS_ROT_Z + 1); \
+		     axis_idx++) \
 		{ \
-			axis = manipulator_get_axis_from_index(man, i); \
+			axis = manipulator_get_axis_from_index(man, axis_idx); \
 			if (!axis) continue;
 
 #define MAN_ITER_AXES_END \
 		} \
 	} ((void)0)
 
-static wmWidget *manipulator_get_axis_from_index(const ManipulatorGroup *man, const short index)
+static wmWidget *manipulator_get_axis_from_index(const ManipulatorGroup *man, const short axis_idx)
 {
-	BLI_assert(IN_RANGE_INCL(index, 0.0f, 5.0f));
+	BLI_assert(IN_RANGE_INCL(axis_idx, 0.0f, 5.0f));
 
-	switch (index) {
+	switch (axis_idx) {
 		case MAN_AXIS_TRANS_X:
 			return man->translate_x;
 		case MAN_AXIS_TRANS_Y:
@@ -202,6 +196,12 @@ static short manipulator_get_axis_type(const ManipulatorGroup *man, const wmWidg
 	}
 }
 
+/* get index within axis type, so that x == 0, y == 1 and z == 2, no matter which axis type */
+static int manipulator_index_normalize(const int axis_idx)
+{
+	return (axis_idx > 2) ? (axis_idx - 3) : axis_idx;
+}
+
 static bool manipulator_is_axis_visible(const RegionView3D *rv3d, const int axis_idx)
 {
 	switch (axis_idx) {
@@ -221,8 +221,10 @@ static bool manipulator_is_axis_visible(const RegionView3D *rv3d, const int axis
 	return false;
 }
 
-static void manipulator_get_axis_color(const int axis_idx, float r_col[4])
+static void manipulator_get_axis_color(const RegionView3D *rv3d, const int axis_idx, float r_col[4])
 {
+	const float idot = rv3d->tw_idot[manipulator_index_normalize(axis_idx)];
+
 	switch (axis_idx) {
 		case MAN_AXIS_TRANS_X:
 		case MAN_AXIS_ROT_X:
@@ -237,6 +239,11 @@ static void manipulator_get_axis_color(const int axis_idx, float r_col[4])
 			UI_GetThemeColor4fv(TH_AXIS_Z, r_col);
 			break;
 	}
+
+	/* get alpha fac based on axis angle, to fade axis out when hiding it because it points towards view */
+	r_col[3] = (idot > TW_AXIS_DOT_MAX) ?
+	            1.0f : (idot < TW_AXIS_DOT_MIN) ?
+	            0.0f : ((idot - TW_AXIS_DOT_MIN) / (TW_AXIS_DOT_MAX - TW_AXIS_DOT_MIN));
 }
 
 
@@ -908,21 +915,21 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 		const bool is_trans = (atype == MAN_AXES_TRANSLATE);
 		float col[4];
 
-		if (manipulator_is_axis_visible(rv3d, i) == false) {
+		if (manipulator_is_axis_visible(rv3d, axis_idx) == false) {
 			WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
 			continue;
 		}
 
-		manipulator_get_axis_color(i, col);
+		manipulator_get_axis_color(rv3d, axis_idx, col);
 
 		/* should be added according to the order of axis */
 		WM_widget_set_origin(axis, rv3d->twmat[3]);
 		if (is_trans) {
-			WIDGET_arrow_set_direction(axis, rv3d->twmat[i]);
+			WIDGET_arrow_set_direction(axis, rv3d->twmat[axis_idx]);
 			WIDGET_arrow_set_color(axis, col);
 		}
 		else {
-			WIDGET_dial_set_direction(axis, rv3d->twmat[i - 3]);
+			WIDGET_dial_set_direction(axis, rv3d->twmat[axis_idx - 3]);
 			WIDGET_dial_set_color(axis, col);
 		}
 

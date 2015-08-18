@@ -262,7 +262,9 @@ static void arrow_draw_intern(ArrowWidget *arrow, const bool select, const bool 
 		glColor4fv(arrow->color);
 	}
 
+	glEnable(GL_BLEND);
 	arrow_draw_geom(arrow, select);
+	glDisable(GL_BLEND);
 
 	glPopMatrix();
 
@@ -643,7 +645,9 @@ static void widget_dial_draw(const bContext *C, wmWidget *widget)
 		glEnable(GL_CLIP_PLANE0);
 	}
 
+	glEnable(GL_BLEND);
 	dial_draw_intern(dial, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0, widget->scale);
+	glDisable(GL_BLEND);
 
 	if (dial->style == WIDGET_DIAL_STYLE_RING_CLIPPED) {
 		glDisable(GL_CLIP_PLANE0);
