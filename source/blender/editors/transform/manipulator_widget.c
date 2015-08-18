@@ -91,9 +91,7 @@
 #define MAN_ROT_X    (1 << 3)
 #define MAN_ROT_Y    (1 << 4)
 #define MAN_ROT_Z    (1 << 5)
-#define MAN_ROT_V    (1 << 6)
-#define MAN_ROT_T    (1 << 7)
-#define MAN_ROT_C    (MAN_ROT_X | MAN_ROT_Y | MAN_ROT_Z | MAN_ROT_V | MAN_ROT_T)
+#define MAN_ROT_C    (MAN_ROT_X | MAN_ROT_Y | MAN_ROT_Z)
 
 #define MAN_SCALE_X  (1 << 8)
 #define MAN_SCALE_Y  (1 << 9)
@@ -109,8 +107,6 @@ enum {
 	MAN_SEL_ROT_X,
 	MAN_SEL_ROT_Y,
 	MAN_SEL_ROT_Z,
-	MAN_SEL_ROT_V,
-	MAN_SEL_ROT_T,
 
 	MAN_SEL_SCALE_X,
 	MAN_SEL_SCALE_Y,
