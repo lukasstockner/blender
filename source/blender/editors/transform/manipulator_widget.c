@@ -221,6 +221,24 @@ static bool manipulator_is_axis_visible(const RegionView3D *rv3d, const int axis
 	return false;
 }
 
+static void manipulator_get_axis_color(const int axis_idx, float r_col[4])
+{
+	switch (axis_idx) {
+		case MAN_AXIS_TRANS_X:
+		case MAN_AXIS_ROT_X:
+			UI_GetThemeColor4fv(TH_AXIS_X, r_col);
+			break;
+		case MAN_AXIS_TRANS_Y:
+		case MAN_AXIS_ROT_Y:
+			UI_GetThemeColor4fv(TH_AXIS_Y, r_col);
+			break;
+		case MAN_AXIS_TRANS_Z:
+		case MAN_AXIS_ROT_Z:
+			UI_GetThemeColor4fv(TH_AXIS_Z, r_col);
+			break;
+	}
+}
+
 
 /* **************** Preparation Stuff **************** */
 
@@ -829,10 +847,6 @@ static ManipulatorGroup *manipulatorgroup_init(
 {
 	ManipulatorGroup *man;
 
-	const float color_green[4] = {0.27f, 1.0f, 0.27f, 1.0f};
-	const float color_red[4] = {1.0f, 0.27f, 0.27f, 1.0f};
-	const float color_blue[4] = {0.27f, 0.27f, 1.0f, 1.0f};
-
 	if (init_trans == false && init_rot == false)
 		return NULL;
 
@@ -842,17 +856,11 @@ static ManipulatorGroup *manipulatorgroup_init(
 		man->translate_x = WIDGET_arrow_new(wgroup, "translate_x", WIDGET_ARROW_STYLE_NORMAL);
 		man->translate_y = WIDGET_arrow_new(wgroup, "translate_y", WIDGET_ARROW_STYLE_NORMAL);
 		man->translate_z = WIDGET_arrow_new(wgroup, "translate_z", WIDGET_ARROW_STYLE_NORMAL);
-		WIDGET_arrow_set_color(man->translate_x, color_red);
-		WIDGET_arrow_set_color(man->translate_y, color_green);
-		WIDGET_arrow_set_color(man->translate_z, color_blue);
 	}
 	if (init_rot) {
 		man->rotate_x = WIDGET_dial_new(wgroup, "rotate_x", WIDGET_DIAL_STYLE_RING_CLIPPED);
 		man->rotate_y = WIDGET_dial_new(wgroup, "rotate_y", WIDGET_DIAL_STYLE_RING_CLIPPED);
 		man->rotate_z = WIDGET_dial_new(wgroup, "rotate_z", WIDGET_DIAL_STYLE_RING_CLIPPED);
-		WIDGET_dial_set_color(man->rotate_x, color_red);
-		WIDGET_dial_set_color(man->rotate_y, color_green);
-		WIDGET_dial_set_color(man->rotate_z, color_blue);
 	}
 
 	return man;
@@ -898,19 +906,24 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 	{
 		const short atype = manipulator_get_axis_type(man, axis);
 		const bool is_trans = (atype == MAN_AXES_TRANSLATE);
+		float col[4];
 
 		if (manipulator_is_axis_visible(rv3d, i) == false) {
 			WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
 			continue;
 		}
 
+		manipulator_get_axis_color(i, col);
+
 		/* should be added according to the order of axis */
 		WM_widget_set_origin(axis, rv3d->twmat[3]);
 		if (is_trans) {
 			WIDGET_arrow_set_direction(axis, rv3d->twmat[i]);
+			WIDGET_arrow_set_color(axis, col);
 		}
 		else {
 			WIDGET_dial_set_direction(axis, rv3d->twmat[i - 3]);
+			WIDGET_dial_set_color(axis, col);
 		}
 
 		WM_widget_operator(axis, is_trans ? "TRANSFORM_OT_translate" : "TRANSFORM_OT_rotate");

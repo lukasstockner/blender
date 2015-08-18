@@ -856,9 +856,9 @@ void ui_theme_init_default(void)
 	
 	rgba_char_args_set_fl(btheme->tui.widget_emboss, 1.0f, 1.0f, 1.0f, 0.02f);
 
-	rgba_char_args_set(btheme->tui.xaxis, 220,   0,   0, 255);
-	rgba_char_args_set(btheme->tui.yaxis,   0, 220,   0, 255);
-	rgba_char_args_set(btheme->tui.zaxis,   0,   0, 220, 255);
+	rgba_char_args_set_fl(btheme->tui.xaxis, 1.0f, 0.27f, 0.27f, 1.0f); /* red */
+	rgba_char_args_set_fl(btheme->tui.yaxis, 0.27f, 1.0f, 0.27f, 1.0f); /* green */
+	rgba_char_args_set_fl(btheme->tui.zaxis, 0.27f, 0.27f, 1.0f, 1.0f); /* blue */
 
 	btheme->tui.menu_shadow_fac = 0.5f;
 	btheme->tui.menu_shadow_width = 12;
@@ -2243,16 +2243,6 @@ void init_userdef_do_versions(void)
 				rgba_char_args_set(btheme->tv3d.skin_root, 180, 77, 77, 255);
 		}
 	}
-	
-	if (!USER_VERSION_ATLEAST(264, 9)) {
-		bTheme *btheme;
-		
-		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
-			rgba_char_args_set(btheme->tui.xaxis, 220,   0,   0, 255);
-			rgba_char_args_set(btheme->tui.yaxis,   0, 220,   0, 255);
-			rgba_char_args_set(btheme->tui.zaxis,   0,   0, 220, 255);
-		}
-	}
 
 	if (!USER_VERSION_ATLEAST(267, 0)) {
 		/* Freestyle color settings */
@@ -2637,6 +2627,15 @@ void init_userdef_do_versions(void)
 
 	if (!USER_VERSION_ATLEAST(275, 4)) {
 		U.node_margin = 80;
+	}
+
+	if (!USER_VERSION_ATLEAST(275, 5)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_set_fl(btheme->tui.xaxis, 1.0f, 0.27f, 0.27f, 1.0f); /* red */
+			rgba_char_args_set_fl(btheme->tui.yaxis, 0.27f, 1.0f, 0.27f, 1.0f); /* green */
+			rgba_char_args_set_fl(btheme->tui.zaxis, 0.27f, 0.27f, 1.0f, 1.0f); /* blue */
+		}
 	}
 
 	if (U.pixelsize == 0.0f)
