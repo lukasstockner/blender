@@ -314,7 +314,7 @@ void file_calc_previews(const bContext *C, ARegion *ar)
 }
 
 static void file_draw_preview(
-        uiBlock *block, const char *path, int sx, int sy,
+        uiBlock *block, const char *path, int sx, int sy, const float icon_aspect,
         ImBuf *imb, const int icon, FileLayout *layout, const bool is_icon, const int typeflags, const bool drag)
 {
 	uiBut *but;
@@ -380,7 +380,7 @@ static void file_draw_preview(
 	glaDrawPixelsTexScaled((float)xco, (float)yco, imb->x, imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, imb->rect, scale, scale);
 
 	if (icon) {
-		UI_icon_draw((float)xco, (float)yco, icon);
+		UI_icon_draw_aspect((float)xco, (float)yco, icon, icon_aspect, 1.0f);
 	}
 
 	/* border */
@@ -501,6 +501,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	int column_space = 0.6f * UI_UNIT_X;
 	const bool small_size = SMALL_SIZE_CHECK(params->thumbnail_size);
 	const bool update_stat_strings = small_size != SMALL_SIZE_CHECK(layout->curr_size);
+	const float thumb_icon_aspect = sqrtf(64.0f / (float)(params->thumbnail_size));
 
 	numfiles = filelist_files_ensure(files);
 	
@@ -597,7 +598,8 @@ void file_draw_list(const bContext *C, ARegion *ar)
 				is_icon = 1;
 			}
 
-			file_draw_preview(block, path, sx, sy, imb, icon, layout, is_icon, file->typeflag, do_drag);
+			file_draw_preview(block, path, sx, sy, thumb_icon_aspect,
+			                  imb, icon, layout, is_icon, file->typeflag, do_drag);
 		}
 		else {
 			file_draw_icon(block, path, sx, sy - (UI_UNIT_Y / 6), filelist_geticon(files, i, true),
