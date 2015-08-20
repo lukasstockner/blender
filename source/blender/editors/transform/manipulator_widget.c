@@ -161,8 +161,7 @@ enum {
 	{ \
 		wmWidget *axis; \
 		int axis_idx; \
-		for (axis_idx = 0; axis_idx < MAN_AXIS_LAST; axis_idx++) \
-		{ \
+		for (axis_idx = 0; axis_idx < MAN_AXIS_LAST; axis_idx++) { \
 			axis = manipulator_get_axis_from_index(man, axis_idx); \
 			if (!axis) continue;
 
@@ -970,8 +969,8 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 		return;
 
 
-	/* now we can define center */
 	manipulator_prepare_mat(CTX_data_scene(C), v3d, rv3d);
+	manipulator_drawflags_refresh(rv3d);
 
 	/* when looking through a selected camera, the manipulator can be at the
 	 * exact same position as the view, skip so we don't break selection */
@@ -988,12 +987,11 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 
 	/* *** set properties for axes *** */
 
-	manipulator_drawflags_refresh(rv3d);
-
 	MAN_ITER_AXES_BEGIN
 	{
-		const short atype = manipulator_get_axis_type(man, axis);
+		const short axis_type = manipulator_get_axis_type(man, axis);
 		const int aidx_norm = manipulator_index_normalize(axis_idx);
+		float line_vec[2][3];
 		float col[4];
 
 		if (manipulator_is_axis_visible(rv3d, axis_idx) == false) {
@@ -1002,61 +1000,52 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 		}
 
 		manipulator_get_axis_color(rv3d, axis_idx, col);
-
-		/* should be added according to the order of axis */
 		WM_widget_set_origin(axis, rv3d->twmat[3]);
-		switch(atype) {
-			case MAN_AXES_TRANSLATE:
-				if (axis_idx == MAN_AXIS_TRANS_C) {
+
+		switch(axis_idx) {
+			case MAN_AXIS_TRANS_X:
+			case MAN_AXIS_TRANS_Y:
+			case MAN_AXIS_TRANS_Z:
+			case MAN_AXIS_SCALE_X:
+			case MAN_AXIS_SCALE_Y:
+			case MAN_AXIS_SCALE_Z:
+				manipulator_line_vec(v3d, line_vec, axis_type);
+
+				WIDGET_arrow_set_direction(axis, rv3d->twmat[aidx_norm]);
+				WIDGET_arrow_set_color(axis, col);
+				WIDGET_arrow_set_line_vec(axis, (const float (*)[3])line_vec, ARRAY_SIZE(line_vec));
+				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
+				break;
+			case MAN_AXIS_ROT_X:
+			case MAN_AXIS_ROT_Y:
+			case MAN_AXIS_ROT_Z:
+				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
+				WIDGET_dial_set_direction(axis, rv3d->twmat[aidx_norm]);
+				WIDGET_dial_set_color(axis, col);
+				break;
+			case MAN_AXIS_TRANS_C:
+			case MAN_AXIS_ROT_C:
+			case MAN_AXIS_SCALE_C:
+				/* only draw if there isn't already a circle for translate */
+				if (axis_idx == MAN_AXIS_SCALE_C && (v3d->twtype & V3D_MANIP_TRANSLATE)) {
+					WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
+				}
+				else if (axis_idx != MAN_AXIS_ROT_C) {
 					WM_widget_set_scale(axis, 0.2f);
-					WIDGET_dial_set_direction(axis, rv3d->viewinv[2]);
-					WIDGET_dial_set_color(axis, col);
 				}
-				else {
-					float line_vec[2][3];
+				WIDGET_dial_set_direction(axis, rv3d->viewinv[2]);
+				WIDGET_dial_set_color(axis, col);
+				break;
+		}
 
-					manipulator_line_vec(v3d, line_vec, atype);
-
-					WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
-					WIDGET_arrow_set_direction(axis, rv3d->twmat[aidx_norm]);
-					WIDGET_arrow_set_color(axis, col);
-					WIDGET_arrow_set_line_vec(axis, (const float (*)[3])line_vec, ARRAY_SIZE(line_vec));
-				}
+		switch (axis_type) {
+			case MAN_AXES_TRANSLATE:
 				WM_widget_operator(axis, "TRANSFORM_OT_translate");
 				break;
 			case MAN_AXES_ROTATE:
-				if (axis_idx == MAN_AXIS_ROT_C) {
-					WIDGET_dial_set_direction(axis, rv3d->viewinv[2]);
-				}
-				else {
-					WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
-					WIDGET_dial_set_direction(axis, rv3d->twmat[aidx_norm]);
-				}
-				WIDGET_dial_set_color(axis, col);
 				WM_widget_operator(axis, "TRANSFORM_OT_rotate");
 				break;
 			case MAN_AXES_SCALE:
-				if (axis_idx == MAN_AXIS_SCALE_C) {
-					/* only draw if there isn't already a circle for translate */
-					if ((v3d->twtype & V3D_MANIP_TRANSLATE)) {
-						WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
-					}
-					else {
-						WM_widget_set_scale(axis, 0.2f);
-						WIDGET_dial_set_direction(axis, rv3d->viewinv[2]);
-						WIDGET_dial_set_color(axis, col);
-					}
-				}
-				else {
-					float line_vec[2][3];
-
-					manipulator_line_vec(v3d, line_vec, atype);
-
-					WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
-					WIDGET_arrow_set_direction(axis, rv3d->twmat[aidx_norm]);
-					WIDGET_arrow_set_color(axis, col);
-					WIDGET_arrow_set_line_vec(axis, (const float (*)[3])line_vec, ARRAY_SIZE(line_vec));
-				}
 				WM_widget_operator(axis, "TRANSFORM_OT_resize");
 				break;
 		}
