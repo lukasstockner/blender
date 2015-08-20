@@ -79,6 +79,7 @@ public:
 	void reset(Device *device, BufferParams& params);
 
 	bool copy_from_device();
+	bool copy_to_device();
 	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels);
 
 protected:

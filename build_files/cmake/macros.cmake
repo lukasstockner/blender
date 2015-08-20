@@ -254,6 +254,48 @@ function(blender_add_lib
 endfunction()
 
 
+# only MSVC uses SOURCE_GROUP
+function(blender_add_cuda_lib_nolist
+	name
+	sources
+	includes
+	includes_sys
+	)
+
+	# message(STATUS "Configuring library ${name}")
+
+	# include_directories(${includes})
+	# include_directories(SYSTEM ${includes_sys})
+	blender_include_dirs("${includes}")
+	blender_include_dirs_sys("${includes_sys}")
+
+	cuda_add_library(${name} ${sources})
+
+	# works fine without having the includes
+	# listed is helpful for IDE's (QtCreator/MSVC)
+	blender_source_group("${sources}")
+
+	list_assert_duplicates("${sources}")
+	list_assert_duplicates("${includes}")
+	# Not for system includes because they can resolve to the same path
+	# list_assert_duplicates("${includes_sys}")
+
+endfunction()
+
+
+function(blender_add_cuda_lib
+	name
+	sources
+	includes
+	includes_sys
+	)
+
+	blender_add_cuda_lib_nolist(${name} "${sources}" "${includes}" "${includes_sys}")
+
+	set_property(GLOBAL APPEND PROPERTY BLENDER_LINK_LIBS ${name})
+endfunction()
+
+
 function(SETUP_LIBDIRS)
 
 	link_directories(${JPEG_LIBPATH} ${PNG_LIBPATH} ${ZLIB_LIBPATH} ${FREETYPE_LIBPATH})
@@ -637,6 +679,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		extern_rangetree
 		extern_wcwidth
 		bf_intern_libmv
+		extern_lwrr
 		extern_glog
 		extern_gflags
 		extern_sdlew

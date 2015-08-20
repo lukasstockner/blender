@@ -580,6 +580,8 @@ ccl_device void kernel_branched_path_trace(KernelGlobals *kg,
 	RNG rng;
 	Ray ray;
 
+	sample = (int) kernel_increment_pass_float(buffer + kernel_data.film.pass_mist, sample);
+
 	kernel_path_trace_setup(kg, rng_state, sample, x, y, &rng, &ray);
 
 	/* integrate */
@@ -591,7 +593,12 @@ ccl_device void kernel_branched_path_trace(KernelGlobals *kg,
 		L = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 
 	/* accumulate result in output buffer */
-	kernel_write_pass_float4(buffer, sample, L);
+	if(sample < 32)
+		kernel_write_pass_float4(buffer, sample, L);
+	if(kernel_data.film.pass_flag & PASS_MOTION)
+		kernel_write_pass_float4(buffer + kernel_data.film.pass_motion, sample, L);
+	if(kernel_data.film.pass_flag & PASS_AO)
+		kernel_write_pass_float3(buffer + kernel_data.film.pass_ao, sample, make_float3(L.x, L.y, L.z) * make_float3(L.x, L.y, L.z));
 
 	path_rng_end(kg, rng_state, rng);
 }
@@ -599,4 +606,3 @@ ccl_device void kernel_branched_path_trace(KernelGlobals *kg,
 #endif  /* __BRANCHED_PATH__ */
 
 CCL_NAMESPACE_END
-
