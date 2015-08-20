@@ -886,7 +886,7 @@ static void manipulator_line_vec(const View3D *v3d, float r_vec[2][3], const sho
 	switch (axis_type) {
 		case MAN_AXES_TRANSLATE:
 			if (v3d->twtype & V3D_MANIP_SCALE) {
-				start[2] = end[2] - ofs;
+				start[2] = end[2] - ofs + 0.025f;
 			}
 			if (v3d->twtype & V3D_MANIP_ROTATE) {
 				end[2] += ofs;
@@ -894,7 +894,7 @@ static void manipulator_line_vec(const View3D *v3d, float r_vec[2][3], const sho
 			break;
 		case MAN_AXES_SCALE:
 			if (v3d->twtype & (V3D_MANIP_TRANSLATE | V3D_MANIP_ROTATE)) {
-				end[2] -= ofs;
+				end[2] -= ofs + 0.025f;
 			}
 			break;
 	}
