@@ -191,7 +191,7 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 			assert(pass.components == components);
 
 			/* scalar */
-			if(type == PASS_MATERIAL_ID || type == PASS_MIST) {
+			if(type == PASS_MATERIAL_ID) {
 				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
 					pixels[0] = *in;
 				}
