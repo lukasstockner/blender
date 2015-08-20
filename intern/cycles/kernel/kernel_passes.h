@@ -120,7 +120,7 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global fl
 	if(!(flag & PASS_ALL))
 		return;
 
-	if(!(path_flag & PATH_RAY_SINGLE_PASS_DONE) && !(path_flag & PATH_RAY_SINGULAR)) {
+	if(!(path_flag & PATH_RAY_SINGLE_PASS_DONE) && (state->roughness > 0.1f)) {
 		if(flag & PASS_DEPTH)
 			kernel_write_pass_float(buffer + kernel_data.film.pass_depth, sample, L->depth);
 		if(flag & PASS_OBJECT_ID)
@@ -129,11 +129,14 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global fl
 			kernel_write_pass_float3(buffer + kernel_data.film.pass_normal, sample, L->normal);
 		if(flag & PASS_UV)
 			kernel_write_pass_float3(buffer + kernel_data.film.pass_uv, sample, L->normal*L->normal);
+		state->flag |= PATH_RAY_SINGLE_PASS_DONE;
+	}
+	if(!(path_flag & PATH_RAY_SINGLE_PASS_COLOR_DONE) && (state->roughness > 0.01f)) {
 		if(flag & PASS_EMISSION)
 			kernel_write_pass_float3(buffer + kernel_data.film.pass_emission, sample, L->color);
 		if(flag & PASS_BACKGROUND)
 			kernel_write_pass_float3(buffer + kernel_data.film.pass_background, sample, L->color*L->color);
-		state->flag |= PATH_RAY_SINGLE_PASS_DONE;
+		state->flag |= PATH_RAY_SINGLE_PASS_COLOR_DONE;
 	}
 
 	if(sd) {
