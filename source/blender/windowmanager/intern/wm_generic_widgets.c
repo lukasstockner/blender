@@ -218,7 +218,7 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 		glTranslatef(UNPACK3(arrow->line[arrow->tot_line_points - 1]));
 
 		if (arrow->style & WIDGET_ARROW_STYLE_BOX) {
-			const float size = 0.05;
+			const float size = 0.05f;
 			static float box[24][3] = {
 				/* back */
 				{-1.0f, -1.0f, -1.0f},

@@ -383,65 +383,63 @@ static int test_rotmode_euler(short rotmode)
 
 bool gimbal_axis(Object *ob, float gmat[3][3])
 {
-	if (ob) {
-		if (ob->mode & OB_MODE_POSE) {
-			bPoseChannel *pchan = BKE_pose_channel_active(ob);
+	if (ob->mode & OB_MODE_POSE) {
+		bPoseChannel *pchan = BKE_pose_channel_active(ob);
 
-			if (pchan) {
-				float mat[3][3], tmat[3][3], obmat[3][3];
-				if (test_rotmode_euler(pchan->rotmode)) {
-					eulO_to_gimbal_axis(mat, pchan->eul, pchan->rotmode);
-				}
-				else if (pchan->rotmode == ROT_MODE_AXISANGLE) {
-					axis_angle_to_gimbal_axis(mat, pchan->rotAxis, pchan->rotAngle);
-				}
-				else { /* quat */
-					return 0;
-				}
-
-
-				/* apply bone transformation */
-				mul_m3_m3m3(tmat, pchan->bone->bone_mat, mat);
-
-				if (pchan->parent) {
-					float parent_mat[3][3];
-
-					copy_m3_m4(parent_mat, pchan->parent->pose_mat);
-					mul_m3_m3m3(mat, parent_mat, tmat);
-
-					/* needed if object transformation isn't identity */
-					copy_m3_m4(obmat, ob->obmat);
-					mul_m3_m3m3(gmat, obmat, mat);
-				}
-				else {
-					/* needed if object transformation isn't identity */
-					copy_m3_m4(obmat, ob->obmat);
-					mul_m3_m3m3(gmat, obmat, tmat);
-				}
-
-				normalize_m3(gmat);
-				return 1;
+		if (pchan) {
+			float mat[3][3], tmat[3][3], obmat[3][3];
+			if (test_rotmode_euler(pchan->rotmode)) {
+				eulO_to_gimbal_axis(mat, pchan->eul, pchan->rotmode);
 			}
-		}
-		else {
-			if (test_rotmode_euler(ob->rotmode)) {
-				eulO_to_gimbal_axis(gmat, ob->rot, ob->rotmode);
-			}
-			else if (ob->rotmode == ROT_MODE_AXISANGLE) {
-				axis_angle_to_gimbal_axis(gmat, ob->rotAxis, ob->rotAngle);
+			else if (pchan->rotmode == ROT_MODE_AXISANGLE) {
+				axis_angle_to_gimbal_axis(mat, pchan->rotAxis, pchan->rotAngle);
 			}
 			else { /* quat */
 				return 0;
 			}
 
-			if (ob->parent) {
+
+			/* apply bone transformation */
+			mul_m3_m3m3(tmat, pchan->bone->bone_mat, mat);
+
+			if (pchan->parent) {
 				float parent_mat[3][3];
-				copy_m3_m4(parent_mat, ob->parent->obmat);
-				normalize_m3(parent_mat);
-				mul_m3_m3m3(gmat, parent_mat, gmat);
+
+				copy_m3_m4(parent_mat, pchan->parent->pose_mat);
+				mul_m3_m3m3(mat, parent_mat, tmat);
+
+				/* needed if object transformation isn't identity */
+				copy_m3_m4(obmat, ob->obmat);
+				mul_m3_m3m3(gmat, obmat, mat);
 			}
+			else {
+				/* needed if object transformation isn't identity */
+				copy_m3_m4(obmat, ob->obmat);
+				mul_m3_m3m3(gmat, obmat, tmat);
+			}
+
+			normalize_m3(gmat);
 			return 1;
 		}
+	}
+	else {
+		if (test_rotmode_euler(ob->rotmode)) {
+			eulO_to_gimbal_axis(gmat, ob->rot, ob->rotmode);
+		}
+		else if (ob->rotmode == ROT_MODE_AXISANGLE) {
+			axis_angle_to_gimbal_axis(gmat, ob->rotAxis, ob->rotAngle);
+		}
+		else { /* quat */
+			return 0;
+		}
+
+		if (ob->parent) {
+			float parent_mat[3][3];
+			copy_m3_m4(parent_mat, ob->parent->obmat);
+			normalize_m3(parent_mat);
+			mul_m3_m3m3(gmat, parent_mat, gmat);
+		}
+		return 1;
 	}
 
 	return 0;
@@ -474,7 +472,8 @@ static int calc_manipulator_stats(const bContext *C)
 
 	if (obedit) {
 		ob = obedit;
-		if ((ob->lay & v3d->lay) == 0) return 0;
+		if ((ob->lay & v3d->lay) == 0)
+			return 0;
 
 		if (obedit->type == OB_MESH) {
 			BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -689,7 +688,8 @@ static int calc_manipulator_stats(const bContext *C)
 		int mode = TFM_ROTATION; /* mislead counting bones... bah. We don't know the manipulator mode, could be mixed */
 		bool ok = false;
 
-		if ((ob->lay & v3d->lay) == 0) return 0;
+		if ((ob->lay & v3d->lay) == 0)
+			return 0;
 
 		if ((v3d->around == V3D_ACTIVE) && (pchan = BKE_pose_channel_active(ob))) {
 			/* doesn't check selection or visibility intentionally */
@@ -752,7 +752,8 @@ static int calc_manipulator_stats(const bContext *C)
 	else {
 		/* we need the one selected object, if its not active */
 		ob = OBACT;
-		if (ob && !(ob->flag & SELECT)) ob = NULL;
+		if (ob && !(ob->flag & SELECT))
+			ob = NULL;
 
 		for (base = scene->base.first; base; base = base->next) {
 			if (TESTBASELIB(v3d, base)) {
@@ -772,40 +773,32 @@ static int calc_manipulator_stats(const bContext *C)
 
 	/* global, local or normal orientation? */
 	if (ob && totsel) {
+		float mat[3][3];
+
 		switch (v3d->twmode) {
 			case V3D_MANIP_GLOBAL:
-			{
 				break; /* nothing to do */
-			}
 			case V3D_MANIP_GIMBAL:
-			{
-				float mat[3][3];
 				if (gimbal_axis(ob, mat)) {
 					copy_m4_m3(rv3d->twmat, mat);
 					break;
 				}
 				/* if not gimbal, fall through to normal */
 				/* fall-through */
-			}
 			case V3D_MANIP_NORMAL:
-			{
 				if (obedit || ob->mode & OB_MODE_POSE) {
-					float mat[3][3];
 					ED_getTransformOrientationMatrix(C, mat, (v3d->around == V3D_ACTIVE));
 					copy_m4_m3(rv3d->twmat, mat);
 					break;
 				}
 				/* no break we define 'normal' as 'local' in Object mode */
 				/* fall-through */
-			}
 			case V3D_MANIP_LOCAL:
-			{
 				if (ob->mode & OB_MODE_POSE) {
 					/* each bone moves on its own local axis, but  to avoid confusion,
 					 * use the active pones axis for display [#33575], this works as expected on a single bone
 					 * and users who select many bones will understand whats going on and what local means
 					 * when they start transforming */
-					float mat[3][3];
 					ED_getTransformOrientationMatrix(C, mat, (v3d->around == V3D_ACTIVE));
 					copy_m4_m3(rv3d->twmat, mat);
 					break;
@@ -813,23 +806,16 @@ static int calc_manipulator_stats(const bContext *C)
 				copy_m4_m4(rv3d->twmat, ob->obmat);
 				normalize_m4(rv3d->twmat);
 				break;
-			}
 			case V3D_MANIP_VIEW:
-			{
-				float mat[3][3];
 				copy_m3_m4(mat, rv3d->viewinv);
 				normalize_m3(mat);
 				copy_m4_m3(rv3d->twmat, mat);
 				break;
-			}
 			default: /* V3D_MANIP_CUSTOM */
-			{
-				float mat[3][3];
 				if (applyTransformOrientation(C, mat, NULL)) {
 					copy_m4_m3(rv3d->twmat, mat);
 				}
 				break;
-			}
 		}
 	}
 
@@ -848,6 +834,7 @@ static void manipulator_drawflags_refresh(RegionView3D *rv3d)
 	    (MAN_TRANS_Y | MAN_SCALE_Y),
 	    (MAN_TRANS_Z | MAN_SCALE_Z)};
 
+
 	ED_view3d_global_to_vector(rv3d, rv3d->twmat[3], view_vec);
 
 	for (i = 0; i < 3; i++) {
@@ -865,10 +852,8 @@ static void manipulator_prepare_mat(Scene *scene, View3D *v3d, RegionView3D *rv3
 		case V3D_CENTER:
 		case V3D_ACTIVE:
 		{
-			Object *ob;
-			if (((v3d->around == V3D_ACTIVE) && (scene->obedit == NULL)) &&
-					((ob = OBACT) && !(ob->mode & OB_MODE_POSE)))
-			{
+			Object *ob = OBACT;
+			if ((v3d->around == V3D_ACTIVE) && !scene->obedit && !(ob->mode & OB_MODE_POSE)) {
 				copy_v3_v3(rv3d->twmat[3], ob->obmat[3]);
 			}
 			else {
@@ -956,8 +941,8 @@ static ManipulatorGroup *manipulatorgroup_init(
 
 void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
-	ScrArea *sa = CTX_wm_area(C);
-	ARegion *ar = CTX_wm_region(C);
+	const ScrArea *sa = CTX_wm_area(C);
+	const ARegion *ar = CTX_wm_region(C);
 	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
 
@@ -1069,8 +1054,8 @@ void WIDGETGROUP_object_manipulator_draw(const struct bContext *C, struct wmWidg
 int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	/* it's a given we only use this in 3D view */
-	ScrArea *sa = CTX_wm_area(C);
-	View3D *v3d = sa->spacedata.first;
+	const ScrArea *sa = CTX_wm_area(C);
+	const View3D *v3d = sa->spacedata.first;
 
 	return ((v3d->twflag & V3D_USE_MANIPULATOR) != 0);
 }
