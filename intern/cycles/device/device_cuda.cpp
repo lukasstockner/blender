@@ -32,6 +32,7 @@
 #endif
 #include "util_debug.h"
 #include "util_logging.h"
+#include "util_lwrr.h"
 #include "util_map.h"
 #include "util_md5.h"
 #include "util_opengl.h"
@@ -94,6 +95,7 @@ public:
 	int cuDevArchitecture;
 	bool first_error;
 	bool use_texture_storage;
+	device_vector<int2> adaptive_samples;
 
 	struct PixelMem {
 		GLuint cuPBO;
@@ -633,8 +635,10 @@ public:
 		}
 	}
 
-	void path_trace(RenderTile& rtile, int sample, bool branched)
+	void path_trace(RenderTile& rtile, int sample, bool branched, device_ptr adaptive_samples_ptr)
 	{
+		printf("PathTracing, Sample %d, ASPtr %p\n", sample, adaptive_samples_ptr);
+
 		if(have_error())
 			return;
 
@@ -643,6 +647,7 @@ public:
 		CUfunction cuPathTrace;
 		CUdeviceptr d_buffer = cuda_device_ptr(rtile.buffer);
 		CUdeviceptr d_rng_state = cuda_device_ptr(rtile.rng_state);
+		CUdeviceptr d_adaptive_samples = cuda_device_ptr(adaptive_samples_ptr);
 
 		/* get kernel function */
 		if(branched) {
@@ -657,14 +662,15 @@ public:
 
 		/* pass in parameters */
 		void *args[] = {&d_buffer,
-						 &d_rng_state,
-						 &sample,
-						 &rtile.x,
-						 &rtile.y,
-						 &rtile.w,
-						 &rtile.h,
-						 &rtile.offset,
-						 &rtile.stride};
+		                &d_rng_state,
+		                &d_adaptive_samples,
+		                &sample,
+		                &rtile.x,
+		                &rtile.y,
+		                &rtile.w,
+		                &rtile.h,
+		                &rtile.offset,
+		                &rtile.stride};
 
 		/* launch kernel */
 		int threads_per_block;
@@ -1064,18 +1070,49 @@ public:
 				int start_sample = tile.start_sample;
 				int end_sample = tile.start_sample + tile.num_samples;
 
+				SampleMap *map = NULL;
+
+				printf("AS size %d, need %d\n", adaptive_samples.data_size, tile.w*tile.h);
+				if(adaptive_samples.data_size != tile.w*tile.h) {
+					printf("Realloc!\n");
+					mem_free(adaptive_samples);
+					adaptive_samples.resize(tile.w*tile.h);
+					mem_alloc(adaptive_samples, MEM_READ_ONLY);
+				}
+
 				for(int sample = start_sample; sample < end_sample; sample++) {
 					if(task->get_cancel()) {
 						if(task->need_finish_queue == false)
 							break;
 					}
 
-					path_trace(tile, sample, branched);
+					if(map) {
+						printf("Filling Map!\n");
+						for(int y = 0; y < tile.h; y++) {
+							for(int x = 0; x < tile.w; x++) {
+								int2 p = make_int2(x, y);
+								map->sample(tile.sample - 32, p);
+								((int2*) adaptive_samples.data_pointer)[y*tile.w+x] = p;
+							}
+						}
+						mem_copy_to(adaptive_samples);
+					}
+
+					path_trace(tile, sample, branched, map? adaptive_samples.device_pointer: (device_ptr) NULL);
 
 					tile.sample = sample + 1;
 
+					if(tile.sample >= 32 && (tile.sample % 16 == 0)) {
+						printf("Building map!\n");
+						LWRR_apply(tile);
+						if(map) delete map;
+						map = new SampleMap(tile);
+					}
+
 					task->update_progress(&tile);
 				}
+
+				if(map) delete map;
 
 				task->release_tile(tile);
 			}

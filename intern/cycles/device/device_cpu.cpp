@@ -48,6 +48,7 @@
 #include "util_foreach.h"
 #include "util_function.h"
 #include "util_logging.h"
+#include "util_lwrr.h"
 #include "util_opengl.h"
 #include "util_progress.h"
 #include "util_system.h"
@@ -270,23 +271,35 @@ public:
 			int start_sample = tile.start_sample;
 			int end_sample = tile.start_sample + tile.num_samples;
 
+			SampleMap *map = NULL;
+
 			for(int sample = start_sample; sample < end_sample; sample++) {
 				if(task.get_cancel() || task_pool.canceled()) {
 					if(task.need_finish_queue == false)
 						break;
 				}
 
-				for(int y = tile.y; y < tile.y + tile.h; y++) {
-					for(int x = tile.x; x < tile.x + tile.w; x++) {
+				for(int y = 0; y < tile.h; y++) {
+					for(int x = 0; x < tile.w; x++) {
+						int2 p = make_int2(x, y);
+						if(map) map->sample(tile.sample - 32, p);
 						path_trace_kernel(&kg, render_buffer, rng_state,
-						                  sample, x, y, tile.offset, tile.stride);
+						                  sample, tile.x + p.x, tile.y + p.y, tile.offset, tile.stride);
 					}
 				}
 
 				tile.sample = sample + 1;
 
+				if(tile.sample >= 32 && (tile.sample % 16 == 0)) {
+					LWRR_apply(tile);
+					if(map) delete map;
+					map = new SampleMap(tile);
+				}
+
 				task.update_progress(&tile);
 			}
+
+			if(map) delete map;
 
 			task.release_tile(tile);
 

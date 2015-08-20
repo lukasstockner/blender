@@ -1,7 +1,11 @@
 
 set(INC
 	.
+	../../../extern/lwrr
 	../../glew-mx
+	../device
+	../kernel
+	../render
 )
 
 set(INC_SYS
@@ -14,6 +18,7 @@ set(SRC
 	util_debug.cpp
 	util_logging.cpp
 	util_math_cdf.cpp
+	util_lwrr.cpp
 	util_md5.cpp
 	util_path.cpp
 	util_string.cpp
@@ -49,6 +54,7 @@ set(SRC_HEADERS
 	util_image.h
 	util_list.h
 	util_logging.h
+	util_lwrr.h
 	util_map.h
 	util_math.h
 	util_math_cdf.h
