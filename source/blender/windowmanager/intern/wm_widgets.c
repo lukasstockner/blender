@@ -766,10 +766,11 @@ void wm_widgetmap_set_active_widget(
 	if (widget) {
 		if (call_op) {
 			wmOperatorType *ot;
-			const char *opname = (widget->opname) ? widget->opname : "WM_OT_widget_tweak";
-			
+			const bool has_custom_op = widget->opname != NULL;
+			const char *opname = has_custom_op ? widget->opname : "WM_OT_widget_tweak";
+
 			ot = WM_operatortype_find(opname, 0);
-			
+
 			if (ot) {
 				/* first activate the widget itself */
 				if (widget->invoke && widget->handler) {
@@ -783,12 +784,12 @@ void wm_widgetmap_set_active_widget(
 				if (WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr) == OPERATOR_RUNNING_MODAL) {
 					/* check if operator added a a modal event handler */
 					wmEventHandler *handler = CTX_wm_window(C)->modalhandlers.first;
-					
-					if (handler && handler->op && handler->op->type == ot) {
+
+					if (has_custom_op == false && handler && handler->op && handler->op->type == ot) {
 						handler->widgetmap = wmap;
 					}
 				}
-				
+
 				/* we failed to hook the widget to the operator handler or operator was cancelled, return */
 				if (!wmap->active_widget) {
 					widget->flag &= ~WM_WIDGET_ACTIVE;
@@ -833,6 +834,71 @@ void wm_widgetmap_set_active_widget(
 			ED_region_tag_redraw(ar);
 			WM_event_add_mousemove(C);
 		}
+	}
+}
+
+void wm_widgetmap_handler_context(bContext *C, wmEventHandler *handler)
+{
+	bScreen *screen = CTX_wm_screen(C);
+
+	if (screen) {
+		if (handler->op_area == NULL) {
+			/* do nothing in this context */
+		}
+		else {
+			ScrArea *sa;
+
+			for (sa = screen->areabase.first; sa; sa = sa->next)
+				if (sa == handler->op_area)
+					break;
+			if (sa == NULL) {
+				/* when changing screen layouts with running modal handlers (like render display), this
+				 * is not an error to print */
+				if (handler->widgetmap == NULL)
+					printf("internal error: modal widgetmap handler has invalid area\n");
+			}
+			else {
+				ARegion *ar;
+				CTX_wm_area_set(C, sa);
+				for (ar = sa->regionbase.first; ar; ar = ar->next)
+					if (ar == handler->op_region)
+						break;
+				/* XXX no warning print here, after full-area and back regions are remade */
+				if (ar)
+					CTX_wm_region_set(C, ar);
+			}
+		}
+	}
+}
+
+void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler *handler, ARegion *ar)
+{
+	wmWidgetMap *wmap;
+
+	for (wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
+		wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
+		ScrArea *area = CTX_wm_area(C);
+		ARegion *region = CTX_wm_region(C);
+
+		if (!widget)
+			continue;
+
+		wm_widgetmap_handler_context(C, handler);
+
+		/* regular update for running operator */
+		if (handler->op) {
+			if (widget && widget->handler) {
+				widget->handler(C, event, widget);
+			}
+		}
+		/* operator not running anymore */
+		else {
+			wm_widgetmap_set_active_widget(wmap, C, event, NULL, false);
+		}
+
+		/* restore the area */
+		CTX_wm_area_set(C, area);
+		CTX_wm_region_set(C, region);
 	}
 }
 

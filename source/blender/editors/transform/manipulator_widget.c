@@ -288,6 +288,33 @@ static void manipulator_get_axis_color(const RegionView3D *rv3d, const int axis_
 	}
 }
 
+static void manipulator_get_axis_constraint(const int axis_idx, int r_axis[3])
+{
+	zero_v3_int(r_axis);
+
+	switch (axis_idx) {
+		case MAN_AXIS_TRANS_X:
+		case MAN_AXIS_ROT_X:
+		case MAN_AXIS_SCALE_X:
+			r_axis[0] = 1;
+			break;
+		case MAN_AXIS_TRANS_Y:
+		case MAN_AXIS_ROT_Y:
+		case MAN_AXIS_SCALE_Y:
+			r_axis[1] = 1;
+			break;
+		case MAN_AXIS_TRANS_Z:
+		case MAN_AXIS_ROT_Z:
+		case MAN_AXIS_SCALE_Z:
+			r_axis[2] = 1;
+			break;
+		case MAN_AXIS_TRANS_C:
+		case MAN_AXIS_ROT_C:
+		case MAN_AXIS_SCALE_C:
+			break;
+	}
+}
+
 
 /* **************** Preparation Stuff **************** */
 
@@ -939,6 +966,26 @@ static ManipulatorGroup *manipulatorgroup_init(
 	return man;
 }
 
+/**
+ * Custom handler for manipulator widgets
+ */
+static int manipulator_handler(bContext *C, const wmEvent *UNUSED(event), wmWidget *widget)
+{
+	const ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
+	View3D *v3d = sa->spacedata.first;
+	RegionView3D *rv3d = ar->regiondata;
+
+	if (calc_manipulator_stats(C)) {
+		manipulator_prepare_mat(CTX_data_scene(C), v3d, rv3d);
+		WM_widget_set_origin(widget, rv3d->twmat[3]);
+	}
+
+	ED_region_tag_redraw(ar);
+
+	return OPERATOR_PASS_THROUGH;
+}
+
 void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	const ScrArea *sa = CTX_wm_area(C);
@@ -978,6 +1025,9 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 	{
 		const short axis_type = manipulator_get_axis_type(man, axis);
 		const int aidx_norm = manipulator_index_normalize(axis_idx);
+		int constraint_axis[3] = {1, 0, 0};
+
+		PointerRNA *ptr;
 		float line_vec[2][3];
 		float col[4];
 
@@ -987,7 +1037,10 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 		}
 
 		manipulator_get_axis_color(rv3d, axis_idx, col);
+		manipulator_get_axis_constraint(axis_idx, constraint_axis);
 		WM_widget_set_origin(axis, rv3d->twmat[3]);
+		/* custom handler! */
+		axis->handler = manipulator_handler;
 
 		switch(axis_idx) {
 			case MAN_AXIS_TRANS_X:
@@ -1027,15 +1080,17 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 
 		switch (axis_type) {
 			case MAN_AXES_TRANSLATE:
-				WM_widget_operator(axis, "TRANSFORM_OT_translate");
+				ptr = WM_widget_operator(axis, "TRANSFORM_OT_translate");
 				break;
 			case MAN_AXES_ROTATE:
-				WM_widget_operator(axis, "TRANSFORM_OT_rotate");
+				ptr = WM_widget_operator(axis, "TRANSFORM_OT_rotate");
 				break;
 			case MAN_AXES_SCALE:
-				WM_widget_operator(axis, "TRANSFORM_OT_resize");
+				ptr = WM_widget_operator(axis, "TRANSFORM_OT_resize");
 				break;
 		}
+		RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
+		RNA_boolean_set(ptr, "release_confirm", 1);
 	}
 	MAN_ITER_AXES_END;
 }

@@ -1451,40 +1451,6 @@ static void wm_handler_op_context(bContext *C, wmEventHandler *handler, const wm
 	}
 }
 
-static void wm_handler_widgetmap_context(bContext *C, wmEventHandler *handler)
-{
-	bScreen *screen = CTX_wm_screen(C);
-	
-	if (screen) {
-		if (handler->op_area == NULL) {
-			/* do nothing in this context */
-		}
-		else {
-			ScrArea *sa;
-			
-			for (sa = screen->areabase.first; sa; sa = sa->next)
-				if (sa == handler->op_area)
-					break;
-			if (sa == NULL) {
-				/* when changing screen layouts with running modal handlers (like render display), this
-				 * is not an error to print */
-				if (handler->widgetmap == NULL)
-					printf("internal error: modal widgetmap handler has invalid area\n");
-			}
-			else {
-				ARegion *ar;
-				CTX_wm_area_set(C, sa);
-				for (ar = sa->regionbase.first; ar; ar = ar->next)
-					if (ar == handler->op_region)
-						break;
-				/* XXX no warning print here, after full-area and back regions are remade */
-				if (ar)
-					CTX_wm_region_set(C, ar);
-			}
-		}
-	}
-}
-
 /* called on exit or remove area, only here call cancel callback */
 void WM_event_remove_handlers(bContext *C, ListBase *handlers)
 {
@@ -2091,16 +2057,17 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				}
 			}
 			else if (handler->widgetmap) {
-				struct wmWidgetMap *wmap = handler->widgetmap;
+				wmWidgetMap *wmap = handler->widgetmap;
 				unsigned char part;
 				short event_processed = 0;
 				wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
 				ScrArea *area = CTX_wm_area(C);
 				ARegion *region = CTX_wm_region(C);
-				
-				wm_handler_widgetmap_context(C, handler);
+
+				wm_widgetmap_handler_context(C, handler);
 				wm_region_mouse_co(C, event);
-				
+
+				/* handle the widget first, before passing the event down */
 				switch (event->type) {
 					case MOUSEMOVE:
 						if (widget) {
@@ -2145,7 +2112,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				/* restore the area */
 				CTX_wm_area_set(C, area);
 				CTX_wm_region_set(C, region);
-				
+
 				if (handler->op) {
 					/* if event was processed by an active widget pass the modified event to the operator */
 					if (event_processed) {
@@ -2155,9 +2122,14 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				}
 			}
 			else {
-				/* handle the widget first, before passing the event down */
+				/* context region may be changed in wm_handler_operator_call */
+				ARegion *ar = CTX_wm_region(C);
+
 				/* modal, swallows all */
 				action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
+
+				/* update widgets during modal handlers */
+				wm_widget_handler_modal_update(C, event, handler, ar);
 			}
 
 			if (action & WM_HANDLER_BREAK) {
