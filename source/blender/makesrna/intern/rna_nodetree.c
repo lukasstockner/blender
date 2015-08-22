@@ -32,7 +32,7 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -4769,7 +4769,7 @@ static void def_cmp_dilate_erode(StructRNA *srna)
 	RNA_def_property_enum_sdna(prop, NULL, "falloff");
 	RNA_def_property_enum_items(prop, proportional_falloff_curve_only_items);
 	RNA_def_property_ui_text(prop, "Falloff", "Falloff type the feather");
-	RNA_def_property_translation_context(prop, BLF_I18NCONTEXT_ID_CURVE); /* Abusing id_curve :/ */
+	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CURVE); /* Abusing id_curve :/ */
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -4957,9 +4957,9 @@ static void def_cmp_color_spill(StructRNA *srna)
 	};
 
 	static EnumPropertyItem limit_channel_items[] = {
-		{1, "R", 0, "R", "Limit by Red"},
-		{2, "G", 0, "G", "Limit by Green"},
-		{3, "B", 0, "B", "Limit by Blue"},
+		{0, "R", 0, "R", "Limit by Red"},
+		{1, "G", 0, "G", "Limit by Green"},
+		{2, "B", 0, "B", "Limit by Blue"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -6426,7 +6426,7 @@ static void def_cmp_keying(StructRNA *srna)
 	RNA_def_property_enum_sdna(prop, NULL, "feather_falloff");
 	RNA_def_property_enum_items(prop, proportional_falloff_curve_only_items);
 	RNA_def_property_ui_text(prop, "Feather Falloff", "Falloff type the feather");
-	RNA_def_property_translation_context(prop, BLF_I18NCONTEXT_ID_CURVE); /* Abusing id_curve :/ */
+	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CURVE); /* Abusing id_curve :/ */
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
 	prop = RNA_def_property(srna, "feather_distance", PROP_INT, PROP_NONE);
