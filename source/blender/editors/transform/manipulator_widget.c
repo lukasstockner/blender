@@ -50,6 +50,7 @@
 #include "RNA_access.h"
 
 #include "BKE_action.h"
+#include "BKE_armature.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_global.h"
@@ -354,11 +355,14 @@ static void protectflag_to_drawflags(short protectflag, short *drawflags)
 }
 
 /* for pose mode */
-static void stats_pose(Scene *scene, RegionView3D *rv3d, bPoseChannel *pchan)
+static void stats_pose(Scene *scene, Object *ob, RegionView3D *rv3d, bPoseChannel *pchan)
 {
 	Bone *bone = pchan->bone;
 
 	if (bone) {
+		/* update pose matrix after transform */
+		BKE_pose_where_is(scene, ob);
+
 		calc_tw_center(scene, pchan->pose_head);
 		protectflag_to_drawflags(pchan->protectflag, &rv3d->twdrawflag);
 	}
@@ -722,7 +726,7 @@ static int calc_manipulator_stats(const bContext *C)
 			/* doesn't check selection or visibility intentionally */
 			Bone *bone = pchan->bone;
 			if (bone) {
-				stats_pose(scene, rv3d, pchan);
+				stats_pose(scene, ob, rv3d, pchan);
 				totsel = 1;
 				ok = true;
 			}
@@ -735,7 +739,7 @@ static int calc_manipulator_stats(const bContext *C)
 				for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 					Bone *bone = pchan->bone;
 					if (bone && (bone->flag & BONE_TRANSFORM)) {
-						stats_pose(scene, rv3d, pchan);
+						stats_pose(scene, ob, rv3d, pchan);
 					}
 				}
 				ok = true;
@@ -777,16 +781,21 @@ static int calc_manipulator_stats(const bContext *C)
 		}
 	}
 	else {
+		float loc[3];
+
 		/* we need the one selected object, if its not active */
 		ob = OBACT;
 		if (ob && !(ob->flag & SELECT))
 			ob = NULL;
 
 		for (base = scene->base.first; base; base = base->next) {
+
 			if (TESTBASELIB(v3d, base)) {
 				if (ob == NULL)
 					ob = base->object;
-				calc_tw_center(scene, base->object->obmat[3]);
+				/* updated object matrix after transform */
+				add_v3_v3v3(loc, base->object->loc, base->object->dloc);
+				calc_tw_center(scene, loc);
 				protectflag_to_drawflags(base->object->protectflag, &rv3d->twdrawflag);
 				totsel++;
 			}
@@ -881,7 +890,10 @@ static void manipulator_prepare_mat(Scene *scene, View3D *v3d, RegionView3D *rv3
 		{
 			Object *ob = OBACT;
 			if ((v3d->around == V3D_ACTIVE) && !scene->obedit && !(ob->mode & OB_MODE_POSE)) {
-				copy_v3_v3(rv3d->twmat[3], ob->obmat[3]);
+				float loc[3];
+				/* updated object matrix after transform */
+				add_v3_v3v3(loc, ob->loc, ob->dloc);
+				copy_v3_v3(rv3d->twmat[3], loc);
 			}
 			else {
 				mid_v3_v3v3(rv3d->twmat[3], scene->twmin, scene->twmax);
