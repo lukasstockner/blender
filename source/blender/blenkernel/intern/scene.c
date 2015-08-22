@@ -58,7 +58,7 @@
 #include "BLI_threads.h"
 #include "BLI_task.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_anim.h"
 #include "BKE_animsys.h"
@@ -72,6 +72,7 @@
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
 #include "BKE_group.h"
+#include "BKE_icons.h"
 #include "BKE_idprop.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
@@ -346,6 +347,10 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 		}
 	}
 
+	if (sce->preview) {
+		scen->preview = BKE_previewimg_copy(sce->preview);
+	}
+
 	return scen;
 }
 
@@ -455,6 +460,8 @@ void BKE_scene_free(Scene *sce)
 	BKE_sound_destroy_scene(sce);
 
 	BKE_color_managed_view_settings_free(&sce->view_settings);
+
+	BKE_previewimg_free(&sce->preview);
 }
 
 void BKE_scene_init(Scene *sce)
@@ -744,6 +751,8 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 
 	BKE_scene_init(sce);
 
+	sce->preview = NULL;
+
 	return sce;
 }
 
@@ -765,6 +774,11 @@ Base *BKE_scene_base_find(Scene *scene, Object *ob)
 	return BLI_findptr(&scene->base, ob, offsetof(Base, object));
 }
 
+/**
+ * Sets the active scene, mainly used when running in background mode (``--scene`` command line argument).
+ * This is also called to set the scene directly, bypassing windowing code.
+ * Otherwise #ED_screen_set_scene is used when changing scenes by the user.
+ */
 void BKE_scene_set_background(Main *bmain, Scene *scene)
 {
 	Scene *sce;
@@ -1582,6 +1596,14 @@ static void scene_free_unused_opensubdiv_cache(Scene *scene)
 			if (md != NULL && md->type == eModifierType_Subsurf) {
 				SubsurfModifierData *smd = (SubsurfModifierData *) md;
 				bool object_in_editmode = object->mode == OB_MODE_EDIT;
+				if (!smd->use_opensubdiv) {
+					if (smd->mCache != NULL) {
+						ccgSubSurf_free_osd_mesh(smd->mCache);
+					}
+					if (smd->emCache != NULL) {
+						ccgSubSurf_free_osd_mesh(smd->emCache);
+					}
+				}
 				if (object_in_editmode && smd->mCache != NULL) {
 					ccgSubSurf_free(smd->mCache);
 					smd->mCache = NULL;

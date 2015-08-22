@@ -51,7 +51,7 @@
 #include "BLI_math_color_blend.h"
 #include "BLI_mempool.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_customdata.h"
 #include "BKE_customdata_file.h"
@@ -2142,7 +2142,8 @@ void CustomData_copy_elements(int type, void *src_data_ofs, void *dst_data_ofs, 
 static void CustomData_copy_data_layer(
         const CustomData *source, CustomData *dest,
         int src_i, int dst_i,
-        int src_index, int dst_index, int count) {
+        int src_index, int dst_index, int count)
+{
 	const LayerTypeInfo *typeInfo;
 	int src_offset;
 	int dst_offset;
