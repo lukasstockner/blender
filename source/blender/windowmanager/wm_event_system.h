@@ -101,7 +101,7 @@ void        wm_drags_check_ops(bContext *C, wmEvent *event);
 void        wm_drags_draw(bContext *C, wmWindow *win, rcti *rect);
 
 /* wm_widgets.c */
-void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler *handler, struct ARegion *ar);
+void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler *handler);
 void wm_widgetmap_handler_context(bContext *C, wmEventHandler *handler);
 
 struct wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event, unsigned char *part);

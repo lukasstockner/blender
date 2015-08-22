@@ -871,11 +871,11 @@ void wm_widgetmap_handler_context(bContext *C, wmEventHandler *handler)
 	}
 }
 
-void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler *handler, ARegion *ar)
+void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler *handler)
 {
 	wmWidgetMap *wmap;
 
-	for (wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
+	for (wmap = handler->op_region->widgetmaps.first; wmap; wmap = wmap->next) {
 		wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
 		ScrArea *area = CTX_wm_area(C);
 		ARegion *region = CTX_wm_region(C);

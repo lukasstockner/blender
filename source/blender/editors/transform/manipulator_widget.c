@@ -789,10 +789,10 @@ static int calc_manipulator_stats(const bContext *C)
 			ob = NULL;
 
 		for (base = scene->base.first; base; base = base->next) {
-
 			if (TESTBASELIB(v3d, base)) {
 				if (ob == NULL)
 					ob = base->object;
+
 				/* updated object matrix after transform */
 				add_v3_v3v3(loc, base->object->loc, base->object->dloc);
 				calc_tw_center(scene, loc);
@@ -891,6 +891,7 @@ static void manipulator_prepare_mat(Scene *scene, View3D *v3d, RegionView3D *rv3
 			Object *ob = OBACT;
 			if ((v3d->around == V3D_ACTIVE) && !scene->obedit && !(ob->mode & OB_MODE_POSE)) {
 				float loc[3];
+
 				/* updated object matrix after transform */
 				add_v3_v3v3(loc, ob->loc, ob->dloc);
 				copy_v3_v3(rv3d->twmat[3], loc);

@@ -2122,14 +2122,11 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				}
 			}
 			else {
-				/* context region may be changed in wm_handler_operator_call */
-				ARegion *ar = CTX_wm_region(C);
-
 				/* modal, swallows all */
 				action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
 
 				/* update widgets during modal handlers */
-				wm_widget_handler_modal_update(C, event, handler, ar);
+				wm_widget_handler_modal_update(C, event, handler);
 			}
 
 			if (action & WM_HANDLER_BREAK) {
