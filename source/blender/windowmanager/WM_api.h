@@ -584,6 +584,10 @@ struct wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, const char *name,
 void WIDGET_dial_set_color(struct wmWidget *widget, const float color[4]);
 void WIDGET_dial_set_direction(struct wmWidget *widget, const float direction[3]);
 
+struct wmWidget *WIDGET_plane_new(struct wmWidgetGroup *wgroup, const char *name, const int style);
+void WIDGET_plane_set_direction(struct wmWidget *widget, const float direction[3]);
+void WIDGET_plane_set_color(struct wmWidget *widget, const float color[4]);
+
 struct wmWidget *WIDGET_rect_transform_new(
         struct wmWidgetGroup *wgroup, const char *name, const int style,
         const float width, const float height);

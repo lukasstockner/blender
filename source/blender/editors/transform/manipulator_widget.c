@@ -137,6 +137,15 @@ enum {
 	MAN_AXIS_SCALE_Z,
 	MAN_AXIS_SCALE_C,
 
+	/* special */
+	MAN_AXIS_TRANS_XY,
+	MAN_AXIS_TRANS_YZ,
+	MAN_AXIS_TRANS_ZX,
+
+	MAN_AXIS_SCALE_XY,
+	MAN_AXIS_SCALE_YZ,
+	MAN_AXIS_SCALE_ZX,
+
 	MAN_AXIS_LAST,
 };
 
@@ -181,6 +190,12 @@ static wmWidget *manipulator_get_axis_from_index(const ManipulatorGroup *man, co
 			return man->translate_y;
 		case MAN_AXIS_TRANS_Z:
 			return man->translate_z;
+		case MAN_AXIS_TRANS_XY:
+			return man->translate_xy;
+		case MAN_AXIS_TRANS_YZ:
+			return man->translate_yz;
+		case MAN_AXIS_TRANS_ZX:
+			return man->translate_zx;
 		case MAN_AXIS_TRANS_C:
 			return man->translate_c;
 		case MAN_AXIS_ROT_X:
@@ -197,6 +212,12 @@ static wmWidget *manipulator_get_axis_from_index(const ManipulatorGroup *man, co
 			return man->scale_y;
 		case MAN_AXIS_SCALE_Z:
 			return man->scale_z;
+		case MAN_AXIS_SCALE_XY:
+			return man->scale_xy;
+		case MAN_AXIS_SCALE_YZ:
+			return man->scale_yz;
+		case MAN_AXIS_SCALE_ZX:
+			return man->scale_zx;
 		case MAN_AXIS_SCALE_C:
 			return man->scale_c;
 	}
@@ -206,10 +227,12 @@ static wmWidget *manipulator_get_axis_from_index(const ManipulatorGroup *man, co
 
 static short manipulator_get_axis_type(const ManipulatorGroup *man, const wmWidget *axis)
 {
-	if (ELEM(axis, man->translate_x, man->translate_y, man->translate_z, man->translate_c)) {
+	if (ELEM(axis, man->translate_x, man->translate_y, man->translate_z, man->translate_c,
+	         man->translate_xy, man->translate_yz, man->translate_zx))
+	{
 		return MAN_AXES_TRANSLATE;
 	}
-	else if (ELEM(axis, man->rotate_x, man->rotate_y, man->rotate_z, man->rotate_c)){
+	else if (ELEM(axis, man->rotate_x, man->rotate_y, man->rotate_z, man->rotate_c)) {
 		return MAN_AXES_ROTATE;
 	}
 	else {
@@ -220,7 +243,20 @@ static short manipulator_get_axis_type(const ManipulatorGroup *man, const wmWidg
 /* get index within axis type, so that x == 0, y == 1 and z == 2, no matter which axis type */
 static int manipulator_index_normalize(const int axis_idx)
 {
-	return (axis_idx > MAN_AXIS_TRANS_C) ? (axis_idx > MAN_AXIS_ROT_C ? (axis_idx - 8) : (axis_idx - 4)) : axis_idx;
+	if (axis_idx > MAN_AXIS_TRANS_ZX) {
+		return axis_idx - 15;
+	}
+	else if (axis_idx > MAN_AXIS_SCALE_C) {
+		return axis_idx - 12;
+	}
+	else if (axis_idx > MAN_AXIS_ROT_C) {
+		return axis_idx - 8;
+	}
+	else if (axis_idx > MAN_AXIS_TRANS_C) {
+		return axis_idx - 4;
+	}
+
+	return axis_idx;
 }
 
 static bool manipulator_is_axis_visible(const RegionView3D *rv3d, const int axis_idx)
@@ -232,6 +268,12 @@ static bool manipulator_is_axis_visible(const RegionView3D *rv3d, const int axis
 			return (rv3d->twdrawflag & MAN_TRANS_Y);
 		case MAN_AXIS_TRANS_Z:
 			return (rv3d->twdrawflag & MAN_TRANS_Z);
+		case MAN_AXIS_TRANS_XY:
+			return (rv3d->twdrawflag & MAN_TRANS_X && rv3d->twdrawflag & MAN_TRANS_Y);
+		case MAN_AXIS_TRANS_YZ:
+			return (rv3d->twdrawflag & MAN_TRANS_Y && rv3d->twdrawflag & MAN_TRANS_Z);
+		case MAN_AXIS_TRANS_ZX:
+			return (rv3d->twdrawflag & MAN_TRANS_Z && rv3d->twdrawflag & MAN_TRANS_X);
 		case MAN_AXIS_TRANS_C:
 			return (rv3d->twdrawflag & MAN_TRANS_C);
 		case MAN_AXIS_ROT_X:
@@ -248,6 +290,12 @@ static bool manipulator_is_axis_visible(const RegionView3D *rv3d, const int axis
 			return (rv3d->twdrawflag & MAN_SCALE_Y);
 		case MAN_AXIS_SCALE_Z:
 			return (rv3d->twdrawflag & MAN_SCALE_Z);
+		case MAN_AXIS_SCALE_XY:
+			return (rv3d->twdrawflag & MAN_SCALE_X && rv3d->twdrawflag & MAN_SCALE_Y);
+		case MAN_AXIS_SCALE_YZ:
+			return (rv3d->twdrawflag & MAN_SCALE_Y && rv3d->twdrawflag & MAN_SCALE_Z);
+		case MAN_AXIS_SCALE_ZX:
+			return (rv3d->twdrawflag & MAN_SCALE_Z && rv3d->twdrawflag & MAN_SCALE_X);
 		case MAN_AXIS_SCALE_C:
 			return (rv3d->twdrawflag & MAN_SCALE_C);
 	}
@@ -266,18 +314,24 @@ static void manipulator_get_axis_color(const RegionView3D *rv3d, const int axis_
 		case MAN_AXIS_TRANS_X:
 		case MAN_AXIS_ROT_X:
 		case MAN_AXIS_SCALE_X:
+		case MAN_AXIS_TRANS_XY:
+		case MAN_AXIS_SCALE_XY:
 			UI_GetThemeColor4fv(TH_AXIS_X, r_col);
 			r_col[3] = alpha;
 			break;
 		case MAN_AXIS_TRANS_Y:
 		case MAN_AXIS_ROT_Y:
 		case MAN_AXIS_SCALE_Y:
+		case MAN_AXIS_TRANS_YZ:
+		case MAN_AXIS_SCALE_YZ:
 			UI_GetThemeColor4fv(TH_AXIS_Y, r_col);
 			r_col[3] = alpha;
 			break;
 		case MAN_AXIS_TRANS_Z:
 		case MAN_AXIS_ROT_Z:
 		case MAN_AXIS_SCALE_Z:
+		case MAN_AXIS_TRANS_ZX:
+		case MAN_AXIS_SCALE_ZX:
 			UI_GetThemeColor4fv(TH_AXIS_Z, r_col);
 			r_col[3] = alpha;
 			break;
@@ -312,6 +366,18 @@ static void manipulator_get_axis_constraint(const int axis_idx, int r_axis[3])
 		case MAN_AXIS_TRANS_C:
 		case MAN_AXIS_ROT_C:
 		case MAN_AXIS_SCALE_C:
+			break;
+		case MAN_AXIS_TRANS_XY:
+		case MAN_AXIS_SCALE_XY:
+			r_axis[0] = r_axis[1] = 1;
+			break;
+		case MAN_AXIS_TRANS_YZ:
+		case MAN_AXIS_SCALE_YZ:
+			r_axis[1] = r_axis[2] = 1;
+			break;
+		case MAN_AXIS_TRANS_ZX:
+		case MAN_AXIS_SCALE_ZX:
+			r_axis[2] = r_axis[0] = 1;
 			break;
 	}
 }
@@ -961,6 +1027,9 @@ static ManipulatorGroup *manipulatorgroup_init(
 		man->scale_x = WIDGET_arrow_new(wgroup, "scale_x", WIDGET_ARROW_STYLE_BOX);
 		man->scale_y = WIDGET_arrow_new(wgroup, "scale_y", WIDGET_ARROW_STYLE_BOX);
 		man->scale_z = WIDGET_arrow_new(wgroup, "scale_z", WIDGET_ARROW_STYLE_BOX);
+		man->scale_xy = WIDGET_plane_new(wgroup, "scale_xy", 0);
+		man->scale_yz = WIDGET_plane_new(wgroup, "scale_yz", 0);
+		man->scale_zx = WIDGET_plane_new(wgroup, "scale_zx", 0);
 	}
 	if (init_rot) {
 		man->rotate_x = WIDGET_dial_new(wgroup, "rotate_x", WIDGET_DIAL_STYLE_RING_CLIPPED);
@@ -974,6 +1043,9 @@ static ManipulatorGroup *manipulatorgroup_init(
 		man->translate_x = WIDGET_arrow_new(wgroup, "translate_x", WIDGET_ARROW_STYLE_NORMAL);
 		man->translate_y = WIDGET_arrow_new(wgroup, "translate_y", WIDGET_ARROW_STYLE_NORMAL);
 		man->translate_z = WIDGET_arrow_new(wgroup, "translate_z", WIDGET_ARROW_STYLE_NORMAL);
+		man->translate_xy = WIDGET_plane_new(wgroup, "translate_xy", 0);
+		man->translate_yz = WIDGET_plane_new(wgroup, "translate_yz", 0);
+		man->translate_zx = WIDGET_plane_new(wgroup, "translate_zx", 0);
 	}
 
 	return man;
@@ -1076,6 +1148,42 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 				WIDGET_dial_set_direction(axis, rv3d->twmat[aidx_norm]);
 				WIDGET_dial_set_color(axis, col);
 				break;
+			case MAN_AXIS_TRANS_XY:
+			case MAN_AXIS_TRANS_YZ:
+			case MAN_AXIS_TRANS_ZX:
+			case MAN_AXIS_SCALE_XY:
+			case MAN_AXIS_SCALE_YZ:
+			case MAN_AXIS_SCALE_ZX:
+			{
+				const float ofs_fac = U.tw_size * 0.7f;
+				float origin[4];
+				float px;
+
+				/* XXX hrmpf, widgets call this twice on every redraw, could use update flag */
+				ED_view3d_update_viewmat(CTX_data_scene(C), CTX_wm_view3d(C), CTX_wm_region(C), NULL, NULL);
+				px = ED_view3d_pixel_size(rv3d, origin);
+
+				copy_v4_v4(origin, rv3d->twmat[3]);
+
+				if (ELEM(axis_idx, MAN_AXIS_TRANS_XY, MAN_AXIS_SCALE_XY)) {
+					origin[0] += px * ofs_fac;
+					origin[1] += px * ofs_fac;
+				}
+				else if (ELEM(axis_idx, MAN_AXIS_TRANS_YZ, MAN_AXIS_SCALE_YZ)) {
+					origin[1] += px * ofs_fac;
+					origin[2] += px * ofs_fac;
+				}
+				else if (ELEM(axis_idx, MAN_AXIS_TRANS_ZX, MAN_AXIS_SCALE_ZX)) {
+					origin[2] += px * ofs_fac;
+					origin[0] += px * ofs_fac;
+				}
+
+				WM_widget_set_scale(axis, 0.07f);
+				WM_widget_set_origin(axis, origin);
+				WIDGET_plane_set_direction(axis, rv3d->twmat[aidx_norm - 1 > -1 ? aidx_norm - 1 : aidx_norm - 1]);
+				WIDGET_plane_set_color(axis, col);
+				break;
+			}
 			case MAN_AXIS_TRANS_C:
 			case MAN_AXIS_ROT_C:
 			case MAN_AXIS_SCALE_C:

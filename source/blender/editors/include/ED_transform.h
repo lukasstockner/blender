@@ -164,6 +164,9 @@ typedef struct ManipulatorGroup {
 	struct wmWidget *translate_x,
 	                *translate_y,
 	                *translate_z,
+	                *translate_xy,
+	                *translate_yz,
+	                *translate_zx,
 	                *translate_c,
 
 	                *rotate_x,
@@ -174,6 +177,9 @@ typedef struct ManipulatorGroup {
 	                *scale_x,
 	                *scale_y,
 	                *scale_z,
+	                *scale_xy,
+	                *scale_yz,
+	                *scale_zx,
 	                *scale_c;
 } ManipulatorGroup;
 

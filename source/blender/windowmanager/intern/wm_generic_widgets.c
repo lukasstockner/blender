@@ -660,7 +660,7 @@ static void dial_draw_intern(DialWidget *dial, const bool select, const bool hig
 	mul_mat3_m4_fl(mat, scale);
 
 	glPushMatrix();
-	glMultMatrixf(&mat[0][0]);
+	glMultMatrixf(mat);
 
 	if (highlight)
 		glColor4fv(highlight_col);
@@ -764,6 +764,116 @@ void WIDGET_dial_set_direction(wmWidget *widget, const float direction[3])
 
 	copy_v3_v3(dial->direction, direction);
 	normalize_v3(dial->direction);
+}
+
+/********* Plane widget ************/
+
+typedef struct PlaneWidget {
+	wmWidget widget;
+
+	float direction[3];
+	float color[4];
+} PlaneWidget;
+
+
+static void widget_plane_draw_geom(const float col_inner[4], const float col_outer[4])
+{
+	static float vec[4][3] = {
+		{-1, -1, 0},
+		{ 1, -1, 0},
+		{ 1,  1, 0},
+		{-1,  1, 0},
+	};
+
+	glEnable(GL_MULTISAMPLE_ARB);
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(3, GL_FLOAT, 0, vec);
+	glColor4fv(col_inner);
+	glDrawArrays(GL_QUADS, 0, ARRAY_SIZE(vec));
+	glColor4fv(col_outer);
+	glDrawArrays(GL_LINE_LOOP, 0, ARRAY_SIZE(vec));
+	glDisableClientState(GL_VERTEX_ARRAY);
+
+	glDisable(GL_MULTISAMPLE_ARB);
+}
+
+static void widget_plane_draw_intern(PlaneWidget *plane, const bool UNUSED(select), const bool highlight)
+{
+	const float up[3] = {0.0f, 0.0f, 1.0f};
+	float col_inner[4], col_outer[4];
+	float rot[3][3];
+	float mat[4][4];
+
+	rotation_between_vecs_to_mat3(rot, up, plane->direction);
+
+	copy_m4_m3(mat, rot);
+	copy_v3_v3(mat[3], plane->widget.origin);
+	mul_mat3_m4_fl(mat, plane->widget.scale);
+
+	glPushMatrix();
+	glMultMatrixf(mat);
+
+	if (highlight && !(plane->widget.flag & WM_WIDGET_DRAW_HOVER)) {
+		copy_v4_v4(col_inner, highlight_col);
+		copy_v4_v4(col_outer, highlight_col);
+	}
+	else {
+		copy_v4_v4(col_inner, plane->color);
+		copy_v4_v4(col_outer, plane->color);
+	}
+	col_inner[3] *= 0.5f;
+
+	glEnable(GL_BLEND);
+	widget_plane_draw_geom(col_inner, col_outer);
+	glDisable(GL_BLEND);
+
+	glPopMatrix();
+}
+
+static void widget_plane_render_3d_intersect(const bContext *UNUSED(C), wmWidget *widget, int selectionbase)
+{
+	GPU_select_load_id(selectionbase);
+	widget_plane_draw_intern((PlaneWidget *)widget, true, false);
+}
+
+static void widget_plane_draw(const bContext *UNUSED(C), wmWidget *widget)
+{
+	widget_plane_draw_intern((PlaneWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT));
+}
+
+/* XXX custom drawing */
+wmWidget *WIDGET_plane_new(wmWidgetGroup *wgroup, const char *name, const int UNUSED(style))
+{
+	PlaneWidget *plane;
+	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
+
+	plane = MEM_callocN(sizeof(PlaneWidget), name);
+
+	plane->widget.draw = widget_plane_draw;
+	plane->widget.intersect = NULL;
+	plane->widget.render_3d_intersection = widget_plane_render_3d_intersect;
+	plane->widget.flag |= WM_WIDGET_SCALE_3D;
+	copy_v3_v3(plane->direction, dir_default);
+
+	wm_widget_register(wgroup, &plane->widget, name);
+
+	return (wmWidget *)plane;
+}
+
+void WIDGET_plane_set_direction(wmWidget *widget, const float direction[3])
+{
+	PlaneWidget *plane = (PlaneWidget *)widget;
+
+	copy_v3_v3(plane->direction, direction);
+	normalize_v3(plane->direction);
+}
+
+void WIDGET_plane_set_color(wmWidget *widget, const float color[4])
+{
+	PlaneWidget *plane = (PlaneWidget *)widget;
+
+	copy_v4_v4(plane->color, color);
 }
 
 /********* Cage widget ************/
