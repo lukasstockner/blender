@@ -259,7 +259,7 @@ static int manipulator_index_normalize(const int axis_idx)
 	return axis_idx;
 }
 
-static bool manipulator_is_axis_visible(const RegionView3D *rv3d, const int axis_idx)
+static bool manipulator_is_axis_visible(const View3D *v3d, const RegionView3D *rv3d, const int axis_idx)
 {
 	switch (axis_idx) {
 		case MAN_AXIS_TRANS_X:
@@ -268,12 +268,6 @@ static bool manipulator_is_axis_visible(const RegionView3D *rv3d, const int axis
 			return (rv3d->twdrawflag & MAN_TRANS_Y);
 		case MAN_AXIS_TRANS_Z:
 			return (rv3d->twdrawflag & MAN_TRANS_Z);
-		case MAN_AXIS_TRANS_XY:
-			return (rv3d->twdrawflag & MAN_TRANS_X && rv3d->twdrawflag & MAN_TRANS_Y);
-		case MAN_AXIS_TRANS_YZ:
-			return (rv3d->twdrawflag & MAN_TRANS_Y && rv3d->twdrawflag & MAN_TRANS_Z);
-		case MAN_AXIS_TRANS_ZX:
-			return (rv3d->twdrawflag & MAN_TRANS_Z && rv3d->twdrawflag & MAN_TRANS_X);
 		case MAN_AXIS_TRANS_C:
 			return (rv3d->twdrawflag & MAN_TRANS_C);
 		case MAN_AXIS_ROT_X:
@@ -290,14 +284,35 @@ static bool manipulator_is_axis_visible(const RegionView3D *rv3d, const int axis
 			return (rv3d->twdrawflag & MAN_SCALE_Y);
 		case MAN_AXIS_SCALE_Z:
 			return (rv3d->twdrawflag & MAN_SCALE_Z);
-		case MAN_AXIS_SCALE_XY:
-			return (rv3d->twdrawflag & MAN_SCALE_X && rv3d->twdrawflag & MAN_SCALE_Y);
-		case MAN_AXIS_SCALE_YZ:
-			return (rv3d->twdrawflag & MAN_SCALE_Y && rv3d->twdrawflag & MAN_SCALE_Z);
-		case MAN_AXIS_SCALE_ZX:
-			return (rv3d->twdrawflag & MAN_SCALE_Z && rv3d->twdrawflag & MAN_SCALE_X);
 		case MAN_AXIS_SCALE_C:
-			return (rv3d->twdrawflag & MAN_SCALE_C);
+			return (rv3d->twdrawflag & MAN_SCALE_C && (v3d->twtype & V3D_MANIP_TRANSLATE) == 0);
+		case MAN_AXIS_TRANS_XY:
+			return (rv3d->twdrawflag & MAN_TRANS_X &&
+			        rv3d->twdrawflag & MAN_TRANS_Y &&
+			        (v3d->twtype & V3D_MANIP_ROTATE) == 0);
+		case MAN_AXIS_TRANS_YZ:
+			return (rv3d->twdrawflag & MAN_TRANS_Y &&
+			        rv3d->twdrawflag & MAN_TRANS_Z &&
+			        (v3d->twtype & V3D_MANIP_ROTATE) == 0);
+		case MAN_AXIS_TRANS_ZX:
+			return (rv3d->twdrawflag & MAN_TRANS_Z &&
+			        rv3d->twdrawflag & MAN_TRANS_X &&
+			        (v3d->twtype & V3D_MANIP_ROTATE) == 0);
+		case MAN_AXIS_SCALE_XY:
+			return (rv3d->twdrawflag & MAN_SCALE_X &&
+			        rv3d->twdrawflag & MAN_SCALE_Y &&
+			        (v3d->twtype & V3D_MANIP_TRANSLATE) == 0 &&
+			        (v3d->twtype & V3D_MANIP_ROTATE) == 0);
+		case MAN_AXIS_SCALE_YZ:
+			return (rv3d->twdrawflag & MAN_SCALE_Y &&
+			        rv3d->twdrawflag & MAN_SCALE_Z &&
+			        (v3d->twtype & V3D_MANIP_TRANSLATE) == 0 &&
+			        (v3d->twtype & V3D_MANIP_ROTATE) == 0);
+		case MAN_AXIS_SCALE_ZX:
+			return (rv3d->twdrawflag & MAN_SCALE_Z &&
+			        rv3d->twdrawflag & MAN_SCALE_X &&
+			        (v3d->twtype & V3D_MANIP_TRANSLATE) == 0 &&
+			        (v3d->twtype & V3D_MANIP_ROTATE) == 0);
 	}
 	return false;
 }
@@ -1116,7 +1131,7 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 		float line_vec[2][3];
 		float col[4];
 
-		if (manipulator_is_axis_visible(rv3d, axis_idx) == false) {
+		if (manipulator_is_axis_visible(v3d, rv3d, axis_idx) == false) {
 			WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
 			continue;
 		}
@@ -1187,11 +1202,7 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 			case MAN_AXIS_TRANS_C:
 			case MAN_AXIS_ROT_C:
 			case MAN_AXIS_SCALE_C:
-				/* only draw if there isn't already a circle for translate */
-				if (axis_idx == MAN_AXIS_SCALE_C && (v3d->twtype & V3D_MANIP_TRANSLATE)) {
-					WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
-				}
-				else if (axis_idx != MAN_AXIS_ROT_C) {
+				if (axis_idx != MAN_AXIS_ROT_C) {
 					WM_widget_set_scale(axis, 0.2f);
 				}
 				WIDGET_dial_set_direction(axis, rv3d->viewinv[2]);
