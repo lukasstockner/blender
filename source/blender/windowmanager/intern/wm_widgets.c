@@ -875,6 +875,7 @@ void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler 
 {
 	wmWidgetMap *wmap;
 
+	/* happens on render */
 	if (!handler->op_region)
 		return;
 

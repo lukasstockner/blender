@@ -1161,9 +1161,9 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 
 				/* XXX hrmpf, widgets call this twice on every redraw, could use update flag */
 				ED_view3d_update_viewmat(CTX_data_scene(C), CTX_wm_view3d(C), CTX_wm_region(C), NULL, NULL);
-				px = ED_view3d_pixel_size(rv3d, origin);
 
 				copy_v4_v4(origin, rv3d->twmat[3]);
+				px = ED_view3d_pixel_size(rv3d, origin);
 
 				if (ELEM(axis_idx, MAN_AXIS_TRANS_XY, MAN_AXIS_SCALE_XY)) {
 					origin[0] += px * ofs_fac;
