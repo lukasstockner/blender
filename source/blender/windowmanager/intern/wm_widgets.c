@@ -875,6 +875,9 @@ void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler 
 {
 	wmWidgetMap *wmap;
 
+	if (!handler->op_region)
+		return;
+
 	for (wmap = handler->op_region->widgetmaps.first; wmap; wmap = wmap->next) {
 		wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
 		ScrArea *area = CTX_wm_area(C);
