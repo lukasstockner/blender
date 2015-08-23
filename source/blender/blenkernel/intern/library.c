@@ -889,14 +889,21 @@ void BKE_library_callback_remap_editor_id_reference_set(void (*func)(const ID *,
 	remap_editor_id_reference_cb = func;
 }
 
+typedef struct IDRemap {
+	Main *bmain;
+	ID *old_id;
+	ID *new_id;
+	ID *id;  /* The ID in which we are replacing old_id by new_id usages. */
+	int skipped;  /* Number of usecase that could not be remmapped (e.g.: obdata when in edit mode). */
+} IDRemap;
 
 static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUSED(cb_flag))
 {
-	Main *bmain = ((void **)user_data)[0];
-	ID *old_id = ((void **)user_data)[1];
-	ID *new_id = ((void **)user_data)[2];
-	ID *id = ((void **)user_data)[3];
-	int skipped = GET_INT_FROM_POINTER(((void **)user_data)[4]);
+	IDRemap *id_remap_data = user_data;
+	Main *bmain = id_remap_data->bmain;
+	ID *old_id = id_remap_data->old_id;
+	ID *new_id = id_remap_data->new_id;
+	ID *id = id_remap_data->id;
 
 	/* Special hack in case it's Object->data, this is *not* covered by foreach_ID_link.
 	 * Here we simply do nothing in case we are in edit mode, otherwise we replace the ID! */
@@ -905,7 +912,7 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUS
 
 		if (ob->data == old_id) {
 			if (BKE_object_is_in_editmode(ob)) {
-				skipped++;
+				id_remap_data->skipped++;
 			}
 			else {
 				ob->data = new_id;
@@ -919,15 +926,13 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUS
 		DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB | OB_RECALC_DATA);
 	}
 
-	((void **)user_data)[4] = SET_INT_IN_POINTER(skipped);
-
 	return true;
 }
 
 /** Replace all references in .blend file to \a old_id by \a new_id. */
 void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
 {
-	void *user_data[5] = {(void *)bmain, (void *)old_id, (void *)new_id, NULL, SET_INT_IN_POINTER(0)};
+	IDRemap id_remap_data = {(void *)bmain, (void *)old_id, (void *)new_id, NULL, 0};
 	ListBase *lb_array[MAX_LIBARRAY];
 	int skipped;
 	int i;
@@ -948,8 +953,8 @@ void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
 		ID *id;
 		for (id = lb_array[i]->first; id; id = id->next) {
 			printf("\tchecking id %s (%p)\n", id->name, id);
-			user_data[3] = (void *)id;
-			BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)user_data, IDWALK_NOP);
+			id_remap_data.id = id;
+			BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)&id_remap_data, IDWALK_NOP);
 		}
 	}
 
@@ -957,12 +962,13 @@ void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
 		free_notifier_reference_cb(old_id);
 	}
 
+	/* We assume editors do not hold references to their IDs... */
 	if (remap_editor_id_reference_cb) {
 		remap_editor_id_reference_cb(old_id, new_id);
 	}
 
 	/* All ID 'users' do not actually incref it, so we just assume all uses of this ID have been cleared... */
-	skipped = GET_INT_FROM_POINTER(((void **)user_data)[4]);
+	skipped = id_remap_data.skipped;
 	if (old_id->flag & LIB_FAKEUSER) {
 		BLI_assert(old_id->us - 1 - skipped >= 0);
 		if (old_id->us > 1) {

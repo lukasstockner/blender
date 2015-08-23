@@ -1214,6 +1214,7 @@ void ED_buttons_id_remap(SpaceButs *sbuts, const ID *old_id, ID *new_id)
 		}
 		else {
 			RNA_id_pointer_create(new_id, &path->ptr[i]);
+			/* TODO: Check path further down remains valid? Or nullify it systematically? */
 		}
 	}
 }

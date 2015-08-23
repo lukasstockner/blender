@@ -836,7 +836,7 @@ enum {
 	OL_OP_TOGVIS,
 	OL_OP_TOGSEL,
 	OL_OP_TOGREN,
-	OL_OP_RENAME
+	OL_OP_RENAME,
 };
 
 static EnumPropertyItem prop_object_op_types[] = {
