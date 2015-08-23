@@ -69,6 +69,7 @@ set(SRC
 	intern/wm_widgets.c
 	intern/wm_generic_widgets.c
 	3d_widgets/arrow_widget.c
+	3d_widgets/cube_widget.c
 	3d_widgets/dial_widget.c
 
 	WM_api.h

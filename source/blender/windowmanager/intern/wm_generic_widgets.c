@@ -95,6 +95,7 @@ typedef struct WidgetDrawInfo {
 #ifdef WIDGET_USE_CUSTOM_ARROWS
 WidgetDrawInfo arraw_head_draw_info = {0};
 #endif
+WidgetDrawInfo cube_draw_info = {0};
 #ifdef WIDGET_USE_CUSTOM_DIAS
 WidgetDrawInfo dial_draw_info = {0};
 #endif
@@ -219,44 +220,10 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 
 		if (arrow->style & WIDGET_ARROW_STYLE_BOX) {
 			const float size = 0.05f;
-			static float box[24][3] = {
-				/* back */
-				{-1.0f, -1.0f, -1.0f},
-				{-1.0f,  1.0f, -1.0f},
-				{ 1.0f,  1.0f, -1.0f},
-				{ 1.0f, -1.0f, -1.0f},
-				/* front */
-				{-1.0f, -1.0f,  1.0f},
-				{-1.0f,  1.0f,  1.0f},
-				{ 1.0f,  1.0f,  1.0f},
-				{ 1.0f, -1.0f,  1.0f},
-				/* left */
-				{-1.0f, -1.0f, -1.0f},
-				{-1.0f,  1.0f, -1.0f},
-				{-1.0f,  1.0f,  1.0f},
-				{-1.0f, -1.0f,  1.0f},
-				/* right */
-				{ 1.0f, -1.0f, -1.0f},
-				{ 1.0f,  1.0f, -1.0f},
-				{ 1.0f,  1.0f,  1.0f},
-				{ 1.0f, -1.0f,  1.0f},
-				/* top */
-				{-1.0f,  1.0f, -1.0f},
-				{ 1.0f,  1.0f, -1.0f},
-				{ 1.0f,  1.0f,  1.0f},
-				{-1.0f,  1.0f,  1.0f},
-				/* bottom */
-				{-1.0f, -1.0f, -1.0f},
-				{ 1.0f, -1.0f, -1.0f},
-				{ 1.0f, -1.0f,  1.0f},
-				{-1.0f, -1.0f,  1.0f},
-			};
 
-			glEnableClientState(GL_VERTEX_ARRAY);
+			/* draw cube */
 			glScalef(size, size, size);
-			glVertexPointer(3, GL_FLOAT, 0, box);
-			glDrawArrays(GL_QUADS, 0, ARRAY_SIZE(box));
-			glDisableClientState(GL_VERTEX_ARRAY);
+			widget_draw_intern(&cube_draw_info, select);
 		}
 		else {
 			GLUquadricObj *qobj = gluNewQuadric();
@@ -543,6 +510,14 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 		arraw_head_draw_info.init = true;
 	}
 #endif
+	if (!cube_draw_info.init) {
+		cube_draw_info.nverts = _WIDGET_nverts_cube,
+		cube_draw_info.ntris = _WIDGET_ntris_cube,
+		cube_draw_info.verts = _WIDGET_verts_cube,
+		cube_draw_info.normals = _WIDGET_normals_cube,
+		cube_draw_info.indices = _WIDGET_indices_cube,
+		cube_draw_info.init = true;
+	}
 
 	/* inverted only makes sense in a constrained arrow */
 	if (real_style & WIDGET_ARROW_STYLE_INVERTED) {
@@ -842,7 +817,6 @@ static void widget_plane_draw(const bContext *UNUSED(C), wmWidget *widget)
 	widget_plane_draw_intern((PlaneWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT));
 }
 
-/* XXX custom drawing */
 wmWidget *WIDGET_plane_new(wmWidgetGroup *wgroup, const char *name, const int UNUSED(style))
 {
 	PlaneWidget *plane;
