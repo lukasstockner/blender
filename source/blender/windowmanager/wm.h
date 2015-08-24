@@ -94,6 +94,9 @@ typedef struct wmWidget {
 	/* user defined width for line drawing */
 	float line_width;
 
+	/* widget colors (uses default fallbacks if not defined) */
+	float col[4], col_hi[4];
+
 	/* data used during interaction */
 	void *interaction_data;
 

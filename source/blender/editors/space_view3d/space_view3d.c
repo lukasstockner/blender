@@ -753,8 +753,8 @@ static void WIDGETGROUP_camera_draw(const struct bContext *C, struct wmWidgetGro
 	widget = WIDGET_arrow_new(wgroup, propname, WIDGET_ARROW_STYLE_CROSS);
 	WM_widget_set_draw_on_hover_only(widget, true);
 	WM_widget_set_3d_scale(widget, false);
-	WIDGET_arrow_set_color(widget, color_camera, color_hi_camera);
-	
+	WM_widget_set_colors(widget, color_camera, color_hi_camera);
+
 	RNA_pointer_create(&ca->id, &RNA_Camera, ca, &cameraptr);
 	WM_widget_set_origin(widget, ob->obmat[3]);
 	WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &cameraptr, propname);
@@ -864,7 +864,7 @@ static void WIDGETGROUP_armature_facemap_draw(const struct bContext *C, struct w
 			if ((prop = RNA_struct_find_property(opptr, "release_confirm"))) {
 				RNA_property_boolean_set(opptr, prop, true);
 			}
-			WIDGET_facemap_set_color(widget, color_shape);
+			WM_widget_set_colors(widget, color_shape, color_shape);
 			WM_widget_set_draw_on_hover_only(widget, true);
 		}
 	}

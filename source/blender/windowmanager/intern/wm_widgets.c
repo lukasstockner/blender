@@ -441,10 +441,16 @@ static void widget_unique_idname_set(wmWidgetGroup *wgroup, wmWidget *widget, co
  */
 bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *name)
 {
+	const float col_default[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+
 	widget_unique_idname_set(wgroup, widget, name);
 
 	widget->user_scale = 1.0f;
 	widget->line_width = 1.0f;
+
+	/* defaults */
+	copy_v4_v4(widget->col, col_default);
+	copy_v4_v4(widget->col_hi, col_default);
 
 	/* create at least one property for interaction */
 	if (widget->max_prop == 0) {
@@ -512,6 +518,18 @@ void WM_widget_set_scale(wmWidget *widget, const float scale)
 void WM_widget_set_line_width(wmWidget *widget, const float line_width)
 {
 	widget->line_width = line_width;
+}
+
+/**
+ * Set widget rgba colors
+ *
+ * \param col  Normal state color
+ * \param col_hi Highlighted state color
+ */
+void WM_widget_set_colors(wmWidget *widget, const float col[4], const float col_hi[4])
+{
+	copy_v4_v4(widget->col, col);
+	copy_v4_v4(widget->col_hi, col_hi);
 }
 
 

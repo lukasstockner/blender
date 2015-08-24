@@ -160,8 +160,6 @@ typedef struct ArrowWidget {
 	int flag;
 	float direction[3];
 	float up[3];
-	float color[4];
-	float color_highlight[4];
 	float (*line)[3];    /* custom coords for arrow line drawing */
 	int tot_line_points; /* amount of points for arrow line drawing */
 	float offset;
@@ -270,10 +268,10 @@ static void arrow_draw_intern(ArrowWidget *arrow, const bool select, const bool 
 	glMultMatrixf(mat);
 
 	if (highlight && !(arrow->widget.flag & WM_WIDGET_DRAW_HOVER)) {
-		glColor4fv(arrow->color_highlight);
+		glColor4fv(arrow->widget.col_hi);
 	}
 	else {
-		glColor4fv(arrow->color);
+		glColor4fv(arrow->widget.col);
 	}
 
 	glEnable(GL_BLEND);
@@ -536,7 +534,10 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
 	arrow->widget.bind_to_prop = widget_arrow_bind_to_prop;
 	arrow->widget.flag |= WM_WIDGET_SCALE_3D;
+
 	arrow->style = real_style;
+
+	/* defaults */
 	copy_v3_v3(arrow->direction, dir_default);
 	arrow->tot_line_points = ARRAY_SIZE(line_default);
 	arrow->line = MEM_mallocN(sizeof(line_default), __func__);
@@ -545,14 +546,6 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	wm_widget_register(wgroup, &arrow->widget, name);
 
 	return (wmWidget *)arrow;
-}
-
-void WIDGET_arrow_set_color(wmWidget *widget, const float color[4], const float color_highlight[4])
-{
-	ArrowWidget *arrow = (ArrowWidget *)widget;
-	
-	copy_v4_v4(arrow->color, color);
-	copy_v4_v4(arrow->color_highlight, color_highlight);
 }
 
 void WIDGET_arrow_set_direction(wmWidget *widget, const float direction[3])
@@ -597,8 +590,6 @@ typedef struct DialWidget {
 	wmWidget widget;
 	int style;
 	float direction[3];
-	float color[4];
-	float color_highlight[4];
 } DialWidget;
 
 static void dial_draw_geom(const DialWidget *dial, const bool select)
@@ -641,9 +632,9 @@ static void dial_draw_intern(DialWidget *dial, const bool select, const bool hig
 	glMultMatrixf(mat);
 
 	if (highlight)
-		glColor4fv(dial->color_highlight);
+		glColor4fv(dial->widget.col_hi);
 	else
-		glColor4fv(dial->color);
+		glColor4fv(dial->widget.col);
 
 	dial_draw_geom(dial, select);
 
@@ -700,8 +691,8 @@ static void widget_dial_draw(const bContext *C, wmWidget *widget)
 
 wmWidget *WIDGET_dial_new(wmWidgetGroup *wgroup, const char *name, const int style)
 {
-	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	DialWidget *dial;
+	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
 
 #ifdef WIDGET_USE_CUSTOM_DIAS
 	if (!dial_draw_info.init) {
@@ -722,19 +713,13 @@ wmWidget *WIDGET_dial_new(wmWidgetGroup *wgroup, const char *name, const int sty
 	dial->widget.flag |= WM_WIDGET_SCALE_3D;
 
 	dial->style = style;
+
+	/* defaults */
 	copy_v3_v3(dial->direction, dir_default);
 
 	wm_widget_register(wgroup, &dial->widget, name);
 
 	return (wmWidget *)dial;
-}
-
-void WIDGET_dial_set_color(wmWidget *widget, const float color[4], const float color_highlight[4])
-{
-	DialWidget *arrow = (DialWidget *)widget;
-
-	copy_v4_v4(arrow->color, color);
-	copy_v4_v4(arrow->color_highlight, color_highlight);
 }
 
 void WIDGET_dial_set_direction(wmWidget *widget, const float direction[3])
@@ -751,7 +736,6 @@ typedef struct PlaneWidget {
 	wmWidget widget;
 
 	float direction[3];
-	float color[4];
 } PlaneWidget;
 
 
@@ -794,12 +778,12 @@ static void widget_plane_draw_intern(PlaneWidget *plane, const bool UNUSED(selec
 	glMultMatrixf(mat);
 
 	if (highlight && !(plane->widget.flag & WM_WIDGET_DRAW_HOVER)) {
-		copy_v4_v4(col_inner, highlight_col);
-		copy_v4_v4(col_outer, highlight_col);
+		copy_v4_v4(col_inner, plane->widget.col_hi);
+		copy_v4_v4(col_outer, plane->widget.col_hi);
 	}
 	else {
-		copy_v4_v4(col_inner, plane->color);
-		copy_v4_v4(col_outer, plane->color);
+		copy_v4_v4(col_inner, plane->widget.col);
+		copy_v4_v4(col_outer, plane->widget.col);
 	}
 	col_inner[3] *= 0.5f;
 
@@ -845,13 +829,6 @@ void WIDGET_plane_set_direction(wmWidget *widget, const float direction[3])
 
 	copy_v3_v3(plane->direction, direction);
 	normalize_v3(plane->direction);
-}
-
-void WIDGET_plane_set_color(wmWidget *widget, const float color[4])
-{
-	PlaneWidget *plane = (PlaneWidget *)widget;
-
-	copy_v4_v4(plane->color, color);
 }
 
 /********* Cage widget ************/
@@ -901,8 +878,10 @@ static void rect_transform_draw_corners(rctf *r, const float offsetx, const floa
 	glEnd();
 }
 
-static void rect_transform_draw_interaction(const int highlighted, const float half_w, const float half_h,
-                                            const float w, const float h, const float line_width)
+static void rect_transform_draw_interaction(
+        const float col[4], const int highlighted,
+        const float half_w, const float half_h,
+        const float w, const float h, const float line_width)
 {
 	float verts[4][2];
 	unsigned short elems[4] = {0, 1, 3, 2};
@@ -962,7 +941,7 @@ static void rect_transform_draw_interaction(const int highlighted, const float h
 	glColor3f(0.0, 0.0, 0.0);
 	glDrawArrays(GL_LINE_STRIP, 0, 3);
 	glLineWidth(line_width);
-	glColor3f(1.0, 1.0, 1.0);
+	glColor3fv(col);
 	glDrawArrays(GL_LINE_STRIP, 0, 3);
 	glLineWidth(1.0);
 
@@ -1006,11 +985,12 @@ static void widget_rect_transform_draw(const bContext *UNUSED(C), wmWidget *widg
 	rect_transform_draw_corners(&r, w, h);
 
 	/* corner widgets */
-	glColor3f(1.0, 1.0, 1.0);
+	glColor3fv(widget->col);
 	glLineWidth(cage->widget.line_width);
 	rect_transform_draw_corners(&r, w, h);
 
-	rect_transform_draw_interaction(widget->highlighted_part, half_w, half_h, w, h, cage->widget.line_width);
+	rect_transform_draw_interaction(widget->col, widget->highlighted_part, half_w, half_h,
+	                                w, h, cage->widget.line_width);
 
 	glLineWidth(1.0);
 	glPopMatrix();
@@ -1319,7 +1299,6 @@ typedef struct FacemapWidget {
 	Object *ob;
 	int facemap;
 	int style;
-	float color[4];
 } FacemapWidget;
 
 
@@ -1338,12 +1317,6 @@ static void widget_facemap_render_3d_intersect(const bContext *C, wmWidget *widg
 	widget_facemap_draw(C, widget);
 }
 
-
-void WIDGET_facemap_set_color(wmWidget *widget, const float color[4])
-{
-	FacemapWidget *fmap_widget = (FacemapWidget *)widget;
-	copy_v4_v4(fmap_widget->color, color);
-}
 
 struct wmWidget *WIDGET_facemap_new(
         wmWidgetGroup *wgroup, const char *name, const int style,

@@ -227,7 +227,7 @@ void WIDGETGROUP_lamp_draw(const struct bContext *C, struct wmWidgetGroup *wgrou
 
 	widget = WIDGET_arrow_new(wgroup, propname, WIDGET_ARROW_STYLE_INVERTED);
 
-	WIDGET_arrow_set_color(widget, color_lamp, color_hi_lamp);
+	WM_widget_set_colors(widget, color_lamp, color_hi_lamp);
 	
 	RNA_pointer_create(&la->id, &RNA_Lamp, la, &ptr);
 	WM_widget_set_origin(widget, ob->obmat[3]);

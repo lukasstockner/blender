@@ -520,6 +520,7 @@ void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, const bool draw);
 void WM_widget_set_scene_depth(struct wmWidget *widget, const bool scene);
 void WM_widget_set_scale(struct wmWidget *widget, float scale);
 void WM_widget_set_line_width(struct wmWidget *widget, const float line_width);
+void WM_widget_set_colors(struct wmWidget *widget, const float col[4], const float col_hi[4]);
 
 struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, const int spaceid, const int regionid,
                                               const bool is_3d, const bool create);
@@ -574,19 +575,16 @@ enum {
 };
 
 struct wmWidget *WIDGET_arrow_new(struct wmWidgetGroup *wgroup, const char *name, const int style);
-void WIDGET_arrow_set_color(struct wmWidget *widget, const float color[4], const float color_highlight[4]);
 void WIDGET_arrow_set_direction(struct wmWidget *widget, const float direction[3]);
 void WIDGET_arrow_set_up_vector(struct wmWidget *widget, const float direction[3]);
 void WIDGET_arrow_set_line_vec(struct wmWidget *widget, const float (*vec)[3], const int tot_points);
 void WIDGET_arrow_set_scale(struct wmWidget *widget, const float scale);
 
 struct wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, const char *name, const int style);
-void WIDGET_dial_set_color(struct wmWidget *widget, const float color[4], const float color_highlight[4]);
 void WIDGET_dial_set_direction(struct wmWidget *widget, const float direction[3]);
 
 struct wmWidget *WIDGET_plane_new(struct wmWidgetGroup *wgroup, const char *name, const int style);
 void WIDGET_plane_set_direction(struct wmWidget *widget, const float direction[3]);
-void WIDGET_plane_set_color(struct wmWidget *widget, const float color[4]);
 
 struct wmWidget *WIDGET_rect_transform_new(
         struct wmWidgetGroup *wgroup, const char *name, const int style,
@@ -596,7 +594,6 @@ void WIDGET_rect_transform_set_offset(struct wmWidget *widget, const float offse
 struct wmWidget *WIDGET_facemap_new(
         struct wmWidgetGroup *wgroup, const char *name, const int style,
         struct Object *ob, const int facemap);
-void WIDGET_facemap_set_color(struct wmWidget *widget, const float color[4]);
 
 
 #ifdef WITH_INPUT_IME

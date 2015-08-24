@@ -1145,6 +1145,7 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 		manipulator_get_axis_color(rv3d, axis_idx, col, col_hi);
 		manipulator_get_axis_constraint(axis_idx, constraint_axis);
 		WM_widget_set_origin(axis, rv3d->twmat[3]);
+		WM_widget_set_colors(axis, col, col_hi);
 		/* custom handler! */
 		axis->handler = manipulator_handler;
 
@@ -1158,7 +1159,6 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 				manipulator_line_vec(v3d, line_vec, axis_type);
 
 				WIDGET_arrow_set_direction(axis, rv3d->twmat[aidx_norm]);
-				WIDGET_arrow_set_color(axis, col, col_hi);
 				WIDGET_arrow_set_line_vec(axis, (const float (*)[3])line_vec, ARRAY_SIZE(line_vec));
 				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
 				break;
@@ -1167,7 +1167,6 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 			case MAN_AXIS_ROT_Z:
 				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
 				WIDGET_dial_set_direction(axis, rv3d->twmat[aidx_norm]);
-				WIDGET_dial_set_color(axis, col, col_hi);
 				break;
 			case MAN_AXIS_TRANS_XY:
 			case MAN_AXIS_TRANS_YZ:
@@ -1202,7 +1201,6 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 				WM_widget_set_scale(axis, 0.07f);
 				WM_widget_set_origin(axis, origin);
 				WIDGET_plane_set_direction(axis, rv3d->twmat[aidx_norm - 1 > -1 ? aidx_norm - 1 : aidx_norm - 1]);
-				WIDGET_plane_set_color(axis, col);
 				break;
 			}
 			case MAN_AXIS_TRANS_C:
@@ -1212,7 +1210,6 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 					WM_widget_set_scale(axis, 0.2f);
 				}
 				WIDGET_dial_set_direction(axis, rv3d->viewinv[2]);
-				WIDGET_dial_set_color(axis, col, col_hi);
 				break;
 		}
 
