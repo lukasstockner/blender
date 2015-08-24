@@ -188,9 +188,6 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 
 void WIDGETGROUP_object_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup);
 
-void BIF_draw_manipulator(const struct bContext *C);
-int BIF_do_manipulator(struct bContext *C, const struct wmEvent *event, struct wmOperator *op);
-
 
 /* Snapping */
 

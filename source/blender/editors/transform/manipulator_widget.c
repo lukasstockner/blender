@@ -99,28 +99,7 @@
 #define MAN_SCALE_Z  (1 << 10)
 #define MAN_SCALE_C  (MAN_SCALE_X | MAN_SCALE_Y | MAN_SCALE_Z)
 
-/* return codes for select */
-enum {
-	MAN_SEL_TRANS_X = 0,
-	MAN_SEL_TRANS_Y,
-	MAN_SEL_TRANS_Z,
-
-	MAN_SEL_ROT_X,
-	MAN_SEL_ROT_Y,
-	MAN_SEL_ROT_Z,
-
-	MAN_SEL_SCALE_X,
-	MAN_SEL_SCALE_Y,
-	MAN_SEL_SCALE_Z,
-
-	/* those two stay at the end so the rest can be inferred with bitshifting */
-	MAN_SEL_SCALE_C,
-	MAN_SEL_TRANS_C,
-
-	MAN_SEL_MAX
-};
-
-/* axes as index - XXX combine with return codes for select */
+/* axes as index */
 enum {
 	MAN_AXIS_TRANS_X = 0,
 	MAN_AXIS_TRANS_Y,
