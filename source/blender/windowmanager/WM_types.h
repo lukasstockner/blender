@@ -689,7 +689,7 @@ typedef struct wmWidgetGroupType {
 	int (*poll)(const struct bContext *C, struct wmWidgetGroupType *wgrouptype) ATTR_WARN_UNUSED_RESULT;
 
 	/* update widgets, called right before drawing */
-	void (*draw)(const struct bContext *C, struct wmWidgetGroup *wgroup);
+	void (*create)(const struct bContext *C, struct wmWidgetGroup *wgroup);
 
 	/* rna for properties */
 	struct StructRNA *srna;

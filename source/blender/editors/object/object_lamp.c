@@ -214,7 +214,7 @@ int WIDGETGROUP_lamp_poll(const struct bContext *C, struct wmWidgetGroupType *UN
 	return false;
 }
 
-void WIDGETGROUP_lamp_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+void WIDGETGROUP_lamp_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	float color_lamp[4] = {0.5f, 0.5f, 1.0f, 1.0f};
 	float color_hi_lamp[4] = {0.8f, 0.8f, 0.45f, 1.0f};

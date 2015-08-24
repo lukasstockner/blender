@@ -525,7 +525,7 @@ void WM_widget_set_colors(struct wmWidget *widget, const float col[4], const flo
 struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, const int spaceid, const int regionid,
                                               const bool is_3d, const bool create);
 struct wmWidgetGroupType *WM_widgetgrouptype_new(int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
-                                                 void (*draw)(const struct bContext *, struct wmWidgetGroup *), 
+                                                 void (*create)(const struct bContext *, struct wmWidgetGroup *), 
                                                  const struct Main *bmain, const char *mapidname,
                                                  const short spaceid, const short regionid, const bool is_3d);
 void WM_widgetgrouptype_unregister(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgroup);

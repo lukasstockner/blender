@@ -80,8 +80,6 @@
 //#define WIDGET_USE_CUSTOM_DIAS
 
 
-const float highlight_col[] = {1.0f, 1.0f, 0.45f, 1.0f};
-
 typedef struct WidgetDrawInfo {
 	int nverts;
 	int ntris;
@@ -93,13 +91,16 @@ typedef struct WidgetDrawInfo {
 
 
 #ifdef WIDGET_USE_CUSTOM_ARROWS
-WidgetDrawInfo arraw_head_draw_info = {0};
+WidgetDrawInfo arrow_head_draw_info = {0};
 #endif
 WidgetDrawInfo cube_draw_info = {0};
 #ifdef WIDGET_USE_CUSTOM_DIAS
 WidgetDrawInfo dial_draw_info = {0};
 #endif
 
+/**
+ * Main draw call for WidgetDrawInfo data
+ */
 static void widget_draw_intern(WidgetDrawInfo *info, const bool select)
 {
 	GLuint buf[3];
@@ -204,7 +205,7 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 	}
 	else {
 #ifdef WIDGET_USE_CUSTOM_ARROWS
-		widget_draw_intern(&arraw_head_draw_info, select);
+		widget_draw_intern(&arrow_head_draw_info, select);
 #else
 		glLineWidth(arrow->widget.line_width);
 		glEnableClientState(GL_VERTEX_ARRAY);
@@ -441,7 +442,7 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 static int widget_arrow_invoke(bContext *UNUSED(C), const wmEvent *event, wmWidget *widget)
 {
 	ArrowWidget *arrow = (ArrowWidget *) widget;
-	ArrowInteraction *data = MEM_callocN(sizeof (ArrowInteraction), "arrow_interaction");
+	ArrowInteraction *data = MEM_callocN(sizeof(ArrowInteraction), "arrow_interaction");
 
 	data->orig_offset = arrow->offset;
 
@@ -459,7 +460,7 @@ static int widget_arrow_invoke(bContext *UNUSED(C), const wmEvent *event, wmWidg
 
 static void widget_arrow_bind_to_prop(wmWidget *widget, const int UNUSED(slot))
 {
-	ArrowWidget *arrow = (ArrowWidget *) widget;
+	ArrowWidget *arrow = (ArrowWidget *)widget;
 	PointerRNA ptr = widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE];
 	PropertyRNA *prop = widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE];
 
@@ -491,7 +492,7 @@ static void widget_arrow_bind_to_prop(wmWidget *widget, const int UNUSED(slot))
 
 wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int style)
 {
-	ArrowWidget *arrow;
+	ArrowWidget *arrow = MEM_callocN(sizeof(ArrowWidget), name);
 	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	const float line_default[2][3] = {
 		{0.0f, 0.0f, 0.0f},
@@ -500,13 +501,13 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	int real_style = style;
 
 #ifdef WIDGET_USE_CUSTOM_ARROWS
-	if (!arraw_head_draw_info.init) {
-		arraw_head_draw_info.nverts = _WIDGET_nverts_arrow,
-		arraw_head_draw_info.ntris = _WIDGET_ntris_arrow,
-		arraw_head_draw_info.verts = _WIDGET_verts_arrow,
-		arraw_head_draw_info.normals = _WIDGET_normals_arrow,
-		arraw_head_draw_info.indices = _WIDGET_indices_arrow,
-		arraw_head_draw_info.init = true;
+	if (!arrow_head_draw_info.init) {
+		arrow_head_draw_info.nverts = _WIDGET_nverts_arrow,
+		arrow_head_draw_info.ntris = _WIDGET_ntris_arrow,
+		arrow_head_draw_info.verts = _WIDGET_verts_arrow,
+		arrow_head_draw_info.normals = _WIDGET_normals_arrow,
+		arrow_head_draw_info.indices = _WIDGET_indices_arrow,
+		arrow_head_draw_info.init = true;
 	}
 #endif
 	if (!cube_draw_info.init) {
@@ -523,8 +524,6 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 		real_style |= WIDGET_ARROW_STYLE_CONSTRAINED;
 	}
 
-
-	arrow = MEM_callocN(sizeof(ArrowWidget), name);
 
 	arrow->widget.draw = widget_arrow_draw;
 	arrow->widget.get_final_position = 	widget_arrow_get_final_pos;
@@ -691,7 +690,7 @@ static void widget_dial_draw(const bContext *C, wmWidget *widget)
 
 wmWidget *WIDGET_dial_new(wmWidgetGroup *wgroup, const char *name, const int style)
 {
-	DialWidget *dial;
+	DialWidget *dial = MEM_callocN(sizeof(DialWidget), name);
 	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
 
 #ifdef WIDGET_USE_CUSTOM_DIAS
@@ -704,8 +703,6 @@ wmWidget *WIDGET_dial_new(wmWidgetGroup *wgroup, const char *name, const int sty
 		dial_draw_info.init = true;
 	}
 #endif
-
-	dial = MEM_callocN(sizeof(ArrowWidget), name);
 
 	dial->widget.draw = widget_dial_draw;
 	dial->widget.intersect = NULL;
@@ -807,10 +804,8 @@ static void widget_plane_draw(const bContext *UNUSED(C), wmWidget *widget)
 
 wmWidget *WIDGET_plane_new(wmWidgetGroup *wgroup, const char *name, const int UNUSED(style))
 {
-	PlaneWidget *plane;
+	PlaneWidget *plane = MEM_callocN(sizeof(PlaneWidget), name);
 	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
-
-	plane = MEM_callocN(sizeof(PlaneWidget), name);
 
 	plane->widget.draw = widget_plane_draw;
 	plane->widget.intersect = NULL;
@@ -1306,7 +1301,7 @@ static void widget_facemap_draw(const bContext *C, wmWidget *widget)
 {
 	FacemapWidget *fmap_widget = (FacemapWidget *)widget;
 	glPushMatrix();
-	glMultMatrixf(&fmap_widget->ob->obmat[0][0]);
+	glMultMatrixf(fmap_widget->ob->obmat);
 	ED_draw_object_facemap(CTX_data_scene(C), fmap_widget->ob, fmap_widget->facemap);
 	glPopMatrix();
 }
@@ -1322,7 +1317,7 @@ struct wmWidget *WIDGET_facemap_new(
         wmWidgetGroup *wgroup, const char *name, const int style,
         Object *ob, const int facemap)
 {
-	FacemapWidget *fmap_widget = MEM_callocN(sizeof(RectTransformWidget), "CageWidget");
+	FacemapWidget *fmap_widget = MEM_callocN(sizeof(FacemapWidget), "CageWidget");
 
 	fmap_widget->widget.draw = widget_facemap_draw;
 //	fmap_widget->widget.invoke = NULL;

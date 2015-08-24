@@ -2100,7 +2100,7 @@ static int object_widget_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = ED_object_active_context((bContext *)C);
 	wmWidgetGroupType *wgrouptype = WM_widgetgrouptype_new(WIDGETGROUP_object_manipulator_poll,
-	                                                       WIDGETGROUP_object_manipulator_draw,
+	                                                       WIDGETGROUP_object_manipulator_create,
 	                                                       CTX_data_main(C), "View3D", SPACE_VIEW3D,
 	                                                       RGN_TYPE_WINDOW, true);
 

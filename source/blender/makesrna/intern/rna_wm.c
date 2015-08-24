@@ -1561,9 +1561,9 @@ static StructRNA *rna_WidgetGroup_register(Main *bmain, ReportList *reports, voi
 	dummywgt.ext.free = free;
 
 	dummywgt.poll = (have_function[0]) ? widgetgroup_poll : NULL;
-	dummywgt.draw = (have_function[1]) ? widgetgroup_draw : NULL;
+	dummywgt.create = (have_function[1]) ? widgetgroup_draw : NULL;
 
-	wgrouptype = WM_widgetgrouptype_new(dummywgt.poll, dummywgt.draw, bmain, dummywgt.mapidname, dummywgt.spaceid, dummywgt.regionid, dummywgt.is_3d);
+	wgrouptype = WM_widgetgrouptype_new(dummywgt.poll, dummywgt.create, bmain, dummywgt.mapidname, dummywgt.spaceid, dummywgt.regionid, dummywgt.is_3d);
 	memcpy(wgrouptype, &dummywgt, sizeof(dummywgt));
 	
 	/* update while blender is running */

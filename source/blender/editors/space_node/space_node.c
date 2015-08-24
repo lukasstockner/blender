@@ -847,7 +847,7 @@ static int WIDGETGROUP_node_transform_poll(const struct bContext *C, struct wmWi
 	return false;
 }
 
-static void WIDGETGROUP_node_transform_update(const struct bContext *C, struct wmWidgetGroup *wgroup)
+static void WIDGETGROUP_node_transform_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	Image *ima;
 	ImBuf *ibuf;
@@ -888,7 +888,7 @@ static void node_widgets(void)
 	/* create the widgetmap for the area here */
 	WM_widgetmaptype_find("Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false, true);
 	
-	WM_widgetgrouptype_new(WIDGETGROUP_node_transform_poll, WIDGETGROUP_node_transform_update, NULL, "Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false);
+	WM_widgetgrouptype_new(WIDGETGROUP_node_transform_poll, WIDGETGROUP_node_transform_create, NULL, "Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false);
 }
 
 /* only called once, from space/spacetypes.c */

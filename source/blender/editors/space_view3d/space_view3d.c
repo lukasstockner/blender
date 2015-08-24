@@ -739,7 +739,7 @@ static int WIDGETGROUP_camera_poll(const struct bContext *C, struct wmWidgetGrou
 	return false;
 }
 
-static void WIDGETGROUP_camera_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+static void WIDGETGROUP_camera_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	float color_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 	float color_hi_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
@@ -827,7 +827,7 @@ static int WIDGETGROUP_armature_facemap_poll(const struct bContext *C, struct wm
 	return false;
 }
 
-static void WIDGETGROUP_armature_facemap_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 	Object *ob = CTX_data_active_object(C);
@@ -875,10 +875,10 @@ static void view3d_widgets(void)
 {
 	WM_widgetmaptype_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true, true);
 
-	WM_widgetgrouptype_new(WIDGETGROUP_manipulator_poll, WIDGETGROUP_manipulator_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-	WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll, WIDGETGROUP_lamp_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-	WM_widgetgrouptype_new(WIDGETGROUP_camera_poll, WIDGETGROUP_camera_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-	WM_widgetgrouptype_new(WIDGETGROUP_armature_facemap_poll, WIDGETGROUP_armature_facemap_draw, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_manipulator_poll, WIDGETGROUP_manipulator_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll, WIDGETGROUP_lamp_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_camera_poll, WIDGETGROUP_camera_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_armature_facemap_poll, WIDGETGROUP_armature_facemap_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 }
 
 

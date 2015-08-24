@@ -1092,7 +1092,7 @@ static int manipulator_handler(bContext *C, const wmEvent *UNUSED(event), wmWidg
 	return OPERATOR_PASS_THROUGH;
 }
 
-void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	const ScrArea *sa = CTX_wm_area(C);
 	const ARegion *ar = CTX_wm_region(C);
@@ -1230,7 +1230,7 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 	MAN_ITER_AXES_END;
 }
 
-void WIDGETGROUP_object_manipulator_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+void WIDGETGROUP_object_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	Object *ob = ED_object_active_context((bContext *)C);
 
@@ -1238,7 +1238,7 @@ void WIDGETGROUP_object_manipulator_draw(const struct bContext *C, struct wmWidg
 		ob->wgroup = wgroup;
 	}
 
-	WIDGETGROUP_manipulator_draw(C, wgroup);
+	WIDGETGROUP_manipulator_create(C, wgroup);
 }
 
 int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))

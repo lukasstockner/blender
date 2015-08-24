@@ -100,7 +100,7 @@ static ListBase widgetmaptypes = {NULL, NULL};
 
 wmWidgetGroupType *WM_widgetgrouptype_new(
         int (*poll)(const bContext *C, wmWidgetGroupType *),
-        void (*draw)(const bContext *, wmWidgetGroup *),
+        void (*create)(const bContext *, wmWidgetGroup *),
         const Main *bmain, const char *mapidname,
         const short spaceid, const short regionid, const bool is_3d)
 {
@@ -116,7 +116,7 @@ wmWidgetGroupType *WM_widgetgrouptype_new(
 	wgrouptype = MEM_callocN(sizeof(wmWidgetGroupType), "widgetgroup");
 	
 	wgrouptype->poll = poll;
-	wgrouptype->draw = draw;
+	wgrouptype->create = create;
 	wgrouptype->spaceid = spaceid;
 	wgrouptype->regionid = regionid;
 	wgrouptype->is_3d = is_3d;
@@ -296,8 +296,8 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 					widget = widget_next;
 				}
 
-				if (wgroup->type->draw) {
-					wgroup->type->draw(C, wgroup);
+				if (wgroup->type->create) {
+					wgroup->type->create(C, wgroup);
 				}
 
 				if (highlighted) {
