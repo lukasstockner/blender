@@ -1443,6 +1443,8 @@ typedef struct Scene {
 	
 	/* RigidBody simulation world+settings */
 	struct RigidBodyWorld *rigidbody_world;
+
+	struct PreviewImage *preview;
 } Scene;
 
 /* **************** RENDERDATA ********************* */
@@ -1826,7 +1828,6 @@ typedef enum SymmetryFlags {
 } SymmetryFlags;
 
 #define PAINT_SYMM_AXIS_ALL (PAINT_SYMM_X | PAINT_SYMM_Y | PAINT_SYMM_Z)
-#define PAINT_TILE_AXIS_ALL (PAINT_TILE_X | PAINT_TILE_Y | PAINT_TILE_Z)
 
 /* Sculpt.flags */
 /* These can eventually be moved to paint flags? */

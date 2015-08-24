@@ -44,7 +44,7 @@
 #  include "BLI_edgehash.h"
 #endif
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "DNA_material_types.h"
 #include "DNA_curve_types.h"
@@ -3275,7 +3275,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 			if (need_nmap_tangent!=0 && CustomData_get_layer_index(&dm->faceData, CD_TANGENT) == -1) {
 				bool generate_data = false;
 				if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) == -1) {
-					DM_add_tangent_layer(dm);
+					dm->calcLoopTangents(dm);
 					generate_data = true;
 				}
 				DM_generate_tangent_tessface_data(dm, generate_data);

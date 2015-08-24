@@ -2645,7 +2645,7 @@ void init_userdef_do_versions(void)
 		U.node_margin = 80;
 	}
 
-	if (!USER_VERSION_ATLEAST(275, 3)) {
+	if (!USER_VERSION_ATLEAST(275, 6)) {
 		bTheme *btheme;
 		ThemeSpace *ts;
 
@@ -2674,7 +2674,7 @@ void init_userdef_do_versions(void)
 		}
 	}
 
-	if (!USER_VERSION_ATLEAST(275, 3)) {
+	if (!USER_VERSION_ATLEAST(275, 6)) {
 		bTheme *btheme;
 		ThemeSpace *ts;
 
