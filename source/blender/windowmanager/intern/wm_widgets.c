@@ -676,10 +676,10 @@ static void wm_prepare_visible_widgets_3D(wmWidgetMap *wmap, ListBase *visible_w
 
 wmWidget *wm_widget_find_highlighted_3D(wmWidgetMap *wmap, bContext *C, const wmEvent *event, unsigned char *part)
 {
-	int ret;
 	wmWidget *result = NULL;
-	
 	ListBase visible_widgets = {0};
+	const float hotspot = 14.0f;
+	int ret;
 
 	wm_prepare_visible_widgets_3D(wmap, &visible_widgets, C);
 
@@ -687,12 +687,12 @@ wmWidget *wm_widget_find_highlighted_3D(wmWidgetMap *wmap, bContext *C, const wm
 	/* set up view matrices */
 	view3d_operator_needs_opengl(C);
 	
-	ret = wm_widget_find_highlighted_3D_intern(&visible_widgets, C, event, 0.5f * (float)U.tw_hotspot);
+	ret = wm_widget_find_highlighted_3D_intern(&visible_widgets, C, event, 0.5f * hotspot);
 	
 	if (ret != -1) {
 		LinkData *link;
 		int retsec;
-		retsec = wm_widget_find_highlighted_3D_intern(&visible_widgets, C, event, 0.2f * (float)U.tw_hotspot);
+		retsec = wm_widget_find_highlighted_3D_intern(&visible_widgets, C, event, 0.2f * hotspot);
 		
 		if (retsec != -1)
 			ret = retsec;

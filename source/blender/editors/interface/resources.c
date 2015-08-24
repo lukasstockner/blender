@@ -1609,10 +1609,8 @@ void init_userdef_do_versions(void)
 // XXX		error(STRINGIFY(BLENDER_STARTUP_FILE)" is buggy, please consider removing it.\n");
 	}
 	/* transform widget settings */
-	if (U.tw_hotspot == 0) {
-		U.tw_hotspot = 14;
+	if (U.tw_size == 0) {
 		U.tw_size = 25;          /* percentage of window size */
-		U.tw_handlesize = 16;    /* percentage of widget radius */
 	}
 	if (U.pad_rot_angle == 0.0f)
 		U.pad_rot_angle = 15.0f;

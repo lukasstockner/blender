@@ -485,7 +485,8 @@ typedef struct UserDef {
 	short gp_settings;
 	short tb_leftmouse, tb_rightmouse;
 	struct SolidLight light[3];
-	short tw_hotspot, tw_flag, tw_handlesize, tw_size;
+	short tw_flag, tw_size;
+	int pad3;
 	short textimeout, texcollectrate;
 	short wmdrawmethod; /* removed wmpad */
 	short dragthreshold;
