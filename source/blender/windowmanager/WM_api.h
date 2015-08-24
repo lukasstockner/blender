@@ -585,6 +585,7 @@ void WIDGET_dial_set_direction(struct wmWidget *widget, const float direction[3]
 
 struct wmWidget *WIDGET_plane_new(struct wmWidgetGroup *wgroup, const char *name, const int style);
 void WIDGET_plane_set_direction(struct wmWidget *widget, const float direction[3]);
+void WIDGET_plane_set_offset(struct wmWidget *widget, const float direction[3]);
 
 struct wmWidget *WIDGET_rect_transform_new(
         struct wmWidgetGroup *wgroup, const char *name, const int style,
