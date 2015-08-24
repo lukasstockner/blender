@@ -39,13 +39,12 @@ set(INC_SYS
 )
 
 set(SRC
-	manipulator_widget.c
 	transform.c
 	transform_constraints.c
 	transform_conversions.c
 	transform_generics.c
 	transform_input.c
-#	transform_manipulator.c
+	transform_manipulator.c
 	transform_ops.c
 	transform_orientations.c
 	transform_snap.c
