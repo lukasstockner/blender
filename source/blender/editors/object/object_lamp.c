@@ -217,6 +217,7 @@ int WIDGETGROUP_lamp_poll(const struct bContext *C, struct wmWidgetGroupType *UN
 void WIDGETGROUP_lamp_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	float color_lamp[4] = {0.5f, 0.5f, 1.0f, 1.0f};
+	float color_hi_lamp[4] = {0.8f, 0.8f, 0.45f, 1.0f};
 	Object *ob = CTX_data_active_object(C);
 	Lamp *la = ob->data;
 	wmWidget *widget;
@@ -226,7 +227,7 @@ void WIDGETGROUP_lamp_draw(const struct bContext *C, struct wmWidgetGroup *wgrou
 
 	widget = WIDGET_arrow_new(wgroup, propname, WIDGET_ARROW_STYLE_INVERTED);
 
-	WIDGET_arrow_set_color(widget, color_lamp);
+	WIDGET_arrow_set_color(widget, color_lamp, color_hi_lamp);
 	
 	RNA_pointer_create(&la->id, &RNA_Lamp, la, &ptr);
 	WM_widget_set_origin(widget, ob->obmat[3]);

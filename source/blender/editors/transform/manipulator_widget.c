@@ -317,13 +317,16 @@ static bool manipulator_is_axis_visible(const View3D *v3d, const RegionView3D *r
 	return false;
 }
 
-static void manipulator_get_axis_color(const RegionView3D *rv3d, const int axis_idx, float r_col[4])
+static void manipulator_get_axis_color(const RegionView3D *rv3d, const int axis_idx, float r_col[4], float r_col_hi[4])
 {
 	const float idot = rv3d->tw_idot[manipulator_index_normalize(axis_idx)];
+	/* alpha values for normal/highlighted states */
+	const float alpha = 0.6f;
+	const float alpha_hi = 1.0f;
 	/* get alpha fac based on axis angle, to fade axis out when hiding it because it points towards view */
-	const float alpha = (idot > TW_AXIS_DOT_MAX) ?
-	                     1.0f : (idot < TW_AXIS_DOT_MIN) ?
-	                     0.0f : ((idot - TW_AXIS_DOT_MIN) / (TW_AXIS_DOT_MAX - TW_AXIS_DOT_MIN));
+	float alpha_fac_view = (idot > TW_AXIS_DOT_MAX) ?
+	                        1.0f : (idot < TW_AXIS_DOT_MIN) ?
+	                        0.0f : ((idot - TW_AXIS_DOT_MIN) / (TW_AXIS_DOT_MAX - TW_AXIS_DOT_MIN));
 
 	switch (axis_idx) {
 		case MAN_AXIS_TRANS_X:
@@ -332,7 +335,6 @@ static void manipulator_get_axis_color(const RegionView3D *rv3d, const int axis_
 		case MAN_AXIS_TRANS_XY:
 		case MAN_AXIS_SCALE_XY:
 			UI_GetThemeColor4fv(TH_AXIS_X, r_col);
-			r_col[3] = alpha;
 			break;
 		case MAN_AXIS_TRANS_Y:
 		case MAN_AXIS_ROT_Y:
@@ -340,7 +342,6 @@ static void manipulator_get_axis_color(const RegionView3D *rv3d, const int axis_
 		case MAN_AXIS_TRANS_YZ:
 		case MAN_AXIS_SCALE_YZ:
 			UI_GetThemeColor4fv(TH_AXIS_Y, r_col);
-			r_col[3] = alpha;
 			break;
 		case MAN_AXIS_TRANS_Z:
 		case MAN_AXIS_ROT_Z:
@@ -348,14 +349,19 @@ static void manipulator_get_axis_color(const RegionView3D *rv3d, const int axis_
 		case MAN_AXIS_TRANS_ZX:
 		case MAN_AXIS_SCALE_ZX:
 			UI_GetThemeColor4fv(TH_AXIS_Z, r_col);
-			r_col[3] = alpha;
 			break;
 		case MAN_AXIS_TRANS_C:
 		case MAN_AXIS_ROT_C:
 		case MAN_AXIS_SCALE_C:
 			copy_v4_fl(r_col, 1.0f);
+			alpha_fac_view = 1.0f;
 			break;
 	}
+
+	copy_v4_v4(r_col_hi, r_col);
+
+	r_col[3] = alpha * alpha_fac_view;
+	r_col_hi[3] = alpha_hi * alpha_fac_view;
 }
 
 static void manipulator_get_axis_constraint(const int axis_idx, int r_axis[3])
@@ -1129,14 +1135,14 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 
 		PointerRNA *ptr;
 		float line_vec[2][3];
-		float col[4];
+		float col[4], col_hi[4];
 
 		if (manipulator_is_axis_visible(v3d, rv3d, axis_idx) == false) {
 			WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
 			continue;
 		}
 
-		manipulator_get_axis_color(rv3d, axis_idx, col);
+		manipulator_get_axis_color(rv3d, axis_idx, col, col_hi);
 		manipulator_get_axis_constraint(axis_idx, constraint_axis);
 		WM_widget_set_origin(axis, rv3d->twmat[3]);
 		/* custom handler! */
@@ -1152,7 +1158,7 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 				manipulator_line_vec(v3d, line_vec, axis_type);
 
 				WIDGET_arrow_set_direction(axis, rv3d->twmat[aidx_norm]);
-				WIDGET_arrow_set_color(axis, col);
+				WIDGET_arrow_set_color(axis, col, col_hi);
 				WIDGET_arrow_set_line_vec(axis, (const float (*)[3])line_vec, ARRAY_SIZE(line_vec));
 				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
 				break;
@@ -1161,7 +1167,7 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 			case MAN_AXIS_ROT_Z:
 				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
 				WIDGET_dial_set_direction(axis, rv3d->twmat[aidx_norm]);
-				WIDGET_dial_set_color(axis, col);
+				WIDGET_dial_set_color(axis, col, col_hi);
 				break;
 			case MAN_AXIS_TRANS_XY:
 			case MAN_AXIS_TRANS_YZ:
@@ -1206,7 +1212,7 @@ void WIDGETGROUP_manipulator_draw(const struct bContext *C, struct wmWidgetGroup
 					WM_widget_set_scale(axis, 0.2f);
 				}
 				WIDGET_dial_set_direction(axis, rv3d->viewinv[2]);
-				WIDGET_dial_set_color(axis, col);
+				WIDGET_dial_set_color(axis, col, col_hi);
 				break;
 		}
 

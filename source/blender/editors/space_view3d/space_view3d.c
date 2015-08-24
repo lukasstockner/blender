@@ -742,6 +742,7 @@ static int WIDGETGROUP_camera_poll(const struct bContext *C, struct wmWidgetGrou
 static void WIDGETGROUP_camera_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	float color_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+	float color_hi_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 	Object *ob = CTX_data_active_object(C);
 	Camera *ca = ob->data;
 	wmWidget *widget;
@@ -752,7 +753,7 @@ static void WIDGETGROUP_camera_draw(const struct bContext *C, struct wmWidgetGro
 	widget = WIDGET_arrow_new(wgroup, propname, WIDGET_ARROW_STYLE_CROSS);
 	WM_widget_set_draw_on_hover_only(widget, true);
 	WM_widget_set_3d_scale(widget, false);
-	WIDGET_arrow_set_color(widget, color_camera);
+	WIDGET_arrow_set_color(widget, color_camera, color_hi_camera);
 	
 	RNA_pointer_create(&ca->id, &RNA_Camera, ca, &cameraptr);
 	WM_widget_set_origin(widget, ob->obmat[3]);

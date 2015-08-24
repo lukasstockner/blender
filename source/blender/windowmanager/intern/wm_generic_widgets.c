@@ -161,6 +161,7 @@ typedef struct ArrowWidget {
 	float direction[3];
 	float up[3];
 	float color[4];
+	float color_highlight[4];
 	float (*line)[3];    /* custom coords for arrow line drawing */
 	int tot_line_points; /* amount of points for arrow line drawing */
 	float offset;
@@ -269,7 +270,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, const bool select, const bool 
 	glMultMatrixf(mat);
 
 	if (highlight && !(arrow->widget.flag & WM_WIDGET_DRAW_HOVER)) {
-		glColor4fv(highlight_col);
+		glColor4fv(arrow->color_highlight);
 	}
 	else {
 		glColor4fv(arrow->color);
@@ -546,11 +547,12 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	return (wmWidget *)arrow;
 }
 
-void WIDGET_arrow_set_color(wmWidget *widget, const float color[4])
+void WIDGET_arrow_set_color(wmWidget *widget, const float color[4], const float color_highlight[4])
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
 	
 	copy_v4_v4(arrow->color, color);
+	copy_v4_v4(arrow->color_highlight, color_highlight);
 }
 
 void WIDGET_arrow_set_direction(wmWidget *widget, const float direction[3])
@@ -596,6 +598,7 @@ typedef struct DialWidget {
 	int style;
 	float direction[3];
 	float color[4];
+	float color_highlight[4];
 } DialWidget;
 
 static void dial_draw_geom(const DialWidget *dial, const bool select)
@@ -638,7 +641,7 @@ static void dial_draw_intern(DialWidget *dial, const bool select, const bool hig
 	glMultMatrixf(mat);
 
 	if (highlight)
-		glColor4fv(highlight_col);
+		glColor4fv(dial->color_highlight);
 	else
 		glColor4fv(dial->color);
 
@@ -726,11 +729,12 @@ wmWidget *WIDGET_dial_new(wmWidgetGroup *wgroup, const char *name, const int sty
 	return (wmWidget *)dial;
 }
 
-void WIDGET_dial_set_color(wmWidget *widget, const float color[4])
+void WIDGET_dial_set_color(wmWidget *widget, const float color[4], const float color_highlight[4])
 {
 	DialWidget *arrow = (DialWidget *)widget;
 
 	copy_v4_v4(arrow->color, color);
+	copy_v4_v4(arrow->color_highlight, color_highlight);
 }
 
 void WIDGET_dial_set_direction(wmWidget *widget, const float direction[3])
