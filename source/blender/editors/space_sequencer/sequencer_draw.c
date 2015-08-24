@@ -966,7 +966,7 @@ static ImBuf *sequencer_make_scope(Scene *scene, ImBuf *ibuf, ImBuf *(*make_scop
 	return scope;
 }
 
-static void sequencer_display_size(Scene *scene, SpaceSeq *sseq, float r_viewrect[2])
+void sequencer_display_size(Scene *scene, SpaceSeq *sseq, float r_viewrect[2])
 {
 	float render_size, proxy_size;
 
@@ -1062,7 +1062,7 @@ static void sequencer_draw_background(const SpaceSeq *sseq, View2D *v2d, const f
 	}
 }
 
-void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs, bool draw_overlay, bool draw_backdrop)
+void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs, bool draw_overlay, bool draw_overdrop)
 {
 	struct Main *bmain = CTX_data_main(C);
 	struct ImBuf *ibuf = NULL;
@@ -1096,7 +1096,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		}
 	}
 
-	if ((!draw_overlay || sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) && !draw_backdrop) {
+	if ((!draw_overlay || sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) && !draw_overdrop) {
 		UI_GetThemeColor3fv(TH_SEQ_PREVIEW, col);
 		glClearColor(col[0], col[1], col[2], 0.0);
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -1133,7 +1133,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 	sequencer_display_size(scene, sseq, viewrect);
 
-	if (!draw_backdrop && (sseq->mainb != SEQ_DRAW_IMG_IMBUF || sseq->zebra != 0)) {
+	if (!draw_overdrop && (sseq->mainb != SEQ_DRAW_IMG_IMBUF || sseq->zebra != 0)) {
 		SequencerScopes *scopes = &sseq->scopes;
 
 		sequencer_check_scopes(scopes, ibuf);
@@ -1192,7 +1192,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		}
 	}
 
-	if (!draw_backdrop) {
+	if (!draw_overdrop) {
 		sequencer_draw_background(sseq, v2d, viewrect);
 	}
 
@@ -1285,13 +1285,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	else
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, format, type, display_buffer);
 
-	if (draw_backdrop) {
-		glMatrixMode(GL_PROJECTION);
-		glPushMatrix();
-		glLoadIdentity();
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glLoadIdentity();
+	if (draw_overdrop) {
+		UI_view2d_view_restore(C);
 	}
 	glBegin(GL_QUADS);
 
@@ -1315,26 +1310,16 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			glTexCoord2f(1.0f, 0.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymin);
 		}
 	}
-	else if (draw_backdrop) {
-		float aspect;
-		float image_aspect = viewrect[0] / viewrect[1];
-		float imagex, imagey;
+	else if (draw_overdrop) {
+		float imagex = (scene->r.size * scene->r.xsch) / 200.0f * sseq->overdrop_zoom;
+		float imagey = (scene->r.size * scene->r.ysch) / 200.0f * sseq->overdrop_zoom;
+		float xofs = BLI_rcti_size_x(&ar->winrct) / 2.0f + sseq->overdrop_offset[0];
+		float yofs = BLI_rcti_size_y(&ar->winrct) / 2.0f + sseq->overdrop_offset[1];
 
-		aspect = BLI_rcti_size_x(&ar->winrct) / (float)BLI_rcti_size_y(&ar->winrct);
-
-		if (aspect >= image_aspect) {
-			imagex = image_aspect / aspect;
-			imagey = 1.0f;
-		}
-		else {
-			imagex = 1.0f;
-			imagey = aspect / image_aspect;
-		}
-
-		glTexCoord2f(0.0f, 0.0f); glVertex2f(-imagex, -imagey);
-		glTexCoord2f(0.0f, 1.0f); glVertex2f(-imagex, imagey);
-		glTexCoord2f(1.0f, 1.0f); glVertex2f(imagex, imagey);
-		glTexCoord2f(1.0f, 0.0f); glVertex2f(imagex, -imagey);
+		glTexCoord2f(0.0f, 0.0f); glVertex2f(-imagex + xofs, -imagey + yofs);
+		glTexCoord2f(0.0f, 1.0f); glVertex2f(-imagex + xofs, imagey + yofs);
+		glTexCoord2f(1.0f, 1.0f); glVertex2f(imagex + xofs, imagey + yofs);
+		glTexCoord2f(1.0f, 0.0f); glVertex2f(imagex + xofs, -imagey + yofs);
 	}
 	else {
 		draw_metadata = ((sseq->flag & SEQ_SHOW_METADATA) != 0);
@@ -1365,7 +1350,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		ED_region_image_metadata_draw(0.0, 0.0, ibuf, v2d->tot, 1.0, 1.0);
 	}
 
-	if (draw_backdrop) {
+	if (draw_overdrop) {
 		glPopMatrix();
 		glMatrixMode(GL_PROJECTION);
 		glPopMatrix();
@@ -1603,10 +1588,12 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	// NOTE: the gridlines are currently spaced every 25 frames, which is only fine for 25 fps, but maybe not for 30...
 	UI_view2d_constant_grid_draw(v2d);
 
+	/*
 	if (sseq->draw_flag & SEQ_DRAW_BACKDROP) {
 		draw_image_seq(C, scene, ar, sseq, scene->r.cfra, 0, false, true);
 		UI_view2d_view_ortho(v2d);
 	}
+	*/
 		
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
 	
@@ -1647,12 +1634,22 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 		glEnd();
 
 	}
+
+	if (sseq->draw_flag & SEQ_DRAW_OVERDROP) {
+		draw_image_seq(C, scene, ar, sseq, scene->r.cfra, 0, false, true);
+		UI_SetTheme(SPACE_SEQ, RGN_TYPE_WINDOW);
+		UI_view2d_view_ortho(v2d);
+	}
 	
 	/* callback */
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
 
 	/* reset view matrix */
 	UI_view2d_view_restore(C);
+	
+	/* finally draw any widgets here */
+	WM_widgets_update(C, ar->widgetmaps.first);
+	WM_widgets_draw(C, ar->widgetmaps.first, false);
 
 	/* scrollers */
 	unit = (sseq->flag & SEQ_DRAWFRAMES) ? V2D_UNIT_FRAMES : V2D_UNIT_SECONDS;

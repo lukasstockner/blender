@@ -71,6 +71,9 @@ void    ED_region_toggle_hidden(struct bContext *C, struct ARegion *ar);
 void    ED_region_info_draw(struct ARegion *ar, const char *text, float fill_color[4], const bool full_redraw);
 void    ED_region_image_metadata_draw(int x, int y, struct ImBuf *ibuf, rctf frame, float zoomx, float zoomy);
 void    ED_region_grid_draw(struct ARegion *ar, float zoomx, float zoomy);
+void    ED_region_draw_backdrop_view3d(const struct bContext *C, struct Object *camera, const float alpha,
+                                       const float width, const float height, const float x, const float y,
+                                       const float zoomx, const float zoomy, const bool draw_background);
 float	ED_region_blend_factor(struct ARegion *ar);
 void	ED_region_visible_rect(struct ARegion *ar, struct rcti *rect);
 

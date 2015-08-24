@@ -1358,7 +1358,23 @@ void drawnodespace(const bContext *C, ARegion *ar)
 			
 			/* backdrop */
 			draw_nodespace_back_pix(C, ar, snode, path->parent_key);
+
+			glMatrixMode(GL_PROJECTION);
+			glPushMatrix();
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
 			
+			glaDefine2DArea(&ar->winrct);
+			wmOrtho2_pixelspace(ar->winx, ar->winy);
+
+			WM_widgets_update(C, ar->widgetmaps.first);
+			WM_widgets_draw(C, ar->widgetmaps.first, false);
+
+			glMatrixMode(GL_PROJECTION);
+			glPopMatrix();
+			glMatrixMode(GL_MODELVIEW);
+			glPopMatrix();
+
 			draw_nodetree(C, ar, ntree, path->parent_key);
 		}
 		

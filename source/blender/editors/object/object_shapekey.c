@@ -52,6 +52,7 @@
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
+#include "BKE_editmesh.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
@@ -498,4 +499,3 @@ void OBJECT_OT_shape_key_move(wmOperatorType *ot)
 
 	RNA_def_enum(ot->srna, "type", slot_move, 0, "Type", "");
 }
-

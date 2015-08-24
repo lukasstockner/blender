@@ -895,4 +895,42 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
+	{
+		if (!DNA_struct_elem_find(fd->filesdna, "SpaceNode", "float", "backdrop_zoom")) {
+			bScreen *sc;
+			for (sc = main->screen.first; sc; sc = sc->id.next) {
+				ScrArea *sa;
+				for (sa = sc->areabase.first; sa; sa = sa->next) {
+					SpaceLink *sl;
+					for (sl = sa->spacedata.first; sl; sl = sl->next) {
+						if (sl->spacetype == SPACE_NODE) {
+							SpaceNode *snode = (SpaceNode *)sl;
+							snode->backdrop_zoom = 1.0;
+						}
+						if (sl->spacetype == SPACE_SEQ) {
+							SpaceSeq *sseq = (SpaceSeq *)sl;
+							sseq->overdrop_zoom = 1.0;
+						}
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "SpaceIpo", "float", "backdrop_zoom")) {
+			bScreen *sc;
+			for (sc = main->screen.first; sc; sc = sc->id.next) {
+				ScrArea *sa;
+				for (sa = sc->areabase.first; sa; sa = sa->next) {
+					SpaceLink *sl;
+					for (sl = sa->spacedata.first; sl; sl = sl->next) {
+						if (sl->spacetype == SPACE_IPO) {
+							SpaceIpo *sipo = (SpaceIpo *)sl;
+							sipo->backdrop_zoom = 1.0f;
+							sipo->backdrop_opacity = 0.7f;
+						}
+					}
+				}
+			}
+		}
+	}
 }

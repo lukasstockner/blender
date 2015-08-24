@@ -41,6 +41,7 @@ struct Base;
 struct BezTriple;
 struct BoundBox;
 struct EditBone;
+struct wmEvent;
 struct ImBuf;
 struct MVert;
 struct Main;
@@ -62,6 +63,9 @@ struct wmOperator;
 struct wmOperatorType;
 struct wmWindow;
 struct wmWindowManager;
+struct wmWidget;
+struct wmWidgetGroup;
+struct wmWidgetGroupType;
 struct GPUFX;
 struct GPUOffScreen;
 struct GPUFXSettings;
@@ -319,6 +323,8 @@ void ED_view3d_check_mats_rv3d(struct RegionView3D *rv3d);
 #endif
 int ED_view3d_scene_layer_set(int lay, const int *values, int *active);
 
+void ED_draw_object_facemap(struct Scene *scene, struct Object *ob, int facemap);
+
 bool ED_view3d_context_activate(struct bContext *C);
 void ED_view3d_draw_offscreen_init(struct Scene *scene, struct View3D *v3d);
 void ED_view3d_draw_offscreen(
@@ -386,6 +392,9 @@ void ED_view3d_operator_properties_viewmat(struct wmOperatorType *ot);
 void ED_view3d_operator_properties_viewmat_set(struct bContext *C, struct wmOperator *op);
 void ED_view3d_operator_properties_viewmat_get(struct wmOperator *op, int *winx, int *winy, float persmat[4][4]);
 #endif
+
+int WIDGETGROUP_lamp_poll(const struct bContext *C, struct wmWidgetGroupType *wgrouptype);
+void WIDGETGROUP_lamp_create(const struct bContext *C, struct wmWidgetGroup *wgroup);
 
 /* render */
 void ED_view3d_stop_render_preview(struct wmWindowManager *wm, struct ARegion *ar);

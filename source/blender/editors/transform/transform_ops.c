@@ -82,6 +82,7 @@ static const char OP_EDGE_CREASE[] = "TRANSFORM_OT_edge_crease";
 static const char OP_EDGE_BWEIGHT[] = "TRANSFORM_OT_edge_bevelweight";
 static const char OP_SEQ_SLIDE[] = "TRANSFORM_OT_seq_slide";
 
+
 static void TRANSFORM_OT_translate(struct wmOperatorType *ot);
 static void TRANSFORM_OT_rotate(struct wmOperatorType *ot);
 static void TRANSFORM_OT_tosphere(struct wmOperatorType *ot);

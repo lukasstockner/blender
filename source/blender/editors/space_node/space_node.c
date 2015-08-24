@@ -38,7 +38,10 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 
+#include "IMB_imbuf_types.h"
+
 #include "BKE_context.h"
+#include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
@@ -55,6 +58,8 @@
 #include "UI_view2d.h"
 
 #include "RNA_access.h"
+
+#include "WM_api.h"
 
 #include "node_intern.h"  /* own include */
 
@@ -300,7 +305,7 @@ static SpaceLink *node_new(const bContext *UNUSED(C))
 	snode->flag = SNODE_SHOW_GPENCIL | SNODE_USE_ALPHA;
 
 	/* backdrop */
-	snode->zoom = 1.0f;
+	snode->backdrop_zoom = 1.0f;
 
 	/* select the first tree type for valid type */
 	NODE_TREE_TYPES_BEGIN (treetype)
@@ -642,6 +647,13 @@ static void node_main_area_init(wmWindowManager *wm, ARegion *ar)
 
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
 
+	/* widgets stay in the background for now - quick patchjob to make sure nodes themselves work */
+	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false));
+	}
+
+	WM_event_add_area_widgetmap_handlers(ar);
+
 	/* own keymaps */
 	keymap = WM_keymap_find(wm->defaultconf, "Node Generic", SPACE_NODE, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
@@ -821,6 +833,64 @@ static int node_context(const bContext *C, const char *member, bContextDataResul
 	return 0;
 }
 
+static int WIDGETGROUP_node_transform_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
+{
+	SpaceNode *snode = CTX_wm_space_node(C);
+
+	if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
+		bNode *node = nodeGetActive(snode->edittree);
+
+		if (node && node->type == CMP_NODE_VIEWER)
+			return true;
+	}
+
+	return false;
+}
+
+static void WIDGETGROUP_node_transform_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
+{
+	Image *ima;
+	ImBuf *ibuf;
+	void *lock;
+	
+	ima = BKE_image_verify_viewer(IMA_TYPE_COMPOSITE, "Viewer Node");
+	ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
+	if (ibuf) {
+		wmWidget *cage;
+		SpaceNode *snode = CTX_wm_space_node(C);
+		ARegion *ar = CTX_wm_region(C);
+		float origin[3];
+		float w, h;
+		PointerRNA nodeptr;
+
+		/* center is always at the origin */
+		origin[0] = ar->winx / 2;
+		origin[1] = ar->winy / 2;
+
+		w = (ibuf->x > 0) ? ibuf->x : 64.0f;
+		h = (ibuf->y > 0) ? ibuf->y : 64.0f;
+
+		cage = WIDGET_rect_transform_new(
+		           wgroup, "backdrop_cage",
+		           WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE | WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM,
+		           w, h);
+		RNA_pointer_create(snode->id, &RNA_SpaceNodeEditor, snode, &nodeptr);
+		
+		WM_widget_set_origin(cage, origin);
+		WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, &nodeptr, "backdrop_offset");
+		WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, &nodeptr, "backdrop_zoom");
+	}
+	BKE_image_release_ibuf(ima, ibuf, lock);
+}
+
+static void node_widgets(void)
+{
+	/* create the widgetmap for the area here */
+	WM_widgetmaptype_find("Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false, true);
+	
+	WM_widgetgrouptype_new(WIDGETGROUP_node_transform_poll, WIDGETGROUP_node_transform_create, NULL, "Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false);
+}
+
 /* only called once, from space/spacetypes.c */
 void ED_spacetype_node(void)
 {
@@ -840,6 +910,7 @@ void ED_spacetype_node(void)
 	st->refresh = node_area_refresh;
 	st->context = node_context;
 	st->dropboxes = node_dropboxes;
+	st->widgets = node_widgets;
 
 	/* regions: main window */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype node region");

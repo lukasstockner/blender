@@ -58,6 +58,7 @@ struct bPoseChannel;
 struct bGPdata;
 struct bGPDlayer;
 struct bGPDframe;
+struct wmWidget;
 struct wmWindow;
 struct wmWindowManager;
 struct SpaceText;

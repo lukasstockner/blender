@@ -172,6 +172,8 @@ void WM_init(bContext *C, int argc, const char **argv)
 	/* Enforce loading the UI for the initial homefile */
 	G.fileflags &= ~G_FILE_NO_UI;
 
+	ED_spacedropwidgets_init();
+
 	/* get the default database, plus a wm */
 	wm_homefile_read(C, NULL, G.factory_startup, NULL);
 	
@@ -497,6 +499,9 @@ void WM_exit_ext(bContext *C, const bool do_python)
 	ED_gpencil_strokes_copybuf_free();
 	ED_clipboard_posebuf_free();
 	BKE_node_clipboard_clear();
+
+	/* widgetmaps after freeing blender, so no deleted data get accessed during cleaning up of areas */
+	WM_widgetmaptypes_free();
 
 	BLF_exit();
 

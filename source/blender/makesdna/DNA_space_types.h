@@ -46,6 +46,7 @@
 #include "DNA_node_types.h"         /* for bNodeInstanceKey */
 /* Hum ... Not really nice... but needed for spacebuts. */
 #include "DNA_view2d_types.h"
+#include "DNA_widget_types.h"
 
 struct ID;
 struct Text;
@@ -323,6 +324,11 @@ typedef struct SpaceIpo {
 	
 	ListBase ghostCurves;   /* sampled snapshots of F-Curves used as in-session guides */
 	
+	struct Object *backdrop_camera; /* the view from this camera is used to draw the backdrop */
+	float backdrop_offset[2];       /* offset of the backdrop */
+	float backdrop_zoom;            /* zoom factor of the backdrop */
+	float backdrop_opacity;         /* opacity of the backdrop */
+	
 	short mode;             /* mode for the Graph editor (eGraphEdit_Mode) */
 	short autosnap;         /* time-transform autosnapping settings for Graph editor (eAnimEdit_AutoSnap in DNA_action_types.h) */
 	int flag;               /* settings for Graph editor (eGraphEdit_Flag) */
@@ -367,6 +373,7 @@ typedef enum eGraphEdit_Flag {
 	/* normalize curves on display */
 	SIPO_NORMALIZE            = (1 << 14),
 	SIPO_NORMALIZE_FREEZE     = (1 << 15),
+	SIPO_DRAW_BACKDROP        = (1 << 16),
 } eGraphEdit_Flag;
 
 /* SpaceIpo->mode (Graph Editor Mode) */
@@ -498,7 +505,8 @@ typedef struct SpaceSeq {
 	int view; /* see SEQ_VIEW_* below */
 	int overlay_type;
 	int draw_flag; /* overlay an image of the editing on below the strips */
-	int pad;
+	float overdrop_zoom;
+	float overdrop_offset[2];
 
 	struct bGPdata *gpd;        /* grease-pencil data */
 
@@ -520,7 +528,7 @@ typedef enum eSpaceSeq_RegionType {
 
 /* sseq->draw_flag */
 typedef enum eSpaceSeq_DrawFlag {
-	SEQ_DRAW_BACKDROP              = (1 << 0),
+	SEQ_DRAW_OVERDROP              = (1 << 0),
 	SEQ_DRAW_OFFSET_EXT            = (1 << 1),
 } eSpaceSeq_DrawFlag;
 
@@ -1088,11 +1096,13 @@ typedef struct SpaceNode {
 	
 	struct ID *id, *from;       /* context, no need to save in file? well... pinning... */
 	short flag, pad1;           /* menunr: browse id block in header */
-	float aspect, pad2;	/* internal state variables */
+	float aspect;	/* internal state variables */
 	
-	float xof, yof;     /* offset for drawing the backdrop */
-	float zoom;   /* zoom for backdrop */
 	float cursor[2];    /* mouse pos for drawing socketless link and adding nodes */
+
+	float backdrop_offset[2];
+	float backdrop_zoom;
+	float pad;
 	
 	/* XXX nodetree pointer info is all in the path stack now,
 	 * remove later on and use bNodeTreePath instead. For now these variables are set when pushing/popping

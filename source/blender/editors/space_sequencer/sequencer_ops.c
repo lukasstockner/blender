@@ -127,6 +127,8 @@ void sequencer_operatortypes(void)
 
 	/* sequencer_view.h */
 	WM_operatortype_append(SEQUENCER_OT_sample);
+	WM_operatortype_append(SEQUENCER_OT_overdrop_transform);
+	WM_operatortype_append(SEQUENCER_OT_image_transform_widget);
 }
 
 
@@ -202,6 +204,8 @@ void sequencer_keymap(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "SEQUENCER_OT_view_all", HOMEKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "SEQUENCER_OT_view_all", NDOF_BUTTON_FIT, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "SEQUENCER_OT_view_selected", PADPERIOD, KM_PRESS, 0, 0);
+	
+	WM_keymap_add_item(keymap, "SEQUENCER_OT_overdrop_transform", VKEY, KM_PRESS, 0, 0);
 
 	kmi = WM_keymap_add_item(keymap, "SEQUENCER_OT_strip_jump", PAGEUPKEY, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "next", true);
@@ -344,6 +348,8 @@ void sequencer_keymap(wmKeyConfig *keyconf)
 
 	/* would prefer to use numpad keys for job */
 	RNA_float_set(WM_keymap_add_item(keymap, "SEQUENCER_OT_view_zoom_ratio", PAD1, KM_PRESS, 0, 0)->ptr, "ratio", 1.0f);
+
+//	WM_keymap_add_item(keymap, "SEQUENCER_OT_image_transform_widget", VKEY, KM_PRESS, 0, 0);
 
 	/* Setting zoom levels is not that useful, except for back to zoom level 1, removing keymap because of conflicts for now */
 #if 0

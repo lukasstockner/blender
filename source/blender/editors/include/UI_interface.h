@@ -70,6 +70,8 @@ struct bNodeSocket;
 struct wmDropBox;
 struct wmDrag;
 struct wmEvent;
+struct wmWidget;
+struct wmWidgetGroup;
 
 typedef struct uiBut uiBut;
 typedef struct uiBlock uiBlock;

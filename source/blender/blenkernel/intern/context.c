@@ -58,6 +58,8 @@
 
 /* struct */
 
+struct wmWidget;
+
 struct bContext {
 	int thread;
 

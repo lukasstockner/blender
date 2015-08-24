@@ -200,6 +200,14 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_vertex_weight_normalize_active_vertex);
 	WM_operatortype_append(OBJECT_OT_vertex_weight_copy);
 
+	WM_operatortype_append(OBJECT_OT_face_map_add);
+	WM_operatortype_append(OBJECT_OT_face_map_remove);
+	WM_operatortype_append(OBJECT_OT_face_map_assign);
+	WM_operatortype_append(OBJECT_OT_face_map_remove_from);
+	WM_operatortype_append(OBJECT_OT_face_map_select);
+	WM_operatortype_append(OBJECT_OT_face_map_deselect);
+	WM_operatortype_append(OBJECT_OT_face_map_move);
+
 	WM_operatortype_append(TRANSFORM_OT_vertex_warp);
 
 	WM_operatortype_append(OBJECT_OT_game_property_new);
@@ -251,8 +259,12 @@ void ED_operatortypes_object(void)
 
 	WM_operatortype_append(TRANSFORM_OT_vertex_random);
 
+	WM_operatortype_append(LAMP_OT_lamp_position);
+
 	WM_operatortype_append(OBJECT_OT_data_transfer);
 	WM_operatortype_append(OBJECT_OT_datalayout_transfer);
+
+	WM_operatortype_append(OBJECT_OT_widget_add);
 }
 
 void ED_operatormacros_object(void)

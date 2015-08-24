@@ -39,6 +39,8 @@
 
 struct ScrArea;
 struct ARegion;
+struct wmWidgetMap;
+struct wmWidget;
 
 /* wmKeyMap is in DNA_windowmanager.h, it's savable */
 
@@ -68,6 +70,8 @@ typedef struct wmEventHandler {
 
 	/* drop box handler */
 	ListBase *dropboxes;
+	/* widget handler */
+	struct wmWidgetMap *widgetmap;
 
 } wmEventHandler;
 
@@ -95,6 +99,18 @@ void        wm_event_do_notifiers   (bContext *C);
 void        wm_dropbox_free(void);
 void        wm_drags_check_ops(bContext *C, wmEvent *event);
 void        wm_drags_draw(bContext *C, wmWindow *win, rcti *rect);
+
+/* wm_widgets.c */
+void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler *handler);
+void wm_widgetmap_handler_context(bContext *C, wmEventHandler *handler);
+
+struct wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event, unsigned char *part);
+wmWidget *wm_widget_find_highlighted(struct wmWidgetMap *wmap, bContext *C, const struct wmEvent *event, unsigned char *part);
+void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget, unsigned char part);
+struct wmWidget *wm_widgetmap_get_highlighted_widget(struct wmWidgetMap *wmap);
+
+void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmEvent *event, struct wmWidget *widget, const bool call_op);
+struct wmWidget *wm_widgetmap_get_active_widget(struct wmWidgetMap *wmap);
 
 #endif /* __WM_EVENT_SYSTEM_H__ */
 

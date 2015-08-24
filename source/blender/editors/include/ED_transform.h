@@ -35,14 +35,18 @@
 /* ******************* Registration Function ********************** */
 
 struct ARegion;
+struct EnumPropertyItem;
 struct ListBase;
 struct Object;
 struct View3D;
 struct bContext;
+struct uiLayout;
 struct wmEvent;
 struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperatorType;
+struct wmWindowManager;
+struct PointerRNA;
 
 void transform_keymap_for_space(struct wmKeyConfig *keyconf, struct wmKeyMap *keymap, int spaceid);
 void transform_operatortypes(void);
@@ -107,9 +111,13 @@ enum TfmMode {
 bool calculateTransformCenter(struct bContext *C, int centerMode, float cent3d[3], float cent2d[2]);
 
 struct TransInfo;
+struct ScrArea;
 struct Base;
 struct Scene;
 struct Object;
+struct wmWidget;
+struct wmWidgetGroup;
+struct wmWidgetGroupType;
 
 /* UNUSED */
 // int BIF_snappingSupported(struct Object *obedit);
@@ -149,13 +157,39 @@ int BIF_countTransformOrientation(const struct bContext *C);
 
 void Transform_Properties(struct wmOperatorType *ot, int flags);
 
+
 /* view3d manipulators */
 
-int BIF_do_manipulator(struct bContext *C, const struct wmEvent *event, struct wmOperator *op);
-void BIF_draw_manipulator(const struct bContext *C);
+typedef struct ManipulatorGroup {
+	struct wmWidget *translate_x,
+	                *translate_y,
+	                *translate_z,
+	                *translate_xy,
+	                *translate_yz,
+	                *translate_zx,
+	                *translate_c,
+
+	                *rotate_x,
+	                *rotate_y,
+	                *rotate_z,
+	                *rotate_c,
+
+	                *scale_x,
+	                *scale_y,
+	                *scale_z,
+	                *scale_xy,
+	                *scale_yz,
+	                *scale_zx,
+	                *scale_c;
+} ManipulatorGroup;
+
+int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *wgrouptype);
+void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup);
+
+void WIDGETGROUP_object_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup);
+
 
 /* Snapping */
-
 
 typedef struct DepthPeel {
 	struct DepthPeel *next, *prev;

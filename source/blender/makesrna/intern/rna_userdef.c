@@ -180,33 +180,6 @@ static void rna_userdef_vbo_update(Main *bmain, Scene *UNUSED(scene), PointerRNA
 	GPU_buffer_multires_free(false);
 }
 
-static void rna_userdef_show_manipulator_update(Main *bmain, Scene *scene, PointerRNA *ptr)
-{
-	UserDef *userdef = (UserDef *)ptr->data;
-
-	/* lame, loop over all views and set */
-	bScreen *sc;
-	ScrArea *sa;
-	SpaceLink *sl;
-
-	/* from scene copy to the other views */
-	for (sc = bmain->screen.first; sc; sc = sc->id.next) {
-		for (sa = sc->areabase.first; sa; sa = sa->next) {
-			for (sl = sa->spacedata.first; sl; sl = sl->next) {
-				if (sl->spacetype == SPACE_VIEW3D) {
-					View3D *v3d = (View3D *)sl;
-					if (userdef->tw_flag & V3D_USE_MANIPULATOR)
-						v3d->twflag |= V3D_USE_MANIPULATOR;
-					else
-						v3d->twflag &= ~V3D_USE_MANIPULATOR;
-				}
-			}
-		}
-	}
-	
-	rna_userdef_update(bmain, scene, ptr);
-}
-
 
 static void rna_userdef_script_autoexec_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
@@ -3602,30 +3575,22 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Rotation Angle", "Rotation step for numerical pad keys (2 4 6 8)");
 
 	/* 3D transform widget */
-	prop = RNA_def_property(srna, "show_manipulator", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "tw_flag", V3D_USE_MANIPULATOR);
-	RNA_def_property_ui_text(prop, "Manipulator", "Use 3D transform manipulator");
-	RNA_def_property_update(prop, 0, "rna_userdef_show_manipulator_update");
+	prop = RNA_def_property(srna, "shaded_widgets", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "tw_flag", V3D_SHADED_WIDGETS);
+	RNA_def_property_ui_text(prop, "Shaded Widgets", "Use 3D shading for widgets");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
+	prop = RNA_def_property(srna, "widgets_3d", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "tw_flag", V3D_3D_WIDGETS);
+	RNA_def_property_ui_text(prop, "3D Widgets", "Use 3D view world space for widget sizes");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+	
 	prop = RNA_def_property(srna, "manipulator_size", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "tw_size");
 	RNA_def_property_range(prop, 10, 200);
 	RNA_def_property_int_default(prop, 75);
-	RNA_def_property_ui_text(prop, "Manipulator Size", "Diameter of the manipulator");
+	RNA_def_property_ui_text(prop, "Manipulator Size", "Size of the transform manipulator");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
-
-	prop = RNA_def_property(srna, "manipulator_handle_size", PROP_INT, PROP_PERCENTAGE);
-	RNA_def_property_int_sdna(prop, NULL, "tw_handlesize");
-	RNA_def_property_range(prop, 2, 40);
-	RNA_def_property_int_default(prop, 25);
-	RNA_def_property_ui_text(prop, "Manipulator Handle Size", "Size of manipulator handles as percentage of the radius");
-	RNA_def_property_update(prop, 0, "rna_userdef_update");
-
-	prop = RNA_def_property(srna, "manipulator_hotspot", PROP_INT, PROP_PIXEL);
-	RNA_def_property_int_sdna(prop, NULL, "tw_hotspot");
-	RNA_def_property_range(prop, 4, 40);
-	RNA_def_property_int_default(prop, 14);
-	RNA_def_property_ui_text(prop, "Manipulator Hotspot", "Distance around the handles to accept mouse clicks");
 
 	prop = RNA_def_property(srna, "object_origin_size", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "obcenter_dia");

@@ -1739,6 +1739,8 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 			{
 				if (bone->layer & arm->layer) {
 					const bool use_custom = (pchan->custom) && !(arm->flag & ARM_NO_CUSTOM);
+					
+					/* skip drawing in that case */
 					glPushMatrix();
 					
 					if (use_custom && pchan->custom_tx) {

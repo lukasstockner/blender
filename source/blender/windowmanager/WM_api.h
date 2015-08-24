@@ -39,6 +39,7 @@
 
 /* dna-savable wmStructs here */
 #include "DNA_windowmanager_types.h"
+#include "DNA_listBase.h"
 #include "WM_keymap.h"
 #include "BLI_compiler_attrs.h"
 
@@ -55,6 +56,11 @@ struct wmGesture;
 struct wmJob;
 struct wmOperatorType;
 struct wmOperator;
+struct wmWidget;
+struct wmWidgetGroup;
+struct wmWidgetMap;
+struct wmWidgetGroupType;
+struct wmWidgetMapType;
 struct rcti;
 struct PointerRNA;
 struct PropertyRNA;
@@ -65,6 +71,8 @@ struct ImBuf;
 struct ImageFormatData;
 struct ARegion;
 struct wmNDOFMotionData;
+struct Main;
+struct Object;
 
 typedef struct wmJob wmJob;
 
@@ -486,6 +494,108 @@ void        WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4
 
 float       WM_event_tablet_data(const struct wmEvent *event, int *pen_flip, float tilt[2]);
 bool        WM_event_is_tablet(const struct wmEvent *event);
+
+
+/* *************** Widget API ******************** */
+
+struct wmWidget *WM_widget_new(void (*draw)(const struct bContext *, struct wmWidget *),
+                               void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
+                               int  (*intersect)(struct bContext *, const struct wmEvent *, struct wmWidget *),
+                               int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *));
+
+void WM_widget_property(struct wmWidget *, int slot, struct PointerRNA *ptr, const char *propname);
+struct PointerRNA *WM_widget_operator(struct wmWidget *, const char *opname);
+void WM_widgets_update(const struct bContext *C, struct wmWidgetMap *wmap);
+void WM_widgets_draw(const struct bContext *C, const struct wmWidgetMap *wmap, const bool in_scene);
+void WM_event_add_area_widgetmap_handlers(struct ARegion *ar);
+void WM_modal_handler_attach_widgetgroup(struct bContext *C, struct wmEventHandler *handler,
+                                         struct wmWidgetGroupType *wgrouptype, struct wmOperator *op);
+void WM_widgetgroup_customdata_set(struct wmWidgetGroup *wgroup, void *data);
+void *WM_widgetgroup_customdata(const struct wmWidgetGroup *wgroup);
+
+void WM_widget_set_origin(struct wmWidget *widget, const float origin[3]);
+void WM_widget_set_3d_scale(struct wmWidget *widget, const bool scale);
+void WM_widget_flag_set(struct wmWidget *widget, const int flag, const bool enable);
+void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, const bool draw);
+void WM_widget_set_scene_depth(struct wmWidget *widget, const bool scene);
+void WM_widget_set_scale(struct wmWidget *widget, float scale);
+void WM_widget_set_line_width(struct wmWidget *widget, const float line_width);
+void WM_widget_set_colors(struct wmWidget *widget, const float col[4], const float col_hi[4]);
+
+struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, const int spaceid, const int regionid,
+                                              const bool is_3d, const bool create);
+struct wmWidgetGroupType *WM_widgetgrouptype_new(int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
+                                                 void (*create)(const struct bContext *, struct wmWidgetGroup *), 
+                                                 const struct Main *bmain, const char *mapidname,
+                                                 const short spaceid, const short regionid, const bool is_3d);
+void WM_widgetgrouptype_unregister(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgroup);
+
+/* creates a widgetmap with all registered widgets for that type */
+struct wmWidgetMap *WM_widgetmap_from_type(const char *idname, const int spaceid, const int regionid, const bool is_3d);
+void WM_widgetmap_delete(struct wmWidgetMap *wmap);
+bool WM_widgetmap_cursor_set(const struct wmWidgetMap *wmap, struct wmWindow *win);
+
+void WM_widgetmaptypes_free(void);
+
+/* wm_generic_widgets.c */
+
+enum {
+	WIDGET_ARROW_STYLE_NORMAL        =  1,
+	WIDGET_ARROW_STYLE_NO_AXIS       = (1 << 1),
+	WIDGET_ARROW_STYLE_CROSS         = (1 << 2),
+	WIDGET_ARROW_STYLE_INVERTED      = (1 << 3), /* inverted offset during interaction - if set it also sets constrained below */
+	WIDGET_ARROW_STYLE_CONSTRAINED   = (1 << 4), /* clamp arrow interaction to property width */
+	WIDGET_ARROW_STYLE_BOX           = (1 << 5), /* use a box for the arrowhead */
+};
+
+enum {
+	WIDGET_DIAL_STYLE_RING = 0,
+	WIDGET_DIAL_STYLE_RING_CLIPPED = 1,
+};
+
+enum {
+	WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE       =  1,       /* widget translates */
+	WIDGET_RECT_TRANSFORM_STYLE_ROTATE          = (1 << 1), /* widget rotates */
+	WIDGET_RECT_TRANSFORM_STYLE_SCALE           = (1 << 2), /* widget scales */
+	WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM   = (1 << 3), /* widget scales uniformly */
+};
+
+/* slots for properties */
+enum {
+	ARROW_SLOT_OFFSET_WORLD_SPACE = 0
+};
+
+enum {
+	RECT_TRANSFORM_SLOT_OFFSET = 0,
+	RECT_TRANSFORM_SLOT_SCALE = 1
+};
+
+enum {
+	FACEMAP_SLOT_FACEMAP = 0,
+};
+
+struct wmWidget *WIDGET_arrow_new(struct wmWidgetGroup *wgroup, const char *name, const int style);
+void WIDGET_arrow_set_direction(struct wmWidget *widget, const float direction[3]);
+void WIDGET_arrow_set_up_vector(struct wmWidget *widget, const float direction[3]);
+void WIDGET_arrow_set_line_vec(struct wmWidget *widget, const float (*vec)[3], const int tot_points);
+void WIDGET_arrow_set_scale(struct wmWidget *widget, const float scale);
+
+struct wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, const char *name, const int style);
+void WIDGET_dial_set_direction(struct wmWidget *widget, const float direction[3]);
+
+struct wmWidget *WIDGET_plane_new(struct wmWidgetGroup *wgroup, const char *name, const int style);
+void WIDGET_plane_set_direction(struct wmWidget *widget, const float direction[3]);
+void WIDGET_plane_set_offset(struct wmWidget *widget, const float direction[3]);
+
+struct wmWidget *WIDGET_rect_transform_new(
+        struct wmWidgetGroup *wgroup, const char *name, const int style,
+        const float width, const float height);
+void WIDGET_rect_transform_set_offset(struct wmWidget *widget, const float offset[2]);
+
+struct wmWidget *WIDGET_facemap_new(
+        struct wmWidgetGroup *wgroup, const char *name, const int style,
+        struct Object *ob, const int facemap);
+
 
 #ifdef WITH_INPUT_IME
 bool        WM_event_is_ime_switch(const struct wmEvent *event);

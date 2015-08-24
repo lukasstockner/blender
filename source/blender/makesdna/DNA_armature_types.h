@@ -156,7 +156,8 @@ typedef enum eArmature_DeformFlag {
 #ifdef DNA_DEPRECATED
 	ARM_DEF_B_BONE_REST		= (1<<3),	/* deprecated */
 #endif
-	ARM_DEF_INVERT_VGROUP	= (1<<4)
+	ARM_DEF_INVERT_VGROUP	= (1<<4),
+	ARM_DEF_FACEMAPS		= (1<<5)
 } eArmature_DeformFlag;
 
 /* armature->pathflag */

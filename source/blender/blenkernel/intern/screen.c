@@ -53,6 +53,9 @@
 #include "BKE_idprop.h"
 #include "BKE_screen.h"
 
+#include "WM_api.h"
+#include "WM_types.h"
+
 /* ************ Spacetype/regiontype handling ************** */
 
 /* keep global; this has to be accessible outside of windowmanager */
@@ -179,6 +182,7 @@ ARegion *BKE_area_region_copy(SpaceType *st, ARegion *ar)
 	BLI_listbase_clear(&newar->panels_category);
 	BLI_listbase_clear(&newar->panels_category_active);
 	BLI_listbase_clear(&newar->ui_lists);
+	BLI_listbase_clear(&newar->widgetmaps);
 	newar->swinid = 0;
 	
 	/* use optional regiondata callback */
@@ -290,6 +294,7 @@ void BKE_spacedata_id_unref(struct SpaceLink *sl, const struct ID *id)
 void BKE_area_region_free(SpaceType *st, ARegion *ar)
 {
 	uiList *uilst;
+	struct wmWidgetMap *wmap, *wmap_tmp;
 
 	if (st) {
 		ARegionType *art = BKE_regiontype_from_id(st, ar->regiontype);
@@ -326,6 +331,12 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 			MEM_freeN(uilst->properties);
 		}
 	}
+	
+	for (wmap = ar->widgetmaps.first; wmap; wmap = wmap_tmp) {
+		wmap_tmp = wmap->next;
+		WM_widgetmap_delete(wmap);
+	}
+	BLI_listbase_clear(&ar->widgetmaps);
 	BLI_freelistN(&ar->ui_lists);
 	BLI_freelistN(&ar->ui_previews);
 	BLI_freelistN(&ar->panels_category);

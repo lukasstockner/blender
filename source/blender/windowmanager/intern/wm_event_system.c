@@ -1474,7 +1474,7 @@ void WM_event_remove_handlers(bContext *C, ListBase *handlers)
 
 				if (handler->op->type->flag & OPTYPE_UNDO)
 					wm->op_undo_depth--;
-
+				
 				CTX_wm_area_set(C, area);
 				CTX_wm_region_set(C, region);
 			}
@@ -1661,8 +1661,8 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 
 			/* warning, after this call all context data and 'event' may be freed. see check below */
 			retval = ot->modal(C, op, event);
+
 			OPERATOR_RETVAL_CHECK(retval);
-			
 			/* when this is _not_ the case the modal modifier may have loaded
 			 * a new blend file (demo mode does this), so we have to assume
 			 * the event, operator etc have all been freed. - campbell */
@@ -2056,9 +2056,77 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 					}
 				}
 			}
+			else if (handler->widgetmap) {
+				wmWidgetMap *wmap = handler->widgetmap;
+				unsigned char part;
+				short event_processed = 0;
+				wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
+				ScrArea *area = CTX_wm_area(C);
+				ARegion *region = CTX_wm_region(C);
+
+				wm_widgetmap_handler_context(C, handler);
+				wm_region_mouse_co(C, event);
+
+				/* handle the widget first, before passing the event down */
+				switch (event->type) {
+					case MOUSEMOVE:
+						if (widget) {
+							widget->handler(C, event, widget);
+							event_processed = EVT_WIDGET_UPDATE;
+							action |= WM_HANDLER_BREAK;
+						}
+						else if (wm_widgetmap_is_3d(wmap)) {
+							widget = wm_widget_find_highlighted_3D(wmap, C, event, &part);
+							wm_widgetmap_set_highlighted_widget(wmap, C, widget, part);
+						}
+						else {
+							widget = wm_widget_find_highlighted(wmap, C, event, &part);
+							wm_widgetmap_set_highlighted_widget(wmap, C, widget, part);
+						}
+						break;
+
+					case LEFTMOUSE:
+					{
+						if (widget) {
+							if (event->val == KM_RELEASE) {
+								wm_widgetmap_set_active_widget(wmap, C, event, NULL, false);
+								event_processed = EVT_WIDGET_RELEASED;
+								action |= WM_HANDLER_BREAK;
+							}
+							else {
+								action |= WM_HANDLER_BREAK;
+							}
+						}
+						else if (event->val == KM_PRESS) {
+							widget = wm_widgetmap_get_highlighted_widget(wmap);
+
+							if (widget) {
+								wm_widgetmap_set_active_widget(wmap, C, event, widget, handler->op == NULL);
+								action |= WM_HANDLER_BREAK;
+							}
+						}
+						break;
+					}
+				}
+				
+				/* restore the area */
+				CTX_wm_area_set(C, area);
+				CTX_wm_region_set(C, region);
+
+				if (handler->op) {
+					/* if event was processed by an active widget pass the modified event to the operator */
+					if (event_processed) {
+						event->type = event_processed;
+					}
+					action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
+				}
+			}
 			else {
 				/* modal, swallows all */
 				action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
+
+				/* update widgets during modal handlers */
+				wm_widget_handler_modal_update(C, event, handler);
 			}
 
 			if (action & WM_HANDLER_BREAK) {
@@ -2609,7 +2677,7 @@ wmEventHandler *WM_event_add_modal_handler(bContext *C, wmOperator *op)
 {
 	wmEventHandler *handler = MEM_callocN(sizeof(wmEventHandler), "event modal handler");
 	wmWindow *win = CTX_wm_window(C);
-	
+
 	/* operator was part of macro */
 	if (op->opm) {
 		/* give the mother macro to the handler */
@@ -3574,6 +3642,7 @@ void WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4])
 	angle = WM_event_ndof_to_axis_angle(ndof, axis);
 	axis_angle_to_quat(q, axis, angle);
 }
+/** \} */
 
 /* if this is a tablet event, return tablet pressure and set *pen_flip
  * to 1 if the eraser tool is being used, 0 otherwise */

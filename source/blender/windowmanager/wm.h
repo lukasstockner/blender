@@ -33,6 +33,12 @@
 
 struct wmWindow;
 struct ReportList;
+struct wmEvent;
+struct wmWidgetMap;
+struct wmOperatorType;
+struct PointerRNA;
+struct PropertyRNA;
+struct wmOperator;
 
 typedef struct wmPaintCursor {
 	struct wmPaintCursor *next, *prev;
@@ -42,6 +48,82 @@ typedef struct wmPaintCursor {
 	int (*poll)(struct bContext *C);
 	void (*draw)(bContext *C, int, int, void *customdata);
 } wmPaintCursor;
+
+/* widgets are set per screen/area/region by registering them on widgetmaps */
+typedef struct wmWidget {
+	struct wmWidget *next, *prev;
+	
+	char idname[MAX_NAME + 4]; /* + 4 for unique '.001', '.002', etc suffix */
+
+	/* draw widget */
+	void (*draw)(const struct bContext *C, struct wmWidget *widget);
+	/* determine if the mouse intersects with the widget. The calculation should be done in the callback itself */
+	int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
+
+	/* determines 3d intersection by rendering the widget in a selection routine. */
+	void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *widget, int selectionbase);
+
+	/* handler used by the widget. Usually handles interaction tied to a widget type */
+	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
+
+	/* widget-specific handler to update widget attributes when a property is bound */
+	void (*bind_to_prop)(struct wmWidget *widget, int slot);
+
+	/* returns the final position which may be different from the origin, depending on the widget.
+	 * used in calculations of scale */
+	void (*get_final_position)(struct wmWidget *widget, float vec[3]);
+
+	/* activate a widget state when the user clicks on it */
+	int (*invoke)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
+
+	int (*get_cursor)(struct wmWidget *widget);
+	
+	int  flag; /* flags set by drawing and interaction, such as highlighting */
+
+	unsigned char highlighted_part;
+
+	/* center of widget in space, 2d or 3d */
+	float origin[3];
+
+	/* runtime property, set the scale while drawing on the viewport */
+	float scale;
+
+	/* user defined scale, in addition to the original one */
+	float user_scale;
+
+	/* user defined width for line drawing */
+	float line_width;
+
+	/* widget colors (uses default fallbacks if not defined) */
+	float col[4], col_hi[4];
+
+	/* data used during interaction */
+	void *interaction_data;
+
+	/* name of operator to spawn when activating the widget */
+	const char *opname;
+
+	/* operator properties if widget spawns and controls an operator, or owner pointer if widget spawns and controls a property */
+	struct PointerRNA opptr;
+
+	/* maximum number of properties attached to the widget */
+	int max_prop;
+	
+	/* arrays of properties attached to various widget parameters. As the widget is interacted with, those properties get updated */
+	struct PointerRNA *ptr;
+	struct PropertyRNA **props;
+} wmWidget;
+
+/* wmWidget->flag */
+enum widgetflags {
+	/* states */
+	WM_WIDGET_HIGHLIGHT   = (1 << 0),
+	WM_WIDGET_ACTIVE      = (1 << 1),
+	WM_WIDGET_DRAW_HOVER  = (1 << 2),
+	WM_WIDGET_SCALE_3D    = (1 << 3),
+	WM_WIDGET_SCENE_DEPTH = (1 << 4), /* widget is depth culled with scene objects*/
+	WM_WIDGET_HIDDEN      = (1 << 5),
+};
 
 extern void wm_close_and_free(bContext *C, wmWindowManager *);
 extern void wm_close_and_free_all(bContext *C, ListBase *);
@@ -88,12 +170,19 @@ void wm_stereo3d_set_cancel(bContext *C, wmOperator *op);
 void wm_open_init_load_ui(wmOperator *op, bool use_prefs);
 void wm_open_init_use_scripts(wmOperator *op, bool use_prefs);
 
+/* wm_widgets.c */
+bool wm_widgetmap_is_3d(const struct wmWidgetMap *wmap);
+bool wm_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget, const char *name);
+
+
 /* hack to store circle select size - campbell, must replace with nice operator memory */
 #define GESTURE_MEMORY
 
 #ifdef GESTURE_MEMORY
 extern int circle_select_size;
 #endif
+
+void fix_linking_widget_lib(void);
 
 #endif /* __WM_H__ */
 

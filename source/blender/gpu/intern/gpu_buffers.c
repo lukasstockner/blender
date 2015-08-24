@@ -499,6 +499,7 @@ void GPU_drawobject_free(DerivedMesh *dm)
 	GPU_buffer_free(gdo->edges);
 	GPU_buffer_free(gdo->uvedges);
 	GPU_buffer_free(gdo->triangles);
+	GPU_buffer_free(gdo->facemapindices);
 
 	MEM_freeN(gdo);
 	dm->drawObject = NULL;
@@ -630,6 +631,8 @@ static GPUBuffer **gpu_drawobject_buffer_from_type(GPUDrawObject *gdo, GPUBuffer
 			return &gdo->uvedges;
 		case GPU_BUFFER_TRIANGLES:
 			return &gdo->triangles;
+		case GPU_BUFFER_FACEMAP:
+			return &gdo->facemapindices;
 		default:
 			return NULL;
 	}
@@ -655,6 +658,8 @@ static size_t gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 			return sizeof(int) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_loop_verts;
 		case GPU_BUFFER_TRIANGLES:
 			return sizeof(int) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
+		case GPU_BUFFER_FACEMAP:
+			return sizeof(int) * 3 * dm->drawObject->tot_triangle_point;
 		default:
 			return -1;
 	}
@@ -877,6 +882,31 @@ void GPU_triangle_setup(struct DerivedMesh *dm)
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, dm->drawObject->triangles->id);
 	}
 
+	GLStates |= GPU_BUFFER_ELEMENT_STATE;
+}
+
+void GPU_facemap_setup(DerivedMesh *dm)
+{
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_FACEMAP))
+		return;
+	
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_VERTEX))
+		return;
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	if (dm->drawObject->points->use_vbo) {
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, dm->drawObject->points->id);
+		glVertexPointer(3, GL_FLOAT, 0, 0);
+	}
+	else {
+		glVertexPointer(3, GL_FLOAT, 0, dm->drawObject->points->pointer);
+	}
+	
+	GLStates |= GPU_BUFFER_VERTEX_STATE;
+	if (dm->drawObject->facemapindices->use_vbo) {
+		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, dm->drawObject->facemapindices->id);
+	}
+	
 	GLStates |= GPU_BUFFER_ELEMENT_STATE;
 }
 

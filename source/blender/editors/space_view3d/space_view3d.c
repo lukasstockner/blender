@@ -32,9 +32,13 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "DNA_armature_types.h"
 #include "DNA_material_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_camera_types.h"
+#include "DNA_key_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -42,17 +46,22 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_action.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_icons.h"
+#include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+#include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 
 #include "ED_space_api.h"
 #include "ED_screen.h"
+#include "ED_transform.h"
+#include "ED_view3d.h"
 
 #include "GPU_extensions.h"
 #include "GPU_material.h"
@@ -69,6 +78,7 @@
 #include "RNA_access.h"
 
 #include "UI_resources.h"
+#include "UI_interface.h"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"
@@ -391,12 +401,13 @@ static SpaceLink *view3d_new(const bContext *C)
 	ar->regiontype = RGN_TYPE_WINDOW;
 	
 	ar->regiondata = MEM_callocN(sizeof(RegionView3D), "region view3d");
+
 	rv3d = ar->regiondata;
 	rv3d->viewquat[0] = 1.0f;
 	rv3d->persp = RV3D_PERSP;
 	rv3d->view = RV3D_VIEW_PERSPORTHO;
 	rv3d->dist = 10.0;
-	
+		
 	return (SpaceLink *)v3d;
 }
 
@@ -437,8 +448,7 @@ static void view3d_free(SpaceLink *sl)
 
 /* spacetype; init callback */
 static void view3d_init(wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
-{
-
+{	
 }
 
 static SpaceLink *view3d_duplicate(SpaceLink *sl)
@@ -486,6 +496,12 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 {
 	ListBase *lb;
 	wmKeyMap *keymap;
+
+	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true));
+	}
+
+	WM_event_add_area_widgetmap_handlers(ar);
 
 	/* object ops. */
 	
@@ -564,7 +580,6 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	lb = WM_dropboxmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW);
 	
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
-	
 }
 
 static void view3d_main_area_exit(wmWindowManager *wm, ARegion *ar)
@@ -712,6 +727,159 @@ static void view3d_dropboxes(void)
 	WM_dropbox_add(lb, "OBJECT_OT_group_instance_add", view3d_group_drop_poll, view3d_group_drop_copy);	
 }
 
+
+static int WIDGETGROUP_camera_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
+{
+	Object *ob = CTX_data_active_object(C);
+
+	if (ob && ob->type == OB_CAMERA) {
+		Camera *ca = ob->data;
+		return (ca->flag & CAM_SHOWLIMITS) != 0;
+	}
+	return false;
+}
+
+static void WIDGETGROUP_camera_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
+{
+	float color_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+	float color_hi_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+	Object *ob = CTX_data_active_object(C);
+	Camera *ca = ob->data;
+	wmWidget *widget;
+	PointerRNA cameraptr;
+	float dir[3];
+	const char *propname = "dof_distance";
+
+	widget = WIDGET_arrow_new(wgroup, propname, WIDGET_ARROW_STYLE_CROSS);
+	WM_widget_set_draw_on_hover_only(widget, true);
+	WM_widget_set_3d_scale(widget, false);
+	WM_widget_set_colors(widget, color_camera, color_hi_camera);
+
+	RNA_pointer_create(&ca->id, &RNA_Camera, ca, &cameraptr);
+	WM_widget_set_origin(widget, ob->obmat[3]);
+	WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &cameraptr, propname);
+	negate_v3_v3(dir, ob->obmat[2]);
+	WIDGET_arrow_set_direction(widget, dir);
+	WIDGET_arrow_set_up_vector(widget, ob->obmat[1]);
+	WM_widget_set_scale(widget, ca->drawsize);
+}
+
+#if 0
+static int WIDGETGROUP_shapekey_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
+{
+	Object *ob = CTX_data_active_object(C);
+
+	if (ob && ob->type == OB_MESH) {
+		Key *key = BKE_key_from_object(ob);
+		KeyBlock *kb;
+	
+		if (key == NULL)
+			return false;
+		
+		kb = BLI_findlink(&key->block, ob->shapenr - 1);
+		
+		if (kb)
+			return true;
+	}
+	return false;
+}
+
+static void WIDGETGROUP_shapekey_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+{
+	float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+	Object *ob = CTX_data_active_object(C);
+	Key *key = BKE_key_from_object(ob);
+	KeyBlock *kb = BLI_findlink(&key->block, ob->shapenr - 1);
+	wmWidget *widget;
+	PointerRNA shapeptr;
+	float dir[3];
+
+	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
+	WM_widget_set_3d_scale(widget, false);
+	WIDGET_arrow_set_color(widget, color_shape);
+	RNA_pointer_create(&key->id, &RNA_ShapeKey, kb, &shapeptr);
+	WM_widget_set_origin(widget, ob->obmat[3]);
+	WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &shapeptr, "value");
+	negate_v3_v3(dir, ob->obmat[2]);
+	WIDGET_arrow_set_direction(widget, dir);
+}
+#endif
+
+static int WIDGETGROUP_armature_facemap_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
+{
+	Object *ob = CTX_data_active_object(C);
+
+	if (ob && ob->type == OB_MESH && ob->fmaps.first) {
+		ModifierData *md;
+		VirtualModifierData virtualModifierData;
+	
+		md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
+	
+		/* exception for shape keys because we can edit those */
+		for (; md; md = md->next) {
+			if (modifier_isEnabled(CTX_data_scene(C), md, eModifierMode_Realtime) && md->type == eModifierType_Armature) {
+				ArmatureModifierData *amd = (ArmatureModifierData *) md;
+				if (amd->object && (amd->deformflag & ARM_DEF_FACEMAPS))
+					return true;
+				}
+			}
+	}
+	return false;
+}
+
+static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
+{
+	float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+	Object *ob = CTX_data_active_object(C);
+	wmWidget *widget;
+	Object *armature;
+	PointerRNA famapptr;
+	PropertyRNA *prop;
+	ModifierData *md;
+	VirtualModifierData virtualModifierData;
+	int index = 0;
+	bFaceMap *fmap = ob->fmaps.first;
+	
+	md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
+	
+	/* exception for shape keys because we can edit those */
+	for (; md; md = md->next) {
+		if (modifier_isEnabled(CTX_data_scene(C), md, eModifierMode_Realtime) && md->type == eModifierType_Armature) {
+			ArmatureModifierData *amd = (ArmatureModifierData *) md;
+			if (amd->object && (amd->deformflag & ARM_DEF_FACEMAPS)) {
+				armature = amd->object;
+				break;
+			}
+		}
+	}
+	
+	
+	for (; fmap; fmap = fmap->next, index++) {
+		if (BKE_pose_channel_find_name(armature->pose, fmap->name)) {
+			PointerRNA *opptr;
+			widget = WIDGET_facemap_new(wgroup, fmap->name, 0, ob, index);
+			RNA_pointer_create(&ob->id, &RNA_FaceMap, fmap, &famapptr);
+			WM_widget_property(widget, FACEMAP_SLOT_FACEMAP, &famapptr, "name");
+			opptr = WM_widget_operator(widget, "TRANSFORM_OT_translate");
+			if ((prop = RNA_struct_find_property(opptr, "release_confirm"))) {
+				RNA_property_boolean_set(opptr, prop, true);
+			}
+			WM_widget_set_colors(widget, color_shape, color_shape);
+			WM_widget_set_draw_on_hover_only(widget, true);
+		}
+	}
+}
+
+
+static void view3d_widgets(void)
+{
+	WM_widgetmaptype_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true, true);
+
+	WM_widgetgrouptype_new(WIDGETGROUP_manipulator_poll, WIDGETGROUP_manipulator_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll, WIDGETGROUP_lamp_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_camera_poll, WIDGETGROUP_camera_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_armature_facemap_poll, WIDGETGROUP_armature_facemap_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+}
 
 
 /* type callback, not region itself */
@@ -1416,6 +1584,7 @@ void ED_spacetype_view3d(void)
 	st->operatortypes = view3d_operatortypes;
 	st->keymap = view3d_keymap;
 	st->dropboxes = view3d_dropboxes;
+	st->widgets = view3d_widgets;
 	st->context = view3d_context;
 	
 	/* regions: main window */
