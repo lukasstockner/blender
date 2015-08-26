@@ -992,7 +992,7 @@ static void manipulator_line_vec(const View3D *v3d, float r_vec[2][3], const sho
 	switch (axis_type) {
 		case MAN_AXES_TRANSLATE:
 			if (v3d->twtype & V3D_MANIP_SCALE) {
-				start[2] = end[2] - ofs + 0.025f;
+				start[2] = end[2] - ofs + 0.075f;
 			}
 			if (v3d->twtype & V3D_MANIP_ROTATE) {
 				end[2] += ofs;
@@ -1113,7 +1113,6 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 		int constraint_axis[3] = {1, 0, 0};
 
 		PointerRNA *ptr;
-		float line_vec[2][3];
 		float col[4], col_hi[4];
 
 		if (manipulator_is_axis_visible(v3d, rv3d, axis_idx) == false) {
@@ -1136,12 +1135,16 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 			case MAN_AXIS_SCALE_X:
 			case MAN_AXIS_SCALE_Y:
 			case MAN_AXIS_SCALE_Z:
+			{
+				float line_vec[2][3];
+
 				manipulator_line_vec(v3d, line_vec, axis_type);
 
 				WIDGET_arrow_set_direction(axis, rv3d->twmat[aidx_norm]);
 				WIDGET_arrow_set_line_vec(axis, (const float (*)[3])line_vec, ARRAY_SIZE(line_vec));
 				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
 				break;
+			}
 			case MAN_AXIS_ROT_X:
 			case MAN_AXIS_ROT_Y:
 			case MAN_AXIS_ROT_Z:

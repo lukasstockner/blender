@@ -207,34 +207,63 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 #ifdef WIDGET_USE_CUSTOM_ARROWS
 		widget_draw_intern(&arrow_head_draw_info, select);
 #else
+		const int last_co_idx = arrow->tot_line_points - 1;
+		float rot[3][3];
+		float mat[4][4];
+		float co_norm1[3], co_norm2[3];
+
 		glLineWidth(arrow->widget.line_width);
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glVertexPointer(3, GL_FLOAT, 0, arrow->line);
-		glDrawArrays(GL_LINES, 0, arrow->tot_line_points);
+		glDrawArrays(GL_LINE_STRIP, 0, arrow->tot_line_points);
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glLineWidth(1.0);
 
-		/* draw arrow head */
 
-		glTranslatef(UNPACK3(arrow->line[arrow->tot_line_points - 1]));
+		/* *** draw arrow head *** */
+
+		/* prepare matrix for local head drawing, based on rotation of last line segment */
+
+		normalize_v3_v3(co_norm1, arrow->line[last_co_idx - 1]);
+		normalize_v3_v3(co_norm2, arrow->line[last_co_idx]);
+		rotation_between_vecs_to_mat3(rot, co_norm1, co_norm2);
+
+		copy_m4_m3(mat, rot);
+		copy_v3_v3(mat[3], arrow->line[last_co_idx]);
 
 		if (arrow->style & WIDGET_ARROW_STYLE_BOX) {
 			const float size = 0.05f;
+			float loc[3];
+
+			/* add some extra offset so box starts exactly where line ends */
+			normalize_v3_v3(loc, arrow->line[last_co_idx]);
+			madd_v3_v3fl(mat[3], loc, size);
+			/* scale down to box size */
+			mul_mat3_m4_fl(mat, size);
+
+			glPushMatrix();
+			glMultMatrixf(mat);
 
 			/* draw cube */
-			glScalef(size, size, size);
 			widget_draw_intern(&cube_draw_info, select);
+
+			glPopMatrix();
 		}
 		else {
 			GLUquadricObj *qobj = gluNewQuadric();
 			const float len = 0.25f;
 			const float width = 0.06f;
 
+			glPushMatrix();
+			glMultMatrixf(mat);
+
 			gluQuadricDrawStyle(qobj, GLU_FILL);
 			gluCylinder(qobj, width, 0.0, len, 8, 1);
 			gluQuadricOrientation(qobj, GLU_INSIDE);
 			gluDisk(qobj, 0.0, width, 8, 1);
 			gluQuadricOrientation(qobj, GLU_OUTSIDE);
+
+			glPopMatrix();
 		}
 
 		(void)select;
@@ -294,7 +323,6 @@ static void arrow_draw_intern(ArrowWidget *arrow, const bool select, const bool 
 		glEnable(GL_BLEND);
 		glColor4f(0.5f, 0.5f, 0.5f, 0.5f);
 		arrow_draw_geom(arrow, select);
-
 		glDisable(GL_BLEND);
 
 		glPopMatrix();
@@ -576,6 +604,8 @@ void WIDGET_arrow_set_line_vec(wmWidget *widget, const float (*vec)[3], const in
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
 	const size_t vec_size = 3 * tot_points * sizeof(float);
+
+	BLI_assert(tot_points > 1);
 
 	arrow->tot_line_points = tot_points;
 	arrow->line = MEM_reallocN(arrow->line, vec_size);
