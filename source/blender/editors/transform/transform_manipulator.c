@@ -1158,9 +1158,6 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 				float ofs_ax = 11.0f;
 				float ofs[3];
 
-				/* XXX hrmpf, widgets call this twice on every redraw, could use update flag */
-				ED_view3d_update_viewmat(CTX_data_scene(C), v3d, CTX_wm_region(C), NULL, NULL);
-
 				ofs[0] = ofs_ax;
 				ofs[1] = ofs_ax;
 				ofs[2] = 0.0f;
