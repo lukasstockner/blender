@@ -729,15 +729,19 @@ void WIDGET_dial_set_direction(wmWidget *widget, const float direction[3])
 
 /********* Plane widget ************/
 
+#define PLANE_UP_VECTOR_SET 1
+
 typedef struct PlaneWidget {
 	wmWidget widget;
 
 	float direction[3];
 	float offset[3];
+	float up[3];
+	int flag;
 } PlaneWidget;
 
 
-static void widget_plane_draw_geom(const float col_inner[4], const float col_outer[4])
+static void widget_plane_draw_geom(const float ofs[3], const float col_inner[4], const float col_outer[4])
 {
 	static float vec[4][3] = {
 		{-1, -1, 0},
@@ -745,6 +749,8 @@ static void widget_plane_draw_geom(const float col_inner[4], const float col_out
 		{ 1,  1, 0},
 		{-1,  1, 0},
 	};
+
+	glTranslatef(UNPACK3(ofs));
 
 	glEnable(GL_MULTISAMPLE_ARB);
 
@@ -759,31 +765,30 @@ static void widget_plane_draw_geom(const float col_inner[4], const float col_out
 	glDisable(GL_MULTISAMPLE_ARB);
 }
 
-static void widget_plane_draw_intern(const bContext *C, PlaneWidget *plane, const bool UNUSED(select), const bool highlight)
+static void widget_plane_draw_intern(PlaneWidget *plane, const bool UNUSED(select), const bool highlight)
 {
-	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	const float up[3] = {0.0f, 0.0f, 1.0f};
 	float col_inner[4], col_outer[4];
 	float rot[3][3];
 	float mat[4][4];
-	float ofs[3];
 
-	copy_v3_v3(ofs, plane->offset);
-	if ((U.tw_flag & V3D_3D_WIDGETS) == 0) {
-		mul_v3_fl(ofs, ED_view3d_pixel_size(rv3d, plane->widget.origin));
+	if (plane->flag & PLANE_UP_VECTOR_SET) {
+		copy_v3_v3(rot[2], plane->direction);
+		copy_v3_v3(rot[1], plane->up);
+		cross_v3_v3v3(rot[0], plane->up, plane->direction);
 	}
-
-	rotation_between_vecs_to_mat3(rot, up, plane->direction);
+	else {
+		rotation_between_vecs_to_mat3(rot, up, plane->direction);
+	}
 
 	copy_m4_m3(mat, rot);
 	copy_v3_v3(mat[3], plane->widget.origin);
 	mul_mat3_m4_fl(mat, plane->widget.scale);
 
 	glPushMatrix();
-	glTranslatef(UNPACK3(ofs));
 	glMultMatrixf(mat);
 
-	if (highlight && !(plane->widget.flag & WM_WIDGET_DRAW_HOVER)) {
+	if (highlight && (plane->widget.flag & WM_WIDGET_DRAW_HOVER) == 0) {
 		copy_v4_v4(col_inner, plane->widget.col_hi);
 		copy_v4_v4(col_outer, plane->widget.col_hi);
 	}
@@ -794,21 +799,21 @@ static void widget_plane_draw_intern(const bContext *C, PlaneWidget *plane, cons
 	col_inner[3] *= 0.5f;
 
 	glEnable(GL_BLEND);
-	widget_plane_draw_geom(col_inner, col_outer);
+	widget_plane_draw_geom(plane->offset, col_inner, col_outer);
 	glDisable(GL_BLEND);
 
 	glPopMatrix();
 }
 
-static void widget_plane_render_3d_intersect(const bContext *C, wmWidget *widget, int selectionbase)
+static void widget_plane_render_3d_intersect(const bContext *UNUSED(C), wmWidget *widget, int selectionbase)
 {
 	GPU_select_load_id(selectionbase);
-	widget_plane_draw_intern(C, (PlaneWidget *)widget, true, false);
+	widget_plane_draw_intern((PlaneWidget *)widget, true, false);
 }
 
-static void widget_plane_draw(const bContext *C, wmWidget *widget)
+static void widget_plane_draw(const bContext *UNUSED(C), wmWidget *widget)
 {
-	widget_plane_draw_intern(C, (PlaneWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT));
+	widget_plane_draw_intern((PlaneWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT));
 }
 
 wmWidget *WIDGET_plane_new(wmWidgetGroup *wgroup, const char *name, const int UNUSED(style))
@@ -838,11 +843,25 @@ void WIDGET_plane_set_direction(wmWidget *widget, const float direction[3])
 	normalize_v3(plane->direction);
 }
 
-void WIDGET_plane_set_offset(wmWidget *widget, const float direction[3])
+void WIDGET_plane_set_offset(wmWidget *widget, const float offset[3])
 {
 	PlaneWidget *plane = (PlaneWidget *)widget;
 
-	copy_v3_v3(plane->offset, direction);
+	copy_v3_v3(plane->offset, offset);
+}
+
+void WIDGET_plane_set_up_vector(wmWidget *widget, const float direction[3])
+{
+	PlaneWidget *plane = (PlaneWidget *)widget;
+
+	if (direction) {
+		copy_v3_v3(plane->up, direction);
+		normalize_v3(plane->up);
+		plane->flag |= PLANE_UP_VECTOR_SET;
+	}
+	else {
+		plane->flag &= ~PLANE_UP_VECTOR_SET;
+	}
 }
 
 /********* Cage widget ************/

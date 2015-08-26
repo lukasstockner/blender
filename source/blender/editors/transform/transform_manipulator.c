@@ -382,27 +382,6 @@ static void manipulator_get_axis_constraint(const int axis_idx, int r_axis[3])
 	}
 }
 
-static void manipulator_get_axis_special_offset(const int axis_idx, float r_ofs[3])
-{
-	float ofs_ax = (U.tw_flag & V3D_3D_WIDGETS) ? 0.8f : 0.8f * U.tw_size;
-
-	if (ELEM(axis_idx, MAN_AXIS_TRANS_XY, MAN_AXIS_SCALE_XY)) {
-		r_ofs[0] = ofs_ax;
-		r_ofs[1] = ofs_ax;
-		r_ofs[2] = 0.0f;
-	}
-	else if (ELEM(axis_idx, MAN_AXIS_TRANS_YZ, MAN_AXIS_SCALE_YZ)) {
-		r_ofs[0] = 0.0f;
-		r_ofs[1] = ofs_ax;
-		r_ofs[2] = ofs_ax;
-	}
-	else if (ELEM(axis_idx, MAN_AXIS_TRANS_ZX, MAN_AXIS_SCALE_ZX)) {
-		r_ofs[0] = ofs_ax;
-		r_ofs[1] = 0.0f;
-		r_ofs[2] = ofs_ax;
-	}
-}
-
 
 /* **************** Preparation Stuff **************** */
 
@@ -1176,17 +1155,18 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 			case MAN_AXIS_SCALE_YZ:
 			case MAN_AXIS_SCALE_ZX:
 			{
+				float ofs_ax = 11.0f;
 				float ofs[3];
 
-				/* XXX hrmpf, widgets call this twice on every redraw, could use update flag */
-				ED_view3d_update_viewmat(CTX_data_scene(C), v3d, CTX_wm_region(C), NULL, NULL);
-
-				manipulator_get_axis_special_offset(axis_idx, ofs);
+				ofs[0] = ofs_ax;
+				ofs[1] = ofs_ax;
+				ofs[2] = 0.0f;
 
 				WM_widget_set_scale(axis, 0.07f);
 				WM_widget_set_origin(axis, rv3d->twmat[3]);
 				WIDGET_plane_set_offset(axis, ofs);
-				WIDGET_plane_set_direction(axis, rv3d->twmat[aidx_norm - 1 > -1 ? aidx_norm - 1 : aidx_norm - 1]);
+				WIDGET_plane_set_direction(axis, rv3d->twmat[aidx_norm - 1 < 0 ? 2 : aidx_norm - 1]);
+				WIDGET_plane_set_up_vector(axis, rv3d->twmat[aidx_norm + 1 > 2 ? 0 : aidx_norm + 1]);
 				break;
 			}
 			case MAN_AXIS_TRANS_C:
