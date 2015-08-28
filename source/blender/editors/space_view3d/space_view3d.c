@@ -790,7 +790,7 @@ static void WIDGETGROUP_forcefield_create(const struct bContext *C, struct wmWid
 
 		RNA_pointer_create(&ob->id, &RNA_FieldSettings, pd, &ptr);
 		WIDGET_arrow_set_direction(widget, ob->obmat[2]);
-		WIDGET_arrow_set_ui_range(widget, -150.0f, 150.0f);
+		WIDGET_arrow_set_ui_range(widget, -200.0f, 200.0f);
 		WM_widget_set_colors(widget, col, col_hi);
 		WM_widget_set_origin(widget, ob->obmat[3]);
 		WM_widget_set_offset(widget, ofs);
