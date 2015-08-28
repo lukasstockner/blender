@@ -779,6 +779,8 @@ static void WIDGETGROUP_forcefield_create(const struct bContext *C, struct wmWid
 	PointerRNA ptr;
 	wmWidget *widget;
 
+	const float size = (ob->type == OB_EMPTY) ? ob->empty_drawsize : 1.0f;
+	const float ofs[3] = {0.0f, -size, 0.0f};
 	const float col[4] = {0.8f, 0.8f, 0.45f, 0.5f};
 	const float col_hi[4] = {0.8f, 0.8f, 0.45f, 1.0f};
 
@@ -791,6 +793,7 @@ static void WIDGETGROUP_forcefield_create(const struct bContext *C, struct wmWid
 		WIDGET_arrow_set_ui_range(widget, -150.0f, 150.0f);
 		WM_widget_set_colors(widget, col, col_hi);
 		WM_widget_set_origin(widget, ob->obmat[3]);
+		WM_widget_set_offset(widget, ofs);
 		WM_widget_set_3d_scale(widget, false);
 		WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &ptr, "strength");
 	}
