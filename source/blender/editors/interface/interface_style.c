@@ -167,6 +167,9 @@ void UI_fontstyle_draw_ex(
 	if (fs->kerning == 1) {
 		font_flag |= BLF_KERNING_DEFAULT;
 	}
+	if (fs->word_wrap == 1) {
+		font_flag |= BLF_WORDWRAP;
+	}
 
 	BLF_enable(fs->uifont_id, font_flag);
 
