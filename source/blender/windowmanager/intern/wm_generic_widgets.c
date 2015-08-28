@@ -359,7 +359,7 @@ static void widget_arrow_draw(const bContext *UNUSED(C), wmWidget *widget)
 	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0);
 }
 
-#define ARROW_RANGE 1.5f
+#define ARROW_RANGE 4.0f
 
 static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *widget)
 {
