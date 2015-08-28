@@ -340,6 +340,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, const bool select, const bool 
 
 		glEnable(GL_BLEND);
 		glColor4f(0.5f, 0.5f, 0.5f, 0.5f);
+		glTranslatef(UNPACK3(arrow->widget.offset));
 		arrow_draw_geom(arrow, select);
 		glDisable(GL_BLEND);
 
