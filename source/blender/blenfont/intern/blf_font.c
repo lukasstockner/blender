@@ -174,12 +174,12 @@ static void blf_font_ensure_ascii_table(FontBLF *font)
 	}                                                                            \
 } (void)0
 
-void blf_font_draw(FontBLF *font, const char *str, size_t len)
+void blf_font_draw(FontBLF *font, const char *str, size_t len, int pen_y)
 {
 	unsigned int c;
 	GlyphBLF *g, *g_prev = NULL;
 	FT_Vector delta;
-	int pen_x = 0, pen_y = 0;
+	int pen_x = 0;
 	size_t i = 0;
 	GlyphBLF **glyph_ascii_table = font->glyph_cache->glyph_ascii_table;
 
@@ -206,12 +206,12 @@ void blf_font_draw(FontBLF *font, const char *str, size_t len)
 }
 
 /* faster version of blf_font_draw, ascii only for view dimensions */
-void blf_font_draw_ascii(FontBLF *font, const char *str, size_t len)
+void blf_font_draw_ascii(FontBLF *font, const char *str, size_t len, int pen_y)
 {
 	unsigned char c;
 	GlyphBLF *g, *g_prev = NULL;
 	FT_Vector delta;
-	int pen_x = 0, pen_y = 0;
+	int pen_x = 0;
 	GlyphBLF **glyph_ascii_table = font->glyph_cache->glyph_ascii_table;
 
 	BLF_KERNING_VARS(font, has_kerning, kern_mode);
@@ -558,12 +558,12 @@ size_t blf_font_width_to_rstrlen(FontBLF *font, const char *str, size_t len, flo
 	return i_prev;
 }
 
-void blf_font_boundbox(FontBLF *font, const char *str, size_t len, rctf *box)
+void blf_font_boundbox(FontBLF *font, const char *str, size_t len, int pen_y, rctf *box)
 {
 	unsigned int c;
 	GlyphBLF *g, *g_prev = NULL;
 	FT_Vector delta;
-	int pen_x = 0, pen_y = 0;
+	int pen_x = 0;
 	size_t i = 0;
 	GlyphBLF **glyph_ascii_table = font->glyph_cache->glyph_ascii_table;
 
@@ -611,6 +611,128 @@ void blf_font_boundbox(FontBLF *font, const char *str, size_t len, rctf *box)
 	}
 }
 
+
+
+/* -------------------------------------------------------------------- */
+/** \name Word-Wrap Support
+ * \{ */
+
+struct WordWrapVars {
+	int x_span;
+	size_t start, last[2];
+};
+
+#define BLF_WORDWRAP_VARS(_font, _wrap) \
+	struct WordWrapVars _wrap = {(int)_font->clip_rec.xmax - (int)_font->pos[0], 0, {0, 0}}
+
+/**
+ * Generic function to add word-wrap support for other existing functions.
+ */
+static void blf_font_wrap_apply(
+        FontBLF *font, const char *str, size_t len,
+        void (*callback)(FontBLF *font, const char *str, size_t len, int pen_y, void *userdata),
+        void *userdata)
+{
+	unsigned int c;
+	GlyphBLF *g, *g_prev = NULL;
+	FT_Vector delta;
+	int pen_x = 0, pen_y = 0;
+	size_t i = 0;
+	GlyphBLF **glyph_ascii_table = font->glyph_cache->glyph_ascii_table;
+
+	BLF_KERNING_VARS(font, has_kerning, kern_mode);
+
+	BLF_WORDWRAP_VARS(font, wrap);
+
+	blf_font_ensure_ascii_table(font);
+
+	while ((i < len) && str[i]) {
+
+		/* wrap vars */
+		size_t i_curr = i;
+		int pen_x_next;
+		bool do_draw = false;
+
+		BLF_UTF8_NEXT_FAST(font, g, str, i, c, glyph_ascii_table);
+
+		if (UNLIKELY(c == BLI_UTF8_ERR))
+			break;
+		if (UNLIKELY(g == NULL))
+			continue;
+		if (has_kerning)
+			BLF_KERNING_STEP(font, kern_mode, g_prev, g, delta, pen_x);
+
+		pen_x_next = pen_x + g->advance_i;
+		if (UNLIKELY((pen_x_next >= wrap.x_span) && (wrap.start != wrap.last[0]))) {
+			do_draw = true;
+		}
+		else if (UNLIKELY(((i < len) && str[i]) == 0)) {
+			wrap.last[0] = i;
+			wrap.last[1] = i;
+			do_draw = true;
+		}
+		else if (UNLIKELY(g->c != ' ' && (g_prev ? g_prev->c == ' ' : false))) {
+			wrap.last[0] = i_curr;
+			wrap.last[1] = i;
+		}
+
+		if (UNLIKELY(do_draw)) {
+			callback(font, &str[wrap.start], (wrap.last[0] - wrap.start), pen_y, userdata);
+			wrap.start = wrap.last[0];
+			i = wrap.last[1];
+			pen_x = 0;
+			pen_y -= font->glyph_cache->max_glyph_height;
+			g_prev = NULL;
+			continue;
+		}
+
+		pen_x = pen_x_next;
+		g_prev = g;
+	}
+}
+
+/* blf_font_draw__wrap */
+static void blf_font_draw__wrap_cb(FontBLF *font, const char *str, size_t len, int pen_y, void *UNUSED(userdata))
+{
+	blf_font_draw(font, str, len, pen_y);
+}
+void blf_font_draw__wrap(FontBLF *font, const char *str, size_t len)
+{
+	blf_font_wrap_apply(font, str, len, blf_font_draw__wrap_cb, NULL);
+}
+
+/* blf_font_draw_ascii__wrap */
+static void blf_font_draw_ascii__wrap_cb(FontBLF *font, const char *str, size_t len, int pen_y, void *UNUSED(userdata))
+{
+	blf_font_draw_ascii(font, str, len, pen_y);
+}
+void blf_font_draw_ascii__wrap(FontBLF *font, const char *str, size_t len)
+{
+	blf_font_wrap_apply(font, str, len, blf_font_draw_ascii__wrap_cb, NULL);
+}
+
+/* blf_font_boundbox__wrap */
+static void blf_font_boundbox_wrap_cb(FontBLF *font, const char *str, size_t len, int pen_y, void *userdata)
+{
+	rctf *box = userdata;
+	rctf box_single;
+
+	blf_font_boundbox(font, str, len, pen_y, &box_single);
+	BLI_rctf_union(box, &box_single);
+}
+void blf_font_boundbox__wrap(FontBLF *font, const char *str, size_t len, rctf *box)
+{
+	box->xmin = 32000.0f;
+	box->xmax = -32000.0f;
+	box->ymin = 32000.0f;
+	box->ymax = -32000.0f;
+
+	blf_font_wrap_apply(font, str, len, blf_font_boundbox_wrap_cb, box);
+}
+
+/** \} */
+
+
 void blf_font_width_and_height(FontBLF *font, const char *str, size_t len, float *width, float *height)
 {
 	float xa, ya;
@@ -625,7 +747,12 @@ void blf_font_width_and_height(FontBLF *font, const char *str, size_t len, float
 		ya = 1.0f;
 	}
 
-	blf_font_boundbox(font, str, len, &box);
+	if (font->flags & BLF_WORDWRAP) {
+		blf_font_boundbox__wrap(font, str, len, &box);
+	}
+	else {
+		blf_font_boundbox(font, str, len, 0, &box);
+	}
 	*width  = (BLI_rctf_size_x(&box) * xa);
 	*height = (BLI_rctf_size_y(&box) * ya);
 }
@@ -640,7 +767,12 @@ float blf_font_width(FontBLF *font, const char *str, size_t len)
 	else
 		xa = 1.0f;
 
-	blf_font_boundbox(font, str, len, &box);
+	if (font->flags & BLF_WORDWRAP) {
+		blf_font_boundbox__wrap(font, str, len, &box);
+	}
+	else {
+		blf_font_boundbox(font, str, len, 0, &box);
+	}
 	return BLI_rctf_size_x(&box) * xa;
 }
 
@@ -654,7 +786,12 @@ float blf_font_height(FontBLF *font, const char *str, size_t len)
 	else
 		ya = 1.0f;
 
-	blf_font_boundbox(font, str, len, &box);
+	if (font->flags & BLF_WORDWRAP) {
+		blf_font_boundbox__wrap(font, str, len, &box);
+	}
+	else {
+		blf_font_boundbox(font, str, len, 0, &box);
+	}
 	return BLI_rctf_size_y(&box) * ya;
 }
 

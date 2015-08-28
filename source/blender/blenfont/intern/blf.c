@@ -561,7 +561,12 @@ void BLF_draw(int fontid, const char *str, size_t len)
 
 	if (font && font->glyph_cache) {
 		blf_draw__start(font, &mode, &param);
-		blf_font_draw(font, str, len);
+		if (font->flags & BLF_WORDWRAP) {
+			blf_font_draw__wrap(font, str, len);
+		}
+		else {
+			blf_font_draw(font, str, len, 0);
+		}
 		blf_draw__end(mode, param);
 	}
 }
@@ -573,7 +578,12 @@ void BLF_draw_ascii(int fontid, const char *str, size_t len)
 
 	if (font && font->glyph_cache) {
 		blf_draw__start(font, &mode, &param);
-		blf_font_draw_ascii(font, str, len);
+		if (font->flags & BLF_WORDWRAP) {
+			blf_font_draw_ascii__wrap(font, str, len);
+		}
+		else {
+			blf_font_draw_ascii(font, str, len, 0);
+		}
 		blf_draw__end(mode, param);
 	}
 }
@@ -638,7 +648,7 @@ void BLF_boundbox(int fontid, const char *str, size_t len, rctf *box)
 	FontBLF *font = blf_get(fontid);
 
 	if (font) {
-		blf_font_boundbox(font, str, len, box);
+		blf_font_boundbox(font, str, len, 0, box);
 	}
 }
 
