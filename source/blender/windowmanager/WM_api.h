@@ -578,7 +578,7 @@ struct wmWidget *WIDGET_arrow_new(struct wmWidgetGroup *wgroup, const char *name
 void WIDGET_arrow_set_direction(struct wmWidget *widget, const float direction[3]);
 void WIDGET_arrow_set_up_vector(struct wmWidget *widget, const float direction[3]);
 void WIDGET_arrow_set_line_vec(struct wmWidget *widget, const float (*vec)[3], const int tot_points);
-void WIDGET_arrow_set_scale(struct wmWidget *widget, const float scale);
+void WIDGET_arrow_set_ui_range(struct wmWidget *widget, const float min, const float max);
 
 struct wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, const char *name, const int style);
 void WIDGET_dial_set_direction(struct wmWidget *widget, const float direction[3]);

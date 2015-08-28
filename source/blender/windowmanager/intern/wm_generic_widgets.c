@@ -153,7 +153,12 @@ static void widget_draw_intern(WidgetDrawInfo *info, const bool select)
 
 /********* Arrow widget ************/
 
-#define ARROW_UP_VECTOR_SET 1
+/* ArrowWidget->flag */
+enum {
+	ARROW_UP_VECTOR_SET    = (1 << 0),
+	ARROW_CUSTOM_LINE_SET =  (1 << 1),
+	ARROW_CUSTOM_RANGE_SET = (1 << 2),
+};
 
 typedef struct ArrowWidget {
 	wmWidget widget;
@@ -227,7 +232,7 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 		normalize_v3_v3(co_norm1, arrow->line[last_co_idx - 1]);
 		normalize_v3_v3(co_norm2, arrow->line[last_co_idx]);
 		rotation_between_vecs_to_mat3(rot, co_norm1, co_norm2);
-		if (arrow->style & WIDGET_ARROW_STYLE_INVERTED) {
+		if ((arrow->flag & ARROW_CUSTOM_LINE_SET) == 0) {
 			negate_m3(rot);
 		}
 
@@ -443,14 +448,20 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 	if (widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE]) {
 		PointerRNA ptr = widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE];
 		PropertyRNA *prop = widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE];
+		float max = arrow->min + arrow->range;
 		float value;
 
 		value = data->orig_offset + facdir * len_v3(offset);
 		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
-				value = arrow->min + arrow->range - (value * arrow->range / ARROW_RANGE);
+				value = max - (value * arrow->range / ARROW_RANGE);
 			else
 				value = arrow->min + (value * arrow->range / ARROW_RANGE);
+		}
+
+		/* clamp to custom range */
+		if (arrow->flag & ARROW_CUSTOM_RANGE_SET) {
+			CLAMP(value, arrow->min, max);
 		}
 
 		RNA_property_float_set(&ptr, prop, value);
@@ -461,7 +472,7 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 		/* accounts for clamping properly */
 		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
-				arrow->offset = ARROW_RANGE * (arrow->min + arrow->range - value) / arrow->range;
+				arrow->offset = ARROW_RANGE * (max - value) / arrow->range;
 			else
 				arrow->offset = ARROW_RANGE * ((value - arrow->min) / arrow->range);
 		}
@@ -505,14 +516,19 @@ static void widget_arrow_bind_to_prop(wmWidget *widget, const int UNUSED(slot))
 	PropertyRNA *prop = widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE];
 
 	if (prop) {
-		const float float_prop = RNA_property_float_get(&ptr, prop);
+		float float_prop = RNA_property_float_get(&ptr, prop);
 
 		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
 			float min, max, step, precision;
 
-			RNA_property_float_ui_range(&ptr, prop, &min, &max, &step, &precision);
-			arrow->range = max - min;
-			arrow->min = min;
+			if (arrow->flag & ARROW_CUSTOM_RANGE_SET) {
+				max = arrow->min + arrow->range;
+			}
+			else {
+				RNA_property_float_ui_range(&ptr, prop, &min, &max, &step, &precision);
+				arrow->range = max - min;
+				arrow->min = min;
+			}
 
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED) {
 				arrow->offset = ARROW_RANGE * (max - float_prop) / arrow->range;
@@ -622,6 +638,24 @@ void WIDGET_arrow_set_line_vec(wmWidget *widget, const float (*vec)[3], const in
 	arrow->tot_line_points = tot_points;
 	arrow->line = MEM_reallocN(arrow->line, vec_size);
 	memcpy(arrow->line, vec, vec_size);
+
+	arrow->flag |= ARROW_CUSTOM_LINE_SET;
+}
+
+/**
+ * Define a custom property UI range
+ *
+ * \note Needs to be called before WM_widget_property!
+ */
+void WIDGET_arrow_set_ui_range(wmWidget *widget, const float min, const float max)
+{
+	ArrowWidget *arrow = (ArrowWidget *)widget;
+
+	BLI_assert(min < max);
+
+	arrow->range = max - min;
+	arrow->min = min;
+	arrow->flag |= ARROW_CUSTOM_RANGE_SET;
 }
 
 

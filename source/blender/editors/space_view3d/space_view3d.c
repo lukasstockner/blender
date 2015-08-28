@@ -36,6 +36,7 @@
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
+#include "DNA_object_force.h"
 #include "DNA_scene_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_key_types.h"
@@ -764,6 +765,37 @@ static void WIDGETGROUP_camera_create(const struct bContext *C, struct wmWidgetG
 	WM_widget_set_scale(widget, ca->drawsize);
 }
 
+static int WIDGETGROUP_forcefield_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
+{
+	Object *ob = CTX_data_active_object(C);
+
+	return ob && ob->pd && ob->pd->forcefield;
+}
+
+static void WIDGETGROUP_forcefield_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
+{
+	Object *ob = CTX_data_active_object(C);
+	PartDeflect *pd = ob->pd;
+	PointerRNA ptr;
+	wmWidget *widget;
+
+	const float col[4] = {0.8f, 0.8f, 0.45f, 0.5f};
+	const float col_hi[4] = {0.8f, 0.8f, 0.45f, 1.0f};
+
+	/* only wind effector for now */
+	if (pd->forcefield == PFIELD_WIND) {
+		widget = WIDGET_arrow_new(wgroup, "field_strength", WIDGET_ARROW_STYLE_CONSTRAINED);
+
+		RNA_pointer_create(&ob->id, &RNA_FieldSettings, pd, &ptr);
+		WIDGET_arrow_set_direction(widget, ob->obmat[2]);
+		WIDGET_arrow_set_ui_range(widget, -150.0f, 150.0f);
+		WM_widget_set_colors(widget, col, col_hi);
+		WM_widget_set_origin(widget, ob->obmat[3]);
+		WM_widget_set_3d_scale(widget, false);
+		WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &ptr, "strength");
+	}
+}
+
 #if 0
 static int WIDGETGROUP_shapekey_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
@@ -878,6 +910,7 @@ static void view3d_widgets(void)
 	WM_widgetgrouptype_new(WIDGETGROUP_manipulator_poll, WIDGETGROUP_manipulator_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll, WIDGETGROUP_lamp_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	WM_widgetgrouptype_new(WIDGETGROUP_camera_poll, WIDGETGROUP_camera_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_forcefield_poll, WIDGETGROUP_forcefield_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	WM_widgetgrouptype_new(WIDGETGROUP_armature_facemap_poll, WIDGETGROUP_armature_facemap_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 }
 
