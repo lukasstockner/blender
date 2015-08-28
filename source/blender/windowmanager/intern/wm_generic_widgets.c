@@ -227,6 +227,9 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 		normalize_v3_v3(co_norm1, arrow->line[last_co_idx - 1]);
 		normalize_v3_v3(co_norm2, arrow->line[last_co_idx]);
 		rotation_between_vecs_to_mat3(rot, co_norm1, co_norm2);
+		if (arrow->style & WIDGET_ARROW_STYLE_INVERTED) {
+			negate_m3(rot);
+		}
 
 		copy_m4_m3(mat, rot);
 		copy_v3_v3(mat[3], arrow->line[last_co_idx]);
