@@ -253,15 +253,24 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 			GLUquadricObj *qobj = gluNewQuadric();
 			const float len = 0.25f;
 			const float width = 0.06f;
+			const bool use_lighting = !select && ((U.tw_flag & V3D_SHADED_WIDGETS) != 0);
 
 			glPushMatrix();
 			glMultMatrixf(mat);
 
+			if (use_lighting) {
+				glShadeModel(GL_SMOOTH);
+			}
+
 			gluQuadricDrawStyle(qobj, GLU_FILL);
-			gluCylinder(qobj, width, 0.0, len, 8, 1);
 			gluQuadricOrientation(qobj, GLU_INSIDE);
 			gluDisk(qobj, 0.0, width, 8, 1);
 			gluQuadricOrientation(qobj, GLU_OUTSIDE);
+			gluCylinder(qobj, width, 0.0, len, 8, 1);
+
+			if (use_lighting) {
+				glShadeModel(GL_FLAT);
+			}
 
 			glPopMatrix();
 		}
@@ -623,17 +632,16 @@ typedef struct DialWidget {
 
 static void dial_draw_geom(const DialWidget *dial, const bool select)
 {
+#ifdef WIDGET_USE_CUSTOM_DIAS
+	glEnable(GL_MULTISAMPLE_ARB);
+
+	widget_draw_intern(&dial_draw_info, select);
+#else
 	GLUquadricObj *qobj = gluNewQuadric();
 	const float width = 1.0f;
 	const int resol = 32;
 
 	glEnable(GL_MULTISAMPLE_ARB);
-
-#ifdef WIDGET_USE_CUSTOM_DIAS
-	widget_draw_intern(&dial_draw_info, select);
-
-	(void)qobj; (void)width; (void)resol;
-#else
 
 	glLineWidth(dial->widget.line_width);
 	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
