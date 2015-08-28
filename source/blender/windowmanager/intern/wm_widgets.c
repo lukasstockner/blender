@@ -469,6 +469,11 @@ void WM_widget_set_origin(wmWidget *widget, const float origin[3])
 	copy_v3_v3(widget->origin, origin);
 }
 
+void WM_widget_set_offset(wmWidget *widget, const float offset[3])
+{
+	copy_v3_v3(widget->offset, offset);
+}
+
 void WM_widget_set_3d_scale(wmWidget *widget, const bool scale)
 {
 	if (scale) {

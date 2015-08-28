@@ -519,7 +519,7 @@ static int sequencer_image_transform_widget_modal(bContext *C, wmOperator *op, c
 
 			/* no offset needed in this case */
 			offset[0] = offset[1] = 0;
-			WIDGET_rect_transform_set_offset(wmap->active_widget, offset);
+			WM_widget_set_offset(wmap->active_widget, offset);
 			break;
 		}
 

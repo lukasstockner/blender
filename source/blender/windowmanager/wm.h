@@ -84,6 +84,8 @@ typedef struct wmWidget {
 
 	/* center of widget in space, 2d or 3d */
 	float origin[3];
+	/* custom offset from origin */
+	float offset[3];
 
 	/* runtime property, set the scale while drawing on the viewport */
 	float scale;

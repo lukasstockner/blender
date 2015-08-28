@@ -514,6 +514,7 @@ void WM_widgetgroup_customdata_set(struct wmWidgetGroup *wgroup, void *data);
 void *WM_widgetgroup_customdata(const struct wmWidgetGroup *wgroup);
 
 void WM_widget_set_origin(struct wmWidget *widget, const float origin[3]);
+void WM_widget_set_offset(struct wmWidget *widget, const float offset[3]);
 void WM_widget_set_3d_scale(struct wmWidget *widget, const bool scale);
 void WM_widget_flag_set(struct wmWidget *widget, const int flag, const bool enable);
 void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, const bool draw);
@@ -585,13 +586,11 @@ void WIDGET_dial_set_direction(struct wmWidget *widget, const float direction[3]
 
 struct wmWidget *WIDGET_plane_new(struct wmWidgetGroup *wgroup, const char *name, const int style);
 void WIDGET_plane_set_direction(struct wmWidget *widget, const float direction[3]);
-void WIDGET_plane_set_offset(struct wmWidget *widget, const float offset[3]);
 void WIDGET_plane_set_up_vector(struct wmWidget *widget, const float direction[3]);
 
 struct wmWidget *WIDGET_rect_transform_new(
         struct wmWidgetGroup *wgroup, const char *name, const int style,
         const float width, const float height);
-void WIDGET_rect_transform_set_offset(struct wmWidget *widget, const float offset[2]);
 
 struct wmWidget *WIDGET_facemap_new(
         struct wmWidgetGroup *wgroup, const char *name, const int style,

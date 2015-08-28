@@ -1167,7 +1167,7 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 
 				WM_widget_set_scale(axis, 0.07f);
 				WM_widget_set_origin(axis, rv3d->twmat[3]);
-				WIDGET_plane_set_offset(axis, ofs);
+				WM_widget_set_offset(axis, ofs);
 				WIDGET_plane_set_direction(axis, rv3d->twmat[aidx_norm - 1 < 0 ? 2 : aidx_norm - 1]);
 				WIDGET_plane_set_up_vector(axis, rv3d->twmat[aidx_norm + 1 > 2 ? 0 : aidx_norm + 1]);
 				break;
