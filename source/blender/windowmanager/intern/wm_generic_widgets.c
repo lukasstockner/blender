@@ -1115,7 +1115,7 @@ static void widget_rect_transform_draw(const bContext *UNUSED(C), wmWidget *widg
 	glPopMatrix();
 }
 
-static int widget_rect_tranfrorm_get_cursor(wmWidget *widget)
+static int widget_rect_transform_get_cursor(wmWidget *widget)
 {
 	switch (widget->highlighted_part) {
 		case WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE:
@@ -1131,7 +1131,7 @@ static int widget_rect_tranfrorm_get_cursor(wmWidget *widget)
 	}
 }
 
-static int widget_rect_tranfrorm_intersect(bContext *UNUSED(C), const wmEvent *event, wmWidget *widget)
+static int widget_rect_transform_intersect(bContext *UNUSED(C), const wmEvent *event, wmWidget *widget)
 {
 	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	const float mouse[2] = {event->mval[0], event->mval[1]};
@@ -1386,7 +1386,7 @@ static void widget_rect_transform_cancel(bContext *C, wmWidget *widget)
 	RectTransformWidget *cage = (RectTransformWidget *) widget;
 	RectTransformInteraction *data = widget->interaction_data;
 
-	/* reset property */
+	/* reset properties */
 	if (widget->props[RECT_TRANSFORM_SLOT_OFFSET]) {
 		PointerRNA ptr = widget->ptr[RECT_TRANSFORM_SLOT_OFFSET];
 		PropertyRNA *prop = widget->props[RECT_TRANSFORM_SLOT_OFFSET];
@@ -1418,9 +1418,9 @@ wmWidget *WIDGET_rect_transform_new(
 	cage->widget.invoke = widget_rect_transform_invoke;
 	cage->widget.bind_to_prop = widget_rect_transform_bind_to_prop;
 	cage->widget.handler = widget_rect_transform_handler;
-	cage->widget.intersect = widget_rect_tranfrorm_intersect;
+	cage->widget.intersect = widget_rect_transform_intersect;
 	cage->widget.cancel = widget_rect_transform_cancel;
-	cage->widget.get_cursor = widget_rect_tranfrorm_get_cursor;
+	cage->widget.get_cursor = widget_rect_transform_get_cursor;
 	cage->widget.max_prop = 2;
 	cage->scale[0] = cage->scale[1] = 1.0f;
 	cage->style = style;
