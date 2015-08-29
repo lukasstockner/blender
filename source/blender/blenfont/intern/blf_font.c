@@ -634,12 +634,14 @@ struct WordWrapVars {
 };
 
 #define BLF_WORDWRAP_VARS(_font, _wrap) \
-	struct WordWrapVars _wrap = {(int)_font->clip_rec.xmax - (int)_font->pos[0], 0, {0, 0}}
+	struct WordWrapVars _wrap = {(int)_font->wrap_width, 0, {0, 0}}
 
 /**
  * Generic function to add word-wrap support for other existing functions.
+ *
+ * \return number of lines.
  */
-static void blf_font_wrap_apply(
+static int blf_font_wrap_apply(
         FontBLF *font, const char *str, size_t len,
         void (*callback)(FontBLF *font, const char *str, size_t len, int pen_y, void *userdata),
         void *userdata)
@@ -650,13 +652,14 @@ static void blf_font_wrap_apply(
 	int pen_x = 0, pen_y = 0;
 	size_t i = 0;
 	GlyphBLF **glyph_ascii_table = font->glyph_cache->glyph_ascii_table;
+	int lines = 0;
 
 	BLF_KERNING_VARS(font, has_kerning, kern_mode);
 
 	BLF_WORDWRAP_VARS(font, wrap);
 
 	blf_font_ensure_ascii_table(font);
-
+	// printf("%s wrapping `%s`:\n", __func__, str);
 	while ((i < len) && str[i]) {
 
 		/* wrap vars */
@@ -688,18 +691,24 @@ static void blf_font_wrap_apply(
 		}
 
 		if (UNLIKELY(do_draw)) {
-			callback(font, &str[wrap.start], (wrap.last[0] - wrap.start), pen_y, userdata);
+			// printf("... `%.*s`\n", wrap.last[0] - wrap.start, &str[wrap.start]);
+			callback(font, &str[wrap.start], wrap.last[0] - wrap.start, pen_y, userdata);
 			wrap.start = wrap.last[0];
 			i = wrap.last[1];
 			pen_x = 0;
 			pen_y -= font->glyph_cache->max_glyph_height;
 			g_prev = NULL;
+			lines += 1;
 			continue;
 		}
 
 		pen_x = pen_x_next;
 		g_prev = g;
 	}
+
+	// printf("done! %d lines\n", lines);
+
+	return lines;
 }
 
 /* blf_font_draw__wrap */
@@ -731,20 +740,26 @@ static void blf_font_boundbox_wrap_cb(FontBLF *font, const char *str, size_t len
 	blf_font_boundbox_ex(font, str, len, &box_single, pen_y);
 	BLI_rctf_union(box, &box_single);
 }
-void blf_font_boundbox__wrap(FontBLF *font, const char *str, size_t len, rctf *box)
+void blf_font_boundbox__wrap(FontBLF *font, const char *str, size_t len, rctf *box, int *r_lines)
 {
+	int lines;
+
 	box->xmin = 32000.0f;
 	box->xmax = -32000.0f;
 	box->ymin = 32000.0f;
 	box->ymax = -32000.0f;
 
-	blf_font_wrap_apply(font, str, len, blf_font_boundbox_wrap_cb, box);
+	lines = blf_font_wrap_apply(font, str, len, blf_font_boundbox_wrap_cb, box);
+
+	if (r_lines) {
+		*r_lines = lines;
+	}
 }
 
 /** \} */
 
 
-void blf_font_width_and_height(FontBLF *font, const char *str, size_t len, float *width, float *height)
+void blf_font_width_and_height(FontBLF *font, const char *str, size_t len, float *width, float *height, int *r_lines)
 {
 	float xa, ya;
 	rctf box;
@@ -759,16 +774,19 @@ void blf_font_width_and_height(FontBLF *font, const char *str, size_t len, float
 	}
 
 	if (font->flags & BLF_WORDWRAP) {
-		blf_font_boundbox__wrap(font, str, len, &box);
+		blf_font_boundbox__wrap(font, str, len, &box, r_lines);
 	}
 	else {
+		if (r_lines) {
+			*r_lines = 1;
+		}
 		blf_font_boundbox(font, str, len, &box);
 	}
 	*width  = (BLI_rctf_size_x(&box) * xa);
 	*height = (BLI_rctf_size_y(&box) * ya);
 }
 
-float blf_font_width(FontBLF *font, const char *str, size_t len)
+float blf_font_width(FontBLF *font, const char *str, size_t len, int *r_lines)
 {
 	float xa;
 	rctf box;
@@ -779,15 +797,18 @@ float blf_font_width(FontBLF *font, const char *str, size_t len)
 		xa = 1.0f;
 
 	if (font->flags & BLF_WORDWRAP) {
-		blf_font_boundbox__wrap(font, str, len, &box);
+		blf_font_boundbox__wrap(font, str, len, &box, r_lines);
 	}
 	else {
+		if (r_lines) {
+			r_lines = 1;
+		}
 		blf_font_boundbox(font, str, len, &box);
 	}
 	return BLI_rctf_size_x(&box) * xa;
 }
 
-float blf_font_height(FontBLF *font, const char *str, size_t len)
+float blf_font_height(FontBLF *font, const char *str, size_t len, int *r_lines)
 {
 	float ya;
 	rctf box;
@@ -798,9 +819,12 @@ float blf_font_height(FontBLF *font, const char *str, size_t len)
 		ya = 1.0f;
 
 	if (font->flags & BLF_WORDWRAP) {
-		blf_font_boundbox__wrap(font, str, len, &box);
+		blf_font_boundbox__wrap(font, str, len, &box, r_lines);
 	}
 	else {
+		if (r_lines) {
+			r_lines = 1;
+		}
 		blf_font_boundbox(font, str, len, &box);
 	}
 	return BLI_rctf_size_y(&box) * ya;

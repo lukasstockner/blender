@@ -657,7 +657,7 @@ void BLF_width_and_height(int fontid, const char *str, size_t len, float *r_widt
 	FontBLF *font = blf_get(fontid);
 
 	if (font && font->glyph_cache) {
-		blf_font_width_and_height(font, str, len, r_width, r_height);
+		blf_font_width_and_height(font, str, len, r_width, r_height, NULL);
 	}
 	else {
 		*r_width = *r_height = 0.0f;
@@ -672,15 +672,19 @@ void BLF_width_and_height_default(const char *str, size_t len, float *r_width, f
 	BLF_width_and_height(global_font_default, str, len, r_width, r_height);
 }
 
-float BLF_width(int fontid, const char *str, size_t len)
+float BLF_width_ex(int fontid, const char *str, size_t len, int *r_lines)
 {
 	FontBLF *font = blf_get(fontid);
 
 	if (font && font->glyph_cache) {
-		return blf_font_width(font, str, len);
+		return blf_font_width(font, str, len, r_lines);
 	}
 
 	return 0.0f;
+}
+float BLF_width(int fontid, const char *str, size_t len)
+{
+	return BLF_width_ex(fontid, str, len, NULL);
 }
 
 float BLF_fixed_width(int fontid)
@@ -702,15 +706,19 @@ float BLF_width_default(const char *str, size_t len)
 	return BLF_width(global_font_default, str, len);
 }
 
-float BLF_height(int fontid, const char *str, size_t len)
+float BLF_height_ex(int fontid, const char *str, size_t len, int *r_lines)
 {
 	FontBLF *font = blf_get(fontid);
 
 	if (font && font->glyph_cache) {
-		return blf_font_height(font, str, len);
+		return blf_font_height(font, str, len, r_lines);
 	}
 
 	return 0.0f;
+}
+float BLF_height(int fontid, const char *str, size_t len)
+{
+	return BLF_height_ex(fontid, str, len, NULL);
 }
 
 float BLF_height_max(int fontid)
@@ -796,6 +804,15 @@ void BLF_clipping_default(float xmin, float ymin, float xmax, float ymax)
 		font->clip_rec.ymin = ymin;
 		font->clip_rec.xmax = xmax;
 		font->clip_rec.ymax = ymax;
+	}
+}
+
+void BLF_wordwrap_width(int fontid, int wrap_width)
+{
+	FontBLF *font = blf_get(global_font_default);
+
+	if (font) {
+		font->wrap_width = wrap_width;
 	}
 }
 

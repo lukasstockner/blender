@@ -97,7 +97,9 @@ void BLF_boundbox(int fontid, const char *str, size_t len, struct rctf *box) ATT
  * of the string, using the current font and both value 
  * are multiplied by the aspect of the font.
  */
+float BLF_width_ex(int fontid, const char *str, size_t len, int *r_lines) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(2);
 float BLF_width(int fontid, const char *str, size_t len) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+float BLF_height_ex(int fontid, const char *str, size_t len, int *r_lines) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(2);
 float BLF_height(int fontid, const char *str, size_t len) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
 /* Return dimensions of the font without any sample text. */
@@ -137,6 +139,7 @@ void BLF_disable_default(int option);
 void BLF_rotation(int fontid, float angle);
 void BLF_clipping(int fontid, float xmin, float ymin, float xmax, float ymax);
 void BLF_clipping_default(float xmin, float ymin, float xmax, float ymax);
+void BLF_wordwrap_width(int fontid, int wrap_width);
 void BLF_blur(int fontid, int size);
 
 void BLF_enable(int fontid, int option);
