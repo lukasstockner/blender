@@ -671,7 +671,7 @@ static int blf_font_wrap_apply(
 	BLF_WORDWRAP_VARS(font, wrap);
 
 	blf_font_ensure_ascii_table(font);
-	// printf("%s wrapping `%s`:\n", __func__, str);
+	// printf("%s wrapping (%d, %d) `%s`:\n", __func__, len, strlen(str), str);
 	while ((i < len) && str[i]) {
 
 		/* wrap vars */
@@ -703,7 +703,7 @@ static int blf_font_wrap_apply(
 		}
 
 		if (UNLIKELY(do_draw)) {
-			// printf("... `%.*s`\n", wrap.last[0] - wrap.start, &str[wrap.start]);
+			// printf("(%d..%d)  `%.*s`\n", wrap.start, wrap.last[0], wrap.last[0] - wrap.start, &str[wrap.start]);
 			callback(font, &str[wrap.start], wrap.last[0] - wrap.start, pen_y, userdata);
 			wrap.start = wrap.last[0];
 			i = wrap.last[1];
