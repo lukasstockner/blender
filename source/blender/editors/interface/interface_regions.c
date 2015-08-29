@@ -178,6 +178,8 @@ typedef struct uiTooltipData {
 		unsigned int lines_wrap;
 	} line_geom[MAX_TOOLTIP_LINES];
 
+	int wrap_width;
+
 	int totline;
 	int toth, lineh;
 } uiTooltipData;
@@ -257,8 +259,8 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 	rgb_tint(alert_color,  0.0f, 0.8f, tone_bg, 0.1f);  /* red        */
 
 	/* draw text */
-	BLF_wordwrap_width(data->fstyle.uifont_id, UI_TIP_MAXWIDTH * U.pixelsize);
-	BLF_wordwrap_width(blf_mono_font, UI_TIP_MAXWIDTH * U.pixelsize);
+	BLF_wordwrap_width(data->fstyle.uifont_id, data->wrap_width);
+	BLF_wordwrap_width(blf_mono_font, data->wrap_width);
 
 	bbox.xmin += 0.5f * pad_px;  /* add padding to the text */
 	bbox.ymax -= 0.25f * pad_px;
@@ -586,14 +588,16 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 
 	UI_fontstyle_set(&data->fstyle);
 
+	data->wrap_width = min_ii(UI_TIP_MAXWIDTH * U.pixelsize, WM_window_pixels_x(win) - (UI_TIP_PADDING * 2));
+
 	font_flag |= BLF_WORDWRAP;
 	if (data->fstyle.kerning == 1) {
 		font_flag |= BLF_KERNING_DEFAULT;
 	}
 	BLF_enable(data->fstyle.uifont_id, font_flag);
 	BLF_enable(blf_mono_font, font_flag);
-	BLF_wordwrap_width(data->fstyle.uifont_id, UI_TIP_MAXWIDTH * U.pixelsize);
-	BLF_wordwrap_width(blf_mono_font, UI_TIP_MAXWIDTH * U.pixelsize);
+	BLF_wordwrap_width(data->fstyle.uifont_id, data->wrap_width);
+	BLF_wordwrap_width(blf_mono_font, data->wrap_width);
 
 	/* these defines tweaked depending on font */
 #define TIP_BORDER_X (16.0f / aspect)
