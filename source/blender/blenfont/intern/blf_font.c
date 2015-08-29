@@ -174,7 +174,9 @@ static void blf_font_ensure_ascii_table(FontBLF *font)
 	}                                                                            \
 } (void)0
 
-static void blf_font_draw_ex(FontBLF *font, const char *str, size_t len, int pen_y)
+static void blf_font_draw_ex(
+        FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info,
+        int pen_y)
 {
 	unsigned int c;
 	GlyphBLF *g, *g_prev = NULL;
@@ -203,10 +205,14 @@ static void blf_font_draw_ex(FontBLF *font, const char *str, size_t len, int pen
 		pen_x += g->advance_i;
 		g_prev = g;
 	}
+
+	if (r_info) {
+		r_info->width = pen_x;
+	}
 }
-void blf_font_draw(FontBLF *font, const char *str, size_t len)
+void blf_font_draw(FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info)
 {
-	blf_font_draw_ex(font, str, len, 0);
+	blf_font_draw_ex(font, str, len, r_info, 0);
 }
 
 /* faster version of blf_font_draw, ascii only for view dimensions */
@@ -566,7 +572,9 @@ size_t blf_font_width_to_rstrlen(FontBLF *font, const char *str, size_t len, flo
 	return i_prev;
 }
 
-static void blf_font_boundbox_ex(FontBLF *font, const char *str, size_t len, rctf *box, int pen_y)
+static void blf_font_boundbox_ex(
+        FontBLF *font, const char *str, size_t len, rctf *box, struct ResultBLF *r_info,
+        int pen_y)
 {
 	unsigned int c;
 	GlyphBLF *g, *g_prev = NULL;
@@ -617,10 +625,14 @@ static void blf_font_boundbox_ex(FontBLF *font, const char *str, size_t len, rct
 		box->xmax = 0.0f;
 		box->ymax = 0.0f;
 	}
+
+	if (r_info) {
+		r_info->width = pen_x;
+	}
 }
-void blf_font_boundbox(FontBLF *font, const char *str, size_t len, rctf *box)
+void blf_font_boundbox(FontBLF *font, const char *str, size_t len, rctf *r_box, struct ResultBLF *r_info)
 {
-	blf_font_boundbox_ex(font, str, len, box, 0);
+	blf_font_boundbox_ex(font, str, len, r_box, r_info, 0);
 }
 
 
@@ -714,21 +726,17 @@ static int blf_font_wrap_apply(
 /* blf_font_draw__wrap */
 static void blf_font_draw__wrap_cb(FontBLF *font, const char *str, size_t len, int pen_y, void *UNUSED(userdata))
 {
-	blf_font_draw_ex(font, str, len, pen_y);
+	blf_font_draw_ex(font, str, len, NULL, pen_y);
 }
-void blf_font_draw__wrap(FontBLF *font, const char *str, size_t len)
+void blf_font_draw__wrap(FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info)
 {
-	blf_font_wrap_apply(font, str, len, blf_font_draw__wrap_cb, NULL);
-}
+	int lines;
 
-/* blf_font_draw_ascii__wrap */
-static void blf_font_draw_ascii__wrap_cb(FontBLF *font, const char *str, size_t len, int pen_y, void *UNUSED(userdata))
-{
-	blf_font_draw_ascii_ex(font, str, len, pen_y);
-}
-void blf_font_draw_ascii__wrap(FontBLF *font, const char *str, size_t len)
-{
-	blf_font_wrap_apply(font, str, len, blf_font_draw_ascii__wrap_cb, NULL);
+	lines = blf_font_wrap_apply(font, str, len, blf_font_draw__wrap_cb, NULL);
+
+	if (r_info) {
+		r_info->lines_wrap = lines;
+	}
 }
 
 /* blf_font_boundbox__wrap */
@@ -737,10 +745,10 @@ static void blf_font_boundbox_wrap_cb(FontBLF *font, const char *str, size_t len
 	rctf *box = userdata;
 	rctf box_single;
 
-	blf_font_boundbox_ex(font, str, len, &box_single, pen_y);
+	blf_font_boundbox_ex(font, str, len, &box_single, NULL, pen_y);
 	BLI_rctf_union(box, &box_single);
 }
-void blf_font_boundbox__wrap(FontBLF *font, const char *str, size_t len, rctf *box, int *r_lines)
+void blf_font_boundbox__wrap(FontBLF *font, const char *str, size_t len, rctf *box, struct ResultBLF *r_info)
 {
 	int lines;
 
@@ -751,15 +759,17 @@ void blf_font_boundbox__wrap(FontBLF *font, const char *str, size_t len, rctf *b
 
 	lines = blf_font_wrap_apply(font, str, len, blf_font_boundbox_wrap_cb, box);
 
-	if (r_lines) {
-		*r_lines = lines;
+	if (r_info) {
+		r_info->lines_wrap = lines;
 	}
 }
 
 /** \} */
 
 
-void blf_font_width_and_height(FontBLF *font, const char *str, size_t len, float *width, float *height, int *r_lines)
+void blf_font_width_and_height(
+        FontBLF *font, const char *str, size_t len,
+        float *r_width, float *r_height, struct ResultBLF *r_info)
 {
 	float xa, ya;
 	rctf box;
@@ -774,19 +784,16 @@ void blf_font_width_and_height(FontBLF *font, const char *str, size_t len, float
 	}
 
 	if (font->flags & BLF_WORDWRAP) {
-		blf_font_boundbox__wrap(font, str, len, &box, r_lines);
+		blf_font_boundbox__wrap(font, str, len, &box, r_info);
 	}
 	else {
-		if (r_lines) {
-			*r_lines = 1;
-		}
-		blf_font_boundbox(font, str, len, &box);
+		blf_font_boundbox(font, str, len, &box, r_info);
 	}
-	*width  = (BLI_rctf_size_x(&box) * xa);
-	*height = (BLI_rctf_size_y(&box) * ya);
+	*r_width  = (BLI_rctf_size_x(&box) * xa);
+	*r_height = (BLI_rctf_size_y(&box) * ya);
 }
 
-float blf_font_width(FontBLF *font, const char *str, size_t len, int *r_lines)
+float blf_font_width(FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info)
 {
 	float xa;
 	rctf box;
@@ -797,18 +804,15 @@ float blf_font_width(FontBLF *font, const char *str, size_t len, int *r_lines)
 		xa = 1.0f;
 
 	if (font->flags & BLF_WORDWRAP) {
-		blf_font_boundbox__wrap(font, str, len, &box, r_lines);
+		blf_font_boundbox__wrap(font, str, len, &box, r_info);
 	}
 	else {
-		if (r_lines) {
-			r_lines = 1;
-		}
-		blf_font_boundbox(font, str, len, &box);
+		blf_font_boundbox(font, str, len, &box, r_info);
 	}
 	return BLI_rctf_size_x(&box) * xa;
 }
 
-float blf_font_height(FontBLF *font, const char *str, size_t len, int *r_lines)
+float blf_font_height(FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info)
 {
 	float ya;
 	rctf box;
@@ -819,13 +823,10 @@ float blf_font_height(FontBLF *font, const char *str, size_t len, int *r_lines)
 		ya = 1.0f;
 
 	if (font->flags & BLF_WORDWRAP) {
-		blf_font_boundbox__wrap(font, str, len, &box, r_lines);
+		blf_font_boundbox__wrap(font, str, len, &box, r_info);
 	}
 	else {
-		if (r_lines) {
-			r_lines = 1;
-		}
-		blf_font_boundbox(font, str, len, &box);
+		blf_font_boundbox(font, str, len, &box, r_info);
 	}
 	return BLI_rctf_size_y(&box) * ya;
 }

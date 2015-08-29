@@ -66,6 +66,11 @@
 /* call BLF_default_set first! */
 #define ASSERT_DEFAULT_SET BLI_assert(global_font_default != -1)
 
+#define BLF_RESULT_CHECK_INIT(r_info) \
+if (r_info) { \
+	memset(r_info, 0, sizeof(*(r_info))); \
+} ((void)0)
+
 /* Font array. */
 static FontBLF *global_font[BLF_MAX_FONT] = {NULL};
 
@@ -554,38 +559,55 @@ static void blf_draw__end(GLint mode, GLint param)
 	glDisable(GL_TEXTURE_2D);
 }
 
-void BLF_draw(int fontid, const char *str, size_t len)
+void BLF_draw_ex(
+        int fontid, const char *str, size_t len,
+        struct ResultBLF *r_info)
 {
 	FontBLF *font = blf_get(fontid);
 	GLint mode, param;
 
+	BLF_RESULT_CHECK_INIT(r_info);
+
 	if (font && font->glyph_cache) {
 		blf_draw__start(font, &mode, &param);
 		if (font->flags & BLF_WORDWRAP) {
-			blf_font_draw__wrap(font, str, len);
+			blf_font_draw__wrap(font, str, len, r_info);
 		}
 		else {
-			blf_font_draw(font, str, len);
+			blf_font_draw(font, str, len, r_info);
 		}
 		blf_draw__end(mode, param);
 	}
 }
+void BLF_draw(int fontid, const char *str, size_t len)
+{
+	BLF_draw_ex(fontid, str, len, NULL);
+}
 
-void BLF_draw_ascii(int fontid, const char *str, size_t len)
+void BLF_draw_ascii_ex(
+        int fontid, const char *str, size_t len,
+        struct ResultBLF *r_info)
 {
 	FontBLF *font = blf_get(fontid);
 	GLint mode, param;
 
+	BLF_RESULT_CHECK_INIT(r_info);
+
 	if (font && font->glyph_cache) {
 		blf_draw__start(font, &mode, &param);
 		if (font->flags & BLF_WORDWRAP) {
-			blf_font_draw_ascii__wrap(font, str, len);
+			/* use non-ascii draw function for word-wrap */
+			blf_font_draw__wrap(font, str, len, r_info);
 		}
 		else {
 			blf_font_draw_ascii(font, str, len);
 		}
 		blf_draw__end(mode, param);
 	}
+}
+void BLF_draw_ascii(int fontid, const char *str, size_t len)
+{
+	BLF_draw_ascii_ex(fontid, str, len, NULL);
 }
 
 int BLF_draw_mono(int fontid, const char *str, size_t len, int cwidth)
@@ -643,13 +665,26 @@ size_t BLF_width_to_rstrlen(int fontid, const char *str, size_t len, float width
 	return 0;
 }
 
-void BLF_boundbox(int fontid, const char *str, size_t len, rctf *box)
+void BLF_boundbox_ex(
+        int fontid, const char *str, size_t len, rctf *r_box,
+        struct ResultBLF *r_info)
 {
 	FontBLF *font = blf_get(fontid);
 
+	BLF_RESULT_CHECK_INIT(r_info);
+
 	if (font) {
-		blf_font_boundbox(font, str, len, box);
+		if (font->flags & BLF_WORDWRAP) {
+			blf_font_boundbox__wrap(font, str, len, r_box, r_info);
+		}
+		else {
+			blf_font_boundbox(font, str, len, r_box, r_info);
+		}
 	}
+}
+void BLF_boundbox(int fontid, const char *str, size_t len, rctf *r_box)
+{
+	BLF_boundbox_ex(fontid, str, len, r_box, NULL);
 }
 
 void BLF_width_and_height(int fontid, const char *str, size_t len, float *r_width, float *r_height)
@@ -672,12 +707,16 @@ void BLF_width_and_height_default(const char *str, size_t len, float *r_width, f
 	BLF_width_and_height(global_font_default, str, len, r_width, r_height);
 }
 
-float BLF_width_ex(int fontid, const char *str, size_t len, int *r_lines)
+float BLF_width_ex(
+        int fontid, const char *str, size_t len,
+        struct ResultBLF *r_info)
 {
 	FontBLF *font = blf_get(fontid);
 
+	BLF_RESULT_CHECK_INIT(r_info);
+
 	if (font && font->glyph_cache) {
-		return blf_font_width(font, str, len, r_lines);
+		return blf_font_width(font, str, len, r_info);
 	}
 
 	return 0.0f;
@@ -706,12 +745,16 @@ float BLF_width_default(const char *str, size_t len)
 	return BLF_width(global_font_default, str, len);
 }
 
-float BLF_height_ex(int fontid, const char *str, size_t len, int *r_lines)
+float BLF_height_ex(
+        int fontid, const char *str, size_t len,
+        struct ResultBLF *r_info)
 {
 	FontBLF *font = blf_get(fontid);
 
+	BLF_RESULT_CHECK_INIT(r_info);
+
 	if (font && font->glyph_cache) {
-		return blf_font_height(font, str, len, r_lines);
+		return blf_font_height(font, str, len, r_info);
 	}
 
 	return 0.0f;
@@ -809,7 +852,7 @@ void BLF_clipping_default(float xmin, float ymin, float xmax, float ymax)
 
 void BLF_wordwrap(int fontid, int wrap_width)
 {
-	FontBLF *font = blf_get(global_font_default);
+	FontBLF *font = blf_get(fontid);
 
 	if (font) {
 		font->wrap_width = wrap_width;

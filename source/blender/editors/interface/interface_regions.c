@@ -606,33 +606,33 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	h = BLF_height_max(data->fstyle.uifont_id);
 
 	for (i = 0, fontw = 0, fonth = 0; i < data->totline; i++) {
-		int lines_wrap = 1;
+		struct ResultBLF info;
 		int w, w_other = 0;
 
 		if (data->format[i].style == UI_TIP_STYLE_HEADER) {
-			w = BLF_width_ex(data->fstyle.uifont_id, data->header, sizeof(data->header), &lines_wrap);
+			w = BLF_width_ex(data->fstyle.uifont_id, data->header, sizeof(data->header), &info);
 			if (enum_label.strinfo)
 				w_other = BLF_width(data->fstyle.uifont_id, data->active_info, sizeof(data->active_info));
 		}
 		else if (data->format[i].style == UI_TIP_STYLE_MONO) {
 			BLF_size(blf_mono_font, data->fstyle.points * U.pixelsize, U.dpi);
 
-			w = BLF_width_ex(blf_mono_font, data->lines[i], sizeof(data->lines[i]), &lines_wrap);
+			w = BLF_width_ex(blf_mono_font, data->lines[i], sizeof(data->lines[i]), &info);
 		}
 		else {
 			BLI_assert(data->format[i].style == UI_TIP_STYLE_NORMAL);
 
-			w = BLF_width_ex(data->fstyle.uifont_id, data->lines[i], sizeof(data->lines[i]), &lines_wrap);
+			w = BLF_width_ex(data->fstyle.uifont_id, data->lines[i], sizeof(data->lines[i]), &info);
 		}
 
 		fontw = max_ii(fontw, w + w_other);
 
-		fonth += h * lines_wrap;
+		fonth += h * info.lines_wrap;
 		if ((i + 1 != data->totline) && data->format[i + 1].is_pad) {
 			fonth += h * (UI_TIP_PAD_FAC - 1);
 		}
 
-		data->line_geom[i].lines_wrap = lines_wrap;
+		data->line_geom[i].lines_wrap = info.lines_wrap;
 		data->line_geom[i].width = w;
 	}
 
