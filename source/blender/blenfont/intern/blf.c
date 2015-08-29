@@ -565,7 +565,7 @@ void BLF_draw(int fontid, const char *str, size_t len)
 			blf_font_draw__wrap(font, str, len);
 		}
 		else {
-			blf_font_draw(font, str, len, 0);
+			blf_font_draw(font, str, len);
 		}
 		blf_draw__end(mode, param);
 	}
@@ -582,7 +582,7 @@ void BLF_draw_ascii(int fontid, const char *str, size_t len)
 			blf_font_draw_ascii__wrap(font, str, len);
 		}
 		else {
-			blf_font_draw_ascii(font, str, len, 0);
+			blf_font_draw_ascii(font, str, len);
 		}
 		blf_draw__end(mode, param);
 	}
@@ -648,7 +648,7 @@ void BLF_boundbox(int fontid, const char *str, size_t len, rctf *box)
 	FontBLF *font = blf_get(fontid);
 
 	if (font) {
-		blf_font_boundbox(font, str, len, 0, box);
+		blf_font_boundbox(font, str, len, box);
 	}
 }
 

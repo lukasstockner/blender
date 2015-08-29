@@ -174,7 +174,7 @@ static void blf_font_ensure_ascii_table(FontBLF *font)
 	}                                                                            \
 } (void)0
 
-void blf_font_draw(FontBLF *font, const char *str, size_t len, int pen_y)
+static void blf_font_draw_ex(FontBLF *font, const char *str, size_t len, int pen_y)
 {
 	unsigned int c;
 	GlyphBLF *g, *g_prev = NULL;
@@ -204,9 +204,13 @@ void blf_font_draw(FontBLF *font, const char *str, size_t len, int pen_y)
 		g_prev = g;
 	}
 }
+void blf_font_draw(FontBLF *font, const char *str, size_t len)
+{
+	blf_font_draw_ex(font, str, len, 0);
+}
 
 /* faster version of blf_font_draw, ascii only for view dimensions */
-void blf_font_draw_ascii(FontBLF *font, const char *str, size_t len, int pen_y)
+static void blf_font_draw_ascii_ex(FontBLF *font, const char *str, size_t len, int pen_y)
 {
 	unsigned char c;
 	GlyphBLF *g, *g_prev = NULL;
@@ -231,6 +235,10 @@ void blf_font_draw_ascii(FontBLF *font, const char *str, size_t len, int pen_y)
 		pen_x += g->advance_i;
 		g_prev = g;
 	}
+}
+void blf_font_draw_ascii(FontBLF *font, const char *str, size_t len)
+{
+	blf_font_draw_ascii_ex(font, str, len, 0);
 }
 
 /* use fixed column width, but an utf8 character may occupy multiple columns */
@@ -558,7 +566,7 @@ size_t blf_font_width_to_rstrlen(FontBLF *font, const char *str, size_t len, flo
 	return i_prev;
 }
 
-void blf_font_boundbox(FontBLF *font, const char *str, size_t len, int pen_y, rctf *box)
+static void blf_font_boundbox_ex(FontBLF *font, const char *str, size_t len, rctf *box, int pen_y)
 {
 	unsigned int c;
 	GlyphBLF *g, *g_prev = NULL;
@@ -610,7 +618,10 @@ void blf_font_boundbox(FontBLF *font, const char *str, size_t len, int pen_y, rc
 		box->ymax = 0.0f;
 	}
 }
-
+void blf_font_boundbox(FontBLF *font, const char *str, size_t len, rctf *box)
+{
+	blf_font_boundbox_ex(font, str, len, box, 0);
+}
 
 
 /* -------------------------------------------------------------------- */
@@ -694,7 +705,7 @@ static void blf_font_wrap_apply(
 /* blf_font_draw__wrap */
 static void blf_font_draw__wrap_cb(FontBLF *font, const char *str, size_t len, int pen_y, void *UNUSED(userdata))
 {
-	blf_font_draw(font, str, len, pen_y);
+	blf_font_draw_ex(font, str, len, pen_y);
 }
 void blf_font_draw__wrap(FontBLF *font, const char *str, size_t len)
 {
@@ -704,7 +715,7 @@ void blf_font_draw__wrap(FontBLF *font, const char *str, size_t len)
 /* blf_font_draw_ascii__wrap */
 static void blf_font_draw_ascii__wrap_cb(FontBLF *font, const char *str, size_t len, int pen_y, void *UNUSED(userdata))
 {
-	blf_font_draw_ascii(font, str, len, pen_y);
+	blf_font_draw_ascii_ex(font, str, len, pen_y);
 }
 void blf_font_draw_ascii__wrap(FontBLF *font, const char *str, size_t len)
 {
@@ -717,7 +728,7 @@ static void blf_font_boundbox_wrap_cb(FontBLF *font, const char *str, size_t len
 	rctf *box = userdata;
 	rctf box_single;
 
-	blf_font_boundbox(font, str, len, pen_y, &box_single);
+	blf_font_boundbox_ex(font, str, len, &box_single, pen_y);
 	BLI_rctf_union(box, &box_single);
 }
 void blf_font_boundbox__wrap(FontBLF *font, const char *str, size_t len, rctf *box)
@@ -751,7 +762,7 @@ void blf_font_width_and_height(FontBLF *font, const char *str, size_t len, float
 		blf_font_boundbox__wrap(font, str, len, &box);
 	}
 	else {
-		blf_font_boundbox(font, str, len, 0, &box);
+		blf_font_boundbox(font, str, len, &box);
 	}
 	*width  = (BLI_rctf_size_x(&box) * xa);
 	*height = (BLI_rctf_size_y(&box) * ya);
@@ -771,7 +782,7 @@ float blf_font_width(FontBLF *font, const char *str, size_t len)
 		blf_font_boundbox__wrap(font, str, len, &box);
 	}
 	else {
-		blf_font_boundbox(font, str, len, 0, &box);
+		blf_font_boundbox(font, str, len, &box);
 	}
 	return BLI_rctf_size_x(&box) * xa;
 }
@@ -790,7 +801,7 @@ float blf_font_height(FontBLF *font, const char *str, size_t len)
 		blf_font_boundbox__wrap(font, str, len, &box);
 	}
 	else {
-		blf_font_boundbox(font, str, len, 0, &box);
+		blf_font_boundbox(font, str, len, &box);
 	}
 	return BLI_rctf_size_y(&box) * ya;
 }
