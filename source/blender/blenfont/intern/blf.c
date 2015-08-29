@@ -807,7 +807,7 @@ void BLF_clipping_default(float xmin, float ymin, float xmax, float ymax)
 	}
 }
 
-void BLF_wordwrap_width(int fontid, int wrap_width)
+void BLF_wordwrap(int fontid, int wrap_width)
 {
 	FontBLF *font = blf_get(global_font_default);
 

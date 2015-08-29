@@ -259,8 +259,8 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 	rgb_tint(alert_color,  0.0f, 0.8f, tone_bg, 0.1f);  /* red        */
 
 	/* draw text */
-	BLF_wordwrap_width(data->fstyle.uifont_id, data->wrap_width);
-	BLF_wordwrap_width(blf_mono_font, data->wrap_width);
+	BLF_wordwrap(data->fstyle.uifont_id, data->wrap_width);
+	BLF_wordwrap(blf_mono_font, data->wrap_width);
 
 	bbox.xmin += 0.5f * pad_px;  /* add padding to the text */
 	bbox.ymax -= 0.25f * pad_px;
@@ -596,8 +596,8 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	}
 	BLF_enable(data->fstyle.uifont_id, font_flag);
 	BLF_enable(blf_mono_font, font_flag);
-	BLF_wordwrap_width(data->fstyle.uifont_id, data->wrap_width);
-	BLF_wordwrap_width(blf_mono_font, data->wrap_width);
+	BLF_wordwrap(data->fstyle.uifont_id, data->wrap_width);
+	BLF_wordwrap(blf_mono_font, data->wrap_width);
 
 	/* these defines tweaked depending on font */
 #define TIP_BORDER_X (16.0f / aspect)
