@@ -148,7 +148,7 @@ static void ui_region_temp_remove(bContext *C, bScreen *sc, ARegion *ar)
 
 #define UI_TIP_PAD_FAC      1.3f
 #define UI_TIP_PADDING      (int)(UI_TIP_PAD_FAC * UI_UNIT_Y)
-#define UI_TIP_MAXWIDTH     800
+#define UI_TIP_MAXWIDTH     600
 
 #define MAX_TOOLTIP_LINES 8
 typedef struct uiTooltipData {
@@ -588,7 +588,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 
 	UI_fontstyle_set(&data->fstyle);
 
-	data->wrap_width = min_ii(UI_TIP_MAXWIDTH * U.pixelsize, WM_window_pixels_x(win) - (UI_TIP_PADDING * 2));
+	data->wrap_width = min_ii(UI_TIP_MAXWIDTH * U.pixelsize / aspect, WM_window_pixels_x(win) - (UI_TIP_PADDING * 2));
 
 	font_flag |= BLF_WORDWRAP;
 	if (data->fstyle.kerning == 1) {
