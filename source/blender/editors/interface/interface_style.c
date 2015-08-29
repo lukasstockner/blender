@@ -152,7 +152,6 @@ void UI_fontstyle_draw_ex(
         const uiFontStyle *fs, const rcti *rect, const char *str,
         size_t len, float *r_xofs, float *r_yofs)
 {
-	float height;
 	int xofs = 0, yofs;
 	int font_flag = BLF_CLIPPING;
 	
@@ -173,8 +172,7 @@ void UI_fontstyle_draw_ex(
 
 	BLF_enable(fs->uifont_id, font_flag);
 
-	height = BLF_ascender(fs->uifont_id);
-	yofs = ceil(0.5f * (BLI_rcti_size_y(rect) - height));
+	yofs = ceil(BLI_rcti_size_y(rect) - BLF_height_max(fs->uifont_id));
 
 	if (fs->align == UI_STYLE_TEXT_CENTER) {
 		xofs = floor(0.5f * (BLI_rcti_size_x(rect) - BLF_width(fs->uifont_id, str, len)));
