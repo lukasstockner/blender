@@ -2583,7 +2583,9 @@ static int graph_widget_backdrop_transform_modal(bContext *C, wmOperator *op, co
 	}
 
 	switch (event->type) {
-		case EVT_WIDGET_UPDATE: {
+		case EVT_WIDGET_UPDATE:
+		case EVT_WIDGET_RELEASED:
+		{
 			SpaceIpo *sipo = CTX_wm_space_graph(C);
 			RNA_float_get_array(op->ptr, "offset", sipo->backdrop_offset);
 			sipo->backdrop_zoom = RNA_float_get(op->ptr, "scale");
@@ -2613,12 +2615,18 @@ static int graph_widget_backdrop_transform_modal(bContext *C, wmOperator *op, co
 		case ESCKEY:
 		case RIGHTMOUSE:
 		{
+			ARegion *ar = CTX_wm_region(C);
+			wmWidgetMap *wmap = ar->widgetmaps.first;
 			SpaceIpo *sipo = CTX_wm_space_graph(C);
-			copy_v2_v2(sipo->backdrop_offset, data->init_offset);
-			sipo->backdrop_zoom = data->init_zoom;
 
-			graph_widget_backdrop_transform_finish(C, data);
-			return OPERATOR_CANCELLED;
+			/* only end modal if we're not dragging a widget */
+			if (!wmap->active_widget && event->val == KM_PRESS) {
+				copy_v2_v2(sipo->backdrop_offset, data->init_offset);
+				sipo->backdrop_zoom = data->init_zoom;
+
+				graph_widget_backdrop_transform_finish(C, data);
+				return OPERATOR_CANCELLED;
+			}
 		}
 	}
 

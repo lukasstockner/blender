@@ -337,14 +337,15 @@ static int sequencer_overdrop_transform_modal(bContext *C, wmOperator *op, const
 	}
 	
 	switch (event->type) {
-		case EVT_WIDGET_UPDATE: {
+		case EVT_WIDGET_UPDATE:
+		case EVT_WIDGET_RELEASED:
+		{
 			SpaceSeq *sseq = CTX_wm_space_seq(C);
 			RNA_float_get_array(op->ptr, "offset", sseq->overdrop_offset);
 			sseq->overdrop_zoom = RNA_float_get(op->ptr, "scale");
 			break;
 		}
-			
-		case RKEY: 
+		case RKEY:
 		{
 			SpaceSeq *sseq = CTX_wm_space_seq(C);
 			ARegion *ar = CTX_wm_region(C);
@@ -369,12 +370,18 @@ static int sequencer_overdrop_transform_modal(bContext *C, wmOperator *op, const
 		case ESCKEY:
 		case RIGHTMOUSE:
 		{
+			ARegion *ar = CTX_wm_region(C);
+			wmWidgetMap *wmap = ar->widgetmaps.first;
 			SpaceSeq *sseq = CTX_wm_space_seq(C);
-			copy_v2_v2(sseq->overdrop_offset, data->init_offset);
-			sseq->overdrop_zoom = data->init_zoom;
-			
-			sequencer_overdrop_finish(C, data);
-			return OPERATOR_CANCELLED;
+
+			/* only end modal if we're not dragging a widget */
+			if (!wmap->active_widget && event->val == KM_PRESS) {
+				copy_v2_v2(sseq->overdrop_offset, data->init_offset);
+				sseq->overdrop_zoom = data->init_zoom;
+
+				sequencer_overdrop_finish(C, data);
+				return OPERATOR_CANCELLED;
+			}
 		}
 	}
 	

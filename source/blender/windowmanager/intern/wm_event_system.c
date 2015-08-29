@@ -2086,7 +2086,6 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 						break;
 
 					case LEFTMOUSE:
-					{
 						if (widget) {
 							if (event->val == KM_RELEASE) {
 								wm_widgetmap_set_active_widget(wmap, C, event, NULL, false);
@@ -2106,7 +2105,17 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 							}
 						}
 						break;
-					}
+					case RIGHTMOUSE:
+					case ESCKEY:
+						if (widget) {
+							if (widget->cancel) {
+								widget->cancel(C, widget);
+							}
+							wm_widgetmap_set_active_widget(wmap, C, event, NULL, false);
+							event_processed = EVT_WIDGET_RELEASED;
+							action |= WM_HANDLER_BREAK;
+						}
+						break;
 				}
 				
 				/* restore the area */

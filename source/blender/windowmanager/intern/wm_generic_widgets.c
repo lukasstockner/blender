@@ -174,6 +174,7 @@ typedef struct ArrowWidget {
 } ArrowWidget;
 
 typedef struct ArrowInteraction {
+	float orig_value; /* initial property value */
 	float orig_origin[3];
 	float orig_mouse[2];
 	float orig_offset;
@@ -496,6 +497,12 @@ static int widget_arrow_invoke(bContext *UNUSED(C), const wmEvent *event, wmWidg
 {
 	ArrowWidget *arrow = (ArrowWidget *) widget;
 	ArrowInteraction *data = MEM_callocN(sizeof(ArrowInteraction), "arrow_interaction");
+	PointerRNA ptr = widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE];
+	PropertyRNA *prop = widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE];
+
+	if (prop) {
+		data->orig_value = RNA_property_float_get(&ptr, prop);
+	}
 
 	data->orig_offset = arrow->offset;
 
@@ -548,6 +555,17 @@ static void widget_arrow_bind_to_prop(wmWidget *widget, const int UNUSED(slot))
 		arrow->offset = 0.0f;
 }
 
+static void widget_arrow_cancel(bContext *C, wmWidget *widget)
+{
+	PointerRNA ptr = widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE];
+	PropertyRNA *prop = widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE];
+	ArrowInteraction *data = widget->interaction_data;
+
+	/* reset property */
+	RNA_property_float_set(&ptr, prop, data->orig_value);
+	RNA_property_update(C, &ptr, prop);
+}
+
 wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int style)
 {
 	ArrowWidget *arrow = MEM_callocN(sizeof(ArrowWidget), name);
@@ -590,6 +608,7 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	arrow->widget.invoke = widget_arrow_invoke;
 	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
 	arrow->widget.bind_to_prop = widget_arrow_bind_to_prop;
+	arrow->widget.cancel = widget_arrow_cancel;
 	arrow->widget.flag |= WM_WIDGET_SCALE_3D;
 
 	arrow->style = real_style;
@@ -1362,6 +1381,33 @@ static void widget_rect_transform_bind_to_prop(wmWidget *widget, const int slot)
 		widget_rect_transform_get_property(widget, RECT_TRANSFORM_SLOT_SCALE, cage->scale);
 }
 
+static void widget_rect_transform_cancel(bContext *C, wmWidget *widget)
+{
+	RectTransformWidget *cage = (RectTransformWidget *) widget;
+	RectTransformInteraction *data = widget->interaction_data;
+
+	/* reset property */
+	if (widget->props[RECT_TRANSFORM_SLOT_OFFSET]) {
+		PointerRNA ptr = widget->ptr[RECT_TRANSFORM_SLOT_OFFSET];
+		PropertyRNA *prop = widget->props[RECT_TRANSFORM_SLOT_OFFSET];
+
+		RNA_property_float_set_array(&ptr, prop, data->orig_offset);
+		RNA_property_update(C, &ptr, prop);
+	}
+	if (widget->props[RECT_TRANSFORM_SLOT_SCALE]) {
+		PointerRNA ptr = widget->ptr[RECT_TRANSFORM_SLOT_SCALE];
+		PropertyRNA *prop = widget->props[RECT_TRANSFORM_SLOT_SCALE];
+
+		if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM){
+			RNA_property_float_set(&ptr, prop, data->orig_scale[0]);
+		}
+		else {
+			RNA_property_float_set_array(&ptr, prop, data->orig_scale);
+		}
+		RNA_property_update(C, &ptr, prop);
+	}
+}
+
 wmWidget *WIDGET_rect_transform_new(
         wmWidgetGroup *wgroup, const char *name, const int style,
         const float width, const float height)
@@ -1373,6 +1419,7 @@ wmWidget *WIDGET_rect_transform_new(
 	cage->widget.bind_to_prop = widget_rect_transform_bind_to_prop;
 	cage->widget.handler = widget_rect_transform_handler;
 	cage->widget.intersect = widget_rect_tranfrorm_intersect;
+	cage->widget.cancel = widget_rect_transform_cancel;
 	cage->widget.get_cursor = widget_rect_tranfrorm_get_cursor;
 	cage->widget.max_prop = 2;
 	cage->scale[0] = cage->scale[1] = 1.0f;
