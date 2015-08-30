@@ -1210,7 +1210,7 @@ bool WM_operator_filesel_ensure_ext_imtype(wmOperator *op, const struct ImageFor
 }
 
 /* default properties for fileselect */
-void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, short action, short flag, short display)
+void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, short action, short flag, short display, short sort)
 {
 	PropertyRNA *prop;
 
@@ -1221,7 +1221,6 @@ void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, 
 		{FILE_IMGDISPLAY, "FILE_IMGDISPLAY", ICON_IMGDISPLAY, "Thumbnails", "Display files as thumbnails"},
 		{0, NULL, 0, NULL, NULL}
 	};
-
 
 	if (flag & WM_FILESEL_FILEPATH)
 		RNA_def_string_file_path(ot->srna, "filepath", NULL, FILE_MAX, "File Path", "Path to file");
@@ -1303,6 +1302,10 @@ void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, 
 
 	prop = RNA_def_enum(ot->srna, "display_type", file_display_items, display, "Display Type", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
+	prop = RNA_def_enum(ot->srna, "sort_method", file_sort_items, sort, "File sorting mode", "");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
 }
 
 static void wm_operator_properties_select_action_ex(wmOperatorType *ot, int default_action,
@@ -2515,7 +2518,7 @@ static void WM_OT_open_mainfile(wmOperatorType *ot)
 	/* omit window poll so this can work in background mode */
 
 	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_OPENFILE,
-	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
+	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 
 	RNA_def_boolean(ot->srna, "load_ui", true, "Load UI", "Load user interface setup in the .blend file");
 	RNA_def_boolean(ot->srna, "use_scripts", true, "Trusted Source",
@@ -2876,7 +2879,7 @@ static void WM_OT_link(wmOperatorType *ot)
 	WM_operator_properties_filesel(
 	        ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER | FILE_TYPE_BLENDERLIB, FILE_LOADLIB, FILE_OPENFILE,
 	        WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILENAME | WM_FILESEL_RELPATH | WM_FILESEL_FILES,
-	        FILE_DEFAULTDISPLAY);
+	        FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 	
 	wm_link_append_properties_common(ot, true);
 }
@@ -2896,7 +2899,7 @@ static void WM_OT_append(wmOperatorType *ot)
 	WM_operator_properties_filesel(
 		ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER | FILE_TYPE_BLENDERLIB, FILE_LOADLIB, FILE_OPENFILE,
 		WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILENAME | WM_FILESEL_FILES,
-		FILE_DEFAULTDISPLAY);
+		FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 
 	wm_link_append_properties_common(ot, false);
 }
@@ -2987,7 +2990,7 @@ static void WM_OT_recover_auto_save(wmOperatorType *ot)
 	ot->invoke = wm_recover_auto_save_invoke;
 
 	WM_operator_properties_filesel(ot, FILE_TYPE_BLENDER, FILE_BLENDER, FILE_OPENFILE,
-	                               WM_FILESEL_FILEPATH, FILE_LONGDISPLAY);
+	                               WM_FILESEL_FILEPATH, FILE_LONGDISPLAY, FILE_SORT_TIME);
 }
 
 /* *************** save file as **************** */
@@ -3120,7 +3123,7 @@ static void WM_OT_save_as_mainfile(wmOperatorType *ot)
 	/* omit window poll so this can work in background mode */
 
 	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_SAVE,
-	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
+	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 	RNA_def_boolean(ot->srna, "compress", false, "Compress", "Write compressed .blend file");
 	RNA_def_boolean(ot->srna, "relative_remap", true, "Remap Relative",
 	                "Remap relative paths when saving in a different directory");
@@ -3187,7 +3190,7 @@ static void WM_OT_save_mainfile(wmOperatorType *ot)
 	/* omit window poll so this can work in background mode */
 	
 	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_SAVE,
-	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
+	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 	RNA_def_boolean(ot->srna, "compress", false, "Compress", "Write compressed .blend file");
 	RNA_def_boolean(ot->srna, "relative_remap", false, "Remap Relative",
 	                "Remap relative paths when saving in a different directory");

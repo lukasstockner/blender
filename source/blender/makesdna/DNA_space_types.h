@@ -755,8 +755,10 @@ typedef enum eDirEntry_SelectFlag {
 typedef struct FileDirEntryRevision {
 	struct FileDirEntryRevision *next, *prev;
 
-	int uuid[4];
 	char *comment;
+	void *pad;
+
+	int uuid[4];
 
 	uint64_t size;
 	int64_t time;
