@@ -600,7 +600,7 @@ void BLF_draw_ascii_ex(
 			blf_font_draw__wrap(font, str, len, r_info);
 		}
 		else {
-			blf_font_draw_ascii(font, str, len);
+			blf_font_draw_ascii(font, str, len, r_info);
 		}
 		blf_draw__end(mode, param);
 	}

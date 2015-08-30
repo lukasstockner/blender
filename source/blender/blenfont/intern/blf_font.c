@@ -207,6 +207,7 @@ static void blf_font_draw_ex(
 	}
 
 	if (r_info) {
+		r_info->lines_wrap = 1;
 		r_info->width = pen_x;
 	}
 }
@@ -216,7 +217,9 @@ void blf_font_draw(FontBLF *font, const char *str, size_t len, struct ResultBLF 
 }
 
 /* faster version of blf_font_draw, ascii only for view dimensions */
-static void blf_font_draw_ascii_ex(FontBLF *font, const char *str, size_t len, int pen_y)
+static void blf_font_draw_ascii_ex(
+        FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info,
+        int pen_y)
 {
 	unsigned char c;
 	GlyphBLF *g, *g_prev = NULL;
@@ -241,10 +244,15 @@ static void blf_font_draw_ascii_ex(FontBLF *font, const char *str, size_t len, i
 		pen_x += g->advance_i;
 		g_prev = g;
 	}
+
+	if (r_info) {
+		r_info->lines_wrap = 1;
+		r_info->width = pen_x;
+	}
 }
-void blf_font_draw_ascii(FontBLF *font, const char *str, size_t len)
+void blf_font_draw_ascii(FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info)
 {
-	blf_font_draw_ascii_ex(font, str, len, 0);
+	blf_font_draw_ascii_ex(font, str, len, r_info, 0);
 }
 
 /* use fixed column width, but an utf8 character may occupy multiple columns */
@@ -627,6 +635,7 @@ static void blf_font_boundbox_ex(
 	}
 
 	if (r_info) {
+		r_info->lines_wrap = 1;
 		r_info->width = pen_x;
 	}
 }
@@ -653,8 +662,8 @@ struct WordWrapVars {
  *
  * \return number of lines.
  */
-static int blf_font_wrap_apply(
-        FontBLF *font, const char *str, size_t len,
+static void blf_font_wrap_apply(
+        FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info,
         void (*callback)(FontBLF *font, const char *str, size_t len, int pen_y, void *userdata),
         void *userdata)
 {
@@ -720,7 +729,11 @@ static int blf_font_wrap_apply(
 
 	// printf("done! %d lines\n", lines);
 
-	return lines;
+	if (r_info) {
+		r_info->lines_wrap = lines;
+		/* width of last line only (with wrapped lines) */
+		r_info->width = pen_x;
+	}
 }
 
 /* blf_font_draw__wrap */
@@ -730,13 +743,7 @@ static void blf_font_draw__wrap_cb(FontBLF *font, const char *str, size_t len, i
 }
 void blf_font_draw__wrap(FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info)
 {
-	int lines;
-
-	lines = blf_font_wrap_apply(font, str, len, blf_font_draw__wrap_cb, NULL);
-
-	if (r_info) {
-		r_info->lines_wrap = lines;
-	}
+	blf_font_wrap_apply(font, str, len, r_info, blf_font_draw__wrap_cb, NULL);
 }
 
 /* blf_font_boundbox__wrap */
@@ -750,18 +757,12 @@ static void blf_font_boundbox_wrap_cb(FontBLF *font, const char *str, size_t len
 }
 void blf_font_boundbox__wrap(FontBLF *font, const char *str, size_t len, rctf *box, struct ResultBLF *r_info)
 {
-	int lines;
-
 	box->xmin = 32000.0f;
 	box->xmax = -32000.0f;
 	box->ymin = 32000.0f;
 	box->ymax = -32000.0f;
 
-	lines = blf_font_wrap_apply(font, str, len, blf_font_boundbox_wrap_cb, box);
-
-	if (r_info) {
-		r_info->lines_wrap = lines;
-	}
+	blf_font_wrap_apply(font, str, len, r_info, blf_font_boundbox_wrap_cb, box);
 }
 
 /** \} */
