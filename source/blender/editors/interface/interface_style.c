@@ -172,7 +172,7 @@ void UI_fontstyle_draw_ex(
 
 	BLF_enable(fs->uifont_id, font_flag);
 
-	yofs = ceil(BLI_rcti_size_y(rect) - BLF_height_max(fs->uifont_id));
+	yofs = BLI_rcti_size_y(rect) - BLF_height_max(fs->uifont_id);
 
 	if (fs->align == UI_STYLE_TEXT_CENTER) {
 		xofs = floor(0.5f * (BLI_rcti_size_x(rect) - BLF_width(fs->uifont_id, str, len)));

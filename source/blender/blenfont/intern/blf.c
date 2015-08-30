@@ -764,7 +764,7 @@ float BLF_height(int fontid, const char *str, size_t len)
 	return BLF_height_ex(fontid, str, len, NULL);
 }
 
-float BLF_height_max(int fontid)
+int BLF_height_max(int fontid)
 {
 	FontBLF *font = blf_get(fontid);
 
@@ -772,7 +772,7 @@ float BLF_height_max(int fontid)
 		return font->glyph_cache->max_glyph_height;
 	}
 
-	return 0.0f;
+	return 0;
 }
 
 float BLF_width_max(int fontid)
