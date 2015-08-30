@@ -702,7 +702,12 @@ static void blf_font_wrap_apply(
 			do_draw = true;
 		}
 		else if (UNLIKELY(((i < len) && str[i]) == 0)) {
-			wrap.last[0] = i;
+			wrap.last[0] = i + 1;
+			wrap.last[1] = i;
+			do_draw = true;
+		}
+		else if (UNLIKELY(g->c == '\n')) {
+			wrap.last[0] = i_curr + 1;
 			wrap.last[1] = i;
 			do_draw = true;
 		}
@@ -712,8 +717,8 @@ static void blf_font_wrap_apply(
 		}
 
 		if (UNLIKELY(do_draw)) {
-			// printf("(%d..%d)  `%.*s`\n", wrap.start, wrap.last[0], wrap.last[0] - wrap.start, &str[wrap.start]);
-			callback(font, &str[wrap.start], wrap.last[0] - wrap.start, pen_y, userdata);
+			// printf("(%d..%d)  `%.*s`\n", wrap.start, wrap.last[0], (wrap.last[0] - wrap.start) - 1, &str[wrap.start]);
+			callback(font, &str[wrap.start], (wrap.last[0] - wrap.start) - 1, pen_y, userdata);
 			wrap.start = wrap.last[0];
 			i = wrap.last[1];
 			pen_x = 0;
