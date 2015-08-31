@@ -653,6 +653,12 @@ void blf_font_boundbox(FontBLF *font, const char *str, size_t len, rctf *r_box, 
 /**
  * Generic function to add word-wrap support for other existing functions.
  *
+ * Wraps on spaces and respects newlines.
+ * Intentionally ignores non-unix newlines, tabs and more advanced text formatting.
+ *
+ * \note If we want rich text - we better have a higher level API to handle that
+ * (color, bold, switching fonts... etc).
+ *
  * \return number of lines.
  */
 static void blf_font_wrap_apply(
@@ -693,6 +699,14 @@ static void blf_font_wrap_apply(
 		if (has_kerning)
 			BLF_KERNING_STEP(font, kern_mode, g_prev, g, delta, pen_x);
 
+		/**
+		 * Implementation Detail (utf8).
+		 *
+		 * Take care with single byte offsets here,
+		 * since this is utf8 we can't be sure a single byte is a single character.
+		 *
+		 * This is _only_ done when we know for sure the character is ascii (newline or a space).
+		 */
 		pen_x_next = pen_x + g->advance_i;
 		if (UNLIKELY((pen_x_next >= wrap.wrap_width) && (wrap.start != wrap.last[0]))) {
 			do_draw = true;
