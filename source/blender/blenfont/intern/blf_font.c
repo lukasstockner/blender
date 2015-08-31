@@ -649,13 +649,6 @@ void blf_font_boundbox(FontBLF *font, const char *str, size_t len, rctf *r_box, 
 /** \name Word-Wrap Support
  * \{ */
 
-struct WordWrapVars {
-	int x_span;
-	size_t start, last[2];
-};
-
-#define BLF_WORDWRAP_VARS(_font, _wrap) \
-	struct WordWrapVars _wrap = {(int)_font->wrap_width, 0, {0, 0}}
 
 /**
  * Generic function to add word-wrap support for other existing functions.
@@ -677,7 +670,10 @@ static void blf_font_wrap_apply(
 
 	BLF_KERNING_VARS(font, has_kerning, kern_mode);
 
-	BLF_WORDWRAP_VARS(font, wrap);
+	struct WordWrapVars {
+		int wrap_width;
+		size_t start, last[2];
+	} wrap = {font->wrap_width, 0, {0, 0}};
 
 	blf_font_ensure_ascii_table(font);
 	// printf("%s wrapping (%d, %d) `%s`:\n", __func__, len, strlen(str), str);
@@ -698,7 +694,7 @@ static void blf_font_wrap_apply(
 			BLF_KERNING_STEP(font, kern_mode, g_prev, g, delta, pen_x);
 
 		pen_x_next = pen_x + g->advance_i;
-		if (UNLIKELY((pen_x_next >= wrap.x_span) && (wrap.start != wrap.last[0]))) {
+		if (UNLIKELY((pen_x_next >= wrap.wrap_width) && (wrap.start != wrap.last[0]))) {
 			do_draw = true;
 		}
 		else if (UNLIKELY(((i < len) && str[i]) == 0)) {
