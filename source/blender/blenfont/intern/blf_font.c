@@ -658,8 +658,6 @@ void blf_font_boundbox(FontBLF *font, const char *str, size_t len, rctf *r_box, 
  *
  * \note If we want rich text - we better have a higher level API to handle that
  * (color, bold, switching fonts... etc).
- *
- * \return number of lines.
  */
 static void blf_font_wrap_apply(
         FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info,
