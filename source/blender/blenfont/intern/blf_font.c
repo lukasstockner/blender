@@ -207,7 +207,7 @@ static void blf_font_draw_ex(
 	}
 
 	if (r_info) {
-		r_info->lines_wrap = 1;
+		r_info->lines = 1;
 		r_info->width = pen_x;
 	}
 }
@@ -246,7 +246,7 @@ static void blf_font_draw_ascii_ex(
 	}
 
 	if (r_info) {
-		r_info->lines_wrap = 1;
+		r_info->lines = 1;
 		r_info->width = pen_x;
 	}
 }
@@ -635,7 +635,7 @@ static void blf_font_boundbox_ex(
 	}
 
 	if (r_info) {
-		r_info->lines_wrap = 1;
+		r_info->lines = 1;
 		r_info->width = pen_x;
 	}
 }
@@ -731,7 +731,7 @@ static void blf_font_wrap_apply(
 	// printf("done! %d lines\n", lines);
 
 	if (r_info) {
-		r_info->lines_wrap = lines;
+		r_info->lines = lines;
 		/* width of last line only (with wrapped lines) */
 		r_info->width = pen_x;
 	}

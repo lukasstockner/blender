@@ -175,7 +175,7 @@ typedef struct uiTooltipData {
 
 	struct {
 		unsigned int width;
-		unsigned int lines_wrap;
+		unsigned int lines;
 	} line_geom[MAX_TOOLTIP_LINES];
 
 	int wrap_width;
@@ -266,7 +266,7 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 	bbox.ymax -= 0.25f * pad_px;
 
 	for (i = 0; i < data->totline; i++) {
-		bbox.ymin = bbox.ymax - (data->lineh * data->line_geom[i].lines_wrap);
+		bbox.ymin = bbox.ymax - (data->lineh * data->line_geom[i].lines);
 		if (data->format[i].style == UI_TIP_STYLE_HEADER) {
 			/* draw header and active data (is done here to be able to change color) */
 			uiFontStyle fstyle_header = data->fstyle;
@@ -313,7 +313,7 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 			UI_fontstyle_draw(&data->fstyle, &bbox, data->lines[i]);
 		}
 
-		bbox.ymax -= data->lineh * data->line_geom[i].lines_wrap;
+		bbox.ymax -= data->lineh * data->line_geom[i].lines;
 
 		if ((i + 1 != data->totline) && data->format[i + 1].is_pad) {
 			bbox.ymax -= data->lineh * (UI_TIP_PAD_FAC - 1);
@@ -627,12 +627,12 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 
 		fontw = max_ii(fontw, w + w_other);
 
-		fonth += h * info.lines_wrap;
+		fonth += h * info.lines;
 		if ((i + 1 != data->totline) && data->format[i + 1].is_pad) {
 			fonth += h * (UI_TIP_PAD_FAC - 1);
 		}
 
-		data->line_geom[i].lines_wrap = info.lines_wrap;
+		data->line_geom[i].lines = info.lines;
 		data->line_geom[i].width = w;
 	}
 

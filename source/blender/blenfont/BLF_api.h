@@ -230,10 +230,12 @@ extern int blf_mono_font_render; /* don't mess drawing with render threads. */
  */
 struct ResultBLF {
 	/**
-	 * Number of lines drawn when #BLF_WORD_WRAP is enabled
+	 * Number of lines drawn when #BLF_WORD_WRAP is enabled (both wrapped and `\n` newline).
 	 */
-	int lines_wrap;
-
+	int lines;
+	/**
+	 * The 'cursor' position on completion (ignoring character boundbox).
+	 */
 	int width;
 };
 
