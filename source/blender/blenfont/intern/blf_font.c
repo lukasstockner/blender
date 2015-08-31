@@ -785,7 +785,7 @@ void blf_font_width_and_height(
 		ya = 1.0f;
 	}
 
-	if (font->flags & BLF_WORDWRAP) {
+	if (font->flags & BLF_WORD_WRAP) {
 		blf_font_boundbox__wrap(font, str, len, &box, r_info);
 	}
 	else {
@@ -805,7 +805,7 @@ float blf_font_width(FontBLF *font, const char *str, size_t len, struct ResultBL
 	else
 		xa = 1.0f;
 
-	if (font->flags & BLF_WORDWRAP) {
+	if (font->flags & BLF_WORD_WRAP) {
 		blf_font_boundbox__wrap(font, str, len, &box, r_info);
 	}
 	else {
@@ -824,7 +824,7 @@ float blf_font_height(FontBLF *font, const char *str, size_t len, struct ResultB
 	else
 		ya = 1.0f;
 
-	if (font->flags & BLF_WORDWRAP) {
+	if (font->flags & BLF_WORD_WRAP) {
 		blf_font_boundbox__wrap(font, str, len, &box, r_info);
 	}
 	else {

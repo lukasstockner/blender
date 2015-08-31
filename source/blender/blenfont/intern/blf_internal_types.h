@@ -195,7 +195,7 @@ typedef struct FontBLF {
 	/* clipping rectangle. */
 	rctf clip_rec;
 
-	/* the width to wrap the text, see BLF_WORDWRAP */
+	/* the width to wrap the text, see BLF_WORD_WRAP */
 	int wrap_width;
 
 	/* font dpi (default 72). */

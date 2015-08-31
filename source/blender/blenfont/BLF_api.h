@@ -217,7 +217,7 @@ void BLF_state_print(int fontid);
 #define BLF_MATRIX           (1 << 4)
 #define BLF_ASPECT           (1 << 5)
 #define BLF_HINTING          (1 << 6)
-#define BLF_WORDWRAP         (1 << 7)
+#define BLF_WORD_WRAP        (1 << 7)
 
 #define BLF_DRAW_STR_DUMMY_MAX 1024
 
@@ -230,7 +230,7 @@ extern int blf_mono_font_render; /* don't mess drawing with render threads. */
  */
 struct ResultBLF {
 	/**
-	 * Number of lines drawn when #BLF_WORDWRAP is enabled
+	 * Number of lines drawn when #BLF_WORD_WRAP is enabled
 	 */
 	int lines_wrap;
 

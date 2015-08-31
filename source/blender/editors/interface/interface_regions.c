@@ -320,8 +320,8 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 		}
 	}
 
-	BLF_disable(data->fstyle.uifont_id, BLF_WORDWRAP);
-	BLF_disable(blf_mono_font, BLF_WORDWRAP);
+	BLF_disable(data->fstyle.uifont_id, BLF_WORD_WRAP);
+	BLF_disable(blf_mono_font, BLF_WORD_WRAP);
 
 	if (multisample_enabled)
 		glEnable(GL_MULTISAMPLE_ARB);
@@ -590,7 +590,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 
 	data->wrap_width = min_ii(UI_TIP_MAXWIDTH * U.pixelsize / aspect, WM_window_pixels_x(win) - (UI_TIP_PADDING * 2));
 
-	font_flag |= BLF_WORDWRAP;
+	font_flag |= BLF_WORD_WRAP;
 	if (data->fstyle.kerning == 1) {
 		font_flag |= BLF_KERNING_DEFAULT;
 	}

@@ -570,7 +570,7 @@ void BLF_draw_ex(
 
 	if (font && font->glyph_cache) {
 		blf_draw__start(font, &mode, &param);
-		if (font->flags & BLF_WORDWRAP) {
+		if (font->flags & BLF_WORD_WRAP) {
 			blf_font_draw__wrap(font, str, len, r_info);
 		}
 		else {
@@ -595,7 +595,7 @@ void BLF_draw_ascii_ex(
 
 	if (font && font->glyph_cache) {
 		blf_draw__start(font, &mode, &param);
-		if (font->flags & BLF_WORDWRAP) {
+		if (font->flags & BLF_WORD_WRAP) {
 			/* use non-ascii draw function for word-wrap */
 			blf_font_draw__wrap(font, str, len, r_info);
 		}
@@ -674,7 +674,7 @@ void BLF_boundbox_ex(
 	BLF_RESULT_CHECK_INIT(r_info);
 
 	if (font) {
-		if (font->flags & BLF_WORDWRAP) {
+		if (font->flags & BLF_WORD_WRAP) {
 			blf_font_boundbox__wrap(font, str, len, r_box, r_info);
 		}
 		else {
