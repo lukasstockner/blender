@@ -1283,7 +1283,8 @@ static int outliner_id_remap_exec(bContext *C, wmOperator *op)
 	ED_undo_push(C, "Remap ID action");
 
 	/* We want to redraw everything... */
-	WM_event_add_notifier(C, NC_WM | ND_DRAW, NULL);
+	WM_event_add_notifier(C, NC_ID | NA_RENAME, NULL);
+	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, NULL);
 
 	return OPERATOR_FINISHED;
 }
