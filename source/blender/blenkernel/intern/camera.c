@@ -442,8 +442,8 @@ void BKE_camera_view_frame_ex(
 			*r_drawsize = 1.0f;
 			depth = -(camera->clipsta + 0.1f) * scale[2];
 			fac = depth / (camera->lens / (-half_sensor));
-			scale_x = 1.0f;
-			scale_y = 1.0f;
+			scale_x = scale[0] / scale[2];
+			scale_y = scale[1] / scale[2];
 		}
 		else {
 			/* fixed size, variable depth (stays a reasonable size in the 3D view) */
@@ -565,7 +565,7 @@ static void camera_frame_fit_data_init(
 static bool camera_frame_fit_calc_from_data(
         CameraParams *params, CameraViewFrameData *data, float r_co[3], float *r_scale)
 {
-	float plane_tx[CAMERA_VIEWFRAME_NUM_PLANES][3];
+	float plane_tx[CAMERA_VIEWFRAME_NUM_PLANES][4];
 	unsigned int i;
 
 	if (data->tot <= 1) {
@@ -609,15 +609,13 @@ static bool camera_frame_fit_calc_from_data(
 
 		/* apply the dist-from-plane's to the transformed plane points */
 		for (i = 0; i < CAMERA_VIEWFRAME_NUM_PLANES; i++) {
-			mul_v3_v3fl(plane_tx[i], data->normal_tx[i], sqrtf_signed(data->dist_vals_sq[i]));
+			float co[3];
+			mul_v3_v3fl(co, data->normal_tx[i], sqrtf_signed(data->dist_vals_sq[i]));
+			plane_from_point_normal_v3(plane_tx[i], co, data->normal_tx[i]);
 		}
 
-		if ((!isect_plane_plane_v3(plane_isect_1, plane_isect_1_no,
-		                           plane_tx[0], data->normal_tx[0],
-		                           plane_tx[2], data->normal_tx[2])) ||
-		    (!isect_plane_plane_v3(plane_isect_2, plane_isect_2_no,
-		                           plane_tx[1], data->normal_tx[1],
-		                           plane_tx[3], data->normal_tx[3])))
+		if ((!isect_plane_plane_v3(plane_tx[0], plane_tx[2], plane_isect_1, plane_isect_1_no)) ||
+		    (!isect_plane_plane_v3(plane_tx[1], plane_tx[3], plane_isect_2, plane_isect_2_no)))
 		{
 			return false;
 		}
