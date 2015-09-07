@@ -231,6 +231,7 @@ void WIDGETGROUP_lamp_create(const struct bContext *C, struct wmWidgetGroup *wgr
 	
 	RNA_pointer_create(&la->id, &RNA_Lamp, la, &ptr);
 	WM_widget_set_origin(widget, ob->obmat[3]);
+	WIDGET_arrow_set_range_fac(widget, 4.0f);
 	WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &ptr, propname);
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(widget, dir);

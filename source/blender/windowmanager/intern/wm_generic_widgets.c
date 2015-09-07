@@ -166,8 +166,11 @@ typedef struct ArrowWidget {
 	int flag;
 	float direction[3];
 	float up[3];
+
 	float (*line)[3];    /* custom coords for arrow line drawing */
 	int tot_line_points; /* amount of points for arrow line drawing */
+
+	float range_fac;      /* factor for arrow min/max distance */
 	float offset;
 	/* property range and minimum for constrained arrows */
 	float range, min;
@@ -360,8 +363,6 @@ static void widget_arrow_draw(const bContext *UNUSED(C), wmWidget *widget)
 	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0);
 }
 
-#define ARROW_RANGE 6.0f
-
 static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *widget)
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
@@ -457,9 +458,9 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 		value = data->orig_offset + facdir * len_v3(offset);
 		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
-				value = max - (value * arrow->range / ARROW_RANGE);
+				value = max - (value * arrow->range / arrow->range_fac);
 			else
-				value = arrow->min + (value * arrow->range / ARROW_RANGE);
+				value = arrow->min + (value * arrow->range / arrow->range_fac);
 		}
 
 		/* clamp to custom range */
@@ -475,9 +476,9 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 		/* accounts for clamping properly */
 		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
-				arrow->offset = ARROW_RANGE * (max - value) / arrow->range;
+				arrow->offset = arrow->range_fac * (max - value) / arrow->range;
 			else
-				arrow->offset = ARROW_RANGE * ((value - arrow->min) / arrow->range);
+				arrow->offset = arrow->range_fac * ((value - arrow->min) / arrow->range);
 		}
 		else
 			arrow->offset = value;
@@ -540,10 +541,10 @@ static void widget_arrow_bind_to_prop(wmWidget *widget, const int UNUSED(slot))
 			}
 
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED) {
-				arrow->offset = ARROW_RANGE * (max - float_prop) / arrow->range;
+				arrow->offset = arrow->range_fac * (max - float_prop) / arrow->range;
 			}
 			else {
-				arrow->offset = ARROW_RANGE * ((float_prop - arrow->min) / arrow->range);
+				arrow->offset = arrow->range_fac * ((float_prop - arrow->min) / arrow->range);
 			}
 		}
 		else {
@@ -612,6 +613,7 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	arrow->widget.flag |= WM_WIDGET_SCALE_3D;
 
 	arrow->style = real_style;
+	arrow->range_fac = 1.0f;
 
 	/* defaults */
 	copy_v3_v3(arrow->direction, dir_default);
@@ -677,6 +679,18 @@ void WIDGET_arrow_set_ui_range(wmWidget *widget, const float min, const float ma
 	arrow->range = max - min;
 	arrow->min = min;
 	arrow->flag |= ARROW_CUSTOM_RANGE_SET;
+}
+
+/**
+ * Define a custom factor for arrow min/max distance
+ *
+ * \note Needs to be called before WM_widget_property!
+ */
+void WIDGET_arrow_set_range_fac(wmWidget *widget, const float range_fac)
+{
+	ArrowWidget *arrow = (ArrowWidget *)widget;
+
+	arrow->range_fac = range_fac;
 }
 
 
