@@ -1192,15 +1192,8 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		t->view = v3d;
 		t->animtimer = (animscreen) ? animscreen->animtimer : NULL;
 
-		if (op && ((prop = RNA_struct_find_property(op->ptr, "use_widget_input")) &&
-		    RNA_property_is_set(op->ptr, prop)))
-		{
-			if (RNA_property_boolean_get(op->ptr, prop))
-				t->flag |= T_USE_WIDGET;
-		}
-
 		/* turn manipulator off during transform */
-		if ((t->flag & T_MODAL) && !(t->flag & T_USE_WIDGET)) {
+		if (t->flag & T_MODAL) {
 			t->twtype = v3d->twtype;
 			v3d->twtype = 0;
 		}
@@ -1481,7 +1474,7 @@ void postTrans(bContext *C, TransInfo *t)
 	else if (t->spacetype == SPACE_VIEW3D) {
 		View3D *v3d = t->sa->spacedata.first;
 		/* restore manipulator */
-		if ((t->flag & T_MODAL) && !(t->flag & T_USE_WIDGET)) {
+		if (t->flag & T_MODAL) {
 			v3d->twtype = t->twtype;
 		}
 	}
