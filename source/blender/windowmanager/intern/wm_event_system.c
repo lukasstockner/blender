@@ -1697,6 +1697,9 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 					CTX_wm_region_set(C, NULL);
 				}
 
+				/* update widgets during modal handlers */
+				wm_widget_handler_modal_update(C, event, handler);
+
 				/* remove modal handler, operator itself should have been canceled and freed */
 				if (retval & (OPERATOR_CANCELLED | OPERATOR_FINISHED)) {
 					WM_cursor_grab_disable(CTX_wm_window(C), NULL);
@@ -2133,9 +2136,6 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 			else {
 				/* modal, swallows all */
 				action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
-
-				/* update widgets during modal handlers */
-				wm_widget_handler_modal_update(C, event, handler);
 			}
 
 			if (action & WM_HANDLER_BREAK) {
