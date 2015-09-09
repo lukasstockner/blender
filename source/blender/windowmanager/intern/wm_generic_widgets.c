@@ -378,6 +378,10 @@ static void widget_arrow_draw(const bContext *UNUSED(C), wmWidget *widget)
 	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0);
 }
 
+/* calculate arrow offset independent from prop min value,
+ * meaning the range will not be offset by min value first */
+#define USE_ABS_HANDLE_RANGE
+
 static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *widget)
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
@@ -475,7 +479,11 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
 				value = max - (value * arrow->range / arrow->range_fac);
 			else
+#ifdef USE_ABS_HANDLE_RANGE
+				value = value * arrow->range / arrow->range_fac;
+#else
 				value = arrow->min + (value * arrow->range / arrow->range_fac);
+#endif
 		}
 
 		/* clamp to custom range */
@@ -493,7 +501,11 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
 				arrow->offset = arrow->range_fac * (max - value) / arrow->range;
 			else
+#ifdef USE_ABS_HANDLE_RANGE
+				arrow->offset = arrow->range_fac * (value / arrow->range);
+#else
 				arrow->offset = arrow->range_fac * ((value - arrow->min) / arrow->range);
+#endif
 		}
 		else
 			arrow->offset = value;
@@ -559,7 +571,11 @@ static void widget_arrow_bind_to_prop(wmWidget *widget, const int UNUSED(slot))
 				arrow->offset = arrow->range_fac * (max - float_prop) / arrow->range;
 			}
 			else {
+#ifdef USE_ABS_HANDLE_RANGE
+				arrow->offset = arrow->range_fac * (float_prop / arrow->range);
+#else
 				arrow->offset = arrow->range_fac * ((float_prop - arrow->min) / arrow->range);
+#endif
 			}
 		}
 		else {
