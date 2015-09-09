@@ -547,6 +547,7 @@ enum {
 	WIDGET_ARROW_STYLE_INVERTED      = (1 << 3), /* inverted offset during interaction - if set it also sets constrained below */
 	WIDGET_ARROW_STYLE_CONSTRAINED   = (1 << 4), /* clamp arrow interaction to property width */
 	WIDGET_ARROW_STYLE_BOX           = (1 << 5), /* use a box for the arrowhead */
+	WIDGET_ARROW_STYLE_CONE          = (1 << 6),
 };
 
 enum {

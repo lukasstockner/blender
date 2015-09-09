@@ -733,36 +733,85 @@ static int WIDGETGROUP_camera_poll(const struct bContext *C, struct wmWidgetGrou
 {
 	Object *ob = CTX_data_active_object(C);
 
-	if (ob && ob->type == OB_CAMERA) {
-		Camera *ca = ob->data;
-		return (ca->flag & CAM_SHOWLIMITS) != 0;
-	}
-	return false;
+	return (ob && ob->type == OB_CAMERA);
 }
 
 static void WIDGETGROUP_camera_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
-	float color_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
-	float color_hi_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 	Object *ob = CTX_data_active_object(C);
 	Camera *ca = ob->data;
 	wmWidget *widget;
 	PointerRNA cameraptr;
 	float dir[3];
-	const char *propname = "dof_distance";
-
-	widget = WIDGET_arrow_new(wgroup, propname, WIDGET_ARROW_STYLE_CROSS);
-	WM_widget_set_draw_on_hover_only(widget, true);
-	WM_widget_set_3d_scale(widget, false);
-	WM_widget_set_colors(widget, color_camera, color_hi_camera);
+	const bool focallen_widget = true; /* TODO make optional */
 
 	RNA_pointer_create(&ca->id, &RNA_Camera, ca, &cameraptr);
-	WM_widget_set_origin(widget, ob->obmat[3]);
-	WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &cameraptr, propname);
 	negate_v3_v3(dir, ob->obmat[2]);
-	WIDGET_arrow_set_direction(widget, dir);
-	WIDGET_arrow_set_up_vector(widget, ob->obmat[1]);
-	WM_widget_set_scale(widget, ca->drawsize);
+
+	/* dof distance */
+	if (ca->flag & CAM_SHOWLIMITS) {
+		float color_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+		float color_hi_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+		const char *propname = "dof_distance";
+
+		widget = WIDGET_arrow_new(wgroup, propname, WIDGET_ARROW_STYLE_CROSS);
+		WM_widget_set_draw_on_hover_only(widget, true);
+		WM_widget_set_3d_scale(widget, false);
+		WM_widget_set_colors(widget, color_camera, color_hi_camera);
+
+		WM_widget_set_origin(widget, ob->obmat[3]);
+		WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &cameraptr, propname);
+		WIDGET_arrow_set_direction(widget, dir);
+		WIDGET_arrow_set_up_vector(widget, ob->obmat[1]);
+		WM_widget_set_scale(widget, ca->drawsize);
+	}
+
+	/* focal length
+	 * - logic/calculations are similar to BKE_camera_view_frame_ex, better keep in sync */
+	if (focallen_widget) {
+		const float color_camera[4] = {1.0f, 1.0, 0.27f, 0.5f};
+		const float color_hi_camera[4] = {1.0f, 1.0, 0.27f, 1.0f};
+
+		const bool is_ortho = (ca->type == CAM_ORTHO);
+		const float scale_fac = ca->drawsize;
+		const float half_sensor = 0.5f * ((ca->sensor_fit == CAMERA_SENSOR_FIT_VERT) ? ca->sensor_y : ca->sensor_x);
+		const float scale[3] = {1.0f / len_v3(ob->obmat[0]), 1.0f / len_v3(ob->obmat[1]), 1.0f / len_v3(ob->obmat[2])};
+		const float drawsize = is_ortho ? (0.5f * ca->ortho_scale) :
+		                                  (scale_fac / ((scale[0] + scale[1] + scale[2]) / 3.0f));
+		const char *propname = is_ortho ? "ortho_scale" : "lens";
+
+		PropertyRNA *prop;
+		float offset[3];
+		float min, max, range;
+		float step, precision; /* dummys, unused */
+
+
+		/* account for lens shifting */
+		offset[0] = ((ob->size[0] > 0.0f) ? -2.0f : 2.0f) * ca->shiftx;
+		offset[1] = 2.0f * ca->shifty;
+		offset[2] = 0.0f;
+
+		/* get property range */
+		prop = RNA_struct_find_property(&cameraptr, propname);
+		RNA_property_float_ui_range(&cameraptr, prop, &min, &max, &step, &precision);
+		range = max - min;
+
+
+		/* *** actual widget stuff *** */
+
+		widget = WIDGET_arrow_new(wgroup, propname, (WIDGET_ARROW_STYLE_CONE | WIDGET_ARROW_STYLE_CONSTRAINED));
+
+		WIDGET_arrow_set_range_fac(widget, is_ortho ? (scale_fac * range) : (drawsize * range / half_sensor));
+		WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &cameraptr, propname);
+		WM_widget_set_origin(widget, ob->obmat[3]);
+		WM_widget_set_offset(widget, offset);
+		WM_widget_set_scale(widget, drawsize);
+		WM_widget_set_3d_scale(widget, false);
+		WM_widget_set_colors(widget, color_camera, color_hi_camera);
+
+		WIDGET_arrow_set_direction(widget, dir);
+		WIDGET_arrow_set_up_vector(widget, ob->obmat[1]);
+	}
 }
 
 static int WIDGETGROUP_forcefield_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))

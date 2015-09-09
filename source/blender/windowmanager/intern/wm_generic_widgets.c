@@ -212,6 +212,21 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 
 		glPopAttrib();
 	}
+	else if (arrow->style & WIDGET_ARROW_STYLE_CONE) {
+		static float vec[4][3] = {
+			{-1, -1, 0},
+			{ 1, -1, 0},
+			{ 1,  1, 0},
+			{-1,  1, 0},
+		};
+
+		glLineWidth(arrow->widget.line_width);
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glVertexPointer(3, GL_FLOAT, 0, vec);
+		glDrawArrays(GL_LINE_LOOP, 0, ARRAY_SIZE(vec));
+		glDisableClientState(GL_VERTEX_ARRAY);
+		glLineWidth(1.0);
+	}
 	else {
 #ifdef WIDGET_USE_CUSTOM_ARROWS
 		widget_draw_intern(&arrow_head_draw_info, select);
