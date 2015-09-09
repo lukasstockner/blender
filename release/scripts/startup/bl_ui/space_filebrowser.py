@@ -41,6 +41,7 @@ class FILEBROWSER_HT_header(Header):
         row.operator("file.parent", text="", icon='FILE_PARENT')
         row.operator("file.refresh", text="", icon='FILE_REFRESH')
 
+        layout.separator()
         if st.asset_engine:
             draw_header = getattr(st.asset_engine, "draw_header", None)
             if draw_header:
@@ -49,8 +50,8 @@ class FILEBROWSER_HT_header(Header):
             layout.operator_context = 'EXEC_DEFAULT'
             layout.operator("file.directory_new", icon='NEWFOLDER', text="")
             layout.separator()
-            layout.operator_context = 'INVOKE_DEFAULT'
 
+            layout.operator_context = 'INVOKE_DEFAULT'
             params = st.params
 
             # can be None when save/reload with a file selector open
@@ -74,8 +75,8 @@ class FILEBROWSER_HT_header(Header):
                 row.prop(params, "use_filter_folder", text="")
 
                 if params.filter_glob:
-                    #if st.active_operator and hasattr(st.active_operator, "filter_glob"):
-                    #    row.prop(params, "filter_glob", text="")
+                    # if st.active_operator and hasattr(st.active_operator, "filter_glob"):
+                    #     row.prop(params, "filter_glob", text="")
                     row.label(params.filter_glob)
                 else:
                     row.prop(params, "use_filter_blender", text="")
@@ -97,6 +98,7 @@ class FILEBROWSER_HT_header(Header):
                 row.prop(params, "filter_search", text="", icon='VIEWZOOM')
 
         layout.template_running_jobs()
+
 
 class FILEBROWSER_UL_dir(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
