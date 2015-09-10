@@ -427,7 +427,7 @@ static bool rna_ae_load_pre(AssetEngine *engine, AssetUUIDList *uuids, struct Fi
 
 	parm = RNA_function_find_parameter(NULL, func, "success_return");
 	RNA_parameter_get(&list, parm, &ret);
-	ret_success = (bool)*(int *)ret;
+	ret_success = ((*(int *)ret) != 0);
 
 	RNA_parameter_list_free(&list);
 
@@ -446,20 +446,23 @@ static bool rna_ae_sort_filter(
 
 	void *ret;
 	bool ret_changed;
+	/* **Never** pass address of a bool for a bool prop! will be read as an int... */
+	const int use_sort_i = (int)use_sort;
+	const int use_filter_i = (int)use_filter;
 
 	RNA_pointer_create(NULL, engine->type->ext.srna, engine, &ptr);
 	func = &rna_AssetEngine_sort_filter_func;
 
 	RNA_parameter_list_create(&list, &ptr, func);
-	RNA_parameter_set_lookup(&list, "use_sort", &use_sort);
-	RNA_parameter_set_lookup(&list, "use_filter", &use_filter);
+	RNA_parameter_set_lookup(&list, "use_sort", &use_sort_i);
+	RNA_parameter_set_lookup(&list, "use_filter", &use_filter_i);
 	RNA_parameter_set_lookup(&list, "params", &params);
 	RNA_parameter_set_lookup(&list, "entries", &entries_r);
 	engine->type->ext.call(NULL, &ptr, func, &list);
 
 	parm = RNA_function_find_parameter(NULL, func, "changed_return");
 	RNA_parameter_get(&list, parm, &ret);
-	ret_changed= *(bool *)ret;
+	ret_changed = ((*(int *)ret) != 0);
 
 	RNA_parameter_list_free(&list);
 
@@ -489,7 +492,7 @@ static bool rna_ae_entries_block_get(
 
 	parm = RNA_function_find_parameter(NULL, func, "success_return");
 	RNA_parameter_get(&list, parm, &ret);
-	ret_success= *(bool *)ret;
+	ret_success = ((*(int *)ret) != 0);
 
 	RNA_parameter_list_free(&list);
 
@@ -518,7 +521,7 @@ static bool rna_ae_entries_uuid_get(
 
 	parm = RNA_function_find_parameter(NULL, func, "success_return");
 	RNA_parameter_get(&list, parm, &ret);
-	ret_success= *(bool *)ret;
+	ret_success = ((*(int *)ret) != 0);
 
 	RNA_parameter_list_free(&list);
 
