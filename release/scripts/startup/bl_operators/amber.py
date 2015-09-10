@@ -378,7 +378,7 @@ class AssetEngineAmber(AssetEngine):
                 row.prop(params, "use_filter_blendid", text="")
                 if (params.use_filter_blendid) :
                     row.separator()
-                    row.prop(params, "filter_id", text="")
+                    row.prop(params, "filter_id_category", text="")
 
             row.separator()
             row.prop(params, "filter_search", text="", icon='VIEWZOOM')
@@ -628,7 +628,7 @@ class AMBER_PT_options(Panel, AmberPanel):
 class AMBER_PT_tags(Panel, AmberPanel):
     bl_space_type = 'FILE_BROWSER'
     bl_region_type = 'TOOLS'
-    bl_category = "Asset Engine"
+    bl_category = "Filter"
     bl_label = "Tags"
 
     def draw(self, context):
