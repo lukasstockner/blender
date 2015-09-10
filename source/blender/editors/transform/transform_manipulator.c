@@ -885,7 +885,7 @@ static int calc_manipulator_stats(const bContext *C)
 				/* fall-through */
 			case V3D_MANIP_NORMAL:
 				if (obedit || ob->mode & OB_MODE_POSE) {
-					ED_getTransformOrientationMatrix(C, mat, (v3d->around == V3D_ACTIVE));
+					ED_getTransformOrientationMatrix(C, mat, v3d->around);
 					copy_m4_m3(rv3d->twmat, mat);
 					break;
 				}
@@ -897,7 +897,7 @@ static int calc_manipulator_stats(const bContext *C)
 					 * use the active pones axis for display [#33575], this works as expected on a single bone
 					 * and users who select many bones will understand whats going on and what local means
 					 * when they start transforming */
-					ED_getTransformOrientationMatrix(C, mat, (v3d->around == V3D_ACTIVE));
+					ED_getTransformOrientationMatrix(C, mat, v3d->around);
 					copy_m4_m3(rv3d->twmat, mat);
 					break;
 				}
@@ -910,7 +910,7 @@ static int calc_manipulator_stats(const bContext *C)
 				copy_m4_m3(rv3d->twmat, mat);
 				break;
 			default: /* V3D_MANIP_CUSTOM */
-				if (applyTransformOrientation(C, mat, NULL)) {
+				if (applyTransformOrientation(C, mat, NULL, v3d->twmode - V3D_MANIP_CUSTOM)) {
 					copy_m4_m3(rv3d->twmat, mat);
 				}
 				break;
