@@ -293,7 +293,7 @@ static void rna_AssetList_entries_remove(FileDirEntryArr *dirlist, ReportList *r
 	FileDirEntry *entry = ptr->data;
 
 	if (!BLI_remlink_safe(&dirlist->entries, entry)) {
-		BKE_report(reports, RPT_ERROR, "Trying to remove an entry for a list which does not contain it!");
+		BKE_report(reports, RPT_ERROR, "Trying to remove an entry from a list which does not contain it!");
 		return;
 	}
 

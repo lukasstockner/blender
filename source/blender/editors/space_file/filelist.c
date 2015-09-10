@@ -1548,9 +1548,10 @@ static FileDirEntry *filelist_file_create_entry(FileList *filelist, const int in
 		memcpy(ret->uuid, entry->uuid, sizeof(ret->uuid));
 		ret->blentype = entry->blentype;
 		ret->typeflag = entry->typeflag;
+
+		BLI_addtail(&cache->cached_entries, ret);
 	}
 
-	BLI_addtail(&cache->cached_entries, ret);
 	return ret;
 }
 
