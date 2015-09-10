@@ -3762,6 +3762,11 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 	/* main drawing call */
 	view3d_draw_objects(C, scene, v3d, ar, grid_unit, true, false, do_compositing ? rv3d->compositor : NULL);
 
+	/* widgets need to be updated *after* view matrix was set up
+	 * XXX since we do 2 draw calls (with and without depth culling),
+	 * it might be better to have 2 update calls, too */
+	WM_widgets_update(C, ar->widgetmaps.first);
+	/* draw depth culled widgets */
 	WM_widgets_draw(C, ar->widgetmaps.first, true);
 
 	/* post process */
@@ -3906,18 +3911,18 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	const char *grid_unit = NULL;
 	rcti border_rect;
 	bool render_border, clip_border;
+	bool update_widgets = true;
 
 	/* if we only redraw render border area, skip opengl draw and also
 	 * don't do scissor because it's already set */
 	render_border = ED_view3d_calc_render_border(scene, v3d, ar, &border_rect);
 	clip_border = (render_border && !BLI_rcti_compare(&ar->drawrct, &border_rect));
 
-	WM_widgets_update(C, ar->widgetmaps.first);
-
 	/* draw viewport using opengl */
 	if (v3d->drawtype != OB_RENDER || !view3d_main_area_do_render_draw(scene) || clip_border) {
 		view3d_main_area_draw_objects(C, scene, v3d, ar, &grid_unit);
-		
+		update_widgets = false; /* widgets were updated in view3d_main_area_draw_objects */
+
 #ifdef DEBUG_DRAW
 		bl_debug_draw();
 #endif
@@ -3933,7 +3938,12 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	
 	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);
 	glClear(GL_DEPTH_BUFFER_BIT);
+
+	if (update_widgets) {
+		WM_widgets_update(C, ar->widgetmaps.first);
+	}
 	WM_widgets_draw(C, ar->widgetmaps.first, false);
+
 	ED_region_pixelspace(ar);
 	
 	view3d_main_area_draw_info(C, scene, ar, v3d, grid_unit, render_border);

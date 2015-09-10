@@ -276,8 +276,7 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 		wmWidgetGroup *wgroup;
 
 		for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
-			if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type))
-			{
+			if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type)) {
 				wmWidget *highlighted = NULL;
 
 				/* first delete and recreate the widgets */
@@ -356,7 +355,7 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 
 	widget = wmap->active_widget;
 
-	if (widget && in_scene == ((widget->flag & WM_WIDGET_SCENE_DEPTH)!= 0)) {
+	if (widget && in_scene == ((widget->flag & WM_WIDGET_SCENE_DEPTH) != 0)) {
 		/* notice that we don't update the widgetgroup, widget is now on its own, it should have all
 		 * relevant data to update itself */
 		widget->draw(C, widget);
@@ -365,8 +364,7 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 		wmWidgetGroup *wgroup;
 		
 		for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
-			if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type))
-			{
+			if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type)) {
 				for (widget = wgroup->widgets.first; widget; widget = widget->next) {
 					if ((widget->flag & WM_WIDGET_HIDDEN) == 0 &&
 					    (!(widget->flag & WM_WIDGET_DRAW_HOVER) || (widget->flag & WM_WIDGET_HIGHLIGHT)) &&
