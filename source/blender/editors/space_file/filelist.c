@@ -730,7 +730,7 @@ void filelist_sort_filter(struct FileList *filelist, FileSelectParams *params)
 			const bool need_filtering = filelist_need_filtering(filelist);
 			const bool changed = filelist->ae->type->sort_filter(
 			                         filelist->ae, need_sorting, need_filtering, params, &filelist->filelist);
-			printf("%s: changed: %d\n", __func__, changed);
+			printf("%s: changed: %d (%d - %d)\n", __func__, changed, need_sorting, need_filtering);
 			if (changed) {
 				filelist_cache_clear(&filelist->filelist_cache, filelist->filelist_cache.size);
 			}
@@ -1269,7 +1269,9 @@ static void filelist_cache_free(FileListEntryCache *cache)
 
 	BLI_ghash_free(cache->uuids, NULL, NULL);
 
+//	printf("\n\n%s:\n", __func__);
 	for (entry = cache->cached_entries.first; entry; entry = entry_next) {
+//		printf("\t%s (%p, %p)\n", entry->relpath, entry, entry->next);
 		entry_next = entry->next;
 		BKE_filedir_entry_free(entry);
 	}
@@ -1302,7 +1304,9 @@ static void filelist_cache_clear(FileListEntryCache *cache, size_t new_size)
 
 	cache->size = new_size;
 
+//	printf("\n\n%s:\n", __func__);
 	for (entry = cache->cached_entries.first; entry; entry = entry_next) {
+//		printf("\t%s (%p, %p)\n", entry->relpath, entry, entry->next);
 		entry_next = entry->next;
 		BKE_filedir_entry_free(entry);
 	}

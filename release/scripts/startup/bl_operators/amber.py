@@ -339,6 +339,7 @@ class AssetEngineAmber(AssetEngine):
                 act_rev = r
         if act_rev:
             entry.relpath = act_rev["path"]
+#        print("added entry for", entry.relpath)
 
     ########## PY-API only ##########
     # UI header
@@ -443,6 +444,7 @@ class AssetEngineAmber(AssetEngine):
     def load_pre(self, uuids, entries):
         # Not quite sure this engine will need it in the end, but for sake of testing...
         if self.repo:
+#            print(entries.entries[:])
             for uuid in uuids.uuids:
                 euuid = tuple(uuid.uuid_asset)
                 vuuid = tuple(uuid.uuid_variant)
@@ -456,6 +458,7 @@ class AssetEngineAmber(AssetEngine):
                 entry.blender_type = e["blen_type"]
                 # archive part not yet implemented!
                 entry.relpath = r["path"]
+#                print("added entry for", entry.relpath)
                 entry.uuid = euuid
                 var = entry.variants.add()
                 var.uuid = vuuid
@@ -468,6 +471,7 @@ class AssetEngineAmber(AssetEngine):
         return False
 
     def sort_filter(self, use_sort, use_filter, params, entries):
+#        print(use_sort, use_filter)
         if use_filter:
             filter_search = params.filter_search
             self.sortedfiltered.clear()
@@ -544,6 +548,7 @@ class AssetEngineAmber(AssetEngine):
         return False
 
     def entries_block_get(self, start_index, end_index, entries):
+#        print(entries.entries[:])
         if self.repo:
             print("self repo", len(self.sortedfiltered), start_index, end_index)
             for euuid, e in self.sortedfiltered[start_index:end_index]:
@@ -554,6 +559,7 @@ class AssetEngineAmber(AssetEngine):
                 entry = entries.entries.add()
                 entry.type = {'DIR'}
                 entry.relpath = path
+#                print("added entry for", entry.relpath)
                 entry.uuid = uuid
                 variant = entry.variants.add()
                 entry.variants.active = variant
@@ -564,6 +570,7 @@ class AssetEngineAmber(AssetEngine):
         return True
 
     def entries_uuid_get(self, uuids, entries):
+#        print(entries.entries[:])
         if self.repo:
             for uuid in uuids.uuids:
                 self.entry_from_uuid(entries, tuple(uuid.uuid_asset), tuple(uuid.uuid_variant), tuple(uuid.uuid_revision))
