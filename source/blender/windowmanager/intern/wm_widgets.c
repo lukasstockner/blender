@@ -253,7 +253,7 @@ static void widget_calculate_scale(wmWidget *widget, const bContext *C)
 	widget->scale = scale * widget->user_scale;
 }
 
-static bool widgets_compare(const wmWidget *a, const wmWidget *b)
+BLI_INLINE bool widgets_compare(const wmWidget *a, const wmWidget *b)
 {
 	return STREQ(a->idname, b->idname);
 }
