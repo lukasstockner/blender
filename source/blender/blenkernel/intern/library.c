@@ -885,9 +885,9 @@ void BKE_library_callback_free_notifier_reference_set(void (*func)(const void *)
 	free_notifier_reference_cb = func;
 }
 
-static void (*remap_editor_id_reference_cb)(const ID *, ID *) = NULL;
+static void (*remap_editor_id_reference_cb)(ID *, ID *) = NULL;
 
-void BKE_library_callback_remap_editor_id_reference_set(void (*func)(const ID *, ID *))
+void BKE_library_callback_remap_editor_id_reference_set(void (*func)(ID *, ID *))
 {
 	remap_editor_id_reference_cb = func;
 }

@@ -241,7 +241,7 @@ void WM_main_remove_notifier_reference(const void *reference)
 	}
 }
 
-void WM_main_remap_editor_id_reference(const ID *old_id, ID *new_id)
+void WM_main_remap_editor_id_reference(ID *old_id, ID *new_id)
 {
 	Main *bmain = G.main;
 	bScreen *sc;

@@ -1400,9 +1400,10 @@ static int view3d_context(const bContext *C, const char *member, bContextDataRes
 	return -1; /* found but not available */
 }
 
-static void view3d_id_remap(SpaceLink *slink, const ID *old_id, ID *new_id)
+static void view3d_id_remap(SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	View3D *v3d = (View3D *)slink;
+	BGpic *bgpic;
 
 	if ((ID *)v3d->camera == old_id) {
 		v3d->camera = (Object *)new_id;
@@ -1411,7 +1412,18 @@ static void view3d_id_remap(SpaceLink *slink, const ID *old_id, ID *new_id)
 		v3d->ob_centre = (Object *)new_id;
 	}
 
-	/* TODO_REMAP: bgpic (images ID need special care I think, due to ImageUser... */
+	for (bgpic = v3d->bgpicbase.first; bgpic; bgpic = bgpic->next) {
+		if ((ID *)bgpic->ima == old_id) {
+			bgpic->ima = (Image *)new_id;
+			id_us_min(old_id);
+			id_us_plus(new_id);
+		}
+		if ((ID *)bgpic->clip == old_id) {
+			bgpic->clip = (MovieClip *)new_id;
+			id_us_min(old_id);
+			id_us_plus(new_id);
+		}
+	}
 }
 
 /* only called once, from space/spacetypes.c */

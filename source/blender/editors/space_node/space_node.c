@@ -821,7 +821,7 @@ static int node_context(const bContext *C, const char *member, bContextDataResul
 	return 0;
 }
 
-static void node_id_remap(SpaceLink *slink, const ID *old_id, ID *new_id)
+static void node_id_remap(SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	SpaceNode *snode = (SpaceNode *)slink;
 

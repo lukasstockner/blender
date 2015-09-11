@@ -486,7 +486,7 @@ static SpaceLink *outliner_duplicate(SpaceLink *sl)
 	return (SpaceLink *)soutlinern;
 }
 
-static void outliner_id_remap(SpaceLink *slink, const ID *old_id, ID *new_id)
+static void outliner_id_remap(SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	SpaceOops *so = (SpaceOops *)slink;
 
