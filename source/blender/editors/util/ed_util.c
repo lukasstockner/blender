@@ -57,6 +57,7 @@
 #include "BKE_multires.h"
 #include "BKE_packedFile.h"
 #include "BKE_paint.h"
+#include "BKE_screen.h"
 
 #include "ED_armature.h"
 #include "ED_buttons.h"
@@ -333,16 +334,9 @@ void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *ar, void *arg_info
  */
 void ED_spacedata_id_remap(struct SpaceLink *sl, const ID *old_id, ID *new_id)
 {
+	SpaceType *st = BKE_spacetype_from_id(sl->spacetype);
 
-	switch (sl->spacetype) {
-		case SPACE_OUTLINER:
-			ED_outliner_id_remap((SpaceOops *)sl, old_id, new_id);
-			break;
-		case SPACE_BUTS:
-			ED_buttons_id_remap((SpaceButs *)sl, old_id, new_id);
-			break;
-		case SPACE_NODE:
-			ED_node_id_remap((SpaceNode *)sl, old_id, new_id);
-			break;
+	if (st && st->id_remap) {
+		st->id_remap(sl, old_id, new_id);
 	}
 }

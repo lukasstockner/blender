@@ -98,6 +98,9 @@ typedef struct SpaceType {
 	/* return context data */
 	int (*context)(const struct bContext *, const char *, struct bContextDataResult *);
 
+	/* Used when we want to replace an ID by another (or NULL). */
+	void (*id_remap)(struct SpaceLink *, const struct ID *, struct ID *);
+
 	/* region type definitions */
 	ListBase regiontypes;
 	

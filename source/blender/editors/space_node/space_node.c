@@ -821,6 +821,44 @@ static int node_context(const bContext *C, const char *member, bContextDataResul
 	return 0;
 }
 
+static void node_id_remap(SpaceLink *slink, const ID *old_id, ID *new_id)
+{
+	SpaceNode *snode = (SpaceNode *)slink;
+
+	if (GS(old_id->name) == ID_SCE) {
+		if (snode->id == old_id) {
+			if (new_id == NULL) {
+				/* nasty DNA logic for SpaceNode:
+				 * ideally should be handled by editor code, but would be bad level call
+				 */
+				bNodeTreePath *path, *path_next;
+				for (path = snode->treepath.first; path; path = path_next) {
+					path_next = path->next;
+					MEM_freeN(path);
+				}
+				BLI_listbase_clear(&snode->treepath);
+
+				snode->id = NULL;
+				snode->from = NULL;
+				snode->nodetree = NULL;
+				snode->edittree = NULL;
+			}
+			else {
+				/* TODO_REMAP ????????????? */
+				printf("WARNING TODO! remapping scene ID in node editor has to be written!\n");
+			}
+		}
+	}
+	else if (GS(old_id->name) == ID_OB) {
+		if (snode->from == old_id) {
+			if (new_id == NULL) {
+				snode->flag &= ~SNODE_PIN;
+			}
+			snode->from = new_id;
+		}
+	}
+}
+
 /* only called once, from space/spacetypes.c */
 void ED_spacetype_node(void)
 {
@@ -840,6 +878,7 @@ void ED_spacetype_node(void)
 	st->refresh = node_area_refresh;
 	st->context = node_context;
 	st->dropboxes = node_dropboxes;
+	st->id_remap = node_id_remap;
 
 	/* regions: main window */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype node region");

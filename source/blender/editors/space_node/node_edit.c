@@ -740,42 +740,6 @@ void ED_node_set_active(Main *bmain, bNodeTree *ntree, bNode *node)
 	}
 }
 
-void ED_node_id_remap(SpaceNode *snode, const ID *old_id, ID *new_id)
-{
-	if (GS(old_id->name) == ID_SCE) {
-		if (snode->id == old_id) {
-			if (new_id == NULL) {
-				/* nasty DNA logic for SpaceNode:
-				 * ideally should be handled by editor code, but would be bad level call
-				 */
-				bNodeTreePath *path, *path_next;
-				for (path = snode->treepath.first; path; path = path_next) {
-					path_next = path->next;
-					MEM_freeN(path);
-				}
-				BLI_listbase_clear(&snode->treepath);
-
-				snode->id = NULL;
-				snode->from = NULL;
-				snode->nodetree = NULL;
-				snode->edittree = NULL;
-			}
-			else {
-				/* XXX ????????????? */
-				printf("WARNING TODO! remapping scene ID in node editor has to be written!\n");
-			}
-		}
-	}
-	else if (GS(old_id->name) == ID_OB) {
-		if (snode->from == old_id) {
-			if (new_id == NULL) {
-				snode->flag &= ~SNODE_PIN;
-			}
-			snode->from = new_id;
-		}
-	}
-}
-
 void ED_node_post_apply_transform(bContext *UNUSED(C), bNodeTree *UNUSED(ntree))
 {
 	/* XXX This does not work due to layout functions relying on node->block,
