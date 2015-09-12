@@ -965,7 +965,8 @@ void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
 		free_notifier_reference_cb(old_id);
 	}
 
-	/* We assume editors do not hold references to their IDs... */
+	/* We assume editors do not hold references to their IDs... This is false in some cases
+	 * (Image is especially tricky here), editors' code is to handle refcound (id->us) itself then. */
 	if (remap_editor_id_reference_cb) {
 		remap_editor_id_reference_cb(old_id, new_id);
 	}

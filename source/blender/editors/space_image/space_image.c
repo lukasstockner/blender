@@ -28,6 +28,7 @@
  *  \ingroup spimage
  */
 
+#include "DNA_gpencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_meshdata_types.h"
@@ -985,6 +986,13 @@ static void image_id_remap(SpaceLink *slink, ID *old_id, ID *new_id)
 
 	if ((ID *)simg->image == old_id) {
 		simg->image = (Image *)new_id;
+		/* TODO_REMAP this does not work well. */
+		id_us_min(old_id);
+		id_us_plus(new_id);
+	}
+
+	if ((ID *)simg->gpd == old_id) {
+		simg->gpd = (bGPdata *)new_id;
 		id_us_min(old_id);
 		id_us_plus(new_id);
 	}

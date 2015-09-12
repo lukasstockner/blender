@@ -429,6 +429,8 @@ static void buttons_id_remap(SpaceLink *slink, ID *old_id, ID *new_id)
 			/* TODO_REMAP: Check path further down remains valid? Or nullify it systematically? */
 		}
 	}
+
+	/* TODO_REMAP: sbuts->texuser ? */
 }
 
 /* only called once, from space/spacetypes.c */

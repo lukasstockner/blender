@@ -335,7 +335,9 @@ static void rna_ID_user_clear(ID *id)
 
 static void rna_ID_user_remap(ID *id, Main *bmain, ID *new_id)
 {
-	BKE_libblock_remap(bmain, id, new_id);
+	if (GS(id->name) == GS(new_id->name)) {
+		BKE_libblock_remap(bmain, id, new_id);
+	}
 }
 
 static AnimData * rna_ID_animation_data_create(ID *id, Main *bmain)

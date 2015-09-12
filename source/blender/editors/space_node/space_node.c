@@ -28,6 +28,7 @@
  *  \ingroup spnode
  */
 
+#include "DNA_gpencil_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
@@ -856,6 +857,12 @@ static void node_id_remap(SpaceLink *slink, ID *old_id, ID *new_id)
 			}
 			snode->from = new_id;
 		}
+	}
+
+	if ((ID *)snode->gpd == old_id) {
+		snode->gpd = (bGPdata *)new_id;
+		id_us_min(old_id);
+		id_us_plus(new_id);
 	}
 }
 
