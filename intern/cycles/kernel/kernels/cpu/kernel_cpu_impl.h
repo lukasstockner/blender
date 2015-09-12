@@ -128,4 +128,9 @@ void KERNEL_FUNCTION_FULL_NAME(shader)(KernelGlobals *kg,
 	}
 }
 
+void KERNEL_FUNCTION_FULL_NAME(filter_pixel)(KernelGlobals *kg, float *buffers, int x, int y, int w, int h)
+{
+	kernel_filter_pixel(kg, buffers, x, y, w, h);
+}
+
 CCL_NAMESPACE_END

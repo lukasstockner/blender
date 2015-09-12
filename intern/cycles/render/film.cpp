@@ -423,6 +423,13 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 		kfilm->pass_stride += pass.components;
 	}
 
+	if(lwr_passes) {
+		kfilm->pass_lwr = kfilm->pass_stride;
+		kfilm->pass_stride += 20;
+	}
+	else
+		kfilm->pass_lwr = 0;
+
 	kfilm->pass_stride = align_up(kfilm->pass_stride, 4);
 	kfilm->pass_alpha_threshold = pass_alpha_threshold;
 
@@ -459,10 +466,11 @@ bool Film::modified(const Film& film)
 		&& filter_width == film.filter_width
 		&& mist_start == film.mist_start
 		&& mist_depth == film.mist_depth
-		&& mist_falloff == film.mist_falloff);
+		&& mist_falloff == film.mist_falloff
+		&& lwr_passes == film.lwr_passes);
 }
 
-void Film::tag_passes_update(Scene *scene, const vector<Pass>& passes_)
+void Film::tag_passes_update(Scene *scene, const vector<Pass>& passes_, bool lwr_passes_)
 {
 	if(Pass::contains(passes, PASS_UV) != Pass::contains(passes_, PASS_UV)) {
 		scene->mesh_manager->tag_update(scene);
@@ -474,6 +482,7 @@ void Film::tag_passes_update(Scene *scene, const vector<Pass>& passes_)
 		scene->mesh_manager->tag_update(scene);
 
 	passes = passes_;
+	lwr_passes = lwr_passes_;
 }
 
 void Film::tag_update(Scene * /*scene*/)

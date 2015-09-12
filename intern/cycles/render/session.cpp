@@ -44,7 +44,7 @@ CCL_NAMESPACE_BEGIN
  */
 Session::Session(const SessionParams& params_)
 : params(params_),
-  tile_manager(params.progressive, params.samples, params.tile_size, params.start_resolution,
+  tile_manager(params.progressive? 1: (params.filter? params.filter_period: params.samples), params.samples, params.tile_size, params.start_resolution,
        params.background == false || params.progressive_refine, params.background, params.tile_order,
        max(params.device.multi_devices.size(), 1)),
   stats()
@@ -55,7 +55,7 @@ Session::Session(const SessionParams& params_)
 
 	device = Device::create(params.device, stats, params.background);
 
-	if(params.background && params.output_path.empty()) {
+	if(params.background && params.output_path.empty() && !params.filter) {
 		buffers = NULL;
 		display = NULL;
 	}
@@ -382,7 +382,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 
 	/* in case of a permanent buffer, return it, otherwise we will allocate
 	 * a new temporary buffer */
-	if(!(params.background && params.output_path.empty())) {
+	if(!(params.background && params.output_path.empty() && !params.filter)) {
 		tile_manager.state.buffer.get_offset_stride(rtile.offset, rtile.stride);
 
 		rtile.buffer = buffers->buffer.device_pointer;
@@ -451,9 +451,8 @@ void Session::update_tile_sample(RenderTile& rtile)
 	thread_scoped_lock tile_lock(tile_mutex);
 
 	if(update_render_tile_cb) {
-		if(params.progressive_refine == false) {
+		if(params.progressive_refine == false && !params.filter) {
 			/* todo: optimize this by making it thread safe and removing lock */
-
 			update_render_tile_cb(rtile);
 		}
 	}
@@ -466,7 +465,7 @@ void Session::release_tile(RenderTile& rtile)
 	thread_scoped_lock tile_lock(tile_mutex);
 
 	if(write_render_tile_cb) {
-		if(params.progressive_refine == false) {
+		if(params.progressive_refine == false && !params.filter) {
 			/* todo: optimize this by making it thread safe and removing lock */
 			write_render_tile_cb(rtile);
 
@@ -586,10 +585,22 @@ void Session::run_cpu()
 				delayed_reset.do_reset = false;
 				reset_(delayed_reset.params, delayed_reset.samples);
 			}
-			else if(need_tonemap) {
+			else {
+				if(params.filter) {
+					assert(buffers != NULL);
+					buffers->filter_lwr();
+					if(write_render_tile_cb) {
+						RenderTile rtile;
+						rtile.buffers = buffers;
+						rtile.sample = tile_manager.state.sample;
+						write_render_tile_cb(rtile);
+					}
+				}
 				/* tonemap only if we do not reset, we don't we don't
 				 * want to show the result of an incomplete sample */
-				tonemap(tile_manager.state.sample);
+				if(need_tonemap) {
+					tonemap(tile_manager.state.sample);
+				}
 			}
 
 			if(!device->error_message().empty())

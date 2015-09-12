@@ -196,6 +196,8 @@ public:
 			thread_film_convert(*task);
 		else if(task->type == DeviceTask::SHADER)
 			thread_shader(*task);
+		else if(task->type == DeviceTask::FILTER)
+			thread_filter(*task);
 	}
 
 	class CPUDeviceTask : public DeviceTask {
@@ -264,7 +266,7 @@ public:
 			int start_sample = tile.start_sample;
 			int end_sample = tile.start_sample + tile.num_samples;
 
-			SampleMap *map = NULL;
+//			SampleMap *map = NULL;
 
 			for(int sample = start_sample; sample < end_sample; sample++) {
 				if(task.get_cancel() || task_pool.canceled()) {
@@ -275,7 +277,7 @@ public:
 				for(int y = 0; y < tile.h; y++) {
 					for(int x = 0; x < tile.w; x++) {
 						int2 p = make_int2(x, y);
-						if(map) map->sample(tile.sample - 32, p);
+//						if(map) map->sample(tile.sample - 32, p);
 						path_trace_kernel(&kg, render_buffer, rng_state,
 						                  sample, tile.x + p.x, tile.y + p.y, tile.offset, tile.stride);
 					}
@@ -283,16 +285,16 @@ public:
 
 				tile.sample = sample + 1;
 
-				if(tile.sample >= 32 && (tile.sample % 16 == 0)) {
+/*				if(tile.sample >= 32 && (tile.sample % 16 == 0)) {
 					LWRR_apply(tile);
 					if(map) delete map;
 					map = new SampleMap(tile);
-				}
+				}*/
 
 				task.update_progress(&tile);
 			}
 
-			if(map) delete map;
+			//if(map) delete map;
 
 			task.release_tile(tile);
 
@@ -305,6 +307,19 @@ public:
 #ifdef WITH_OSL
 		OSLShader::thread_free(&kg);
 #endif
+	}
+
+	void thread_filter(DeviceTask& task)
+	{
+		KernelGlobals kg = kernel_globals;
+
+		void(*filter_kernel)(KernelGlobals *, float *, int, int, int, int);
+
+		filter_kernel = kernel_cpu_filter_pixel;
+
+		for(int y = 0; y < task.h; y++)
+			for(int x = 0; x < task.w; x++)
+				filter_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.w, task.stride);
 	}
 
 	void thread_film_convert(DeviceTask& task)

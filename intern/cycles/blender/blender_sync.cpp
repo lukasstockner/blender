@@ -525,6 +525,9 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 	/* Background */
 	params.background = background;
 
+	params.filter = background && get_boolean(cscene, "use_filtering");
+	params.filter_period = params.filter? get_int(cscene, "filtering_period"): 0;
+
 	/* samples */
 	int samples = get_int(cscene, "samples");
 	int aa_samples = get_int(cscene, "aa_samples");

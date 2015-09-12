@@ -377,6 +377,7 @@ static void end_render_result(BL::RenderEngine& b_engine,
 
 void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only)
 {
+	printf("Update!\n");
 	BufferParams& params = rtile.buffers->params;
 	int x = params.full_x - session->tile_manager.params.full_x;
 	int y = params.full_y - session->tile_manager.params.full_y;
@@ -451,7 +452,7 @@ void BlenderSession::render()
 	BL::RenderSettings r = b_scene.render();
 	BL::RenderSettings::layers_iterator b_layer_iter;
 	BL::RenderResult::views_iterator b_view_iter;
-	
+
 	for(r.layers.begin(b_layer_iter); b_layer_iter != r.layers.end(); ++b_layer_iter) {
 		b_rlay_name = b_layer_iter->name();
 
@@ -489,8 +490,9 @@ void BlenderSession::render()
 		}
 
 		buffer_params.passes = passes;
+		buffer_params.lwr_passes = session_params.filter;
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
-		scene->film->tag_passes_update(scene, passes);
+		scene->film->tag_passes_update(scene, passes, session_params.filter);
 		scene->film->tag_update(scene);
 		scene->integrator->tag_update(scene);
 

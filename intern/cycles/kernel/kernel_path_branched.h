@@ -580,7 +580,7 @@ ccl_device void kernel_branched_path_trace(KernelGlobals *kg,
 	RNG rng;
 	Ray ray;
 
-	sample = (int) kernel_increment_pass_float(buffer + kernel_data.film.pass_mist, sample);
+	sample = (int) kernel_add_pass_float(buffer + kernel_data.film.pass_mist, sample, 1.0f);
 
 	kernel_path_trace_setup(kg, rng_state, sample, x, y, &rng, &ray);
 
@@ -593,12 +593,11 @@ ccl_device void kernel_branched_path_trace(KernelGlobals *kg,
 		L = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 
 	/* accumulate result in output buffer */
-	if(sample < 32)
-		kernel_write_pass_float4(buffer, sample, L);
-	if(kernel_data.film.pass_flag & PASS_MOTION)
-		kernel_write_pass_float4(buffer + kernel_data.film.pass_motion, sample, L);
-	if(kernel_data.film.pass_flag & PASS_AO)
-		kernel_write_pass_float3(buffer + kernel_data.film.pass_ao, sample, make_float3(L.x, L.y, L.z) * make_float3(L.x, L.y, L.z));
+	if(kernel_data.film.pass_lwr) {
+		kernel_write_pass_float(buffer + 3, sample, L.w); /* Alpha is not filtered, so it's stored in the final pass */
+		kernel_write_lwr_float3(buffer + kernel_data.film.pass_lwr + 14, sample, make_float3(L.x, L.y, L.z));
+	}
+	else kernel_write_pass_float4(buffer, sample, L);
 
 	path_rng_end(kg, rng_state, rng);
 }

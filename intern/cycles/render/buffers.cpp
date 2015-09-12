@@ -23,6 +23,7 @@
 #include "util_foreach.h"
 #include "util_hash.h"
 #include "util_image.h"
+#include "util_lwrr.h"
 #include "util_math.h"
 #include "util_opengl.h"
 #include "util_time.h"
@@ -43,6 +44,7 @@ BufferParams::BufferParams()
 	full_height = 0;
 
 	Pass::add(PASS_COMBINED, passes);
+	lwr_passes = false;
 }
 
 void BufferParams::get_offset_stride(int& offset, int& stride)
@@ -59,7 +61,8 @@ bool BufferParams::modified(const BufferParams& params)
 		&& height == params.height
 		&& full_width == params.full_width
 		&& full_height == params.full_height
-		&& Pass::equals(passes, params.passes));
+		&& Pass::equals(passes, params.passes)
+		&& lwr_passes == params.lwr_passes);
 }
 
 int BufferParams::get_passes_size()
@@ -68,7 +71,10 @@ int BufferParams::get_passes_size()
 
 	foreach(Pass& pass, passes)
 		size += pass.components;
-	
+
+	if(lwr_passes)
+		size += 20;
+
 	return align_up(size, 4);
 }
 
@@ -162,6 +168,41 @@ bool RenderBuffers::copy_to_device()
 		return false;
 
 	device->mem_copy_to(buffer);
+
+	return true;
+}
+
+bool RenderBuffers::filter_lwr()
+{
+	copy_from_device();
+
+	const int blocksize = 64;
+
+/*	int nx = (params.width + blocksize - 1) / blocksize;
+	int ny = (params.height + blocksize - 1) / blocksize;
+	for(int ty = 0; ty < ny; ty++) {
+		for(int tx = 0; tx < nx; tx++) {
+			int w = min(blocksize, params.width  - tx*blocksize);
+			int h = max(blocksize, params.height - ty*blocksize);
+			DeviceTask task(DeviceTask::FILTER);
+			task.x = blocksize*tx;
+			task.y = blocksize*ty;
+			task.w = w;
+			task.h = h;
+			task.stride = params.width;
+			task.buffer = buffer.device_pointer;
+			device->task_add(task);
+			device->task_wait();
+		}
+	}*/
+	DeviceTask task(DeviceTask::FILTER);
+	task.x = task.y = 0;
+	task.w = params.width;
+	task.h = params.height;
+	task.stride = params.height; //To know the original height after task splitting
+	task.buffer = buffer.device_pointer;
+	device->task_add(task);
+	device->task_wait();
 
 	return true;
 }
