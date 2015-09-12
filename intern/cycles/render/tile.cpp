@@ -85,10 +85,10 @@ enum SpiralDirection {
 
 }  /* namespace */
 
-TileManager::TileManager(bool progressive_, int num_samples_, int2 tile_size_, int start_resolution_,
+TileManager::TileManager(int samples_per_tile_, int num_samples_, int2 tile_size_, int start_resolution_,
                          bool preserve_tile_device_, bool background_, TileOrder tile_order_, int num_devices_)
 {
-	progressive = progressive_;
+	samples_per_tile = samples_per_tile_;
 	tile_size = tile_size_;
 	tile_order = tile_order_;
 	start_resolution = start_resolution_;
@@ -124,7 +124,7 @@ void TileManager::reset(BufferParams& params_, int num_samples_)
 	num_samples = num_samples_;
 
 	state.buffer = BufferParams();
-	state.sample = -1;
+	state.sample = -samples_per_tile;
 	state.num_tiles = 0;
 	state.num_rendered_tiles = 0;
 	state.num_samples = 0;
@@ -333,20 +333,15 @@ bool TileManager::next()
 	if(done())
 		return false;
 
-	if(progressive && state.resolution_divider > 1) {
+	if(samples_per_tile == 1 && state.resolution_divider > 1) {
 		state.sample = 0;
 		state.resolution_divider /= 2;
 		state.num_samples = 1;
 		set_tiles();
 	}
 	else {
-		state.sample++;
-
-		if(progressive)
-			state.num_samples = 1;
-		else
-			state.num_samples = num_samples;
-
+		state.sample += samples_per_tile;
+		state.num_samples = samples_per_tile;
 		state.resolution_divider = 1;
 		set_tiles();
 	}

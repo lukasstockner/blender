@@ -55,6 +55,9 @@ public:
 	int start_resolution;
 	int threads;
 
+	bool filter;
+	int filter_period;
+
 	bool display_buffer_linear;
 
 	double cancel_timeout;

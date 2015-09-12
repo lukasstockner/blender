@@ -51,6 +51,7 @@ public:
 
 	/* passes */
 	vector<Pass> passes;
+	bool lwr_passes;
 
 	/* functions */
 	BufferParams();
@@ -81,6 +82,7 @@ public:
 	bool copy_from_device();
 	bool copy_to_device();
 	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels);
+	bool filter_lwr();
 
 protected:
 	void device_free();

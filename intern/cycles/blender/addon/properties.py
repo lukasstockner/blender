@@ -254,6 +254,22 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 items=enum_use_layer_samples,
                 default='USE',
                 )
+        cls.use_filtering = BoolProperty(
+                name="Use LWR filtering",
+                description="Apply a post-processing filter to the image that removes noise at the cost of accuracy",
+                default=False,
+                )
+        cls.filtering_period = IntProperty(
+                name="Filtering period",
+                description="After how many samples the filter is applied",
+                min=1, max=1024,
+                default=16,
+                )
+        cls.use_adaptive_sampling = BoolProperty(
+                name="Use adaptive sampling",
+                description="Put more samples where they will improve the filtered result the most",
+                default=False,
+                )
 
         cls.sample_all_lights_direct = BoolProperty(
                 name="Sample All Direct Lights",

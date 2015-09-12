@@ -172,15 +172,15 @@ __device__ void getTransfCoord(float* iNewVec, float transf[][nDimens], float4& 
 	float4 iTex = tex2D(g_texture, x, y);
 	float4 iNorDepth = tex2D(g_normal_depth, x, y);				
 	for (int col = 0; col < localD; ++col) {							
-		iNewVec[col] = transf[0][col] * (x - cx) + 
-			           transf[1][col] * (y - cy) +
-				       transf[2][col] * (iNorDepth.w - cNorDepth.w) +
-					   transf[3][col] * (iNorDepth.x - cNorDepth.x) +
-					   transf[4][col] * (iNorDepth.y - cNorDepth.y) +
-					   transf[5][col] * (iNorDepth.z - cNorDepth.z) +
-					   transf[6][col] * (iTex.x - cTex.x) + 
-					   transf[7][col] * (iTex.y - cTex.y) +
-					   transf[8][col] * (iTex.z - cTex.z);				
+		iNewVec[col] =  transf[0][col] * (x - cx) + 
+		        	transf[1][col] * (y - cy) +
+				transf[2][col] * (iNorDepth.w - cNorDepth.w) +
+				transf[3][col] * (iNorDepth.x - cNorDepth.x) +
+				transf[4][col] * (iNorDepth.y - cNorDepth.y) +
+				transf[5][col] * (iNorDepth.z - cNorDepth.z) +
+				transf[6][col] * (iTex.x - cTex.x) + 
+				transf[7][col] * (iTex.y - cTex.y) +
+				transf[8][col] * (iTex.z - cTex.z);				
 	}
 }
 

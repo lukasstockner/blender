@@ -294,7 +294,7 @@ enum PathRayFlag {
 	PATH_RAY_MIS_SKIP = 2048,
 	PATH_RAY_DIFFUSE_ANCESTOR = 4096,
 	PATH_RAY_SINGLE_PASS_DONE = 8192,
-	PATH_RAY_SINGLE_PASS_COLOR_DONE = 16384,
+	PATH_RAY_LWR_PASS_DONE = 16384,
 
 	/* we need layer member flags to be the 20 upper bits */
 	PATH_RAY_LAYER_SHIFT = (32-20)
@@ -927,7 +927,7 @@ typedef struct KernelFilm {
 	int pass_shadow;
 	float pass_shadow_scale;
 	int filter_table_offset;
-	int pass_pad2;
+	int pass_lwr;
 
 	int pass_mist;
 	float mist_start;

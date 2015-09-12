@@ -34,7 +34,7 @@ class Tile;
 
 class DeviceTask : public Task {
 public:
-	typedef enum { PATH_TRACE, FILM_CONVERT, SHADER } Type;
+	typedef enum { PATH_TRACE, FILM_CONVERT, SHADER, FILTER } Type;
 	Type type;
 
 	int x, y, w, h;

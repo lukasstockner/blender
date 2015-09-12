@@ -190,6 +190,13 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
         if not (use_opencl(context) and cscene.feature_set != 'EXPERIMENTAL'):
             layout.row().prop(cscene, "sampling_pattern", text="Pattern")
 
+        row = layout.row()
+        sub = row.column()
+        sub.prop(cscene, "use_filtering")
+        if cscene.use_filtering:
+            sub.prop(cscene, "filtering_period")
+            sub.prop(cscene, "use_adaptive_sampling")
+
         for rl in scene.render.layers:
             if rl.samples > 0:
                 layout.separator()
