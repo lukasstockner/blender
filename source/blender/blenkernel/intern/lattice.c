@@ -251,20 +251,27 @@ void BKE_lattice_resize(Lattice *lt, int uNew, int vNew, int wNew, Object *ltOb)
 	MEM_freeN(vertexCos);
 }
 
+void BKE_lattice_init(Lattice *lt)
+{
+	BLI_assert(MEMCMP_NULL_STRUCT_OFS(lt, id));
+
+	lt->flag = LT_GRID;
+
+	lt->typeu = lt->typev = lt->typew = KEY_BSPLINE;
+
+	lt->def = MEM_callocN(sizeof(BPoint), "lattvert"); /* temporary */
+	BKE_lattice_resize(lt, 2, 2, 2, NULL);  /* creates a uniform lattice */
+	lt->actbp = LT_ACTBP_NONE;
+}
+
 Lattice *BKE_lattice_add(Main *bmain, const char *name)
 {
 	Lattice *lt;
 	
 	lt = BKE_libblock_alloc(bmain, ID_LT, name);
 	
-	lt->flag = LT_GRID;
-	
-	lt->typeu = lt->typev = lt->typew = KEY_BSPLINE;
-	
-	lt->def = MEM_callocN(sizeof(BPoint), "lattvert"); /* temporary */
-	BKE_lattice_resize(lt, 2, 2, 2, NULL);  /* creates a uniform lattice */
-	lt->actbp = LT_ACTBP_NONE;
-		
+	BKE_lattice_init(lt);
+
 	return lt;
 }
 

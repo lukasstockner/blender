@@ -1147,6 +1147,11 @@ void nodeDetachNode(struct bNode *node)
 	}
 }
 
+void ntreeInitDefault(bNodeTree *ntree)
+{
+	ntree_set_typeinfo(ntree, NULL);
+}
+
 bNodeTree *ntreeAddTree(Main *bmain, const char *name, const char *idname)
 {
 	bNodeTree *ntree;

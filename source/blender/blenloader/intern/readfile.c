@@ -7862,7 +7862,7 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 	if (id->flag & LIB_FAKEUSER) id->us= 1;
 	else id->us = 0;
 	id->icon_id = 0;
-	id->flag &= ~(LIB_ID_RECALC|LIB_ID_RECALC_DATA|LIB_DOIT);
+	id->flag &= ~(LIB_ID_RECALC|LIB_ID_RECALC_DATA|LIB_DOIT|LIB_MISSING);
 	
 	/* this case cannot be direct_linked: it's just the ID part */
 	if (bhead->code == ID_ID) {
@@ -9680,15 +9680,47 @@ ID *BLO_library_append_named_part_ex(const bContext *C, Main *mainl, BlendHandle
 	return append_named_part_ex(C, mainl, fd, idname, idcode, flag);
 }
 
-static void append_id_part(FileData *fd, Main *mainvar, ID *id, ID **r_id)
+static void append_id_part(ReportList *reports, FileData *fd, Main *mainvar, ID *id, ID **r_id)
 {
-	BHead *bhead = find_bhead_from_idname(fd, id->name);
+	BHead *bhead = NULL;
+
+	if (fd) {
+		bhead = find_bhead_from_idname(fd, id->name);
+	}
+
+	id->flag &= ~LIB_READ;
 
 	if (bhead) {
-		id->flag &= ~LIB_READ;
 		id->flag |= LIB_NEED_EXPAND;
 		// printf("read lib block %s\n", id->name);
 		read_libblock(fd, mainvar, bhead, id->flag, r_id);
+	}
+	else {
+		blo_reportf_wrap(
+				reports, RPT_WARNING,
+				TIP_("LIB ERROR: %s: '%s' missing from '%s', parent '%s'"),
+				BKE_idcode_to_name(GS(id->name)),
+				id->name + 2,
+				mainvar->curlib->filepath,
+				library_parent_filepath(mainvar->curlib));
+
+		/* Generate a placeholder for this ID (limited version of read_libblock actually...). */
+		if (r_id) {
+			ListBase *lb;
+			ID *ph_id = BKE_libblock_alloc_notest(GS(id->name));
+
+			memcpy(ph_id->name, id->name, sizeof(ph_id->name));
+			BKE_libblock_init_empty(ph_id);
+			ph_id->lib = mainvar->curlib;
+			ph_id->flag = id->flag | LIB_MISSING;
+			ph_id->us = (ph_id->flag & LIB_FAKEUSER) ? 1 : 0;
+			ph_id->icon_id = 0;
+
+			lb = which_libbase(mainvar, GS(ph_id->name));
+			BLI_addtail(lb, ph_id);
+
+			*r_id = ph_id;
+		}
 	}
 }
 
@@ -9928,6 +9960,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 					}
 					else {
 						mainptr->curlib->filedata = NULL;
+						mainptr->curlib->id.flag |= LIB_MISSING;
 					}
 					
 					if (fd == NULL) {
@@ -9937,37 +9970,29 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 				}
 				if (fd) {
 					do_it = true;
-					a = set_listbasepointers(mainptr, lbarray);
-					while (a--) {
-						ID *id = lbarray[a]->first;
-						
-						while (id) {
-							ID *idn = id->next;
-							if (id->flag & LIB_READ) {
-								ID *realid = NULL;
-								BLI_remlink(lbarray[a], id);
-								
-								append_id_part(fd, mainptr, id, &realid);
-								if (!realid) {
-									blo_reportf_wrap(
-									        fd->reports, RPT_WARNING,
-									        TIP_("LIB ERROR: %s: '%s' missing from '%s', parent '%s'"),
-									        BKE_idcode_to_name(GS(id->name)),
-									        id->name + 2,
-									        mainptr->curlib->filepath,
-									        library_parent_filepath(mainptr->curlib));
-								}
-								
-								change_idid_adr(mainlist, basefd, id, realid);
-								
-								MEM_freeN(id);
-							}
-							id = idn;
-						}
-					}
-					
-					BLO_expand_main(fd, mainptr);
 				}
+				a = set_listbasepointers(mainptr, lbarray);
+				while (a--) {
+					ID *id = lbarray[a]->first;
+
+					while (id) {
+						ID *idn = id->next;
+						if (id->flag & LIB_READ) {
+							ID *realid = NULL;
+							BLI_remlink(lbarray[a], id);
+
+							append_id_part(basefd->reports, fd, mainptr, id, &realid);
+
+							BLI_assert(realid != NULL);
+
+							change_idid_adr(mainlist, basefd, id, realid);
+
+							MEM_freeN(id);
+						}
+						id = idn;
+					}
+				}
+				BLO_expand_main(fd, mainptr);
 			}
 			
 			mainptr = mainptr->next;
@@ -9983,6 +10008,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 			for (id = lbarray[a]->first; id; id = idn) {
 				idn = id->next;
 				if (id->flag & LIB_READ) {
+					printf("SHALL NOT HAPPEN ANYMORE!!!!!!!\n");
 					BLI_remlink(lbarray[a], id);
 					blo_reportf_wrap(
 					        basefd->reports, RPT_WARNING,
