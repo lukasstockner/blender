@@ -1014,7 +1014,7 @@ typedef struct IDRemap {
 	ID *old_id;
 	ID *new_id;
 	ID *id;  /* The ID in which we are replacing old_id by new_id usages. */
-	int skipped;  /* Number of usecase that could not be remmapped (e.g.: obdata when in edit mode). */
+	int skipped;  /* Number of usecase that could not be remapped (e.g.: obdata when in edit mode). */
 } IDRemap;
 
 static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUSED(cb_flag))
@@ -1050,7 +1050,7 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUS
 }
 
 /** Replace all references in .blend file to \a old_id by \a new_id. */
-void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
+void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id)
 {
 	IDRemap id_remap_data = {(void *)bmain, (void *)old_id, (void *)new_id, NULL, 0};
 	ListBase *lb_array[MAX_LIBARRAY];
@@ -1060,11 +1060,9 @@ void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
 	BLI_assert(GS(old_id->name) == GS(new_id->name));
 	BLI_assert(old_id != new_id);
 
-	printf("%s: %s replaced by %s\n", __func__, old_id->name, new_id->name);
+	printf("%s: %s (%p) replaced by %s (%p)\n", __func__, old_id->name, old_id, new_id->name, new_id);
 
 	i = set_listbasepointers(bmain, lb_array);
-
-	BKE_main_lock(bmain);
 
 	/* Note that this is a very 'bruteforce' approach, maybe we could use some depsgraph to only process
 	 * objects actually using given old_id... But for now this will do. */
@@ -1083,7 +1081,7 @@ void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
 	}
 
 	/* We assume editors do not hold references to their IDs... This is false in some cases
-	 * (Image is especially tricky here), editors' code is to handle refcound (id->us) itself then. */
+	 * (Image is especially tricky here), editors' code is to handle refcount (id->us) itself then. */
 	if (remap_editor_id_reference_cb) {
 		remap_editor_id_reference_cb(old_id, new_id);
 	}
@@ -1091,28 +1089,26 @@ void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
 	/* All ID 'users' do not actually incref it, so we just assume all uses of this ID have been cleared... */
 	skipped = id_remap_data.skipped;
 	if (old_id->flag & LIB_FAKEUSER) {
-		BLI_assert(old_id->us - 1 - skipped >= 0);
-		if (old_id->us > 1) {
-			new_id->us += old_id->us - 1 - skipped;
-			if (new_id->flag & LIB_INDIRECT) {
-				new_id->flag &= ~LIB_INDIRECT;
-				new_id->flag |= LIB_EXTERN;
-			}
-			old_id->us = 1 + skipped;
-		}
+		skipped++;
 	}
-	else if (old_id->us > 0) {
-		BLI_assert(old_id->us - skipped >= 0);
-		new_id->us += old_id->us - skipped;
-		if (new_id->flag & LIB_INDIRECT) {
-			new_id->flag &= ~LIB_INDIRECT;
-			new_id->flag |= LIB_EXTERN;
-		}
-		old_id->us = skipped;
+
+	BLI_assert(old_id->us - skipped >= 0);
+	new_id->us += old_id->us - skipped;
+	if (new_id->flag & LIB_INDIRECT) {
+		new_id->flag &= ~LIB_INDIRECT;
+		new_id->flag |= LIB_EXTERN;
 	}
+	old_id->us = skipped;
 
 	/* Full rebuild of DAG! */
 	DAG_relations_tag_update(bmain);
+}
+
+void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
+{
+	BKE_main_lock(bmain);
+
+	BKE_libblock_remap_locked(bmain, old_id, new_id);
 
 	BKE_main_unlock(bmain);
 }
