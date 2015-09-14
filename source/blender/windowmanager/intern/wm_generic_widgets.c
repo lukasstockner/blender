@@ -153,6 +153,7 @@ static void widget_draw_intern(WidgetDrawInfo *info, const bool select)
 	}
 }
 
+
 /* -------------------------------------------------------------------- */
 /* Widget defines */
 
@@ -866,7 +867,7 @@ wmWidget *WIDGET_dial_new(wmWidgetGroup *wgroup, const char *name, const int sty
 /**
  * Define up-direction of the dial widget
  */
-void WIDGET_dial_set_up_vec(wmWidget *widget, const float direction[3])
+void WIDGET_dial_set_up_vector(wmWidget *widget, const float direction[3])
 {
 	DialWidget *dial = (DialWidget *)widget;
 
@@ -1584,6 +1585,8 @@ wmWidget *WIDGET_facemap_new(
 /** \} */ // Facemap Widget API
 /** \} */ // Facemap Widget
 
+
+/* -------------------------------------------------------------------- */
 
 void fix_linking_widget_lib(void)
 {
