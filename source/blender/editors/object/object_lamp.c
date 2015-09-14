@@ -216,8 +216,6 @@ int WIDGETGROUP_lamp_poll(const struct bContext *C, struct wmWidgetGroupType *UN
 
 void WIDGETGROUP_lamp_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
-	float color_lamp[4] = {0.5f, 0.5f, 1.0f, 1.0f};
-	float color_hi_lamp[4] = {0.8f, 0.8f, 0.45f, 1.0f};
 	Object *ob = CTX_data_active_object(C);
 	Lamp *la = ob->data;
 	wmWidget *widget;
@@ -225,14 +223,18 @@ void WIDGETGROUP_lamp_create(const struct bContext *C, struct wmWidgetGroup *wgr
 	float dir[3];
 	const char *propname = "spot_size";
 
+	const float color[4] = {0.5f, 0.5f, 1.0f, 1.0f};
+	const float color_hi[4] = {0.8f, 0.8f, 0.45f, 1.0f};
+
+
+	negate_v3_v3(dir, ob->obmat[2]);
+
 	widget = WIDGET_arrow_new(wgroup, propname, WIDGET_ARROW_STYLE_INVERTED);
 
-	WM_widget_set_colors(widget, color_lamp, color_hi_lamp);
-	
 	RNA_pointer_create(&la->id, &RNA_Lamp, la, &ptr);
-	WM_widget_set_origin(widget, ob->obmat[3]);
 	WIDGET_arrow_set_range_fac(widget, 4.0f);
-	WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &ptr, propname);
-	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(widget, dir);
+	WM_widget_set_origin(widget, ob->obmat[3]);
+	WM_widget_set_colors(widget, color, color_hi);
+	WM_widget_set_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &ptr, propname);
 }

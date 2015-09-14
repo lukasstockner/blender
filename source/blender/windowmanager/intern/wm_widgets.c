@@ -175,40 +175,6 @@ wmWidget *WM_widget_new(void (*draw)(const bContext *C, wmWidget *customdata),
 	return widget;
 }
 
-void WM_widget_property(wmWidget *widget, const int slot, PointerRNA *ptr, const char *propname)
-{
-	if (slot < 0 || slot >= widget->max_prop) {
-		fprintf(stderr, "invalid index %d when binding property for widget type %s\n", slot, widget->idname);
-		return;
-	}
-	
-	/* if widget evokes an operator we cannot use it for property manipulation */
-	widget->opname = NULL;
-	widget->ptr[slot] = *ptr;
-	widget->props[slot] = RNA_struct_find_property(ptr, propname);
-
-	if (widget->bind_to_prop)
-		widget->bind_to_prop(widget, slot);
-}
-
-PointerRNA *WM_widget_operator(wmWidget *widget, const char *opname)
-{
-	wmOperatorType *ot = WM_operatortype_find(opname, 0);
-	
-	if (ot) {
-		widget->opname = opname;
-		
-		WM_operator_properties_create_ptr(&widget->opptr, ot);
-		
-		return &widget->opptr;
-	}
-	else {
-		fprintf(stderr, "Error binding operator to widget: operator %s not found!\n", opname);
-	}
-	
-	return NULL;
-}
-
 void WM_widgetgroup_customdata_set(wmWidgetGroup *wgroup, void *data)
 {
 	wgroup->customdata = data;
@@ -458,6 +424,40 @@ bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *nam
 	
 	BLI_addtail(&wgroup->widgets, widget);
 	return true;
+}
+
+void WM_widget_set_property(wmWidget *widget, const int slot, PointerRNA *ptr, const char *propname)
+{
+	if (slot < 0 || slot >= widget->max_prop) {
+		fprintf(stderr, "invalid index %d when binding property for widget type %s\n", slot, widget->idname);
+		return;
+	}
+
+	/* if widget evokes an operator we cannot use it for property manipulation */
+	widget->opname = NULL;
+	widget->ptr[slot] = *ptr;
+	widget->props[slot] = RNA_struct_find_property(ptr, propname);
+
+	if (widget->bind_to_prop)
+		widget->bind_to_prop(widget, slot);
+}
+
+PointerRNA *WM_widget_set_operator(wmWidget *widget, const char *opname)
+{
+	wmOperatorType *ot = WM_operatortype_find(opname, 0);
+
+	if (ot) {
+		widget->opname = opname;
+
+		WM_operator_properties_create_ptr(&widget->opptr, ot);
+
+		return &widget->opptr;
+	}
+	else {
+		fprintf(stderr, "Error binding operator to widget: operator %s not found!\n", opname);
+	}
+
+	return NULL;
 }
 
 void WM_widget_set_origin(wmWidget *widget, const float origin[3])

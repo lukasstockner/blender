@@ -279,8 +279,8 @@ static void widgetgroup_overdrop_create(const struct bContext *C, struct wmWidge
 	                     wgroup, "overdrop_cage",
 	                     WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE,
 	                     sizex, sizey);
-	WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
-	WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
+	WM_widget_set_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
+	WM_widget_set_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
 	
 	origin[0] = BLI_rcti_size_x(&ar->winrct)/2.0f;
 	origin[1] = BLI_rcti_size_y(&ar->winrct)/2.0f;
@@ -444,7 +444,7 @@ static void widgetgroup_image_transform_create(const struct bContext *C, struct 
 	           wgroup, "image_cage",
 	           WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE,
 	           viewrect[0] * scale[0], viewrect[1] * scale[1]);
-	WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
+	WM_widget_set_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
 
 	origin[0] = -(v2d->cur.xmin * scale[0]);
 	origin[1] = -(v2d->cur.ymin * scale[1]);

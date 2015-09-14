@@ -1143,8 +1143,8 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 			case MAN_AXIS_ROT_X:
 			case MAN_AXIS_ROT_Y:
 			case MAN_AXIS_ROT_Z:
-				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
 				WIDGET_dial_set_up_vector(axis, rv3d->twmat[aidx_norm]);
+				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
 				break;
 			case MAN_AXIS_TRANS_XY:
 			case MAN_AXIS_TRANS_YZ:
@@ -1160,32 +1160,32 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 				ofs[1] = ofs_ax;
 				ofs[2] = 0.0f;
 
+				WIDGET_plane_set_direction(axis, rv3d->twmat[aidx_norm - 1 < 0 ? 2 : aidx_norm - 1]);
+				WIDGET_plane_set_up_vector(axis, rv3d->twmat[aidx_norm + 1 > 2 ? 0 : aidx_norm + 1]);
 				WM_widget_set_scale(axis, 0.07f);
 				WM_widget_set_origin(axis, rv3d->twmat[3]);
 				WM_widget_set_offset(axis, ofs);
-				WIDGET_plane_set_direction(axis, rv3d->twmat[aidx_norm - 1 < 0 ? 2 : aidx_norm - 1]);
-				WIDGET_plane_set_up_vector(axis, rv3d->twmat[aidx_norm + 1 > 2 ? 0 : aidx_norm + 1]);
 				break;
 			}
 			case MAN_AXIS_TRANS_C:
 			case MAN_AXIS_ROT_C:
 			case MAN_AXIS_SCALE_C:
+				WIDGET_dial_set_up_vector(axis, rv3d->viewinv[2]);
 				if (axis_idx != MAN_AXIS_ROT_C) {
 					WM_widget_set_scale(axis, 0.2f);
 				}
-				WIDGET_dial_set_up_vector(axis, rv3d->viewinv[2]);
 				break;
 		}
 
 		switch (axis_type) {
 			case MAN_AXES_TRANSLATE:
-				ptr = WM_widget_operator(axis, "TRANSFORM_OT_translate");
+				ptr = WM_widget_set_operator(axis, "TRANSFORM_OT_translate");
 				break;
 			case MAN_AXES_ROTATE:
-				ptr = WM_widget_operator(axis, "TRANSFORM_OT_rotate");
+				ptr = WM_widget_set_operator(axis, "TRANSFORM_OT_rotate");
 				break;
 			case MAN_AXES_SCALE:
-				ptr = WM_widget_operator(axis, "TRANSFORM_OT_resize");
+				ptr = WM_widget_set_operator(axis, "TRANSFORM_OT_resize");
 				break;
 		}
 		RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);

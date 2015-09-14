@@ -2525,8 +2525,8 @@ static void widgetgroup_backdrop_create(const struct bContext *C, struct wmWidge
 	                     wgroup, "backdrop_cage",
 	                     WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE,
 	                     width, height);
-	WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
-	WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
+	WM_widget_set_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
+	WM_widget_set_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
 
 	origin[0] = BLI_rcti_size_x(&ar->winrct) / 2.0f;
 	origin[1] = BLI_rcti_size_y(&ar->winrct) / 2.0f;

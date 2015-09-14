@@ -750,28 +750,24 @@ static void WIDGETGROUP_camera_create(const struct bContext *C, struct wmWidgetG
 
 	/* dof distance */
 	if (ca->flag & CAM_SHOWLIMITS) {
-		float color_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
-		float color_hi_camera[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+		const float color[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+		const float color_hi[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 		const char *propname = "dof_distance";
 
 		widget = WIDGET_arrow_new(wgroup, propname, WIDGET_ARROW_STYLE_CROSS);
-		WM_widget_set_flag(widget, WM_WIDGET_DRAW_HOVER, true);
-		WM_widget_set_flag(widget, WM_WIDGET_SCALE_3D, false);
-		WM_widget_set_colors(widget, color_camera, color_hi_camera);
-
-		WM_widget_set_origin(widget, ob->obmat[3]);
-		WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &cameraptr, propname);
 		WIDGET_arrow_set_direction(widget, dir);
 		WIDGET_arrow_set_up_vector(widget, ob->obmat[1]);
+		WM_widget_set_flag(widget, WM_WIDGET_DRAW_HOVER, true);
+		WM_widget_set_flag(widget, WM_WIDGET_SCALE_3D, false);
+		WM_widget_set_colors(widget, color, color_hi);
+		WM_widget_set_origin(widget, ob->obmat[3]);
+		WM_widget_set_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &cameraptr, propname);
 		WM_widget_set_scale(widget, ca->drawsize);
 	}
 
 	/* focal length
 	 * - logic/calculations are similar to BKE_camera_view_frame_ex, better keep in sync */
 	if (focallen_widget) {
-		const float color_camera[4] = {1.0f, 1.0, 0.27f, 0.5f};
-		const float color_hi_camera[4] = {1.0f, 1.0, 0.27f, 1.0f};
-
 		const bool is_ortho = (ca->type == CAM_ORTHO);
 		const float scale_fac = ca->drawsize;
 		const float half_sensor = 0.5f * ((ca->sensor_fit == CAMERA_SENSOR_FIT_VERT) ? ca->sensor_y : ca->sensor_x);
@@ -779,6 +775,9 @@ static void WIDGETGROUP_camera_create(const struct bContext *C, struct wmWidgetG
 		const float drawsize = is_ortho ? (0.5f * ca->ortho_scale) :
 		                                  (scale_fac / ((scale[0] + scale[1] + scale[2]) / 3.0f));
 		const char *propname = is_ortho ? "ortho_scale" : "lens";
+
+		const float color[4] = {1.0f, 1.0, 0.27f, 0.5f};
+		const float color_hi[4] = {1.0f, 1.0, 0.27f, 1.0f};
 
 		PropertyRNA *prop;
 		float offset[3];
@@ -802,15 +801,15 @@ static void WIDGETGROUP_camera_create(const struct bContext *C, struct wmWidgetG
 		widget = WIDGET_arrow_new(wgroup, propname, (WIDGET_ARROW_STYLE_CONE | WIDGET_ARROW_STYLE_CONSTRAINED));
 
 		WIDGET_arrow_set_range_fac(widget, is_ortho ? (scale_fac * range) : (drawsize * range / half_sensor));
-		WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &cameraptr, propname);
+		WIDGET_arrow_set_direction(widget, dir);
+		WIDGET_arrow_set_up_vector(widget, ob->obmat[1]);
+		WM_widget_set_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &cameraptr, propname);
 		WM_widget_set_origin(widget, ob->obmat[3]);
 		WM_widget_set_offset(widget, offset);
 		WM_widget_set_scale(widget, drawsize);
 		WM_widget_set_flag(widget, WM_WIDGET_SCALE_3D, false);
-		WM_widget_set_colors(widget, color_camera, color_hi_camera);
+		WM_widget_set_colors(widget, color, color_hi);
 
-		WIDGET_arrow_set_direction(widget, dir);
-		WIDGET_arrow_set_up_vector(widget, ob->obmat[1]);
 	}
 }
 
@@ -830,8 +829,10 @@ static void WIDGETGROUP_forcefield_create(const struct bContext *C, struct wmWid
 
 	const float size = (ob->type == OB_EMPTY) ? ob->empty_drawsize : 1.0f;
 	const float ofs[3] = {0.0f, -size, 0.0f};
+
 	const float col[4] = {0.8f, 0.8f, 0.45f, 0.5f};
 	const float col_hi[4] = {0.8f, 0.8f, 0.45f, 1.0f};
+
 
 	/* only wind effector for now */
 	if (pd->forcefield == PFIELD_WIND) {
@@ -845,7 +846,7 @@ static void WIDGETGROUP_forcefield_create(const struct bContext *C, struct wmWid
 		WM_widget_set_origin(widget, ob->obmat[3]);
 		WM_widget_set_offset(widget, ofs);
 		WM_widget_set_flag(widget, WM_WIDGET_SCALE_3D, false);
-		WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &ptr, "strength");
+		WM_widget_set_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &ptr, "strength");
 	}
 }
 
@@ -884,7 +885,7 @@ static void WIDGETGROUP_shapekey_draw(const struct bContext *C, struct wmWidgetG
 	WIDGET_arrow_set_color(widget, color_shape);
 	RNA_pointer_create(&key->id, &RNA_ShapeKey, kb, &shapeptr);
 	WM_widget_set_origin(widget, ob->obmat[3]);
-	WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &shapeptr, "value");
+	WM_widget_set_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &shapeptr, "value");
 	negate_v3_v3(dir, ob->obmat[2]);
 	WIDGET_arrow_set_direction(widget, dir);
 }
@@ -914,7 +915,6 @@ static int WIDGETGROUP_armature_facemap_poll(const struct bContext *C, struct wm
 
 static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
-	float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 	Object *ob = CTX_data_active_object(C);
 	wmWidget *widget;
 	Object *armature;
@@ -924,7 +924,10 @@ static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct
 	VirtualModifierData virtualModifierData;
 	int index = 0;
 	bFaceMap *fmap = ob->fmaps.first;
-	
+
+	const float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+
+
 	md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 	
 	/* exception for shape keys because we can edit those */
@@ -942,15 +945,17 @@ static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct
 	for (; fmap; fmap = fmap->next, index++) {
 		if (BKE_pose_channel_find_name(armature->pose, fmap->name)) {
 			PointerRNA *opptr;
+
 			widget = WIDGET_facemap_new(wgroup, fmap->name, 0, ob, index);
+
 			RNA_pointer_create(&ob->id, &RNA_FaceMap, fmap, &famapptr);
-			WM_widget_property(widget, FACEMAP_SLOT_FACEMAP, &famapptr, "name");
-			opptr = WM_widget_operator(widget, "TRANSFORM_OT_translate");
+			WM_widget_set_property(widget, FACEMAP_SLOT_FACEMAP, &famapptr, "name");
+			WM_widget_set_colors(widget, color_shape, color_shape);
+			WM_widget_set_flag(widget, WM_WIDGET_DRAW_HOVER, true);
+			opptr = WM_widget_set_operator(widget, "TRANSFORM_OT_translate");
 			if ((prop = RNA_struct_find_property(opptr, "release_confirm"))) {
 				RNA_property_boolean_set(opptr, prop, true);
 			}
-			WM_widget_set_colors(widget, color_shape, color_shape);
-			WM_widget_set_flag(widget, WM_WIDGET_DRAW_HOVER, true);
 		}
 	}
 }

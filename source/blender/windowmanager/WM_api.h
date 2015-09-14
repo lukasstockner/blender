@@ -504,8 +504,6 @@ struct wmWidget *WM_widget_new(void (*draw)(const struct bContext *, struct wmWi
                                int  (*intersect)(struct bContext *, const struct wmEvent *, struct wmWidget *),
                                int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *));
 
-void WM_widget_property(struct wmWidget *, int slot, struct PointerRNA *ptr, const char *propname);
-struct PointerRNA *WM_widget_operator(struct wmWidget *, const char *opname);
 void WM_widgets_update(const struct bContext *C, struct wmWidgetMap *wmap);
 void WM_widgets_draw(const struct bContext *C, const struct wmWidgetMap *wmap, const bool in_scene);
 void WM_event_add_area_widgetmap_handlers(struct ARegion *ar);
@@ -526,6 +524,8 @@ enum widgetflags {
 	WM_WIDGET_HIDDEN      = (1 << 5),
 };
 
+void WM_widget_set_property(struct wmWidget *, int slot, struct PointerRNA *ptr, const char *propname);
+struct PointerRNA *WM_widget_set_operator(struct wmWidget *, const char *opname);
 void WM_widget_set_origin(struct wmWidget *widget, const float origin[3]);
 void WM_widget_set_offset(struct wmWidget *widget, const float offset[3]);
 void WM_widget_set_flag(struct wmWidget *widget, const int flag, const bool enable);

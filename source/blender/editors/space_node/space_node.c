@@ -877,8 +877,8 @@ static void WIDGETGROUP_node_transform_create(const struct bContext *C, struct w
 		RNA_pointer_create(snode->id, &RNA_SpaceNodeEditor, snode, &nodeptr);
 		
 		WM_widget_set_origin(cage, origin);
-		WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, &nodeptr, "backdrop_offset");
-		WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, &nodeptr, "backdrop_zoom");
+		WM_widget_set_property(cage, RECT_TRANSFORM_SLOT_OFFSET, &nodeptr, "backdrop_offset");
+		WM_widget_set_property(cage, RECT_TRANSFORM_SLOT_SCALE, &nodeptr, "backdrop_zoom");
 	}
 	BKE_image_release_ibuf(ima, ibuf, lock);
 }
