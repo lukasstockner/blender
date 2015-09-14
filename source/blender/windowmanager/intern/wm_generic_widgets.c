@@ -695,6 +695,7 @@ void WIDGET_arrow_set_ui_range(wmWidget *widget, const float min, const float ma
 	ArrowWidget *arrow = (ArrowWidget *)widget;
 
 	BLI_assert(min < max);
+	BLI_assert(!(arrow->widget.props[0] && "Make sure this function is called before WM_widget_property"));
 
 	arrow->range = max - min;
 	arrow->min = min;
@@ -709,6 +710,8 @@ void WIDGET_arrow_set_ui_range(wmWidget *widget, const float min, const float ma
 void WIDGET_arrow_set_range_fac(wmWidget *widget, const float range_fac)
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
+
+	BLI_assert(!(arrow->widget.props[0] && "Make sure this function is called before WM_widget_property"));
 
 	arrow->range_fac = range_fac;
 }
