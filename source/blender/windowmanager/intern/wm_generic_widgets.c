@@ -164,11 +164,10 @@ typedef struct ArrowWidget {
 	wmWidget widget;
 	int style;
 	int flag;
+
+	float len;          /* arrow line length */
 	float direction[3];
 	float up[3];
-
-	float (*line)[3];    /* custom coords for arrow line drawing */
-	int tot_line_points; /* amount of points for arrow line drawing */
 
 	float range_fac;      /* factor for arrow min/max distance */
 	float offset;
@@ -231,50 +230,33 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 #ifdef WIDGET_USE_CUSTOM_ARROWS
 		widget_draw_intern(&arrow_head_draw_info, select);
 #else
-		const int last_co_idx = arrow->tot_line_points - 1;
-		float rot[3][3];
-		float mat[4][4];
-		float co_norm1[3], co_norm2[3];
+		const float vec[2][3] = {
+			{0.0f, 0.0f, 0.0f},
+			{0.0f, 0.0f, arrow->len},
+		};
 
 		glLineWidth(arrow->widget.line_width);
 		glEnableClientState(GL_VERTEX_ARRAY);
-		glVertexPointer(3, GL_FLOAT, 0, arrow->line);
-		glDrawArrays(GL_LINE_STRIP, 0, arrow->tot_line_points);
+		glVertexPointer(3, GL_FLOAT, 0, vec);
+		glDrawArrays(GL_LINE_STRIP, 0, ARRAY_SIZE(vec));
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glLineWidth(1.0);
 
 
 		/* *** draw arrow head *** */
 
-		/* prepare matrix for local head drawing, based on rotation of last line segment */
-
-		normalize_v3_v3(co_norm1, arrow->line[last_co_idx - 1]);
-		normalize_v3_v3(co_norm2, arrow->line[last_co_idx]);
-		rotation_between_vecs_to_mat3(rot, co_norm1, co_norm2);
-		if ((arrow->flag & ARROW_CUSTOM_LINE_SET) == 0) {
-			negate_m3(rot);
-		}
-
-		copy_m4_m3(mat, rot);
-		copy_v3_v3(mat[3], arrow->line[last_co_idx]);
+		glPushMatrix();
 
 		if (arrow->style & WIDGET_ARROW_STYLE_BOX) {
 			const float size = 0.05f;
-			float loc[3];
 
-			/* add some extra offset so box starts exactly where line ends */
-			normalize_v3_v3(loc, arrow->line[last_co_idx]);
-			madd_v3_v3fl(mat[3], loc, size);
+			/* translate to line end with some extra offset so box starts exactly where line ends */
+			glTranslatef(0.0f, 0.0f, arrow->len + size);
 			/* scale down to box size */
-			mul_mat3_m4_fl(mat, size);
-
-			glPushMatrix();
-			glMultMatrixf(mat);
+			glScalef(size, size, size);
 
 			/* draw cube */
 			widget_draw_intern(&cube_draw_info, select);
-
-			glPopMatrix();
 		}
 		else {
 			GLUquadricObj *qobj = gluNewQuadric();
@@ -282,8 +264,8 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 			const float width = 0.06f;
 			const bool use_lighting = !select && ((U.tw_flag & V3D_SHADED_WIDGETS) != 0);
 
-			glPushMatrix();
-			glMultMatrixf(mat);
+			/* translate to line end */
+			glTranslatef(0.0f, 0.0f, arrow->len);
 
 			if (use_lighting) {
 				glShadeModel(GL_SMOOTH);
@@ -298,10 +280,9 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 			if (use_lighting) {
 				glShadeModel(GL_FLAT);
 			}
-
-			glPopMatrix();
 		}
 
+		glPopMatrix();
 		(void)select;
 #endif
 	}
@@ -602,10 +583,6 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 {
 	ArrowWidget *arrow = MEM_callocN(sizeof(ArrowWidget), name);
 	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
-	const float line_default[2][3] = {
-		{0.0f, 0.0f, 0.0f},
-		{0.0f, 0.0f, 1.0f}
-	};
 	int real_style = style;
 
 #ifdef WIDGET_USE_CUSTOM_ARROWS
@@ -644,13 +621,9 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	arrow->widget.flag |= WM_WIDGET_SCALE_3D;
 
 	arrow->style = real_style;
+	arrow->len = 1.0f;
 	arrow->range_fac = 1.0f;
-
-	/* defaults */
 	copy_v3_v3(arrow->direction, dir_default);
-	arrow->tot_line_points = ARRAY_SIZE(line_default);
-	arrow->line = MEM_mallocN(sizeof(line_default), __func__);
-	memcpy(arrow->line, line_default, sizeof(line_default));
 
 	wm_widget_register(wgroup, &arrow->widget, name);
 
@@ -680,20 +653,12 @@ void WIDGET_arrow_set_up_vector(wmWidget *widget, const float direction[3])
 }
 
 /**
- * Define a custom coord vec for arrow line drawing
+ * Define a custom arrow line length
  */
-void WIDGET_arrow_set_line_vec(wmWidget *widget, const float (*vec)[3], const int tot_points)
+void WIDGET_arrow_set_line_len(wmWidget *widget, const float len)
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
-	const size_t vec_size = 3 * tot_points * sizeof(float);
-
-	BLI_assert(tot_points > 1);
-
-	arrow->tot_line_points = tot_points;
-	arrow->line = MEM_reallocN(arrow->line, vec_size);
-	memcpy(arrow->line, vec, vec_size);
-
-	arrow->flag |= ARROW_CUSTOM_LINE_SET;
+	arrow->len = len;
 }
 
 /**

@@ -972,32 +972,33 @@ static void manipulator_prepare_mat(Scene *scene, View3D *v3d, RegionView3D *rv3
 }
 
 /**
- * Sets up \a r_vec for custom arrow widget line drawing. Needed to
- * adjust line drawing for combined manipulator axis types.
+ * Sets up \a r_start and \a r_len to define arrow line range.
+ * Needed to adjust line drawing for combined manipulator axis types.
  */
-static void manipulator_line_vec(const View3D *v3d, float r_vec[2][3], const short axis_type)
+static void manipulator_line_range(const View3D *v3d, const short axis_type, float *r_start, float *r_len)
 {
 	const float ofs = 0.2f;
-	float start[3] = {0.0f, 0.0f, 0.2f};
-	float end[3] = {0.0f, 0.0f, 1.0f};
+
+	*r_start = 0.2f;
+	*r_len = 1.0f;
 
 	switch (axis_type) {
 		case MAN_AXES_TRANSLATE:
 			if (v3d->twtype & V3D_MANIP_SCALE) {
-				start[2] = end[2] - ofs + 0.075f;
+				*r_start = *r_len - ofs + 0.075f;
 			}
 			if (v3d->twtype & V3D_MANIP_ROTATE) {
-				end[2] += ofs;
+				*r_len += ofs;
 			}
 			break;
 		case MAN_AXES_SCALE:
 			if (v3d->twtype & (V3D_MANIP_TRANSLATE | V3D_MANIP_ROTATE)) {
-				end[2] -= ofs + 0.025f;
+				*r_len -= ofs + 0.025f;
 			}
 			break;
 	}
-	copy_v3_v3(r_vec[0], start);
-	copy_v3_v3(r_vec[1], end);
+
+	*r_len -= *r_start;
 }
 
 
@@ -1128,12 +1129,14 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 			case MAN_AXIS_SCALE_Y:
 			case MAN_AXIS_SCALE_Z:
 			{
-				float line_vec[2][3];
+				float start_co[3] = {0.0f, 0.0f, 0.0f};
+				float len;
 
-				manipulator_line_vec(v3d, line_vec, axis_type);
+				manipulator_line_range(v3d, axis_type, &start_co[2], &len);
 
 				WIDGET_arrow_set_direction(axis, rv3d->twmat[aidx_norm]);
-				WIDGET_arrow_set_line_vec(axis, (const float (*)[3])line_vec, ARRAY_SIZE(line_vec));
+				WIDGET_arrow_set_line_len(axis, len);
+				WM_widget_set_offset(axis, start_co);
 				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
 				break;
 			}
