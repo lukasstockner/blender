@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2009 Blender Foundation.
+ * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
  *
  * Contributor(s): Blender Foundation
@@ -23,8 +23,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editors/interface/interface_generic_widgets.c
- *  \ingroup edinterface
+/** \file blender/windowmanager/intern/wm_generic_widgets.c
+ *  \ingroup wm
+ *
+ * *****************************************************
+ *                GENERIC WIDGET LIBRARY                
+ * *****************************************************
  */
 
 #include "RNA_types.h"
@@ -69,16 +73,14 @@
 #include "WM_types.h"
 
 
-/******************************************************
- *            GENERIC WIDGET LIBRARY                  *
- ******************************************************/
-
-
 /* to use custom arrows exported to arrow_widget.c */
 //#define WIDGET_USE_CUSTOM_ARROWS
-/* to use custom dials exported to arrow_widget.c */
+/* to use custom dials exported to dial_widget.c */
 //#define WIDGET_USE_CUSTOM_DIAS
 
+
+/* -------------------------------------------------------------------- */
+/* Widget drawing */
 
 typedef struct WidgetDrawInfo {
 	int nverts;
@@ -151,7 +153,17 @@ static void widget_draw_intern(WidgetDrawInfo *info, const bool select)
 	}
 }
 
-/********* Arrow widget ************/
+/* -------------------------------------------------------------------- */
+/* Widget defines */
+
+/** \name Arrow Widget
+ *
+ * 3D Widget
+ *
+ * \brief Simple arrow widget which is dragged into a certain direction.
+ * The arrow head can have have varying shapes, e.g. cone, box, etc.
+ *
+ * \{ */
 
 /* ArrowWidget->flag */
 enum {
@@ -358,8 +370,10 @@ static void widget_arrow_draw(const bContext *UNUSED(C), wmWidget *widget)
 	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0);
 }
 
-/* calculate arrow offset independent from prop min value,
- * meaning the range will not be offset by min value first */
+/**
+ * Calculate arrow offset independent from prop min value,
+ * meaning the range will not be offset by min value first.
+ */
 #define USE_ABS_HANDLE_RANGE
 
 static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *widget)
@@ -578,6 +592,10 @@ static void widget_arrow_cancel(bContext *C, wmWidget *widget)
 	RNA_property_update(C, &ptr, prop);
 }
 
+/** \name Arrow Widget API
+ *
+ * \{ */
+
 wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int style)
 {
 	ArrowWidget *arrow = MEM_callocN(sizeof(ArrowWidget), name);
@@ -629,14 +647,20 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	return (wmWidget *)arrow;
 }
 
+/**
+ * Define direction the arrow will point towards
+ */
 void WIDGET_arrow_set_direction(wmWidget *widget, const float direction[3])
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
-	
+
 	copy_v3_v3(arrow->direction, direction);
 	normalize_v3(arrow->direction);
 }
 
+/**
+ * Define up-direction of the arrow widget
+ */
 void WIDGET_arrow_set_up_vector(wmWidget *widget, const float direction[3])
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
@@ -688,8 +712,18 @@ void WIDGET_arrow_set_range_fac(wmWidget *widget, const float range_fac)
 	arrow->range_fac = range_fac;
 }
 
+/** \} */ // Arrow Widget API
+/** \} */ // Arrow Widget
 
-/********* Dial widget ************/
+
+/** \name Dial Widget
+ *
+ * 3D Widget
+ *
+ * \brief Circle shaped widget for circular interaction.
+ * Currently no own handling, use with operator only.
+ *
+ * \{ */
 
 typedef struct DialWidget {
 	wmWidget widget;
@@ -794,6 +828,10 @@ static void widget_dial_draw(const bContext *C, wmWidget *widget)
 	}
 }
 
+/** \name Dial Widget API
+ *
+ * \{ */
+
 wmWidget *WIDGET_dial_new(wmWidgetGroup *wgroup, const char *name, const int style)
 {
 	DialWidget *dial = MEM_callocN(sizeof(DialWidget), name);
@@ -825,7 +863,10 @@ wmWidget *WIDGET_dial_new(wmWidgetGroup *wgroup, const char *name, const int sty
 	return (wmWidget *)dial;
 }
 
-void WIDGET_dial_set_direction(wmWidget *widget, const float direction[3])
+/**
+ * Define up-direction of the dial widget
+ */
+void WIDGET_dial_set_up_vec(wmWidget *widget, const float direction[3])
 {
 	DialWidget *dial = (DialWidget *)widget;
 
@@ -833,8 +874,20 @@ void WIDGET_dial_set_direction(wmWidget *widget, const float direction[3])
 	normalize_v3(dial->direction);
 }
 
-/********* Plane widget ************/
+/** \} */ // Dial Widget API
+/** \} */ // Dial Widget
 
+
+/** \name Plane Widget
+ *
+ * 3D Widget
+ *
+ * \brief Flat and rectangular shaped widget for planar interaction.
+ * Currently no own handling, use with operator only.
+ *
+ * \{ */
+
+/* PlaneWidget->flag */
 #define PLANE_UP_VECTOR_SET 1
 
 typedef struct PlaneWidget {
@@ -920,6 +973,10 @@ static void widget_plane_draw(const bContext *UNUSED(C), wmWidget *widget)
 	widget_plane_draw_intern((PlaneWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT));
 }
 
+/** \name Plane Widget API
+ *
+ * \{ */
+
 wmWidget *WIDGET_plane_new(wmWidgetGroup *wgroup, const char *name, const int UNUSED(style))
 {
 	PlaneWidget *plane = MEM_callocN(sizeof(PlaneWidget), name);
@@ -938,6 +995,9 @@ wmWidget *WIDGET_plane_new(wmWidgetGroup *wgroup, const char *name, const int UN
 	return (wmWidget *)plane;
 }
 
+/**
+ * Define direction the plane will point towards
+ */
 void WIDGET_plane_set_direction(wmWidget *widget, const float direction[3])
 {
 	PlaneWidget *plane = (PlaneWidget *)widget;
@@ -946,6 +1006,9 @@ void WIDGET_plane_set_direction(wmWidget *widget, const float direction[3])
 	normalize_v3(plane->direction);
 }
 
+/**
+ * Define up-direction of the plane widget
+ */
 void WIDGET_plane_set_up_vector(wmWidget *widget, const float direction[3])
 {
 	PlaneWidget *plane = (PlaneWidget *)widget;
@@ -960,8 +1023,20 @@ void WIDGET_plane_set_up_vector(wmWidget *widget, const float direction[3])
 	}
 }
 
-/********* Cage widget ************/
+/** \} */ // Plane Widget API
+/** \} */ // Plane Widget
 
+
+/** \name Cage Widget
+ *
+ * 2D Widget
+ *
+ * \brief Rectangular widget acting as a 'cage' around its content.
+ * Interacting scales or translates the widget.
+ *
+ * \{ */
+
+/* wmWidget->highlighted_part */
 enum {
 	WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE     = 1,
 	WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT   = 2,
@@ -1417,6 +1492,10 @@ static void widget_rect_transform_cancel(bContext *C, wmWidget *widget)
 	}
 }
 
+/** \name Cage Widget API
+ *
+ * \{ */
+
 wmWidget *WIDGET_rect_transform_new(
         wmWidgetGroup *wgroup, const char *name, const int style,
         const float width, const float height)
@@ -1441,7 +1520,18 @@ wmWidget *WIDGET_rect_transform_new(
 	return (wmWidget *)cage;
 }
 
-/********* Facemap widget ************/
+/** \} */ // Cage Widget API
+/** \} */ // Cage Widget
+
+
+/** \name Facemap Widget
+ *
+ * 3D Widget
+ *
+ * \brief Widget representing shape of a face map.
+ * Currently no own handling, use with operator only.
+ *
+ * \{ */
 
 typedef struct FacemapWidget {
 	wmWidget widget;
@@ -1467,8 +1557,11 @@ static void widget_facemap_render_3d_intersect(const bContext *C, wmWidget *widg
 	widget_facemap_draw(C, widget);
 }
 
+/** \name Facemap Widget API
+ *
+ * \{ */
 
-struct wmWidget *WIDGET_facemap_new(
+wmWidget *WIDGET_facemap_new(
         wmWidgetGroup *wgroup, const char *name, const int style,
         Object *ob, const int facemap)
 {
@@ -1487,6 +1580,9 @@ struct wmWidget *WIDGET_facemap_new(
 	
 	return (wmWidget *)fmap_widget;
 }
+
+/** \} */ // Facemap Widget API
+/** \} */ // Facemap Widget
 
 
 void fix_linking_widget_lib(void)
