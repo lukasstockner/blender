@@ -290,6 +290,96 @@ void OUTLINER_OT_item_rename(wmOperatorType *ot)
 	ot->poll = ED_operator_outliner_active;
 }
 
+/* Library relocate --------------------------------------------------- */
+
+static void do_lib_rename(ARegion *ar, TreeElement *te, TreeStoreElem *tselem, ReportList *reports)
+{
+	/* can't rename rna datablocks entries or listbases */
+	if (ELEM(tselem->type, TSE_RNA_STRUCT, TSE_RNA_PROPERTY, TSE_RNA_ARRAY_ELEM, TSE_ID_BASE)) {
+		/* do nothing */;
+	}
+	else if (ELEM(tselem->type, TSE_ANIM_DATA, TSE_NLA, TSE_DEFGROUP_BASE, TSE_CONSTRAINT_BASE, TSE_MODIFIER_BASE,
+	              TSE_DRIVER_BASE, TSE_POSE_BASE, TSE_POSEGRP_BASE, TSE_R_LAYER_BASE, TSE_R_PASS))
+	{
+		BKE_report(reports, RPT_WARNING, "Cannot edit builtin name");
+	}
+	else if (ELEM(tselem->type, TSE_SEQUENCE, TSE_SEQ_STRIP, TSE_SEQUENCE_DUP)) {
+		BKE_report(reports, RPT_WARNING, "Cannot edit sequence name");
+	}
+	else if (tselem->id->lib) {
+		BKE_report(reports, RPT_WARNING, "Cannot edit external libdata");
+	}
+	else if (te->idcode == ID_LI && ((Library *)tselem->id)->parent) {
+		BKE_report(reports, RPT_WARNING, "Cannot edit the path of an indirectly linked library");
+	}
+	else {
+		tselem->flag |= TSE_TEXTBUT;
+		ED_region_tag_redraw(ar);
+	}
+}
+
+void item_lib_relocate_cb(
+        bContext *C, Scene *UNUSED(scene), TreeElement *te,
+        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
+{
+	ARegion *ar = CTX_wm_region(C);
+	ReportList *reports = CTX_wm_reports(C); // XXX
+	do_lib_rename(ar, te, tselem, reports);
+}
+
+static int do_outliner_lib_relocate(bContext *C, ARegion *ar, SpaceOops *soops, TreeElement *te, const float mval[2])
+{
+	ReportList *reports = CTX_wm_reports(C); // XXX
+
+	if (mval[1] > te->ys && mval[1] < te->ys + UI_UNIT_Y) {
+		TreeStoreElem *tselem = TREESTORE(te);
+
+		/* click on name */
+		if (mval[0] > te->xs + UI_UNIT_X * 2 && mval[0] < te->xend) {
+			do_lib_rename(ar, te, tselem, reports);
+			return 1;
+		}
+		return 0;
+	}
+
+	for (te = te->subtree.first; te; te = te->next) {
+		if (do_outliner_lib_relocate(C, ar, soops, te, mval)) return 1;
+	}
+	return 0;
+}
+
+static int outliner_lib_relocate_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
+{
+	ARegion *ar = CTX_wm_region(C);
+	SpaceOops *soops = CTX_wm_space_outliner(C);
+	TreeElement *te;
+	float fmval[2];
+	bool changed = false;
+
+	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+
+	for (te = soops->tree.first; te; te = te->next) {
+		if (do_outliner_lib_relocate(C, ar, soops, te, fmval)) {
+			changed = true;
+			break;
+		}
+	}
+
+	return changed ? OPERATOR_FINISHED : OPERATOR_PASS_THROUGH;
+}
+
+
+void OUTLINER_OT_lib_relocate(wmOperatorType *ot)
+{
+	ot->name = "Relocate Library";
+	ot->idname = "OUTLINER_OT_lib_relocate";
+	ot->description = "Relocate library under cursor";
+
+	ot->invoke = outliner_lib_relocate_invoke;
+
+	ot->poll = ED_operator_outliner_active;
+}
+
 /* ************************************************************** */
 /* Setting Toggling Operators */
 
