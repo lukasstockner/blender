@@ -156,8 +156,7 @@ static void widget_draw_intern(WidgetDrawInfo *info, const bool select)
 /* ArrowWidget->flag */
 enum {
 	ARROW_UP_VECTOR_SET    = (1 << 0),
-	ARROW_CUSTOM_LINE_SET =  (1 << 1),
-	ARROW_CUSTOM_RANGE_SET = (1 << 2),
+	ARROW_CUSTOM_RANGE_SET = (1 << 1),
 };
 
 typedef struct ArrowWidget {
