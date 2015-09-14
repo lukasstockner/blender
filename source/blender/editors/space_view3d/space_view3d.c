@@ -755,8 +755,8 @@ static void WIDGETGROUP_camera_create(const struct bContext *C, struct wmWidgetG
 		const char *propname = "dof_distance";
 
 		widget = WIDGET_arrow_new(wgroup, propname, WIDGET_ARROW_STYLE_CROSS);
-		WM_widget_set_draw_on_hover_only(widget, true);
-		WM_widget_set_3d_scale(widget, false);
+		WM_widget_set_flag(widget, WM_WIDGET_DRAW_HOVER, true);
+		WM_widget_set_flag(widget, WM_WIDGET_SCALE_3D, false);
 		WM_widget_set_colors(widget, color_camera, color_hi_camera);
 
 		WM_widget_set_origin(widget, ob->obmat[3]);
@@ -806,7 +806,7 @@ static void WIDGETGROUP_camera_create(const struct bContext *C, struct wmWidgetG
 		WM_widget_set_origin(widget, ob->obmat[3]);
 		WM_widget_set_offset(widget, offset);
 		WM_widget_set_scale(widget, drawsize);
-		WM_widget_set_3d_scale(widget, false);
+		WM_widget_set_flag(widget, WM_WIDGET_SCALE_3D, false);
 		WM_widget_set_colors(widget, color_camera, color_hi_camera);
 
 		WIDGET_arrow_set_direction(widget, dir);
@@ -844,7 +844,7 @@ static void WIDGETGROUP_forcefield_create(const struct bContext *C, struct wmWid
 		WM_widget_set_colors(widget, col, col_hi);
 		WM_widget_set_origin(widget, ob->obmat[3]);
 		WM_widget_set_offset(widget, ofs);
-		WM_widget_set_3d_scale(widget, false);
+		WM_widget_set_flag(widget, WM_WIDGET_SCALE_3D, false);
 		WM_widget_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &ptr, "strength");
 	}
 }
@@ -950,7 +950,7 @@ static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct
 				RNA_property_boolean_set(opptr, prop, true);
 			}
 			WM_widget_set_colors(widget, color_shape, color_shape);
-			WM_widget_set_draw_on_hover_only(widget, true);
+			WM_widget_set_flag(widget, WM_WIDGET_DRAW_HOVER, true);
 		}
 	}
 }

@@ -514,12 +514,21 @@ void WM_modal_handler_attach_widgetgroup(struct bContext *C, struct wmEventHandl
 void WM_widgetgroup_customdata_set(struct wmWidgetGroup *wgroup, void *data);
 void *WM_widgetgroup_customdata(const struct wmWidgetGroup *wgroup);
 
+/* wmWidget->flag */
+enum widgetflags {
+	/* states */
+	WM_WIDGET_HIGHLIGHT   = (1 << 0),
+	WM_WIDGET_ACTIVE      = (1 << 1),
+	/* settings */
+	WM_WIDGET_DRAW_HOVER  = (1 << 2),
+	WM_WIDGET_SCALE_3D    = (1 << 3),
+	WM_WIDGET_SCENE_DEPTH = (1 << 4), /* widget is depth culled with scene objects*/
+	WM_WIDGET_HIDDEN      = (1 << 5),
+};
+
 void WM_widget_set_origin(struct wmWidget *widget, const float origin[3]);
 void WM_widget_set_offset(struct wmWidget *widget, const float offset[3]);
-void WM_widget_set_3d_scale(struct wmWidget *widget, const bool scale);
-void WM_widget_flag_set(struct wmWidget *widget, const int flag, const bool enable);
-void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, const bool draw);
-void WM_widget_set_scene_depth(struct wmWidget *widget, const bool scene);
+void WM_widget_set_flag(struct wmWidget *widget, const int flag, const bool enable);
 void WM_widget_set_scale(struct wmWidget *widget, float scale);
 void WM_widget_set_line_width(struct wmWidget *widget, const float line_width);
 void WM_widget_set_colors(struct wmWidget *widget, const float col[4], const float col_hi[4]);

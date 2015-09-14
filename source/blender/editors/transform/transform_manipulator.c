@@ -1089,7 +1089,7 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f) {
 		MAN_ITER_AXES_BEGIN
 		{
-			WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
+			WM_widget_set_flag(axis, WM_WIDGET_HIDDEN, true);
 		}
 		MAN_ITER_AXES_END;
 
@@ -1109,7 +1109,7 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 		float col[4], col_hi[4];
 
 		if (manipulator_is_axis_visible(v3d, rv3d, axis_idx) == false) {
-			WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
+			WM_widget_set_flag(axis, WM_WIDGET_HIDDEN, true);
 			continue;
 		}
 

@@ -470,17 +470,7 @@ void WM_widget_set_offset(wmWidget *widget, const float offset[3])
 	copy_v3_v3(widget->offset, offset);
 }
 
-void WM_widget_set_3d_scale(wmWidget *widget, const bool scale)
-{
-	if (scale) {
-		widget->flag |= WM_WIDGET_SCALE_3D;
-	}
-	else {
-		widget->flag &= ~WM_WIDGET_SCALE_3D;
-	}
-}
-
-void WM_widget_flag_set(wmWidget *widget, const int flag, const bool enable)
+void WM_widget_set_flag(wmWidget *widget, const int flag, const bool enable)
 {
 	if (enable) {
 		widget->flag |= flag;
@@ -489,27 +479,6 @@ void WM_widget_flag_set(wmWidget *widget, const int flag, const bool enable)
 		widget->flag &= ~flag;
 	}
 }
-
-void WM_widget_set_draw_on_hover_only(wmWidget *widget, const bool draw)
-{
-	if (draw) {
-		widget->flag |= WM_WIDGET_DRAW_HOVER;
-	}
-	else {
-		widget->flag &= ~WM_WIDGET_DRAW_HOVER;
-	}
-}
-
-void WM_widget_set_scene_depth(wmWidget *widget, const bool scene)
-{
-	if (scene) {
-		widget->flag |= WM_WIDGET_SCENE_DEPTH;
-	}
-	else {
-		widget->flag &= ~WM_WIDGET_SCENE_DEPTH;
-	}
-}
-
 
 void WM_widget_set_scale(wmWidget *widget, const float scale)
 {
@@ -525,7 +494,7 @@ void WM_widget_set_line_width(wmWidget *widget, const float line_width)
  * Set widget rgba colors
  *
  * \param col  Normal state color
- * \param col_hi Highlighted state color
+ * \param col_hi  Highlighted state color
  */
 void WM_widget_set_colors(wmWidget *widget, const float col[4], const float col_hi[4])
 {
