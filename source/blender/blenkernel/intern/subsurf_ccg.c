@@ -796,7 +796,7 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss,
 {
 #ifdef WITH_OPENSUBDIV
 	/* Reset all related descriptors if actual mesh topology changed or if
-	 * other evlauation-related settings changed.
+	 * other evaluation-related settings changed.
 	 */
 	if (!ccgSubSurf_needGrids(ss)) {
 		/* TODO(sergey): Use vertex coordinates and flat subdiv flag. */
@@ -1913,7 +1913,6 @@ static void ccgDM_buffer_copy_normal(
 	int start = 0;
 
 	CCG_key_top_level(&key, ss);
-	ccgdm_pbvh_update(ccgdm);
 
 	for (i = 0; i < totface; i++) {
 		CCGFace *f = ccgdm->faceMap[i].face;
@@ -2116,10 +2115,9 @@ static void ccgDM_buffer_copy_vertex(
 	int totedge = ccgSubSurf_getNumEdges(ss);
 	int start = 0;
 	int edgeSize = ccgSubSurf_getEdgeSize(ss);
-	
+
 	CCG_key_top_level(&key, ss);
-	ccgdm_pbvh_update(ccgdm);
-	
+
 	for (i = 0; i < totface; i++) {
 		CCGFace *f = ccgdm->faceMap[i].face;
 		int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
@@ -2385,9 +2383,9 @@ static void ccgDM_buffer_copy_edge(
 	/* part one, handle all normal edges */
 	for (j = 0; j < totedge; j++) {
 		CCGFace *f;
-		int fhandle;
-		int totvert;
-		unsigned int S;
+		int fhandle = 0;
+		int totvert = 0;
+		unsigned int S = 0;
 		CCGEdge *e = ccgdm->edgeMap[j].edge;
 		bool isloose = !ccgSubSurf_getEdgeNumFaces(e);
 
@@ -4805,7 +4803,7 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 				 *
 				 * TODO(sergey): There was a good eason why final calculation
 				 * used to free entirely cached subsurf structure. reason of
-				 * this is to be investiated still to be sure we don't have
+				 * this is to be investigated still to be sure we don't have
 				 * regressions here.
 				 */
 				if (use_gpu_backend) {

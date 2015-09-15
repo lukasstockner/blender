@@ -47,7 +47,6 @@
 #include <opensubdiv/osd/cpuGLVertexBuffer.h>
 #include <opensubdiv/osd/cpuEvaluator.h>
 
-//using OpenSubdiv::FarPatchTables;
 using OpenSubdiv::Osd::GLMeshInterface;
 
 extern "C" char datatoc_gpu_shader_opensubd_display_glsl[];
@@ -59,19 +58,19 @@ typedef struct Light {
 	float diffuse[4];
 	float specular[4];
 	float spot_direction[4];
+#ifdef SUPPORT_COLOR_MATERIAL
 	float constant_attenuation;
 	float linear_attenuation;
 	float quadratic_attenuation;
 	float spot_cutoff;
 	float spot_exponent;
 	float spot_cos_cutoff;
-	float pad[2];
+#endif
 } Light;
 
 typedef struct Lighting {
 	Light lights[MAX_LIGHTS];
 	int num_enabled;
-	int pad[3];
 } Lighting;
 
 typedef struct Transform {
@@ -215,7 +214,7 @@ GLuint compileShader(GLenum shaderType,
 		fprintf(stderr, "Section: %s\n", sdefine);
 		fprintf(stderr, "Defines: %s\n", define);
 		fprintf(stderr, "Source: %s\n", sources[2]);
-		exit(1);
+		return 0;
 	}
 
 	return shader;
@@ -226,12 +225,21 @@ GLuint linkProgram(const char *define)
 	GLuint vertexShader = compileShader(GL_VERTEX_SHADER,
 	                                    "VERTEX_SHADER",
 	                                    define);
+	if (vertexShader == 0) {
+		return 0;
+	}
 	GLuint geometryShader = compileShader(GL_GEOMETRY_SHADER,
 	                                      "GEOMETRY_SHADER",
 	                                      define);
+	if (geometryShader == 0) {
+		return 0;
+	}
 	GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER,
 	                                      "FRAGMENT_SHADER",
 	                                      define);
+	if (fragmentShader == 0) {
+		return 0;
+	}
 
 	GLuint program = glCreateProgram();
 
@@ -280,7 +288,8 @@ GLuint linkProgram(const char *define)
 		glGetProgramInfoLog(program, sizeof(emsg), 0, emsg);
 		fprintf(stderr, "Error linking GLSL program : %s\n", emsg);
 		fprintf(stderr, "Defines: %s\n", define);
-		exit(1);
+		glDeleteProgram(program);
+		return 0;
 	}
 
 	glUniformBlockBinding(program,
@@ -364,9 +373,10 @@ void bindProgram(GLMeshInterface * /*mesh*/,
 
 }  /* namespace */
 
-void openSubdiv_osdGLDisplayInit(void)
+bool openSubdiv_osdGLDisplayInit(void)
 {
 	static bool need_init = true;
+	static bool init_success = false;
 	if (need_init) {
 		g_flat_fill_solid_program = linkProgram("#define FLAT_SHADING\n");
 		g_flat_fill_texture2d_program = linkProgram("#define USE_TEXTURE_2D\n#define FLAT_SHADING\n");
@@ -380,7 +390,13 @@ void openSubdiv_osdGLDisplayInit(void)
 		             sizeof(g_lighting_data), NULL, GL_STATIC_DRAW);
 
 		need_init = false;
+		init_success = g_flat_fill_solid_program != 0 &&
+		               g_flat_fill_texture2d_program != 0 &&
+		               g_smooth_fill_solid_program != 0 &&
+		               g_smooth_fill_texture2d_program != 0 &&
+		               g_wireframe_program;
 	}
+	return init_success;
 }
 
 void openSubdiv_osdGLDisplayDeinit(void)
@@ -444,6 +460,7 @@ void openSubdiv_osdGLMeshDisplayPrepare(int use_osd_glsl,
 		glGetLightfv(GL_LIGHT0 + i,
 		             GL_SPOT_DIRECTION,
 		             g_lighting_data.lights[i].spot_direction);
+#ifdef SUPPORT_COLOR_MATERIAL
 		glGetLightfv(GL_LIGHT0 + i,
 		             GL_CONSTANT_ATTENUATION,
 		             &g_lighting_data.lights[i].constant_attenuation);
@@ -461,6 +478,7 @@ void openSubdiv_osdGLMeshDisplayPrepare(int use_osd_glsl,
 		             &g_lighting_data.lights[i].spot_exponent);
 		g_lighting_data.lights[i].spot_cos_cutoff =
 			cos(g_lighting_data.lights[i].spot_cutoff);
+#endif
 	}
 }
 
@@ -542,13 +560,11 @@ static void perform_drawElements(GLuint program,
                                  int num_elements,
                                  int start_element)
 {
-	int mode = GL_QUADS;
 	if (program) {
 		glUniform1i(glGetUniformLocation(program, "PrimitiveIdBase"),
 		            patch_index);
 	}
-	mode = GL_LINES_ADJACENCY;
-	glDrawElements(mode,
+	glDrawElements(GL_LINES_ADJACENCY,
 	               num_elements,
 	               GL_UNSIGNED_INT,
 	               (void *)(start_element * sizeof(unsigned int)));
@@ -636,7 +652,9 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
 		(GLMeshInterface *)(gl_mesh->descriptor);
 
 	/* Make sure all global invariants are initialized. */
-	openSubdiv_osdGLDisplayInit();
+	if (!openSubdiv_osdGLDisplayInit()) {
+		return;
+	}
 
 	/* Setup GLSL/OpenGL to draw patches in current context. */
 	GLuint program = preapre_patchDraw(mesh, fill_quads != 0);

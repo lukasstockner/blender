@@ -44,6 +44,7 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_armature.h"
 #include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_font.h"
@@ -3042,24 +3043,7 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 		ok = ED_view3d_minmax_verts(obedit, min, max);    /* only selected */
 	}
 	else if (ob && (ob->mode & OB_MODE_POSE)) {
-		if (ob->pose) {
-			bArmature *arm = ob->data;
-			bPoseChannel *pchan;
-			float vec[3];
-
-			for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-				if (pchan->bone->flag & BONE_SELECTED) {
-					if (pchan->bone->layer & arm->layer) {
-						bPoseChannel *pchan_tx = pchan->custom_tx ? pchan->custom_tx : pchan;
-						ok = 1;
-						mul_v3_m4v3(vec, ob->obmat, pchan_tx->pose_head);
-						minmax_v3v3_v3(min, max, vec);
-						mul_v3_m4v3(vec, ob->obmat, pchan_tx->pose_tail);
-						minmax_v3v3_v3(min, max, vec);
-					}
-				}
-			}
-		}
+		ok = BKE_pose_minmax(ob, min, max, true, true);
 	}
 	else if (BKE_paint_select_face_test(ob)) {
 		ok = paintface_minmax(ob, min, max);
@@ -3768,6 +3752,8 @@ static void axis_set_view(bContext *C, View3D *v3d, ARegion *ar,
 {
 	RegionView3D *rv3d = ar->regiondata; /* no NULL check is needed, poll checks */
 	float quat[4];
+	const short orig_persp = rv3d->persp;
+
 
 	normalize_qt_qt(quat, quat_);
 
@@ -3783,7 +3769,7 @@ static void axis_set_view(bContext *C, View3D *v3d, ARegion *ar,
 			float twmat[3][3];
 
 			/* same as transform manipulator when normal is set */
-			ED_getTransformOrientationMatrix(C, twmat, true);
+			ED_getTransformOrientationMatrix(C, twmat, V3D_ACTIVE);
 
 			mat3_to_quat(obact_quat, twmat);
 			invert_qt(obact_quat);
@@ -3810,16 +3796,31 @@ static void axis_set_view(bContext *C, View3D *v3d, ARegion *ar,
 	}
 
 	if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
+		/* to camera */
 		ED_view3d_smooth_view(C, v3d, ar, v3d->camera, NULL,
 		                      rv3d->ofs, quat, NULL, NULL,
 		                      smooth_viewtx);
 	}
+	else if (orig_persp == RV3D_CAMOB && v3d->camera) {
+		/* from camera */
+		float ofs[3], dist;
+
+		copy_v3_v3(ofs, rv3d->ofs);
+		dist = rv3d->dist;
+
+		/* so we animate _from_ the camera location */
+		ED_view3d_from_object(v3d->camera, rv3d->ofs, NULL, &rv3d->dist, NULL);
+
+		ED_view3d_smooth_view(C, v3d, ar, NULL, NULL,
+		                      ofs, quat, &dist, NULL,
+		                      smooth_viewtx);
+	}
 	else {
+		/* no camera involved */
 		ED_view3d_smooth_view(C, v3d, ar, NULL, NULL,
 		                      NULL, quat, NULL, NULL,
 		                      smooth_viewtx);
 	}
-
 }
 
 static int viewnumpad_exec(bContext *C, wmOperator *op)

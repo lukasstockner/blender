@@ -158,8 +158,6 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromTopologyRefiner(
 	bits.set(OpenSubdiv::Osd::MeshInterleaveVarying, 1);
 	bits.set(OpenSubdiv::Osd::MeshFVarData, 1);
 	bits.set(OpenSubdiv::Osd::MeshEndCapBSplineBasis, 1);
-	// bits.set(Osd::MeshEndCapGregoryBasis, 1);
-	// bits.set(Osd::MeshEndCapLegacyGregory, 1);
 
 	const int num_vertex_elements = 3;
 	const int num_varying_elements = 3;
@@ -296,7 +294,7 @@ const struct OpenSubdiv_TopologyRefinerDescr *openSubdiv_getGLMeshTopologyRefine
 
 int openSubdiv_supportGPUDisplay(void)
 {
-	return GL_EXT_geometry_shader4 &&
-	       GL_ARB_gpu_shader5 &&
-	       glProgramParameteriEXT;
+	return GLEW_EXT_geometry_shader4 &&
+	       GLEW_ARB_gpu_shader5 &&
+	       GLEW_ARB_uniform_buffer_object;
 }

@@ -593,8 +593,6 @@ void DM_generate_tangent_tessface_data(DerivedMesh *dm, bool generate)
 	if (!polyindex)
 		return;
 
-	CustomData_from_bmeshpoly(fdata, pdata, ldata, totface);
-
 	if (generate) {
 		for (i = 0; i < ldata->totlayer; i++) {
 			if (ldata->layers[i].type == CD_TANGENT)
@@ -602,6 +600,8 @@ void DM_generate_tangent_tessface_data(DerivedMesh *dm, bool generate)
 		}
 		CustomData_bmesh_update_active_layers(fdata, pdata, ldata);
 	}
+
+	BLI_assert(CustomData_from_bmeshpoly_test(fdata, pdata, ldata, true));
 
 	loopindex = MEM_mallocN(sizeof(*loopindex) * totface, __func__);
 
@@ -2266,12 +2266,9 @@ static void editbmesh_calc_modifiers(
 #if 0 /* XXX Will re-enable this when we have global mod stack options. */
 	const bool do_final_wmcol = (scene->toolsettings->weights_preview == WP_WPREVIEW_FINAL) && do_wmcol;
 #endif
-#ifndef WITH_OPENSUBDIV
 	const bool do_final_wmcol = false;
 	const bool do_init_wmcol = ((((Mesh *)ob->data)->drawflag & ME_DRAWEIGHT) && !do_final_wmcol);
-#else
-	const bool do_init_wmcol = false;
-#endif
+
 	const bool do_init_statvis = ((((Mesh *)ob->data)->drawflag & ME_DRAW_STATVIS) && !do_init_wmcol);
 	const bool do_mod_wmcol = do_init_wmcol;
 	VirtualModifierData virtualModifierData;
@@ -2539,7 +2536,7 @@ static void editbmesh_calc_modifiers(
 #ifdef WITH_OPENSUBDIV
 /* The idea is to skip CPU-side ORCO calculation when
  * we'll be using GPU backend of OpenSubdiv. This is so
- * playback performance is kept as high as posssible.
+ * playback performance is kept as high as possible.
  */
 static bool calc_modifiers_skip_orco(const Object *ob)
 {

@@ -730,7 +730,7 @@ static PointerRNA rna_SpaceImageEditor_uvedit_get(PointerRNA *ptr)
 
 static void rna_SpaceImageEditor_mode_update(Main *bmain, Scene *scene, PointerRNA *UNUSED(ptr))
 {
-	ED_space_image_paint_update(bmain->wm.first, scene->toolsettings);
+	ED_space_image_paint_update(bmain->wm.first, scene);
 }
 
 
@@ -3763,7 +3763,7 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 		               "Freestyle Linestyles", "Show/hide Freestyle's Line Style datablocks"},
 		{FILTER_ID_LT, "LATTICE", ICON_LATTICE_DATA, "Lattices", "Show/hide Lattice datablocks"},
 		{FILTER_ID_MA, "MATERIAL", ICON_MATERIAL_DATA, "Materials", "Show/hide Material datablocks"},
-		{FILTER_ID_MB, "METABALL", ICON_META_DATA, "Metaballs", "Show/hide Mateball datablocks"},
+		{FILTER_ID_MB, "METABALL", ICON_META_DATA, "Metaballs", "Show/hide Metaball datablocks"},
 		{FILTER_ID_MC, "MOVIE_CLIP", ICON_CLIP, "Movie Clips", "Show/hide Movie Clip datablocks"},
 		{FILTER_ID_ME, "MESH", ICON_MESH_DATA, "Meshes", "Show/hide Mesh datablocks"},
 		{FILTER_ID_MSK, "MASK", ICON_MOD_MASK, "Masks", "Show/hide Mask datablocks"},
