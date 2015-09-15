@@ -3361,6 +3361,9 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Scene *scene, Object *camera, int w
 
 	if (use_solid_tex)
 		v3d.flag2 |= V3D_SOLID_TEX;
+		
+	if (draw_background)
+		v3d.flag3 |= V3D_SHOW_WORLD;
 
 	rv3d.persp = RV3D_CAMOB;
 
