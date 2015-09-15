@@ -1340,10 +1340,12 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 				if (event->shift) {
 					/* increase strength */
 					gso->brush->strength += 0.05f;
+					CLAMP_MAX(gso->brush->strength, 1.0f);
 				}
 				else {
 					/* increase brush size */
 					gso->brush->size += 3;
+					CLAMP_MAX(gso->brush->size, 300);
 				}
 					
 				redraw_region = true;
@@ -1354,10 +1356,12 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 				if (event->shift) {
 					/* decrease strength */
 					gso->brush->strength -= 0.05f;
+					CLAMP_MIN(gso->brush->strength, 0.0f);
 				}
 				else {
 					/* decrease brush size */
 					gso->brush->size -= 3;
+					CLAMP_MIN(gso->brush->size, 1);
 				}
 					
 				redraw_region = true;
