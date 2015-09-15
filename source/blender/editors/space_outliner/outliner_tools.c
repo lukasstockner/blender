@@ -1299,11 +1299,10 @@ static int outliner_lib_operation_exec(bContext *C, wmOperator *op)
 		}
 		case OL_LIB_RELOCATE:
 		{
-			/* rename */
-			outliner_do_libdata_operation(C, scene, soops, &soops->tree, item_lib_relocate_cb, NULL);
+			wmOperatorType *ot = WM_operatortype_find("OUTLINER_OT_lib_relocate", false);
 
-			WM_event_add_notifier(C, NC_ID | NA_EDITED, NULL);
-			ED_undo_push(C, "Rename");
+			/* rename */
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, item_lib_relocate_cb, ot);
 			break;
 		}
 		default:

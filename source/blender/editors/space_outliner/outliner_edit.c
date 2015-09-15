@@ -29,17 +29,23 @@
  *  \ingroup spoutliner
  */
 
+#include <string.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_group_types.h"
+#include "DNA_ID.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_material_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
+#include "BLI_path_util.h"
 #include "BLI_mempool.h"
+#include "BLI_stack.h"
+#include "BLI_string.h"
 
 #include "BLT_translation.h"
 
@@ -47,6 +53,7 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
+#include "BKE_idcode.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_outliner_treehash.h"
@@ -54,6 +61,8 @@
 #include "BKE_scene.h"
 #include "BKE_material.h"
 #include "BKE_group.h"
+
+#include "../blenloader/BLO_readfile.h"
 
 #include "ED_object.h"
 #include "ED_outliner.h"
@@ -292,82 +301,143 @@ void OUTLINER_OT_item_rename(wmOperatorType *ot)
 
 /* Library relocate --------------------------------------------------- */
 
-static void do_lib_rename(ARegion *ar, TreeElement *te, TreeStoreElem *tselem, ReportList *reports)
-{
-	/* can't rename rna datablocks entries or listbases */
-	if (ELEM(tselem->type, TSE_RNA_STRUCT, TSE_RNA_PROPERTY, TSE_RNA_ARRAY_ELEM, TSE_ID_BASE)) {
-		/* do nothing */;
-	}
-	else if (ELEM(tselem->type, TSE_ANIM_DATA, TSE_NLA, TSE_DEFGROUP_BASE, TSE_CONSTRAINT_BASE, TSE_MODIFIER_BASE,
-	              TSE_DRIVER_BASE, TSE_POSE_BASE, TSE_POSEGRP_BASE, TSE_R_LAYER_BASE, TSE_R_PASS))
-	{
-		BKE_report(reports, RPT_WARNING, "Cannot edit builtin name");
-	}
-	else if (ELEM(tselem->type, TSE_SEQUENCE, TSE_SEQ_STRIP, TSE_SEQUENCE_DUP)) {
-		BKE_report(reports, RPT_WARNING, "Cannot edit sequence name");
-	}
-	else if (tselem->id->lib) {
-		BKE_report(reports, RPT_WARNING, "Cannot edit external libdata");
-	}
-	else if (te->idcode == ID_LI && ((Library *)tselem->id)->parent) {
-		BKE_report(reports, RPT_WARNING, "Cannot edit the path of an indirectly linked library");
-	}
-	else {
-		tselem->flag |= TSE_TEXTBUT;
-		ED_region_tag_redraw(ar);
-	}
-}
-
 void item_lib_relocate_cb(
         bContext *C, Scene *UNUSED(scene), TreeElement *te,
-        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
+        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *user_data)
 {
-	ARegion *ar = CTX_wm_region(C);
-	ReportList *reports = CTX_wm_reports(C); // XXX
-	do_lib_rename(ar, te, tselem, reports);
+	wmOperatorType *ot = user_data;
+	PointerRNA op_props;
+
+	BLI_assert(te->idcode == ID_LI && tselem->id != NULL);
+	UNUSED_VARS_NDEBUG(te);
+
+	WM_operator_properties_create_ptr(&op_props, ot);
+
+	RNA_string_set(&op_props, "library", tselem->id->name);
+
+	WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &op_props);
+
+	WM_operator_properties_free(&op_props);
 }
 
-static int do_outliner_lib_relocate(bContext *C, ARegion *ar, SpaceOops *soops, TreeElement *te, const float mval[2])
+static Library *outliner_lib_relocate_invoke_findlib(TreeElement *te, const float mval[2])
 {
-	ReportList *reports = CTX_wm_reports(C); // XXX
-
 	if (mval[1] > te->ys && mval[1] < te->ys + UI_UNIT_Y) {
 		TreeStoreElem *tselem = TREESTORE(te);
 
-		/* click on name */
-		if (mval[0] > te->xs + UI_UNIT_X * 2 && mval[0] < te->xend) {
-			do_lib_rename(ar, te, tselem, reports);
-			return 1;
+		if (te->idcode == ID_LI && tselem->id) {
+			return (Library *)tselem->id;
 		}
-		return 0;
+	}
+	else {
+		for (te = te->subtree.first; te; te = te->next) {
+			Library *lib;
+			if ((lib = outliner_lib_relocate_invoke_findlib(te, mval))) {
+				return lib;
+			}
+		}
 	}
 
-	for (te = te->subtree.first; te; te = te->next) {
-		if (do_outliner_lib_relocate(C, ar, soops, te, mval)) return 1;
-	}
-	return 0;
+	return NULL;
 }
 
-static int outliner_lib_relocate_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
+static int outliner_lib_relocate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	ARegion *ar = CTX_wm_region(C);
-	SpaceOops *soops = CTX_wm_space_outliner(C);
+	ARegion *ar;
+	SpaceOops *soops;
 	TreeElement *te;
-	float fmval[2];
-	bool changed = false;
+	Library *lib;
+	char lib_name[MAX_ID_NAME];
 
-	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+	RNA_string_get(op->ptr, "library", lib_name);
+	lib = (Library *)BKE_libblock_find_name_ex(CTX_data_main(C), ID_LI, lib_name + 2);
 
-	for (te = soops->tree.first; te; te = te->next) {
-		if (do_outliner_lib_relocate(C, ar, soops, te, fmval)) {
-			changed = true;
-			break;
+	if (!lib && (soops = CTX_wm_space_outliner(C)) && (ar = CTX_wm_region(C))) {
+		float fmval[2];
+
+		UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+
+		for (te = soops->tree.first; te; te = te->next) {
+			if ((lib = outliner_lib_relocate_invoke_findlib(te, fmval))) {
+				RNA_string_set(op->ptr, "library", lib->id.name);
+				break;
+			}
 		}
 	}
 
-	return changed ? OPERATOR_FINISHED : OPERATOR_PASS_THROUGH;
+	if (lib) {
+		if (lib->parent) {
+			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT,
+			            "Cannot relocate indirectly linked library '%s'", lib->filepath);
+			return OPERATOR_CANCELLED;
+		}
+		RNA_string_set(op->ptr, "filepath", lib->filepath);
+
+		WM_event_add_fileselect(C, op);
+
+		return OPERATOR_RUNNING_MODAL;
+	}
+
+	return OPERATOR_CANCELLED;
 }
 
+static int outliner_lib_relocate_exec(bContext *C, wmOperator *op)
+{
+	Library *lib;
+	char lib_name[MAX_ID_NAME];
+
+	RNA_string_get(op->ptr, "library", lib_name);
+	lib = (Library *)BKE_libblock_find_name_ex(CTX_data_main(C), ID_LI, lib_name + 2);
+
+	if (lib) {
+		char filepath[FILE_MAXFILE];
+
+		if (lib->parent) {
+			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT,
+			            "Cannot relocate indirectly linked library '%s'", lib->filepath);
+			return OPERATOR_CANCELLED;
+		}
+
+		RNA_string_get(op->ptr, "filepath", filepath);
+
+		if (BLI_path_cmp(lib->filepath, filepath) == 0) {
+			/* Reload, not relocate... */
+			return OPERATOR_FINISHED;
+		}
+
+		printf("We are supposed to relocate '%s' lib to new '%s' one...\n", lib->filepath, filepath);
+
+		{
+			const size_t max_id_path_len = BLO_GROUP_MAX + MAX_NAME;
+			BLI_Stack *id_paths_todo = BLI_stack_new(max_id_path_len, __func__);
+
+			Main *bmain = CTX_data_main(C);
+			ListBase *lbarray[MAX_LIBARRAY];
+			int a;
+
+			a = set_listbasepointers(bmain, lbarray);
+			while (a--) {
+				ID *id;
+
+				for (id = lbarray[a]->first; id; id = id->next) {
+					if (id->lib == lib) {
+						char *id_path = BLI_stack_push_r(id_paths_todo);
+
+						BLI_snprintf(id_path, max_id_path_len, "%s/%s", BKE_idcode_to_name(GS(id->name)), id->name + 2);
+
+						printf("\t%s will be remapped\n", id_path);
+					}
+				}
+			}
+
+			BLI_stack_free(id_paths_todo);
+		}
+
+		return OPERATOR_FINISHED;
+	}
+
+	return OPERATOR_CANCELLED;
+}
 
 void OUTLINER_OT_lib_relocate(wmOperatorType *ot)
 {
@@ -376,8 +446,13 @@ void OUTLINER_OT_lib_relocate(wmOperatorType *ot)
 	ot->description = "Relocate library under cursor";
 
 	ot->invoke = outliner_lib_relocate_invoke;
+	ot->exec = outliner_lib_relocate_exec;
+	/* ot->poll = ED_operator_outliner_active; */  /* Can also be used outside of Outliner context. */
 
-	ot->poll = ED_operator_outliner_active;
+	RNA_def_string(ot->srna, "library", NULL, MAX_ID_NAME, "Library", "Library to relocate");
+
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_OPENFILE,
+	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 }
 
 /* ************************************************************** */
