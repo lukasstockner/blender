@@ -301,12 +301,10 @@ void OUTLINER_OT_item_rename(wmOperatorType *ot)
 
 /* Library relocate --------------------------------------------------- */
 
-void item_lib_relocate_cb(
-        bContext *C, Scene *UNUSED(scene), TreeElement *te,
-        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *user_data)
+static int item_lib_relocate(bContext *C, TreeElement *te, TreeStoreElem *tselem, wmOperatorType *ot)
 {
-	wmOperatorType *ot = user_data;
 	PointerRNA op_props;
+	int ret = 0;
 
 	BLI_assert(te->idcode == ID_LI && tselem->id != NULL);
 	UNUSED_VARS_NDEBUG(te);
@@ -315,125 +313,70 @@ void item_lib_relocate_cb(
 
 	RNA_string_set(&op_props, "library", tselem->id->name);
 
-	WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &op_props);
+	ret = WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &op_props);
 
 	WM_operator_properties_free(&op_props);
+
+	return ret;
 }
 
-static Library *outliner_lib_relocate_invoke_findlib(TreeElement *te, const float mval[2])
+/* XXX This does work with several items (ot is only called once in the end...). */
+void item_lib_relocate_cb(
+        bContext *C, Scene *UNUSED(scene), TreeElement *te,
+        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *user_data)
+{
+	wmOperatorType *ot = user_data;
+
+	item_lib_relocate(C, te, tselem, ot);
+}
+
+static int outliner_lib_relocate_invoke_do(bContext *C, ReportList *reports, TreeElement *te, const float mval[2])
 {
 	if (mval[1] > te->ys && mval[1] < te->ys + UI_UNIT_Y) {
 		TreeStoreElem *tselem = TREESTORE(te);
 
 		if (te->idcode == ID_LI && tselem->id) {
-			return (Library *)tselem->id;
+			if (((Library *)tselem->id)->parent) {
+				BKE_reportf(reports, RPT_ERROR_INVALID_INPUT,
+				            "Cannot relocate indirectly linked library '%s'", ((Library *)tselem->id)->filepath);
+				return OPERATOR_CANCELLED;
+			}
+			else {
+				wmOperatorType *ot = WM_operatortype_find("WM_OT_lib_relocate", false);
+
+				return item_lib_relocate(C, te, tselem, ot);
+			}
 		}
 	}
 	else {
 		for (te = te->subtree.first; te; te = te->next) {
-			Library *lib;
-			if ((lib = outliner_lib_relocate_invoke_findlib(te, mval))) {
-				return lib;
+			int ret;
+			if ((ret = outliner_lib_relocate_invoke_do(C, reports, te, mval)) >= 0) {
+				return ret;
 			}
 		}
 	}
 
-	return NULL;
+	return -1;
 }
 
 static int outliner_lib_relocate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	ARegion *ar;
-	SpaceOops *soops;
+	ARegion *ar = CTX_wm_region(C);
+	SpaceOops *soops = CTX_wm_space_outliner(C);
 	TreeElement *te;
-	Library *lib;
-	char lib_name[MAX_ID_NAME];
+	float fmval[2];
 
-	RNA_string_get(op->ptr, "library", lib_name);
-	lib = (Library *)BKE_libblock_find_name_ex(CTX_data_main(C), ID_LI, lib_name + 2);
+	BLI_assert(ar && soops);
 
-	if (!lib && (soops = CTX_wm_space_outliner(C)) && (ar = CTX_wm_region(C))) {
-		float fmval[2];
+	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 
-		UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+	for (te = soops->tree.first; te; te = te->next) {
+		int ret;
 
-		for (te = soops->tree.first; te; te = te->next) {
-			if ((lib = outliner_lib_relocate_invoke_findlib(te, fmval))) {
-				RNA_string_set(op->ptr, "library", lib->id.name);
-				break;
-			}
+		if ((ret = outliner_lib_relocate_invoke_do(C, op->reports, te, fmval)) >= 0) {
+			return ret;
 		}
-	}
-
-	if (lib) {
-		if (lib->parent) {
-			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT,
-			            "Cannot relocate indirectly linked library '%s'", lib->filepath);
-			return OPERATOR_CANCELLED;
-		}
-		RNA_string_set(op->ptr, "filepath", lib->filepath);
-
-		WM_event_add_fileselect(C, op);
-
-		return OPERATOR_RUNNING_MODAL;
-	}
-
-	return OPERATOR_CANCELLED;
-}
-
-static int outliner_lib_relocate_exec(bContext *C, wmOperator *op)
-{
-	Library *lib;
-	char lib_name[MAX_ID_NAME];
-
-	RNA_string_get(op->ptr, "library", lib_name);
-	lib = (Library *)BKE_libblock_find_name_ex(CTX_data_main(C), ID_LI, lib_name + 2);
-
-	if (lib) {
-		char filepath[FILE_MAXFILE];
-
-		if (lib->parent) {
-			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT,
-			            "Cannot relocate indirectly linked library '%s'", lib->filepath);
-			return OPERATOR_CANCELLED;
-		}
-
-		RNA_string_get(op->ptr, "filepath", filepath);
-
-		if (BLI_path_cmp(lib->filepath, filepath) == 0) {
-			/* Reload, not relocate... */
-			return OPERATOR_FINISHED;
-		}
-
-		printf("We are supposed to relocate '%s' lib to new '%s' one...\n", lib->filepath, filepath);
-
-		{
-			const size_t max_id_path_len = BLO_GROUP_MAX + MAX_NAME;
-			BLI_Stack *id_paths_todo = BLI_stack_new(max_id_path_len, __func__);
-
-			Main *bmain = CTX_data_main(C);
-			ListBase *lbarray[MAX_LIBARRAY];
-			int a;
-
-			a = set_listbasepointers(bmain, lbarray);
-			while (a--) {
-				ID *id;
-
-				for (id = lbarray[a]->first; id; id = id->next) {
-					if (id->lib == lib) {
-						char *id_path = BLI_stack_push_r(id_paths_todo);
-
-						BLI_snprintf(id_path, max_id_path_len, "%s/%s", BKE_idcode_to_name(GS(id->name)), id->name + 2);
-
-						printf("\t%s will be remapped\n", id_path);
-					}
-				}
-			}
-
-			BLI_stack_free(id_paths_todo);
-		}
-
-		return OPERATOR_FINISHED;
 	}
 
 	return OPERATOR_CANCELLED;
@@ -446,13 +389,7 @@ void OUTLINER_OT_lib_relocate(wmOperatorType *ot)
 	ot->description = "Relocate library under cursor";
 
 	ot->invoke = outliner_lib_relocate_invoke;
-	ot->exec = outliner_lib_relocate_exec;
-	/* ot->poll = ED_operator_outliner_active; */  /* Can also be used outside of Outliner context. */
-
-	RNA_def_string(ot->srna, "library", NULL, MAX_ID_NAME, "Library", "Library to relocate");
-
-	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_OPENFILE,
-	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
+	ot->poll = ED_operator_outliner_active;
 }
 
 /* ************************************************************** */

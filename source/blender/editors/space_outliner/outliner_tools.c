@@ -1299,7 +1299,7 @@ static int outliner_lib_operation_exec(bContext *C, wmOperator *op)
 		}
 		case OL_LIB_RELOCATE:
 		{
-			wmOperatorType *ot = WM_operatortype_find("OUTLINER_OT_lib_relocate", false);
+			wmOperatorType *ot = WM_operatortype_find("WM_OT_lib_relocate", false);
 
 			/* rename */
 			outliner_do_libdata_operation(C, scene, soops, &soops->tree, item_lib_relocate_cb, ot);
