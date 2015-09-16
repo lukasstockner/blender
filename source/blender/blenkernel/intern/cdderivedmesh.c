@@ -1603,7 +1603,7 @@ static void cdDM_buffer_copy_facemap(DerivedMesh *dm, unsigned int *varray)
 	facemap_iter = facemap;
 	mp_iter = mp;
 	for (i = 0; i < totpoly; i++, facemap_iter++, mp_iter++) {
-		gdo->facemap_count[*facemap_iter] += mp_iter->totloop - 2;
+		gdo->facemap_count[*facemap_iter] += ME_POLY_TRI_TOT(mp_iter);
 	}
 
 	for (i = 0; i < gdo->totfacemaps; i++) {
@@ -1614,7 +1614,7 @@ static void cdDM_buffer_copy_facemap(DerivedMesh *dm, unsigned int *varray)
 	facemap_iter = facemap;
 	mp_iter = mp;
 	for (i = 0; i < totpoly; i++, facemap_iter++, mp_iter++) {
-		int numtri = mp_iter->totloop - 2;
+		int numtri = ME_POLY_TRI_TOT(mp_iter);
 		int fmap_offset = (gdo->facemap_start[*facemap_iter] + facemap_offset[*facemap_iter]) * 3;
 		const MLoopTri *ltri_iter = ltri + poly_to_tri_count(i, mp_iter->loopstart);
 
