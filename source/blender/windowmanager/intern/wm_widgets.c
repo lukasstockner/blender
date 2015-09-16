@@ -175,16 +175,6 @@ wmWidget *WM_widget_new(void (*draw)(const bContext *C, wmWidget *customdata),
 	return widget;
 }
 
-void WM_widgetgroup_customdata_set(wmWidgetGroup *wgroup, void *data)
-{
-	wgroup->customdata = data;
-}
-
-void *WM_widgetgroup_customdata(const wmWidgetGroup *wgroup)
-{
-	return wgroup->customdata;
-}
-
 
 static void wm_widget_delete(ListBase *widgetlist, wmWidget *widget)
 {
