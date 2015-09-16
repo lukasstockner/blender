@@ -78,13 +78,16 @@ int openSubdiv_getAvailableEvaluators(void)
 	 * hard time evaluating required shaders.
 	 */
 	if (!vendor_checked) {
+		vendor_checked = true;
 		const char *vendor = (const char *)glGetString(GL_VENDOR);
 		const char *renderer = (const char *)glGetString(GL_RENDERER);
-		if (strstr(vendor, "ATI") ||
-			strstr(renderer, "Mesa DRI R") ||
-			(strstr(renderer, "Gallium ") && strstr(renderer, " on ATI ")))
-		{
-			disable_glsl_compute = true;
+		if (vendor != NULL && renderer != NULL) {
+			if (strstr(vendor, "ATI") ||
+			    strstr(renderer, "Mesa DRI R") ||
+			    (strstr(renderer, "Gallium ") && strstr(renderer, " on ATI ")))
+			{
+				disable_glsl_compute = true;
+			}
 		}
 	}
 	if (!disable_glsl_compute) {
