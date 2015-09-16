@@ -1075,7 +1075,7 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 	const bool trans_visble  = (any_visible && (v3d->twtype & V3D_MANIP_TRANSLATE));
 	const bool rot_visble    = (any_visible && (v3d->twtype & V3D_MANIP_ROTATE));
 	const bool scale_visible = (any_visible && (v3d->twtype & V3D_MANIP_SCALE));
-	const ManipulatorGroup *man = manipulatorgroup_init(wgroup, trans_visble, rot_visble, scale_visible);
+	ManipulatorGroup *man = manipulatorgroup_init(wgroup, trans_visble, rot_visble, scale_visible);
 
 	if (!man)
 		return;
@@ -1192,6 +1192,8 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 		RNA_boolean_set(ptr, "release_confirm", 1);
 	}
 	MAN_ITER_AXES_END;
+
+	MEM_freeN(man);
 }
 
 void WIDGETGROUP_object_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
