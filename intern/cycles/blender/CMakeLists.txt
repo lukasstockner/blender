@@ -40,6 +40,7 @@ set(SRC
 
 set(ADDON_FILES
 	addon/__init__.py
+	addon/camera_nodes.py
 	addon/engine.py 
 	addon/osl.py
 	addon/presets.py
