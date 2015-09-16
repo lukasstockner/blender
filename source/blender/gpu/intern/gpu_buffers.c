@@ -95,6 +95,8 @@ const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
     {GL_ELEMENT_ARRAY_BUFFER_ARB, 4},
     /* triangles, 1 point since we are allocating from tottriangle points, which account for all points */
     {GL_ELEMENT_ARRAY_BUFFER_ARB, 1},
+    /* facemap */
+    {GL_ELEMENT_ARRAY_BUFFER_ARB, 3},
 };
 
 #define MAX_GPU_ATTRIB_DATA 32
@@ -657,7 +659,7 @@ static size_t gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 		case GPU_BUFFER_TRIANGLES:
 			return sizeof(int) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
 		case GPU_BUFFER_FACEMAP:
-			return sizeof(int) * 3 * dm->drawObject->tot_triangle_point;
+			return sizeof(int) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
 		default:
 			return -1;
 	}

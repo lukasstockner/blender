@@ -1661,6 +1661,7 @@ static void cdDM_copy_gpu_data(
 			break;
 		case GPU_BUFFER_FACEMAP:
 			cdDM_buffer_copy_facemap(dm, (unsigned int *)varray_p);
+			break;
 		default:
 			break;
 	}
