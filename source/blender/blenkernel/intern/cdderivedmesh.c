@@ -1625,7 +1625,6 @@ static void cdDM_buffer_copy_facemap(DerivedMesh *dm, unsigned int *varray)
 			varray[fmap_offset++] = gdo->vert_points[mloop[ltri_iter->tri[1]].v].point_index;
 			varray[fmap_offset++] = gdo->vert_points[mloop[ltri_iter->tri[2]].v].point_index;
 		}
-
 	}
 
 	MEM_freeN(facemap_offset);

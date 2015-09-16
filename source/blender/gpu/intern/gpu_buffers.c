@@ -491,6 +491,10 @@ void GPU_drawobject_free(DerivedMesh *dm)
 #ifdef USE_GPU_POINT_LINK
 	MEM_freeN(gdo->vert_points_mem);
 #endif
+	if (gdo->facemap_start)
+		MEM_freeN(gdo->facemap_start);
+	if (gdo->facemap_count)
+		MEM_freeN(gdo->facemap_count);
 	GPU_buffer_free(gdo->points);
 	GPU_buffer_free(gdo->normals);
 	GPU_buffer_free(gdo->uv);
