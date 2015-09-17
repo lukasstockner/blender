@@ -59,6 +59,7 @@
 #include "PIL_time.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_bitmap.h"
 #include "BLI_dial.h"
 #include "BLI_dynstr.h" /*for WM_operator_pystring */
 #include "BLI_linklist_stack.h"
@@ -2599,96 +2600,129 @@ static short wm_link_append_flag(wmOperator *op)
 	return flag;
 }
 
-/* Helper.
- *     if `name` is non-NULL, we assume a single-item link/append.
- *     else if `*todo_libraries` is NULL we assume first-run.
- */
-static void wm_link_append_do_libgroup(
-        bContext *C, wmOperator *op, const char *root, const char *libname, char *group, char *name,
-        const short flag, GSet **todo_libraries)
+
+typedef struct WMLinkAppendDataItem {
+	char group[BLO_GROUP_MAX];
+	char name[MAX_NAME];
+	BLI_bitmap *libs;  /* All libs (from WMLinkAppendData.libraries) to try to load this ID from. */
+	int idcode;
+} WMLinkAppendDataItem;
+
+typedef struct WMLinkAppendData {
+	char (*libraries)[FILE_MAX];
+	WMLinkAppendDataItem *items;
+	int num_libraries;
+	int num_items;
+	int flag;
+} WMLinkAppendData;
+
+static void wm_link_append_data_create(WMLinkAppendData *data, const int num_libraries, const int num_items, const int flag)
 {
-	Main *bmain = CTX_data_main(C);
+	int i;
+
+	data->libraries = MEM_callocN(sizeof(*data->libraries) * (size_t)num_libraries, __func__);
+	data->num_libraries = num_libraries;
+
+	data->items = MEM_callocN(sizeof(*data->items) * (size_t)num_items, __func__);
+	data->num_items = num_items;
+	for (i = 0; i < num_items; i++) {
+		data->items[i].libs = BLI_BITMAP_NEW(num_libraries, __func__);
+	}
+
+	data->flag = flag;
+}
+
+static void wm_link_append_data_delete(WMLinkAppendData *data)
+{
+	int i;
+
+	MEM_SAFE_FREE(data->libraries);
+	data->num_libraries = 0;
+
+	for (i = 0; i < data->num_items; i++) {
+		MEM_freeN(data->items[i].libs);
+	}
+	MEM_SAFE_FREE(data->items);
+	data->num_items = 0;
+}
+
+static void wm_link_do(
+        WMLinkAppendData *lapp_data, ReportList *reports, Main *bmain, Scene *scene, View3D *v3d)
+{
 	Main *mainl;
 	BlendHandle *bh;
 	Library *lib;
 
-	char path[FILE_MAX_LIBEXTRA], relname[FILE_MAX];
+	const int flag = lapp_data->flag;
+
+	BLI_bitmap *done_items = BLI_BITMAP_NEW(lapp_data->num_items, __func__);
+	char (*libname)[FILE_MAX];
+	int lib_idx, item_idx;
 	int idcode;
-	const bool is_first_run = (*todo_libraries == NULL);
 
-	BLI_assert(group);
-	idcode = BKE_idcode_from_name(group);
+	BLI_assert(lapp_data->num_items && lapp_data->num_libraries);
 
-	bh = BLO_blendhandle_from_file(libname, op->reports);
+	for (lib_idx = 0, libname = lapp_data->libraries; lib_idx < lapp_data->num_libraries; lib_idx++, libname++) {
+		bh = BLO_blendhandle_from_file(*libname, reports);
 
-	if (bh == NULL) {
-		/* unlikely since we just browsed it, but possible
-		 * error reports will have been made by BLO_blendhandle_from_file() */
-		return;
-	}
-
-	/* here appending/linking starts */
-	mainl = BLO_library_append_begin(bmain, &bh, libname);
-	lib = mainl->curlib;
-	BLI_assert(lib);
-
-	if (mainl->versionfile < 250) {
-		BKE_reportf(op->reports, RPT_WARNING,
-		            "Linking or appending from a very old .blend file format (%d.%d), no animation conversion will "
-		            "be done! You may want to re-save your lib file with current Blender",
-		            mainl->versionfile, mainl->subversionfile);
-	}
-
-	if (name) {
-		BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
-	}
-	else {
-		if (is_first_run) {
-			*todo_libraries = BLI_gset_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, __func__);
+		if (bh == NULL) {
+			/* Unlikely since we just browsed it, but possible
+			 * Error reports will have been made by BLO_blendhandle_from_file() */
+			continue;
 		}
 
-		RNA_BEGIN (op->ptr, itemptr, "files")
-		{
-			char curr_libname[FILE_MAX];
-			int curr_idcode;
+		/* here appending/linking starts */
+		mainl = BLO_library_link_begin(bmain, &bh, *libname);
+		lib = mainl->curlib;
+		BLI_assert(lib);
+		UNUSED_VARS_NDEBUG(lib);
 
-			RNA_string_get(&itemptr, "name", relname);
+		if (mainl->versionfile < 250) {
+			BKE_reportf(reports, RPT_WARNING,
+			            "Linking or appending from a very old .blend file format (%d.%d), no animation conversion will "
+			            "be done! You may want to re-save your lib file with current Blender",
+			            mainl->versionfile, mainl->subversionfile);
+		}
 
-			BLI_join_dirfile(path, sizeof(path), root, relname);
+		/* For each lib file, we loop until we have (tried) to link all items belonging to that lib. */
+		BLI_BITMAP_SET_ALL(done_items, false, lapp_data->num_items);
+		while (true) {
+			WMLinkAppendDataItem *item;
 
-			if (BLO_library_path_explode(path, curr_libname, &group, &name)) {
-				if (!group || !name) {
+			for (item_idx = 0, idcode = -1, item = lapp_data->items;
+			     item_idx < lapp_data->num_items;
+			     item_idx++, item++)
+			{
+				if (BLI_BITMAP_TEST(done_items, item_idx) || !BLI_BITMAP_TEST(item->libs, lib_idx)) {
+					continue;
+				}
+				if (idcode == -1) {
+					idcode = item->idcode;
+				}
+				else if (item->idcode != idcode) {
 					continue;
 				}
 
-				curr_idcode = BKE_idcode_from_name(group);
+				BLI_BITMAP_ENABLE(done_items, item_idx);
 
-				if ((idcode == curr_idcode) && (BLI_path_cmp(curr_libname, libname) == 0)) {
-					BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
+				if (BLO_library_link_named_part_ex(mainl, &bh, item->name, idcode, flag, scene, v3d)) {
+					/* If the link is sucessful, clear item's libs 'todo' flags.
+					 * This avoids trying to link same item with other libraries to come. */
+					BLI_BITMAP_SET_ALL(item->libs, false, lapp_data->num_libraries);
 				}
-				else if (is_first_run) {
-					BLI_join_dirfile(path, sizeof(path), curr_libname, group);
-					if (!BLI_gset_haskey(*todo_libraries, path)) {
-						BLI_gset_insert(*todo_libraries, BLI_strdup(path));
-					}
-				}
+
+			}
+			if (idcode == -1) {
+				/* We have handled all items for this library, so we are done with it. */
+				break;
 			}
 		}
-		RNA_END;
+
+		BLO_library_link_end(mainl, &bh, flag, scene, v3d);
+		BLO_blendhandle_close(bh);
 	}
-	BLO_library_append_end(C, mainl, &bh, idcode, flag);
 
-	BLO_blendhandle_close(bh);
-
-	/* mark all library linked objects to be updated */
-	BKE_main_lib_objects_recalc_all(bmain);
-	IMB_colormanagement_check_file_config(bmain);
-
-	/* append, rather than linking */
-	if ((flag & FILE_LINK) == 0) {
-		BLI_assert(BLI_findindex(&bmain->library, lib) != -1);
-		BKE_library_make_local(bmain, lib, true);
-	}
+	MEM_freeN(done_items);
 }
 
 static int wm_link_append_exec(bContext *C, wmOperator *op)
@@ -2696,12 +2730,11 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	PropertyRNA *prop;
+	WMLinkAppendData lapp_data;
 	char path[FILE_MAX_LIBEXTRA], root[FILE_MAXDIR], libname[FILE_MAX], relname[FILE_MAX];
 	char *group, *name;
 	int totfiles = 0;
 	short flag;
-
-	GSet *todo_libraries = NULL;
 
 	RNA_string_get(op->ptr, "filename", relname);
 	RNA_string_get(op->ptr, "directory", root);
@@ -2741,42 +2774,109 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	flag = wm_link_append_flag(op);
 
 	/* sanity checks for flag */
-	if (scene->id.lib && (flag & FILE_GROUP_INSTANCE)) {
+	if (scene && scene->id.lib && (flag & FILE_GROUP_INSTANCE)) {
 		/* TODO, user never gets this message */
 		BKE_reportf(op->reports, RPT_WARNING, "Scene '%s' is linked, group instance disabled", scene->id.name + 2);
 		flag &= ~FILE_GROUP_INSTANCE;
+		scene = NULL;
 	}
 
 	/* from here down, no error returns */
 
 	/* now we have or selected, or an indicated file */
-	if (RNA_boolean_get(op->ptr, "autoselect"))
+	if (scene && RNA_boolean_get(op->ptr, "autoselect")) {
 		BKE_scene_base_deselect_all(scene);
+	}
 	
 	/* tag everything, all untagged data can be made local
 	 * its also generally useful to know what is new
 	 *
-	 * take extra care BKE_main_id_flag_all(LIB_LINK_TAG, false) is called after! */
-	BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, 1);
+	 * take extra care BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, false) is called after! */
+	BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, true);
 
+	/* We define our working data... */
 	if (totfiles != 0) {
-		name = NULL;
-	}
+		GHash *libraries = BLI_ghash_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, __func__);
+		GHashIterator libs_it;
+		int num_libraries = 0;
+		int num_items = 0;
 
-	wm_link_append_do_libgroup(C, op, root, libname, group, name, flag, &todo_libraries);
+		RNA_BEGIN (op->ptr, itemptr, "files")
+		{
+			RNA_string_get(&itemptr, "name", relname);
 
-	if (todo_libraries) {
-		GSetIterator libs_it;
+			BLI_join_dirfile(path, sizeof(path), root, relname);
 
-		GSET_ITER(libs_it, todo_libraries) {
-			char *libpath = (char *)BLI_gsetIterator_getKey(&libs_it);
+			if (BLO_library_path_explode(path, libname, &group, &name)) {
+				if (!group || !name) {
+					continue;
+				}
 
-			BLO_library_path_explode(libpath, libname, &group, NULL);
+				num_items++;
 
-			wm_link_append_do_libgroup(C, op, root, libname, group, NULL, flag, &todo_libraries);
+				if (!BLI_ghash_haskey(libraries, libname)) {
+					BLI_ghash_insert(libraries, BLI_strdup(libname), SET_INT_IN_POINTER(num_libraries));
+					num_libraries++;
+				}
+			}
+		}
+		RNA_END;
+
+		wm_link_append_data_create(&lapp_data, num_libraries, num_items, flag);
+		num_libraries = num_items = 0;
+
+		GHASH_ITER_INDEX(libs_it, libraries, num_libraries) {
+			BLI_strncpy(lapp_data.libraries[num_libraries], BLI_ghashIterator_getKey(&libs_it),
+			            sizeof(*lapp_data.libraries));
 		}
 
-		BLI_gset_free(todo_libraries, MEM_freeN);
+		RNA_BEGIN (op->ptr, itemptr, "files")
+		{
+			RNA_string_get(&itemptr, "name", relname);
+
+			BLI_join_dirfile(path, sizeof(path), root, relname);
+
+			if (BLO_library_path_explode(path, libname, &group, &name)) {
+				if (!group || !name) {
+					continue;
+				}
+
+				num_libraries = GET_INT_FROM_POINTER(BLI_ghash_lookup(libraries, libname));
+
+				BLI_strncpy(lapp_data.items[num_items].group, group, sizeof(lapp_data.items[num_items].group));
+				BLI_strncpy(lapp_data.items[num_items].name, name, sizeof(lapp_data.items[num_items].name));
+				lapp_data.items[num_items].idcode = BKE_idcode_from_name(group);
+				BLI_BITMAP_ENABLE(lapp_data.items[num_items].libs, num_libraries);
+
+				num_items++;
+			}
+		}
+		RNA_END;
+
+		BLI_ghash_free(libraries, MEM_freeN, NULL);
+	}
+	else {
+		wm_link_append_data_create(&lapp_data, 1, 1, flag);
+
+		BLI_strncpy(lapp_data.libraries[0], libname, sizeof(*lapp_data.libraries));
+
+		BLI_strncpy(lapp_data.items[0].group, group, sizeof(lapp_data.items[0].group));
+		BLI_strncpy(lapp_data.items[0].name, name, sizeof(lapp_data.items[0].name));
+		lapp_data.items[0].idcode = BKE_idcode_from_name(group);
+		BLI_BITMAP_ENABLE(lapp_data.items[0].libs, 0);
+	}
+
+	wm_link_do(&lapp_data, op->reports, bmain, scene, CTX_wm_view3d(C));
+
+	wm_link_append_data_delete(&lapp_data);
+
+	/* mark all library linked objects to be updated */
+	BKE_main_lib_objects_recalc_all(bmain);
+	IMB_colormanagement_check_file_config(bmain);
+
+	/* append, rather than linking */
+	if ((flag & FILE_LINK) == 0) {
+		BKE_library_make_local(bmain, NULL, true);
 	}
 
 	/* important we unset, otherwise these object wont
