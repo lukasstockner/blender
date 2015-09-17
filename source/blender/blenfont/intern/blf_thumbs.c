@@ -110,10 +110,10 @@ void BLF_thumb_preview(
 		if (blf_font_count_missing_chars(
 		        font, draw_str_i18n, draw_str_i18n_len, &draw_str_i18n_nbr) > (draw_str_i18n_nbr / 2))
 		{
-			blf_font_buffer(font, draw_str[i], (size_t)draw_str_i18n_nbr, NULL);
+			blf_font_draw_buffer(font, draw_str[i], (size_t)draw_str_i18n_nbr, NULL);
 		}
 		else {
-			blf_font_buffer(font, draw_str_i18n, draw_str_i18n_len, NULL);
+			blf_font_draw_buffer(font, draw_str_i18n, draw_str_i18n_len, NULL);
 		}
 	}
 

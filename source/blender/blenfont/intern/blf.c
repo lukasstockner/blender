@@ -916,10 +916,10 @@ void BLF_draw_buffer_ex(
 
 	if (font && font->glyph_cache && (font->buf_info.fbuf || font->buf_info.cbuf)) {
 		if (font->flags & BLF_WORD_WRAP) {
-			blf_font_buffer__wrap(font, str, len, r_info);
+			blf_font_draw_buffer__wrap(font, str, len, r_info);
 		}
 		else {
-			blf_font_buffer(font, str, len, r_info);
+			blf_font_draw_buffer(font, str, len, r_info);
 		}
 	}
 }

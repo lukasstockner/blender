@@ -290,7 +290,7 @@ int blf_font_draw_mono(FontBLF *font, const char *str, size_t len, int cwidth)
 }
 
 /* Sanity checks are done by BLF_draw_buffer() */
-static void blf_font_buffer_ex(
+static void blf_font_draw_buffer_ex(
         FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info,
         int pen_y)
 {
@@ -460,10 +460,10 @@ static void blf_font_buffer_ex(
 		r_info->width = pen_x;
 	}
 }
-void blf_font_buffer(
+void blf_font_draw_buffer(
         FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info)
 {
-	blf_font_buffer_ex(font, str, len, r_info, 0);
+	blf_font_draw_buffer_ex(font, str, len, r_info, 0);
 }
 
 size_t blf_font_width_to_strlen(FontBLF *font, const char *str, size_t len, float width, float *r_width)
@@ -792,14 +792,14 @@ void blf_font_boundbox__wrap(FontBLF *font, const char *str, size_t len, rctf *b
 	blf_font_wrap_apply(font, str, len, r_info, blf_font_boundbox_wrap_cb, box);
 }
 
-/* blf_font_buffer__wrap */
-static void blf_font_buffer__wrap_cb(FontBLF *font, const char *str, size_t len, int pen_y, void *UNUSED(userdata))
+/* blf_font_draw_buffer__wrap */
+static void blf_font_draw_buffer__wrap_cb(FontBLF *font, const char *str, size_t len, int pen_y, void *UNUSED(userdata))
 {
-	blf_font_buffer_ex(font, str, len, NULL, pen_y);
+	blf_font_draw_buffer_ex(font, str, len, NULL, pen_y);
 }
-void blf_font_buffer__wrap(FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info)
+void blf_font_draw_buffer__wrap(FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info)
 {
-	blf_font_wrap_apply(font, str, len, r_info, blf_font_buffer__wrap_cb, NULL);
+	blf_font_wrap_apply(font, str, len, r_info, blf_font_draw_buffer__wrap_cb, NULL);
 }
 
 /** \} */
