@@ -58,8 +58,6 @@
 #include "BIF_gl.h"
 #include "BLF_api.h"
 
-#include "IMB_colormanagement.h"
-
 #include "blf_internal_types.h"
 #include "blf_internal.h"
 
@@ -304,13 +302,8 @@ static void blf_font_draw_buffer_ex(
 
 	/* buffer specific vars */
 	FontBufInfoBLF *buf_info = &font->buf_info;
-	float b_col_float[4];
-	const unsigned char b_col_char[4] = {
-	    (unsigned char)(buf_info->col[0] * 255),
-	    (unsigned char)(buf_info->col[1] * 255),
-	    (unsigned char)(buf_info->col[2] * 255),
-	    (unsigned char)(buf_info->col[3] * 255)};
-
+	const float *b_col_float = buf_info->col_float;
+	const unsigned char *b_col_char = buf_info->col_char;
 	int chx, chy;
 	int y, x;
 	float a;
@@ -320,13 +313,6 @@ static void blf_font_draw_buffer_ex(
 	blf_font_ensure_ascii_table(font);
 
 	/* another buffer specific call for color conversion */
-	if (buf_info->display) {
-		copy_v4_v4(b_col_float, buf_info->col);
-		IMB_colormanagement_display_to_scene_linear_v3(b_col_float, buf_info->display);
-	}
-	else {
-		srgb_to_linearrgb_v4(b_col_float, buf_info->col);
-	}
 
 	while ((i < len) && str[i]) {
 		BLF_UTF8_NEXT_FAST(font, g, str, i, c, glyph_ascii_table);
@@ -955,10 +941,10 @@ static void blf_font_fill(FontBLF *font)
 	font->buf_info.w = 0;
 	font->buf_info.h = 0;
 	font->buf_info.ch = 0;
-	font->buf_info.col[0] = 0;
-	font->buf_info.col[1] = 0;
-	font->buf_info.col[2] = 0;
-	font->buf_info.col[3] = 0;
+	font->buf_info.col_init[0] = 0;
+	font->buf_info.col_init[1] = 0;
+	font->buf_info.col_init[2] = 0;
+	font->buf_info.col_init[3] = 0;
 
 	font->ft_lib = ft_lib;
 	font->ft_lib_mutex = &ft_lib_mutex;

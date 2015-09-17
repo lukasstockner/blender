@@ -84,7 +84,7 @@ void BLF_thumb_preview(
 
 	/* Always create the image with a white font,
 	 * the caller can theme how it likes */
-	memcpy(font->buf_info.col, font_color, sizeof(font->buf_info.col));
+	memcpy(font->buf_info.col_init, font_color, sizeof(font->buf_info.col_init));
 	font->pos[1] = (float)h;
 
 	font_size_curr = font_size;
