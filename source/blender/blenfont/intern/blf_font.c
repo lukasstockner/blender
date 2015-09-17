@@ -710,7 +710,8 @@ static void blf_font_wrap_apply(
 			do_draw = true;
 		}
 		else if (UNLIKELY(((i < len) && str[i]) == 0)) {
-			wrap.last[0] = i + 1;
+			/* need check here for trailing newline, else we draw it */
+			wrap.last[0] = i + ((g->c != '\n') ? 1 : 0);
 			wrap.last[1] = i;
 			do_draw = true;
 		}
