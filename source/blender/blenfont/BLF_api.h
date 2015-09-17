@@ -179,7 +179,8 @@ void BLF_buffer_col(int fontid, float r, float g, float b, float a);
 /* Draw the string into the buffer, this function draw in both buffer, float and unsigned char _BUT_
  * it's not necessary set both buffer, NULL is valid here.
  */
-void BLF_draw_buffer(int fontid, const char *str) ATTR_NONNULL();
+void BLF_draw_buffer_ex(int fontid, const char *str, size_t len, struct ResultBLF *r_info) ATTR_NONNULL(2);
+void BLF_draw_buffer(int fontid, const char *str, size_t len) ATTR_NONNULL(2);
 
 /* Add a path to the font dir paths. */
 void BLF_dir_add(const char *path) ATTR_NONNULL();

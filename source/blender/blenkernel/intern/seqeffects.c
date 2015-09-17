@@ -2940,6 +2940,8 @@ static ImBuf *do_text_effect(const SeqRenderData *context, Sequence *seq, float 
 	/* set before return */
 	BLF_size(mono, proxy_size_comp * data->text_size, 72);
 
+	BLF_enable(mono, BLF_WORD_WRAP);
+
 	BLF_buffer(mono, out->rect_float, (unsigned char *)out->rect, width, height, out->channels, display);
 
 	y_ofs = -BLF_descender(mono);
@@ -2968,13 +2970,15 @@ static ImBuf *do_text_effect(const SeqRenderData *context, Sequence *seq, float 
 		fonty = BLF_height_max(mono);
 		BLF_position(mono, x + max_ii(fontx / 25, 1), y + max_ii(fonty / 25, 1), 0.0f);
 		BLF_buffer_col(mono, 0.0f, 0.0f, 0.0f, 1.0f);
-		BLF_draw_buffer(mono, data->text);
+		BLF_draw_buffer(mono, data->text, sizeof(data->text));
 	}
 	BLF_position(mono, x, y, 0.0f);
 	BLF_buffer_col(mono, 1.0f, 1.0f, 1.0f, 1.0f);
-	BLF_draw_buffer(mono, data->text);
+	BLF_draw_buffer(mono, data->text, sizeof(data->text));
 
 	BLF_buffer(mono, NULL, NULL, 0, 0, 0, NULL);
+
+	BLF_disable(mono, BLF_WORD_WRAP);
 
 	return out;
 }

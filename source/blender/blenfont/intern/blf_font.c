@@ -290,12 +290,15 @@ int blf_font_draw_mono(FontBLF *font, const char *str, size_t len, int cwidth)
 }
 
 /* Sanity checks are done by BLF_draw_buffer() */
-void blf_font_buffer(FontBLF *font, const char *str)
+static void blf_font_buffer_ex(
+        FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info,
+        int pen_y)
 {
 	unsigned int c;
 	GlyphBLF *g, *g_prev = NULL;
 	FT_Vector delta;
-	int pen_x = (int)font->pos[0], pen_y = 0;
+	int pen_x = (int)font->pos[0];
+	int pen_y_basis = (int)font->pos[1] + pen_y;
 	size_t i = 0;
 	GlyphBLF **glyph_ascii_table = font->glyph_cache->glyph_ascii_table;
 
@@ -325,7 +328,7 @@ void blf_font_buffer(FontBLF *font, const char *str)
 		srgb_to_linearrgb_v4(b_col_float, buf_info->col);
 	}
 
-	while (str[i]) {
+	while ((i < len) && str[i]) {
 		BLF_UTF8_NEXT_FAST(font, g, str, i, c, glyph_ascii_table);
 
 		if (UNLIKELY(c == BLI_UTF8_ERR))
@@ -336,13 +339,13 @@ void blf_font_buffer(FontBLF *font, const char *str)
 			BLF_KERNING_STEP(font, kern_mode, g_prev, g, delta, pen_x);
 
 		chx = pen_x + ((int)g->pos_x);
-		chy = (int)font->pos[1] + g->height;
+		chy = pen_y_basis + g->height;
 
 		if (g->pitch < 0) {
-			pen_y = (int)font->pos[1] + (g->height - (int)g->pos_y);
+			pen_y = pen_y_basis + (g->height - (int)g->pos_y);
 		}
 		else {
-			pen_y = (int)font->pos[1] - (g->height - (int)g->pos_y);
+			pen_y = pen_y_basis - (g->height - (int)g->pos_y);
 		}
 
 		if ((chx + g->width) >= 0 && chx < buf_info->w && (pen_y + g->height) >= 0 && pen_y < buf_info->h) {
@@ -451,6 +454,16 @@ void blf_font_buffer(FontBLF *font, const char *str)
 		pen_x += g->advance_i;
 		g_prev = g;
 	}
+
+	if (r_info) {
+		r_info->lines = 1;
+		r_info->width = pen_x;
+	}
+}
+void blf_font_buffer(
+        FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info)
+{
+	blf_font_buffer_ex(font, str, len, r_info, 0);
 }
 
 size_t blf_font_width_to_strlen(FontBLF *font, const char *str, size_t len, float width, float *r_width)
@@ -777,6 +790,16 @@ void blf_font_boundbox__wrap(FontBLF *font, const char *str, size_t len, rctf *b
 	box->ymax = -32000.0f;
 
 	blf_font_wrap_apply(font, str, len, r_info, blf_font_boundbox_wrap_cb, box);
+}
+
+/* blf_font_buffer__wrap */
+static void blf_font_buffer__wrap_cb(FontBLF *font, const char *str, size_t len, int pen_y, void *UNUSED(userdata))
+{
+	blf_font_buffer_ex(font, str, len, NULL, pen_y);
+}
+void blf_font_buffer__wrap(FontBLF *font, const char *str, size_t len, struct ResultBLF *r_info)
+{
+	blf_font_wrap_apply(font, str, len, r_info, blf_font_buffer__wrap_cb, NULL);
 }
 
 /** \} */

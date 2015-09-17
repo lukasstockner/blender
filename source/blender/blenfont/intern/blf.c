@@ -908,13 +908,25 @@ void BLF_buffer_col(int fontid, float r, float g, float b, float a)
 	}
 }
 
-void BLF_draw_buffer(int fontid, const char *str)
+void BLF_draw_buffer_ex(
+        int fontid, const char *str, size_t len,
+        struct ResultBLF *r_info)
 {
 	FontBLF *font = blf_get(fontid);
 
 	if (font && font->glyph_cache && (font->buf_info.fbuf || font->buf_info.cbuf)) {
-		blf_font_buffer(font, str);
+		if (font->flags & BLF_WORD_WRAP) {
+			blf_font_buffer__wrap(font, str, len, r_info);
+		}
+		else {
+			blf_font_buffer(font, str, len, r_info);
+		}
 	}
+}
+void BLF_draw_buffer(
+        int fontid, const char *str, size_t len)
+{
+	BLF_draw_buffer_ex(fontid, str, len, NULL);
 }
 
 #ifdef DEBUG
