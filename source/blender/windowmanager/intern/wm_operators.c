@@ -2589,20 +2589,24 @@ static int wm_link_append_invoke(bContext *C, wmOperator *op, const wmEvent *UNU
 
 static short wm_link_append_flag(wmOperator *op)
 {
+	PropertyRNA *prop;
 	short flag = 0;
 
-	if (RNA_boolean_get(op->ptr, "autoselect")) flag |= FILE_AUTOSELECT;
-	if (RNA_boolean_get(op->ptr, "active_layer")) flag |= FILE_ACTIVELAY;
-	if (RNA_struct_find_property(op->ptr, "relative_path") && RNA_boolean_get(op->ptr, "relative_path")) flag |= FILE_RELPATH;
-	if (RNA_boolean_get(op->ptr, "link")) flag |= FILE_LINK;
-	if (RNA_boolean_get(op->ptr, "instance_groups")) flag |= FILE_GROUP_INSTANCE;
+	if (RNA_boolean_get(op->ptr, "autoselect"))
+		flag |= FILE_AUTOSELECT;
+	if (RNA_boolean_get(op->ptr, "active_layer"))
+		flag |= FILE_ACTIVELAY;
+	if ((prop = RNA_struct_find_property(op->ptr, "relative_path")) && RNA_property_boolean_get(op->ptr, prop))
+		flag |= FILE_RELPATH;
+	if (RNA_boolean_get(op->ptr, "link"))
+		flag |= FILE_LINK;
+	if (RNA_boolean_get(op->ptr, "instance_groups"))
+		flag |= FILE_GROUP_INSTANCE;
 
 	return flag;
 }
 
-
 typedef struct WMLinkAppendDataItem {
-	char group[BLO_GROUP_MAX];
 	char name[MAX_NAME];
 	BLI_bitmap *libs;  /* All libs (from WMLinkAppendData.libraries) to try to load this ID from. */
 	int idcode;
@@ -2613,10 +2617,11 @@ typedef struct WMLinkAppendData {
 	WMLinkAppendDataItem *items;
 	int num_libraries;
 	int num_items;
-	int flag;
+	short flag;
 } WMLinkAppendData;
 
-static void wm_link_append_data_create(WMLinkAppendData *data, const int num_libraries, const int num_items, const int flag)
+static void wm_link_append_data_create(
+        WMLinkAppendData *data, const int num_libraries, const int num_items, const int flag)
 {
 	int i;
 
@@ -2743,15 +2748,15 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 
 	/* test if we have a valid data */
 	if (!BLO_library_path_explode(path, libname, &group, &name)) {
-		BKE_report(op->reports, RPT_ERROR, "Not a library");
+		BKE_reportf(op->reports, RPT_ERROR, "'%s': not a library", path);
 		return OPERATOR_CANCELLED;
 	}
 	else if (!group) {
-		BKE_report(op->reports, RPT_ERROR, "Nothing indicated");
+		BKE_reportf(op->reports, RPT_ERROR, "'%s': nothing indicated", path);
 		return OPERATOR_CANCELLED;
 	}
 	else if (BLI_path_cmp(bmain->name, libname) == 0) {
-		BKE_report(op->reports, RPT_ERROR, "Cannot use current file as library");
+		BKE_reportf(op->reports, RPT_ERROR, "'%s': cannot use current file as library", path);
 		return OPERATOR_CANCELLED;
 	}
 
@@ -2761,29 +2766,28 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		totfiles = RNA_property_collection_length(op->ptr, prop);
 		if (totfiles == 0) {
 			if (!name) {
-				BKE_report(op->reports, RPT_ERROR, "Nothing indicated");
+				BKE_reportf(op->reports, RPT_ERROR, "'%s': nothing indicated", path);
 				return OPERATOR_CANCELLED;
 			}
 		}
 	}
 	else if (!name) {
-		BKE_report(op->reports, RPT_ERROR, "Nothing indicated");
+		BKE_reportf(op->reports, RPT_ERROR, "'%s': nothing indicated", path);
 		return OPERATOR_CANCELLED;
 	}
 
 	flag = wm_link_append_flag(op);
 
 	/* sanity checks for flag */
-	if (scene && scene->id.lib && (flag & FILE_GROUP_INSTANCE)) {
-		/* TODO, user never gets this message */
-		BKE_reportf(op->reports, RPT_WARNING, "Scene '%s' is linked, group instance disabled", scene->id.name + 2);
+	if (scene && scene->id.lib) {
+		BKE_reportf(op->reports, RPT_WARNING,
+		            "Scene '%s' is linked, instanciation of objects & groups is disabled", scene->id.name + 2);
 		flag &= ~FILE_GROUP_INSTANCE;
 		scene = NULL;
 	}
 
 	/* from here down, no error returns */
 
-	/* now we have or selected, or an indicated file */
 	if (scene && RNA_boolean_get(op->ptr, "autoselect")) {
 		BKE_scene_base_deselect_all(scene);
 	}
@@ -2794,12 +2798,13 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	 * take extra care BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, false) is called after! */
 	BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, true);
 
-	/* We define our working data... */
+	/* We define our working data...
+	 * Note that here, each item 'uses' one library, and only one. */
 	if (totfiles != 0) {
 		GHash *libraries = BLI_ghash_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, __func__);
 		GHashIterator libs_it;
-		int num_libraries = 0;
-		int num_items = 0;
+		int lib_idx = 0;
+		int item_idx = 0;
 
 		RNA_BEGIN (op->ptr, itemptr, "files")
 		{
@@ -2812,21 +2817,21 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 					continue;
 				}
 
-				num_items++;
+				item_idx++;
 
 				if (!BLI_ghash_haskey(libraries, libname)) {
-					BLI_ghash_insert(libraries, BLI_strdup(libname), SET_INT_IN_POINTER(num_libraries));
-					num_libraries++;
+					BLI_ghash_insert(libraries, BLI_strdup(libname), SET_INT_IN_POINTER(lib_idx));
+					lib_idx++;
 				}
 			}
 		}
 		RNA_END;
 
-		wm_link_append_data_create(&lapp_data, num_libraries, num_items, flag);
-		num_libraries = num_items = 0;
+		wm_link_append_data_create(&lapp_data, lib_idx, item_idx, flag);
+		lib_idx = item_idx = 0;
 
-		GHASH_ITER_INDEX(libs_it, libraries, num_libraries) {
-			BLI_strncpy(lapp_data.libraries[num_libraries], BLI_ghashIterator_getKey(&libs_it),
+		GHASH_ITER_INDEX(libs_it, libraries, lib_idx) {
+			BLI_strncpy(lapp_data.libraries[lib_idx], BLI_ghashIterator_getKey(&libs_it),
 			            sizeof(*lapp_data.libraries));
 		}
 
@@ -2841,14 +2846,13 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 					continue;
 				}
 
-				num_libraries = GET_INT_FROM_POINTER(BLI_ghash_lookup(libraries, libname));
+				lib_idx = GET_INT_FROM_POINTER(BLI_ghash_lookup(libraries, libname));
 
-				BLI_strncpy(lapp_data.items[num_items].group, group, sizeof(lapp_data.items[num_items].group));
-				BLI_strncpy(lapp_data.items[num_items].name, name, sizeof(lapp_data.items[num_items].name));
-				lapp_data.items[num_items].idcode = BKE_idcode_from_name(group);
-				BLI_BITMAP_ENABLE(lapp_data.items[num_items].libs, num_libraries);
+				BLI_strncpy(lapp_data.items[item_idx].name, name, sizeof(lapp_data.items[item_idx].name));
+				lapp_data.items[item_idx].idcode = BKE_idcode_from_name(group);
+				BLI_BITMAP_ENABLE(lapp_data.items[item_idx].libs, lib_idx);
 
-				num_items++;
+				item_idx++;
 			}
 		}
 		RNA_END;
@@ -2860,7 +2864,6 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 
 		BLI_strncpy(lapp_data.libraries[0], libname, sizeof(*lapp_data.libraries));
 
-		BLI_strncpy(lapp_data.items[0].group, group, sizeof(lapp_data.items[0].group));
 		BLI_strncpy(lapp_data.items[0].name, name, sizeof(lapp_data.items[0].name));
 		lapp_data.items[0].idcode = BKE_idcode_from_name(group);
 		BLI_BITMAP_ENABLE(lapp_data.items[0].libs, 0);
