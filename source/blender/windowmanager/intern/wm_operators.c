@@ -62,8 +62,10 @@
 #include "BLI_bitmap.h"
 #include "BLI_dial.h"
 #include "BLI_dynstr.h" /*for WM_operator_pystring */
+#include "BLI_linklist.h"
 #include "BLI_linklist_stack.h"
 #include "BLI_math.h"
+#include "BLI_memarena.h"
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 
@@ -2607,48 +2609,70 @@ static short wm_link_append_flag(wmOperator *op)
 }
 
 typedef struct WMLinkAppendDataItem {
-	char name[MAX_NAME];
+	char *name;
 	BLI_bitmap *libs;  /* All libs (from WMLinkAppendData.libraries) to try to load this ID from. */
 	int idcode;
+
+	ID *new_id;
+	void *data;
 } WMLinkAppendDataItem;
 
 typedef struct WMLinkAppendData {
-	char (*libraries)[FILE_MAX];
-	WMLinkAppendDataItem *items;
+	LinkNode *libraries;
+	LinkNode *items;
 	int num_libraries;
 	int num_items;
 	short flag;
+
+	MemArena *memarena;
 } WMLinkAppendData;
 
-static void wm_link_append_data_create(
-        WMLinkAppendData *data, const int num_libraries, const int num_items, const int flag)
+static WMLinkAppendData *wm_link_append_data_new(const int flag)
 {
-	int i;
+	MemArena *ma = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
+	WMLinkAppendData *lapp_data = BLI_memarena_calloc(ma, sizeof(*lapp_data));
 
-	data->libraries = MEM_callocN(sizeof(*data->libraries) * (size_t)num_libraries, __func__);
-	data->num_libraries = num_libraries;
+	lapp_data->flag = flag;
+	lapp_data->memarena = ma;
 
-	data->items = MEM_callocN(sizeof(*data->items) * (size_t)num_items, __func__);
-	data->num_items = num_items;
-	for (i = 0; i < num_items; i++) {
-		data->items[i].libs = BLI_BITMAP_NEW(num_libraries, __func__);
-	}
-
-	data->flag = flag;
+	return lapp_data;
 }
 
-static void wm_link_append_data_delete(WMLinkAppendData *data)
+static void wm_link_append_data_free(WMLinkAppendData *lapp_data)
 {
-	int i;
+	BLI_memarena_free(lapp_data->memarena);
+}
 
-	MEM_SAFE_FREE(data->libraries);
-	data->num_libraries = 0;
+/* WARNING! *Never* call wm_link_append_data_library_add() after having added some items! */
 
-	for (i = 0; i < data->num_items; i++) {
-		MEM_freeN(data->items[i].libs);
-	}
-	MEM_SAFE_FREE(data->items);
-	data->num_items = 0;
+static void wm_link_append_data_library_add(WMLinkAppendData *lapp_data, const char *libname)
+{
+	size_t len = strlen(libname) + 1;
+	char *libpath = BLI_memarena_alloc(lapp_data->memarena, len);
+
+	BLI_strncpy(libpath, libname, len);
+	BLI_linklist_prepend_arena(&lapp_data->libraries, libpath, lapp_data->memarena);
+	lapp_data->num_libraries++;
+}
+
+static WMLinkAppendDataItem *wm_link_append_data_item_add(
+        WMLinkAppendData *lapp_data, const char *idname, const int idcode, void *customdata)
+{
+	WMLinkAppendDataItem *item = BLI_memarena_alloc(lapp_data->memarena, sizeof(*item));
+	size_t len = strlen(idname) + 1;
+
+	item->name = BLI_memarena_alloc(lapp_data->memarena, len);
+	BLI_strncpy(item->name, idname, len);
+	item->idcode = idcode;
+	item->libs = BLI_BITMAP_NEW_MEMARENA(lapp_data->memarena, lapp_data->num_libraries);
+
+	item->new_id = NULL;
+	item->data = customdata;
+
+	BLI_linklist_prepend_arena(&lapp_data->items, item, lapp_data->memarena);
+	lapp_data->num_items++;
+
+	return item;
 }
 
 static void wm_link_do(
@@ -2660,15 +2684,17 @@ static void wm_link_do(
 
 	const int flag = lapp_data->flag;
 
-	BLI_bitmap *done_items = BLI_BITMAP_NEW(lapp_data->num_items, __func__);
-	char (*libname)[FILE_MAX];
+	BLI_bitmap *done_items = BLI_BITMAP_NEW_ALLOCA(lapp_data->num_items);
+	LinkNode *liblink, *itemlink;
 	int lib_idx, item_idx;
-	int idcode;
 
 	BLI_assert(lapp_data->num_items && lapp_data->num_libraries);
 
-	for (lib_idx = 0, libname = lapp_data->libraries; lib_idx < lapp_data->num_libraries; lib_idx++, libname++) {
-		bh = BLO_blendhandle_from_file(*libname, reports);
+	for (lib_idx = 0, liblink = lapp_data->libraries; liblink; lib_idx++, liblink = liblink->next) {
+		char *libname = liblink->link;
+		int idcode;
+
+		bh = BLO_blendhandle_from_file(libname, reports);
 
 		if (bh == NULL) {
 			/* Unlikely since we just browsed it, but possible
@@ -2677,7 +2703,7 @@ static void wm_link_do(
 		}
 
 		/* here appending/linking starts */
-		mainl = BLO_library_link_begin(bmain, &bh, *libname);
+		mainl = BLO_library_link_begin(bmain, &bh, libname);
 		lib = mainl->curlib;
 		BLI_assert(lib);
 		UNUSED_VARS_NDEBUG(lib);
@@ -2692,12 +2718,13 @@ static void wm_link_do(
 		/* For each lib file, we loop until we have (tried) to link all items belonging to that lib. */
 		BLI_BITMAP_SET_ALL(done_items, false, lapp_data->num_items);
 		while (true) {
-			WMLinkAppendDataItem *item;
-
-			for (item_idx = 0, idcode = -1, item = lapp_data->items;
-			     item_idx < lapp_data->num_items;
-			     item_idx++, item++)
+			for (item_idx = 0, idcode = -1, itemlink = lapp_data->items;
+			     itemlink;
+			     item_idx++, itemlink = itemlink->next)
 			{
+				WMLinkAppendDataItem *item = itemlink->link;
+				ID *new_id;
+
 				if (BLI_BITMAP_TEST(done_items, item_idx) || !BLI_BITMAP_TEST(item->libs, lib_idx)) {
 					continue;
 				}
@@ -2710,10 +2737,11 @@ static void wm_link_do(
 
 				BLI_BITMAP_ENABLE(done_items, item_idx);
 
-				if (BLO_library_link_named_part_ex(mainl, &bh, item->name, idcode, flag, scene, v3d)) {
+				if ((new_id = BLO_library_link_named_part_ex(mainl, &bh, item->name, idcode, flag, scene, v3d))) {
 					/* If the link is sucessful, clear item's libs 'todo' flags.
 					 * This avoids trying to link same item with other libraries to come. */
 					BLI_BITMAP_SET_ALL(item->libs, false, lapp_data->num_libraries);
+					item->new_id = new_id;
 				}
 
 			}
@@ -2726,8 +2754,6 @@ static void wm_link_do(
 		BLO_library_link_end(mainl, &bh, flag, scene, v3d);
 		BLO_blendhandle_close(bh);
 	}
-
-	MEM_freeN(done_items);
 }
 
 static int wm_link_append_exec(bContext *C, wmOperator *op)
@@ -2735,7 +2761,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	PropertyRNA *prop;
-	WMLinkAppendData lapp_data;
+	WMLinkAppendData *lapp_data;
 	char path[FILE_MAX_LIBEXTRA], root[FILE_MAXDIR], libname[FILE_MAX], relname[FILE_MAX];
 	char *group, *name;
 	int totfiles = 0;
@@ -2800,11 +2826,10 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 
 	/* We define our working data...
 	 * Note that here, each item 'uses' one library, and only one. */
+	lapp_data = wm_link_append_data_new(flag);
 	if (totfiles != 0) {
 		GHash *libraries = BLI_ghash_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, __func__);
-		GHashIterator libs_it;
 		int lib_idx = 0;
-		int item_idx = 0;
 
 		RNA_BEGIN (op->ptr, itemptr, "files")
 		{
@@ -2817,23 +2842,16 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 					continue;
 				}
 
-				item_idx++;
-
 				if (!BLI_ghash_haskey(libraries, libname)) {
 					BLI_ghash_insert(libraries, BLI_strdup(libname), SET_INT_IN_POINTER(lib_idx));
 					lib_idx++;
+					wm_link_append_data_library_add(lapp_data, libname);
 				}
 			}
 		}
 		RNA_END;
 
-		wm_link_append_data_create(&lapp_data, lib_idx, item_idx, flag);
-		lib_idx = item_idx = 0;
-
-		GHASH_ITER_INDEX(libs_it, libraries, lib_idx) {
-			BLI_strncpy(lapp_data.libraries[lib_idx], BLI_ghashIterator_getKey(&libs_it),
-			            sizeof(*lapp_data.libraries));
-		}
+		lib_idx = 0;
 
 		RNA_BEGIN (op->ptr, itemptr, "files")
 		{
@@ -2842,17 +2860,15 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 			BLI_join_dirfile(path, sizeof(path), root, relname);
 
 			if (BLO_library_path_explode(path, libname, &group, &name)) {
+				WMLinkAppendDataItem *item;
 				if (!group || !name) {
 					continue;
 				}
 
 				lib_idx = GET_INT_FROM_POINTER(BLI_ghash_lookup(libraries, libname));
 
-				BLI_strncpy(lapp_data.items[item_idx].name, name, sizeof(lapp_data.items[item_idx].name));
-				lapp_data.items[item_idx].idcode = BKE_idcode_from_name(group);
-				BLI_BITMAP_ENABLE(lapp_data.items[item_idx].libs, lib_idx);
-
-				item_idx++;
+				item = wm_link_append_data_item_add(lapp_data, name, BKE_idcode_from_name(group), NULL);
+				BLI_BITMAP_ENABLE(item->libs, lib_idx);
 			}
 		}
 		RNA_END;
@@ -2860,18 +2876,16 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		BLI_ghash_free(libraries, MEM_freeN, NULL);
 	}
 	else {
-		wm_link_append_data_create(&lapp_data, 1, 1, flag);
+		WMLinkAppendDataItem *item;
 
-		BLI_strncpy(lapp_data.libraries[0], libname, sizeof(*lapp_data.libraries));
-
-		BLI_strncpy(lapp_data.items[0].name, name, sizeof(lapp_data.items[0].name));
-		lapp_data.items[0].idcode = BKE_idcode_from_name(group);
-		BLI_BITMAP_ENABLE(lapp_data.items[0].libs, 0);
+		wm_link_append_data_library_add(lapp_data, libname);
+		item = wm_link_append_data_item_add(lapp_data, name, BKE_idcode_from_name(group), NULL);
+		BLI_BITMAP_ENABLE(item->libs, 0);
 	}
 
-	wm_link_do(&lapp_data, op->reports, bmain, scene, CTX_wm_view3d(C));
+	wm_link_do(lapp_data, op->reports, bmain, scene, CTX_wm_view3d(C));
 
-	wm_link_append_data_delete(&lapp_data);
+	wm_link_append_data_free(lapp_data);
 
 	/* mark all library linked objects to be updated */
 	BKE_main_lib_objects_recalc_all(bmain);
