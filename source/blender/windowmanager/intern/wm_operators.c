@@ -2610,11 +2610,11 @@ static short wm_link_append_flag(wmOperator *op)
 
 typedef struct WMLinkAppendDataItem {
 	char *name;
-	BLI_bitmap *libs;  /* All libs (from WMLinkAppendData.libraries) to try to load this ID from. */
+	BLI_bitmap *libraries;  /* All libs (from WMLinkAppendData.libraries) to try to load this ID from. */
 	int idcode;
 
 	ID *new_id;
-	void *data;
+	void *customdata;
 } WMLinkAppendDataItem;
 
 typedef struct WMLinkAppendData {
@@ -2664,10 +2664,10 @@ static WMLinkAppendDataItem *wm_link_append_data_item_add(
 	item->name = BLI_memarena_alloc(lapp_data->memarena, len);
 	BLI_strncpy(item->name, idname, len);
 	item->idcode = idcode;
-	item->libs = BLI_BITMAP_NEW_MEMARENA(lapp_data->memarena, lapp_data->num_libraries);
+	item->libraries = BLI_BITMAP_NEW_MEMARENA(lapp_data->memarena, lapp_data->num_libraries);
 
 	item->new_id = NULL;
-	item->data = customdata;
+	item->customdata = customdata;
 
 	BLI_linklist_prepend_arena(&lapp_data->items, item, lapp_data->memarena);
 	lapp_data->num_items++;
@@ -2725,7 +2725,7 @@ static void wm_link_do(
 				WMLinkAppendDataItem *item = itemlink->link;
 				ID *new_id;
 
-				if (BLI_BITMAP_TEST(done_items, item_idx) || !BLI_BITMAP_TEST(item->libs, lib_idx)) {
+				if (BLI_BITMAP_TEST(done_items, item_idx) || !BLI_BITMAP_TEST(item->libraries, lib_idx)) {
 					continue;
 				}
 				if (idcode == -1) {
@@ -2740,7 +2740,7 @@ static void wm_link_do(
 				if ((new_id = BLO_library_link_named_part_ex(mainl, &bh, item->name, idcode, flag, scene, v3d))) {
 					/* If the link is sucessful, clear item's libs 'todo' flags.
 					 * This avoids trying to link same item with other libraries to come. */
-					BLI_BITMAP_SET_ALL(item->libs, false, lapp_data->num_libraries);
+					BLI_BITMAP_SET_ALL(item->libraries, false, lapp_data->num_libraries);
 					item->new_id = new_id;
 				}
 
@@ -2868,7 +2868,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 				lib_idx = GET_INT_FROM_POINTER(BLI_ghash_lookup(libraries, libname));
 
 				item = wm_link_append_data_item_add(lapp_data, name, BKE_idcode_from_name(group), NULL);
-				BLI_BITMAP_ENABLE(item->libs, lib_idx);
+				BLI_BITMAP_ENABLE(item->libraries, lib_idx);
 			}
 		}
 		RNA_END;
@@ -2880,7 +2880,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 
 		wm_link_append_data_library_add(lapp_data, libname);
 		item = wm_link_append_data_item_add(lapp_data, name, BKE_idcode_from_name(group), NULL);
-		BLI_BITMAP_ENABLE(item->libs, 0);
+		BLI_BITMAP_ENABLE(item->libraries, 0);
 	}
 
 	wm_link_do(lapp_data, op->reports, bmain, scene, CTX_wm_view3d(C));
