@@ -676,7 +676,7 @@ static void blf_font_wrap_apply(
 	struct WordWrapVars {
 		int wrap_width;
 		size_t start, last[2];
-	} wrap = {font->wrap_width, 0, {0, 0}};
+	} wrap = {font->wrap_width != -1 ? font->wrap_width : INT_MAX, 0, {0, 0}};
 
 	blf_font_ensure_ascii_table(font);
 	// printf("%s wrapping (%d, %d) `%s`:\n", __func__, len, strlen(str), str);
