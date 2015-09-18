@@ -1020,6 +1020,7 @@ typedef struct IDRemap {
 
 enum {
 	ID_REMAP_SKIP_INDIRECT_USAGE  = 1 << 0,
+	ID_REMAP_IS_OBJECT            = 1 << 1,  /* IDRemap->id is an object... */
 };
 
 static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUSED(cb_flag))
@@ -1029,7 +1030,10 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUS
 	ID *old_id = id_remap_data->old_id;
 	ID *new_id = id_remap_data->new_id;
 	ID *id = id_remap_data->id;
-	const bool skip_indirect_usage = ((id_remap_data->flag & ID_REMAP_SKIP_INDIRECT_USAGE) && id->lib);
+	const bool skip_indirect_usage = (
+	        (id_remap_data->flag & ID_REMAP_SKIP_INDIRECT_USAGE) &&
+	        (id->lib ||
+	         ((id_remap_data->flag & ID_REMAP_IS_OBJECT) && (((Object *)id)->proxy || ((Object *)id)->proxy_group))));
 
 	if (*id_p == old_id) {
 		if (skip_indirect_usage) {
@@ -1070,6 +1074,13 @@ void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id, const bool s
 		ID *id = lb_array[i]->first;
 		const bool is_obj = id ? (GS(id->name) == ID_OB) : false;
 
+		if (is_obj) {
+			id_remap_data.flag |= ID_REMAP_IS_OBJECT;
+		}
+		else {
+			id_remap_data.flag &= ~ID_REMAP_IS_OBJECT;
+		}
+
 		for (; id; id = id->next) {
 			/* Note that we cannot skip indirect usages of old_id here (if requested), we still need to check it for
 			 * the user count handling... */
@@ -1083,7 +1094,7 @@ void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id, const bool s
 				Object *ob = (Object *)id;
 
 				if (ob->data == old_id) {
-					if (id->lib || BKE_object_is_in_editmode(ob)) {
+					if (id->lib || ob->proxy || ob->proxy_group || BKE_object_is_in_editmode(ob)) {
 						id_remap_data.skipped++;
 					}
 					else {
