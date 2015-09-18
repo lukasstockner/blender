@@ -2669,8 +2669,6 @@ static void wm_link_do(
 	for (lib_idx = 0, libname = lapp_data->libraries; lib_idx < lapp_data->num_libraries; lib_idx++, libname++) {
 		bh = BLO_blendhandle_from_file(*libname, reports);
 
-		printf("loading from lib %s (%p)\n", *libname, bh);
-
 		if (bh == NULL) {
 			/* Unlikely since we just browsed it, but possible
 			 * Error reports will have been made by BLO_blendhandle_from_file() */
@@ -2699,7 +2697,6 @@ static void wm_link_do(
 			     item_idx < lapp_data->num_items;
 			     item_idx++, item++)
 			{
-				printf("\t\ttrying datablock %s/%s\n", BKE_idcode_to_name(item->idcode), item->name);
 				if (BLI_BITMAP_TEST(done_items, item_idx) || !BLI_BITMAP_TEST(item->libs, lib_idx)) {
 					continue;
 				}
@@ -2712,12 +2709,9 @@ static void wm_link_do(
 
 				BLI_BITMAP_ENABLE(done_items, item_idx);
 
-				printf("\t\tlinking datablock %s/%s\n", BKE_idcode_to_name(item->idcode), item->name);
-
 				if ((item->new_id = BLO_library_link_named_part_ex(mainl, &bh, item->name + 2, idcode, flag, scene, v3d))) {
 					/* If the link is sucessful, clear item's libs 'todo' flags.
 					 * This avoids trying to link same item with other libraries to come. */
-					printf("Found %s in %s\n", item->new_id->name, *libname);
 					BLI_BITMAP_SET_ALL(item->libs, false, lapp_data->num_libraries);
 				}
 
@@ -3006,6 +3000,11 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 		PropertyRNA *prop;
 		WMLinkAppendData lapp_data;
 		char path[FILE_MAX], root[FILE_MAXDIR], libname[FILE_MAX], relname[FILE_MAX];
+		int flag = 0;
+
+		if (RNA_boolean_get(op->ptr, "relative_path")) {
+			flag |= FILE_RELPATH;
+		}
 
 		if (lib->parent) {
 			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT,
@@ -3082,7 +3081,7 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 				}
 			}
 
-			wm_link_append_data_create(&lapp_data, lib_idx, item_idx, 0);
+			wm_link_append_data_create(&lapp_data, lib_idx, item_idx, flag);
 			lib_idx = item_idx = 0;
 
 			if (totfiles) {
@@ -3135,7 +3134,8 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 
 			BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, true);
 
-			wm_link_do(&lapp_data, op->reports, bmain, scene, CTX_wm_view3d(C));
+			/* We do not want any instanciation here! */
+			wm_link_do(&lapp_data, op->reports, bmain, NULL, NULL);
 
 			for (item_idx = 0; item_idx < lapp_data.num_items; item_idx++) {
 				ID *old_id = lapp_data.items[item_idx].data;
@@ -3188,6 +3188,8 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 
 static void WM_OT_lib_relocate(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	ot->name = "Relocate Library";
 	ot->idname = "WM_OT_lib_relocate";
 	ot->description = "Relocate given library to another one";
@@ -3197,11 +3199,13 @@ static void WM_OT_lib_relocate(wmOperatorType *ot)
 
 	ot->flag |= OPTYPE_UNDO;
 
-	RNA_def_string(ot->srna, "library", NULL, MAX_ID_NAME, "Library", "Library to relocate");
+	prop = RNA_def_string(ot->srna, "library", NULL, MAX_ID_NAME, "Library", "Library to relocate");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 
-	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_OPENFILE,
-	                               WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILENAME | WM_FILESEL_FILES,
-	                               FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
+	WM_operator_properties_filesel(
+	            ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_OPENFILE,
+	            WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILENAME | WM_FILESEL_FILES | WM_FILESEL_RELPATH,
+	            FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 }
 
 /* *************** recover last session **************** */
