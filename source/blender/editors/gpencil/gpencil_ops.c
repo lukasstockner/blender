@@ -75,8 +75,22 @@ static void ed_keymap_gpencil_general(wmKeyConfig *keyconf)
 	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
 	
 	/* erase */
-	/* TODO: it would be nice to be able to catch tablet events for this... */
 	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", RIGHTMOUSE, KM_PRESS, 0, DKEY);
+	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_ERASER);
+	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
+	
+	
+	/* Tablet Mappings for Drawing ------------------ */
+	/* For now, only support direct drawing using the eraser, as most users using a tablet
+	 * may still want to use that as their primary pointing device!
+	 */
+#if 0
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", TABLET_STYLUS, KM_PRESS, 0, 0);
+	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_DRAW);
+	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
+#endif
+	
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", TABLET_ERASER, KM_PRESS, 0, 0);
 	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_ERASER);
 	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
 	
