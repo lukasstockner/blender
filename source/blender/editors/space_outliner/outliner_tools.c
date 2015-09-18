@@ -75,6 +75,8 @@
 #include "UI_view2d.h"
 #include "UI_resources.h"
 
+#include "GPU_material.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -1349,6 +1351,7 @@ static void remap_action_cb(bContext *C, Scene *UNUSED(scene), TreeElement *UNUS
 
 static int outliner_id_remap_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 
@@ -1363,9 +1366,19 @@ static int outliner_id_remap_exec(bContext *C, wmOperator *op)
 
 	ED_undo_push(C, "Remap ID action");
 
+	BKE_main_lib_objects_recalc_all(bmain);
+
+	/* recreate dependency graph to include new objects */
+	DAG_scene_relations_rebuild(bmain, scene);
+
+	/* free gpu materials, some materials depend on existing objects, such as lamps so freeing correctly refreshes */
+	GPU_materials_free();
+
+	WM_event_add_notifier(C, NC_WINDOW, NULL);
+
 	/* We want to redraw everything... */
-	WM_event_add_notifier(C, NC_ID | NA_RENAME, NULL);
-	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, NULL);
+//	WM_event_add_notifier(C, NC_ID | NA_RENAME, NULL);
+//	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, NULL);
 
 	return OPERATOR_FINISHED;
 }

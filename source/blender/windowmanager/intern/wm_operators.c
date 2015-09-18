@@ -2607,6 +2607,9 @@ typedef struct WMLinkAppendDataItem {
 	char name[MAX_NAME];
 	BLI_bitmap *libs;  /* All libs (from WMLinkAppendData.libraries) to try to load this ID from. */
 	int idcode;
+
+	ID *new_id;
+	void *data;
 } WMLinkAppendDataItem;
 
 typedef struct WMLinkAppendData {
@@ -2666,6 +2669,8 @@ static void wm_link_do(
 	for (lib_idx = 0, libname = lapp_data->libraries; lib_idx < lapp_data->num_libraries; lib_idx++, libname++) {
 		bh = BLO_blendhandle_from_file(*libname, reports);
 
+		printf("loading from lib %s (%p)\n", *libname, bh);
+
 		if (bh == NULL) {
 			/* Unlikely since we just browsed it, but possible
 			 * Error reports will have been made by BLO_blendhandle_from_file() */
@@ -2694,6 +2699,7 @@ static void wm_link_do(
 			     item_idx < lapp_data->num_items;
 			     item_idx++, item++)
 			{
+				printf("\t\ttrying datablock %s/%s\n", BKE_idcode_to_name(item->idcode), item->name);
 				if (BLI_BITMAP_TEST(done_items, item_idx) || !BLI_BITMAP_TEST(item->libs, lib_idx)) {
 					continue;
 				}
@@ -2706,9 +2712,12 @@ static void wm_link_do(
 
 				BLI_BITMAP_ENABLE(done_items, item_idx);
 
-				if (BLO_library_link_named_part_ex(mainl, &bh, item->name, idcode, flag, scene, v3d)) {
+				printf("\t\tlinking datablock %s/%s\n", BKE_idcode_to_name(item->idcode), item->name);
+
+				if ((item->new_id = BLO_library_link_named_part_ex(mainl, &bh, item->name + 2, idcode, flag, scene, v3d))) {
 					/* If the link is sucessful, clear item's libs 'todo' flags.
 					 * This avoids trying to link same item with other libraries to come. */
+					printf("Found %s in %s\n", item->new_id->name, *libname);
 					BLI_BITMAP_SET_ALL(item->libs, false, lapp_data->num_libraries);
 				}
 
@@ -2992,7 +3001,11 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 	lib = (Library *)BKE_libblock_find_name_ex(CTX_data_main(C), ID_LI, lib_name + 2);
 
 	if (lib) {
-		char filepath[FILE_MAXFILE];
+		Main *bmain = CTX_data_main(C);
+		Scene *scene = CTX_data_scene(C);
+		PropertyRNA *prop;
+		WMLinkAppendData lapp_data;
+		char path[FILE_MAX], root[FILE_MAXDIR], libname[FILE_MAX], relname[FILE_MAX];
 
 		if (lib->parent) {
 			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT,
@@ -3000,41 +3013,172 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 			return OPERATOR_CANCELLED;
 		}
 
-		RNA_string_get(op->ptr, "filepath", filepath);
+		RNA_string_get(op->ptr, "directory", root);
+		RNA_string_get(op->ptr, "filename", libname);
 
-		if (BLI_path_cmp(lib->filepath, filepath) == 0) {
+		if (!BLO_has_bfile_extension(libname)) {
+			BKE_report(op->reports, RPT_ERROR, "Not a library");
+			return OPERATOR_CANCELLED;
+		}
+
+		if (BLI_path_cmp(lib->filepath, libname) == 0) {
 			printf("We are supposed to reload '%s' lib...\n", lib->filepath);
 
 			return OPERATOR_FINISHED;
 		}
-
-		printf("We are supposed to relocate '%s' lib to new '%s' one...\n", lib->filepath, filepath);
-
-		{
-			const size_t max_id_path_len = BLO_GROUP_MAX + MAX_NAME;
-			BLI_Stack *id_paths_todo = BLI_stack_new(max_id_path_len, __func__);
-
-			Main *bmain = CTX_data_main(C);
+		else {
 			ListBase *lbarray[MAX_LIBARRAY];
-			int a;
+			int lba_idx, lba_size;
+			int item_idx = 0;
+			int lib_idx = 0;
+			int totfiles = 0;
 
-			a = set_listbasepointers(bmain, lbarray);
-			while (a--) {
-				ID *id;
+			printf("We are supposed to relocate '%s' lib to new '%s' one...\n", lib->filepath, libname);
 
-				for (id = lbarray[a]->first; id; id = id->next) {
-					if (id->lib == lib) {
-						char *id_path = BLI_stack_push_r(id_paths_todo);
-
-						BLI_snprintf(id_path, max_id_path_len, "%s/%s", BKE_idcode_to_name(GS(id->name)), id->name + 2);
-
-						printf("\t%s will be remapped\n", id_path);
+			/* Check if something is indicated for relocate. */
+			prop = RNA_struct_find_property(op->ptr, "files");
+			if (prop) {
+				totfiles = RNA_property_collection_length(op->ptr, prop);
+				if (totfiles == 0) {
+					if (!libname[0]) {
+						BKE_report(op->reports, RPT_ERROR, "Nothing indicated");
+						return OPERATOR_CANCELLED;
 					}
 				}
 			}
 
-			BLI_stack_free(id_paths_todo);
+			if (totfiles) {
+				RNA_BEGIN (op->ptr, itemptr, "files")
+				{
+					RNA_string_get(&itemptr, "name", relname);
+
+					BLI_join_dirfile(path, sizeof(path), root, relname);
+
+					if (BLI_path_cmp(path, lib->filepath) == 0 || !BLO_has_bfile_extension(relname)) {
+						continue;
+					}
+
+					lib_idx++;
+				}
+				RNA_END;
+			}
+			else {
+				lib_idx = 1;
+			}
+
+			BKE_main_lock(bmain);
+
+			lba_size = lba_idx = set_listbasepointers(bmain, lbarray);
+			while (lba_idx--) {
+				ID *id = lbarray[lba_idx]->first;
+
+				if (!id || !BKE_idcode_is_linkable(GS(id->name))) {
+					continue;
+				}
+				for (; id; id = id->next) {
+					if (id->lib == lib) {
+						item_idx++;
+					}
+				}
+			}
+
+			wm_link_append_data_create(&lapp_data, lib_idx, item_idx, 0);
+			lib_idx = item_idx = 0;
+
+			if (totfiles) {
+				RNA_BEGIN (op->ptr, itemptr, "files")
+				{
+					RNA_string_get(&itemptr, "name", relname);
+
+					BLI_join_dirfile(path, sizeof(path), root, relname);
+
+					if (BLI_path_cmp(path, lib->filepath) == 0 || !BLO_has_bfile_extension(relname)) {
+						continue;
+					}
+
+					BLI_strncpy(lapp_data.libraries[lib_idx], path, sizeof(*lapp_data.libraries));
+					printf("\t candidate new lib to reload datablocks from: %s\n", path);
+					lib_idx++;
+				}
+				RNA_END;
+			}
+			else {
+				BLI_join_dirfile(path, sizeof(path), root, libname);
+				BLI_strncpy(lapp_data.libraries[lib_idx], path, sizeof(*lapp_data.libraries));
+				printf("\t candidate new lib to reload datablocks from: %s\n", path);
+			}
+
+			for (lba_idx = lba_size; lba_idx--;) {
+				ID *id = lbarray[lba_idx]->first;
+				int idcode = id ? GS(id->name) : 0;
+
+				if (!id || !BKE_idcode_is_linkable(idcode)) {
+					continue;
+				}
+				for (; id; id = id->next) {
+					if (id->lib == lib) {
+#ifndef NDEBUG  /* Not required, but handy for debugging! */
+						BLI_strncpy(lapp_data.items[item_idx].group, BKE_idcode_to_name(idcode),
+						            sizeof(lapp_data.items[item_idx].group));
+#endif
+						BLI_strncpy(lapp_data.items[item_idx].name, id->name, sizeof(lapp_data.items[item_idx].name));
+						lapp_data.items[item_idx].idcode = idcode;
+						BLI_BITMAP_SET_ALL(lapp_data.items[item_idx].libs, true, lapp_data.num_libraries);
+						lapp_data.items[item_idx].data = id;
+
+						printf("\tdatablock to seek for: %s\n", id->name);
+
+						item_idx++;
+					}
+				}
+			}
+
+			BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, true);
+
+			wm_link_do(&lapp_data, op->reports, bmain, scene, CTX_wm_view3d(C));
+
+			for (item_idx = 0; item_idx < lapp_data.num_items; item_idx++) {
+				ID *old_id = lapp_data.items[item_idx].data;
+				ID *new_id = lapp_data.items[item_idx].new_id;
+
+				BLI_assert(old_id);
+				if (new_id) {
+					printf("before remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
+					BKE_libblock_remap_locked(bmain, old_id, new_id);
+					printf("after remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
+				}
+			}
+
+			BKE_main_unlock(bmain);
+
+			for (item_idx = 0; item_idx < lapp_data.num_items; item_idx++) {
+				ID *old_id = lapp_data.items[item_idx].data;
+
+				if (old_id->us == 0) {
+					BKE_libblock_free(bmain, old_id);
+				}
+			}
+
+			wm_link_append_data_delete(&lapp_data);
 		}
+
+		BKE_main_lib_objects_recalc_all(bmain);
+		IMB_colormanagement_check_file_config(bmain);
+
+		/* important we unset, otherwise these object wont
+		 * link into other scenes from this blend file */
+		BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, false);
+
+		/* recreate dependency graph to include new objects */
+		DAG_scene_relations_rebuild(bmain, scene);
+
+		/* free gpu materials, some materials depend on existing objects, such as lamps so freeing correctly refreshes */
+		GPU_materials_free();
+
+		/* XXX TODO: align G.lib with other directory storage (like last opened image etc...) */
+		BLI_strncpy(G.lib, root, FILE_MAX);
+
+		WM_event_add_notifier(C, NC_WINDOW, NULL);
 
 		return OPERATOR_FINISHED;
 	}
