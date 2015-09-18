@@ -1015,7 +1015,12 @@ typedef struct IDRemap {
 	ID *new_id;
 	ID *id;  /* The ID in which we are replacing old_id by new_id usages. */
 	int skipped;  /* Number of usecase that could not be remapped (e.g.: obdata when in edit mode). */
+	int flag;
 } IDRemap;
+
+enum {
+	ID_REMAP_SKIP_INDIRECT_USAGE  = 1 << 0,
+};
 
 static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUSED(cb_flag))
 {
@@ -1024,35 +1029,25 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUS
 	ID *old_id = id_remap_data->old_id;
 	ID *new_id = id_remap_data->new_id;
 	ID *id = id_remap_data->id;
-
-	/* Special hack in case it's Object->data, this is *not* covered by foreach_ID_link.
-	 * Here we simply do nothing in case we are in edit mode, otherwise we replace the ID! */
-	if (GS(id->name) == ID_OB) {
-		Object *ob = (Object *)id;
-
-		if (ob->data == old_id) {
-			if (BKE_object_is_in_editmode(ob)) {
-				id_remap_data->skipped++;
-			}
-			else {
-				ob->data = new_id;
-				DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB | OB_RECALC_DATA);
-			}
-		}
-	}
+	const bool skip_indirect_usage = ((id_remap_data->flag & ID_REMAP_SKIP_INDIRECT_USAGE) && id->lib);
 
 	if (*id_p == old_id) {
-		*id_p = new_id;
-		DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB | OB_RECALC_DATA);
+		if (skip_indirect_usage) {
+			id_remap_data->skipped++;
+		}
+		else {
+			*id_p = new_id;
+			DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB | OB_RECALC_DATA);
+		}
 	}
 
 	return true;
 }
 
 /** Replace all references in .blend file to \a old_id by \a new_id. */
-void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id)
+void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id, const bool skip_indirect_usage)
 {
-	IDRemap id_remap_data = {(void *)bmain, (void *)old_id, (void *)new_id, NULL, 0};
+	IDRemap id_remap_data = {(void *)bmain, (void *)old_id, (void *)new_id, NULL};
 	ListBase *lb_array[MAX_LIBARRAY];
 	int skipped;
 	int i;
@@ -1062,17 +1057,41 @@ void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id)
 
 	printf("%s: %s (%p) replaced by %s (%p)\n", __func__, old_id->name, old_id, new_id->name, new_id);
 
+	if (skip_indirect_usage) {
+		id_remap_data.flag |= ID_REMAP_SKIP_INDIRECT_USAGE;
+	}
+
 	i = set_listbasepointers(bmain, lb_array);
 
 	/* Note that this is a very 'bruteforce' approach, maybe we could use some depsgraph to only process
 	 * objects actually using given old_id... But for now this will do. */
 
 	while (i--) {
-		ID *id;
-		for (id = lb_array[i]->first; id; id = id->next) {
-			printf("\tchecking id %s (%p)\n", id->name, id);
+		ID *id = lb_array[i]->first;
+		const bool is_obj = id ? (GS(id->name) == ID_OB) : false;
+
+		for (; id; id = id->next) {
+			/* Note that we cannot skip indirect usages of old_id here (if requested), we still need to check it for
+			 * the user count handling... */
+			printf("\tchecking id %s (%p, %p)\n", id->name, id, id->lib);
 			id_remap_data.id = id;
 			BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)&id_remap_data, IDWALK_NOP);
+
+			/* Special hack in case it's Object->data, this is *not* covered by foreach_ID_link.
+			 * Here we simply do nothing in case we are in edit mode, otherwise we replace the ID! */
+			if (is_obj) {
+				Object *ob = (Object *)id;
+
+				if (ob->data == old_id) {
+					if (id->lib || BKE_object_is_in_editmode(ob)) {
+						id_remap_data.skipped++;
+					}
+					else {
+						ob->data = new_id;
+						DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB | OB_RECALC_DATA);
+					}
+				}
+			}
 		}
 	}
 
@@ -1104,11 +1123,11 @@ void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id)
 	DAG_relations_tag_update(bmain);
 }
 
-void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id)
+void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id, const bool skip_indirect_usage)
 {
 	BKE_main_lock(bmain);
 
-	BKE_libblock_remap_locked(bmain, old_id, new_id);
+	BKE_libblock_remap_locked(bmain, old_id, new_id, skip_indirect_usage);
 
 	BKE_main_unlock(bmain);
 }

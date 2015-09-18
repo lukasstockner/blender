@@ -2662,7 +2662,7 @@ static void wm_link_do(
 	BlendHandle *bh;
 	Library *lib;
 
-	const int flag = lapp_data->flag;
+	const short flag = lapp_data->flag;
 
 	BLI_bitmap *done_items = BLI_BITMAP_NEW(lapp_data->num_items, __func__);
 	char (*libname)[FILE_MAX];
@@ -3003,7 +3003,7 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 		PropertyRNA *prop;
 		WMLinkAppendData lapp_data;
 		char path[FILE_MAX], root[FILE_MAXDIR], libname[FILE_MAX], relname[FILE_MAX];
-		int flag = 0;
+		short flag = 0;
 
 		if (RNA_boolean_get(op->ptr, "relative_path")) {
 			flag |= FILE_RELPATH;
@@ -3147,7 +3147,7 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 				BLI_assert(old_id);
 				if (new_id) {
 					printf("before remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
-					BKE_libblock_remap_locked(bmain, old_id, new_id);
+					BKE_libblock_remap_locked(bmain, old_id, new_id, true);
 					printf("after remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
 				}
 			}
