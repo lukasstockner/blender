@@ -1238,6 +1238,11 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 			brush_rate = 0.001f; // XXX: hardcoded
 			needs_timer = true;
 			break;
+			
+		case GP_EDITBRUSH_TYPE_PINCH:
+			brush_rate = 0.001f; // XXX: hardcoded
+			needs_timer = true;
+			break;
 		
 		case GP_EDITBRUSH_TYPE_TWIST:
 			brush_rate = 0.01f; // XXX: hardcoded
