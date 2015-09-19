@@ -50,9 +50,41 @@
 
 #include "BKE_gpencil.h"
 
+#include "DNA_object_types.h"
+
+
 static void rna_GPencil_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
 	WM_main_add_notifier(NC_GPENCIL | NA_EDITED, NULL);
+}
+
+static void rna_GPencil_editmode_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
+{
+	bGPdata *gpd = (bGPdata *)ptr->id.data;
+	Object *ob = OBACT;
+	
+	/* Notify all places where GPencil data lives that the editing state is different */
+	WM_main_add_notifier(NC_GPENCIL | NA_EDITED, NULL);
+	
+	/* If this datablock is used as the scene or active object's GP data,
+	 * we're going to have to update the object's mode to keep those in sync,
+	 * since the normal mode selector can now be used for changing these modes
+	 * too when using the datablock in the 3D View.
+	 */
+	if (gpd) {
+		if ((scene->gpd == gpd) || (ob && (ob->gpd == gpd))) {
+			ob->restore_mode = ob->mode;
+			
+			if (gpd->flag & GP_DATA_STROKE_EDITMODE) {
+				ob->mode |= OB_MODE_GPENCIL;
+			}
+			else {
+				ob->mode &= ~OB_MODE_GPENCIL;
+			}
+			
+			WM_main_add_notifier(NC_SCENE | ND_MODE, NULL);
+		}
+	}
 }
 
 static char *rna_GPencilLayer_path(PointerRNA *ptr)
@@ -887,7 +919,7 @@ static void rna_def_gpencil_data(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_stroke_edit_mode", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_DATA_STROKE_EDITMODE);
 	RNA_def_property_ui_text(prop, "Stroke Edit Mode", "Edit Grease Pencil strokes instead of viewport data");
-	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, "rna_GPencil_update");
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, "rna_GPencil_editmode_update");
 	
 	/* API Functions */
 	func = RNA_def_function(srna, "clear", "rna_GPencil_clear");
