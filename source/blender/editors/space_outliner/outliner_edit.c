@@ -299,9 +299,10 @@ void OUTLINER_OT_item_rename(wmOperatorType *ot)
 	ot->poll = ED_operator_outliner_active;
 }
 
-/* Library relocate --------------------------------------------------- */
+/* Library relocate/reload --------------------------------------------------- */
 
-static int item_lib_relocate(bContext *C, TreeElement *te, TreeStoreElem *tselem, wmOperatorType *ot)
+static int item_lib_relocate(
+        bContext *C, TreeElement *te, TreeStoreElem *tselem, wmOperatorType *ot, const bool reload)
 {
 	PointerRNA op_props;
 	int ret = 0;
@@ -311,26 +312,33 @@ static int item_lib_relocate(bContext *C, TreeElement *te, TreeStoreElem *tselem
 
 	WM_operator_properties_create_ptr(&op_props, ot);
 
-	RNA_string_set(&op_props, "library", tselem->id->name);
+	RNA_string_set(&op_props, "library", tselem->id->name + 2);
 
-	ret = WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &op_props);
+	if (reload) {
+		Library *lib = (Library *)tselem->id;
+		char dir[FILE_MAXDIR], filename[FILE_MAX];
+
+		BLI_split_dirfile(lib->filepath, dir, filename, sizeof(dir), sizeof(filename));
+
+		/* We assume if both paths in lib are not the same then lib->name was relative... */
+		RNA_boolean_set(&op_props, "relative_path", BLI_path_cmp(lib->filepath, lib->name) != 0);
+
+		RNA_string_set(&op_props, "directory", dir);
+		RNA_string_set(&op_props, "filename", filename);
+
+		ret = WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &op_props);
+	}
+	else {
+		ret = WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &op_props);
+	}
 
 	WM_operator_properties_free(&op_props);
 
 	return ret;
 }
 
-/* XXX This does work with several items (ot is only called once in the end...). */
-void item_lib_relocate_cb(
-        bContext *C, Scene *UNUSED(scene), TreeElement *te,
-        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *user_data)
-{
-	wmOperatorType *ot = user_data;
-
-	item_lib_relocate(C, te, tselem, ot);
-}
-
-static int outliner_lib_relocate_invoke_do(bContext *C, ReportList *reports, TreeElement *te, const float mval[2])
+static int outliner_lib_relocate_invoke_do(
+        bContext *C, ReportList *reports, TreeElement *te, const float mval[2], const bool reload)
 {
 	if (mval[1] > te->ys && mval[1] < te->ys + UI_UNIT_Y) {
 		TreeStoreElem *tselem = TREESTORE(te);
@@ -344,20 +352,20 @@ static int outliner_lib_relocate_invoke_do(bContext *C, ReportList *reports, Tre
 			else {
 				wmOperatorType *ot = WM_operatortype_find("WM_OT_lib_relocate", false);
 
-				return item_lib_relocate(C, te, tselem, ot);
+				return item_lib_relocate(C, te, tselem, ot, reload);
 			}
 		}
 	}
 	else {
 		for (te = te->subtree.first; te; te = te->next) {
 			int ret;
-			if ((ret = outliner_lib_relocate_invoke_do(C, reports, te, mval)) >= 0) {
+			if ((ret = outliner_lib_relocate_invoke_do(C, reports, te, mval, reload))) {
 				return ret;
 			}
 		}
 	}
 
-	return -1;
+	return 0;
 }
 
 static int outliner_lib_relocate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -374,7 +382,7 @@ static int outliner_lib_relocate_invoke(bContext *C, wmOperator *op, const wmEve
 	for (te = soops->tree.first; te; te = te->next) {
 		int ret;
 
-		if ((ret = outliner_lib_relocate_invoke_do(C, op->reports, te, fmval)) >= 0) {
+		if ((ret = outliner_lib_relocate_invoke_do(C, op->reports, te, fmval, false))) {
 			return ret;
 		}
 	}
@@ -386,10 +394,63 @@ void OUTLINER_OT_lib_relocate(wmOperatorType *ot)
 {
 	ot->name = "Relocate Library";
 	ot->idname = "OUTLINER_OT_lib_relocate";
-	ot->description = "Relocate library under cursor";
+	ot->description = "Relocate the library under cursor";
 
 	ot->invoke = outliner_lib_relocate_invoke;
 	ot->poll = ED_operator_outliner_active;
+}
+
+/* XXX This does not work with several items
+ *     (ot is only called once in the end, due to the 'deffered' filebrowser invocation through event system...). */
+void item_lib_relocate_cb(
+        bContext *C, Scene *UNUSED(scene), TreeElement *te,
+        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *user_data)
+{
+	wmOperatorType *ot = user_data;
+
+	item_lib_relocate(C, te, tselem, ot, false);
+}
+
+
+static int outliner_lib_reload_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	ARegion *ar = CTX_wm_region(C);
+	SpaceOops *soops = CTX_wm_space_outliner(C);
+	TreeElement *te;
+	float fmval[2];
+
+	BLI_assert(ar && soops);
+
+	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+
+	for (te = soops->tree.first; te; te = te->next) {
+		int ret;
+
+		if ((ret = outliner_lib_relocate_invoke_do(C, op->reports, te, fmval, true))) {
+			return ret;
+		}
+	}
+
+	return OPERATOR_CANCELLED;
+}
+
+void OUTLINER_OT_lib_reload(wmOperatorType *ot)
+{
+	ot->name = "Reload Library";
+	ot->idname = "OUTLINER_OT_lib_reload";
+	ot->description = "Reload the library under cursor";
+
+	ot->invoke = outliner_lib_reload_invoke;
+	ot->poll = ED_operator_outliner_active;
+}
+
+void item_lib_reload_cb(
+        bContext *C, Scene *UNUSED(scene), TreeElement *te,
+        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *user_data)
+{
+	wmOperatorType *ot = user_data;
+
+	item_lib_relocate(C, te, tselem, ot, true);
 }
 
 /* ************************************************************** */

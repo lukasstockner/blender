@@ -2978,10 +2978,10 @@ static void WM_OT_append(wmOperatorType *ot)
 static int wm_lib_relocate_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	Library *lib;
-	char lib_name[MAX_ID_NAME];
+	char lib_name[MAX_NAME];
 
 	RNA_string_get(op->ptr, "library", lib_name);
-	lib = (Library *)BKE_libblock_find_name_ex(CTX_data_main(C), ID_LI, lib_name + 2);
+	lib = (Library *)BKE_libblock_find_name_ex(CTX_data_main(C), ID_LI, lib_name);
 
 	if (lib) {
 		if (lib->parent) {
@@ -3002,10 +3002,10 @@ static int wm_lib_relocate_invoke(bContext *C, wmOperator *op, const wmEvent *UN
 static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 {
 	Library *lib;
-	char lib_name[MAX_ID_NAME];
+	char lib_name[MAX_NAME];
 
 	RNA_string_get(op->ptr, "library", lib_name);
-	lib = (Library *)BKE_libblock_find_name_ex(CTX_data_main(C), ID_LI, lib_name + 2);
+	lib = (Library *)BKE_libblock_find_name_ex(CTX_data_main(C), ID_LI, lib_name);
 
 	if (lib) {
 		Main *bmain = CTX_data_main(C);
@@ -3033,8 +3033,10 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 			return OPERATOR_CANCELLED;
 		}
 
-		if (BLI_path_cmp(lib->filepath, libname) == 0) {
-			printf("We are supposed to reload '%s' lib...\n", lib->filepath);
+		BLI_join_dirfile(path, sizeof(path), root, libname);
+
+		if (BLI_path_cmp(lib->filepath, path) == 0) {
+			printf("We are supposed to reload '%s' lib (%d)...\n", lib->filepath, lib->id.us);
 
 			return OPERATOR_FINISHED;
 		}
@@ -3078,7 +3080,6 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 				RNA_END;
 			}
 			else {
-				BLI_join_dirfile(path, sizeof(path), root, libname);
 				printf("\t candidate new lib to reload datablocks from: %s\n", path);
 				wm_link_append_data_library_add(lapp_data, path);
 			}
@@ -3165,19 +3166,40 @@ static void WM_OT_lib_relocate(wmOperatorType *ot)
 
 	ot->name = "Relocate Library";
 	ot->idname = "WM_OT_lib_relocate";
-	ot->description = "Relocate given library to another one";
+	ot->description = "Relocate the given library to one or several others";
 
 	ot->invoke = wm_lib_relocate_invoke;
 	ot->exec = wm_lib_relocate_exec;
 
 	ot->flag |= OPTYPE_UNDO;
 
-	prop = RNA_def_string(ot->srna, "library", NULL, MAX_ID_NAME, "Library", "Library to relocate");
+	prop = RNA_def_string(ot->srna, "library", NULL, MAX_NAME, "Library", "Library to relocate");
 	RNA_def_property_flag(prop, PROP_HIDDEN);
 
 	WM_operator_properties_filesel(
 	            ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_OPENFILE,
 	            WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILENAME | WM_FILESEL_FILES | WM_FILESEL_RELPATH,
+	            FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
+}
+
+static void WM_OT_lib_reload(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+
+	ot->name = "Reload Library";
+	ot->idname = "WM_OT_lib_reload";
+	ot->description = "Reload the given library";
+
+	ot->exec = wm_lib_relocate_exec;
+
+	ot->flag |= OPTYPE_UNDO;
+
+	prop = RNA_def_string(ot->srna, "library", NULL, MAX_NAME, "Library", "Library to relocate");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+
+	WM_operator_properties_filesel(
+	            ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_OPENFILE,
+	            WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILENAME | WM_FILESEL_RELPATH,
 	            FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 }
 
@@ -5468,6 +5490,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_link);
 	WM_operatortype_append(WM_OT_append);
 	WM_operatortype_append(WM_OT_lib_relocate);
+	WM_operatortype_append(WM_OT_lib_reload);
 	WM_operatortype_append(WM_OT_recover_last_session);
 	WM_operatortype_append(WM_OT_recover_auto_save);
 	WM_operatortype_append(WM_OT_save_as_mainfile);

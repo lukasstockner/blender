@@ -1266,12 +1266,15 @@ typedef enum eOutlinerLibOpTypes {
 
 	OL_LIB_RENAME,
 	OL_LIB_RELOCATE,
+	OL_LIB_RELOAD,
 } eOutlinerLibOpTypes;
 
 static EnumPropertyItem outliner_lib_op_type_items[] = {
 	{OL_LIB_RENAME, "RENAME", 0, "Rename", ""},
     {OL_LIB_RELOCATE, "RELOCATE", 0, "Relocate", "Select a new path for this library, and reload all its data"},
+    {OL_LIB_RELOAD, "RELOAD", 0, "Reload", "Reload all data from this library"},
 	{0, NULL, 0, NULL, NULL}
+
 };
 
 static int outliner_lib_operation_exec(bContext *C, wmOperator *op)
@@ -1305,6 +1308,14 @@ static int outliner_lib_operation_exec(bContext *C, wmOperator *op)
 
 			/* rename */
 			outliner_do_libdata_operation(C, scene, soops, &soops->tree, item_lib_relocate_cb, ot);
+			break;
+		}
+		case OL_LIB_RELOAD:
+		{
+			wmOperatorType *ot = WM_operatortype_find("WM_OT_lib_reload", false);
+
+			/* rename */
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, item_lib_reload_cb, ot);
 			break;
 		}
 		default:
