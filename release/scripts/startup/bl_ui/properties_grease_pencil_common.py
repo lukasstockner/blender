@@ -226,7 +226,7 @@ class GPENCIL_PIE_tool_palette(Menu):
         if gpd:
             if gpd.use_stroke_edit_mode and context.editable_gpencil_strokes:
                 # S - Exit Edit Mode
-                pie.prop(gpd, "use_stroke_edit_mode", text="Exit Edit Mode", icon='EDIT')
+                pie.operator("gpencil.editmode_toggle", text="Exit Edit Mode", icon='EDIT')
 
                 # N - Transforms
                 col = pie.column()
@@ -260,7 +260,7 @@ class GPENCIL_PIE_tool_palette(Menu):
                 pie.operator("wm.call_menu_pie", text="More...").name = "GPENCIL_PIE_tools_more"
             else:
                 # Toggle Edit Mode
-                pie.prop(gpd, "use_stroke_edit_mode", text="Enable Stroke Editing", icon='EDIT')
+                pie.operator("gpencil.editmode_toggle", text="Enable Stroke Editing", icon='EDIT')
 
 
 class GPENCIL_PIE_settings_palette(Menu):

@@ -46,6 +46,7 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_group_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meta_types.h"
@@ -1505,6 +1506,7 @@ static EnumPropertyItem *object_mode_set_itemsf(bContext *C, PointerRNA *UNUSED(
 	EnumPropertyItem *input = object_mode_items;
 	EnumPropertyItem *item = NULL;
 	Object *ob;
+	bGPdata *gpd;
 	int totitem = 0;
 
 	if (!C) /* needed for docs */
@@ -1532,6 +1534,14 @@ static EnumPropertyItem *object_mode_set_itemsf(bContext *C, PointerRNA *UNUSED(
 		/* We need at least this one! */
 		RNA_enum_items_add_value(&item, &totitem, input, OB_MODE_OBJECT);
 	}
+	
+	/* On top of all the rest, GPencil Stroke Edit Mode
+	 * is available if there's a valid gp datablock...
+	 */
+	gpd = CTX_data_gpencil_data(C);
+	if (gpd) {
+		RNA_enum_items_add_value(&item, &totitem, object_mode_items, OB_MODE_GPENCIL);
+	}
 
 	RNA_enum_item_end(&item, &totitem);
 
@@ -1556,6 +1566,8 @@ static const char *object_mode_op_string(int mode)
 		return "PARTICLE_OT_particle_edit_toggle";
 	if (mode == OB_MODE_POSE)
 		return "OBJECT_OT_posemode_toggle";
+	if (mode == OB_MODE_GPENCIL)
+		return "GPENCIL_OT_editmode_toggle";
 	return NULL;
 }
 
@@ -1567,6 +1579,8 @@ static bool object_mode_compat_test(Object *ob, ObjectMode mode)
 	if (ob) {
 		if (mode == OB_MODE_OBJECT)
 			return true;
+		else if (mode == OB_MODE_GPENCIL)
+			return true; /* XXX: assume this is the case for now... */
 
 		switch (ob->type) {
 			case OB_MESH:

@@ -37,6 +37,7 @@
 #include "BKE_context.h"
 
 #include "DNA_gpencil_types.h"
+#include "DNA_object_types.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -48,6 +49,61 @@
 #include "ED_transform.h"
 
 #include "gpencil_intern.h"
+
+/* ****************************************** */
+// XXX: move this
+
+static int gpencil_editmode_toggle_poll(bContext *C)
+{
+	return ED_gpencil_data_get_active(C) != NULL;
+}
+
+static int gpencil_editmode_toggle_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob = CTX_data_active_object(C);
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	
+	/* Toggle editmode flag... */
+	if (gpd == NULL)
+		return OPERATOR_CANCELLED;
+	
+	gpd->flag ^= GP_DATA_STROKE_EDITMODE;
+	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, NULL);
+	
+	
+	/* Update active object's mode setting,
+	 * as it now needs to reflect GPencil status... 
+	 */
+	if (ob) {
+		ob->restore_mode = ob->mode;
+		
+		if (gpd->flag & GP_DATA_STROKE_EDITMODE) {
+			ob->mode |= OB_MODE_GPENCIL;
+		}
+		else {
+			ob->mode &= ~OB_MODE_GPENCIL;
+		}
+		
+		WM_event_add_notifier(C, NC_SCENE | ND_MODE, NULL);
+	}
+	
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_editmode_toggle(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Strokes Edit Mode Toggle";
+	ot->idname = "GPENCIL_OT_editmode_toggle";
+	ot->description = "Enter/Exit edit mode for Grease Pencil strokes";
+	
+	/* callbacks */
+	ot->exec = gpencil_editmode_toggle_exec;
+	ot->poll = gpencil_editmode_toggle_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_UNDO | OPTYPE_REGISTER;
+}
 
 /* ****************************************** */
 /* Grease Pencil Keymaps */
@@ -97,8 +153,7 @@ static void ed_keymap_gpencil_general(wmKeyConfig *keyconf)
 	/* Viewport Tools ------------------------------- */
 	
 	/* Enter EditMode */
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", TABKEY, KM_PRESS, 0, DKEY);
-	RNA_string_set(kmi->ptr, "data_path", "gpencil_data.use_stroke_edit_mode");
+	WM_keymap_add_item(keymap, "GPENCIL_OT_editmode_toggle", TABKEY, KM_PRESS, 0, DKEY);
 	
 	/* Pie Menu - For standard tools */
 	WM_keymap_add_menu_pie(keymap, "GPENCIL_PIE_tool_palette", QKEY, KM_PRESS, 0, DKEY);
@@ -126,8 +181,7 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	/* ----------------------------------------------- */
 	
 	/* Exit EditMode */
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", TABKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "gpencil_data.use_stroke_edit_mode");
+	WM_keymap_add_item(keymap, "GPENCIL_OT_editmode_toggle", TABKEY, KM_PRESS, 0, 0);
 	
 	/* Pie Menu - For settings/tools easy access */
 	WM_keymap_add_menu_pie(keymap, "GPENCIL_PIE_sculpt", EKEY, KM_PRESS, 0, DKEY);
@@ -279,6 +333,8 @@ void ED_operatortypes_gpencil(void)
 	
 	/* Editing (Strokes) ------------ */
 	
+	WM_operatortype_append(GPENCIL_OT_editmode_toggle);
+	
 	WM_operatortype_append(GPENCIL_OT_select);
 	WM_operatortype_append(GPENCIL_OT_select_all);
 	WM_operatortype_append(GPENCIL_OT_select_circle);
@@ -322,12 +378,14 @@ void ED_operatormacros_gpencil(void)
 	wmOperatorType *ot;
 	wmOperatorTypeMacro *otmacro;
 	
+	/* Duplicate + Move = Interactively place newly duplicated strokes */
 	ot = WM_operatortype_append_macro("GPENCIL_OT_duplicate_move", "Duplicate Strokes",
 	                                  "Make copies of the selected Grease Pencil strokes and move them",
 	                                  OPTYPE_UNDO | OPTYPE_REGISTER);
 	WM_operatortype_macro_define(ot, "GPENCIL_OT_duplicate");
 	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 	RNA_boolean_set(otmacro->ptr, "gpencil_strokes", true);
+
 }
 
 /* ****************************************** */
