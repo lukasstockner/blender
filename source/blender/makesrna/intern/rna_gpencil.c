@@ -71,8 +71,8 @@ static void rna_GPencil_editmode_update(Main *UNUSED(bmain), Scene *scene, Point
 	 * since the normal mode selector can now be used for changing these modes
 	 * too when using the datablock in the 3D View.
 	 */
-	if (gpd) {
-		if ((scene->gpd == gpd) || (ob && (ob->gpd == gpd))) {
+	if (gpd && ob) {
+		if ((scene->gpd == gpd) || (ob->gpd == gpd)) {
 			ob->restore_mode = ob->mode;
 			
 			if (gpd->flag & GP_DATA_STROKE_EDITMODE) {

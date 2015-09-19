@@ -1635,13 +1635,35 @@ bool ED_object_mode_compat_set(bContext *C, Object *ob, int mode, ReportList *re
 	return ok;
 }
 
+static int object_mode_set_poll(bContext *C)
+{
+	/* Since Grease Pencil editmode is also handled here,
+	 * we have a special exception for allowing this operator
+	 * to still work in that case when there's no active object
+	 * so that users can exit editmode this way as per normal.
+	 */
+	if (ED_operator_object_active_editable(C))
+		return true;
+	else
+		return (CTX_data_gpencil_data(C) != NULL);
+}
+
 static int object_mode_set_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
+	bGPdata *gpd = CTX_data_gpencil_data(C);
 	ObjectMode mode = RNA_enum_get(op->ptr, "mode");
 	ObjectMode restore_mode = (ob) ? ob->mode : OB_MODE_OBJECT;
 	const bool toggle = RNA_boolean_get(op->ptr, "toggle");
-
+	
+	if (!ob && gpd) {
+		/* HACK: Just toggle GPencil editmode anyway if there's no object,
+		 *       since GPencil editing can still work... Just don't go any
+		 *       further, or else the rest of the code will break.
+		 */
+		return WM_operator_name_call(C, "GPENCIL_OT_editmode_toggle", WM_OP_EXEC_REGION_WIN, NULL);
+	}
+	
 	if (!ob || !object_mode_compat_test(ob, mode))
 		return OPERATOR_PASS_THROUGH;
 
@@ -1685,7 +1707,7 @@ void OBJECT_OT_mode_set(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = object_mode_set_exec;
 	
-	ot->poll = ED_operator_object_active_editable;
+	ot->poll = object_mode_set_poll; //ED_operator_object_active_editable;
 	
 	/* flags */
 	ot->flag = 0; /* no register/undo here, leave it to operators being called */
