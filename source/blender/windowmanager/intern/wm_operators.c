@@ -3046,6 +3046,7 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 			int lba_idx;
 			int item_idx;
 			int totfiles = 0;
+			int num_ids;
 
 			printf("We are supposed to relocate '%s' lib to new '%s' one...\n", lib->filepath, libname);
 
@@ -3124,12 +3125,22 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 
 			BKE_main_unlock(bmain);
 
+			num_ids = lapp_data->num_items;
 			for (item_idx = 0, itemlink = lapp_data->items; itemlink; item_idx++, itemlink = itemlink->next) {
 				WMLinkAppendDataItem *item = itemlink->link;
 				ID *old_id = item->customdata;
 
 				if (old_id->us == 0) {
 					BKE_libblock_free(bmain, old_id);
+					num_ids--;
+				}
+			}
+
+			if (num_ids == 0) {
+				/* Nothing uses old lib anymore, we can get rid of it. */
+				lib->id.us--;
+				if (lib->id.us == 0) {
+					BKE_libblock_free(bmain, (ID *)lib);
 				}
 			}
 
