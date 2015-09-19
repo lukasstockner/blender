@@ -37,7 +37,6 @@
 #include "BKE_context.h"
 
 #include "DNA_gpencil_types.h"
-#include "DNA_object_types.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -49,61 +48,6 @@
 #include "ED_transform.h"
 
 #include "gpencil_intern.h"
-
-/* ****************************************** */
-// XXX: move this
-
-static int gpencil_editmode_toggle_poll(bContext *C)
-{
-	return ED_gpencil_data_get_active(C) != NULL;
-}
-
-static int gpencil_editmode_toggle_exec(bContext *C, wmOperator *UNUSED(op))
-{
-	Object *ob = CTX_data_active_object(C);
-	bGPdata *gpd = ED_gpencil_data_get_active(C);
-	
-	/* Toggle editmode flag... */
-	if (gpd == NULL)
-		return OPERATOR_CANCELLED;
-	
-	gpd->flag ^= GP_DATA_STROKE_EDITMODE;
-	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, NULL);
-	
-	
-	/* Update active object's mode setting,
-	 * as it now needs to reflect GPencil status... 
-	 */
-	if (ob) {
-		ob->restore_mode = ob->mode;
-		
-		if (gpd->flag & GP_DATA_STROKE_EDITMODE) {
-			ob->mode |= OB_MODE_GPENCIL;
-		}
-		else {
-			ob->mode &= ~OB_MODE_GPENCIL;
-		}
-		
-		WM_event_add_notifier(C, NC_SCENE | ND_MODE, NULL);
-	}
-	
-	return OPERATOR_FINISHED;
-}
-
-void GPENCIL_OT_editmode_toggle(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Strokes Edit Mode Toggle";
-	ot->idname = "GPENCIL_OT_editmode_toggle";
-	ot->description = "Enter/Exit edit mode for Grease Pencil strokes";
-	
-	/* callbacks */
-	ot->exec = gpencil_editmode_toggle_exec;
-	ot->poll = gpencil_editmode_toggle_poll;
-	
-	/* flags */
-	ot->flag = OPTYPE_UNDO | OPTYPE_REGISTER;
-}
 
 /* ****************************************** */
 /* Grease Pencil Keymaps */
