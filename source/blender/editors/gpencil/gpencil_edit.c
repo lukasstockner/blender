@@ -83,6 +83,7 @@ static int gpencil_editmode_toggle_poll(bContext *C)
 
 static int gpencil_editmode_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	ScrArea *sa = CTX_wm_area(C);
 	Object *ob = CTX_data_active_object(C);
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	
@@ -96,8 +97,12 @@ static int gpencil_editmode_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 	
 	/* Update active object's mode setting,
 	 * as it now needs to reflect GPencil status...
+	 *
+	 * NOTE: Since Grease Pencil can be used in various editors,
+	 * we will only do this in the 3D view, where the ob->mode
+	 * gets shown.
 	 */
-	if (ob) {
+	if ((sa->spacetype == SPACE_VIEW3D) && (ob != NULL)) {
 		ob->restore_mode = ob->mode;
 		
 		if (gpd->flag & GP_DATA_STROKE_EDITMODE) {
