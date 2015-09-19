@@ -1235,7 +1235,7 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 		
 		/* Brushes requiring timer... */
 		case GP_EDITBRUSH_TYPE_THICKNESS:
-			brush_rate = 0.001f; // XXX: hardcoded
+			brush_rate = 0.01f; // XXX: hardcoded
 			needs_timer = true;
 			break;
 			
