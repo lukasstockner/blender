@@ -2627,7 +2627,7 @@ void init_userdef_do_versions(void)
 		U.node_margin = 80;
 	}
 
-	if (!USER_VERSION_ATLEAST(275, 5)) {
+	if (!USER_VERSION_ATLEAST(276, 1)) {
 		bTheme *btheme;
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			rgba_char_args_set_fl(btheme->tui.xaxis, 1.0f, 0.27f, 0.27f, 1.0f); /* red */
