@@ -519,9 +519,10 @@ enum widgetflags {
 	WM_WIDGET_ACTIVE      = (1 << 1),
 	/* settings */
 	WM_WIDGET_DRAW_HOVER  = (1 << 2),
-	WM_WIDGET_SCALE_3D    = (1 << 3),
-	WM_WIDGET_SCENE_DEPTH = (1 << 4), /* widget is depth culled with scene objects*/
-	WM_WIDGET_HIDDEN      = (1 << 5),
+	WM_WIDGET_DRAW_ACTIVE = (1 << 3), /* draw while dragging */
+	WM_WIDGET_SCALE_3D    = (1 << 4),
+	WM_WIDGET_SCENE_DEPTH = (1 << 5), /* widget is depth culled with scene objects*/
+	WM_WIDGET_HIDDEN      = (1 << 6),
 };
 
 void WM_widget_set_property(struct wmWidget *, int slot, struct PointerRNA *ptr, const char *propname);

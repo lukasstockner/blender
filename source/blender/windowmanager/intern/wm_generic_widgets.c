@@ -636,7 +636,7 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
 	arrow->widget.bind_to_prop = widget_arrow_bind_to_prop;
 	arrow->widget.cancel = widget_arrow_cancel;
-	arrow->widget.flag |= WM_WIDGET_SCALE_3D;
+	arrow->widget.flag |= (WM_WIDGET_SCALE_3D | WM_WIDGET_DRAW_ACTIVE);
 
 	arrow->style = real_style;
 	arrow->len = 1.0f;
@@ -1514,6 +1514,7 @@ wmWidget *WIDGET_rect_transform_new(
 	cage->widget.cancel = widget_rect_transform_cancel;
 	cage->widget.get_cursor = widget_rect_transform_get_cursor;
 	cage->widget.max_prop = 2;
+	cage->widget.flag |= WM_WIDGET_DRAW_ACTIVE;
 	cage->scale[0] = cage->scale[1] = 1.0f;
 	cage->style = style;
 	cage->w = width;

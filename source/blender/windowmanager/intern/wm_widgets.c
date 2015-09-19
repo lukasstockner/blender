@@ -310,9 +310,11 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 	widget = wmap->active_widget;
 
 	if (widget && in_scene == ((widget->flag & WM_WIDGET_SCENE_DEPTH) != 0)) {
-		/* notice that we don't update the widgetgroup, widget is now on its own, it should have all
-		 * relevant data to update itself */
-		widget->draw(C, widget);
+		if (widget->flag & WM_WIDGET_DRAW_ACTIVE) {
+			/* notice that we don't update the widgetgroup, widget is now on
+			 * its own, it should have all relevant data to update itself */
+			widget->draw(C, widget);
+		}
 	}
 	else if (wmap->widgetgroups.first) {
 		wmWidgetGroup *wgroup;
@@ -754,8 +756,8 @@ void wm_widgetmap_set_active_widget(
 				if (widget->invoke && widget->handler) {
 					widget->flag |= WM_WIDGET_ACTIVE;
 					widget->invoke(C, event, widget);
-					wmap->active_widget = widget;
 				}
+				wmap->active_widget = widget;
 
 				/* if operator runs modal, we will need to activate the current widgetmap on the operator handler,
 				 * so it can process events first, then pass them on to the operator */
