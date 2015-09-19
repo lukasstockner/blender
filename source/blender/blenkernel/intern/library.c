@@ -1014,13 +1014,17 @@ typedef struct IDRemap {
 	ID *old_id;
 	ID *new_id;
 	ID *id;  /* The ID in which we are replacing old_id by new_id usages. */
-	int skipped;  /* Number of usecase that could not be remapped (e.g.: obdata when in edit mode). */
+	int skipped_direct;  /* Number of direct usecase that could not be remapped (e.g.: obdata when in edit mode). */
+	int skipped_indirect;  /* Number of indirect usecase that could not be remapped. */
 	int flag;
 } IDRemap;
 
 enum {
+	/* Set by caller. */
 	ID_REMAP_SKIP_INDIRECT_USAGE  = 1 << 0,
-	ID_REMAP_IS_OBJECT            = 1 << 1,  /* IDRemap->id is an object... */
+
+	/* Set by callback. */
+	ID_REMAP_IS_LINKED_DIRECT     = 1 << 16,  /* new_id is directly linked in current .blend. */
 };
 
 static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUSED(cb_flag))
@@ -1030,18 +1034,28 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUS
 	ID *old_id = id_remap_data->old_id;
 	ID *new_id = id_remap_data->new_id;
 	ID *id = id_remap_data->id;
-	const bool skip_indirect_usage = (
-	        (id_remap_data->flag & ID_REMAP_SKIP_INDIRECT_USAGE) &&
-	        (id->lib ||
-	         ((id_remap_data->flag & ID_REMAP_IS_OBJECT) && (((Object *)id)->proxy || ((Object *)id)->proxy_group))));
+
+	/* Note: proxy usage implies LIB_EXTERN, so on this aspect it is direct,
+	 *       on the other hand since they get reset to lib data on file open/reload it is indirect too... */
+	const bool is_proxy = ((GS(id->name) == ID_OB) && (((Object *)id)->proxy || ((Object *)id)->proxy_group));
+	const bool is_indirect = (id->lib != NULL);
+	const bool skip_indirect = (id_remap_data->flag & ID_REMAP_SKIP_INDIRECT_USAGE) != 0;
 
 	if (*id_p == old_id) {
-		if (skip_indirect_usage) {
-			id_remap_data->skipped++;
+		if (skip_indirect && (is_proxy || is_indirect)) {
+			if (is_proxy) {
+				id_remap_data->skipped_direct++;
+			}
+			else {
+				id_remap_data->skipped_indirect++;
+			}
 		}
 		else {
 			*id_p = new_id;
 			DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB | OB_RECALC_DATA);
+			if (!is_indirect) {
+				id_remap_data->flag |= ID_REMAP_IS_LINKED_DIRECT;
+			}
 		}
 	}
 
@@ -1074,13 +1088,6 @@ void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id, const bool s
 		ID *id = lb_array[i]->first;
 		const bool is_obj = id ? (GS(id->name) == ID_OB) : false;
 
-		if (is_obj) {
-			id_remap_data.flag |= ID_REMAP_IS_OBJECT;
-		}
-		else {
-			id_remap_data.flag &= ~ID_REMAP_IS_OBJECT;
-		}
-
 		for (; id; id = id->next) {
 			/* Note that we cannot skip indirect usages of old_id here (if requested), we still need to check it for
 			 * the user count handling... */
@@ -1093,9 +1100,21 @@ void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id, const bool s
 			if (is_obj) {
 				Object *ob = (Object *)id;
 
+				/* Note: proxy usage implies LIB_EXTERN, so on this aspect it is direct,
+				 *       on the other hand since they get reset to lib data on file open/reload it is indirect too...
+				 *       Edit Mode is also a 'skip direct' case. */
+				const bool is_editmode = BKE_object_is_in_editmode(ob);
+				const bool is_proxy = (ob->proxy || ob->proxy_group);
+				const bool is_indirect = (id->lib != NULL);
+
 				if (ob->data == old_id) {
-					if (id->lib || ob->proxy || ob->proxy_group || BKE_object_is_in_editmode(ob)) {
-						id_remap_data.skipped++;
+					if ((skip_indirect_usage && (is_proxy || is_indirect)) || is_editmode) {
+						if (is_proxy || is_editmode) {
+							id_remap_data.skipped_direct++;
+						}
+						else {
+							id_remap_data.skipped_indirect++;
+						}
 					}
 					else {
 						ob->data = new_id;
@@ -1117,18 +1136,25 @@ void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id, const bool s
 	}
 
 	/* All ID 'users' do not actually incref it, so we just assume all uses of this ID have been cleared... */
-	skipped = id_remap_data.skipped;
 	if (old_id->flag & LIB_FAKEUSER) {
-		skipped++;
+		id_remap_data.skipped_direct++;
 	}
+	skipped = id_remap_data.skipped_direct + id_remap_data.skipped_indirect;
 
 	BLI_assert(old_id->us - skipped >= 0);
 	new_id->us += old_id->us - skipped;
-	if (new_id->flag & LIB_INDIRECT) {
+	if ((new_id->flag & LIB_INDIRECT) && (id_remap_data.flag & ID_REMAP_IS_LINKED_DIRECT)) {
 		new_id->flag &= ~LIB_INDIRECT;
 		new_id->flag |= LIB_EXTERN;
 	}
 	old_id->us = skipped;
+	if (id_remap_data.skipped_direct == 0) {
+		/* old_id is assumed to not be used directly anymore... */
+		if (old_id->lib && (old_id->flag & LIB_EXTERN)) {
+			old_id->flag &= ~LIB_EXTERN;
+			old_id->flag |= LIB_INDIRECT;
+		}
+	}
 
 	/* Full rebuild of DAG! */
 	DAG_relations_tag_update(bmain);
