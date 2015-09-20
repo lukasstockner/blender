@@ -1565,7 +1565,9 @@ static void widget_facemap_draw(const bContext *C, wmWidget *widget)
 	glPushMatrix();
 	glMultMatrixf(fmap_widget->ob->obmat);
 	glTranslatef(UNPACK3(widget->offset));
+	glEnable(GL_MULTISAMPLE_ARB);
 	ED_draw_object_facemap(CTX_data_scene(C), fmap_widget->ob, fmap_widget->facemap);
+	glDisable(GL_MULTISAMPLE_ARB);
 	glPopMatrix();
 }
 
