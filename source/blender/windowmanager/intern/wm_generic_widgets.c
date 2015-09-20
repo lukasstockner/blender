@@ -180,6 +180,7 @@ typedef struct ArrowWidget {
 	float len;          /* arrow line length */
 	float direction[3];
 	float up[3];
+	float aspect[2];    /* cone style only */
 
 	float range_fac;      /* factor for arrow min/max distance */
 	float offset;
@@ -224,11 +225,13 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 		glPopAttrib();
 	}
 	else if (arrow->style & WIDGET_ARROW_STYLE_CONE) {
-		static float vec[4][3] = {
-			{-1, -1, 0},
-			{ 1, -1, 0},
-			{ 1,  1, 0},
-			{-1,  1, 0},
+		const float unitx = arrow->aspect[0];
+		const float unity = arrow->aspect[1];
+		const float vec[4][3] = {
+			{-unitx, -unity, 0},
+			{ unitx, -unity, 0},
+			{ unitx,  unity, 0},
+			{-unitx,  unity, 0},
 		};
 
 		glLineWidth(arrow->widget.line_width);
@@ -714,6 +717,16 @@ void WIDGET_arrow_set_range_fac(wmWidget *widget, const float range_fac)
 	BLI_assert(!(arrow->widget.props[0] && "Make sure this function is called before WM_widget_set_property"));
 
 	arrow->range_fac = range_fac;
+}
+
+/**
+ * Define xy-aspect for arrow cone
+ */
+void WIDGET_arrow_cone_set_aspect(wmWidget *widget, const float aspect[2])
+{
+	ArrowWidget *arrow = (ArrowWidget *)widget;
+
+	copy_v2_v2(arrow->aspect, aspect);
 }
 
 /** \} */ // Arrow Widget API

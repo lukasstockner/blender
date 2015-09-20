@@ -48,6 +48,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_action.h"
+#include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_icons.h"
@@ -768,22 +769,31 @@ static void WIDGETGROUP_camera_create(const struct bContext *C, struct wmWidgetG
 	/* focal length
 	 * - logic/calculations are similar to BKE_camera_view_frame_ex, better keep in sync */
 	if (focallen_widget) {
+		const Scene *scene = CTX_data_scene(C);
 		const bool is_ortho = (ca->type == CAM_ORTHO);
 		const float scale_fac = ca->drawsize;
 		const float half_sensor = 0.5f * ((ca->sensor_fit == CAMERA_SENSOR_FIT_VERT) ? ca->sensor_y : ca->sensor_x);
 		const float scale[3] = {1.0f / len_v3(ob->obmat[0]), 1.0f / len_v3(ob->obmat[1]), 1.0f / len_v3(ob->obmat[2])};
 		const float drawsize = is_ortho ? (0.5f * ca->ortho_scale) :
 		                                  (scale_fac / ((scale[0] + scale[1] + scale[2]) / 3.0f));
+		const float aspx = (float)scene->r.xsch * scene->r.xasp;
+		const float aspy = (float)scene->r.ysch * scene->r.yasp;
+		const int sensor_fit = BKE_camera_sensor_fit(ca->sensor_fit, aspx, aspy);
 		const char *propname = is_ortho ? "ortho_scale" : "lens";
+		const bool fit_hor = (sensor_fit == CAMERA_SENSOR_FIT_HOR);
 
 		const float color[4] = {1.0f, 1.0, 0.27f, 0.5f};
 		const float color_hi[4] = {1.0f, 1.0, 0.27f, 1.0f};
 
 		PropertyRNA *prop;
-		float offset[3];
+		float offset[3], asp[2];
 		float min, max, range;
 		float step, precision; /* dummys, unused */
 
+
+		/* get aspect */
+		asp[0] = fit_hor ? 1.0 : aspx / aspy;
+		asp[1] = fit_hor ? aspy / aspx : 1.0f;
 
 		/* account for lens shifting */
 		offset[0] = ((ob->size[0] > 0.0f) ? -2.0f : 2.0f) * ca->shiftx;
@@ -803,6 +813,7 @@ static void WIDGETGROUP_camera_create(const struct bContext *C, struct wmWidgetG
 		WIDGET_arrow_set_range_fac(widget, is_ortho ? (scale_fac * range) : (drawsize * range / half_sensor));
 		WIDGET_arrow_set_direction(widget, dir);
 		WIDGET_arrow_set_up_vector(widget, ob->obmat[1]);
+		WIDGET_arrow_cone_set_aspect(widget, asp);
 		WM_widget_set_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &cameraptr, propname);
 		WM_widget_set_origin(widget, ob->obmat[3]);
 		WM_widget_set_offset(widget, offset);
