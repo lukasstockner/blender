@@ -102,7 +102,9 @@ static int gpencil_editmode_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 	 * we will only do this in the 3D view, where the ob->mode
 	 * gets shown.
 	 */
-	if ((sa->spacetype == SPACE_VIEW3D) && (ob != NULL)) {
+	if (((sa == NULL) || (sa->spacetype == SPACE_VIEW3D)) && 
+	    (ob != NULL)) 
+	{
 		ob->restore_mode = ob->mode;
 		
 		if (gpd->flag & GP_DATA_STROKE_EDITMODE) {
