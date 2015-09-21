@@ -647,7 +647,7 @@ int set_listbasepointers(Main *main, ListBase **lb)
  * Allocates and returns memory of the right size for the specified block type,
  * initialized to zero.
  */
-static ID *alloc_libblock_notest(short type)
+void *BKE_libblock_alloc_notest(short type)
 {
 	ID *id = NULL;
 	
@@ -769,7 +769,7 @@ void *BKE_libblock_alloc(Main *bmain, short type, const char *name)
 	ID *id = NULL;
 	ListBase *lb = which_libbase(bmain, type);
 	
-	id = alloc_libblock_notest(type);
+	id = BKE_libblock_alloc_notest(type);
 	if (id) {
 		BKE_main_lock(bmain);
 		BLI_addtail(lb, id);
@@ -837,7 +837,7 @@ void *BKE_libblock_copy_nolib(ID *id, const bool do_action)
 	ID *idn;
 	size_t idn_len;
 
-	idn = alloc_libblock_notest(GS(id->name));
+	idn = BKE_libblock_alloc_notest(GS(id->name));
 	assert(idn != NULL);
 
 	BLI_strncpy(idn->name, id->name, sizeof(idn->name));

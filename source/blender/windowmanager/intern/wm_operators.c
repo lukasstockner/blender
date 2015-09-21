@@ -2862,8 +2862,11 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 			if (BLO_library_path_explode(path, libname, &group, &name)) {
 				WMLinkAppendDataItem *item;
 				if (!group || !name) {
+					printf("skipping %s\n", path);
 					continue;
 				}
+
+				printf("linking %s\n", path);
 
 				lib_idx = GET_INT_FROM_POINTER(BLI_ghash_lookup(libraries, libname));
 
@@ -2883,7 +2886,11 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		BLI_BITMAP_ENABLE(item->libraries, 0);
 	}
 
+	BKE_main_lock(bmain);
+
 	wm_link_do(lapp_data, op->reports, bmain, scene, CTX_wm_view3d(C));
+
+	BKE_main_unlock(bmain);
 
 	wm_link_append_data_free(lapp_data);
 
