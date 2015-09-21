@@ -65,8 +65,8 @@ ccl_device void util_invert_polynomial_distortion(const float2 image,
 	                                       image.x, image.y,
 	                                       &normalized_x,
 	                                       &normalized_y);
-	result->x = normalized_x * focal_length + principal_point.x;
-	result->y = normalized_y * focal_length + principal_point.y;
+	result->x = normalized_x * (double)focal_length + (double)principal_point.x;
+	result->y = normalized_y * (double)focal_length + (double)principal_point.y;
 #else
 	*result = image;
 #endif
