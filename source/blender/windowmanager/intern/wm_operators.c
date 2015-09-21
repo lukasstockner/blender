@@ -3083,8 +3083,13 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 
 			BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, true);
 
+			/* XXX For now, locking is not reentrant so it's not safe to call core linking code with locked Main. */
+			BKE_main_unlock(bmain);
+
 			/* We do not want any instanciation here! */
 			wm_link_do(lapp_data, op->reports, bmain, NULL, NULL);
+
+			BKE_main_lock(bmain);
 
 			/* We add back old id to bmain.
 			 * We need to do this in a first, separated loop, otherwise some of those may not be handled by
