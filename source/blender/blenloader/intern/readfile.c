@@ -9563,6 +9563,24 @@ static void give_base_to_groups(
 	}
 }
 
+static ID *create_placeholder(Main *mainvar, ID *id_ref)
+{
+	const int idcode = GS(id_ref->name);
+	ListBase *lb = which_libbase(mainvar, idcode);
+	ID *ph_id = BKE_libblock_alloc_notest(idcode);
+
+	memcpy(ph_id->name, id_ref->name, sizeof(ph_id->name));
+	BKE_libblock_init_empty(ph_id);
+	ph_id->lib = mainvar->curlib;
+	ph_id->flag = id_ref->flag | LIB_MISSING;
+	ph_id->us = (ph_id->flag & LIB_FAKEUSER) ? 1 : 0;
+	ph_id->icon_id = 0;
+
+	BLI_addtail(lb, ph_id);
+
+	return ph_id;
+}
+
 /* returns true if the item was found
  * but it may already have already been appended/linked */
 static ID *link_named_part(Main *mainl, FileData *fd, const char *idname, const short idcode)
@@ -9706,20 +9724,7 @@ static void link_id_part(ReportList *reports, FileData *fd, Main *mainvar, ID *i
 
 		/* Generate a placeholder for this ID (limited version of read_libblock actually...). */
 		if (r_id) {
-			ListBase *lb;
-			ID *ph_id = BKE_libblock_alloc_notest(GS(id->name));
-
-			memcpy(ph_id->name, id->name, sizeof(ph_id->name));
-			BKE_libblock_init_empty(ph_id);
-			ph_id->lib = mainvar->curlib;
-			ph_id->flag = id->flag | LIB_MISSING;
-			ph_id->us = (ph_id->flag & LIB_FAKEUSER) ? 1 : 0;
-			ph_id->icon_id = 0;
-
-			lb = which_libbase(mainvar, GS(ph_id->name));
-			BLI_addtail(lb, ph_id);
-
-			*r_id = ph_id;
+			*r_id = create_placeholder(mainvar, id);
 		}
 	}
 }
