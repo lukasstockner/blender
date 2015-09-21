@@ -2999,7 +2999,7 @@ static int wm_lib_relocate_invoke(bContext *C, wmOperator *op, const wmEvent *UN
 	return OPERATOR_CANCELLED;
 }
 
-static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
+static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reload)
 {
 	Library *lib;
 	char lib_name[MAX_NAME];
@@ -3012,6 +3012,14 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 		Scene *scene = CTX_data_scene(C);
 		PropertyRNA *prop;
 		WMLinkAppendData *lapp_data;
+
+		ListBase *lbarray[MAX_LIBARRAY];
+		int lba_idx;
+
+		LinkNode *itemlink;
+		int item_idx;
+
+		int num_ids;
 		char path[FILE_MAX], root[FILE_MAXDIR], libname[FILE_MAX], relname[FILE_MAX];
 		short flag = 0;
 
@@ -3019,7 +3027,7 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 			flag |= FILE_RELPATH;
 		}
 
-		if (lib->parent) {
+		if (lib->parent && !reload) {
 			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT,
 			            "Cannot relocate indirectly linked library '%s'", lib->filepath);
 			return OPERATOR_CANCELLED;
@@ -3038,15 +3046,113 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 		if (BLI_path_cmp(lib->filepath, path) == 0) {
 			printf("We are supposed to reload '%s' lib (%d)...\n", lib->filepath, lib->id.us);
 
-			return OPERATOR_FINISHED;
+			lapp_data = wm_link_append_data_new(flag);
+			wm_link_append_data_library_add(lapp_data, path);
+
+			BKE_main_lock(bmain);
+
+			lba_idx = set_listbasepointers(bmain, lbarray);
+			while (lba_idx--) {
+				ID *id = lbarray[lba_idx]->first;
+				const int idcode = id ? GS(id->name) : 0;
+				const bool is_linkable = id ? BKE_idcode_is_linkable(idcode) : false;
+
+				for (; id; id = id->next) {
+					if (id->lib == lib) {
+						/* We remove it from current Main, and if linkable add it to items to link... */
+						BLI_remlink(lbarray[lba_idx], id);
+						if (is_linkable) {
+							WMLinkAppendDataItem *item = wm_link_append_data_item_add(lapp_data, id->name + 2, idcode, id);
+							BLI_BITMAP_SET_ALL(item->libraries, true, lapp_data->num_libraries);
+						}
+						/* Note that non-linkable IDs (like e.g. shapekeys) are supposed to be reloaded together
+						 * with their users! */
+
+						printf("\tdatablock to seek for: %s\n", id->name);
+					}
+					else if (id == (ID *)lib) {
+						/* The Library datablock itself... XXX Do we need to remove it actually? */
+					}
+				}
+			}
+
+			BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, true);
+
+			/* We do not want any instanciation here! */
+			wm_link_do(lapp_data, op->reports, bmain, NULL, NULL);
+
+			/* We add back old id to bmain.
+			 * We need to do this in a first, separated loop, otherwise some of those may not be handled by
+			 * ID remapping, which means they would still reference old data to be deleted... */
+			for (item_idx = 0, itemlink = lapp_data->items; itemlink; item_idx++, itemlink = itemlink->next) {
+				WMLinkAppendDataItem *item = itemlink->link;
+				ID *old_id = item->customdata;
+
+				BLI_assert(old_id);
+				BLI_addtail(which_libbase(bmain, GS(old_id->name)), old_id);
+			}
+
+			for (item_idx = 0, itemlink = lapp_data->items; itemlink; item_idx++, itemlink = itemlink->next) {
+				WMLinkAppendDataItem *item = itemlink->link;
+				ID *old_id = item->customdata;
+				ID *new_id = item->new_id;
+
+				if (new_id) {
+					printf("before remap, old_id users: %d (%p), new_id users: %d (%p)\n", old_id->us, old_id->lib, new_id->us, new_id->lib);
+					/* Note that here, we also want to replace indirect usages. */
+					BKE_libblock_remap_locked(bmain, old_id, new_id, false);
+
+					if (old_id->flag & LIB_FAKEUSER) {
+						old_id->flag &= ~LIB_FAKEUSER;
+						old_id->us--;
+						new_id->flag |= LIB_FAKEUSER;
+						new_id->us++;
+					}
+
+					printf("after remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
+				}
+
+				if (old_id->us > 0) {
+					size_t len = strlen(old_id->name);
+
+					/* XXX TODO This is utterly weak!!! */
+					if (len > MAX_ID_NAME - 3 && old_id->name[len - 4] == '.') {
+						old_id->name[len - 6] = '.';
+						old_id->name[len - 5] = 'P';
+					}
+					else {
+						len = MIN2(len, MAX_ID_NAME - 3);
+						old_id->name[len] = '.';
+						old_id->name[len + 1] = 'P';
+						old_id->name[len + 2] = '\0';
+					}
+
+					id_sort_by_name(which_libbase(bmain, GS(old_id->name)), old_id);
+
+					BKE_reportf(op->reports, RPT_ERROR,
+					            "Lib Reload: Replacing all references to old datablock '%s' by reloaded one failed, "
+					            "old one had to be kept and was renamed to '%s'", new_id->name, old_id->name);
+				}
+			}
+
+			BKE_main_unlock(bmain);
+
+			for (item_idx = 0, itemlink = lapp_data->items; itemlink; item_idx++, itemlink = itemlink->next) {
+				WMLinkAppendDataItem *item = itemlink->link;
+				ID *old_id = item->customdata;
+
+				printf("%p\n", old_id);
+
+				if (old_id->us == 0) {
+					BKE_libblock_free(bmain, old_id);
+					num_ids--;
+				}
+			}
+
+			wm_link_append_data_free(lapp_data);
 		}
 		else {
-			LinkNode *itemlink;
-			ListBase *lbarray[MAX_LIBARRAY];
-			int lba_idx;
-			int item_idx;
 			int totfiles = 0;
-			int num_ids;
 
 			printf("We are supposed to relocate '%s' lib to new '%s' one...\n", lib->filepath, libname);
 
@@ -3090,7 +3196,7 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 			lba_idx = set_listbasepointers(bmain, lbarray);
 			while (lba_idx--) {
 				ID *id = lbarray[lba_idx]->first;
-				int idcode = id ? GS(id->name) : 0;
+				const int idcode = id ? GS(id->name) : 0;
 
 				if (!id || !BKE_idcode_is_linkable(idcode)) {
 					continue;
@@ -3120,6 +3226,13 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 					printf("before remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
 					BKE_libblock_remap_locked(bmain, old_id, new_id, true);
 					printf("after remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
+
+					if (old_id->flag & LIB_FAKEUSER) {
+						old_id->flag &= ~LIB_FAKEUSER;
+						old_id->us--;
+						new_id->flag |= LIB_FAKEUSER;
+						new_id->us++;
+					}
 				}
 			}
 
@@ -3147,6 +3260,19 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 			wm_link_append_data_free(lapp_data);
 		}
 
+		/* Some datablocks can get reloaded/replaced 'silently' because they are not likable (shape keys e.g.),
+		 * wo we need another loop here to clear old ones if possible. */
+		lba_idx = set_listbasepointers(bmain, lbarray);
+		while (lba_idx--) {
+			ID *id = lbarray[lba_idx]->first;
+
+			for (; id; id = id->next) {
+				if (id->lib == lib && (id->flag & LIB_PRE_EXISTING) && id->us == 0) {
+					BKE_libblock_free(bmain, id);
+				}
+			}
+		}
+
 		BKE_main_lib_objects_recalc_all(bmain);
 		IMB_colormanagement_check_file_config(bmain);
 
@@ -3171,6 +3297,11 @@ static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
 	return OPERATOR_CANCELLED;
 }
 
+static int wm_lib_relocate_exec(bContext *C, wmOperator *op)
+{
+	return wm_lib_relocate_exec_do(C, op, false);
+}
+
 static void WM_OT_lib_relocate(wmOperatorType *ot)
 {
 	PropertyRNA *prop;
@@ -3193,6 +3324,11 @@ static void WM_OT_lib_relocate(wmOperatorType *ot)
 	            FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 }
 
+static int wm_lib_reload_exec(bContext *C, wmOperator *op)
+{
+	return wm_lib_relocate_exec_do(C, op, true);
+}
+
 static void WM_OT_lib_reload(wmOperatorType *ot)
 {
 	PropertyRNA *prop;
@@ -3201,7 +3337,7 @@ static void WM_OT_lib_reload(wmOperatorType *ot)
 	ot->idname = "WM_OT_lib_reload";
 	ot->description = "Reload the given library";
 
-	ot->exec = wm_lib_relocate_exec;
+	ot->exec = wm_lib_reload_exec;
 
 	ot->flag |= OPTYPE_UNDO;
 

@@ -1042,6 +1042,8 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int UNUS
 	const bool skip_indirect = (id_remap_data->flag & ID_REMAP_SKIP_INDIRECT_USAGE) != 0;
 
 	if (*id_p == old_id) {
+		printf("\t\tIn %s (%p): remapping %s (%p) to %s (%p)\n", id->name, id, old_id->name, old_id, new_id->name, new_id);
+
 		if (skip_indirect && (is_proxy || is_indirect)) {
 			if (is_proxy) {
 				id_remap_data->skipped_direct++;

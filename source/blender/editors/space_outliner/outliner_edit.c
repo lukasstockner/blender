@@ -320,6 +320,8 @@ static int item_lib_relocate(
 
 		BLI_split_dirfile(lib->filepath, dir, filename, sizeof(dir), sizeof(filename));
 
+		printf("%s, %s\n", tselem->id->name, lib->filepath);
+
 		/* We assume if both paths in lib are not the same then lib->name was relative... */
 		RNA_boolean_set(&op_props, "relative_path", BLI_path_cmp(lib->filepath, lib->name) != 0);
 
@@ -344,13 +346,13 @@ static int outliner_lib_relocate_invoke_do(
 		TreeStoreElem *tselem = TREESTORE(te);
 
 		if (te->idcode == ID_LI && tselem->id) {
-			if (((Library *)tselem->id)->parent) {
+			if (((Library *)tselem->id)->parent && !reload) {
 				BKE_reportf(reports, RPT_ERROR_INVALID_INPUT,
 				            "Cannot relocate indirectly linked library '%s'", ((Library *)tselem->id)->filepath);
 				return OPERATOR_CANCELLED;
 			}
 			else {
-				wmOperatorType *ot = WM_operatortype_find("WM_OT_lib_relocate", false);
+				wmOperatorType *ot = WM_operatortype_find(reload ? "WM_OT_lib_reload" : "WM_OT_lib_relocate", false);
 
 				return item_lib_relocate(C, te, tselem, ot, reload);
 			}
