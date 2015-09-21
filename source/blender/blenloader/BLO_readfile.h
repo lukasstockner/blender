@@ -44,6 +44,7 @@ struct MemFile;
 struct ReportList;
 struct Scene;
 struct UserDef;
+struct View3D;
 struct bContext;
 struct BHead;
 struct FileData;
@@ -213,13 +214,13 @@ bool BLO_library_path_explode(const char *path, char *r_dir, char **r_group, cha
  * \param filepath Used for relative linking, copied to the lib->name
  * \return the library Main, to be passed to BLO_library_append_named_part as mainl.
  */
-struct Main *BLO_library_append_begin(
+struct Main *BLO_library_link_begin(
         struct Main *mainvar, BlendHandle **bh,
         const char *filepath);
 
 
 /**
- * Link/Append a named datablock from an external blend file.
+ * Link a named datablock from an external blend file.
  *
  * \param mainl The main database to link from (not the active one).
  * \param bh The blender file handle.
@@ -227,29 +228,41 @@ struct Main *BLO_library_append_begin(
  * \param idcode The kind of datablock to link.
  * \return the appended ID when found.
  */
-struct ID *BLO_library_append_named_part(
+struct ID *BLO_library_link_named_part(
         struct Main *mainl, BlendHandle **bh,
         const char *idname, const int idcode);
 
 /**
- * Link/Append a named datablock from an external blend file.
- * optionally instance the object in the scene when the flags are set.
+ * Link a named datablock from an external blend file.
+ * optionally instance the object/group in the scene when the flags are set.
  *
- * \param C The context, when NULL instancing object in the scene isn't done.
  * \param mainl The main database to link from (not the active one).
  * \param bh The blender file handle.
  * \param idname The name of the datablock (without the 2 char ID prefix)
  * \param idcode The kind of datablock to link.
  * \param flag Options for linking, used for instancing.
+ * \param scene The scene in which to instanciate objects/groups (if NULL, no instanciation is done).
+ * \param v3d The active View3D (only to define active layers for instanced objects & groups, can be NULL).
  * \return the appended ID when found.
  */
-struct ID *BLO_library_append_named_part_ex(
-        const struct bContext *C, struct Main *mainl, BlendHandle **bh,
-        const char *idname, const int idcode, const short flag);
+struct ID *BLO_library_link_named_part_ex(
+        struct Main *mainl, BlendHandle **bh,
+        const char *idname, const int idcode, const short flag,
+        struct Scene *scene, struct View3D *v3d);
 
-void BLO_library_append_end(const struct bContext *C, struct Main *mainl, BlendHandle **bh, int idcode, short flag);
+/**
+ * Finalize linking from a given .blend file (library).
+ * Optionally instance the indirect object/group in the scene when the flags are set.
+ *
+ * \param mainl The main database to link from (not the active one).
+ * \param bh The blender file handle (WARNING! may be freed by this function!).
+ * \param flag Options for linking, used for instancing.
+ * \param scene The scene in which to instanciate objects/groups (if NULL, no instanciation is done).
+ * \param v3d The active View3D (only to define active layers for instanced objects & groups, can be NULL).
+ */
+void BLO_library_link_end(struct Main *mainl, BlendHandle **bh, short flag, struct Scene *scene, struct View3D *v3d);
 
-void BLO_library_append_all(struct Main *mainl, BlendHandle *bh);
+void BLO_library_link_all(struct Main *mainl, BlendHandle *bh);
 
 void *BLO_library_read_struct(struct FileData *fd, struct BHead *bh, const char *blockname);
 
