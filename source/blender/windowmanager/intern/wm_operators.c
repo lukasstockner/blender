@@ -3120,6 +3120,12 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 					}
 
 					printf("after remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
+
+					/* In some cases, new_id might become direct link, remove parent of library in this case. */
+					if (new_id->lib->parent && (new_id->flag & LIB_INDIRECT) == 0) {
+						BLI_assert(0);  /* Should not happen in reload case... */
+						new_id->lib->parent = NULL;
+					}
 				}
 
 				if (old_id->us > 0) {
@@ -3235,13 +3241,19 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 				if (new_id) {
 					printf("before remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
 					BKE_libblock_remap_locked(bmain, old_id, new_id, true);
-					printf("after remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
 
 					if (old_id->flag & LIB_FAKEUSER) {
 						old_id->flag &= ~LIB_FAKEUSER;
 						old_id->us--;
 						new_id->flag |= LIB_FAKEUSER;
 						new_id->us++;
+					}
+
+					printf("after remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
+
+					/* In some cases, new_id might become direct link, remove parent of library in this case. */
+					if (new_id->lib->parent && (new_id->flag & LIB_INDIRECT) == 0) {
+						new_id->lib->parent = NULL;
 					}
 				}
 			}
