@@ -9576,6 +9576,7 @@ static ID *create_placeholder(Main *mainvar, const short idcode, const char *nam
 	ph_id->icon_id = 0;
 
 	BLI_addtail(lb, ph_id);
+	id_sort_by_name(lb, ph_id);
 
 	return ph_id;
 }
