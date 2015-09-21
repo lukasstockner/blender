@@ -9563,17 +9563,16 @@ static void give_base_to_groups(
 	}
 }
 
-static ID *create_placeholder(Main *mainvar, ID *id_ref)
+static ID *create_placeholder(Main *mainvar, const short idcode, const char *name, const short flag)
 {
-	const int idcode = GS(id_ref->name);
 	ListBase *lb = which_libbase(mainvar, idcode);
 	ID *ph_id = BKE_libblock_alloc_notest(idcode);
 
-	memcpy(ph_id->name, id_ref->name, sizeof(ph_id->name));
+	memcpy(ph_id->name, name, sizeof(ph_id->name));
 	BKE_libblock_init_empty(ph_id);
 	ph_id->lib = mainvar->curlib;
-	ph_id->flag = id_ref->flag | LIB_MISSING;
-	ph_id->us = (ph_id->flag & LIB_FAKEUSER) ? 1 : 0;
+	ph_id->flag = flag | LIB_MISSING;
+	ph_id->us = (flag & LIB_FAKEUSER) ? 1 : 0;
 	ph_id->icon_id = 0;
 
 	BLI_addtail(lb, ph_id);
@@ -9724,7 +9723,7 @@ static void link_id_part(ReportList *reports, FileData *fd, Main *mainvar, ID *i
 
 		/* Generate a placeholder for this ID (limited version of read_libblock actually...). */
 		if (r_id) {
-			*r_id = create_placeholder(mainvar, id);
+			*r_id = create_placeholder(mainvar, GS(id->name), id->name, id->flag);
 		}
 	}
 }
