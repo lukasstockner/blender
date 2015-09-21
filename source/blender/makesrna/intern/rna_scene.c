@@ -2555,7 +2555,7 @@ static void rna_def_statvis(BlenderRNA  *brna)
 	RNA_def_property_float_sdna(prop, NULL, "overhang_max");
 	RNA_def_property_float_default(prop, 0.5f);
 	RNA_def_property_range(prop, 0.0f, DEG2RADF(180.0f));
-	RNA_def_property_ui_range(prop, 0.0f, DEG2RADF(180.0f), 0.001, 3);
+	RNA_def_property_ui_range(prop, 0.0f, DEG2RADF(180.0f), 10, 3);
 	RNA_def_property_ui_text(prop, "Overhang Max", "Maximum angle to display");
 	RNA_def_property_update(prop, 0, "rna_EditMesh_update");
 
@@ -2594,7 +2594,7 @@ static void rna_def_statvis(BlenderRNA  *brna)
 	RNA_def_property_float_sdna(prop, NULL, "distort_min");
 	RNA_def_property_float_default(prop, 0.5f);
 	RNA_def_property_range(prop, 0.0f, DEG2RADF(180.0f));
-	RNA_def_property_ui_range(prop, 0.0f, DEG2RADF(180.0f), 0.001, 3);
+	RNA_def_property_ui_range(prop, 0.0f, DEG2RADF(180.0f), 10, 3);
 	RNA_def_property_ui_text(prop, "Distort Min", "Minimum angle to display");
 	RNA_def_property_update(prop, 0, "rna_EditMesh_update");
 
@@ -2602,7 +2602,7 @@ static void rna_def_statvis(BlenderRNA  *brna)
 	RNA_def_property_float_sdna(prop, NULL, "distort_max");
 	RNA_def_property_float_default(prop, 0.5f);
 	RNA_def_property_range(prop, 0.0f, DEG2RADF(180.0f));
-	RNA_def_property_ui_range(prop, 0.0f, DEG2RADF(180.0f), 0.001, 3);
+	RNA_def_property_ui_range(prop, 0.0f, DEG2RADF(180.0f), 10, 3);
 	RNA_def_property_ui_text(prop, "Distort Max", "Maximum angle to display");
 	RNA_def_property_update(prop, 0, "rna_EditMesh_update");
 
@@ -2611,7 +2611,7 @@ static void rna_def_statvis(BlenderRNA  *brna)
 	RNA_def_property_float_sdna(prop, NULL, "sharp_min");
 	RNA_def_property_float_default(prop, 0.5f);
 	RNA_def_property_range(prop, -DEG2RADF(180.0f), DEG2RADF(180.0f));
-	RNA_def_property_ui_range(prop, -DEG2RADF(180.0f), DEG2RADF(180.0f), 0.001, 3);
+	RNA_def_property_ui_range(prop, -DEG2RADF(180.0f), DEG2RADF(180.0f), 10, 3);
 	RNA_def_property_ui_text(prop, "Distort Min", "Minimum angle to display");
 	RNA_def_property_update(prop, 0, "rna_EditMesh_update");
 
@@ -2619,7 +2619,7 @@ static void rna_def_statvis(BlenderRNA  *brna)
 	RNA_def_property_float_sdna(prop, NULL, "sharp_max");
 	RNA_def_property_float_default(prop, 0.5f);
 	RNA_def_property_range(prop, -DEG2RADF(180.0f), DEG2RADF(180.0f));
-	RNA_def_property_ui_range(prop, -DEG2RADF(180.0f), DEG2RADF(180.0f), 0.001, 3);
+	RNA_def_property_ui_range(prop, -DEG2RADF(180.0f), DEG2RADF(180.0f), 10, 3);
 	RNA_def_property_ui_text(prop, "Distort Max", "Maximum angle to display");
 	RNA_def_property_update(prop, 0, "rna_EditMesh_update");
 }
