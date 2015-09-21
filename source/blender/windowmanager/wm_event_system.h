@@ -112,5 +112,8 @@ struct wmWidget *wm_widgetmap_get_highlighted_widget(struct wmWidgetMap *wmap);
 void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmEvent *event, struct wmWidget *widget, const bool call_op);
 struct wmWidget *wm_widgetmap_get_active_widget(struct wmWidgetMap *wmap);
 
+void wm_widgetmap_set_selected_widget(struct bContext *C, wmWidgetMap *wmap, wmWidget *widget);
+struct wmWidget *wm_widgetmap_get_selected_widget(wmWidgetMap *wmap);
+
 #endif /* __WM_EVENT_SYSTEM_H__ */
 

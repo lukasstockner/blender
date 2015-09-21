@@ -237,8 +237,11 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 				for (widget = wgroup->widgets.first; widget;) {
 					wmWidget *widget_next = widget->next;
 
+					if (widget == wmap->selected_widget) {
+						/* skip */
+					}
 					/* do not delete the highlighted widget, instead keep it to compare with the new one */
-					if (widget->flag & WM_WIDGET_HIGHLIGHT) {
+					else if (widget->flag & WM_WIDGET_HIGHLIGHT) {
 						highlighted = widget;
 						BLI_remlink(&wgroup->widgets, widget);
 						widget->next = widget->prev = NULL;
@@ -331,6 +334,13 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 				}
 			}
 		}
+	}
+
+	/* draw selected widgets last */
+	if ((widget = wmap->selected_widget) && in_scene == ((widget->flag & WM_WIDGET_SCENE_DEPTH) != 0)) {
+		/* notice that we don't update the widgetgroup, widget is now on
+		 * its own, it should have all relevant data to update itself */
+		widget->draw(C, widget);
 	}
 
 	if (use_lighting)
@@ -814,6 +824,33 @@ void wm_widgetmap_set_active_widget(
 			ED_region_tag_redraw(ar);
 			WM_event_add_mousemove(C);
 		}
+	}
+}
+
+wmWidget *wm_widgetmap_get_selected_widget(wmWidgetMap *wmap)
+{
+	return wmap->selected_widget;
+}
+
+void wm_widgetmap_set_selected_widget(bContext *C, wmWidgetMap *wmap, wmWidget *widget)
+{
+	if (widget) {
+		wmap->selected_widget = widget;
+		widget->flag |= WM_WIDGET_SELECTED;
+		wm_widgetmap_set_highlighted_widget(wmap, C, NULL, wmap->highlighted_widget->highlighted_part);
+	}
+	else {
+		widget = wmap->selected_widget;
+		if (widget) {
+			wmap->selected_widget = NULL;
+			widget->flag &= ~WM_WIDGET_SELECTED;
+		}
+	}
+
+	/* tag the region for redraw */
+	if (C) {
+		ARegion *ar = CTX_wm_region(C);
+		ED_region_tag_redraw(ar);
 	}
 }
 

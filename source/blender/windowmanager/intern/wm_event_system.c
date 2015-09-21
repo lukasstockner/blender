@@ -2093,11 +2093,11 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 							wm_widgetmap_set_highlighted_widget(wmap, C, widget, part);
 						}
 						break;
-
 					case LEFTMOUSE:
 						if (widget) {
 							if (event->val == KM_RELEASE) {
 								wm_widgetmap_set_active_widget(wmap, C, event, NULL, false);
+								wm_widgetmap_set_selected_widget(C, wmap, NULL);
 								event_processed = EVT_WIDGET_RELEASED;
 								action |= WM_HANDLER_BREAK;
 							}
@@ -2116,7 +2116,17 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 						break;
 					case RIGHTMOUSE:
 					case ESCKEY:
-						if (widget) {
+					{
+						wmWidget *highlight = wm_widgetmap_get_highlighted_widget(wmap);
+						if (event->type == RIGHTMOUSE && highlight) {
+							if (highlight->flag & WM_WIDGET_SELECTABLE) {
+								if (event->val == KM_RELEASE) {
+									wm_widgetmap_set_selected_widget(C, wmap, highlight);
+									action |= WM_HANDLER_BREAK;
+								}
+							}
+						}
+						else if (widget) {
 							if (widget->cancel) {
 								widget->cancel(C, widget);
 							}
@@ -2124,7 +2134,11 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 							event_processed = EVT_WIDGET_RELEASED;
 							action |= WM_HANDLER_BREAK;
 						}
+						else {
+							wm_widgetmap_set_selected_widget(C, wmap, NULL);
+						}
 						break;
+					}
 				}
 				
 				/* restore the area */

@@ -1577,6 +1577,18 @@ static void widget_facemap_render_3d_intersect(const bContext *C, wmWidget *widg
 	widget_facemap_draw(C, widget);
 }
 
+#if 0
+static int widget_facemap_invoke(bContext *UNUSED(C), const wmEvent *event, wmWidget *widget)
+{
+	return OPERATOR_PASS_THROUGH;
+}
+
+static int widget_facemap_handler(bContext *C, const wmEvent *event, wmWidget *widget)
+{
+	return OPERATOR_PASS_THROUGH;
+}
+#endif
+
 /** \name Facemap Widget API
  *
  * \{ */
@@ -1588,14 +1600,15 @@ wmWidget *WIDGET_facemap_new(
 	FacemapWidget *fmap_widget = MEM_callocN(sizeof(FacemapWidget), "CageWidget");
 
 	fmap_widget->widget.draw = widget_facemap_draw;
-//	fmap_widget->widget.invoke = NULL;
+//	fmap_widget->widget.invoke = widget_facemap_invoke;
 //	fmap_widget->widget.bind_to_prop = NULL;
-//	fmap_widget->widget.handler = NULL;
+//	fmap_widget->widget.handler = widget_facemap_handler;
 	fmap_widget->widget.render_3d_intersection = widget_facemap_render_3d_intersect;
+	fmap_widget->widget.flag |= WM_WIDGET_SELECTABLE ;
 	fmap_widget->ob = ob;
 	fmap_widget->facemap = facemap;
 	fmap_widget->style = style;
-	
+
 	wm_widget_register(wgroup, &fmap_widget->widget, name);
 	
 	return (wmWidget *)fmap_widget;
