@@ -2618,12 +2618,13 @@ typedef struct WMLinkAppendDataItem {
 } WMLinkAppendDataItem;
 
 typedef struct WMLinkAppendData {
-	LinkNode *libraries;
-	LinkNode *items;
+	LinkNodePair libraries;
+	LinkNodePair items;
 	int num_libraries;
 	int num_items;
 	short flag;
 
+	/* Internal 'private' data */
 	MemArena *memarena;
 } WMLinkAppendData;
 
@@ -2651,7 +2652,7 @@ static void wm_link_append_data_library_add(WMLinkAppendData *lapp_data, const c
 	char *libpath = BLI_memarena_alloc(lapp_data->memarena, len);
 
 	BLI_strncpy(libpath, libname, len);
-	BLI_linklist_prepend_arena(&lapp_data->libraries, libpath, lapp_data->memarena);
+	BLI_linklist_append_arena(&lapp_data->libraries, libpath, lapp_data->memarena);
 	lapp_data->num_libraries++;
 }
 
@@ -2669,7 +2670,7 @@ static WMLinkAppendDataItem *wm_link_append_data_item_add(
 	item->new_id = NULL;
 	item->customdata = customdata;
 
-	BLI_linklist_prepend_arena(&lapp_data->items, item, lapp_data->memarena);
+	BLI_linklist_append_arena(&lapp_data->items, item, lapp_data->memarena);
 	lapp_data->num_items++;
 
 	return item;
@@ -2690,7 +2691,7 @@ static void wm_link_do(
 
 	BLI_assert(lapp_data->num_items && lapp_data->num_libraries);
 
-	for (lib_idx = 0, liblink = lapp_data->libraries; liblink; lib_idx++, liblink = liblink->next) {
+	for (lib_idx = 0, liblink = lapp_data->libraries.list; liblink; lib_idx++, liblink = liblink->next) {
 		char *libname = liblink->link;
 		int idcode;
 
@@ -2718,7 +2719,7 @@ static void wm_link_do(
 		/* For each lib file, we loop until we have (tried) to link all items belonging to that lib. */
 		BLI_BITMAP_SET_ALL(done_items, false, lapp_data->num_items);
 		while (true) {
-			for (item_idx = 0, idcode = -1, itemlink = lapp_data->items;
+			for (item_idx = 0, idcode = -1, itemlink = lapp_data->items.list;
 			     itemlink;
 			     item_idx++, itemlink = itemlink->next)
 			{
@@ -2851,8 +2852,6 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		}
 		RNA_END;
 
-		lib_idx = 0;
-
 		RNA_BEGIN (op->ptr, itemptr, "files")
 		{
 			RNA_string_get(&itemptr, "name", relname);
@@ -2862,6 +2861,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 			if (BLO_library_path_explode(path, libname, &group, &name)) {
 				WMLinkAppendDataItem *item;
 				if (!group || !name) {
+					printf("skipping %s\n", path);
 					continue;
 				}
 
@@ -2883,7 +2883,12 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		BLI_BITMAP_ENABLE(item->libraries, 0);
 	}
 
+	/* XXX We'd need re-entrant locking on Main for this to work... */
+	/* BKE_main_lock(bmain); */
+
 	wm_link_do(lapp_data, op->reports, bmain, scene, CTX_wm_view3d(C));
+
+	/* BKE_main_unlock(bmain); */
 
 	wm_link_append_data_free(lapp_data);
 
