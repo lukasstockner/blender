@@ -3089,7 +3089,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 			/* We add back old id to bmain.
 			 * We need to do this in a first, separated loop, otherwise some of those may not be handled by
 			 * ID remapping, which means they would still reference old data to be deleted... */
-			for (item_idx = 0, itemlink = lapp_data->items; itemlink; item_idx++, itemlink = itemlink->next) {
+			for (item_idx = 0, itemlink = lapp_data->items.list; itemlink; item_idx++, itemlink = itemlink->next) {
 				WMLinkAppendDataItem *item = itemlink->link;
 				ID *old_id = item->customdata;
 
@@ -3097,7 +3097,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 				BLI_addtail(which_libbase(bmain, GS(old_id->name)), old_id);
 			}
 
-			for (item_idx = 0, itemlink = lapp_data->items; itemlink; item_idx++, itemlink = itemlink->next) {
+			for (item_idx = 0, itemlink = lapp_data->items.list; itemlink; item_idx++, itemlink = itemlink->next) {
 				WMLinkAppendDataItem *item = itemlink->link;
 				ID *old_id = item->customdata;
 				ID *new_id = item->new_id;
@@ -3142,7 +3142,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 
 			BKE_main_unlock(bmain);
 
-			for (item_idx = 0, itemlink = lapp_data->items; itemlink; item_idx++, itemlink = itemlink->next) {
+			for (item_idx = 0, itemlink = lapp_data->items.list; itemlink; item_idx++, itemlink = itemlink->next) {
 				WMLinkAppendDataItem *item = itemlink->link;
 				ID *old_id = item->customdata;
 
@@ -3221,7 +3221,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 			/* We do not want any instanciation here! */
 			wm_link_do(lapp_data, op->reports, bmain, NULL, NULL);
 
-			for (item_idx = 0, itemlink = lapp_data->items; itemlink; item_idx++, itemlink = itemlink->next) {
+			for (item_idx = 0, itemlink = lapp_data->items.list; itemlink; item_idx++, itemlink = itemlink->next) {
 				WMLinkAppendDataItem *item = itemlink->link;
 				ID *old_id = item->customdata;
 				ID *new_id = item->new_id;
@@ -3244,7 +3244,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 			BKE_main_unlock(bmain);
 
 			num_ids = lapp_data->num_items;
-			for (item_idx = 0, itemlink = lapp_data->items; itemlink; item_idx++, itemlink = itemlink->next) {
+			for (item_idx = 0, itemlink = lapp_data->items.list; itemlink; item_idx++, itemlink = itemlink->next) {
 				WMLinkAppendDataItem *item = itemlink->link;
 				ID *old_id = item->customdata;
 
