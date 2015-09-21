@@ -243,12 +243,14 @@ struct ID *BLO_library_link_named_part(
  * \param flag Options for linking, used for instancing.
  * \param scene The scene in which to instanciate objects/groups (if NULL, no instanciation is done).
  * \param v3d The active View3D (only to define active layers for instanced objects & groups, can be NULL).
+ * \param use_placeholders If true, generate a placeholder (empty ID) if not found in current lib file.
+ * \param force_indirect If true, force loaded ID to be tagged as LIB_INDIRECT (used in reload context only).
  * \return the appended ID when found.
  */
 struct ID *BLO_library_link_named_part_ex(
         struct Main *mainl, BlendHandle **bh,
         const char *idname, const int idcode, const short flag,
-        struct Scene *scene, struct View3D *v3d);
+        struct Scene *scene, struct View3D *v3d, const bool use_placeholders, const bool force_indirect);
 
 /**
  * Finalize linking from a given .blend file (library).

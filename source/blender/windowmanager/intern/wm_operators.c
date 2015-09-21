@@ -2677,7 +2677,8 @@ static WMLinkAppendDataItem *wm_link_append_data_item_add(
 }
 
 static void wm_link_do(
-        WMLinkAppendData *lapp_data, ReportList *reports, Main *bmain, Scene *scene, View3D *v3d)
+        WMLinkAppendData *lapp_data, ReportList *reports, Main *bmain, Scene *scene, View3D *v3d,
+        const bool use_placeholders, const bool force_indirect)
 {
 	Main *mainl;
 	BlendHandle *bh;
@@ -2738,7 +2739,9 @@ static void wm_link_do(
 
 				BLI_BITMAP_ENABLE(done_items, item_idx);
 
-				if ((new_id = BLO_library_link_named_part_ex(mainl, &bh, item->name, idcode, flag, scene, v3d))) {
+				new_id = BLO_library_link_named_part_ex(
+				             mainl, &bh, item->name, idcode, flag, scene, v3d, use_placeholders, force_indirect);
+				if (new_id) {
 					/* If the link is sucessful, clear item's libs 'todo' flags.
 					 * This avoids trying to link same item with other libraries to come. */
 					BLI_BITMAP_SET_ALL(item->libraries, false, lapp_data->num_libraries);
@@ -2886,7 +2889,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	/* XXX We'd need re-entrant locking on Main for this to work... */
 	/* BKE_main_lock(bmain); */
 
-	wm_link_do(lapp_data, op->reports, bmain, scene, CTX_wm_view3d(C));
+	wm_link_do(lapp_data, op->reports, bmain, scene, CTX_wm_view3d(C), false, false);
 
 	/* BKE_main_unlock(bmain); */
 
@@ -3087,7 +3090,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 			BKE_main_unlock(bmain);
 
 			/* We do not want any instanciation here! */
-			wm_link_do(lapp_data, op->reports, bmain, NULL, NULL);
+			wm_link_do(lapp_data, op->reports, bmain, NULL, NULL, true, true);
 
 			BKE_main_lock(bmain);
 
@@ -3107,6 +3110,8 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 				ID *old_id = item->customdata;
 				ID *new_id = item->new_id;
 
+				/* Since we asked for placeholders in case of missing IDs, we expect to always get a valid one. */
+				BLI_assert(new_id);
 				if (new_id) {
 					printf("before remap, old_id users: %d (%p), new_id users: %d (%p)\n", old_id->us, old_id->lib, new_id->us, new_id->lib);
 					/* Note that here, we also want to replace indirect usages. */
@@ -3230,7 +3235,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 			BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, true);
 
 			/* We do not want any instanciation here! */
-			wm_link_do(lapp_data, op->reports, bmain, NULL, NULL);
+			wm_link_do(lapp_data, op->reports, bmain, NULL, NULL, false, false);
 
 			for (item_idx = 0, itemlink = lapp_data->items.list; itemlink; item_idx++, itemlink = itemlink->next) {
 				WMLinkAppendDataItem *item = itemlink->link;

@@ -9584,7 +9584,9 @@ static ID *create_placeholder(Main *mainvar, const short idcode, const char *nam
 
 /* returns true if the item was found
  * but it may already have already been appended/linked */
-static ID *link_named_part(Main *mainl, FileData *fd, const char *idname, const short idcode)
+static ID *link_named_part(
+        Main *mainl, FileData *fd, const char *idname, const short idcode,
+        const bool use_placeholders, const bool force_indirect)
 {
 	BHead *bhead = find_bhead_from_code_name(fd, idcode, idname);
 	ID *id;
@@ -9593,7 +9595,7 @@ static ID *link_named_part(Main *mainl, FileData *fd, const char *idname, const 
 		id = is_yet_read(fd, mainl, bhead);
 		if (id == NULL) {
 			/* not read yet */
-			read_libblock(fd, mainl, bhead, LIB_TESTEXT, &id);
+			read_libblock(fd, mainl, bhead, force_indirect ? LIB_TESTIND : LIB_TESTEXT, &id);
 
 			if (id) {
 				/* sort by name in list */
@@ -9606,18 +9608,22 @@ static ID *link_named_part(Main *mainl, FileData *fd, const char *idname, const 
 			if (G.debug)
 				printf("append: already linked\n");
 			oldnewmap_insert(fd->libmap, bhead->old, id, bhead->code);
-			if (id->flag & LIB_INDIRECT) {
-				id->flag -= LIB_INDIRECT;
+			if (!force_indirect && (id->flag & LIB_INDIRECT)) {
+				id->flag &= ~LIB_INDIRECT;
 				id->flag |= LIB_EXTERN;
 			}
 		}
+	}
+	else if (use_placeholders) {
+		/* XXX flag part is weak! */
+		id = create_placeholder(mainl, idcode, idname, force_indirect ? LIB_INDIRECT : LIB_EXTERN);
 	}
 	else {
 		id = NULL;
 	}
 	
 	/* if we found the id but the id is NULL, this is really bad */
-	BLI_assert((bhead != NULL) == (id != NULL));
+	BLI_assert(!((bhead != NULL) && (id == NULL)));
 	
 	return id;
 }
@@ -9645,9 +9651,9 @@ void BLO_library_link_all(Main *mainl, BlendHandle *bh)
 
 static ID *link_named_part_ex(
         Main *mainl, FileData *fd, const char *idname, const int idcode, const int flag,
-		Scene *scene, View3D *v3d)
+		Scene *scene, View3D *v3d, const bool use_placeholders, const bool force_indirect)
 {
-	ID *id = link_named_part(mainl, fd, idname, idcode);
+	ID *id = link_named_part(mainl, fd, idname, idcode, use_placeholders, force_indirect);
 
 	if (id && (GS(id->name) == ID_OB)) {	/* loose object: give a base */
 		if (scene) {
@@ -9688,15 +9694,15 @@ static ID *link_named_part_ex(
 ID *BLO_library_link_named_part(Main *mainl, BlendHandle **bh, const char *idname, const int idcode)
 {
 	FileData *fd = (FileData*)(*bh);
-	return link_named_part(mainl, fd, idname, idcode);
+	return link_named_part(mainl, fd, idname, idcode, false, false);
 }
 
 ID *BLO_library_link_named_part_ex(
         Main *mainl, BlendHandle **bh, const char *idname, const int idcode, const short flag,
-        Scene *scene, View3D *v3d)
+        Scene *scene, View3D *v3d, const bool use_placeholders, const bool force_indirect)
 {
 	FileData *fd = (FileData*)(*bh);
-	return link_named_part_ex(mainl, fd, idname, idcode, flag, scene, v3d);
+	return link_named_part_ex(mainl, fd, idname, idcode, flag, scene, v3d, use_placeholders, force_indirect);
 }
 
 static void link_id_part(ReportList *reports, FileData *fd, Main *mainvar, ID *id, ID **r_id)
