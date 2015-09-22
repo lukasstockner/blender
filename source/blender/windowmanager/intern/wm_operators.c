@@ -3043,23 +3043,18 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 			while (lba_idx--) {
 				ID *id = lbarray[lba_idx]->first;
 				const int idcode = id ? GS(id->name) : 0;
-				const bool is_linkable = id ? BKE_idcode_is_linkable(idcode) : false;
 
 				for (; id; id = id->next) {
 					if (id->lib == lib) {
-						/* We remove it from current Main, and if linkable add it to items to link... */
+						WMLinkAppendDataItem *item;
+
+						/* We remove it from current Main, and add it to items to link... */
+						/* Note that non-linkable IDs (like e.g. shapekeys) are also explicitely linked here... */
 						BLI_remlink(lbarray[lba_idx], id);
-						if (is_linkable) {
-							WMLinkAppendDataItem *item = wm_link_append_data_item_add(lapp_data, id->name + 2, idcode, id);
-							BLI_BITMAP_SET_ALL(item->libraries, true, lapp_data->num_libraries);
-						}
-						/* Note that non-linkable IDs (like e.g. shapekeys) are supposed to be reloaded together
-						 * with their users! */
+						item = wm_link_append_data_item_add(lapp_data, id->name + 2, idcode, id);
+						BLI_BITMAP_SET_ALL(item->libraries, true, lapp_data->num_libraries);
 
 						printf("\tdatablock to seek for: %s\n", id->name);
-					}
-					else if (id == (ID *)lib) {
-						/* The Library datablock itself... XXX Do we need to remove it actually? */
 					}
 				}
 			}
@@ -3113,7 +3108,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 					}
 				}
 
-				if (old_id->us > 0) {
+				if (old_id->us > 0 && new_id) {
 					size_t len = strlen(old_id->name);
 
 					/* XXX TODO This is utterly weak!!! */
