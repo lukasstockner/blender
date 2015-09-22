@@ -9650,7 +9650,7 @@ void BLO_library_link_all(Main *mainl, BlendHandle *bh)
 }
 
 static ID *link_named_part_ex(
-        Main *mainl, FileData *fd, const char *idname, const int idcode, const int flag,
+        Main *mainl, FileData *fd, const char *idname, const int idcode, const short flag,
 		Scene *scene, View3D *v3d, const bool use_placeholders, const bool force_indirect)
 {
 	ID *id = link_named_part(mainl, fd, idname, idcode, use_placeholders, force_indirect);
