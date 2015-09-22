@@ -2686,7 +2686,6 @@ static void wm_link_do(
 
 	const short flag = lapp_data->flag;
 
-	BLI_bitmap *done_items = BLI_BITMAP_NEW_ALLOCA(lapp_data->num_items);
 	LinkNode *liblink, *itemlink;
 	int lib_idx, item_idx;
 
@@ -2694,7 +2693,6 @@ static void wm_link_do(
 
 	for (lib_idx = 0, liblink = lapp_data->libraries.list; liblink; lib_idx++, liblink = liblink->next) {
 		char *libname = liblink->link;
-		int idcode;
 
 		bh = BLO_blendhandle_from_file(libname, reports);
 
@@ -2717,41 +2715,23 @@ static void wm_link_do(
 			            mainl->versionfile, mainl->subversionfile);
 		}
 
-		/* For each lib file, we loop until we have (tried) to link all items belonging to that lib. */
-		BLI_BITMAP_SET_ALL(done_items, false, lapp_data->num_items);
-		while (true) {
-			for (item_idx = 0, idcode = -1, itemlink = lapp_data->items.list;
-			     itemlink;
-			     item_idx++, itemlink = itemlink->next)
-			{
-				WMLinkAppendDataItem *item = itemlink->link;
-				ID *new_id;
+		/* For each lib file, we try to link all items belonging to that lib,
+		 * and tag those successful to not try to load them again with the other libs. */
+		for (item_idx = 0, itemlink = lapp_data->items.list; itemlink; item_idx++, itemlink = itemlink->next) {
+			WMLinkAppendDataItem *item = itemlink->link;
+			ID *new_id;
 
-				if (BLI_BITMAP_TEST(done_items, item_idx) || !BLI_BITMAP_TEST(item->libraries, lib_idx)) {
-					continue;
-				}
-				if (idcode == -1) {
-					idcode = item->idcode;
-				}
-				else if (item->idcode != idcode) {
-					continue;
-				}
-
-				BLI_BITMAP_ENABLE(done_items, item_idx);
-
-				new_id = BLO_library_link_named_part_ex(
-				             mainl, &bh, item->name, idcode, flag, scene, v3d, use_placeholders, force_indirect);
-				if (new_id) {
-					/* If the link is sucessful, clear item's libs 'todo' flags.
-					 * This avoids trying to link same item with other libraries to come. */
-					BLI_BITMAP_SET_ALL(item->libraries, false, lapp_data->num_libraries);
-					item->new_id = new_id;
-				}
-
+			if (!BLI_BITMAP_TEST(item->libraries, lib_idx)) {
+				continue;
 			}
-			if (idcode == -1) {
-				/* We have handled all items for this library, so we are done with it. */
-				break;
+
+			new_id = BLO_library_link_named_part_ex(
+			             mainl, &bh, item->name, item->idcode, flag, scene, v3d, use_placeholders, force_indirect);
+			if (new_id) {
+				/* If the link is sucessful, clear item's libs 'todo' flags.
+				 * This avoids trying to link same item with other libraries to come. */
+				BLI_BITMAP_SET_ALL(item->libraries, false, lapp_data->num_libraries);
+				item->new_id = new_id;
 			}
 		}
 
