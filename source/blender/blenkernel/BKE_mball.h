@@ -38,8 +38,8 @@ struct Object;
 struct Scene;
 struct MetaElem;
 
-void BKE_mball_unlink(struct MetaBall *mb);
-void BKE_mball_free(struct MetaBall *mb);
+void BKE_mball_release_datablocks(struct MetaBall *mb);
+void BKE_mball_free(struct MetaBall *mb, const bool do_id_user);
 void BKE_mball_init(struct MetaBall *mb);
 struct MetaBall *BKE_mball_add(struct Main *bmain, const char *name);
 struct MetaBall *BKE_mball_copy(struct MetaBall *mb);

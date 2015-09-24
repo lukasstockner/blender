@@ -430,32 +430,50 @@ bool BKE_mesh_has_custom_loop_normals(Mesh *me)
  * we need a more generic method, like the expand() functions in
  * readfile.c */
 
-void BKE_mesh_unlink(Mesh *me)
+
+/**
+ * Release all datablocks (ID) used by this mesh (datablocks are never freed, they are just unreferenced).
+ *
+ * \param me The mesh which has to release its data.
+ */
+void BKE_mesh_release_datablocks(Mesh *me)
 {
 	int a;
 	
-	if (me == NULL) return;
+	if (me == NULL)
+		return;
 
 	if (me->mat) {
 		for (a = 0; a < me->totcol; a++) {
-			if (me->mat[a]) me->mat[a]->id.us--;
-			me->mat[a] = NULL;
+			if (me->mat[a]) {
+				me->mat[a]->id.us--;
+				me->mat[a] = NULL;
+			}
 		}
 	}
 
 	if (me->key) {
 		me->key->id.us--;
+		me->key = NULL;
 	}
-	me->key = NULL;
 	
-	if (me->texcomesh) me->texcomesh = NULL;
+	if (me->texcomesh) {
+		me->texcomesh = NULL;  /* No user refcount handling here??? */
+	}
 }
 
-/* do not free mesh itself */
-void BKE_mesh_free(Mesh *me, int unlink)
+/**
+ * Free (or release) any data used by this mesh (does not free the mesh itself).
+ *
+ * \param me The mesh to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this mesh are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_mesh_free(Mesh *me, const bool do_id_user)
 {
-	if (unlink)
-		BKE_mesh_unlink(me);
+	if (do_id_user) {
+		BKE_mesh_release_datablocks(me);
+	}
 
 	CustomData_free(&me->vdata, me->totvert);
 	CustomData_free(&me->edata, me->totedge);
@@ -467,12 +485,22 @@ void BKE_mesh_free(Mesh *me, int unlink)
 		BKE_animdata_free(&me->id);
 		me->adt = NULL;
 	}
-	
-	if (me->mat) MEM_freeN(me->mat);
-	
-	if (me->bb) MEM_freeN(me->bb);
-	if (me->mselect) MEM_freeN(me->mselect);
-	if (me->edit_btmesh) MEM_freeN(me->edit_btmesh);
+	if (me->mat) {
+		MEM_freeN(me->mat);
+		me->mat = NULL;
+	}
+	if (me->bb) {
+		MEM_freeN(me->bb);
+		me->bb = NULL;
+	}
+	if (me->mselect) {
+		MEM_freeN(me->mselect);
+		me->mselect = NULL;
+	}
+	if (me->edit_btmesh) {
+		MEM_freeN(me->edit_btmesh);
+		me->edit_btmesh = NULL;
+	}
 }
 
 static void mesh_tessface_clear_intern(Mesh *mesh, int free_customdata)

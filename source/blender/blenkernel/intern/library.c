@@ -1226,16 +1226,16 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_library_free((Library *)id);
 			break;
 		case ID_OB:
-			BKE_object_free_ex((Object *)id, do_id_user);
+			BKE_object_free((Object *)id, do_id_user);
 			break;
 		case ID_ME:
-			BKE_mesh_free((Mesh *)id, 1);
+			BKE_mesh_free((Mesh *)id, do_id_user);
 			break;
 		case ID_CU:
-			BKE_curve_free((Curve *)id);
+			BKE_curve_free((Curve *)id, do_id_user);
 			break;
 		case ID_MB:
-			BKE_mball_free((MetaBall *)id);
+			BKE_mball_free((MetaBall *)id, do_id_user);
 			break;
 		case ID_MA:
 			BKE_material_free((Material *)id);
