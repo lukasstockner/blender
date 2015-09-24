@@ -5195,6 +5195,12 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_previews_ensure);
 	WM_operatortype_append(WM_OT_previews_clear);
 	WM_operatortype_append(WM_OT_doc_view_manual_ui_context);
+
+	/* widgets */
+	WM_operatortype_append(WIDGETGROUP_OT_widget_set_active);
+	WM_operatortype_append(WIDGETGROUP_OT_widget_set_select);
+	WM_operatortype_append(WIDGETGROUP_OT_widget_tweak);
+	WM_operatortype_append(WIDGETGROUP_OT_widget_tweak_cancel);
 }
 
 /* circleselect-like modal operators */

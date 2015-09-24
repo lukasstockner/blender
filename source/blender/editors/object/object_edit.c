@@ -2101,8 +2101,9 @@ static int object_widget_add_exec(bContext *C, wmOperator *UNUSED(op))
 	Object *ob = ED_object_active_context((bContext *)C);
 	wmWidgetGroupType *wgrouptype = WM_widgetgrouptype_new(WIDGETGROUP_object_manipulator_poll,
 	                                                       WIDGETGROUP_object_manipulator_create,
-	                                                       CTX_data_main(C), "View3D", SPACE_VIEW3D,
-	                                                       RGN_TYPE_WINDOW, true);
+	                                                       WM_widgetgroup_keymap_common,
+	                                                       CTX_data_main(C), "View3D", "Object Widgets",
+	                                                       SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 
 	/* assign the objects id name to the widget */
 	strcpy(wgrouptype->idname, ob->id.name);

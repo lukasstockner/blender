@@ -70,6 +70,7 @@
 #include "GPU_select.h"
 
 #include "RNA_access.h"
+#include "RNA_define.h"
 #include "BPY_extern.h"
 
 /**
@@ -101,10 +102,10 @@ static ListBase widgetmaptypes = {NULL, NULL};
 wmWidgetGroupType *WM_widgetgrouptype_new(
         int (*poll)(const bContext *C, wmWidgetGroupType *),
         void (*create)(const bContext *, wmWidgetGroup *),
-        const Main *bmain, const char *mapidname,
+        wmKeyMap *(*keymap_init)(wmKeyConfig *, wmWidgetGroupType *),
+        const Main *bmain, const char *mapidname, const char *name,
         const short spaceid, const short regionid, const bool is_3d)
 {
-	bScreen *sc;
 	wmWidgetMapType *wmaptype = WM_widgetmaptype_find(mapidname, spaceid, regionid, is_3d, false);
 	wmWidgetGroupType *wgrouptype;
 	
@@ -114,19 +115,28 @@ wmWidgetGroupType *WM_widgetgrouptype_new(
 	}
 	
 	wgrouptype = MEM_callocN(sizeof(wmWidgetGroupType), "widgetgroup");
-	
+
 	wgrouptype->poll = poll;
 	wgrouptype->create = create;
+	wgrouptype->keymap_init = keymap_init;
 	wgrouptype->spaceid = spaceid;
 	wgrouptype->regionid = regionid;
 	wgrouptype->is_3d = is_3d;
-	BLI_strncpy(wgrouptype->mapidname, mapidname, 64);
+	BLI_strncpy(wgrouptype->name, name, MAX_NAME);
+	BLI_strncpy(wgrouptype->mapidname, mapidname, MAX_NAME);
 
 	/* add the type for future created areas of the same type  */
 	BLI_addtail(&wmaptype->widgetgrouptypes, wgrouptype);
-	
-	/* now create a widget for all existing areas. (main is missing when we create new areas so not needed) */
+
+	/* main is missing on startup when we create new areas */
 	if (bmain) {
+		wmWindowManager *wm = bmain->wm.first;
+		bScreen *sc;
+
+		/* init keymap - on startup there's an extra call to init keymaps for 'permanent' widgets */
+		wm_widgetgrouptype_keymap_init(wgrouptype, wm->defaultconf);
+
+		/* now create a widget for all existing areas */
 		for (sc = bmain->screen.first; sc; sc = sc->id.next) {
 			ScrArea *sa;
 			for (sa = sc->areabase.first; sa; sa = sa->next) {
@@ -207,6 +217,21 @@ static void widget_calculate_scale(wmWidget *widget, const bContext *C)
 	}
 
 	widget->scale = scale * widget->user_scale;
+}
+
+/**
+ * Initialize keymaps for all existing widget-groups
+ */
+void wm_widgets_keymap(wmKeyConfig *keyconf)
+{
+	wmWidgetMapType *wmaptype;
+	wmWidgetGroupType *wgrouptype;
+
+	for (wmaptype = widgetmaptypes.first; wmaptype; wmaptype = wmaptype->next) {
+		for (wgrouptype = wmaptype->widgetgrouptypes.first; wgrouptype; wgrouptype = wgrouptype->next) {
+			wm_widgetgrouptype_keymap_init(wgrouptype, keyconf);
+		}
+	}
 }
 
 BLI_INLINE bool widgets_compare(const wmWidget *a, const wmWidget *b)
@@ -399,6 +424,21 @@ static void widget_unique_idname_set(wmWidgetGroup *wgroup, wmWidget *widget, co
 }
 
 /**
+ * Search for an active widget in region \a ar
+ */
+static wmWidget *widget_find_active_in_region(const ARegion *ar, wmWidgetMap **r_wmap)
+{
+	for (*r_wmap = ar->widgetmaps.first; *r_wmap; *r_wmap = (*r_wmap)->next) {
+		if ((*r_wmap)->active_widget) {
+			return (*r_wmap)->active_widget;
+		}
+	}
+
+	*r_wmap = NULL;
+	return NULL;
+}
+
+/**
  * Register \a widget
  *
  * \param name  name used to create a unique idname for \a widget in \a wgroup
@@ -423,7 +463,9 @@ bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *nam
 	
 	widget->props = MEM_callocN(sizeof(PropertyRNA *) * widget->max_prop, "widget->props");
 	widget->ptr = MEM_callocN(sizeof(PointerRNA) * widget->max_prop, "widget->ptr");
-	
+
+	widget->wgroup = wgroup;
+
 	BLI_addtail(&wgroup->widgets, widget);
 	return true;
 }
@@ -503,6 +545,162 @@ void WM_widget_set_colors(wmWidget *widget, const float col[4], const float col_
 	copy_v4_v4(widget->col, col);
 	copy_v4_v4(widget->col_hi, col_hi);
 }
+
+
+/** \name Widget operators
+ *
+ * Basic operators for widget interaction with user configurable keymaps.
+ *
+ * \{ */
+
+static int widget_set_active_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	ARegion *ar = CTX_wm_region(C);
+	wmWidgetMap *wmap;
+	const bool deactivate = RNA_boolean_get(op->ptr, "deactivate");
+
+	for (wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
+		if (deactivate) {
+			wm_widgetmap_set_active_widget(wmap, C, event, NULL);
+
+			/* ugly hack - send widget release event */
+			((wmEvent *)event)->type = EVT_WIDGET_RELEASED;
+		}
+		else {
+			wmWidget *widget = wmap->highlighted_widget;
+			if (widget) {
+				wm_widgetmap_set_active_widget(wmap, C, event, widget);
+				break;
+			}
+			else {
+				BLI_assert(0);
+				return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
+			}
+		}
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+void WIDGETGROUP_OT_widget_set_active(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Widget Activate";
+	ot->description = "Activate the currently highlighted widget";
+	ot->idname = "WIDGETGROUP_OT_widget_set_active";
+
+	/* api callbacks */
+	ot->invoke = widget_set_active_invoke;
+
+	ot->flag = OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "deactivate", 0, "Deactivate", "Deactivate currently active widget");
+}
+
+static int widget_set_select_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *UNUSED(event))
+{
+	ARegion *ar = CTX_wm_region(C);
+	wmWidgetMap *wmap;
+
+	for (wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
+		wmWidget *widget = wmap->highlighted_widget;
+		if (widget) {
+			if (widget->flag & WM_WIDGET_SELECTABLE) {
+				wm_widgetmap_set_selected_widget(C, wmap, widget);
+			}
+			break;
+		}
+		else {
+			BLI_assert(0);
+			return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
+		}
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+void WIDGETGROUP_OT_widget_set_select(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Widget Select";
+	ot->description = "Select the currently highlighted widget";
+	ot->idname = "WIDGETGROUP_OT_widget_set_select";
+
+	/* api callbacks */
+	ot->invoke = widget_set_select_invoke;
+
+	ot->flag = OPTYPE_UNDO;
+
+	/* TODO - more fancy selections are not implemented yet */
+//	RNA_def_boolean(ot->srna, "deactivate", 0, "Deactivate", "Deactivate currently active widget");
+}
+
+static int widget_tweak_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
+{
+	ARegion *ar = CTX_wm_region(C);
+	wmWidgetMap *wmap;
+	wmWidget *widget = widget_find_active_in_region(ar, &wmap);
+
+	if (!widget) {
+		BLI_assert(0);
+		return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
+	}
+
+	/* ugly hack - send widget update event */
+	((wmEvent *)event)->type = EVT_WIDGET_UPDATE;
+
+	/* handle widget */
+	widget->handler(C, event, widget);
+
+	return OPERATOR_FINISHED;
+}
+
+void WIDGETGROUP_OT_widget_tweak(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Widget Tweak";
+	ot->description = "Tweak the active widget";
+	ot->idname = "WIDGETGROUP_OT_widget_tweak";
+
+	/* api callbacks */
+	ot->invoke = widget_tweak_invoke;
+}
+
+static int widget_cancel_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
+{
+	ARegion *ar = CTX_wm_region(C);
+	wmWidgetMap *wmap;
+	wmWidget *widget = widget_find_active_in_region(ar, &wmap);
+
+	if (!widget) {
+		/* don't assert(0) here, this might be called if modal handler
+		 * which has widget attached uses same shortcut as widget-cancel */
+		return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
+	}
+
+	if (widget->cancel) {
+		widget->cancel(C, widget);
+	}
+	wm_widgetmap_set_active_widget(wmap, C, event, NULL);
+
+	/* ugly hack - send widget release event */
+	((wmEvent *)event)->type = EVT_WIDGET_RELEASED;
+
+	return OPERATOR_FINISHED;
+}
+
+void WIDGETGROUP_OT_widget_tweak_cancel(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Widget Tweak Cancel";
+	ot->description = "Cancel tweaking of active widget";
+	ot->idname = "WIDGETGROUP_OT_widget_tweak_cancel";
+
+	/* api callbacks */
+	ot->invoke = widget_cancel_invoke;
+}
+
+/** \} */ // Widget operators
 
 
 wmWidgetMapType *WM_widgetmaptype_find(
@@ -724,15 +922,19 @@ void wm_widgetmap_set_highlighted_widget(wmWidgetMap *wmap, bContext *C, wmWidge
 		if (widget) {
 			widget->flag |= WM_WIDGET_HIGHLIGHT;
 			widget->highlighted_part = part;
-			
+			wmap->activegroup = widget->wgroup;
+
 			if (C && widget->get_cursor) {
 				wmWindow *win = CTX_wm_window(C);
 				WM_cursor_set(win, widget->get_cursor(widget));
 			}
 		}
-		else if (C) {
-			wmWindow *win = CTX_wm_window(C);
-			WM_cursor_set(win, CURSOR_STD);
+		else {
+			wmap->activegroup = NULL;
+			if (C) {
+				wmWindow *win = CTX_wm_window(C);
+				WM_cursor_set(win, CURSOR_STD);
+			}
 		}
 		
 		/* tag the region for redraw */
@@ -750,16 +952,13 @@ wmWidget *wm_widgetmap_get_highlighted_widget(wmWidgetMap *wmap)
 
 void wm_widgetmap_set_active_widget(
         wmWidgetMap *wmap, bContext *C,
-        wmEvent *event, wmWidget *widget,
-        const bool call_op)
+        const wmEvent *event, wmWidget *widget)
 {
 	if (widget) {
-		if (call_op) {
+		if (widget->opname) {
 			wmOperatorType *ot;
-			const bool has_custom_op = widget->opname != NULL;
-			const char *opname = has_custom_op ? widget->opname : "WM_OT_widget_tweak";
 
-			ot = WM_operatortype_find(opname, 0);
+			ot = WM_operatortype_find(widget->opname, 0);
 
 			if (ot) {
 				/* first activate the widget itself */
@@ -769,16 +968,7 @@ void wm_widgetmap_set_active_widget(
 				}
 				wmap->active_widget = widget;
 
-				/* if operator runs modal, we will need to activate the current widgetmap on the operator handler,
-				 * so it can process events first, then pass them on to the operator */
-				if (WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr) == OPERATOR_RUNNING_MODAL) {
-					/* check if operator added a a modal event handler */
-					wmEventHandler *handler = CTX_wm_window(C)->modalhandlers.first;
-
-					if (has_custom_op == false && handler && handler->op && handler->op->type == ot) {
-						handler->widgetmap = wmap;
-					}
-				}
+				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr);
 
 				/* we failed to hook the widget to the operator handler or operator was cancelled, return */
 				if (!wmap->active_widget) {
@@ -914,7 +1104,7 @@ void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler 
 		}
 		/* operator not running anymore */
 		else {
-			wm_widgetmap_set_active_widget(wmap, C, event, NULL, false);
+			wm_widgetmap_set_active_widget(wmap, C, event, NULL);
 		}
 
 		/* restore the area */
@@ -980,7 +1170,7 @@ static void wm_widgetgroup_free(bContext *C, wmWidgetMap *wmap, wmWidgetGroup *w
 			wm_widgetmap_set_highlighted_widget(wmap, C, NULL, 0);
 		}
 		if (widget->flag & WM_WIDGET_ACTIVE) {
-			wm_widgetmap_set_active_widget(wmap, C, NULL, NULL, false);
+			wm_widgetmap_set_active_widget(wmap, C, NULL, NULL);
 		}
 		wm_widget_delete(&wgroup->widgets, widget);
 		widget = widget_next;
@@ -1001,6 +1191,34 @@ static void wm_widgetgroup_free(bContext *C, wmWidgetMap *wmap, wmWidgetGroup *w
 
 	BLI_remlink(&wmap->widgetgroups, wgroup);
 	MEM_freeN(wgroup);
+}
+
+/**
+ * Common default keymap for widget groups
+ */
+wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, wmWidgetGroupType *wgrouptype)
+{
+	wmKeyMap *km = WM_keymap_find(config, wgrouptype->name, 0, 0);
+	wmKeyMapItem *kmi;
+
+	kmi = WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_set_active", ACTIONMOUSE, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "deactivate", false);
+	kmi = WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_set_active", ACTIONMOUSE, KM_RELEASE, 0, 0);
+	RNA_boolean_set(kmi->ptr, "deactivate", true);
+
+	WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_tweak", MOUSEMOVE, KM_ANY, KM_ANY, 0);
+
+	WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_tweak_cancel", RIGHTMOUSE, KM_PRESS, 0, 0);
+	WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_tweak_cancel", ESCKEY, KM_PRESS, 0, 0);
+
+	WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_set_select", SELECTMOUSE, KM_PRESS, 0, 0);
+
+	return km;
+}
+
+void wm_widgetgrouptype_keymap_init(wmWidgetGroupType *wgrouptype, wmKeyConfig *keyconf)
+{
+	wgrouptype->keymap = wgrouptype->keymap_init(keyconf, wgrouptype);
 }
 
 void WM_widgetgrouptype_unregister(bContext *C, Main *bmain, wmWidgetGroupType *wgrouptype)

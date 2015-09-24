@@ -976,11 +976,26 @@ static void view3d_widgets(void)
 {
 	WM_widgetmaptype_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true, true);
 
-	WM_widgetgrouptype_new(WIDGETGROUP_armature_facemap_poll, WIDGETGROUP_armature_facemap_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-	WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll, WIDGETGROUP_lamp_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-	WM_widgetgrouptype_new(WIDGETGROUP_forcefield_poll, WIDGETGROUP_forcefield_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-	WM_widgetgrouptype_new(WIDGETGROUP_camera_poll, WIDGETGROUP_camera_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
-	WM_widgetgrouptype_new(WIDGETGROUP_manipulator_poll, WIDGETGROUP_manipulator_create, NULL, "View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_armature_facemap_poll,
+	                       WIDGETGROUP_armature_facemap_create,
+	                       WM_widgetgroup_keymap_common,
+	                       NULL, "View3D", "Face Map Widgets", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll,
+	                       WIDGETGROUP_lamp_create,
+	                       WM_widgetgroup_keymap_common,
+	                       NULL, "View3D", "Lamp Widgets", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_forcefield_poll,
+	                       WIDGETGROUP_forcefield_create,
+	                       WM_widgetgroup_keymap_common,
+	                       NULL, "View3D", "Force Field Widgets", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_camera_poll,
+	                       WIDGETGROUP_camera_create,
+	                       WM_widgetgroup_keymap_common,
+	                       NULL, "View3D", "Camera Widgets", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	WM_widgetgrouptype_new(WIDGETGROUP_manipulator_poll,
+	                       WIDGETGROUP_manipulator_create,
+	                       WM_widgetgroup_keymap_common,
+	                       NULL, "View3D", "Manipulator Widgets", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 }
 
 

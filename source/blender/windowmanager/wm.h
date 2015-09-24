@@ -55,6 +55,9 @@ typedef struct wmWidget {
 	
 	char idname[MAX_NAME + 4]; /* + 4 for unique '.001', '.002', etc suffix */
 
+	/* pointer back to parent widget group */
+	wmWidgetGroup *wgroup;
+
 	/* draw widget */
 	void (*draw)(const struct bContext *C, struct wmWidget *widget);
 	/* determine if the mouse intersects with the widget. The calculation should be done in the callback itself */
@@ -168,6 +171,12 @@ void wm_open_init_use_scripts(wmOperator *op, bool use_prefs);
 /* wm_widgets.c */
 bool wm_widgetmap_is_3d(const struct wmWidgetMap *wmap);
 bool wm_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget, const char *name);
+void wm_widgets_keymap(wmKeyConfig *keyconf);
+
+void WIDGETGROUP_OT_widget_set_active(wmOperatorType *ot);
+void WIDGETGROUP_OT_widget_set_select(wmOperatorType *ot);
+void WIDGETGROUP_OT_widget_tweak(wmOperatorType *ot);
+void WIDGETGROUP_OT_widget_tweak_cancel(wmOperatorType *ot);
 
 
 /* hack to store circle select size - campbell, must replace with nice operator memory */

@@ -342,6 +342,7 @@ void WM_keymap_init(bContext *C)
 		 * it's persistent across sessions */
 		if (!(wm->defaultconf->flag & KEYCONF_INIT_DEFAULT)) {
 			wm_window_keymap(wm->defaultconf);
+			wm_widgets_keymap(wm->defaultconf);
 			ED_spacetypes_keymap(wm->defaultconf);
 
 			wm->defaultconf->flag |= KEYCONF_INIT_DEFAULT;

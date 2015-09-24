@@ -108,6 +108,8 @@ extern "C" {
 
 struct bContext;
 struct wmEvent;
+struct wmKeyMap;
+struct wmKeyConfig;
 struct wmWindowManager;
 struct wmOperator;
 struct ImBuf;
@@ -684,12 +686,19 @@ typedef struct wmWidgetGroupType {
 	struct wmWidgetGroupType *next, *prev;
 
 	char idname[64]; /* MAX_NAME */
+	char name[64]; /* widget group name - displayed in UI (keymap editor) */
 
 	/* poll if widgetmap should be active */
 	int (*poll)(const struct bContext *C, struct wmWidgetGroupType *wgrouptype) ATTR_WARN_UNUSED_RESULT;
 
 	/* update widgets, called right before drawing */
 	void (*create)(const struct bContext *C, struct wmWidgetGroup *wgroup);
+
+	/* keymap init callback for this widgetgroup */
+	struct wmKeyMap *(*keymap_init)(struct wmKeyConfig *, struct wmWidgetGroupType *);
+
+	/* keymap created with callback from above */
+	struct wmKeyMap *keymap;
 
 	/* rna for properties */
 	struct StructRNA *srna;
@@ -722,7 +731,7 @@ typedef struct wmWidgetMap {
 	/* selected widget for this map. */
 	struct wmWidget *selected_widget;
 
-	/* active group is overriding all other widgets while active */
+	/* active group - set while widget is highlighted/active */
 	struct wmWidgetGroup *activegroup;
 } wmWidgetMap;
 

@@ -536,12 +536,16 @@ void WM_widget_set_scale(struct wmWidget *widget, float scale);
 void WM_widget_set_line_width(struct wmWidget *widget, const float line_width);
 void WM_widget_set_colors(struct wmWidget *widget, const float col[4], const float col_hi[4]);
 
+wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, struct wmWidgetGroupType *wgroup);
+
 struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, const int spaceid, const int regionid,
                                               const bool is_3d, const bool create);
-struct wmWidgetGroupType *WM_widgetgrouptype_new(int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
-                                                 void (*create)(const struct bContext *, struct wmWidgetGroup *), 
-                                                 const struct Main *bmain, const char *mapidname,
-                                                 const short spaceid, const short regionid, const bool is_3d);
+struct wmWidgetGroupType *WM_widgetgrouptype_new(
+        int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
+        void (*create)(const struct bContext *, struct wmWidgetGroup *),
+        wmKeyMap *(*keymap_init)(wmKeyConfig *, struct wmWidgetGroupType *),
+        const struct Main *bmain, const char *mapidname, const char *name,
+        const short spaceid, const short regionid, const bool is_3d);
 void WM_widgetgrouptype_unregister(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgroup);
 
 /* creates a widgetmap with all registered widgets for that type */
