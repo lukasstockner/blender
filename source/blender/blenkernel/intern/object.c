@@ -393,13 +393,13 @@ void BKE_object_free_ex(Object *ob, bool do_id_user)
 		if (id->us == 0 && id->lib == NULL) {
 			switch (ob->type) {
 				case OB_MESH:
-					BKE_mesh_unlink((Mesh *)id);
+					BKE_mesh_release_datablocks((Mesh *)id);
 					break;
 				case OB_CURVE:
-					BKE_curve_unlink((Curve *)id);
+					BKE_curve_release_datablocks((Curve *)id);
 					break;
 				case OB_MBALL:
-					BKE_mball_unlink((MetaBall *)id);
+					BKE_mball_release_datablocks((MetaBall *)id);
 					break;
 			}
 		}

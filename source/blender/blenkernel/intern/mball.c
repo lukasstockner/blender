@@ -66,21 +66,36 @@
 
 /* Functions */
 
-void BKE_mball_unlink(MetaBall *mb)
+/**
+ * Release all datablocks (ID) used by this mball (datablocks are never freed, they are just unreferenced).
+ *
+ * @param mb The mball which has to release its data.
+ */
+void BKE_mball_release_datablocks(MetaBall *mb)
 {
 	int a;
 	
 	for (a = 0; a < mb->totcol; a++) {
-		if (mb->mat[a]) mb->mat[a]->id.us--;
-		mb->mat[a] = NULL;
+		if (mb->mat[a]) {
+			mb->mat[a]->id.us--;
+			mb->mat[a] = NULL;
+		}
 	}
 }
 
 
-/* do not free mball itself */
-void BKE_mball_free(MetaBall *mb)
+/**
+ * Free (or release) any data used by this mball (does not free the mball itself).
+ *
+ * \param mb The mball to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this mball are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_mball_free(MetaBall *mb, const bool do_id_user)
 {
-	BKE_mball_unlink(mb);
+	if (do_id_user) {
+		BKE_mball_release_datablocks(mb);
+	}
 	
 	if (mb->adt) {
 		BKE_animdata_free((ID *)mb);

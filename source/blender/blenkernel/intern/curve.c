@@ -69,33 +69,41 @@ static int cu_isectLL(const float v1[3], const float v2[3], const float v3[3], c
                       short cox, short coy,
                       float *lambda, float *mu, float vec[3]);
 
-void BKE_curve_unlink(Curve *cu)
+/**
+ * Release all datablocks (ID) used by this curve (datablocks are never freed, they are just unreferenced).
+ *
+ * @param cu The curve which has to release its data.
+ */
+void BKE_curve_release_datablocks(Curve *cu)
 {
 	int a;
 
 	for (a = 0; a < cu->totcol; a++) {
-		if (cu->mat[a]) cu->mat[a]->id.us--;
-		cu->mat[a] = NULL;
+		if (cu->mat[a]) {
+			cu->mat[a]->id.us--;
+			cu->mat[a] = NULL;
+		}
 	}
-	if (cu->vfont)
+	if (cu->vfont) {
 		cu->vfont->id.us--;
-	cu->vfont = NULL;
-
-	if (cu->vfontb)
+		cu->vfont = NULL;
+	}
+	if (cu->vfontb) {
 		cu->vfontb->id.us--;
-	cu->vfontb = NULL;
-
-	if (cu->vfonti)
+		cu->vfontb = NULL;
+	}
+	if (cu->vfonti) {
 		cu->vfonti->id.us--;
-	cu->vfonti = NULL;
-
-	if (cu->vfontbi)
+		cu->vfonti = NULL;
+	}
+	if (cu->vfontbi) {
 		cu->vfontbi->id.us--;
-	cu->vfontbi = NULL;
-
-	if (cu->key)
+		cu->vfontbi = NULL;
+	}
+	if (cu->key) {
 		cu->key->id.us--;
-	cu->key = NULL;
+		cu->key = NULL;
+	}
 }
 
 /* frees editcurve entirely */
@@ -139,14 +147,24 @@ void BKE_curve_editNurb_free(Curve *cu)
 	}
 }
 
-/* don't free curve itself */
-void BKE_curve_free(Curve *cu)
+/**
+ * Free (or release) any data used by this curve (does not free the curve itself).
+ *
+ * \param cu The curve to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this curve are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_curve_free(Curve *cu, const bool do_id_user)
 {
 	BKE_nurbList_free(&cu->nurb);
 	BKE_curve_editfont_free(cu);
 
 	BKE_curve_editNurb_free(cu);
-	BKE_curve_unlink(cu);
+
+	if (do_id_user) {
+		BKE_curve_release_datablocks(cu);
+	}
+
 	BKE_animdata_free((ID *)cu);
 
 	if (cu->mat)
