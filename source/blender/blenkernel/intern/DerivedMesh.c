@@ -1869,7 +1869,7 @@ static void mesh_calc_modifiers(
 	Mesh *me = ob->data;
 	ModifierEvalContext ctx;
 	ModifierEvalIterator iter;
-	float (*deformedVerts)[3] = NULL;
+	float (*deformedVerts)[3] = inputVertexCos;
 	DerivedMesh *dm = NULL, *orcodm, *clothorcodm, *finaldm;
 	int numVerts = me->totvert;
 
@@ -1891,9 +1891,6 @@ static void mesh_calc_modifiers(
 	*r_final = NULL;
 
 	if (useDeform) {
-		if (inputVertexCos)
-			deformedVerts = inputVertexCos;
-		
 		/* Apply all leading deforming modifiers */
 		for (; iter.modifier; iter.modifier = iter.modifier->next, iter.datamask = iter.datamask->next) {
 			ModifierData *md = iter.modifier;
@@ -1941,9 +1938,7 @@ static void mesh_calc_modifiers(
 	}
 	else {
 		/* default behavior for meshes */
-		if (inputVertexCos)
-			deformedVerts = inputVertexCos;
-		else
+		if (!deformedVerts)
 			deformedVerts = BKE_mesh_vertexCos_get(me, &numVerts);
 	}
 
