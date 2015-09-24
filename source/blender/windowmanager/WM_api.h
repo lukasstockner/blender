@@ -47,18 +47,17 @@ extern "C" {
 #endif
 
 struct bContext;
+struct GHashIterator;
 struct IDProperty;
 struct wmEvent;
 struct wmEventHandler;
 struct wmGesture;
 struct wmJob;
-struct wmNotifier;
 struct wmOperatorType;
 struct wmOperator;
 struct rcti;
 struct PointerRNA;
 struct PropertyRNA;
-struct EnumPropertyItem;
 struct MenuType;
 struct wmDropBox;
 struct wmDrag;
@@ -104,6 +103,7 @@ void		WM_window_open_temp	(struct bContext *C, struct rcti *position, int type);
 			/* returns true if draw method is triple buffer */
 bool		WM_is_draw_triple(struct wmWindow *win);
 
+bool		WM_stereo3d_enabled(struct wmWindow *win, bool only_fullscreen_test);
 
 
 			/* files */
@@ -130,6 +130,7 @@ void		WM_paint_cursor_end(struct wmWindowManager *wm, void *handle);
 void		WM_paint_cursor_tag_redraw(struct wmWindow *win, struct ARegion *ar);
 
 void		WM_cursor_warp		(struct wmWindow *win, int x, int y);
+void		WM_cursor_compatible_xy(wmWindow *win, int *x, int *y);
 float		WM_cursor_pressure	(const struct wmWindow *win);
 
 			/* event map */
@@ -151,7 +152,7 @@ typedef void (*wmUIHandlerRemoveFunc)(struct bContext *C, void *userdata);
 struct wmEventHandler *WM_event_add_ui_handler(
         const struct bContext *C, ListBase *handlers,
         wmUIHandlerFunc ui_handle, wmUIHandlerRemoveFunc ui_remove,
-        void *userdata,  const bool accept_dbl_click);
+        void *userdata, const char flag);
 void WM_event_remove_ui_handler(
         ListBase *handlers,
         wmUIHandlerFunc ui_handle, wmUIHandlerRemoveFunc ui_remove,
@@ -165,28 +166,52 @@ void WM_event_free_ui_handler_all(
 struct wmEventHandler *WM_event_add_modal_handler(struct bContext *C, struct wmOperator *op);
 void		WM_event_remove_handlers(struct bContext *C, ListBase *handlers);
 
+/* handler flag */
+enum {
+	WM_HANDLER_BLOCKING             = (1 << 0),  /* after this handler all others are ignored */
+	WM_HANDLER_ACCEPT_DBL_CLICK     = (1 << 1),  /* handler accepts double key press events */
+
+	/* internal */
+	WM_HANDLER_DO_FREE              = (1 << 7),  /* handler tagged to be freed in wm_handlers_do() */
+};
+
 struct wmEventHandler *WM_event_add_dropbox_handler(ListBase *handlers, ListBase *dropboxes);
 
 			/* mouse */
 void		WM_event_add_mousemove(struct bContext *C);
 bool        WM_modal_tweak_exit(const struct wmEvent *event, int tweak_event);
+bool		WM_event_is_absolute(const struct wmEvent *event);
+
+			/* 3D mouse */
+void		WM_ndof_deadzone_set(float deadzone);
 
 			/* notifiers */
 void		WM_event_add_notifier(const struct bContext *C, unsigned int type, void *reference);
 void		WM_main_add_notifier(unsigned int type, void *reference);
 void		WM_main_remove_notifier_reference(const void *reference);
+void		WM_main_remove_editor_id_reference(const struct ID *id);
 
 			/* reports */
+void        WM_report_banner_show(const struct bContext *C);
 void        WM_report(const struct bContext *C, ReportType type, const char *message);
 void        WM_reportf(const struct bContext *C, ReportType type, const char *format, ...) ATTR_PRINTF_FORMAT(3, 4);
 
-void		wm_event_add(struct wmWindow *win, const struct wmEvent *event_to_add);
-void		wm_event_init_from_window(struct wmWindow *win, struct wmEvent *event);
+void wm_event_add_ex(
+        struct wmWindow *win, const struct wmEvent *event_to_add,
+        const struct wmEvent *event_to_add_after)
+        ATTR_NONNULL(1, 2);
+void wm_event_add(
+        struct wmWindow *win, const struct wmEvent *event_to_add)
+        ATTR_NONNULL(1, 2);
+
+void wm_event_init_from_window(struct wmWindow *win, struct wmEvent *event);
 
 
 			/* at maximum, every timestep seconds it triggers event_type events */
 struct wmTimer *WM_event_add_timer(struct wmWindowManager *wm, struct wmWindow *win, int event_type, double timestep);
+struct wmTimer *WM_event_add_timer_notifier(struct wmWindowManager *wm, struct wmWindow *win, unsigned int type, double timestep);
 void		WM_event_remove_timer(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer);
+void		WM_event_remove_timer_notifier(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer);
 void        WM_event_timer_sleep(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer, bool do_sleep);
 
 		/* operator api, default callbacks */
@@ -223,12 +248,13 @@ void		WM_operator_stack_clear(struct wmWindowManager *wm);
 void		WM_operator_handlers_clear(wmWindowManager *wm, struct wmOperatorType *ot);
 
 struct wmOperatorType *WM_operatortype_find(const char *idname, bool quiet);
-struct GHashIterator  *WM_operatortype_iter(void);
+void        WM_operatortype_iter(struct GHashIterator *ghi);
 void		WM_operatortype_append(void (*opfunc)(struct wmOperatorType *));
 void		WM_operatortype_append_ptr(void (*opfunc)(struct wmOperatorType *, void *), void *userdata);
 void		WM_operatortype_append_macro_ptr(void (*opfunc)(struct wmOperatorType *, void *), void *userdata);
 void        WM_operatortype_remove_ptr(struct wmOperatorType *ot);
 bool        WM_operatortype_remove(const char *idname);
+void        WM_operatortype_last_properties_clear_all(void);
 
 struct wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *name, const char *description, int flag);
 struct wmOperatorTypeMacro *WM_operatortype_macro_define(struct wmOperatorType *ot, const char *idname);
@@ -253,7 +279,7 @@ void		WM_operator_properties_create(struct PointerRNA *ptr, const char *opstring
 void		WM_operator_properties_create_ptr(struct PointerRNA *ptr, struct wmOperatorType *ot);
 void        WM_operator_properties_clear(struct PointerRNA *ptr);
 void		WM_operator_properties_free(struct PointerRNA *ptr);
-void		WM_operator_properties_filesel(struct wmOperatorType *ot, int filter, short type, short action, short flag, short display);
+void		WM_operator_properties_filesel(struct wmOperatorType *ot, int filter, short type, short action, short flag, short display, short sort);
 void        WM_operator_properties_border(struct wmOperatorType *ot);
 void        WM_operator_properties_border_to_rcti(struct wmOperator *op, struct rcti *rect);
 void        WM_operator_properties_border_to_rctf(struct wmOperator *op, rctf *rect);
@@ -266,6 +292,7 @@ void		WM_operator_properties_select_action_simple(struct wmOperatorType *ot, int
 
 bool        WM_operator_check_ui_enabled(const struct bContext *C, const char *idname);
 wmOperator *WM_operator_last_redo(const struct bContext *C);
+ID         *WM_operator_drop_load_path(struct bContext *C, struct wmOperator *op, const short idcode);
 
 bool        WM_operator_last_properties_init(struct wmOperator *op);
 bool        WM_operator_last_properties_store(struct wmOperator *op);
@@ -368,7 +395,9 @@ void		wmOrtho2_pixelspace(const float x, const float y);
 
 			/* utilities */
 void		WM_framebuffer_index_set(int index);
+void		WM_framebuffer_index_get(int index, int *r_col);
 int			WM_framebuffer_to_index(unsigned int col);
+void		WM_framebuffer_to_index_array(unsigned int *col, const unsigned int size);
 
 			/* threaded Jobs Manager */
 enum {
@@ -389,12 +418,13 @@ enum {
 	WM_JOB_TYPE_OBJECT_SIM_FLUID,
 	WM_JOB_TYPE_OBJECT_BAKE_TEXTURE,
 	WM_JOB_TYPE_OBJECT_BAKE,
-	WM_JOB_TYPE_FILESEL_THUMBNAIL,
+	WM_JOB_TYPE_FILESEL_READDIR,
 	WM_JOB_TYPE_CLIP_BUILD_PROXY,
 	WM_JOB_TYPE_CLIP_TRACK_MARKERS,
 	WM_JOB_TYPE_CLIP_SOLVE_CAMERA,
 	WM_JOB_TYPE_CLIP_PREFETCH,
 	WM_JOB_TYPE_SEQ_BUILD_PROXY,
+	WM_JOB_TYPE_SEQ_BUILD_PREVIEW,
 	/* add as needed, screencast, seq proxy build
 	 * if having hard coded values is a problem */
 };
@@ -457,6 +487,10 @@ void        WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4
 
 float       WM_event_tablet_data(const struct wmEvent *event, int *pen_flip, float tilt[2]);
 bool        WM_event_is_tablet(const struct wmEvent *event);
+
+#ifdef WITH_INPUT_IME
+bool        WM_event_is_ime_switch(const struct wmEvent *event);
+#endif
 
 #ifdef __cplusplus
 }

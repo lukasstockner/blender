@@ -28,17 +28,19 @@
 Import ('env')
 
 defs = []
+defs += env['BF_GL_DEFINITIONS']
 
 sources = env.Glob('*.c')
 
 incs = [
     '#/intern/guardedalloc',
-    '#/extern/glew/include',
+    env['BF_GLEW_INC'],
+    '#/intern/glew-mx',
     '#/intern/opennl/extern',
     '../include',
-    '../../blenfont',
     '../../blenkernel',
     '../../blenlib',
+    '../../blentranslation',
     '../../bmesh',
     '../../gpu',
     '../../makesdna',

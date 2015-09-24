@@ -50,6 +50,7 @@
 #endif
 
 #undef HAVE_MALLOC_STATS
+#define USE_MALLOC_USABLE_SIZE  /* internal, when we have malloc_usable_size() */
 
 #if defined(__linux__) || (defined(__FreeBSD_kernel__) && !defined(__FreeBSD__)) || defined(__GLIBC__)
 #  include <malloc.h>
@@ -63,7 +64,8 @@
 #  include <malloc.h>
 #  define malloc_usable_size _msize
 #else
-#  error "We don't know how to use malloc_usable_size on your platform"
+#  pragma message "We don't know how to use malloc_usable_size on your platform"
+#  undef USE_MALLOC_USABLE_SIZE
 #endif
 
 /* Blame Microsoft for LLP64 and no inttypes.h, quick workaround needed: */
@@ -139,11 +141,11 @@ void MEM_lockfree_set_error_callback(void (*func)(const char *));
 bool MEM_lockfree_check_memory_integrity(void);
 void MEM_lockfree_set_lock_callback(void (*lock)(void), void (*unlock)(void));
 void MEM_lockfree_set_memory_debug(void);
-uintptr_t MEM_lockfree_get_memory_in_use(void);
-uintptr_t MEM_lockfree_get_mapped_memory_in_use(void);
+size_t MEM_lockfree_get_memory_in_use(void);
+size_t MEM_lockfree_get_mapped_memory_in_use(void);
 unsigned int MEM_lockfree_get_memory_blocks_in_use(void);
 void MEM_lockfree_reset_peak_memory(void);
-uintptr_t MEM_lockfree_get_peak_memory(void) ATTR_WARN_UNUSED_RESULT;
+size_t MEM_lockfree_get_peak_memory(void) ATTR_WARN_UNUSED_RESULT;
 #ifndef NDEBUG
 const char *MEM_lockfree_name_ptr(void *vmemh);
 #endif
@@ -166,11 +168,11 @@ void MEM_guarded_set_error_callback(void (*func)(const char *));
 bool MEM_guarded_check_memory_integrity(void);
 void MEM_guarded_set_lock_callback(void (*lock)(void), void (*unlock)(void));
 void MEM_guarded_set_memory_debug(void);
-uintptr_t MEM_guarded_get_memory_in_use(void);
-uintptr_t MEM_guarded_get_mapped_memory_in_use(void);
+size_t MEM_guarded_get_memory_in_use(void);
+size_t MEM_guarded_get_mapped_memory_in_use(void);
 unsigned int MEM_guarded_get_memory_blocks_in_use(void);
 void MEM_guarded_reset_peak_memory(void);
-uintptr_t MEM_guarded_get_peak_memory(void) ATTR_WARN_UNUSED_RESULT;
+size_t MEM_guarded_get_peak_memory(void) ATTR_WARN_UNUSED_RESULT;
 #ifndef NDEBUG
 const char *MEM_guarded_name_ptr(void *vmemh);
 #endif

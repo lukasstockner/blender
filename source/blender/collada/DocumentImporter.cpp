@@ -104,7 +104,7 @@ DocumentImporter::DocumentImporter(bContext *C, const ImportSettings *import_set
 	import_settings(import_settings),
 	mImportStage(General),
 	mContext(C),
-	armature_importer(&unit_converter, &mesh_importer, CTX_data_scene(C)),
+	armature_importer(&unit_converter, &mesh_importer, CTX_data_scene(C), import_settings),
 	mesh_importer(&unit_converter, &armature_importer, CTX_data_scene(C)),
 	anim_importer(&unit_converter, &armature_importer, CTX_data_scene(C))
 {
@@ -136,11 +136,14 @@ bool DocumentImporter::import()
 	const std::string encodedFilename = bc_url_encode(mFilename);
 	if (!root.loadDocument(encodedFilename)) {
 		fprintf(stderr, "COLLADAFW::Root::loadDocument() returned false on 1st pass\n");
+		delete ehandler;
 		return false;
 	}
 	
-	if (errorHandler.hasError())
+	if (errorHandler.hasError()) {
+		delete ehandler;
 		return false;
+	}
 	
 	/** TODO set up scene graph and such here */
 	
@@ -151,14 +154,11 @@ bool DocumentImporter::import()
 	
 	if (!root2.loadDocument(encodedFilename)) {
 		fprintf(stderr, "COLLADAFW::Root::loadDocument() returned false on 2nd pass\n");
+		delete ehandler;
 		return false;
 	}
-	
-	
-	delete ehandler;
 
-	//XXX No longer needed (geometries are now created as bmesh)
-	//mesh_importer.bmeshConversion();
+	delete ehandler;
 
 	return true;
 }
@@ -226,6 +226,7 @@ void DocumentImporter::finish()
 		for (unsigned int i = 0; i < roots.getCount(); i++) {
 			std::vector<Object *> *objects_done = write_node(roots[i], NULL, sce, NULL, false);
 			objects_to_scale->insert(objects_to_scale->end(), objects_done->begin(), objects_done->end());
+			delete objects_done;
 		}
 
 		// update scene
@@ -278,6 +279,8 @@ void DocumentImporter::finish()
 	}
 	
 	bc_match_scale(objects_to_scale, unit_converter, !this->import_settings->import_units);
+
+	delete objects_to_scale;
 }
 
 
@@ -502,6 +505,9 @@ std::vector<Object *> *DocumentImporter::write_node(COLLADAFW::Node *node, COLLA
 	std::string id   = node->getOriginalId();
 	std::string name = node->getName();
 
+	// if node has child nodes write them
+	COLLADAFW::NodePointerArray &child_nodes = node->getChildNodes();
+
 	std::vector<Object *> *objects_done = new std::vector<Object *>();
 	std::vector<Object *> *root_objects = new std::vector<Object *>();
 
@@ -527,7 +533,7 @@ std::vector<Object *> *DocumentImporter::write_node(COLLADAFW::Node *node, COLLA
 		if (parent_node == NULL) {
 			// for skeletons without root node all has been done above.
 			// Skeletons with root node are handled further down.
-			return root_objects;
+			goto finally;
 		}
 	}
 	else {
@@ -641,7 +647,9 @@ std::vector<Object *> *DocumentImporter::write_node(COLLADAFW::Node *node, COLLA
 		
 		// XXX: if there're multiple instances, only one is stored
 
-		if (!ob) return root_objects;
+		if (!ob) {
+			goto finally;
+		}
 
 		for (std::vector<Object *>::iterator it = objects_done->begin(); it != objects_done->end(); ++it) {
 			ob = *it;
@@ -676,9 +684,6 @@ std::vector<Object *> *DocumentImporter::write_node(COLLADAFW::Node *node, COLLA
 		}
 	}
 
-	// if node has child nodes write them
-	COLLADAFW::NodePointerArray &child_nodes = node->getChildNodes();
-
 	if (objects_done->size() > 0) {
 		ob = *objects_done->begin();
 	}
@@ -687,8 +692,14 @@ std::vector<Object *> *DocumentImporter::write_node(COLLADAFW::Node *node, COLLA
 	}
 
 	for (unsigned int i = 0; i < child_nodes.getCount(); i++) {
-		write_node(child_nodes[i], node, sce, ob, is_library_node);
+		std::vector<Object *> *child_objects;
+		child_objects = write_node(child_nodes[i], node, sce, ob, is_library_node);
+		delete child_objects;
 	}
+
+
+finally:
+	delete objects_done;
 
 	return root_objects;
 }
@@ -728,7 +739,9 @@ bool DocumentImporter::writeLibraryNodes(const COLLADAFW::LibraryNodes *libraryN
 	const COLLADAFW::NodePointerArray& nodes = libraryNodes->getNodes();
 
 	for (unsigned int i = 0; i < nodes.getCount(); i++) {
-		write_node(nodes[i], NULL, sce, NULL, true);
+		std::vector<Object *> *child_objects;
+		child_objects = write_node(nodes[i], NULL, sce, NULL, true);
+		delete child_objects;
 	}
 
 	return true;
@@ -774,9 +787,9 @@ MTex *DocumentImporter::create_texture(COLLADAFW::EffectCommon *ef, COLLADAFW::T
 		return NULL;
 	}
 	
-	ma->mtex[i] = add_mtex();
+	ma->mtex[i] = BKE_texture_mtex_add();
 	ma->mtex[i]->texco = TEXCO_UV;
-	ma->mtex[i]->tex = add_texture(G.main, "Texture");
+	ma->mtex[i]->tex = BKE_texture_add(G.main, "Texture");
 	ma->mtex[i]->tex->type = TEX_IMAGE;
 	ma->mtex[i]->tex->ima = uid_image_map[ima_uid];
 	

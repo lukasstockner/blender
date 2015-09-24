@@ -57,7 +57,6 @@ typedef struct LineStyleModifier {
 	float influence;
 	int flags;
 	int blend;
-
 } LineStyleModifier;
 
 /* LineStyleModifier::type */
@@ -79,7 +78,12 @@ typedef struct LineStyleModifier {
 #define LS_MODIFIER_BLUEPRINT              16
 #define LS_MODIFIER_2D_OFFSET              17
 #define LS_MODIFIER_2D_TRANSFORM           18
-#define LS_MODIFIER_NUM                    19
+#define LS_MODIFIER_TANGENT                19
+#define LS_MODIFIER_NOISE                  20
+#define LS_MODIFIER_CREASE_ANGLE           21
+#define LS_MODIFIER_SIMPLIFICATION         22
+#define LS_MODIFIER_CURVATURE_3D           23
+#define LS_MODIFIER_NUM                    24
 
 /* LineStyleModifier::flags */
 #define LS_MODIFIER_ENABLED     1
@@ -91,6 +95,9 @@ typedef struct LineStyleModifier {
 /* flags (for alpha & thickness) */
 #define LS_MODIFIER_USE_CURVE    1
 #define LS_MODIFIER_INVERT       2
+
+/* flags (for asymmetric thickness application) */
+#define LS_THICKNESS_ASYMMETRIC   1
 
 /* blend (for alpha & thickness) */
 #define LS_VALUE_BLEND  0
@@ -186,6 +193,113 @@ typedef struct LineStyleThicknessModifier_DistanceFromObject {
 	int pad;
 } LineStyleThicknessModifier_DistanceFromObject;
 
+/* 3D curvature modifiers */
+
+typedef struct LineStyleColorModifier_Curvature_3D {
+	struct LineStyleModifier modifier;
+
+	float min_curvature, max_curvature;
+	struct ColorBand *color_ramp;
+	float range_min, range_max;
+} LineStyleColorModifier_Curvature_3D;
+
+typedef struct LineStyleAlphaModifier_Curvature_3D {
+	struct LineStyleModifier modifier;
+
+	struct CurveMapping	*curve;
+	int flags;
+	float min_curvature, max_curvature;
+	int pad;
+} LineStyleAlphaModifier_Curvature_3D;
+
+typedef struct LineStyleThicknessModifier_Curvature_3D {
+	struct LineStyleModifier modifier;
+
+	struct CurveMapping *curve;
+	int flags, pad;
+	float min_curvature, max_curvature;
+	float min_thickness, max_thickness;
+} LineStyleThicknessModifier_Curvature_3D;
+
+/* Noise modifiers (for color, alpha and thickness) */
+
+typedef struct LineStyleColorModifier_Noise {
+	struct LineStyleModifier modifier;
+
+	struct ColorBand *color_ramp;
+	float period, amplitude;
+	int seed, pad;
+} LineStyleColorModifier_Noise;
+
+typedef struct LineStyleAlphaModifier_Noise {
+	struct LineStyleModifier modifier;
+
+	struct CurveMapping	*curve;
+	int flags;
+	float period, amplitude;
+	int seed;
+} LineStyleAlphaModifier_Noise;
+
+typedef struct LineStyleThicknessModifier_Noise {
+	struct LineStyleModifier modifier;
+
+	float period, amplitude;
+	int flags;
+	int seed;
+} LineStyleThicknessModifier_Noise;
+
+/* Crease Angle modifiers */
+
+typedef struct LineStyleColorModifier_CreaseAngle {
+	struct LineStyleModifier modifier;
+
+	struct ColorBand *color_ramp;
+	float min_angle, max_angle;
+} LineStyleColorModifier_CreaseAngle;
+
+typedef struct LineStyleAlphaModifier_CreaseAngle {
+	struct LineStyleModifier modifier;
+
+	struct CurveMapping	*curve;
+	int flags;
+	float min_angle, max_angle;
+	int pad;
+} LineStyleAlphaModifier_CreaseAngle;
+
+typedef struct LineStyleThicknessModifier_CreaseAngle {
+	struct LineStyleModifier modifier;
+
+	struct CurveMapping *curve;
+	int flags, pad;
+	float min_angle, max_angle;
+	float min_thickness, max_thickness;
+} LineStyleThicknessModifier_CreaseAngle;
+
+/* Tangent modifiers */
+
+typedef struct LineStyleColorModifier_Tangent {
+	struct LineStyleModifier modifier;
+
+	struct ColorBand *color_ramp;
+} LineStyleColorModifier_Tangent;
+
+typedef struct LineStyleAlphaModifier_Tangent {
+	struct LineStyleModifier modifier;
+
+	struct CurveMapping	*curve;
+	int flags;
+	int pad;
+} LineStyleAlphaModifier_Tangent;
+
+typedef struct LineStyleThicknessModifier_Tangent {
+	struct LineStyleModifier modifier;
+
+	struct CurveMapping	*curve;
+	int flags;
+	float min_thickness, max_thickness;
+	int pad;
+} LineStyleThicknessModifier_Tangent;
+
 /* Material modifiers */
 
 /* mat_attr */
@@ -203,6 +317,7 @@ typedef struct LineStyleThicknessModifier_DistanceFromObject {
 #define LS_MODIFIER_MATERIAL_LINE_R     12
 #define LS_MODIFIER_MATERIAL_LINE_G     13
 #define LS_MODIFIER_MATERIAL_LINE_B     14
+#define LS_MODIFIER_MATERIAL_LINE_A     15
 
 typedef struct LineStyleColorModifier_Material {
 	struct LineStyleModifier modifier;
@@ -353,6 +468,13 @@ typedef struct LineStyleGeometryModifier_2DTransform {
 	int pad;
 } LineStyleGeometryModifier_2DTransform;
 
+typedef struct LineStyleGeometryModifier_Simplification {
+	struct LineStyleModifier modifier;
+
+	float tolerance;
+	int pad;
+}LineStyleGeometryModifier_Simplification;
+
 /* Calligraphic thickness modifier */
 
 typedef struct LineStyleThicknessModifier_Calligraphy {
@@ -387,6 +509,7 @@ typedef struct LineStyleThicknessModifier_Calligraphy {
 #define LS_NO_SORTING         (1 << 11)
 #define LS_REVERSE_ORDER      (1 << 12)  /* for sorting */
 #define LS_TEXTURE            (1 << 13)
+#define LS_CHAIN_COUNT        (1 << 14)
 
 /* FreestyleLineStyle::chaining */
 #define LS_CHAINING_PLAIN    1
@@ -406,6 +529,8 @@ typedef struct LineStyleThicknessModifier_Calligraphy {
 /* FreestyleLineStyle::sort_key */
 #define LS_SORT_KEY_DISTANCE_FROM_CAMERA  1
 #define LS_SORT_KEY_2D_LENGTH             2
+#define LS_SORT_KEY_PROJECTED_X           3
+#define LS_SORT_KEY_PROJECTED_Y           4
 
 /* FreestyleLineStyle::integration_type */
 #define LS_INTEGRATION_MEAN   1
@@ -428,17 +553,17 @@ typedef struct FreestyleLineStyle {
 	float split_length;
 	float min_angle, max_angle; /* in radians, for splitting */
 	float min_length, max_length;
+	unsigned int chain_count;
 	unsigned short split_dash1, split_gap1;
 	unsigned short split_dash2, split_gap2;
 	unsigned short split_dash3, split_gap3;
 	int sort_key, integration_type;
 	float texstep;
 	short texact, pr_texture;
-	short use_nodes, pad;
+	short use_nodes, pad[3];
 	unsigned short dash1, gap1, dash2, gap2, dash3, gap3;
 	int panel; /* for UI */
-
-	struct MTex *mtex[18];		/* MAX_MTEX */
+	struct MTex *mtex[18]; /* MAX_MTEX */
 	/* nodes */
 	struct bNodeTree *nodetree;
 

@@ -33,7 +33,6 @@
 
 
 #include "BLI_utildefines.h"
-#include "BLI_math_base.h"
 #include "BLI_math_color.h"
 #include "BLI_math_interp.h"
 #include "MEM_guardedalloc.h"
@@ -42,7 +41,6 @@
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
-#include "IMB_allocimbuf.h"
 #include "IMB_filter.h"
 
 #include "BLI_sys_types.h" // for intptr_t support
@@ -1557,7 +1555,7 @@ struct ImBuf *IMB_scalefastImBuf(struct ImBuf *ibuf, unsigned int newx, unsigned
 	struct imbufRGBA *rectf, *_newrectf, *newrectf;
 	int x, y;
 	bool do_float = false, do_rect = false;
-	int ofsx, ofsy, stepx, stepy;
+	size_t ofsx, ofsy, stepx, stepy;
 
 	rect = NULL; _newrect = NULL; newrect = NULL;
 	rectf = NULL; _newrectf = NULL; newrectf = NULL;

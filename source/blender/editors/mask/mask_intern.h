@@ -34,7 +34,6 @@
 
 struct bContext;
 struct Mask;
-struct wmEvent;
 struct wmOperatorType;
 
 /* internal exports only */
@@ -44,12 +43,14 @@ bool ED_mask_find_nearest_diff_point(const struct bContext *C,
                                      struct Mask *mask,
                                      const float normal_co[2],
                                      int threshold, bool feather,
+                                     float tangent[2],
+                                     const bool use_deform,
+                                     const bool use_project,
                                      struct MaskLayer **masklay_r,
                                      struct MaskSpline **spline_r,
                                      struct MaskSplinePoint **point_r,
-                                     float *u_r, float tangent[2],
-                                     const bool use_deform,
-                                     const bool use_project);
+                                     float *u_r,
+                                     float *score_r);
 
 void MASK_OT_add_vertex(struct wmOperatorType *ot);
 void MASK_OT_add_feather_vertex(struct wmOperatorType *ot);

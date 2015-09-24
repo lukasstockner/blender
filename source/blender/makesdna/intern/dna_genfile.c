@@ -64,7 +64,7 @@
  *
  * Create a structDNA: only needed when one of the input include (.h) files change.
  * File Syntax:
- * <pre>
+ * \code{.unparsed}
  *     SDNA (4 bytes) (magic number)
  *     NAME (4 bytes)
  *     <nr> (4 bytes) amount of names (int)
@@ -86,13 +86,13 @@
  *     STRC (4 bytes)
  *     <nr> amount of structs (int)
  *     <typenr><nr_of_elems> <typenr><namenr> <typenr><namenr> ...
- *</pre>
+ * \endcode
  *
  *  **Remember to read/write integer and short aligned!**
  *
  *  While writing a file, the names of a struct is indicated with a type number,
  *  to be found with: ``type = DNA_struct_find_nr(SDNA *, const char *)``
- *  The value of ``type`` corresponds with the the index within the structs array
+ *  The value of ``type`` corresponds with the index within the structs array
  *
  *  For the moment: the complete DNA file is included in a .blend file. For
  *  the future we can think of smarter methods, like only included the used
@@ -311,7 +311,21 @@ int DNA_struct_find_nr(SDNA *sdna, const char *str)
 	}
 
 #ifdef WITH_DNA_GHASH
-	return (intptr_t)BLI_ghash_lookup(sdna->structs_map, str) - 1;
+	{
+		void **index_p;
+		int a;
+
+		index_p = BLI_ghash_lookup_p(sdna->structs_map, str);
+
+		if (index_p) {
+			a = GET_INT_FROM_POINTER(*index_p);
+			sdna->lastfind = a;
+		}
+		else {
+			a = -1;
+		}
+		return a;
+	}
 #else
 	{
 		int a;
@@ -525,7 +539,7 @@ static void init_structDNA(SDNA *sdna, bool do_endian_swap)
 
 		for (nr = 0; nr < sdna->nr_structs; nr++) {
 			sp = sdna->structs[nr];
-			BLI_ghash_insert(sdna->structs_map, (void *)sdna->types[sp[0]], (void *)(nr + 1));
+			BLI_ghash_insert(sdna->structs_map, sdna->types[sp[0]], SET_INT_IN_POINTER(nr));
 		}
 #endif
 	}

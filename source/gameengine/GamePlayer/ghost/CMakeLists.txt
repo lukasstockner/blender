@@ -42,12 +42,14 @@ set(INC
 	../../../blender/blenkernel
 	../../../blender/blenlib
 	../../../blender/blenloader
+	../../../blender/blentranslation
 	../../../blender/gpu
 	../../../blender/imbuf
 	../../../blender/makesdna
 	../../../blender/makesrna
 	../../../../intern/container
 	../../../../intern/ghost
+	../../../../intern/glew-mx
 	../../../../intern/guardedalloc
 	../../../../intern/string
 	../../../../intern/memutil
@@ -73,7 +75,7 @@ set(SRC
 	GPG_System.h
 )
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_CODEC_FFMPEG)
 	add_definitions(-DWITH_FFMPEG)
@@ -84,10 +86,18 @@ if(WITH_INTERNATIONAL)
 endif()
 
 if(WITH_AUDASPACE)
-	list(APPEND INC
-		../../../../intern/audaspace/intern
+	add_definitions(${AUDASPACE_DEFINITIONS})
+
+	list(APPEND INC_SYS
+		${AUDASPACE_C_INCLUDE_DIRS}
 	)
-	add_definitions(-DWITH_AUDASPACE)
+endif()
+
+if(WITH_SDL AND WITH_SDL_DYNLOAD)
+	list(APPEND INC
+		../../../../extern/sdlew/include
+	)
+	add_definitions(-DWITH_SDL_DYNLOAD)
 endif()
 
 blender_add_lib_nolist(ge_player_ghost "${SRC}" "${INC}" "${INC_SYS}")

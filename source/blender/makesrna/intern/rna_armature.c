@@ -247,8 +247,8 @@ static void rna_bone_layer_set(int *layer, const int *values)
 		return;
 
 	for (i = 0; i < 32; i++) {
-		if (values[i]) *layer |= (1 << i);
-		else *layer &= ~(1 << i);
+		if (values[i]) *layer |= (1u << i);
+		else *layer &= ~(1u << i);
 	}
 }
 
@@ -272,8 +272,8 @@ static void rna_Armature_layer_set(PointerRNA *ptr, const int *values)
 		return;
 
 	for (i = 0; i < 32; i++) {
-		if (values[i]) arm->layer |= (1 << i);
-		else arm->layer &= ~(1 << i);
+		if (values[i]) arm->layer |= (1u << i);
+		else arm->layer &= ~(1u << i);
 	}
 }
 
@@ -746,7 +746,7 @@ static void rna_def_edit_bone(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "roll", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "roll");
-	RNA_def_property_ui_range(prop, -M_PI * 2, M_PI * 2, 0.1, 2);
+	RNA_def_property_ui_range(prop, -M_PI * 2, M_PI * 2, 10, 2);
 	RNA_def_property_ui_text(prop, "Roll", "Bone rotation around head-tail axis");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, 0, "rna_Armature_editbone_transform_update");

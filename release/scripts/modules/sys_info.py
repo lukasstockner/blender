@@ -26,29 +26,9 @@ import bgl
 import sys
 
 
-def cutPoint(text, length):
-    """Returns position of the last space found before 'length' chars"""
-    l = length
-    c = text[l]
-    while c != ' ':
-        l -= 1
-        if l == 0:
-            return length  # no space found
-        c = text[l]
-    return l
-
-
-def textWrap(text, length=70):
-    lines = []
-    while len(text) > 70:
-        cpt = cutPoint(text, length)
-        line, text = text[:cpt], text[cpt + 1:]
-        lines.append(line)
-    lines.append(text)
-    return lines
-
-
 def write_sysinfo(op):
+    import textwrap
+
     output_filename = "system-info.txt"
 
     output = bpy.data.texts.get(output_filename)
@@ -56,6 +36,17 @@ def write_sysinfo(op):
         output.clear()
     else:
         output = bpy.data.texts.new(name=output_filename)
+
+    # pretty repr
+    def prepr(v):
+        r = repr(v)
+        vt = type(v)
+        if vt is bytes:
+            r = r[2:-1]
+        elif vt is list or vt is tuple:
+            r = r[1:-1]
+        return r
+
 
     header = "= Blender %s System Information =\n" % bpy.app.version_string
     lilies = "%s\n\n" % (len(header) * "=")
@@ -67,27 +58,22 @@ def write_sysinfo(op):
     # build info
     output.write("\nBlender:\n")
     output.write(lilies)
-    if bpy.app.build_branch and bpy.app.build_branch != "Unknown":
-        output.write("version %s, branch %r, commit date %r %r, hash %r, %r\n" %
-            (bpy.app.version_string,
-             bpy.app.build_branch,
-             bpy.app.build_commit_date,
-             bpy.app.build_commit_time,
-             bpy.app.build_hash,
-             bpy.app.build_type))
-    else:
-        output.write("version %s, revision %r. %r\n" %
-            (bpy.app.version_string,
-             bpy.app.build_change,
-             bpy.app.build_type))
+    output.write("version: %s, branch: %s, commit date: %s %s, hash: %s, type: %s\n" %
+        (bpy.app.version_string,
+         prepr(bpy.app.build_branch),
+         prepr(bpy.app.build_commit_date),
+         prepr(bpy.app.build_commit_time),
+         prepr(bpy.app.build_hash),
+         prepr(bpy.app.build_type),
+         ))
 
-    output.write("build date: %r, %r\n" % (bpy.app.build_date, bpy.app.build_time))
-    output.write("platform: %r\n" % (bpy.app.build_platform))
-    output.write("binary path: %r\n" % (bpy.app.binary_path))
-    output.write("build cflags: %r\n" % (bpy.app.build_cflags))
-    output.write("build cxxflags: %r\n" % (bpy.app.build_cxxflags))
-    output.write("build linkflags: %r\n" % (bpy.app.build_linkflags))
-    output.write("build system: %r\n" % (bpy.app.build_system))
+    output.write("build date: %s, %s\n" % (prepr(bpy.app.build_date), prepr(bpy.app.build_time)))
+    output.write("platform: %s\n" % prepr(bpy.app.build_platform))
+    output.write("binary path: %s\n" % prepr(bpy.app.binary_path))
+    output.write("build cflags: %s\n" % prepr(bpy.app.build_cflags))
+    output.write("build cxxflags: %s\n" % prepr(bpy.app.build_cxxflags))
+    output.write("build linkflags: %s\n" % prepr(bpy.app.build_linkflags))
+    output.write("build system: %s\n" % prepr(bpy.app.build_system))
 
     # python info
     output.write("\nPython:\n")
@@ -113,10 +99,22 @@ def write_sysinfo(op):
     ffmpeg = bpy.app.ffmpeg
     if ffmpeg.supported:
         for lib in ("avcodec", "avdevice", "avformat", "avutil", "swscale"):
-            output.write("%r:%r%r\n" % (lib, " " * (10 - len(lib)),
+            output.write("%s:%s%r\n" % (lib, " " * (10 - len(lib)),
                          getattr(ffmpeg, lib + "_version_string")))
     else:
         output.write("Blender was built without FFmpeg support\n")
+
+    if bpy.app.build_options.sdl:
+        output.write("\nSDL\n")
+        output.write(lilies)
+        output.write("Version: %s\n" % bpy.app.sdl.version_string)
+        output.write("Loading method: ")
+        if bpy.app.build_options.sdl_dynload:
+            output.write("dynamically loaded by Blender (WITH_SDL_DYNLOAD=ON)\n")
+        else:
+            output.write("linked (WITH_SDL_DYNLOAD=OFF)\n")
+        if not bpy.app.sdl.available:
+            output.write("WARNING: Blender could not load SDL library\n")
 
     output.write("\nOther Libraries:\n")
     output.write(lilies)
@@ -148,21 +146,24 @@ def write_sysinfo(op):
     else:
         output.write("Blender was built without Cycles support\n")
 
+    if not bpy.app.build_options.sdl:
+        output.write("SDL: Blender was built without SDL support\n")
+
     if bpy.app.background:
         output.write("\nOpenGL: missing, background mode\n")
     else:
         output.write("\nOpenGL\n")
         output.write(lilies)
-        version = bgl.glGetString(bgl.GL_RENDERER);
+        version = bgl.glGetString(bgl.GL_RENDERER)
         output.write("renderer:\t%r\n" % version)
         output.write("vendor:\t\t%r\n" % (bgl.glGetString(bgl.GL_VENDOR)))
         output.write("version:\t%r\n" % (bgl.glGetString(bgl.GL_VERSION)))
         output.write("extensions:\n")
 
         glext = bgl.glGetString(bgl.GL_EXTENSIONS)
-        glext = textWrap(glext, 70)
+        glext = textwrap.wrap(glext, 70)
         for l in glext:
-            output.write("\t\t%r\n" % (l))
+            output.write("\t%s\n" % l)
 
         output.write("\nImplementation Dependent OpenGL Limits:\n")
         output.write(lilies)
@@ -186,6 +187,12 @@ def write_sysinfo(op):
             output.write("Maximum Fragment Image Units:\t%d\n" % limit[0])
             bgl.glGetIntegerv(bgl.GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, limit)
             output.write("Maximum Pipeline Image Units:\t%d\n" % limit[0])
+
+    if bpy.app.build_options.cycles:
+        import cycles
+        output.write("\nCycles\n")
+        output.write(lilies)
+        output.write(cycles.engine.system_info())
 
     output.current_line_index = 0
 

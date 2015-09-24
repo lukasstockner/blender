@@ -182,7 +182,7 @@ static void graph_init(struct wmWindowManager *UNUSED(wm), ScrArea *sa)
 {
 	SpaceIpo *sipo = (SpaceIpo *)sa->spacedata.first;
 	
-	/* init dopesheet data if non-existant (i.e. for old files) */
+	/* init dopesheet data if non-existent (i.e. for old files) */
 	if (sipo->ads == NULL) {
 		sipo->ads = MEM_callocN(sizeof(bDopeSheet), "GraphEdit DopeSheet");
 		sipo->ads->source = (ID *)(G.main->scene.first); // FIXME: this is a really nasty hack here for now...
@@ -293,7 +293,7 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* markers */
 	UI_view2d_view_orthoSpecial(ar, v2d, 1);
-	draw_markers_time(C, 0);
+	ED_markers_draw(C, DRAW_MARKERS_MARGIN);
 	
 	/* preview range */
 	UI_view2d_view_ortho(v2d);
@@ -384,7 +384,7 @@ static void graph_buttons_area_init(wmWindowManager *wm, ARegion *ar)
 
 static void graph_buttons_area_draw(const bContext *C, ARegion *ar)
 {
-	ED_region_panels(C, ar, 1, NULL, -1);
+	ED_region_panels(C, ar, NULL, -1, true);
 }
 
 static void graph_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)

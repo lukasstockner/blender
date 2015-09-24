@@ -27,9 +27,11 @@ setup_libdirs()
 
 blender_include_dirs(
 	../../intern/guardedalloc
+	../../intern/glew-mx
 	../blender/blenlib
 	../blender/blenkernel
 	../blender/blenloader
+	../blender/depsgraph
 	../blender/editors/include
 	../blender/makesrna
 	../blender/imbuf
@@ -38,6 +40,9 @@ blender_include_dirs(
 	../blender/gpu
 	../blender/windowmanager
 )
+
+add_definitions(${GL_DEFINITIONS})
+blender_include_dirs("${GLEW_INCLUDE_PATH}")
 
 if(WIN32)
 	blender_include_dirs(../../intern/utfconv)
@@ -77,6 +82,10 @@ if(WITH_GAMEENGINE)
 endif()
 
 if(WITH_SDL)
+	if(WITH_SDL_DYNLOAD)
+		add_definitions(-DWITH_SDL_DYNLOAD)
+		blender_include_dirs(../../extern/sdlew/include)
+	endif()
 	add_definitions(-DWITH_SDL)
 endif()
 
@@ -156,20 +165,27 @@ if(WITH_BUILDINFO)
 	#       except when used as an include path.
 
 	# include the output directory, where the buildinfo.h file is generated
-	include_directories(${CMAKE_BINARY_DIR}/source/creator)
+	include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+
+	# XXX, "_buildinfo.h" is used twice here,
+	# because we rely on that file being detected as missing
+	# every build so that the real header "buildinfo.h" is updated.
+	#
+	# Keep this until we find a better way to resolve!
 
 	# a custom target that is always built
 	add_custom_target(buildinfo ALL
-		DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/buildinfo.h)
+		DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/_buildinfo.h)
 
-	# creates svnheader.h using cmake script
-	add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/buildinfo.h
+	# creates buildinfo.h using cmake script
+	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/_buildinfo.h
 		COMMAND ${CMAKE_COMMAND}
 		-DSOURCE_DIR=${CMAKE_SOURCE_DIR}
 		-P ${CMAKE_SOURCE_DIR}/build_files/cmake/buildinfo.cmake)
 
 	# buildinfo.h is a generated file
-	set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/buildinfo.h
+	set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/buildinfo.h
 		PROPERTIES GENERATED TRUE
 		HEADER_FILE_ONLY TRUE)
 
@@ -207,6 +223,7 @@ if(WITH_PYTHON_MODULE)
 		set_target_properties(
 			blender
 			PROPERTIES
+				MACOSX_BUNDLE
 				LINK_FLAGS_RELEASE "${PLATFORM_LINKFLAGS}"
 				LINK_FLAGS_DEBUG "${PLATFORM_LINKFLAGS_DEBUG}"
 		)
@@ -230,23 +247,13 @@ if(WITH_BUILDINFO)
 	add_dependencies(blender buildinfo)
 endif()
 
-# Post build steps for bundling/packaging.
-
-
-if(MSVC_IDE)
-	# ${CMAKE_CFG_INTDIR} should replace \${BUILD_TYPE} when using add_command
-	set(TARGETDIR ${EXECUTABLE_OUTPUT_PATH}/\${BUILD_TYPE})
-elseif(APPLE)
-	set(TARGETDIR ${EXECUTABLE_OUTPUT_PATH}/\${BUILD_TYPE})
-else()
-	set(TARGETDIR ${EXECUTABLE_OUTPUT_PATH})
-endif()
 
 set(BLENDER_TEXT_FILES
 	${CMAKE_SOURCE_DIR}/release/text/GPL-license.txt
 	${CMAKE_SOURCE_DIR}/release/text/Python-license.txt
 	${CMAKE_SOURCE_DIR}/release/text/copyright.txt
-	${CMAKE_SOURCE_DIR}/release/text/readme.html
+	# generate this file
+	# ${CMAKE_SOURCE_DIR}/release/text/readme.html
 	${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-bfont.ttf.txt
 )
 
@@ -262,24 +269,28 @@ endif()
 # Platform Specific Var: TARGETDIR_VER
 
 if(UNIX AND NOT APPLE)
-	if(WITH_INSTALL_PORTABLE)
-		set(TARGETDIR_VER ${TARGETDIR}/${BLENDER_VERSION})
-	else()
-		if(WITH_PYTHON_MODULE)
-			set(TARGETDIR_VER ${PYTHON_LIBPATH}/python${PYTHON_VERSION}/site-packages/${BLENDER_VERSION})
+	if(WITH_PYTHON_MODULE)
+		if(WITH_INSTALL_PORTABLE)
+			set(TARGETDIR_VER ${BLENDER_VERSION})
 		else()
-			set(TARGETDIR_VER ${CMAKE_INSTALL_PREFIX}/share/blender/${BLENDER_VERSION})
+			set(TARGETDIR_VER ${PYTHON_SITE_PACKAGES}/${BLENDER_VERSION})
+		endif()
+	else()
+		if(WITH_INSTALL_PORTABLE)
+			set(TARGETDIR_VER ${BLENDER_VERSION})
+		else()
+			set(TARGETDIR_VER share/blender/${BLENDER_VERSION})
 		endif()
 	endif()
 
 elseif(WIN32)
-	set(TARGETDIR_VER ${TARGETDIR}/${BLENDER_VERSION})
+	set(TARGETDIR_VER ${BLENDER_VERSION})
 
 elseif(APPLE)
 	if(WITH_PYTHON_MODULE)
-		set(TARGETDIR_VER ${TARGETDIR}/${BLENDER_VERSION})
+		set(TARGETDIR_VER ${BLENDER_VERSION})
 	else()
-		set(TARGETDIR_VER ${TARGETDIR}/blender.app/Contents/Resources/${BLENDER_VERSION})
+		set(TARGETDIR_VER blender.app/Contents/Resources/${BLENDER_VERSION})
 	endif()
 
 endif()
@@ -397,74 +408,74 @@ endif()
 if(UNIX AND NOT APPLE)
 
 	if(NOT WITH_PYTHON_MODULE)
-		install(
-			CODE
-			"
-			execute_process(COMMAND
-							${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py
-							${TARGETDIR}/blender
-							${TARGETDIR}/blender.1)
-			"
-		)
+		if(WITH_DOC_MANPAGE)
+			add_custom_target(
+				blender_man_page ALL
+				COMMAND ${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py
+				        ${EXECUTABLE_OUTPUT_PATH}/blender
+				        ${CMAKE_CURRENT_BINARY_DIR}/blender.1)
+			add_dependencies(blender_man_page blender)
+		endif()
 	endif()
 
 	# there are a few differences between portable and system install
-	if(WITH_INSTALL_PORTABLE)
+	if(WITH_PYTHON_MODULE)
+		if(WITH_INSTALL_PORTABLE)
+			install(
+				TARGETS blender
+				DESTINATION "."
+			)
+		else()
+			install(
+				TARGETS blender
+				LIBRARY DESTINATION ${PYTHON_SITE_PACKAGES}
+			)
+		endif()
+		# none of the other files are needed currently
+	elseif(WITH_INSTALL_PORTABLE)
 		install(
-			FILES ${TARGETDIR}/blender.1
-			DESTINATION ${TARGETDIR}
+			TARGETS blender
+			DESTINATION "."
 		)
 
+		if(WITH_DOC_MANPAGE)
+			install(
+				FILES ${CMAKE_CURRENT_BINARY_DIR}/blender.1
+				DESTINATION "."
+			)
+		endif()
 		install(
 			FILES
 				${CMAKE_SOURCE_DIR}/release/freedesktop/blender.desktop
 				${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/blender.svg
-			DESTINATION ${TARGETDIR}
+			DESTINATION "."
 		)
 
 		install(
 			PROGRAMS
 			${CMAKE_SOURCE_DIR}/release/bin/blender-thumbnailer.py
-			DESTINATION ${TARGETDIR}
+			DESTINATION "."
 		)
 
-		install(
-			FILES ${BLENDER_TEXT_FILES}
-			DESTINATION ${TARGETDIR}
-		)
-
+		set(BLENDER_TEXT_FILES_DESTINATION ".")
 	else()
 		# main blender binary
-		if(WITH_PYTHON_MODULE)
-			install(
-				TARGETS blender
-				LIBRARY
-				DESTINATION ${PYTHON_LIBPATH}/python${PYTHON_VERSION}/site-packages
-			)
-		else()
-			install(
-				PROGRAMS ${TARGETDIR}/blender
-				DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-			)
+		install(
+			TARGETS blender
+			DESTINATION bin
+		)
+		if(WITH_DOC_MANPAGE)
 			# manpage only with 'blender' binary
 			install(
-				FILES ${TARGETDIR}/blender.1
-				DESTINATION ${CMAKE_INSTALL_PREFIX}/share/man/man1
-			)
-		endif()
-
-
-		if(WITH_GAMEENGINE AND WITH_PLAYER)
-			install(
-				PROGRAMS ${TARGETDIR}/blenderplayer
-				DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+				FILES ${CMAKE_CURRENT_BINARY_DIR}/blender.1
+				DESTINATION share/man/man1
 			)
 		endif()
 
 		# misc files
 		install(
 			FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/blender.desktop
-			DESTINATION ${CMAKE_INSTALL_PREFIX}/share/applications
+			DESTINATION share/applications
 		)
 		install(
 			DIRECTORY
@@ -474,25 +485,28 @@ if(UNIX AND NOT APPLE)
 				${CMAKE_SOURCE_DIR}/release/freedesktop/icons/32x32
 				${CMAKE_SOURCE_DIR}/release/freedesktop/icons/48x48
 				${CMAKE_SOURCE_DIR}/release/freedesktop/icons/256x256
-			DESTINATION ${CMAKE_INSTALL_PREFIX}/share/icons/hicolor
+			DESTINATION share/icons/hicolor
 			PATTERN "*.svg" EXCLUDE
 		)
 		install(
 			FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/blender.svg
-			DESTINATION ${CMAKE_INSTALL_PREFIX}/share/icons/hicolor/scalable/apps
+			DESTINATION share/icons/hicolor/scalable/apps
 		)
 		install(
 			PROGRAMS ${CMAKE_SOURCE_DIR}/release/bin/blender-thumbnailer.py
-			DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+			DESTINATION bin
 		)
-		install(
-			FILES ${BLENDER_TEXT_FILES}
-			DESTINATION ${CMAKE_INSTALL_PREFIX}/share/doc/blender
-		)
+		set(BLENDER_TEXT_FILES_DESTINATION share/doc/blender)
 	endif()
 
 	if(WITH_PYTHON)
 		if(WITH_PYTHON_INSTALL)
+
+			install(
+				FILES ${PYTHON_EXECUTABLE}
+				DESTINATION ${TARGETDIR_VER}/python/bin
+			)
+
 			# on some platforms (like openSUSE) Python is linked
 			# to be used from lib64 folder.
 			# determine this from Python's libraries path
@@ -528,7 +542,7 @@ if(UNIX AND NOT APPLE)
 			)
 
 			# # doesnt work, todo
-			# install(CODE "execute_process(COMMAND find ${TARGETDIR}/${BLENDER_VERSION}/python/lib/ -name '*.so' -exec strip -s {} '\;')")
+			# install(CODE "execute_process(COMMAND find ${CMAKE_INSTALL_PREFIX}/${BLENDER_VERSION}/python/lib/ -name '*.so' -exec strip -s {} '\;')")
 
 			if(WITH_PYTHON_INSTALL_NUMPY)
 				# Install to the same directory as the source, so debian-like
@@ -601,92 +615,122 @@ if(UNIX AND NOT APPLE)
 	endif()
 elseif(WIN32)
 
-	install(
-		FILES ${BLENDER_TEXT_FILES}
-		DESTINATION ${TARGETDIR}
-	)
+	set(BLENDER_TEXT_FILES_DESTINATION ".")
 
 	if(WITH_PYTHON)
 		string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
 
 		install(
 			FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}.dll ${LIBDIR}/python/lib/sqlite3.dll
-			DESTINATION ${TARGETDIR}
+			DESTINATION "."
 			CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
 		)
 
 		install(
 			FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}_d.dll ${LIBDIR}/python/lib/sqlite3_d.dll
-			DESTINATION ${TARGETDIR}
+			DESTINATION "."
 			CONFIGURATIONS Debug
 		)
 
 		if(WITH_PYTHON_INSTALL)
 			# note, as far as python is concerned 'RelWithDebInfo' is not debug since its without debug flags.
 
-			# create the directory in multiple steps, so it actually gets created when it doesn't exist yet
-			install(
-				CODE
-				"
-				message(\"creating ${TARGETDIR_VER}/python/lib\")
-				file(MAKE_DIRECTORY \"${TARGETDIR_VER}/python\")
-				file(MAKE_DIRECTORY \"${TARGETDIR_VER}/python/lib\")
-				message(\"done creating dir\")
-				"
-			)
+			install(DIRECTORY DESTINATION ${TARGETDIR_VER}/python)
+			install(DIRECTORY DESTINATION ${TARGETDIR_VER}/python/lib)
 
+			# WARNING: its important that 'CMAKE_INSTALL_CONFIG_NAME' is evaluated at build time
+			# and _NOT_ configuration time, when modifying the lines below,
+			# check it works in both Release & Debug mode.
+			#
+			# Edit with extreme care! - Campbell
+
+			# extract python
 			install(
 				CODE
 				"
-				if(\"\${CMAKE_INSTALL_CONFIG_NAME}\" STREQUAL \"Debug\")
-					execute_process(COMMAND \"${CMAKE_COMMAND}\" -E chdir \"${TARGETDIR_VER}/python/lib\"
-						\"${CMAKE_COMMAND}\" -E tar xzfv \"${LIBDIR}/release/python${_PYTHON_VERSION_NO_DOTS}_d.tar.gz\")
+				message(STATUS \"Extracting Python to: \${CMAKE_INSTALL_PREFIX}/${BLENDER_VERSION}/python\")
+				if(\"\${CMAKE_INSTALL_CONFIG_NAME}\" MATCHES \"^([Dd][Ee][Bb][Uu][Gg])$\")
+					set(PYTHON_ZIP \"${LIBDIR}/release/python${_PYTHON_VERSION_NO_DOTS}_d.tar.gz\")
 				else()
-					execute_process(COMMAND \"${CMAKE_COMMAND}\" -E chdir \"${TARGETDIR_VER}/python/lib\"
-						\"${CMAKE_COMMAND}\" -E tar xzfv \"${LIBDIR}/release/python${_PYTHON_VERSION_NO_DOTS}.tar.gz\")
+					set(PYTHON_ZIP \"${LIBDIR}/release/python${_PYTHON_VERSION_NO_DOTS}.tar.gz\")
 				endif()
+
+				execute_process(
+					COMMAND \${CMAKE_COMMAND} -E make_directory
+					        \"\${CMAKE_INSTALL_PREFIX}/${BLENDER_VERSION}/python\"
+					COMMAND \${CMAKE_COMMAND} -E
+					        chdir \"\${CMAKE_INSTALL_PREFIX}/${BLENDER_VERSION}/python\"
+					        \${CMAKE_COMMAND} -E
+					        tar xzfv \"\${PYTHON_ZIP}\"
+				)
+				unset(PYTHON_ZIP)
 				"
 			)
-
-			if(WITH_PYTHON_INSTALL_NUMPY)
-				install(
-					CODE
-					"
-					execute_process(COMMAND \"${CMAKE_COMMAND}\" -E chdir \"${TARGETDIR_VER}/python/lib/site-packages\"
-						\"${CMAKE_COMMAND}\" -E tar xzfv \"${LIBDIR}/release/python${_PYTHON_VERSION_NO_DOTS}_numpy_1.8.tar.gz\")
-					"
-				)
-			endif()
 
 			# release/site-packages
 			install(
-				CODE
-				"
-				execute_process(COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
-					${LIBDIR}/release/site-packages
-					\"${TARGETDIR_VER}/python/lib/site-packages\")
-				"
+				DIRECTORY ${LIBDIR}/release/site-packages
+				DESTINATION ${BLENDER_VERSION}/python/lib
+				PATTERN ".svn" EXCLUDE
+				PATTERN "__pycache__" EXCLUDE           # * any cache *
+				PATTERN "*.pyc" EXCLUDE                 # * any cache *
+				PATTERN "*.pyo" EXCLUDE                 # * any cache *)
 			)
 
+			if(WITH_PYTHON_INSTALL_NUMPY)
+				add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${BLENDER_VERSION}/python/lib/site-packages
+					COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/${BLENDER_VERSION}/python/lib/site-packages)
 
-			# doesnt work, todo
-			# install(CODE "execute_process(COMMAND find ${TARGETDIR}/${BLENDER_VERSION}/python/lib/ -name '*.so' -exec strip -s {} '\;')")
+				add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${BLENDER_VERSION}/python/lib/site-packages/numpy
+					COMMAND ${CMAKE_COMMAND} -E tar xzvf "${LIBDIR}/release/python${_PYTHON_VERSION_NO_DOTS}_numpy_1.9.tar.gz"
+					DEPENDS ${LIBDIR}/release/python${_PYTHON_VERSION_NO_DOTS}_numpy_1.9.tar.gz
+						${CMAKE_CURRENT_BINARY_DIR}/${BLENDER_VERSION}/python/lib/site-packages
+					WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${BLENDER_VERSION}/python/lib/site-packages)
+				add_custom_target(python_numpy ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${BLENDER_VERSION}/python/lib/site-packages/numpy)
+				install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${BLENDER_VERSION}/python/lib/site-packages/numpy
+						DESTINATION ${BLENDER_VERSION}/python/lib/site-packages)
+			endif()
+
+
+			# TODO(sergey): For unti we've got better way to deal with python binary
+			install(
+				FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}.dll
+				DESTINATION ${BLENDER_VERSION}/python/bin
+				CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
+			)
+			install(
+				FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}_d.dll
+				DESTINATION ${BLENDER_VERSION}/python/bin
+				CONFIGURATIONS Debug
+			)
 		endif()
 
 		unset(_PYTHON_VERSION_NO_DOTS)
 	endif()
 
+	# EGL Runtime Components
+	if(WITH_GL_EGL)
+		if(WIN32)
+			install(FILES "${OPENGLES_DLL}"     DESTINATION ".")
+			install(FILES "${OPENGLES_EGL_DLL}" DESTINATION ".")
+
+			if(WITH_GL_ANGLE)
+				install(FILES "${D3DCOMPILER_DLL}" DESTINATION ".")
+			endif()
+		endif()
+	endif()
+
 	if(MSVC)
 		install(
 			FILES ${LIBDIR}/pthreads/lib/pthreadVC2.dll
-			DESTINATION ${TARGETDIR}
+			DESTINATION "."
 		)
 	else()
 		#MinGW64 comes with own version. For portable builds it will probaly have to be copied to work
 		if(NOT WITH_MINGW64)
 			install(
 				FILES ${LIBDIR}/pthreads/lib/pthreadGC2.dll
-				DESTINATION ${TARGETDIR}
+				DESTINATION "."
 			)
 		elseif(WITH_MINGW64)
 			install(
@@ -694,14 +738,14 @@ elseif(WIN32)
 					${LIBDIR}/binaries/libgcc_s_sjlj-1.dll
 					${LIBDIR}/binaries/libwinpthread-1.dll
 					${LIBDIR}/binaries/libstdc++-6.dll
-				DESTINATION ${TARGETDIR}
+				DESTINATION "."
 			)
 			
 			if(WITH_OPENMP)
 				install(
 					FILES 
 					${LIBDIR}/binaries/libgomp-1.dll
-					DESTINATION ${TARGETDIR}
+					DESTINATION "."
 				)
 			endif()
 		endif()
@@ -718,7 +762,7 @@ elseif(WIN32)
 					${LIBDIR}/ffmpeg/lib/swscale-2.dll
 					${LIBDIR}/ffmpeg/lib/swresample-0.dll
 					${LIBDIR}/ffmpeg/lib/xvidcore.dll
-				DESTINATION ${TARGETDIR}
+				DESTINATION "."
 			)
 		else()
 			install(
@@ -728,7 +772,7 @@ elseif(WIN32)
 					${LIBDIR}/ffmpeg/lib/avdevice-55.dll
 					${LIBDIR}/ffmpeg/lib/avutil-52.dll
 					${LIBDIR}/ffmpeg/lib/swscale-2.dll
-				DESTINATION ${TARGETDIR}
+				DESTINATION "."
 			)
 		endif()
 	endif()
@@ -736,7 +780,7 @@ elseif(WIN32)
 	if(WITH_CODEC_SNDFILE)
 		install(
 			FILES ${LIBDIR}/sndfile/lib/libsndfile-1.dll
-			DESTINATION ${TARGETDIR}
+			DESTINATION "."
 		)
 	endif()
 
@@ -744,28 +788,37 @@ elseif(WIN32)
 		install(
 			FILES
 				${LIBDIR}/openal/lib/OpenAL32.dll
-				${LIBDIR}/openal/lib/wrap_oal.dll
-			DESTINATION ${TARGETDIR}
+			DESTINATION "."
 		)
 	endif()
 
 	if(WITH_SDL)
 		install(
-			FILES ${LIBDIR}/sdl/lib/SDL.dll
-			DESTINATION ${TARGETDIR}
+			FILES ${LIBDIR}/sdl/lib/SDL2.dll
+			DESTINATION "."
+		)
+	endif()
+	
+	if(WITH_SYSTEM_AUDASPACE)
+		install(
+			FILES
+				${LIBDIR}/audaspace/lib/audaspace.dll
+				${LIBDIR}/audaspace/lib/audaspace-c.dll
+				${LIBDIR}/audaspace/lib/audaspace-py.dll
+			DESTINATION "."
 		)
 	endif()
 
 	if(NOT CMAKE_CL_64)
 		install(
 			FILES ${LIBDIR}/thumbhandler/lib/BlendThumb.dll
-			DESTINATION ${TARGETDIR}
+			DESTINATION "."
 		)
 	endif()
 		
 	install( # x86 builds can run on x64 Windows, so this is required at all times
 		FILES ${LIBDIR}/thumbhandler/lib/BlendThumb64.dll
-		DESTINATION ${TARGETDIR}
+		DESTINATION "."
 	)
 
 	if(WITH_OPENCOLORIO)
@@ -774,13 +827,13 @@ elseif(WIN32)
 			install(
 				FILES
 					${OCIOBIN}/OpenColorIO.dll
-				DESTINATION ${TARGETDIR}
+				DESTINATION "."
 			)
 		else()
 			install(
 				FILES
 					${OCIOBIN}/libOpenColorIO.dll
-				DESTINATION ${TARGETDIR}
+				DESTINATION "."
 			)
 		endif()
 	endif()
@@ -808,41 +861,57 @@ elseif(APPLE)
 	set(OSX_APP_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/blender.app)
 
 	# setup Info.plist
-	execute_process(COMMAND date "+%Y-%m-%d" OUTPUT_VARIABLE BLENDER_DATE OUTPUT_STRIP_TRAILING_WHITESPACE)
+	execute_process(COMMAND date "+%Y-%m-%d"
+	                OUTPUT_VARIABLE BLENDER_DATE
+	                OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 	set_target_properties(blender PROPERTIES
 		MACOSX_BUNDLE_INFO_PLIST ${OSX_APP_SOURCEDIR}/Contents/Info.plist
 		MACOSX_BUNDLE_SHORT_VERSION_STRING ${BLENDER_VERSION}
 		MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION} ${BLENDER_DATE}")
 
+	# Gather the date in finder-style
+	execute_process(COMMAND date "+%m/%d/%Y/%H:%M"
+	OUTPUT_VARIABLE SETFILE_DATE
+	OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+	# Give the bundle actual creation/modification date
+	execute_process(COMMAND SetFile -d ${SETFILE_DATE} -m ${SETFILE_DATE} ${EXECUTABLE_OUTPUT_PATH}/blender.app)
+
+	install(
+		TARGETS blender
+		DESTINATION "."
+	)
 
 	# install release and app files
-	install(
-		FILES ${BLENDER_TEXT_FILES}
-		DESTINATION ${TARGETDIR}
-	)
+	set(BLENDER_TEXT_FILES_DESTINATION ".")
 
 	install(
 		FILES ${OSX_APP_SOURCEDIR}/Contents/PkgInfo
-		DESTINATION ${TARGETDIR}/blender.app/Contents
+		DESTINATION blender.app/Contents
 	)
 
 	install_dir(
 		${OSX_APP_SOURCEDIR}/Contents/Resources
-		\${TARGETDIR}/blender.app/Contents/
+		blender.app/Contents/
 	)
 
 	if(WITH_OPENMP AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
 		install(
 			FILES ${LIBDIR}/openmp/lib/libiomp5.dylib
-			DESTINATION ${TARGETDIR}/blender.app/Contents/MacOS
+			DESTINATION blender.app/Contents/Resources/lib/
+		)
+		install(
+			FILES ${LIBDIR}/openmp/LICENSE.txt
+			DESTINATION "."
+			RENAME LICENSE-libiomp5.txt
 		)
 	endif()
 
 	if(WITH_LLVM AND NOT LLVM_STATIC)
 		install(
 			FILES ${LIBDIR}/llvm/lib/libLLVM-3.4.dylib
-			DESTINATION ${TARGETDIR}/blender.app/Contents/MacOS
+			DESTINATION blender.app/Contents/MacOS
 		)
 	endif()
 
@@ -860,9 +929,10 @@ elseif(APPLE)
 
 		add_custom_command(
 			OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python
-			COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/python/
-			COMMAND mkdir ${CMAKE_CURRENT_BINARY_DIR}/python/
-			COMMAND unzip -q ${LIBDIR}/release/${PYTHON_ZIP} -d ${CMAKE_CURRENT_BINARY_DIR}/python/
+			COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/python/"
+			COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/python/"
+			COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_CURRENT_BINARY_DIR}/python/"
+			        ${CMAKE_COMMAND} -E tar xzfv "${LIBDIR}/release/${PYTHON_ZIP}"
 			DEPENDS ${LIBDIR}/release/${PYTHON_ZIP})
 
 		add_dependencies(blender extractpyzip)
@@ -885,7 +955,7 @@ elseif(APPLE)
 	if(WITH_GAMEENGINE AND WITH_PLAYER)
 		set(OSX_APP_PLAYER_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/blenderplayer.app)
 		set(PLAYER_SOURCEINFO ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Info.plist)
-		set(PLAYER_TARGETDIR_VER ${TARGETDIR}/blenderplayer.app/Contents/MacOS/${BLENDER_VERSION})
+		set(PLAYER_TARGETDIR_VER blenderplayer.app/Contents/Resources/${BLENDER_VERSION})
 
 
 		# important to make a clean  install each time else old scripts get loaded.
@@ -894,23 +964,35 @@ elseif(APPLE)
 			"file(REMOVE_RECURSE ${PLAYER_TARGETDIR_VER})"
 		)
 
+		# Give the bundle actual creation/modification date
+		execute_process(COMMAND SetFile -d ${SETFILE_DATE} -m ${SETFILE_DATE} ${EXECUTABLE_OUTPUT_PATH}/blenderplayer.app)
+
 		install(
 			FILES ${OSX_APP_PLAYER_SOURCEDIR}/Contents/PkgInfo
-			DESTINATION ${TARGETDIR}/blenderplayer.app/Contents
+			DESTINATION blenderplayer.app/Contents
 		)
 
 		install_dir(
 			${OSX_APP_PLAYER_SOURCEDIR}/Contents/Resources
-			\${TARGETDIR}/blenderplayer.app/Contents/
+			blenderplayer.app/Contents/
 		)
+
+		if(WITH_OPENMP AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
+		install(
+		FILES ${LIBDIR}/openmp/lib/libiomp5.dylib
+		DESTINATION blenderplayer.app/Contents/Resources/lib/
+		)
+		endif()
+
 
 		# python
 		if(WITH_PYTHON AND NOT WITH_PYTHON_FRAMEWORK)
 			add_custom_command(
 				OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python
-				COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/python/
-				COMMAND mkdir ${CMAKE_CURRENT_BINARY_DIR}/python/
-				COMMAND unzip -q ${LIBDIR}/release/${PYTHON_ZIP} -d ${CMAKE_CURRENT_BINARY_DIR}/python/
+				COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/python/"
+				COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/python/"
+				COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_CURRENT_BINARY_DIR}/python/"
+				        ${CMAKE_COMMAND} -E tar xzfv "${LIBDIR}/release/${PYTHON_ZIP}"
 				DEPENDS ${LIBDIR}/release/${PYTHON_ZIP})
 
 			# copy extracted python files
@@ -927,12 +1009,33 @@ endif()
 # -----------------------------------------------------------------------------
 # Generic Install, for all targets
 
+if(DEFINED BLENDER_TEXT_FILES_DESTINATION)
 
+	install(
+		CODE
+		"
+		file(READ \"${CMAKE_SOURCE_DIR}/release/text/readme.html\" DATA_SRC)
+		string(REGEX REPLACE \"BLENDER_VERSION\" \"${BLENDER_VERSION}\" DATA_DST \"\${DATA_SRC}\")
+		file(WRITE \"\${CMAKE_BINARY_DIR}/release/text/readme.html\" \"\${DATA_DST}\")
+		unset(DATA_SRC)
+		unset(DATA_DST)
+		"
+	)
+	list(APPEND BLENDER_TEXT_FILES
+		${CMAKE_BINARY_DIR}/release/text/readme.html
+	)
+
+	install(
+		FILES ${BLENDER_TEXT_FILES}
+		DESTINATION "${BLENDER_TEXT_FILES_DESTINATION}"
+	)
+endif()
 
 # install more files specified elsewhere
 delayed_do_install(${TARGETDIR_VER})
 
 unset(BLENDER_TEXT_FILES)
+unset(BLENDER_TEXT_FILES_DESTINATION)
 
 
 # -----------------------------------------------------------------------------
@@ -941,7 +1044,6 @@ unset(BLENDER_TEXT_FILES)
 add_dependencies(blender makesdna)
 
 setup_blender_sorted_libs()
-
 target_link_libraries(blender ${BLENDER_SORTED_LIBS})
 
 setup_liblinks(blender)
@@ -959,4 +1061,25 @@ if(WIN32 AND NOT WITH_PYTHON_MODULE)
 
 	set_target_properties(blender PROPERTIES OUTPUT_NAME blender-app)
 	set_target_properties(blender-launcher PROPERTIES OUTPUT_NAME blender)
+
+	install(TARGETS blender blender-launcher
+			COMPONENT Blender
+			DESTINATION ".")
+
+	if(MSVC12_REDIST_DIR)
+		if(CMAKE_CL_64)
+			set(_WIN_PLATFORM x64)
+		else()
+			set(_WIN_PLATFORM x86)
+		endif()
+		install(
+			FILES ${MSVC12_REDIST_DIR}/${_WIN_PLATFORM}/Microsoft.VC120.CRT/msvcp120.dll
+				  ${MSVC12_REDIST_DIR}/${_WIN_PLATFORM}/Microsoft.VC120.CRT/msvcr120.dll
+		DESTINATION ".")
+		if(WITH_OPENMP)
+			install(
+				FILES ${MSVC12_REDIST_DIR}/${_WIN_PLATFORM}/Microsoft.VC120.OpenMP/vcomp120.dll
+				DESTINATION ".")
+		endif()
+	endif()
 endif()

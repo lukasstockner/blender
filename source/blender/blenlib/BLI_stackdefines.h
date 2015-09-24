@@ -40,7 +40,7 @@
 #  define _STACK_SIZETEST(stack, off) (void)(stack), (void)(off)
 #  define _STACK_SWAP_TOTALLOC(stack_a, stack_b) (void)(stack_a), (void)(stack_b)
 #endif
-#define _STACK_BOUNDSTEST(stack, index) ((void)stack, BLI_assert(index >= 0 && index < _##stack##_index))
+#define _STACK_BOUNDSTEST(stack, index) ((void)stack, BLI_assert((unsigned int)index < _##stack##_index))
 
 
 #define STACK_SIZE(stack)           ((void)stack, (_##stack##_index))
@@ -63,6 +63,13 @@
 		if (--_##stack##_index != _i) { \
 			stack[_i] = stack[_##stack##_index]; \
 		} \
+	} (void)0
+#define STACK_DISCARD(stack, n) \
+	{ \
+		const unsigned int _n = n; \
+		BLI_assert(_##stack##_index >= _n); \
+		(void)stack; \
+		_##stack##_index -= _n; \
 	} (void)0
 #ifdef __GNUC__
 #define STACK_SWAP(stack_a, stack_b) { \

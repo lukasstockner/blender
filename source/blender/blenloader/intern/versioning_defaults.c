@@ -92,6 +92,9 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 				sculpt->detail_size = 12;
 			}
 		}
+
+		scene->gm.lodflag |= SCE_LOD_USE_HYST;
+		scene->gm.scehysteresis = 10;
 	}
 
 	for (linestyle = bmain->linestyle.first; linestyle; linestyle = linestyle->id.next) {
@@ -99,6 +102,7 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 		linestyle->sort_key = LS_SORT_KEY_DISTANCE_FROM_CAMERA;
 		linestyle->integration_type = LS_INTEGRATION_MEAN;
 		linestyle->texstep = 1.0;
+		linestyle->chain_count = 10;
 	}
 
 	{
@@ -117,9 +121,16 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 					}
 				}
 
-				/* Remove all stored panels, we want to use defaults (order, open/closed) as defined by UI code here! */
 				for (ar = area->regionbase.first; ar; ar = ar->next) {
+					/* Remove all stored panels, we want to use defaults (order, open/closed) as defined by UI code here! */
 					BLI_freelistN(&ar->panels);
+
+					/* simple fix for 3d view properties scrollbar being not set to top */
+					if (ar->regiontype == RGN_TYPE_UI) {
+						float offset = ar->v2d.tot.ymax - ar->v2d.cur.ymax;
+						ar->v2d.cur.ymax += offset;
+						ar->v2d.cur.ymin += offset;
+					}
 				}
 			}
 		}
@@ -137,14 +148,36 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 
 	{
 		Brush *br;
-		br = BKE_brush_add(bmain, "Fill");
-		br->imagepaint_tool = PAINT_TOOL_FILL;
-		br->ob_mode = OB_MODE_TEXTURE_PAINT;
+
+		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Fill");
+		if (!br) {
+			br = BKE_brush_add(bmain, "Fill", OB_MODE_TEXTURE_PAINT);
+			br->imagepaint_tool = PAINT_TOOL_FILL;
+			br->ob_mode = OB_MODE_TEXTURE_PAINT;
+		}
 
 		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Mask");
 		if (br) {
 			br->imagepaint_tool = PAINT_TOOL_MASK;
 			br->ob_mode |= OB_MODE_TEXTURE_PAINT;
+		}
+
+		/* remove polish brush (flatten/contrast does the same) */
+		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Polish");
+		if (br) {
+			BKE_libblock_free(bmain, br);
+		}
+
+		/* remove brush brush (huh?) from some modes (draw brushes do the same) */
+		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Brush");
+		if (br) {
+			BKE_libblock_free(bmain, br);
+		}
+
+		/* remove draw brush from texpaint (draw brushes do the same) */
+		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Draw");
+		if (br) {
+			br->ob_mode &= ~OB_MODE_TEXTURE_PAINT;
 		}
 	}
 }

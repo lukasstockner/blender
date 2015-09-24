@@ -36,7 +36,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -626,6 +626,9 @@ int where_on_path(Object *ob, float ctime, float vec[4], float dir[3], float qua
 	if (!bl) return 0;
 	if (!bl->nr) return 0;
 	if (bl->poly > -1) cycl = 1;
+
+	/* values below zero for non-cyclic curves give strange results */
+	BLI_assert(cycl || ctime >= 0.0f);
 
 	ctime *= (path->len - 1);
 	

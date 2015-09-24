@@ -56,12 +56,14 @@ public:
 	virtual void SetMouseState(RAS_MouseState mousestate);
 	virtual void SwapBuffers();
 	virtual void SetSwapInterval(int interval);
-	virtual int	GetSwapInterval();
+	virtual bool GetSwapInterval(int& intervalOut);
 
 	virtual int GetMouseX(int x) { return x; }
 	virtual int GetMouseY(int y) { return y; }
 	virtual float GetMouseNormalizedX(int x);
 	virtual float GetMouseNormalizedY(int y);
+
+	virtual void GetDisplayDimensions(int &width, int &height);
 
 	virtual void ResizeWindow(int width, int height);
 	virtual void SetFullScreen(bool enable);

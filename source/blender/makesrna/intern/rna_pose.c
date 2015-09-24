@@ -41,7 +41,7 @@
 
 #include "BLI_math.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "WM_types.h"
 
@@ -108,8 +108,6 @@ EnumPropertyItem color_sets_items[] = {
 
 #include "ED_object.h"
 #include "ED_armature.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "WM_api.h"
 
@@ -179,6 +177,13 @@ void rna_ActionGroup_colorset_set(PointerRNA *ptr, int value)
 	}
 }
 
+int rna_ActionGroup_is_custom_colorset_get(PointerRNA *ptr)
+{
+	bActionGroup *grp = ptr->data;
+	
+	return (grp->customCol < 0);
+}
+
 static void rna_BoneGroup_name_set(PointerRNA *ptr, const char *value)
 {
 	Object *ob = ptr->id.data;
@@ -187,7 +192,7 @@ static void rna_BoneGroup_name_set(PointerRNA *ptr, const char *value)
 	/* copy the new name into the name slot */
 	BLI_strncpy_utf8(agrp->name, value, sizeof(agrp->name));
 
-	BLI_uniquename(&ob->pose->agroups, agrp, CTX_DATA_(BLF_I18NCONTEXT_ID_ARMATURE, "Group"), '.',
+	BLI_uniquename(&ob->pose->agroups, agrp, CTX_DATA_(BLT_I18NCONTEXT_ID_ARMATURE, "Group"), '.',
 	               offsetof(bActionGroup, name), sizeof(agrp->name));
 }
 
@@ -224,7 +229,7 @@ static void rna_Pose_ik_solver_update(Main *bmain, Scene *UNUSED(scene), Pointer
 	Object *ob = ptr->id.data;
 	bPose *pose = ptr->data;
 
-	pose->flag |= POSE_RECALC;  /* checks & sorts pose channels */
+	BKE_pose_tag_recalc(bmain, pose);  /* checks & sorts pose channels */
 	DAG_relations_tag_update(bmain);
 	
 	BKE_pose_update_constraint_flags(pose);
@@ -251,7 +256,7 @@ static void rna_PoseChannel_rotation_axis_angle_set(PointerRNA *ptr, const float
 	
 	/* for now, assume that rotation mode is axis-angle */
 	pchan->rotAngle = value[0];
-	copy_v3_v3(pchan->rotAxis, (float *)&value[1]);
+	copy_v3_v3(pchan->rotAxis, &value[1]);
 	
 	/* TODO: validate axis? */
 }
@@ -349,7 +354,7 @@ static void rna_Itasc_update_rebuild(Main *bmain, Scene *scene, PointerRNA *ptr)
 	Object *ob = ptr->id.data;
 	bPose *pose = ob->pose;
 
-	pose->flag |= POSE_RECALC;  /* checks & sorts pose channels */
+	BKE_pose_tag_recalc(bmain, pose);  /* checks & sorts pose channels */
 	rna_Itasc_update(bmain, scene, ptr);
 }
 
@@ -414,7 +419,7 @@ static void rna_PoseChannel_bone_group_index_range(PointerRNA *ptr, int *min, in
 	bPose *pose = (ob) ? ob->pose : NULL;
 	
 	*min = 0;
-	*max = pose ? max_ii(0, BLI_countlist(&pose->agroups) - 1) : 0;
+	*max = pose ? max_ii(0, BLI_listbase_count(&pose->agroups) - 1) : 0;
 }
 
 static PointerRNA rna_Pose_active_bone_group_get(PointerRNA *ptr)
@@ -447,7 +452,7 @@ static void rna_Pose_active_bone_group_index_range(PointerRNA *ptr, int *min, in
 	bPose *pose = (bPose *)ptr->data;
 
 	*min = 0;
-	*max = max_ii(0, BLI_countlist(&pose->agroups) - 1);
+	*max = max_ii(0, BLI_listbase_count(&pose->agroups) - 1);
 }
 
 #if 0
@@ -674,6 +679,11 @@ void rna_def_actionbone_group_common(StructRNA *srna, int update_flag, const cha
 	RNA_def_property_enum_funcs(prop, NULL, "rna_ActionGroup_colorset_set", NULL);
 	RNA_def_property_ui_text(prop, "Color Set", "Custom color set to use");
 	RNA_def_property_update(prop, update_flag, update_cb);
+	
+	prop = RNA_def_property(srna, "is_custom_color_set", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_ActionGroup_is_custom_colorset_get", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Custom Color Set", "Color set is user-defined instead of a fixed theme color set");
 	
 	/* TODO: editing the colors for this should result in changes to the color type... */
 	prop = RNA_def_property(srna, "colors", PROP_POINTER, PROP_NONE);
@@ -1052,6 +1062,17 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
 	RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 	
+	prop = RNA_def_property(srna, "custom_shape_scale", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "custom_scale");
+	RNA_def_property_range(prop, 0.0f, 1000.0f);
+	RNA_def_property_ui_text(prop, "Custom Shape Scale", "Adjust the size of the custom shape");
+	RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+
+	prop = RNA_def_property(srna, "use_custom_shape_bone_size", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "drawflag", PCHAN_DRAW_NO_CUSTOM_BONE_SIZE);
+	RNA_def_property_ui_text(prop, "Use Bone Size", "Scale the custom object by the bone length");
+	RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+
 	prop = RNA_def_property(srna, "custom_shape_transform", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "custom_tx");
 	RNA_def_property_struct_type(prop, "PoseBone");

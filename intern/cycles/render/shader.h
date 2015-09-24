@@ -11,11 +11,24 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #ifndef __SHADER_H__
 #define __SHADER_H__
+
+#ifdef WITH_OSL
+#  if defined(_MSC_VER)
+/* Prevent OSL from polluting the context with weird macros from windows.h.
+ * TODO(sergey): Ideally it's only enough to have class/struct declarations in
+ * the header and skip header include here.
+ */
+#    define NOGDI
+#    define NOMINMAX
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  include <OSL/oslexec.h>
+#endif
 
 #include "attribute.h"
 #include "kernel_types.h"
@@ -23,11 +36,8 @@
 #include "util_map.h"
 #include "util_param.h"
 #include "util_string.h"
+#include "util_thread.h"
 #include "util_types.h"
-
-#ifdef WITH_OSL
-#include <OSL/oslexec.h>
-#endif
 
 CCL_NAMESPACE_BEGIN
 
@@ -42,6 +52,18 @@ struct float3;
 enum ShadingSystem {
 	SHADINGSYSTEM_OSL,
 	SHADINGSYSTEM_SVM
+};
+
+/* Keep those in sync with the python-defined enum. */
+enum VolumeSampling {
+	VOLUME_SAMPLING_DISTANCE = 0,
+	VOLUME_SAMPLING_EQUIANGULAR = 1,
+	VOLUME_SAMPLING_MULTIPLE_IMPORTANCE = 2,
+};
+
+enum VolumeInterpolation {
+	VOLUME_INTERPOLATION_LINEAR = 0,
+	VOLUME_INTERPOLATION_CUBIC = 1,
 };
 
 /* Shader describing the appearance of a Mesh, Light or Background.
@@ -68,7 +90,8 @@ public:
 	bool use_mis;
 	bool use_transparent_shadow;
 	bool heterogeneous_volume;
-	int volume_sampling_method;
+	VolumeSampling volume_sampling_method;
+	int volume_interpolation_method;
 
 	/* synchronization */
 	bool need_update;
@@ -81,9 +104,9 @@ public:
 	bool has_volume;
 	bool has_displacement;
 	bool has_surface_bssrdf;
-	bool has_converter_blackbody;
 	bool has_bssrdf_bump;
 	bool has_heterogeneous_volume;
+	bool has_object_dependency;
 
 	/* requested mesh attributes */
 	AttributeRequestSet attributes;
@@ -142,14 +165,25 @@ public:
 	 * have any shader assigned explicitly */
 	static void add_default(Scene *scene);
 
+	/* Selective nodes compilation. */
+	void get_requested_features(Scene *scene,
+	                            int& max_group,
+	                            int& features);
+
 protected:
 	ShaderManager();
 
 	typedef unordered_map<ustring, uint, ustringHash> AttributeIDMap;
 	AttributeIDMap unique_attribute_id;
 
-	size_t blackbody_table_offset;
+	thread_mutex lookup_table_mutex;
+	static vector<float> beckmann_table;
+
 	size_t beckmann_table_offset;
+
+	void get_requested_graph_features(ShaderGraph *graph,
+	                                  int& max_group,
+	                                  int& features);
 };
 
 CCL_NAMESPACE_END

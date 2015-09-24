@@ -101,7 +101,7 @@ static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
 	out->chanhash = NULL;
 	out->agroups.first= out->agroups.last= NULL;
 	out->ikdata = NULL;
-    out->ikparam = MEM_dupallocN(src->ikparam);
+	out->ikparam = MEM_dupallocN(src->ikparam);
 	out->flag |= POSE_GAME_ENGINE;
 	BLI_duplicatelist(&out->chanbase, &src->chanbase);
 
@@ -230,10 +230,15 @@ BL_ArmatureObject::BL_ArmatureObject(
 	m_origObjArma = armature; // Keep a copy of the original armature so we can fix drivers later
 	m_objArma = BKE_object_copy(armature);
 	m_objArma->data = BKE_armature_copy((bArmature *)armature->data);
+	// During object replication ob->data is increase, we decrease it now because we get a copy.
+	id_us_min(&((bArmature *)m_origObjArma->data)->id);
 	m_pose = m_objArma->pose;
-    // need this to get iTaSC working ok in the BGE
-    m_pose->flag |= POSE_GAME_ENGINE;
+	// need this to get iTaSC working ok in the BGE
+	m_pose->flag |= POSE_GAME_ENGINE;
 	memcpy(m_obmat, m_objArma->obmat, sizeof(m_obmat));
+
+	// The side-effect of this method registers this object as "animatable" with the KX_Scene.
+	GetActionManager();
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -247,8 +252,10 @@ BL_ArmatureObject::~BL_ArmatureObject()
 		delete channel;
 	}
 
-	if (m_objArma)
+	if (m_objArma) {
+		BKE_libblock_free(G.main, m_objArma->data);
 		BKE_libblock_free(G.main, m_objArma);
+	}
 }
 
 
@@ -265,7 +272,7 @@ void BL_ArmatureObject::LoadConstraints(KX_BlenderSceneConverter* converter)
 	// get the persistent pose structure
 	bPoseChannel* pchan;
 	bConstraint* pcon;
-	bConstraintTypeInfo* cti;
+	const bConstraintTypeInfo* cti;
 	Object* blendtarget;
 	KX_GameObject* gametarget;
 	KX_GameObject* gamesubtarget;

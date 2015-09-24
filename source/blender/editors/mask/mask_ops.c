@@ -510,12 +510,13 @@ static bool spline_under_mouse_get(const bContext *C,
                                    MaskLayer **mask_layer_r,
                                    MaskSpline **mask_spline_r)
 {
+	const float threshold = 19.0f;
 	ScrArea *sa = CTX_wm_area(C);
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MaskLayer *mask_layer;
 	int width, height;
 	float pixel_co[2];
-	float closest_dist_squared;
+	float closest_dist_squared = 0.0f;
 	MaskLayer *closest_layer = NULL;
 	MaskSpline *closest_spline = NULL;
 	bool undistort = false;
@@ -580,7 +581,18 @@ static bool spline_under_mouse_get(const bContext *C,
 			}
 		}
 	}
-	if (closest_spline != NULL) {
+	if (closest_dist_squared < SQUARE(threshold) && closest_spline != NULL) {
+		float diff_score;
+		if (ED_mask_find_nearest_diff_point(C, mask, co, threshold,
+		                                    false, NULL, true, false,
+		                                    NULL, NULL, NULL, NULL,
+		                                    &diff_score))
+		{
+			if (SQUARE(diff_score) < closest_dist_squared) {
+				return false;
+			}
+		}
+
 		*mask_layer_r = closest_layer;
 		*mask_spline_r = closest_spline;
 		return true;
@@ -772,7 +784,7 @@ static int slide_point_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	SlidePointData *slidedata;
 
 	if (mask == NULL) {
-		return OPERATOR_CANCELLED;
+		return OPERATOR_PASS_THROUGH;
 	}
 
 	slidedata = slide_point_customdata(C, op, event);
@@ -1164,7 +1176,7 @@ static bool slide_spline_curvature_check(bContext *C, const wmEvent *event)
 {
 	Mask *mask = CTX_data_edit_mask(C);
 	float co[2];
-	const float threshold = 19;
+	const float threshold = 19.0f;
 
 	ED_mask_mouse_pos(CTX_wm_area(C), CTX_wm_region(C), event->mval, co);
 
@@ -1182,7 +1194,7 @@ static bool slide_spline_curvature_check(bContext *C, const wmEvent *event)
 static SlideSplineCurvatureData *slide_spline_curvature_customdata(
 	bContext *C, const wmEvent *event)
 {
-	const float threshold = 19;
+	const float threshold = 19.0f;
 
 	Mask *mask = CTX_data_edit_mask(C);
 	SlideSplineCurvatureData *slide_data;
@@ -1195,8 +1207,9 @@ static SlideSplineCurvatureData *slide_spline_curvature_customdata(
 	ED_mask_mouse_pos(CTX_wm_area(C), CTX_wm_region(C), event->mval, co);
 
 	if (!ED_mask_find_nearest_diff_point(C, mask, co, threshold, false,
+	                                     NULL, true, false,
 	                                     &mask_layer, &spline, &point, &u,
-	                                     NULL, true, false))
+	                                     NULL))
 	{
 		return NULL;
 	}
@@ -1273,7 +1286,7 @@ static int slide_spline_curvature_invoke(bContext *C, wmOperator *op, const wmEv
 	SlideSplineCurvatureData *slide_data;
 
 	if (mask == NULL) {
-		return OPERATOR_CANCELLED;
+		return OPERATOR_PASS_THROUGH;
 	}
 
 	/* Be sure we don't conflict with point slide here. */
@@ -2196,7 +2209,7 @@ static int mask_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
 				}
 				if (end >= start) {
 					int tot_point;
-					int tot_point_shape_start;
+					int tot_point_shape_start = 0;
 					MaskSpline *new_spline = BKE_mask_spline_add(mask_layer);
 					MaskSplinePoint *new_point;
 					int b;
@@ -2293,6 +2306,10 @@ static int copy_splines_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Mask *mask = CTX_data_edit_mask(C);
 	MaskLayer *mask_layer = BKE_mask_layer_active(mask);
+
+	if (mask_layer == NULL) {
+		return OPERATOR_CANCELLED;
+	}
 
 	BKE_mask_clipboard_copy_from_layer(mask_layer);
 

@@ -40,7 +40,6 @@
 #include <Python.h>
 
 #include "DNA_scene_types.h"
-#include "DNA_image_types.h"
 #include "DNA_material_types.h"
 #include "DNA_ID.h"
 #include "DNA_customdata_types.h"
@@ -80,22 +79,70 @@ static PyObject *PyInit_gpu(void)
 	if (m == NULL)
 		return NULL;
 
+
+	/* Take care to update docs when editing: 'doc/python_api/rst/gpu.rst' */
+
+
+	/* -------------------------------------------------------------------- */
+	/* GPUDynamicType */
+
+	/* device constant groups */
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_GROUP_MISC);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_GROUP_LAMP);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_GROUP_OBJECT);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_GROUP_SAMPLER);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_GROUP_MIST);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_GROUP_WORLD);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_GROUP_MAT);
+
 	/* device constants */
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_NONE);
+	/* GPU_DYNAMIC_GROUP_OBJECT */
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_OBJECT_VIEWMAT);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_OBJECT_MAT);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_OBJECT_VIEWIMAT);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_OBJECT_IMAT);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_OBJECT_COLOR);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_OBJECT_AUTOBUMPSCALE);
+	/* GPU_DYNAMIC_GROUP_LAMP */
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_LAMP_DYNVEC);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_LAMP_DYNCO);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_LAMP_DYNIMAT);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_LAMP_DYNPERSMAT);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_LAMP_DYNENERGY);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_LAMP_DYNCOL);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_LAMP_ATT1);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_LAMP_ATT2);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_LAMP_DISTANCE);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_LAMP_SPOTSIZE);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_LAMP_SPOTBLEND);
+	/* GPU_DYNAMIC_GROUP_SAMPLER */
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_SAMPLER_2DBUFFER);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_SAMPLER_2DIMAGE);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_SAMPLER_2DSHADOW);
+	/* GPU_DYNAMIC_GROUP_MIST */
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_MIST_ENABLE);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_MIST_START);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_MIST_DISTANCE);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_MIST_INTENSITY);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_MIST_TYPE);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_MIST_COLOR);
+	/* GPU_DYNAMIC_GROUP_WORLD */
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_HORIZON_COLOR);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_AMBIENT_COLOR);
+	/* GPU_DYNAMIC_GROUP_MAT */
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_MAT_DIFFRGB);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_MAT_REF);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_MAT_SPECRGB);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_MAT_SPEC);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_MAT_HARD);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_MAT_EMIT);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_MAT_AMB);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_MAT_ALPHA);
+
+
+	/* -------------------------------------------------------------------- */
+	/* GPUDataType */
 
 	PY_MODULE_ADD_CONSTANT(m, GPU_DATA_1I);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DATA_1F);
@@ -106,6 +153,12 @@ static PyObject *PyInit_gpu(void)
 	PY_MODULE_ADD_CONSTANT(m, GPU_DATA_16F);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DATA_4UB);
 
+
+	/* -------------------------------------------------------------------- */
+	/* CustomDataType
+	 *
+	 * Intentionally only include the subset used by the GPU API.
+	 */
 	PY_MODULE_ADD_CONSTANT(m, CD_MTFACE);
 	PY_MODULE_ADD_CONSTANT(m, CD_ORCO);
 	PY_MODULE_ADD_CONSTANT(m, CD_TANGENT);
@@ -200,7 +253,7 @@ static PyObject *GPU_export_shader(PyObject *UNUSED(self), PyObject *args, PyObj
 	if (shader->vertex) {
 		PY_DICT_ADD_STRING(result, shader, vertex);
 	}
-	seq = PyList_New(BLI_countlist(&shader->uniforms));
+	seq = PyList_New(BLI_listbase_count(&shader->uniforms));
 	for (i = 0, uniform = shader->uniforms.first; uniform; uniform = uniform->next, i++) {
 		dict = PyDict_New();
 		PY_DICT_ADD_STRING(dict, uniform, varname);
@@ -229,7 +282,7 @@ static PyObject *GPU_export_shader(PyObject *UNUSED(self), PyObject *args, PyObj
 	PyDict_SetItemString(result, "uniforms", seq);
 	Py_DECREF(seq);
 
-	seq = PyList_New(BLI_countlist(&shader->attributes));
+	seq = PyList_New(BLI_listbase_count(&shader->attributes));
 	for (i = 0, attribute = shader->attributes.first; attribute; attribute = attribute->next, i++) {
 		dict = PyDict_New();
 		PY_DICT_ADD_STRING(dict, attribute, varname);

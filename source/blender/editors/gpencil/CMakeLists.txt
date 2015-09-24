@@ -23,11 +23,14 @@ set(INC
 	../../blenfont
 	../../blenkernel
 	../../blenlib
+	../../blentranslation
 	../../imbuf
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
+	../../../../intern/glew-mx
 )
 
 set(INC_SYS
@@ -37,11 +40,14 @@ set(INC_SYS
 set(SRC
 	drawgpencil.c
 	editaction_gpencil.c
-	gpencil_buttons.c
+	gpencil_convert.c
+	gpencil_data.c
 	gpencil_edit.c
 	gpencil_ops.c
 	gpencil_paint.c
+	gpencil_select.c
 	gpencil_undo.c
+	gpencil_utils.c
 
 	gpencil_intern.h
 )
@@ -49,5 +55,7 @@ set(SRC
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_editor_gpencil "${SRC}" "${INC}" "${INC_SYS}")

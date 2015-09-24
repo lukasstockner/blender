@@ -93,7 +93,6 @@
 #include "ED_mball.h"
 
 #include "UI_interface.h"
-#include "UI_resources.h"
 
 #include "view3d_intern.h"  /* own include */
 
@@ -726,7 +725,7 @@ static void do_lasso_select_meshobject__doSelectVert(void *userData, MVert *mv, 
 }
 static void do_lasso_select_paintvert(ViewContext *vc, const int mcords[][2], short moves, bool extend, bool select)
 {
-	const int use_zbuf = (vc->v3d->flag & V3D_ZBUF_SELECT);
+	const bool use_zbuf = (vc->v3d->flag & V3D_ZBUF_SELECT) != 0;
 	Object *ob = vc->obact;
 	Mesh *me = ob->data;
 	rcti rect;
@@ -1143,7 +1142,7 @@ static Base *object_mouse_select_menu(bContext *C, ViewContext *vc, unsigned int
 			const char *name = ob->id.name + 2;
 
 			BLI_strncpy(object_mouse_select_menu_data[i].idname, name, MAX_ID_NAME - 2);
-			object_mouse_select_menu_data[i].icon = uiIconFromID(&ob->id);
+			object_mouse_select_menu_data[i].icon = UI_icon_from_id(&ob->id);
 		}
 
 		{
@@ -1181,20 +1180,23 @@ static short selectbuffer_ret_hits_15(unsigned int *UNUSED(buffer), const short 
 static short selectbuffer_ret_hits_9(unsigned int *buffer, const short hits15, const short hits9)
 {
 	const int offs = 4 * hits15;
-	memcpy(buffer, buffer + offs, 4 * hits9);
+	memcpy(buffer, buffer + offs, 4 * hits9 * sizeof(unsigned int));
 	return hits9;
 }
 
 static short selectbuffer_ret_hits_5(unsigned int *buffer, const short hits15, const short hits9, const short hits5)
 {
 	const int offs = 4 * hits15 + 4 * hits9;
-	memcpy(buffer, buffer + offs, 4 * hits5);
+	memcpy(buffer, buffer + offs, 4 * hits5  * sizeof(unsigned int));
 	return hits5;
 }
 
 /* we want a select buffer with bones, if there are... */
 /* so check three selection levels and compare */
-static short mixed_bones_object_selectbuffer(ViewContext *vc, unsigned int *buffer, const int mval[2], bool *p_do_nearest, bool enumerate)
+static short mixed_bones_object_selectbuffer(
+        ViewContext *vc, unsigned int *buffer, const int mval[2],
+        bool use_cycle, bool enumerate,
+        bool *r_do_nearest)
 {
 	rcti rect;
 	int offs;
@@ -1205,16 +1207,24 @@ static short mixed_bones_object_selectbuffer(ViewContext *vc, unsigned int *buff
 	View3D *v3d = vc->v3d;
 
 	/* define if we use solid nearest select or not */
-	if (v3d->drawtype > OB_WIRE) {
-		do_nearest = true;
-		if (len_manhattan_v2v2_int(mval, last_mval) < 3) {
-			do_nearest = false;
+	if (use_cycle) {
+		if (v3d->drawtype > OB_WIRE) {
+			do_nearest = true;
+			if (len_manhattan_v2v2_int(mval, last_mval) < 3) {
+				do_nearest = false;
+			}
+		}
+		copy_v2_v2_int(last_mval, mval);
+	}
+	else {
+		if (v3d->drawtype > OB_WIRE) {
+			do_nearest = true;
 		}
 	}
-	copy_v2_v2_int(last_mval, mval);
 
-	if (p_do_nearest)
-		*p_do_nearest = do_nearest;
+	if (r_do_nearest) {
+		*r_do_nearest = do_nearest;
+	}
 
 	do_nearest = do_nearest && !enumerate;
 
@@ -1346,7 +1356,7 @@ Base *ED_view3d_give_base_under_cursor(bContext *C, const int mval[2])
 {
 	ViewContext vc;
 	Base *basact = NULL;
-	unsigned int buffer[4 * MAXPICKBUF];
+	unsigned int buffer[MAXPICKBUF];
 	int hits;
 	bool do_nearest;
 	
@@ -1354,7 +1364,7 @@ Base *ED_view3d_give_base_under_cursor(bContext *C, const int mval[2])
 	view3d_operator_needs_opengl(C);
 	view3d_set_viewcontext(C, &vc);
 	
-	hits = mixed_bones_object_selectbuffer(&vc, buffer, mval, &do_nearest, false);
+	hits = mixed_bones_object_selectbuffer(&vc, buffer, mval, false, false, &do_nearest);
 	
 	if (hits > 0) {
 		const bool has_bones = selectbuffer_has_bones(buffer, hits);
@@ -1444,12 +1454,12 @@ static bool mouse_select(bContext *C, const int mval[2],
 		}
 	}
 	else {
-		unsigned int buffer[4 * MAXPICKBUF];
+		unsigned int buffer[MAXPICKBUF];
 		bool do_nearest;
 
 		/* if objects have posemode set, the bones are in the same selection buffer */
 		
-		hits = mixed_bones_object_selectbuffer(&vc, buffer, mval, &do_nearest, enumerate);
+		hits = mixed_bones_object_selectbuffer(&vc, buffer, mval, true, enumerate, &do_nearest);
 		
 		if (hits > 0) {
 			/* note: bundles are handling in the same way as bones */
@@ -1642,39 +1652,48 @@ static void do_paintvert_box_select__doSelectVert(void *userData, MVert *mv, con
 }
 static int do_paintvert_box_select(ViewContext *vc, rcti *rect, bool select, bool extend)
 {
-	const int use_zbuf = (vc->v3d->flag & V3D_ZBUF_SELECT);
+	const bool use_zbuf = (vc->v3d->flag & V3D_ZBUF_SELECT) != 0;
 	Mesh *me;
 	MVert *mvert;
 	struct ImBuf *ibuf;
 	unsigned int *rt;
 	int a, index;
 	char *selar;
-	int sx = BLI_rcti_size_x(rect) + 1;
-	int sy = BLI_rcti_size_y(rect) + 1;
+	const int size[2] = {
+	    BLI_rcti_size_x(rect) + 1,
+	    BLI_rcti_size_y(rect) + 1};
 
 	me = vc->obact->data;
 
-	if (me == NULL || me->totvert == 0 || sx * sy <= 0)
+	if ((me == NULL) || (me->totvert == 0) || (size[0] * size[1] <= 0)) {
 		return OPERATOR_CANCELLED;
-
+	}
 
 	if (extend == false && select)
 		paintvert_deselect_all_visible(vc->obact, SEL_DESELECT, false);
 
 	if (use_zbuf) {
 		selar = MEM_callocN(me->totvert + 1, "selar");
-		view3d_validate_backbuf(vc);
+		ED_view3d_backbuf_validate(vc);
 
-		ibuf = IMB_allocImBuf(sx, sy, 32, IB_rect);
+		ibuf = IMB_allocImBuf(size[0], size[1], 32, IB_rect);
 		rt = ibuf->rect;
-		glReadPixels(rect->xmin + vc->ar->winrct.xmin,  rect->ymin + vc->ar->winrct.ymin, sx, sy, GL_RGBA, GL_UNSIGNED_BYTE,  ibuf->rect);
-		if (ENDIAN_ORDER == B_ENDIAN) IMB_convert_rgba_to_abgr(ibuf);
+		glReadPixels(
+		        rect->xmin + vc->ar->winrct.xmin,
+		        rect->ymin + vc->ar->winrct.ymin,
+		        size[0], size[1], GL_RGBA, GL_UNSIGNED_BYTE,  ibuf->rect);
+		if (ENDIAN_ORDER == B_ENDIAN) {
+			IMB_convert_rgba_to_abgr(ibuf);
+		}
+		WM_framebuffer_to_index_array(ibuf->rect, size[0] * size[1]);
 
-		a = sx * sy;
+		a = size[0] * size[1];
 		while (a--) {
 			if (*rt) {
-				index = WM_framebuffer_to_index(*rt);
-				if (index <= me->totvert) selar[index] = 1;
+				index = *rt;
+				if (index <= me->totvert) {
+					selar[index] = 1;
+				}
 			}
 			rt++;
 		}
@@ -1877,7 +1896,7 @@ static int do_meta_box_select(ViewContext *vc, rcti *rect, bool select, bool ext
 	MetaElem *ml;
 	int a;
 
-	unsigned int buffer[4 * MAXPICKBUF];
+	unsigned int buffer[MAXPICKBUF];
 	short hits;
 
 	hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, rect, false);
@@ -1911,7 +1930,7 @@ static int do_armature_box_select(ViewContext *vc, rcti *rect, bool select, bool
 	EditBone *ebone;
 	int a;
 
-	unsigned int buffer[4 * MAXPICKBUF];
+	unsigned int buffer[MAXPICKBUF];
 	short hits;
 
 	hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, rect, false);
@@ -1972,7 +1991,7 @@ static int do_armature_box_select(ViewContext *vc, rcti *rect, bool select, bool
 	
 	ED_armature_sync_selection(arm->edbo);
 	
-	return OPERATOR_CANCELLED;
+	return hits > 0 ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, bool select, bool extend)
@@ -2007,8 +2026,8 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, b
 	}
 
 	/* selection buffer now has bones potentially too, so we add MAXPICKBUF */
-	vbuffer = MEM_mallocN(4 * (totobj + MAXPICKBUF) * sizeof(unsigned int), "selection buffer");
-	hits = view3d_opengl_select(vc, vbuffer, 4 * (totobj + MAXPICKBUF), rect, false);
+	vbuffer = MEM_mallocN(4 * (totobj + MAXPICKELEMS) * sizeof(unsigned int), "selection buffer");
+	hits = view3d_opengl_select(vc, vbuffer, 4 * (totobj + MAXPICKELEMS), rect, false);
 	/*
 	 * LOGIC NOTES (theeth):
 	 * The buffer and ListBase have the same relative order, which makes the selection
@@ -2186,7 +2205,7 @@ void VIEW3D_OT_select_border(wmOperatorType *ot)
 static bool mouse_weight_paint_vertex_select(bContext *C, const int mval[2], bool extend, bool deselect, bool toggle, Object *obact)
 {
 	View3D *v3d = CTX_wm_view3d(C);
-	const int use_zbuf = (v3d->flag & V3D_ZBUF_SELECT);
+	const bool use_zbuf = (v3d->flag & V3D_ZBUF_SELECT) != 0;
 
 	Mesh *me = obact->data; /* already checked for NULL */
 	unsigned int index = 0;
@@ -2454,7 +2473,7 @@ static void paint_vertsel_circle_select_doSelectVert(void *userData, MVert *mv, 
 }
 static void paint_vertsel_circle_select(ViewContext *vc, const bool select, const int mval[2], float rad)
 {
-	const int use_zbuf = (vc->v3d->flag & V3D_ZBUF_SELECT);
+	const bool use_zbuf = (vc->v3d->flag & V3D_ZBUF_SELECT) != 0;
 	Object *ob = vc->obact;
 	Mesh *me = ob->data;
 	bool bbsel;

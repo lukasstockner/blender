@@ -69,7 +69,7 @@
 
 static EnumPropertyItem mode_items[] = {
 	{PAINT_MASK_FLOOD_VALUE, "VALUE", 0, "Value", "Set mask to the level specified by the 'value' property"},
-    {PAINT_MASK_FLOOD_VALUE_INVERSE, "VALUE_INVERSE", 0, "Value Inverted", "Set mask to the level specified by the inverted 'value' property"},
+	{PAINT_MASK_FLOOD_VALUE_INVERSE, "VALUE_INVERSE", 0, "Value Inverted", "Set mask to the level specified by the inverted 'value' property"},
 	{PAINT_MASK_INVERT, "INVERT", 0, "Invert", "Invert the mask"},
 	{0}};
 
@@ -277,7 +277,7 @@ int ED_sculpt_mask_box_select(struct bContext *C, ViewContext *vc, const rcti *r
 typedef struct LassoMaskData {
 	struct ViewContext *vc;
 	float projviewobjmat[4][4];
-	bool *px;
+	BLI_bitmap *px;
 	int width;
 	rcti rect; /* bounding box for scanfilling */
 	int symmpass;
@@ -290,7 +290,7 @@ typedef struct LassoMaskData {
 static bool is_effected_lasso(LassoMaskData *data, float co[3])
 {
 	float scr_co_f[2];
-	short scr_co_s[2];
+	int   scr_co_s[2];
 	float co_final[3];
 
 	flip_v3_v3(co_final, co, data->symmpass);
@@ -301,25 +301,30 @@ static bool is_effected_lasso(LassoMaskData *data, float co[3])
 	scr_co_s[1] = scr_co_f[1];
 
 	/* clip against screen, because lasso is limited to screen only */
-	if (scr_co_s[0] < data->rect.xmin || scr_co_s[1] < data->rect.ymin || scr_co_s[0] >= data->rect.xmax || scr_co_s[1] >= data->rect.ymax)
+	if ((scr_co_s[0] < data->rect.xmin) ||
+	    (scr_co_s[1] < data->rect.ymin) ||
+	    (scr_co_s[0] >= data->rect.xmax) ||
+	    (scr_co_s[1] >= data->rect.ymax))
+	{
 		return false;
+	}
 
 	scr_co_s[0] -= data->rect.xmin;
 	scr_co_s[1] -= data->rect.ymin;
 
-	return data->px[scr_co_s[1] * data->width + scr_co_s[0]];
+	return BLI_BITMAP_TEST_BOOL(data->px, scr_co_s[1] * data->width + scr_co_s[0]);
 }
 
 static void mask_lasso_px_cb(int x, int y, void *user_data)
 {
 	struct LassoMaskData *data = user_data;
-	data->px[(y * data->width) + x] = true;
+	BLI_BITMAP_ENABLE(data->px, (y * data->width) + x);
 }
 
 static int paint_mask_gesture_lasso_exec(bContext *C, wmOperator *op)
 {
 	int mcords_tot;
-	int (*mcords)[2] = (int (*)[2])WM_gesture_lasso_path_to_array(C, op, &mcords_tot);
+	const int (*mcords)[2] = WM_gesture_lasso_path_to_array(C, op, &mcords_tot);
 
 	if (mcords) {
 		float clip_planes[4][4], clip_planes_final[4][4];
@@ -349,13 +354,13 @@ static int paint_mask_gesture_lasso_exec(bContext *C, wmOperator *op)
 		ob = vc.obact;
 		ED_view3d_ob_project_mat_get(vc.rv3d, ob, data.projviewobjmat);
 
-		BLI_lasso_boundbox(&data.rect, (const int (*)[2])mcords, mcords_tot);
+		BLI_lasso_boundbox(&data.rect, mcords, mcords_tot);
 		data.width = data.rect.xmax - data.rect.xmin;
-		data.px = MEM_callocN(sizeof(*data.px) * data.width * (data.rect.ymax - data.rect.ymin), "lasso_mask_pixel_buffer");
+		data.px = BLI_BITMAP_NEW(data.width * (data.rect.ymax - data.rect.ymin), __func__);
 
 		fill_poly_v2i_n(
 		       data.rect.xmin, data.rect.ymin, data.rect.xmax, data.rect.ymax,
-		       (const int (*)[2])mcords, mcords_tot,
+		       mcords, mcords_tot,
 		       mask_lasso_px_cb, &data);
 
 		ED_view3d_clipping_calc(&bb, clip_planes, &mats, &data.rect);

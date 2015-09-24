@@ -11,8 +11,10 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
+
+#include <OSL/oslexec.h>
 
 #include "kernel_compat_cpu.h"
 #include "kernel_montecarlo.h"
@@ -34,7 +36,6 @@
 
 #include "attribute.h"
 
-#include <OSL/oslexec.h>
 
 CCL_NAMESPACE_BEGIN
 
@@ -145,161 +146,174 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 	/* OSL gives us a closure tree, we flatten it into arrays per
 	 * closure type, for evaluation, sampling, etc later on. */
 
-	if (closure->type == OSL::ClosureColor::COMPONENT) {
-		OSL::ClosureComponent *comp = (OSL::ClosureComponent *)closure;
-		CClosurePrimitive *prim = (CClosurePrimitive *)comp->data();
+#if OSL_LIBRARY_VERSION_CODE < 10700
+	switch(closure->type) {
+#else
+	switch(closure->id) {
+#endif
+		case OSL::ClosureColor::MUL: {
+			OSL::ClosureMul *mul = (OSL::ClosureMul *)closure;
+			flatten_surface_closure_tree(sd, path_flag, mul->closure, TO_FLOAT3(mul->weight) * weight);
+			break;
+		}
+		case OSL::ClosureColor::ADD: {
+			OSL::ClosureAdd *add = (OSL::ClosureAdd *)closure;
+			flatten_surface_closure_tree(sd, path_flag, add->closureA, weight);
+			flatten_surface_closure_tree(sd, path_flag, add->closureB, weight);
+			break;
+		}
+		default: {
+			OSL::ClosureComponent *comp = (OSL::ClosureComponent *)closure;
+			CClosurePrimitive *prim = (CClosurePrimitive *)comp->data();
 
-		if (prim) {
-			ShaderClosure sc;
+			if(prim) {
+				ShaderClosure sc;
 
 #ifdef OSL_SUPPORTS_WEIGHTED_CLOSURE_COMPONENTS
-			weight = weight*TO_FLOAT3(comp->w);
+				weight = weight*TO_FLOAT3(comp->w);
 #endif
-			sc.weight = weight;
+				sc.weight = weight;
 
-			prim->setup();
+				prim->setup();
 
-			switch (prim->category) {
-				case CClosurePrimitive::BSDF: {
-					CBSDFClosure *bsdf = (CBSDFClosure *)prim;
-					int scattering = bsdf->scattering();
+				switch(prim->category) {
+					case CClosurePrimitive::BSDF: {
+						CBSDFClosure *bsdf = (CBSDFClosure *)prim;
+						int scattering = bsdf->scattering();
 
-					/* caustic options */
-					if((scattering & LABEL_GLOSSY) && (path_flag & PATH_RAY_DIFFUSE)) {
-						KernelGlobals *kg = sd->osl_globals;
+						/* caustic options */
+						if((scattering & LABEL_GLOSSY) && (path_flag & PATH_RAY_DIFFUSE)) {
+							KernelGlobals *kg = sd->osl_globals;
 
-						if((!kernel_data.integrator.caustics_reflective && (scattering & LABEL_REFLECT)) ||
-						   (!kernel_data.integrator.caustics_refractive && (scattering & LABEL_TRANSMIT))) {
-							return;
+							if((!kernel_data.integrator.caustics_reflective && (scattering & LABEL_REFLECT)) ||
+							   (!kernel_data.integrator.caustics_refractive && (scattering & LABEL_TRANSMIT)))
+							{
+								return;
+							}
 						}
-					}
 
-					/* sample weight */
-					float sample_weight = fabsf(average(weight));
+						/* sample weight */
+						float sample_weight = fabsf(average(weight));
 
-					sc.sample_weight = sample_weight;
-
-					sc.type = bsdf->sc.type;
-					sc.N = bsdf->sc.N;
-					sc.T = bsdf->sc.T;
-					sc.data0 = bsdf->sc.data0;
-					sc.data1 = bsdf->sc.data1;
-					sc.data2 = bsdf->sc.data2;
-					sc.prim = bsdf->sc.prim;
-
-					/* add */
-					if(sc.sample_weight > CLOSURE_WEIGHT_CUTOFF && sd->num_closure < MAX_CLOSURE) {
-						sd->closure[sd->num_closure++] = sc;
-						sd->flag |= bsdf->shaderdata_flag();
-					}
-					break;
-				}
-				case CClosurePrimitive::Emissive: {
-					/* sample weight */
-					float sample_weight = fabsf(average(weight));
-
-					sc.sample_weight = sample_weight;
-					sc.type = CLOSURE_EMISSION_ID;
-					sc.data0 = 0.0f;
-					sc.data1 = 0.0f;
-					sc.data2 = 0.0f;
-					sc.prim = NULL;
-
-					/* flag */
-					if(sd->num_closure < MAX_CLOSURE) {
-						sd->closure[sd->num_closure++] = sc;
-						sd->flag |= SD_EMISSION;
-					}
-					break;
-				}
-				case CClosurePrimitive::AmbientOcclusion: {
-					/* sample weight */
-					float sample_weight = fabsf(average(weight));
-
-					sc.sample_weight = sample_weight;
-					sc.type = CLOSURE_AMBIENT_OCCLUSION_ID;
-					sc.data0 = 0.0f;
-					sc.data1 = 0.0f;
-					sc.data2 = 0.0f;
-					sc.prim = NULL;
-
-					if(sd->num_closure < MAX_CLOSURE) {
-						sd->closure[sd->num_closure++] = sc;
-						sd->flag |= SD_AO;
-					}
-					break;
-				}
-				case CClosurePrimitive::Holdout: {
-					sc.sample_weight = 0.0f;
-					sc.type = CLOSURE_HOLDOUT_ID;
-					sc.data0 = 0.0f;
-					sc.data1 = 0.0f;
-					sc.data2 = 0.0f;
-					sc.prim = NULL;
-
-					if(sd->num_closure < MAX_CLOSURE) {
-						sd->closure[sd->num_closure++] = sc;
-						sd->flag |= SD_HOLDOUT;
-					}
-					break;
-				}
-				case CClosurePrimitive::BSSRDF: {
-					CBSSRDFClosure *bssrdf = (CBSSRDFClosure *)prim;
-					float sample_weight = fabsf(average(weight));
-
-					if(sample_weight > CLOSURE_WEIGHT_CUTOFF && sd->num_closure+2 < MAX_CLOSURE) {
 						sc.sample_weight = sample_weight;
 
-						sc.type = bssrdf->sc.type;
-						sc.N = bssrdf->sc.N;
-						sc.data1 = bssrdf->sc.data1;
-						sc.T.x = bssrdf->sc.T.x;
+						sc.type = bsdf->sc.type;
+						sc.N = bsdf->sc.N;
+						sc.T = bsdf->sc.T;
+						sc.data0 = bsdf->sc.data0;
+						sc.data1 = bsdf->sc.data1;
+						sc.data2 = bsdf->sc.data2;
+						sc.prim = bsdf->sc.prim;
+
+						/* add */
+						if(sc.sample_weight > CLOSURE_WEIGHT_CUTOFF && sd->num_closure < MAX_CLOSURE) {
+							sd->closure[sd->num_closure++] = sc;
+							sd->flag |= bsdf->shaderdata_flag();
+						}
+						break;
+					}
+					case CClosurePrimitive::Emissive: {
+						/* sample weight */
+						float sample_weight = fabsf(average(weight));
+
+						sc.sample_weight = sample_weight;
+						sc.type = CLOSURE_EMISSION_ID;
+						sc.data0 = 0.0f;
+						sc.data1 = 0.0f;
+						sc.data2 = 0.0f;
 						sc.prim = NULL;
 
-						/* disable in case of diffuse ancestor, can't see it well then and
-						 * adds considerably noise due to probabilities of continuing path
-						 * getting lower and lower */
-						if(path_flag & PATH_RAY_DIFFUSE_ANCESTOR)
-							bssrdf->radius = make_float3(0.0f, 0.0f, 0.0f);
-
-						/* create one closure for each color channel */
-						if(fabsf(weight.x) > 0.0f) {
-							sc.weight = make_float3(weight.x, 0.0f, 0.0f);
-							sc.data0 = bssrdf->radius.x;
-							sd->flag |= bssrdf_setup(&sc, sc.type);
+						/* flag */
+						if(sd->num_closure < MAX_CLOSURE) {
 							sd->closure[sd->num_closure++] = sc;
+							sd->flag |= SD_EMISSION;
 						}
-
-						if(fabsf(weight.y) > 0.0f) {
-							sc.weight = make_float3(0.0f, weight.y, 0.0f);
-							sc.data0 = bssrdf->radius.y;
-							sd->flag |= bssrdf_setup(&sc, sc.type);
-							sd->closure[sd->num_closure++] = sc;
-						}
-
-						if(fabsf(weight.z) > 0.0f) {
-							sc.weight = make_float3(0.0f, 0.0f, weight.z);
-							sc.data0 = bssrdf->radius.z;
-							sd->flag |= bssrdf_setup(&sc, sc.type);
-							sd->closure[sd->num_closure++] = sc;
-						}
+						break;
 					}
-					break;
+					case CClosurePrimitive::AmbientOcclusion: {
+						/* sample weight */
+						float sample_weight = fabsf(average(weight));
+
+						sc.sample_weight = sample_weight;
+						sc.type = CLOSURE_AMBIENT_OCCLUSION_ID;
+						sc.data0 = 0.0f;
+						sc.data1 = 0.0f;
+						sc.data2 = 0.0f;
+						sc.prim = NULL;
+
+						if(sd->num_closure < MAX_CLOSURE) {
+							sd->closure[sd->num_closure++] = sc;
+							sd->flag |= SD_AO;
+						}
+						break;
+					}
+					case CClosurePrimitive::Holdout: {
+						sc.sample_weight = 0.0f;
+						sc.type = CLOSURE_HOLDOUT_ID;
+						sc.data0 = 0.0f;
+						sc.data1 = 0.0f;
+						sc.data2 = 0.0f;
+						sc.prim = NULL;
+
+						if(sd->num_closure < MAX_CLOSURE) {
+							sd->closure[sd->num_closure++] = sc;
+							sd->flag |= SD_HOLDOUT;
+						}
+						break;
+					}
+					case CClosurePrimitive::BSSRDF: {
+						CBSSRDFClosure *bssrdf = (CBSSRDFClosure *)prim;
+						float sample_weight = fabsf(average(weight));
+
+						if(sample_weight > CLOSURE_WEIGHT_CUTOFF && sd->num_closure+2 < MAX_CLOSURE) {
+							sc.sample_weight = sample_weight;
+
+							sc.type = bssrdf->sc.type;
+							sc.N = bssrdf->sc.N;
+							sc.data1 = bssrdf->sc.data1;
+							sc.T.x = bssrdf->sc.T.x;
+							sc.prim = NULL;
+
+							/* disable in case of diffuse ancestor, can't see it well then and
+							 * adds considerably noise due to probabilities of continuing path
+							 * getting lower and lower */
+							if(path_flag & PATH_RAY_DIFFUSE_ANCESTOR)
+								bssrdf->radius = make_float3(0.0f, 0.0f, 0.0f);
+
+							/* create one closure for each color channel */
+							if(fabsf(weight.x) > 0.0f) {
+								sc.weight = make_float3(weight.x, 0.0f, 0.0f);
+								sc.data0 = bssrdf->radius.x;
+								sc.data1 = 0.0f;
+								sd->flag |= bssrdf_setup(&sc, sc.type);
+								sd->closure[sd->num_closure++] = sc;
+							}
+
+							if(fabsf(weight.y) > 0.0f) {
+								sc.weight = make_float3(0.0f, weight.y, 0.0f);
+								sc.data0 = bssrdf->radius.y;
+								sc.data1 = 0.0f;
+								sd->flag |= bssrdf_setup(&sc, sc.type);
+								sd->closure[sd->num_closure++] = sc;
+							}
+
+							if(fabsf(weight.z) > 0.0f) {
+								sc.weight = make_float3(0.0f, 0.0f, weight.z);
+								sc.data0 = bssrdf->radius.z;
+								sc.data1 = 0.0f;
+								sd->flag |= bssrdf_setup(&sc, sc.type);
+								sd->closure[sd->num_closure++] = sc;
+							}
+						}
+						break;
+					}
+					case CClosurePrimitive::Background:
+					case CClosurePrimitive::Volume:
+						break; /* not relevant */
 				}
-				case CClosurePrimitive::Background:
-				case CClosurePrimitive::Volume:
-					break; /* not relevant */
 			}
+			break;
 		}
-	}
-	else if (closure->type == OSL::ClosureColor::MUL) {
-		OSL::ClosureMul *mul = (OSL::ClosureMul *)closure;
-		flatten_surface_closure_tree(sd, path_flag, mul->closure, TO_FLOAT3(mul->weight) * weight);
-	}
-	else if (closure->type == OSL::ClosureColor::ADD) {
-		OSL::ClosureAdd *add = (OSL::ClosureAdd *)closure;
-		flatten_surface_closure_tree(sd, path_flag, add->closureA, weight);
-		flatten_surface_closure_tree(sd, path_flag, add->closureB, weight);
 	}
 }
 
@@ -315,11 +329,11 @@ void OSLShader::eval_surface(KernelGlobals *kg, ShaderData *sd, int path_flag, S
 	OSL::ShadingContext *octx = tdata->context[(int)ctx];
 	int shader = sd->shader & SHADER_MASK;
 
-	if (kg->osl->surface_state[shader])
+	if(kg->osl->surface_state[shader])
 		ss->execute(*octx, *(kg->osl->surface_state[shader]), *globals);
 
 	/* flatten closure tree */
-	if (globals->Ci)
+	if(globals->Ci)
 		flatten_surface_closure_tree(sd, path_flag, globals->Ci);
 }
 
@@ -331,27 +345,33 @@ static float3 flatten_background_closure_tree(const OSL::ClosureColor *closure)
 	 * is only one supported closure type at the moment, which has no evaluation
 	 * functions, so we just sum the weights */
 
-	if (closure->type == OSL::ClosureColor::COMPONENT) {
-		OSL::ClosureComponent *comp = (OSL::ClosureComponent *)closure;
-		CClosurePrimitive *prim = (CClosurePrimitive *)comp->data();
-
-		if (prim && prim->category == CClosurePrimitive::Background)
-#ifdef OSL_SUPPORTS_WEIGHTED_CLOSURE_COMPONENTS
-			return TO_FLOAT3(comp->w);
+#if OSL_LIBRARY_VERSION_CODE < 10700
+	switch(closure->type) {
 #else
-			return make_float3(1.0f, 1.0f, 1.0f);
+	switch(closure->id) {
 #endif
-	}
-	else if (closure->type == OSL::ClosureColor::MUL) {
-		OSL::ClosureMul *mul = (OSL::ClosureMul *)closure;
+		case OSL::ClosureColor::MUL: {
+			OSL::ClosureMul *mul = (OSL::ClosureMul *)closure;
 
-		return TO_FLOAT3(mul->weight) * flatten_background_closure_tree(mul->closure);
-	}
-	else if (closure->type == OSL::ClosureColor::ADD) {
-		OSL::ClosureAdd *add = (OSL::ClosureAdd *)closure;
+			return TO_FLOAT3(mul->weight) * flatten_background_closure_tree(mul->closure);
+		}
+		case OSL::ClosureColor::ADD: {
+			OSL::ClosureAdd *add = (OSL::ClosureAdd *)closure;
 
-		return flatten_background_closure_tree(add->closureA) +
-		       flatten_background_closure_tree(add->closureB);
+			return flatten_background_closure_tree(add->closureA) +
+			       flatten_background_closure_tree(add->closureB);
+		}
+		default: {
+			OSL::ClosureComponent *comp = (OSL::ClosureComponent *)closure;
+			CClosurePrimitive *prim = (CClosurePrimitive *)comp->data();
+
+			if(prim && prim->category == CClosurePrimitive::Background)
+#ifdef OSL_SUPPORTS_WEIGHTED_CLOSURE_COMPONENTS
+				return TO_FLOAT3(comp->w);
+#else
+				return make_float3(1.0f, 1.0f, 1.0f);
+#endif
+		}
 	}
 
 	return make_float3(0.0f, 0.0f, 0.0f);
@@ -368,11 +388,11 @@ float3 OSLShader::eval_background(KernelGlobals *kg, ShaderData *sd, int path_fl
 	OSL::ShaderGlobals *globals = &tdata->globals;
 	OSL::ShadingContext *octx = tdata->context[(int)ctx];
 
-	if (kg->osl->background_state)
+	if(kg->osl->background_state)
 		ss->execute(*octx, *(kg->osl->background_state), *globals);
 
 	/* return background color immediately */
-	if (globals->Ci)
+	if(globals->Ci)
 		return flatten_background_closure_tree(globals->Ci);
 
 	return make_float3(0.0f, 0.0f, 0.0f);
@@ -386,75 +406,83 @@ static void flatten_volume_closure_tree(ShaderData *sd,
 	/* OSL gives us a closure tree, we flatten it into arrays per
 	 * closure type, for evaluation, sampling, etc later on. */
 
-	if (closure->type == OSL::ClosureColor::COMPONENT) {
-		OSL::ClosureComponent *comp = (OSL::ClosureComponent *)closure;
-		CClosurePrimitive *prim = (CClosurePrimitive *)comp->data();
+#if OSL_LIBRARY_VERSION_CODE < 10700
+	switch(closure->type) {
+#else
+	switch(closure->id) {
+#endif
+		case OSL::ClosureColor::MUL: {
+			OSL::ClosureMul *mul = (OSL::ClosureMul *)closure;
+			flatten_volume_closure_tree(sd, mul->closure, TO_FLOAT3(mul->weight) * weight);
+			break;
+		}
+		case OSL::ClosureColor::ADD: {
+			OSL::ClosureAdd *add = (OSL::ClosureAdd *)closure;
+			flatten_volume_closure_tree(sd, add->closureA, weight);
+			flatten_volume_closure_tree(sd, add->closureB, weight);
+			break;
+		}
+		default: {
+			OSL::ClosureComponent *comp = (OSL::ClosureComponent *)closure;
+			CClosurePrimitive *prim = (CClosurePrimitive *)comp->data();
 
-		if (prim) {
-			ShaderClosure sc;
+			if(prim) {
+				ShaderClosure sc;
 
 #ifdef OSL_SUPPORTS_WEIGHTED_CLOSURE_COMPONENTS
-			weight = weight*TO_FLOAT3(comp->w);
+				weight = weight*TO_FLOAT3(comp->w);
 #endif
-			sc.weight = weight;
+				sc.weight = weight;
 
-			prim->setup();
+				prim->setup();
 
-			switch (prim->category) {
-				case CClosurePrimitive::Volume: {
-					CVolumeClosure *volume = (CVolumeClosure *)prim;
-					/* sample weight */
-					float sample_weight = fabsf(average(weight));
+				switch(prim->category) {
+					case CClosurePrimitive::Volume: {
+						CVolumeClosure *volume = (CVolumeClosure *)prim;
+						/* sample weight */
+						float sample_weight = fabsf(average(weight));
 
-					sc.sample_weight = sample_weight;
-					sc.type = volume->sc.type;
-					sc.data0 = volume->sc.data0;
-					sc.data1 = volume->sc.data1;
+						sc.sample_weight = sample_weight;
+						sc.type = volume->sc.type;
+						sc.data0 = volume->sc.data0;
+						sc.data1 = volume->sc.data1;
 
-					/* add */
-					if((sc.sample_weight > CLOSURE_WEIGHT_CUTOFF) &&
-					   (sd->num_closure < MAX_CLOSURE))
-					{
-						sd->closure[sd->num_closure++] = sc;
-						sd->flag |= volume->shaderdata_flag();
+						/* add */
+						if((sc.sample_weight > CLOSURE_WEIGHT_CUTOFF) &&
+						   (sd->num_closure < MAX_CLOSURE))
+						{
+							sd->closure[sd->num_closure++] = sc;
+							sd->flag |= volume->shaderdata_flag();
+						}
+						break;
 					}
-					break;
-				}
-				case CClosurePrimitive::Emissive: {
-					/* sample weight */
-					float sample_weight = fabsf(average(weight));
+					case CClosurePrimitive::Emissive: {
+						/* sample weight */
+						float sample_weight = fabsf(average(weight));
 
-					sc.sample_weight = sample_weight;
-					sc.type = CLOSURE_EMISSION_ID;
-					sc.data0 = 0.0f;
-					sc.data1 = 0.0f;
-					sc.prim = NULL;
+						sc.sample_weight = sample_weight;
+						sc.type = CLOSURE_EMISSION_ID;
+						sc.data0 = 0.0f;
+						sc.data1 = 0.0f;
+						sc.prim = NULL;
 
-					/* flag */
-					if(sd->num_closure < MAX_CLOSURE) {
-						sd->closure[sd->num_closure++] = sc;
-						sd->flag |= SD_EMISSION;
+						/* flag */
+						if(sd->num_closure < MAX_CLOSURE) {
+							sd->closure[sd->num_closure++] = sc;
+							sd->flag |= SD_EMISSION;
+						}
+						break;
 					}
-					break;
+					case CClosurePrimitive::Holdout:
+						break; /* not implemented */
+					case CClosurePrimitive::Background:
+					case CClosurePrimitive::BSDF:
+					case CClosurePrimitive::BSSRDF:
+					case CClosurePrimitive::AmbientOcclusion:
+						break; /* not relevant */
 				}
-				case CClosurePrimitive::Holdout:
-					break; /* not implemented */
-				case CClosurePrimitive::Background:
-				case CClosurePrimitive::BSDF:
-				case CClosurePrimitive::BSSRDF:
-				case CClosurePrimitive::AmbientOcclusion:
-					break; /* not relevant */
 			}
 		}
-	}
-	else if (closure->type == OSL::ClosureColor::MUL) {
-		OSL::ClosureMul *mul = (OSL::ClosureMul *)closure;
-		flatten_volume_closure_tree(sd, mul->closure, TO_FLOAT3(mul->weight) * weight);
-	}
-	else if (closure->type == OSL::ClosureColor::ADD) {
-		OSL::ClosureAdd *add = (OSL::ClosureAdd *)closure;
-		flatten_volume_closure_tree(sd, add->closureA, weight);
-		flatten_volume_closure_tree(sd, add->closureB, weight);
 	}
 }
 
@@ -470,11 +498,11 @@ void OSLShader::eval_volume(KernelGlobals *kg, ShaderData *sd, int path_flag, Sh
 	OSL::ShadingContext *octx = tdata->context[(int)ctx];
 	int shader = sd->shader & SHADER_MASK;
 
-	if (kg->osl->volume_state[shader])
+	if(kg->osl->volume_state[shader])
 		ss->execute(*octx, *(kg->osl->volume_state[shader]), *globals);
 	
 	/* flatten closure tree */
-	if (globals->Ci)
+	if(globals->Ci)
 		flatten_volume_closure_tree(sd, globals->Ci);
 }
 
@@ -492,7 +520,7 @@ void OSLShader::eval_displacement(KernelGlobals *kg, ShaderData *sd, ShaderConte
 	OSL::ShadingContext *octx = tdata->context[(int)ctx];
 	int shader = sd->shader & SHADER_MASK;
 
-	if (kg->osl->displacement_state[shader])
+	if(kg->osl->displacement_state[shader])
 		ss->execute(*octx, *(kg->osl->displacement_state[shader]), *globals);
 
 	/* get back position */
@@ -519,7 +547,7 @@ float3 OSLShader::bsdf_eval(const ShaderData *sd, const ShaderClosure *sc, const
 	CBSDFClosure *bsdf = (CBSDFClosure *)sc->prim;
 	float3 bsdf_eval;
 
-	if (dot(sd->Ng, omega_in) >= 0.0f)
+	if(dot(sd->Ng, omega_in) >= 0.0f)
 		bsdf_eval = bsdf->eval_reflect(sd->I, omega_in, pdf);
 	else
 		bsdf_eval = bsdf->eval_transmit(sd->I, omega_in, pdf);
@@ -547,7 +575,7 @@ int OSLShader::find_attribute(KernelGlobals *kg, const ShaderData *sd, uint id, 
 	ustring stdname(std::string("geom:") + std::string(Attribute::standard_name((AttributeStandard)id)));
 	OSLGlobals::AttributeMap::const_iterator it = attr_map.find(stdname);
 
-	if (it != attr_map.end()) {
+	if(it != attr_map.end()) {
 		const OSLGlobals::Attribute &osl_attr = it->second;
 		*elem = osl_attr.elem;
 

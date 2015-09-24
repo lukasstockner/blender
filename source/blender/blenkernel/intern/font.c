@@ -245,7 +245,7 @@ VFont *BKE_vfont_load(Main *bmain, const char *name)
 			}
 
 			/* Do not add FO_BUILTIN_NAME to temporary listbase */
-			if (strcmp(filename, FO_BUILTIN_NAME)) {
+			if (!STREQ(filename, FO_BUILTIN_NAME)) {
 				vfont->temp_pf = temp_pf;
 			}
 		}
@@ -777,7 +777,7 @@ makebreak:
 
 			if ((tb_scale.h != 0.0f) &&
 			    (cu->totbox > (curbox + 1)) &&
-			    ((-(yof - tb_scale.y)) > (tb_scale.h - (linedist * cu->fsize)) - yof_scale))
+			    ((-(yof - tb_scale.y)) > (tb_scale.h - linedist) - yof_scale))
 			{
 				maxlen = 0;
 				curbox++;

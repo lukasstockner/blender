@@ -60,25 +60,25 @@ void DirectionalBlurOperation::initExecution()
 	this->m_center_y_pix = center_y * height;
 
 	this->m_tx  =  itsc * D * cosf(a);
-	this->m_ty  = -itsc *D *sinf(a);
+	this->m_ty  = -itsc * D * sinf(a);
 	this->m_sc  =  itsc * zoom;
 	this->m_rot =  itsc * spin;
 
 }
 
-void DirectionalBlurOperation::executePixel(float output[4], int x, int y, void *data)
+void DirectionalBlurOperation::executePixel(float output[4], int x, int y, void * /*data*/)
 {
 	const int iterations = pow(2.0f, this->m_data->iter);
-	float col[4] = {0, 0, 0, 0};
-	float col2[4] = {0, 0, 0, 0};
-	this->m_inputProgram->readSampled(col2, x, y, COM_PS_NEAREST);
+	float col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	float col2[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	this->m_inputProgram->readSampled(col2, x, y, COM_PS_BILINEAR);
 	float ltx = this->m_tx;
 	float lty = this->m_ty;
 	float lsc = this->m_sc;
 	float lrot = this->m_rot;
 	/* blur the image */
 	for (int i = 0; i < iterations; ++i) {
-		const float cs = cos(lrot), ss = sin(lrot);
+		const float cs = cosf(lrot), ss = sinf(lrot);
 		const float isc = 1.0f / (1.0f + lsc);
 
 		const float v = isc * (y - this->m_center_y_pix) + lty;
@@ -87,7 +87,7 @@ void DirectionalBlurOperation::executePixel(float output[4], int x, int y, void 
 		this->m_inputProgram->readSampled(col,
 		                           cs * u + ss * v + this->m_center_x_pix,
 		                           cs * v - ss * u + this->m_center_y_pix,
-		                           COM_PS_NEAREST);
+		                           COM_PS_BILINEAR);
 
 		add_v4_v4(col2, col);
 
@@ -104,7 +104,7 @@ void DirectionalBlurOperation::executePixel(float output[4], int x, int y, void 
 void DirectionalBlurOperation::executeOpenCL(OpenCLDevice *device,
                                        MemoryBuffer *outputMemoryBuffer, cl_mem clOutputBuffer, 
                                        MemoryBuffer **inputMemoryBuffers, list<cl_mem> *clMemToCleanUp, 
-                                       list<cl_kernel> *clKernelsToCleanUp) 
+                                       list<cl_kernel> * /*clKernelsToCleanUp*/)
 {
 	cl_kernel directionalBlurKernel = device->COM_clCreateKernel("directionalBlurKernel", NULL);
 
@@ -132,7 +132,7 @@ void DirectionalBlurOperation::deinitExecution()
 	this->m_inputProgram = NULL;
 }
 
-bool DirectionalBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
+bool DirectionalBlurOperation::determineDependingAreaOfInterest(rcti * /*input*/, ReadBufferOperation *readOperation, rcti *output)
 {
 	rcti newInput;
 

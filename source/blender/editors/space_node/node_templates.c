@@ -24,18 +24,18 @@
  *  \ingroup edinterface
  */
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -54,7 +54,6 @@
 
 #include "ED_util.h"
 
-#include "node_intern.h"
 
 /************************* Node Socket Manipulation **************************/
 
@@ -216,8 +215,22 @@ static void node_socket_add_replace(const bContext *C, bNodeTree *ntree, bNode *
 	}
 	else if (!node_from) {
 		node_from = nodeAddStaticNode(C, ntree, type);
-		node_from->locx = node_to->locx - (node_from->typeinfo->width + 50);
-		node_from->locy = node_to->locy;
+		if (node_prev != NULL) {
+			/* If we're replacing existing node, use it's location. */
+			node_from->locx = node_prev->locx;
+			node_from->locy = node_prev->locy;
+			node_from->offsetx = node_prev->offsetx;
+			node_from->offsety = node_prev->offsety;
+		}
+		else {
+			/* Avoid exact intersection of nodes.
+			 * TODO(sergey): Still not ideal, but better than nothing.
+			 */
+			int index = BLI_findindex(&node_to->inputs, sock_to);
+			BLI_assert(index != -1);
+			node_from->locx = node_to->locx - (node_from->typeinfo->width + 50);
+			node_from->locy = node_to->locy - (node_from->typeinfo->height * index);
+		}
 		
 		node_link_item_apply(node_from, item);
 	}
@@ -300,7 +313,7 @@ static void ui_node_link_items(NodeLinkArg *arg, int in_out, NodeLinkItem **r_it
 		
 		for (ngroup = arg->bmain->nodetree.first; ngroup; ngroup = ngroup->id.next) {
 			ListBase *lb = ((in_out == SOCK_IN) ? &ngroup->inputs : &ngroup->outputs);
-			totitems += BLI_countlist(lb);
+			totitems += BLI_listbase_count(lb);
 		}
 		
 		if (totitems > 0) {
@@ -454,7 +467,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 			
 			if (first) {
 				column = uiLayoutColumn(layout, 0);
-				uiBlockSetCurLayout(block, column);
+				UI_block_layout_set_current(block, column);
 				
 				uiItemL(column, IFACE_(cname), ICON_NODE);
 				but = block->buttons.last;
@@ -466,7 +479,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 				if (!cur_node_name || !STREQ(cur_node_name, items[i].node_name)) {
 					cur_node_name = items[i].node_name;
 					/* XXX Do not use uiItemL here, it would add an empty icon as we are in a menu! */
-					uiDefBut(block, LABEL, 0, IFACE_(cur_node_name), 0, 0, UI_UNIT_X * 4, UI_UNIT_Y,
+					uiDefBut(block, UI_BTYPE_LABEL, 0, IFACE_(cur_node_name), 0, 0, UI_UNIT_X * 4, UI_UNIT_Y,
 					         NULL, 0.0, 0.0, 0.0, 0.0, "");
 				}
 
@@ -478,12 +491,12 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 				icon = ICON_NONE;
 			}
 			
-			but = uiDefIconTextBut(block, BUT, 0, icon, name, 0, 0, UI_UNIT_X * 4, UI_UNIT_Y,
+			but = uiDefIconTextBut(block, UI_BTYPE_BUT, 0, icon, name, 0, 0, UI_UNIT_X * 4, UI_UNIT_Y,
 			                       NULL, 0.0, 0.0, 0.0, 0.0, TIP_("Add node to input"));
 			
 			argN = MEM_dupallocN(arg);
 			argN->item = items[i];
-			uiButSetNFunc(but, ui_node_link, argN, NULL);
+			UI_but_funcN_set(but, ui_node_link, argN, NULL);
 		}
 		
 		if (items)
@@ -511,8 +524,8 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
 	bNodeSocket *sock = arg->sock;
 	bNodeTreeType *ntreetype = arg->ntree->typeinfo;
 
-	uiBlockSetFlag(block, UI_BLOCK_NO_FLIP);
-	uiBlockSetCurLayout(block, layout);
+	UI_block_flag_enable(block, UI_BLOCK_NO_FLIP);
+	UI_block_layout_set_current(block, layout);
 	split = uiLayoutSplit(layout, 0.0f, false);
 
 	arg->bmain = bmain;
@@ -523,20 +536,20 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
 		ntreetype->foreach_nodeclass(scene, arg, node_menu_column_foreach_cb);
 
 	column = uiLayoutColumn(split, false);
-	uiBlockSetCurLayout(block, column);
+	UI_block_layout_set_current(block, column);
 
 	if (sock->link) {
 		uiItemL(column, IFACE_("Link"), ICON_NONE);
 		but = block->buttons.last;
 		but->drawflag = UI_BUT_TEXT_LEFT;
 
-		but = uiDefBut(block, BUT, 0, IFACE_("Remove"), 0, 0, UI_UNIT_X * 4, UI_UNIT_Y,
+		but = uiDefBut(block, UI_BTYPE_BUT, 0, IFACE_("Remove"), 0, 0, UI_UNIT_X * 4, UI_UNIT_Y,
 		               NULL, 0.0, 0.0, 0.0, 0.0, TIP_("Remove nodes connected to the input"));
-		uiButSetNFunc(but, ui_node_link, MEM_dupallocN(arg), SET_INT_IN_POINTER(UI_NODE_LINK_REMOVE));
+		UI_but_funcN_set(but, ui_node_link, MEM_dupallocN(arg), SET_INT_IN_POINTER(UI_NODE_LINK_REMOVE));
 
-		but = uiDefBut(block, BUT, 0, IFACE_("Disconnect"), 0, 0, UI_UNIT_X * 4, UI_UNIT_Y,
+		but = uiDefBut(block, UI_BTYPE_BUT, 0, IFACE_("Disconnect"), 0, 0, UI_UNIT_X * 4, UI_UNIT_Y,
 		               NULL, 0.0, 0.0, 0.0, 0.0, TIP_("Disconnect nodes connected to the input"));
-		uiButSetNFunc(but, ui_node_link, MEM_dupallocN(arg), SET_INT_IN_POINTER(UI_NODE_LINK_DISCONNECT));
+		UI_but_funcN_set(but, ui_node_link, MEM_dupallocN(arg), SET_INT_IN_POINTER(UI_NODE_LINK_DISCONNECT));
 	}
 
 	ui_node_menu_column(arg, NODE_CLASS_GROUP, N_("Group"));
@@ -553,7 +566,7 @@ void uiTemplateNodeLink(uiLayout *layout, bNodeTree *ntree, bNode *node, bNodeSo
 	arg->node = node;
 	arg->sock = sock;
 
-	uiBlockSetCurLayout(block, layout);
+	UI_block_layout_set_current(block, layout);
 
 	if (sock->link || sock->type == SOCK_SHADER || (sock->flag & SOCK_HIDE_VALUE)) {
 		char name[UI_MAX_NAME_STR];
@@ -563,7 +576,7 @@ void uiTemplateNodeLink(uiLayout *layout, bNodeTree *ntree, bNode *node, bNodeSo
 	else
 		but = uiDefIconMenuBut(block, ui_template_node_link_menu, NULL, ICON_NONE, 0, 0, UI_UNIT_X, UI_UNIT_Y, "");
 
-	uiButSetMenuFromPulldown(but);
+	UI_but_type_set_menu_from_pulldown(but);
 
 	but->flag |= UI_BUT_NODE_LINK;
 	but->poin = (char *)but;
@@ -609,7 +622,7 @@ static void ui_node_draw_input(uiLayout *layout, bContext *C, bNodeTree *ntree, 
 	uiLayout *split, *row, *col;
 	bNode *lnode;
 	char label[UI_MAX_NAME_STR];
-	int indent = (depth > 1) ? 2 * (depth - 1) : 0;
+	int i, indent = (depth > 1) ? 2 * (depth - 1) : 0;
 	int dependency_loop;
 
 	if (input->flag & SOCK_UNAVAIL)
@@ -628,7 +641,8 @@ static void ui_node_draw_input(uiLayout *layout, bContext *C, bNodeTree *ntree, 
 	RNA_pointer_create(&ntree->id, &RNA_Node, node, &nodeptr);
 
 	/* indented label */
-	memset(label, ' ', indent);
+	for (i = 0; i < indent; i++)
+		label[i] = ' ';
 	label[indent] = '\0';
 	BLI_snprintf(label, UI_MAX_NAME_STR, "%s%s:", label, IFACE_(input->name));
 
@@ -638,7 +652,7 @@ static void ui_node_draw_input(uiLayout *layout, bContext *C, bNodeTree *ntree, 
 	row = uiLayoutRow(split, true);
 
 	if (depth > 0) {
-		uiBlockSetEmboss(block, UI_EMBOSSN);
+		UI_block_emboss_set(block, UI_EMBOSS_NONE);
 
 		if (lnode && (lnode->inputs.first || (lnode->typeinfo->draw_buttons && lnode->type != NODE_GROUP))) {
 			int icon = (input->flag & SOCK_COLLAPSED) ? ICON_DISCLOSURE_TRI_RIGHT : ICON_DISCLOSURE_TRI_DOWN;
@@ -650,7 +664,7 @@ static void ui_node_draw_input(uiLayout *layout, bContext *C, bNodeTree *ntree, 
 		bt = block->buttons.last;
 		bt->rect.xmax = UI_UNIT_X / 2;
 
-		uiBlockSetEmboss(block, UI_EMBOSS);
+		UI_block_emboss_set(block, UI_EMBOSS);
 	}
 
 	uiItemL(row, label, ICON_NONE);

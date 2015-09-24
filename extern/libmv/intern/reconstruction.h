@@ -31,10 +31,11 @@
 extern "C" {
 #endif
 
-typedef struct libmv_CameraIntrinsics libmv_CameraIntrinsics;
-typedef struct libmv_CameraIntrinsicsOptions libmv_CameraIntrinsicsOptions;
+struct libmv_Tracks;
+struct libmv_CameraIntrinsics;
+struct libmv_CameraIntrinsicsOptions;
+
 typedef struct libmv_Reconstruction libmv_Reconstruction;
-typedef struct libmv_Tracks libmv_Tracks;
 
 enum {
   LIBMV_REFINE_FOCAL_LENGTH         = (1 << 0),
@@ -54,18 +55,20 @@ typedef void (*reconstruct_progress_update_cb) (void* customdata,
                                                 const char* message);
 
 libmv_Reconstruction* libmv_solveReconstruction(
-    const libmv_Tracks* libmv_tracks,
-    const libmv_CameraIntrinsicsOptions* libmv_camera_intrinsics_options,
+    const struct libmv_Tracks* libmv_tracks,
+    const struct libmv_CameraIntrinsicsOptions* libmv_camera_intrinsics_options,
     libmv_ReconstructionOptions* libmv_reconstruction_options,
     reconstruct_progress_update_cb progress_update_callback,
     void* callback_customdata);
 
 libmv_Reconstruction* libmv_solveModal(
-    const libmv_Tracks* libmv_tracks,
-    const libmv_CameraIntrinsicsOptions* libmv_camera_intrinsics_options,
+    const struct libmv_Tracks* libmv_tracks,
+    const struct libmv_CameraIntrinsicsOptions* libmv_camera_intrinsics_options,
     const libmv_ReconstructionOptions* libmv_reconstruction_options,
     reconstruct_progress_update_cb progress_update_callback,
     void* callback_customdata);
+
+int libmv_reconstructionIsValid(libmv_Reconstruction *libmv_reconstruction);
 
 void libmv_reconstructionDestroy(libmv_Reconstruction* libmv_reconstruction);
 
@@ -89,7 +92,7 @@ int libmv_reprojectionCameraForImage(
 
 double libmv_reprojectionError(const libmv_Reconstruction* libmv_reconstruction);
 
-libmv_CameraIntrinsics* libmv_reconstructionExtractIntrinsics(
+struct libmv_CameraIntrinsics* libmv_reconstructionExtractIntrinsics(
     libmv_Reconstruction *libmv_Reconstruction);
 
 #ifdef __cplusplus

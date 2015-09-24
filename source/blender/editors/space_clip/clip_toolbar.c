@@ -38,7 +38,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
@@ -242,7 +242,7 @@ static void clip_panel_operator_redo(const bContext *C, Panel *pa)
 			uiLayoutSetEnabled(pa->layout, false);
 
 		/* note, blockfunc is a default but->func, use Handle func to allow button callbacks too */
-		uiBlockSetHandleFunc(block, ED_undo_operator_repeat_cb_evt, op);
+		UI_block_func_handle_set(block, ED_undo_operator_repeat_cb_evt, op);
 
 		clip_panel_operator_redo_operator(C, pa, op);
 	}
@@ -258,7 +258,7 @@ void ED_clip_tool_props_register(ARegionType *art)
 	pt = MEM_callocN(sizeof(PanelType), "spacetype clip panel last operator");
 	strcpy(pt->idname, "CLIP_PT_last_operator");
 	strcpy(pt->label, N_("Operator"));
-	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw_header = clip_panel_operator_redo_header;
 	pt->draw = clip_panel_operator_redo;
 	BLI_addtail(&art->paneltypes, pt);

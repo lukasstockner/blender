@@ -330,7 +330,7 @@ static void text_from_buf(Text *text, const unsigned char *buffer, const int len
 	text->curc = text->selc = 0;
 }
 
-int BKE_text_reload(Text *text)
+bool BKE_text_reload(Text *text)
 {
 	FILE *fp;
 	int len;
@@ -339,13 +339,24 @@ int BKE_text_reload(Text *text)
 	char str[FILE_MAX];
 	BLI_stat_t st;
 
-	if (!text || !text->name) return 0;
-	
+	if (!text->name) {
+		return false;
+	}
+
 	BLI_strncpy(str, text->name, FILE_MAX);
 	BLI_path_abs(str, G.main->name);
 	
 	fp = BLI_fopen(str, "r");
-	if (fp == NULL) return 0;
+	if (fp == NULL) {
+		return false;
+	}
+	fseek(fp, 0L, SEEK_END);
+	len = ftell(fp);
+	fseek(fp, 0L, SEEK_SET);
+	if (UNLIKELY(len == -1)) {
+		fclose(fp);
+		return false;
+	}
 
 	/* free memory: */
 
@@ -363,25 +374,24 @@ int BKE_text_reload(Text *text)
 	MEM_freeN(text->undo_buf);
 	init_undo_text(text);
 
-	fseek(fp, 0L, SEEK_END);
-	len = ftell(fp);
-	fseek(fp, 0L, SEEK_SET);
-
-
 	buffer = MEM_mallocN(len, "text_buffer");
-	// under windows fread can return less then len bytes because
-	// of CR stripping
+	/* under windows fread can return less than len bytes because
+	 * of CR stripping */
 	len = fread(buffer, 1, len, fp);
 
 	fclose(fp);
 
-	BLI_stat(str, &st);
-	text->mtime = st.st_mtime;
+	if (BLI_stat(str, &st) != -1) {
+		text->mtime = st.st_mtime;
+	}
+	else {
+		text->mtime = 0;
+	}
 
 	text_from_buf(text, buffer, len);
 
 	MEM_freeN(buffer);
-	return 1;
+	return true;
 }
 
 Text *BKE_text_load_ex(Main *bmain, const char *file, const char *relpath, const bool is_internal)
@@ -398,8 +408,18 @@ Text *BKE_text_load_ex(Main *bmain, const char *file, const char *relpath, const
 		BLI_path_abs(str, relpath);
 	
 	fp = BLI_fopen(str, "r");
-	if (fp == NULL) return NULL;
-	
+	if (fp == NULL) {
+		return NULL;
+	}
+
+	fseek(fp, 0L, SEEK_END);
+	len = ftell(fp);
+	fseek(fp, 0L, SEEK_SET);
+	if (UNLIKELY(len == -1)) {
+		fclose(fp);
+		return NULL;
+	}
+
 	ta = BKE_libblock_alloc(bmain, ID_TXT, BLI_path_basename(str));
 	ta->id.us = 1;
 
@@ -419,20 +439,20 @@ Text *BKE_text_load_ex(Main *bmain, const char *file, const char *relpath, const
 
 	/* clear undo buffer */
 	init_undo_text(ta);
-
-	fseek(fp, 0L, SEEK_END);
-	len = ftell(fp);
-	fseek(fp, 0L, SEEK_SET);
 	
 	buffer = MEM_mallocN(len, "text_buffer");
-	// under windows fread can return less then len bytes because
-	// of CR stripping
+	/* under windows fread can return less than len bytes because
+	 * of CR stripping */
 	len = fread(buffer, 1, len, fp);
 
 	fclose(fp);
 
-	BLI_stat(str, &st);
-	ta->mtime = st.st_mtime;
+	if (BLI_stat(str, &st) != -1) {
+		ta->mtime = st.st_mtime;
+	}
+	else {
+		ta->mtime = 0;
+	}
 	
 	text_from_buf(ta, buffer, len);
 	
@@ -446,7 +466,7 @@ Text *BKE_text_load(Main *bmain, const char *file, const char *relpath)
 	return BKE_text_load_ex(bmain, file, relpath, false);
 }
 
-Text *BKE_text_copy(Text *ta)
+Text *BKE_text_copy(Main *bmain, Text *ta)
 {
 	Text *tan;
 	TextLine *line, *tmp;
@@ -455,8 +475,7 @@ Text *BKE_text_copy(Text *ta)
 	
 	/* file name can be NULL */
 	if (ta->name) {
-		tan->name = MEM_mallocN(strlen(ta->name) + 1, "text_name");
-		strcpy(tan->name, ta->name);
+		tan->name = BLI_strdup(ta->name);
 	}
 	else {
 		tan->name = NULL;
@@ -466,6 +485,7 @@ Text *BKE_text_copy(Text *ta)
 	
 	BLI_listbase_clear(&tan->lines);
 	tan->curl = tan->sell = NULL;
+	tan->compiled = NULL;
 	
 	tan->nlines = ta->nlines;
 
@@ -490,6 +510,10 @@ Text *BKE_text_copy(Text *ta)
 
 	init_undo_text(tan);
 
+	if (ta->id.lib) {
+		BKE_id_lib_local_paths(bmain, ta->id.lib, &tan->id);
+	}
+
 	return tan;
 }
 
@@ -505,10 +529,14 @@ void BKE_text_unlink(Main *bmain, Text *text)
 	bNodeTree *ntree;
 	bNode *node;
 	Material *mat;
+	Lamp *la;
+	Tex *te;
+	World *wo;
+	FreestyleLineStyle *linestyle;
 	Scene *sce;
 	SceneRenderLayer *srl;
 	FreestyleModuleConfig *module;
-	short update;
+	bool update;
 
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
 		/* game controllers */
@@ -560,23 +588,97 @@ void BKE_text_unlink(Main *bmain, Text *text)
 	}
 	
 	/* nodes */
+	for (la = bmain->lamp.first; la; la = la->id.next) {
+		ntree = la->nodetree;
+		if (!ntree)
+			continue;
+		for (node = ntree->nodes.first; node; node = node->next) {
+			if (node->type == NODE_FRAME) {
+				if ((Text *)node->id == text) {
+					node->id = NULL;
+				}
+			}
+		}
+	}
+
+	for (linestyle = bmain->linestyle.first; linestyle; linestyle = linestyle->id.next) {
+		ntree = linestyle->nodetree;
+		if (!ntree)
+			continue;
+		for (node = ntree->nodes.first; node; node = node->next) {
+			if (node->type == NODE_FRAME) {
+				if ((Text *)node->id == text) {
+					node->id = NULL;
+				}
+			}
+		}
+	}
+
 	for (mat = bmain->mat.first; mat; mat = mat->id.next) {
 		ntree = mat->nodetree;
 		if (!ntree)
 			continue;
 		for (node = ntree->nodes.first; node; node = node->next) {
-			if (node->type == SH_NODE_SCRIPT) {
+			if (ELEM(node->type, SH_NODE_SCRIPT, NODE_FRAME)) {
+				if ((Text *)node->id == text) {
+					node->id = NULL;
+				}
+			}
+		}
+	}
+
+	for (te = bmain->tex.first; te; te = te->id.next) {
+		ntree = te->nodetree;
+		if (!ntree)
+			continue;
+		for (node = ntree->nodes.first; node; node = node->next) {
+			if (node->type == NODE_FRAME) {
+				if ((Text *)node->id == text) {
+					node->id = NULL;
+				}
+			}
+		}
+	}
+
+	for (wo = bmain->world.first; wo; wo = wo->id.next) {
+		ntree = wo->nodetree;
+		if (!ntree)
+			continue;
+		for (node = ntree->nodes.first; node; node = node->next) {
+			if (node->type == NODE_FRAME) {
+				if ((Text *)node->id == text) {
+					node->id = NULL;
+				}
+			}
+		}
+	}
+
+	for (sce = bmain->scene.first; sce; sce = sce->id.next) {
+		ntree = sce->nodetree;
+		if (!ntree)
+			continue;
+		for (node = ntree->nodes.first; node; node = node->next) {
+			if (node->type == NODE_FRAME) {
 				Text *ntext = (Text *)node->id;
 				if (ntext == text) node->id = NULL;
 			}
 		}
+
+		/* Freestyle (while looping over the scene) */
+		for (srl = sce->r.layers.first; srl; srl = srl->next) {
+			for (module = srl->freestyleConfig.modules.first; module; module = module->next) {
+				if (module->script == text)
+					module->script = NULL;
+			}
+		}
 	}
-	
+
 	for (ntree = bmain->nodetree.first; ntree; ntree = ntree->id.next) {
 		for (node = ntree->nodes.first; node; node = node->next) {
-			if (node->type == SH_NODE_SCRIPT) {
-				Text *ntext = (Text *)node->id;
-				if (ntext == text) node->id = NULL;
+			if (ELEM(node->type, SH_NODE_SCRIPT, NODE_FRAME)) {
+				if ((Text *)node->id == text) {
+					node->id = NULL;
+				}
 			}
 		}
 	}
@@ -597,16 +699,6 @@ void BKE_text_unlink(Main *bmain, Text *text)
 		}
 	}
 
-	/* Freestyle */
-	for (sce = bmain->scene.first; sce; sce = sce->id.next) {
-		for (srl = sce->r.layers.first; srl; srl = srl->next) {
-			for (module = srl->freestyleConfig.modules.first; module; module = module->next) {
-				if (module->script == text)
-					module->script = NULL;
-			}
-		}
-	}
-
 	text->id.us = 0;
 }
 
@@ -614,7 +706,7 @@ void BKE_text_clear(Text *text) /* called directly from rna */
 {
 	int oldstate;
 
-	oldstate = txt_get_undostate(  );
+	oldstate = txt_get_undostate();
 	txt_set_undostate(1);
 	txt_sel_all(text);
 	txt_delete_sel(text);
@@ -647,7 +739,7 @@ int BKE_text_file_modified_check(Text *text)
 	int result;
 	char file[FILE_MAX];
 
-	if (!text || !text->name)
+	if (!text->name)
 		return 0;
 
 	BLI_strncpy(file, text->name, FILE_MAX);
@@ -676,7 +768,7 @@ void BKE_text_file_modified_ignore(Text *text)
 	int result;
 	char file[FILE_MAX];
 
-	if (!text || !text->name) return;
+	if (!text->name) return;
 
 	BLI_strncpy(file, text->name, FILE_MAX);
 	BLI_path_abs(file, G.main->name);
@@ -742,9 +834,7 @@ static TextLine *txt_new_linen(const char *str, int n)
 void txt_clean_text(Text *text)
 {	
 	TextLine **top, **bot;
-	
-	if (!text) return;
-	
+
 	if (!text->lines.first) {
 		if (text->lines.last) text->lines.first = text->lines.last;
 		else text->lines.first = text->lines.last = txt_new_line(NULL);
@@ -883,8 +973,7 @@ void txt_move_up(Text *text, const bool sel)
 {
 	TextLine **linep;
 	int *charp;
-	
-	if (!text) return;
+
 	if (sel) txt_curs_sel(text, &linep, &charp);
 	else { txt_pop_first(text); txt_curs_cur(text, &linep, &charp); }
 	if (!*linep) return;
@@ -906,8 +995,7 @@ void txt_move_down(Text *text, const bool sel)
 {
 	TextLine **linep;
 	int *charp;
-	
-	if (!text) return;
+
 	if (sel) txt_curs_sel(text, &linep, &charp);
 	else { txt_pop_last(text); txt_curs_cur(text, &linep, &charp); }
 	if (!*linep) return;
@@ -929,8 +1017,7 @@ void txt_move_left(Text *text, const bool sel)
 	TextLine **linep;
 	int *charp;
 	int tabsize = 0, i = 0;
-	
-	if (!text) return;
+
 	if (sel) txt_curs_sel(text, &linep, &charp);
 	else { txt_pop_first(text); txt_curs_cur(text, &linep, &charp); }
 	if (!*linep) return;
@@ -974,8 +1061,7 @@ void txt_move_right(Text *text, const bool sel)
 	TextLine **linep;
 	int *charp, i;
 	bool do_tab = false;
-	
-	if (!text) return;
+
 	if (sel) txt_curs_sel(text, &linep, &charp);
 	else { txt_pop_last(text); txt_curs_cur(text, &linep, &charp); }
 	if (!*linep) return;
@@ -1016,8 +1102,7 @@ void txt_jump_left(Text *text, const bool sel, const bool use_init_step)
 {
 	TextLine **linep;
 	int *charp;
-	
-	if (!text) return;
+
 	if (sel) txt_curs_sel(text, &linep, &charp);
 	else { txt_pop_first(text); txt_curs_cur(text, &linep, &charp); }
 	if (!*linep) return;
@@ -1033,8 +1118,7 @@ void txt_jump_right(Text *text, const bool sel, const bool use_init_step)
 {
 	TextLine **linep;
 	int *charp;
-	
-	if (!text) return;
+
 	if (sel) txt_curs_sel(text, &linep, &charp);
 	else { txt_pop_last(text); txt_curs_cur(text, &linep, &charp); }
 	if (!*linep) return;
@@ -1050,8 +1134,7 @@ void txt_move_bol(Text *text, const bool sel)
 {
 	TextLine **linep;
 	int *charp;
-	
-	if (!text) return;
+
 	if (sel) txt_curs_sel(text, &linep, &charp);
 	else txt_curs_cur(text, &linep, &charp);
 	if (!*linep) return;
@@ -1065,8 +1148,7 @@ void txt_move_eol(Text *text, const bool sel)
 {
 	TextLine **linep;
 	int *charp;
-	
-	if (!text) return;
+
 	if (sel) txt_curs_sel(text, &linep, &charp);
 	else txt_curs_cur(text, &linep, &charp);
 	if (!*linep) return;
@@ -1080,8 +1162,7 @@ void txt_move_bof(Text *text, const bool sel)
 {
 	TextLine **linep;
 	int *charp;
-	
-	if (!text) return;
+
 	if (sel) txt_curs_sel(text, &linep, &charp);
 	else txt_curs_cur(text, &linep, &charp);
 	if (!*linep) return;
@@ -1096,8 +1177,7 @@ void txt_move_eof(Text *text, const bool sel)
 {
 	TextLine **linep;
 	int *charp;
-	
-	if (!text) return;
+
 	if (sel) txt_curs_sel(text, &linep, &charp);
 	else txt_curs_cur(text, &linep, &charp);
 	if (!*linep) return;
@@ -1119,8 +1199,7 @@ void txt_move_to(Text *text, unsigned int line, unsigned int ch, const bool sel)
 	TextLine **linep;
 	int *charp;
 	unsigned int i;
-	
-	if (!text) return;
+
 	if (sel) txt_curs_sel(text, &linep, &charp);
 	else txt_curs_cur(text, &linep, &charp);
 	if (!*linep) return;
@@ -1157,7 +1236,6 @@ static void txt_curs_swap(Text *text)
 
 static void txt_pop_first(Text *text)
 {
-			
 	if (txt_get_span(text->curl, text->sell) < 0 ||
 	    (text->curl == text->sell && text->curc > text->selc))
 	{
@@ -1186,7 +1264,6 @@ void txt_pop_sel(Text *text)
 
 void txt_order_cursors(Text *text, const bool reverse)
 {
-	if (!text) return;
 	if (!text->curl) return;
 	if (!text->sell) return;
 	
@@ -1216,8 +1293,7 @@ static void txt_delete_sel(Text *text)
 {
 	TextLine *tmpl;
 	char *buf;
-	
-	if (!text) return;
+
 	if (!text->curl) return;
 	if (!text->sell) return;
 
@@ -1253,8 +1329,6 @@ static void txt_delete_sel(Text *text)
 
 void txt_sel_all(Text *text)
 {
-	if (!text) return;
-
 	text->curl = text->lines.first;
 	text->curc = 0;
 	
@@ -1277,7 +1351,6 @@ void txt_sel_clear(Text *text)
 
 void txt_sel_line(Text *text)
 {
-	if (!text) return;
 	if (!text->curl) return;
 	
 	text->curc = 0;
@@ -1295,8 +1368,7 @@ char *txt_to_buf(Text *text)
 	TextLine *tmp, *linef, *linel;
 	int charf, charl;
 	char *buf;
-	
-	if (!text) return NULL;
+
 	if (!text->curl) return NULL;
 	if (!text->sell) return NULL;
 	if (!text->lines.first) return NULL;
@@ -1358,7 +1430,7 @@ int txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
 	TextLine *tl, *startl;
 	const char *s = NULL;
 
-	if (!text || !text->curl || !text->sell) return 0;
+	if (!text->curl || !text->sell) return 0;
 	
 	txt_order_cursors(text, false);
 
@@ -1398,8 +1470,7 @@ char *txt_sel_to_buf(Text *text)
 	int length = 0;
 	TextLine *tmp, *linef, *linel;
 	int charf, charl;
-	
-	if (!text) return NULL;
+
 	if (!text->curl) return NULL;
 	if (!text->sell) return NULL;
 	
@@ -1480,7 +1551,6 @@ void txt_insert_buf(Text *text, const char *in_buffer)
 	TextLine *add;
 	char *buffer;
 
-	if (!text) return;
 	if (!in_buffer) return;
 
 	txt_delete_sel(text);
@@ -1537,7 +1607,7 @@ static bool max_undo_test(Text *text, int x)
 			/* XXX error("Undo limit reached, buffer cleared\n"); */
 			MEM_freeN(text->undo_buf);
 			init_undo_text(text);
-			return 0;
+			return false;
 		}
 		else {
 			void *tmp = text->undo_buf;
@@ -1548,7 +1618,7 @@ static bool max_undo_test(Text *text, int x)
 		}
 	}
 
-	return 1;
+	return true;
 }
 
 #if 0  /* UNUSED */
@@ -1835,6 +1905,51 @@ static void txt_undo_add_charop(Text *text, int op_start, unsigned int c)
 		text->undo_buf[text->undo_pos] = op_start + 3;
 	}
 	
+	text->undo_buf[text->undo_pos + 1] = 0;
+}
+
+/* extends Link */
+struct LinkInt {
+	struct LinkInt *next, *prev;
+	int value;
+};
+
+/**
+ * UnindentLines points to a #ListBase composed of #LinkInt elements, listing the numbers
+ * of the lines that should not be indented back.
+ */
+static void txt_undo_add_unprefix_op(
+        Text *text, char undo_op,
+        const ListBase *line_index_mask, const int line_index_mask_len)
+{
+	struct LinkInt *idata;
+
+	BLI_assert(BLI_listbase_count(line_index_mask) == line_index_mask_len);
+
+	/* OP byte + UInt32 count + counted UInt32 line numbers + UInt32 count + 12-bytes selection + OP byte */
+	if (!max_undo_test(text, 1 + 4 + (line_index_mask_len * 4) + 4 + 12 + 1)) {
+		return;
+	}
+
+	/* Opening buffer sequence with OP */
+	text->undo_pos++;
+	text->undo_buf[text->undo_pos] = undo_op;
+	text->undo_pos++;
+	/* Adding number of line numbers to read */
+	txt_undo_store_uint32(text->undo_buf, &text->undo_pos, line_index_mask_len);
+
+	/* Adding linenumbers of lines that shall not be indented if undoing */
+	for (idata = line_index_mask->first; idata; idata = idata->next) {
+		txt_undo_store_uint32(text->undo_buf, &text->undo_pos, idata->value);
+	}
+
+	/* Adding number of line numbers to read again */
+	txt_undo_store_uint32(text->undo_buf, &text->undo_pos, line_index_mask_len);
+	/* Adding current selection */
+	txt_undo_store_cursors(text);
+	/* Closing with OP (same as above) */
+	text->undo_buf[text->undo_pos] = undo_op;
+	/* Marking as last undo operation */
 	text->undo_buf[text->undo_pos + 1] = 0;
 }
 
@@ -2132,9 +2247,7 @@ void txt_do_undo(Text *text)
 			text->undo_pos--;
 			break;
 		case UNDO_INDENT:
-		case UNDO_UNINDENT:
 		case UNDO_COMMENT:
-		case UNDO_UNCOMMENT:
 		case UNDO_DUPLICATE:
 		case UNDO_MOVE_LINES_UP:
 		case UNDO_MOVE_LINES_DOWN:
@@ -2146,14 +2259,8 @@ void txt_do_undo(Text *text)
 			if (op == UNDO_INDENT) {
 				txt_unindent(text);
 			}
-			else if (op == UNDO_UNINDENT) {
-				txt_indent(text);
-			}
 			else if (op == UNDO_COMMENT) {
 				txt_uncomment(text);
-			}
-			else if (op == UNDO_UNCOMMENT) {
-				txt_comment(text);
 			}
 			else if (op == UNDO_DUPLICATE) {
 				txt_delete_line(text, text->curl->next);
@@ -2167,6 +2274,49 @@ void txt_do_undo(Text *text)
 			
 			text->undo_pos--;
 			break;
+		case UNDO_UNINDENT:
+		case UNDO_UNCOMMENT:
+		{
+			void (*txt_prefix_fn)(Text *);
+			void (*txt_unprefix_fn)(Text *);
+			int count;
+			int i;
+			/* Get and restore the cursors */
+			txt_undo_read_cursors(text->undo_buf, &text->undo_pos, &curln, &curc, &selln, &selc);
+			txt_move_to(text, curln, curc, 0);
+			txt_move_to(text, selln, selc, 1);
+
+			/* Un-unindent */
+			if (op == UNDO_UNINDENT) {
+				txt_prefix_fn = txt_indent;
+				txt_unprefix_fn = txt_unindent;
+			}
+			else {
+				txt_prefix_fn = txt_comment;
+				txt_unprefix_fn = txt_uncomment;
+			}
+
+			txt_prefix_fn(text);
+
+			/* Get the count */
+			count = txt_undo_read_uint32(text->undo_buf, &text->undo_pos);
+			/* Iterate! */
+			txt_pop_sel(text);
+
+			for (i = 0; i < count; i++) {
+				txt_move_to(text, txt_undo_read_uint32(text->undo_buf, &text->undo_pos), 0, 0);
+				/* Un-un-unindent/comment */
+				txt_unprefix_fn(text);
+			}
+			/* Restore selection */
+			txt_move_to(text, curln, curc, 0);
+			txt_move_to(text, selln, selc, 1);
+			/* Jumo over count */
+			txt_undo_read_uint32(text->undo_buf, &text->undo_pos);
+			/* Jump over closing OP byte */
+			text->undo_pos--;
+			break;
+		}
 		default:
 			//XXX error("Undo buffer error - resetting");
 			text->undo_pos = -1;
@@ -2296,7 +2446,6 @@ void txt_do_redo(Text *text)
 			break;
 			
 		case UNDO_INDENT:
-		case UNDO_UNINDENT:
 		case UNDO_COMMENT:
 		case UNDO_UNCOMMENT:
 		case UNDO_DUPLICATE:
@@ -2311,9 +2460,6 @@ void txt_do_redo(Text *text)
 
 			if (op == UNDO_INDENT) {
 				txt_indent(text);
-			}
-			else if (op == UNDO_UNINDENT) {
-				txt_unindent(text);
 			}
 			else if (op == UNDO_COMMENT) {
 				txt_comment(text);
@@ -2344,6 +2490,26 @@ void txt_do_redo(Text *text)
 			txt_move_to(text, selln, selc, 1);
 
 			break;
+		case UNDO_UNINDENT:
+		{
+			int count;
+			int i;
+
+			text->undo_pos++;
+			/* Scan all the stuff described in txt_undo_add_unindent_op */
+			count = txt_redo_read_uint32(text->undo_buf, &text->undo_pos);
+			for (i = 0; i < count; i++) {
+				txt_redo_read_uint32(text->undo_buf, &text->undo_pos);
+			}
+			/* Count again */
+			txt_redo_read_uint32(text->undo_buf, &text->undo_pos);
+			/* Get the selection and re-unindent */
+			txt_redo_read_cursors(text->undo_buf, &text->undo_pos, &curln, &curc, &selln, &selc);
+			txt_move_to(text, curln, curc, 0);
+			txt_move_to(text, selln, selc, 1);
+			txt_unindent(text);
+			break;
+		}
 		default:
 			//XXX error("Undo buffer error - resetting");
 			text->undo_pos = -1;
@@ -2362,8 +2528,7 @@ void txt_split_curline(Text *text)
 {
 	TextLine *ins;
 	char *left, *right;
-	
-	if (!text) return;
+
 	if (!text->curl) return;
 
 	txt_delete_sel(text);
@@ -2405,7 +2570,6 @@ void txt_split_curline(Text *text)
 
 static void txt_delete_line(Text *text, TextLine *line)
 {
-	if (!text) return;
 	if (!text->curl) return;
 
 	BLI_remlink(&text->lines, line);
@@ -2422,8 +2586,6 @@ static void txt_delete_line(Text *text, TextLine *line)
 static void txt_combine_lines(Text *text, TextLine *linea, TextLine *lineb)
 {
 	char *tmp, *s;
-
-	if (!text) return;
 	
 	if (!linea || !lineb) return;
 
@@ -2447,7 +2609,7 @@ void txt_duplicate_line(Text *text)
 {
 	TextLine *textline;
 	
-	if (!text || !text->curl) return;
+	if (!text->curl) return;
 	
 	if (text->curl == text->sell) {
 		textline = txt_new_line(text->curl->line);
@@ -2463,8 +2625,7 @@ void txt_duplicate_line(Text *text)
 void txt_delete_char(Text *text) 
 {
 	unsigned int c = '\n';
-	
-	if (!text) return;
+
 	if (!text->curl) return;
 
 	if (txt_has_sel(text)) { /* deleting a selection */
@@ -2501,13 +2662,13 @@ void txt_delete_word(Text *text)
 {
 	txt_jump_right(text, true, true);
 	txt_delete_sel(text);
+	txt_make_dirty(text);
 }
 
 void txt_backspace_char(Text *text)
 {
 	unsigned int c = '\n';
 	
-	if (!text) return;
 	if (!text->curl) return;
 	
 	if (txt_has_sel(text)) { /* deleting a selection */
@@ -2550,6 +2711,7 @@ void txt_backspace_word(Text *text)
 {
 	txt_jump_left(text, true, true);
 	txt_delete_sel(text);
+	txt_make_dirty(text);
 }
 
 /* Max spaces to replace a tab with, currently hardcoded to TXT_TABSIZE = 4.
@@ -2571,19 +2733,18 @@ static bool txt_add_char_intern(Text *text, unsigned int add, bool replace_tabs)
 {
 	char *tmp, ch[BLI_UTF8_MAX];
 	size_t add_len;
-	
-	if (!text) return 0;
+
 	if (!text->curl) return 0;
 
 	if (add == '\n') {
 		txt_split_curline(text);
-		return 1;
+		return true;
 	}
 	
 	/* insert spaces rather than tabs */
 	if (add == '\t' && replace_tabs) {
 		txt_convert_tab_to_spaces(text);
-		return 1;
+		return true;
 	}
 
 	txt_delete_sel(text);
@@ -2631,9 +2792,8 @@ bool txt_replace_char(Text *text, unsigned int add)
 	unsigned int del;
 	size_t del_size = 0, add_size;
 	char ch[BLI_UTF8_MAX];
-	
-	if (!text) return 0;
-	if (!text->curl) return 0;
+
+	if (!text->curl) return false;
 
 	/* If text is selected or we're at the end of the line just use txt_add_char */
 	if (text->curc == text->curl->len || txt_has_sel(text) || add == '\n') {
@@ -2672,29 +2832,22 @@ bool txt_replace_char(Text *text, unsigned int add)
 		text->curc += add_size;
 		txt_pop_sel(text);
 	}
-	return 1;
+	return true;
 }
 
-void txt_indent(Text *text)
+/**
+ * Generic prefix operation, use for comment & indent.
+ *
+ * \note caller must handle undo.
+ */
+static void txt_select_prefix(Text *text, const char *add)
 {
 	int len, num, curc_old;
 	char *tmp;
 
-	const char *add = "\t";
-	int indentlen = 1;
-	
-	/* hardcoded: TXT_TABSIZE = 4 spaces: */
-	int spaceslen = TXT_TABSIZE;
+	const int indentlen = strlen(add);
 
-	if (ELEM(NULL, text, text->curl, text->sell)) {
-		return;
-	}
-
-	/* insert spaces rather than tabs */
-	if (text->flags & TXT_TABSTOSPACES) {
-		add = tab_to_spaces;
-		indentlen = spaceslen;
-	}
+	BLI_assert(!ELEM(NULL, text->curl, text->sell));
 
 	curc_old = text->curc;
 
@@ -2738,39 +2891,54 @@ void txt_indent(Text *text)
 		num--;
 	}
 	
-	if (!undoing) {
-		txt_undo_add_op(text, UNDO_INDENT);
-	}
+	/* caller must handle undo */
 }
 
-void txt_unindent(Text *text)
+/**
+ * Generic un-prefix operation, use for comment & indent.
+ *
+ * \param r_line_index_mask: List of lines that are already at indent level 0,
+ * to store them later into the undo buffer.
+ *
+ * \note caller must handle undo.
+ */
+static void txt_select_unprefix(
+        Text *text, const char *remove,
+        ListBase *r_line_index_mask, int *r_line_index_mask_len)
 {
 	int num = 0;
-	const char *remove = "\t";
-	int indentlen = 1;
+	const int indentlen = strlen(remove);
 	bool unindented_first = false;
-	
-	/* hardcoded: TXT_TABSIZE = 4 spaces: */
-	int spaceslen = TXT_TABSIZE;
 
-	if (ELEM(NULL, text, text->curl, text->sell)) {
-		return;
-	}
+	int curl_span_init = 0;
 
-	/* insert spaces rather than tabs */
-	if (text->flags & TXT_TABSTOSPACES) {
-		remove = tab_to_spaces;
-		indentlen = spaceslen;
+	BLI_assert(!ELEM(NULL, text->curl, text->sell));
+
+	BLI_listbase_clear(r_line_index_mask);
+	*r_line_index_mask_len = 0;
+
+	if (!undoing) {
+		curl_span_init = txt_get_span(text->lines.first, text->curl);
 	}
 
 	while (true) {
 		bool changed = false;
-		if (strncmp(text->curl->line, remove, indentlen) == 0) {
+		if (STREQLEN(text->curl->line, remove, indentlen)) {
 			if (num == 0)
 				unindented_first = true;
 			text->curl->len -= indentlen;
 			memmove(text->curl->line, text->curl->line + indentlen, text->curl->len + 1);
 			changed = true;
+		}
+		else {
+			if (!undoing) {
+				/* Create list element for 0 indent line */
+				struct LinkInt *idata = MEM_mallocN(sizeof(struct LinkInt), __func__);
+				idata->value = curl_span_init + num;
+				BLI_assert(idata->value == txt_get_span(text->lines.first, text->curl));
+				BLI_addtail(r_line_index_mask, idata);
+				(*r_line_index_mask_len) += 1;
+			}
 		}
 	
 		txt_make_dirty(text);
@@ -2784,6 +2952,7 @@ void txt_unindent(Text *text)
 		else {
 			text->curl = text->curl->next;
 			num++;
+
 		}
 		
 	}
@@ -2795,56 +2964,20 @@ void txt_unindent(Text *text)
 		text->curl = text->curl->prev;
 		num--;
 	}
-	
-	if (!undoing) {
-		txt_undo_add_op(text, UNDO_UNINDENT);
-	}
+
+	/* caller must handle undo */
 }
 
 void txt_comment(Text *text)
 {
-	int len, num;
-	char *tmp;
-	char add = '#';
-	
-	if (!text) return;
-	if (!text->curl) return;
-	if (!text->sell) return;  // Need to change this need to check if only one line is selected to more than one
+	const char *prefix = "#";
 
-	num = 0;
-	while (true) {
-		tmp = MEM_mallocN(text->curl->len + 2, "textline_string");
-		
-		text->curc = 0; 
-		if (text->curc) memcpy(tmp, text->curl->line, text->curc);
-		tmp[text->curc] = add;
-		
-		len = text->curl->len - text->curc;
-		if (len > 0) memcpy(tmp + text->curc + 1, text->curl->line + text->curc, len);
-		tmp[text->curl->len + 1] = 0;
+	if (ELEM(NULL, text->curl, text->sell)) {
+		return;
+	}
 
-		make_new_line(text->curl, tmp);
-			
-		text->curc++;
-		
-		txt_make_dirty(text);
-		txt_clean_text(text);
-		
-		if (text->curl == text->sell) {
-			text->selc = text->sell->len;
-			break;
-		}
-		else {
-			text->curl = text->curl->next;
-			num++;
-		}
-	}
-	text->curc = 0;
-	while (num > 0) {
-		text->curl = text->curl->prev;
-		num--;
-	}
-	
+	txt_select_prefix(text, prefix);
+
 	if (!undoing) {
 		txt_undo_add_op(text, UNDO_COMMENT);
 	}
@@ -2852,47 +2985,55 @@ void txt_comment(Text *text)
 
 void txt_uncomment(Text *text)
 {
-	int num = 0;
-	char remove = '#';
-	
-	if (!text) return;
-	if (!text->curl) return;
-	if (!text->sell) return;
+	const char *prefix = "#";
+	ListBase line_index_mask;
+	int line_index_mask_len;
 
-	while (true) {
-		int i = 0;
-		
-		if (text->curl->line[i] == remove) {
-			while (i < text->curl->len) {
-				text->curl->line[i] = text->curl->line[i + 1];
-				i++;
-			}
-			text->curl->len--;
-		}
-			 
-	
-		txt_make_dirty(text);
-		txt_clean_text(text);
-		
-		if (text->curl == text->sell) {
-			text->selc = text->sell->len;
-			break;
-		}
-		else {
-			text->curl = text->curl->next;
-			num++;
-		}
-		
+	if (ELEM(NULL, text->curl, text->sell)) {
+		return;
 	}
-	text->curc = 0;
-	while (num > 0) {
-		text->curl = text->curl->prev;
-		num--;
-	}
-	
+
+	txt_select_unprefix(text, prefix, &line_index_mask, &line_index_mask_len);
+
 	if (!undoing) {
-		txt_undo_add_op(text, UNDO_UNCOMMENT);
+		txt_undo_add_unprefix_op(text, UNDO_UNCOMMENT, &line_index_mask, line_index_mask_len);
 	}
+
+	BLI_freelistN(&line_index_mask);
+}
+
+void txt_indent(Text *text)
+{
+	const char *prefix = (text->flags & TXT_TABSTOSPACES) ? tab_to_spaces : "\t";
+
+	if (ELEM(NULL, text->curl, text->sell)) {
+		return;
+	}
+
+	txt_select_prefix(text, prefix);
+
+	if (!undoing) {
+		txt_undo_add_op(text, UNDO_INDENT);
+	}
+}
+
+void txt_unindent(Text *text)
+{
+	const char *prefix = (text->flags & TXT_TABSTOSPACES) ? tab_to_spaces : "\t";
+	ListBase line_index_mask;
+	int line_index_mask_len;
+	
+	if (ELEM(NULL, text->curl, text->sell)) {
+		return;
+	}
+
+	txt_select_unprefix(text, prefix, &line_index_mask, &line_index_mask_len);
+
+	if (!undoing) {
+		txt_undo_add_unprefix_op(text, UNDO_UNINDENT, &line_index_mask, line_index_mask_len);
+	}
+
+	BLI_freelistN(&line_index_mask);
 }
 
 void txt_move_lines(struct Text *text, const int direction)
@@ -2901,7 +3042,7 @@ void txt_move_lines(struct Text *text, const int direction)
 
 	BLI_assert(ELEM(direction, TXT_MOVE_LINE_UP, TXT_MOVE_LINE_DOWN));
 
-	if (!text || !text->curl || !text->sell) return;
+	if (!text->curl || !text->sell) return;
 	
 	txt_order_cursors(text, false);
 
@@ -2934,6 +3075,7 @@ int txt_setcurr_tab_spaces(Text *text, int space)
 	const char *comm = "#";
 	const char indent = (text->flags & TXT_TABSTOSPACES) ? ' ' : '\t';
 	static const char *back_words[] = {"return", "break", "continue", "pass", "yield", NULL};
+
 	if (!text->curl) return 0;
 
 	while (text->curl->line[i] == indent) {
@@ -3008,37 +3150,37 @@ bool text_check_delim(const char ch)
 
 	for (a = 0; a < (sizeof(delims) - 1); a++) {
 		if (ch == delims[a])
-			return 1;
+			return true;
 	}
-	return 0;
+	return false;
 }
 
 bool text_check_digit(const char ch)
 {
-	if (ch < '0') return 0;
-	if (ch <= '9') return 1;
-	return 0;
+	if (ch < '0') return false;
+	if (ch <= '9') return true;
+	return false;
 }
 
 bool text_check_identifier(const char ch)
 {
-	if (ch < '0') return 0;
-	if (ch <= '9') return 1;
-	if (ch < 'A') return 0;
-	if (ch <= 'Z' || ch == '_') return 1;
-	if (ch < 'a') return 0;
-	if (ch <= 'z') return 1;
-	return 0;
+	if (ch < '0') return false;
+	if (ch <= '9') return true;
+	if (ch < 'A') return false;
+	if (ch <= 'Z' || ch == '_') return true;
+	if (ch < 'a') return false;
+	if (ch <= 'z') return true;
+	return false;
 }
 
 bool text_check_identifier_nodigit(const char ch)
 {
-	if (ch <= '9') return 0;
-	if (ch < 'A') return 0;
-	if (ch <= 'Z' || ch == '_') return 1;
-	if (ch < 'a') return 0;
-	if (ch <= 'z') return 1;
-	return 0;
+	if (ch <= '9') return false;
+	if (ch < 'A') return false;
+	if (ch <= 'Z' || ch == '_') return true;
+	if (ch < 'a') return false;
+	if (ch <= 'z') return true;
+	return false;
 }
 
 #ifndef WITH_PYTHON
@@ -3056,8 +3198,8 @@ int text_check_identifier_nodigit_unicode(const unsigned int ch)
 bool text_check_whitespace(const char ch)
 {
 	if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n')
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 int text_find_identifier_start(const char *str, int i)

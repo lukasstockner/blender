@@ -73,14 +73,14 @@ void initNumInput(NumInput *n)
 {
 	n->idx_max = 0;
 	n->unit_sys = USER_UNIT_NONE;
-	fill_vn_i(n->unit_type, NUM_MAX_ELEMENTS, B_UNIT_NONE);
+	copy_vn_i(n->unit_type, NUM_MAX_ELEMENTS, B_UNIT_NONE);
 	n->unit_use_radians = false;
 
 	n->flag = 0;
-	fill_vn_short(n->val_flag, NUM_MAX_ELEMENTS, 0);
+	copy_vn_short(n->val_flag, NUM_MAX_ELEMENTS, 0);
 	zero_v3(n->val);
-	fill_vn_fl(n->val_org, NUM_MAX_ELEMENTS, 0.0f);
-	fill_vn_fl(n->val_inc, NUM_MAX_ELEMENTS, 1.0f);
+	copy_vn_fl(n->val_org, NUM_MAX_ELEMENTS, 0.0f);
+	copy_vn_fl(n->val_inc, NUM_MAX_ELEMENTS, 1.0f);
 
 	n->idx = 0;
 	n->str[0] = '\0';
@@ -103,7 +103,7 @@ void outputNumInput(NumInput *n, char *str, UnitSettings *unit_settings)
 
 		if (n->val_flag[i] & NUM_EDITED) {
 			/* Get the best precision, allows us to draw '10.0001' as '10' instead! */
-			prec = uiFloatPrecisionCalc(prec, (double)n->val[i]);
+			prec = UI_calc_float_precision(prec, (double)n->val[i]);
 			if (i == n->idx) {
 				const char *heading_exp = "", *trailing_exp = "";
 				char before_cursor[NUM_STR_REP_LEN];
@@ -365,9 +365,10 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
 			ascii[0] = '.';
 			utf8_buf = ascii;
 			break;
-#if 0  /* Those keys are not directly accessible in all layouts, preventing to generate matching events.
-        * So we use a hack (ascii value) instead, see below.
-        */
+#if 0
+		/* Those keys are not directly accessible in all layouts, preventing to generate matching events.
+		 * So we use a hack (ascii value) instead, see below.
+		 */
 		case EQUALKEY:
 		case PADASTERKEY:
 			if (!(n->flag & NUM_EDIT_FULL)) {

@@ -35,7 +35,7 @@
 
 #include "GHOST_Window.h"
 #include <X11/Xlib.h>
-#include <GL/glx.h>
+#include <X11/Xutil.h>
 // For tablets
 #ifdef WITH_X11_XINPUT
 #  include <X11/extensions/XInput.h>
@@ -88,7 +88,8 @@ public:
 	    GHOST_TDrawingContextType type = GHOST_kDrawingContextTypeNone,
 	    const bool stereoVisual = false,
 	    const bool exclusive = false,
-	    const GHOST_TUns16 numOfAASamples = 0
+	    const GHOST_TUns16 numOfAASamples = 0,
+	    const bool is_debug = false
 	    );
 
 	bool
@@ -160,13 +161,6 @@ public:
 	    );
 	
 	GHOST_TSuccess
-	swapBuffers(
-	    );
-	
-	GHOST_TSuccess
-	activateDrawingContext(
-	    );
-	GHOST_TSuccess
 	invalidate(
 	    );
 
@@ -235,37 +229,12 @@ public:
 
 	GHOST_TSuccess endFullScreen() const;
 
-	/**
-	 * Sets the swap interval for swapBuffers.
-	 * \param interval The swap interval to use.
-	 * \return A boolean success indicator.
-	 */
-	virtual GHOST_TSuccess setSwapInterval(int interval);
-
-	/**
-	 * Gets the current swap interval for swapBuffers.
-	 * \return An integer.
-	 */
-	virtual int getSwapInterval();
-
 protected:
 	/**
-	 * Tries to install a rendering context in this window.
-	 * \param type	The type of rendering context installed.
-	 * \return Indication as to whether installation has succeeded.
+	 * \param type	The type of rendering context create.
+	 * \return Indication of success.
 	 */
-	GHOST_TSuccess
-	installDrawingContext(
-	    GHOST_TDrawingContextType type
-	    );
-
-	/**
-	 * Removes the current drawing context.
-	 * \return Indication as to whether removal has succeeded.
-	 */
-	GHOST_TSuccess
-	removeDrawingContext(
-	    );
+	GHOST_Context *newDrawingContext(GHOST_TDrawingContextType type);
 
 	/**
 	 * Sets the cursor visibility on the window using
@@ -279,7 +248,6 @@ protected:
 	/**
 	 * Sets the cursor grab on the window using
 	 * native window system calls.
-	 * \param warp	Only used when grab is enabled, hides the mouse and allows dragging outside the screen.
 	 */
 	GHOST_TSuccess
 	setWindowCursorGrab(
@@ -350,20 +318,14 @@ private:
 	void initXInputDevices();
 #endif
 	
-	GLXContext m_context;
 	Window m_window;
-	Display     *m_display;
-	XVisualInfo *m_visual;
+	Display *m_display;
+	XVisualInfo *m_visualInfo;
+
 	GHOST_TWindowState m_normal_state;
 
-	/** The first created OpenGL context (for sharing display lists) */
-	static GLXContext s_firstContext;
-
-	/// A pointer to the typed system class.
-	
+	/** A pointer to the typed system class. */
 	GHOST_SystemX11 *m_system;
-
-	bool m_valid_setup;
 
 	/** Used to concatenate calls to invalidate() on this window. */
 	bool m_invalid_window;
@@ -391,6 +353,9 @@ private:
 #if defined(WITH_X11_XINPUT) && defined(X_HAVE_UTF8_STRING)
 	XIC m_xic;
 #endif
+
+	bool m_valid_setup;
+	bool m_is_debug_context;
 
 	void icccmSetState(int state);
 	int icccmGetState() const;

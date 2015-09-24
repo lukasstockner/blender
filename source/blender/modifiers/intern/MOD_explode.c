@@ -54,7 +54,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "MOD_util.h"
 
 static void initData(ModifierData *md)
 {
@@ -772,7 +771,7 @@ static DerivedMesh *cutEdges(ExplodeModifierData *emd, DerivedMesh *dm)
 
 	for (i = 0; i < curdupface; i++) {
 		mf = CDDM_get_tessface(splitdm, i);
-		test_index_face(mf, &splitdm->faceData, i, (mf->flag & ME_FACE_SEL ? 4 : 3));
+		test_index_face(mf, &splitdm->faceData, i, ((mf->flag & ME_FACE_SEL) ? 4 : 3));
 	}
 
 	BLI_edgehash_free(edgehash, NULL);
@@ -862,7 +861,7 @@ static DerivedMesh *explodeMesh(ExplodeModifierData *emd,
 	BLI_edgehashIterator_free(ehi);
 
 	/* the final duplicated vertices */
-	explode = CDDM_from_template(dm, totdup, 0, totface - delface, 0, 0);
+	explode = CDDM_from_template_ex(dm, totdup, 0, totface - delface, 0, 0, CD_MASK_DERIVEDMESH | CD_MASK_FACECORNERS);
 	mtface = CustomData_get_layer_named(&explode->faceData, CD_MTFACE, emd->uvname);
 	/*dupvert = CDDM_get_verts(explode);*/
 
@@ -892,7 +891,7 @@ static DerivedMesh *explodeMesh(ExplodeModifierData *emd,
 			/* get particle */
 			pa = pars + ed_v2;
 
-			psys_get_birth_coordinates(&sim, pa, &birth, 0, 0);
+			psys_get_birth_coords(&sim, pa, &birth, 0, 0);
 
 			state.time = cfra;
 			psys_get_particle_state(&sim, ed_v2, &state, 1);
@@ -1059,6 +1058,7 @@ ModifierTypeInfo modifierType_Explode = {
 	/* freeData */          freeData,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    NULL,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     dependsOnTime,
 	/* dependsOnNormals */  NULL,
 	/* foreachObjectLink */ NULL,

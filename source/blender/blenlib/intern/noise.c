@@ -278,8 +278,8 @@ static float npfade(float t)
 static float grad(int hash_val, float x, float y, float z)
 {
 	int h = hash_val & 15;                 /* CONVERT LO 4 BITS OF HASH CODE */
-	float u = h < 8 ? x : y,               /* INTO 12 GRADIENT DIRECTIONS. */
-	      v = h < 4 ? y : h == 12 || h == 14 ? x : z;
+	float u = h < 8 ? x : y;               /* INTO 12 GRADIENT DIRECTIONS. */
+	float v = h < 4 ? y : h == 12 || h == 14 ? x : z;
 	return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
 }
 
@@ -1546,7 +1546,7 @@ float BLI_gTurbulence(float noisesize, float x, float y, float z, int oct, int h
 
 /*
  * The following code is based on Ken Musgrave's explanations and sample
- * source code in the book "Texturing and Modelling: A procedural approach"
+ * source code in the book "Texturing and Modeling: A procedural approach"
  */
 
 /*

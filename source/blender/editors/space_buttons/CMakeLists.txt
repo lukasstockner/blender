@@ -20,13 +20,15 @@
 
 set(INC
 	../include
-	../../blenfont
 	../../blenkernel
 	../../blenlib
+	../../blentranslation
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
+	../../../../intern/glew-mx
 )
 
 set(INC_SYS
@@ -45,6 +47,8 @@ set(SRC
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)

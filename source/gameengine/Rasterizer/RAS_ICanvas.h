@@ -113,8 +113,9 @@ public:
 	)=0;
 
 	virtual
-		int
+		bool
 	GetSwapInterval(
+		int& intervalOut
 	)=0;
  
 	virtual 
@@ -235,6 +236,8 @@ public:
 	MakeScreenShot(
 		const char* filename
 	)=0;
+
+	virtual void GetDisplayDimensions(int &width, int &height) = 0;
 
 	virtual
 		void 

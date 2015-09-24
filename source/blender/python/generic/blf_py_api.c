@@ -33,6 +33,9 @@
 
 #include "BLI_utildefines.h"
 
+#include "python_utildefines.h"
+
+
 PyDoc_STRVAR(py_blf_position_doc,
 ".. function:: position(fontid, x, y, z)\n"
 "\n"
@@ -183,8 +186,9 @@ static PyObject *py_blf_dimensions(PyObject *UNUSED(self), PyObject *args)
 	BLF_width_and_height(fontid, text, INT_MAX, &r_width, &r_height);
 
 	ret = PyTuple_New(2);
-	PyTuple_SET_ITEM(ret, 0, PyFloat_FromDouble(r_width));
-	PyTuple_SET_ITEM(ret, 1, PyFloat_FromDouble(r_height));
+	PyTuple_SET_ITEMS(ret,
+	        PyFloat_FromDouble(r_width),
+	        PyFloat_FromDouble(r_height));
 	return ret;
 }
 
@@ -213,6 +217,29 @@ static PyObject *py_blf_clipping(PyObject *UNUSED(self), PyObject *args)
 		return NULL;
 
 	BLF_clipping(fontid, xmin, ymin, xmax, ymax);
+
+	Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(py_blf_word_wrap_doc,
+".. function:: word_wrap(fontid, wrap_width)\n"
+"\n"
+"   Set the wrap width, enable/disable using WORD_WRAP.\n"
+"\n"
+"   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default font use 0.\n"
+"   :type fontid: int\n"
+"   :arg wrap_width: The width (in pixels) to wrap words at.\n"
+"   :type wrap_width: int\n"
+);
+static PyObject *py_blf_word_wrap(PyObject *UNUSED(self), PyObject *args)
+{
+	int wrap_width;
+	int fontid;
+
+	if (!PyArg_ParseTuple(args, "ii:blf.word_wrap", &fontid, &wrap_width))
+		return NULL;
+
+	BLF_wordwrap(fontid, wrap_width);
 
 	Py_RETURN_NONE;
 }
@@ -389,6 +416,7 @@ static PyMethodDef BLF_methods[] = {
 	{"aspect", (PyCFunction) py_blf_aspect, METH_VARARGS, py_blf_aspect_doc},
 	{"blur", (PyCFunction) py_blf_blur, METH_VARARGS, py_blf_blur_doc},
 	{"clipping", (PyCFunction) py_blf_clipping, METH_VARARGS, py_blf_clipping_doc},
+	{"word_wrap", (PyCFunction) py_blf_word_wrap, METH_VARARGS, py_blf_word_wrap_doc},
 	{"disable", (PyCFunction) py_blf_disable, METH_VARARGS, py_blf_disable_doc},
 	{"dimensions", (PyCFunction) py_blf_dimensions, METH_VARARGS, py_blf_dimensions_doc},
 	{"draw", (PyCFunction) py_blf_draw, METH_VARARGS, py_blf_draw_doc},
@@ -428,6 +456,7 @@ PyObject *BPyInit_blf(void)
 	PyModule_AddIntConstant(submodule, "CLIPPING", BLF_CLIPPING);
 	PyModule_AddIntConstant(submodule, "SHADOW", BLF_SHADOW);
 	PyModule_AddIntConstant(submodule, "KERNING_DEFAULT", BLF_KERNING_DEFAULT);
+	PyModule_AddIntConstant(submodule, "WORD_WRAP", BLF_WORD_WRAP);
 
 	return submodule;
 }

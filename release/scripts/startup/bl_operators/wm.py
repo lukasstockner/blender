@@ -20,12 +20,13 @@
 
 import bpy
 from bpy.types import Operator
-from bpy.props import (StringProperty,
-                       BoolProperty,
-                       IntProperty,
-                       FloatProperty,
-                       EnumProperty,
-                       )
+from bpy.props import (
+        StringProperty,
+        BoolProperty,
+        IntProperty,
+        FloatProperty,
+        EnumProperty,
+        )
 
 from bpy.app.translations import pgettext_tip as tip_
 
@@ -718,7 +719,7 @@ class WM_OT_context_modal_mouse(Operator):
     """Adjust arbitrary values with mouse input"""
     bl_idname = "wm.context_modal_mouse"
     bl_label = "Context Modal Mouse"
-    bl_options = {'GRAB_POINTER', 'BLOCKING', 'UNDO', 'INTERNAL'}
+    bl_options = {'GRAB_CURSOR', 'BLOCKING', 'UNDO', 'INTERNAL'}
 
     data_path_iter = data_path_iter
     data_path_item = data_path_item
@@ -973,10 +974,12 @@ class WM_OT_doc_view_manual(Operator):
         url = self._lookup_rna_url(rna_id)
 
         if url is None:
-            self.report({'WARNING'}, "No reference available %r, "
-                                     "Update info in 'rna_wiki_reference.py' "
-                                     " or callback to bpy.utils.manual_map()" %
-                                     self.doc_id)
+            self.report(
+                    {'WARNING'},
+                    "No reference available %r, "
+                    "Update info in 'rna_manual_reference.py' "
+                    "or callback to bpy.utils.manual_map()" %
+                    self.doc_id)
             return {'CANCELLED'}
         else:
             import webbrowser
@@ -1129,7 +1132,11 @@ class WM_OT_properties_edit(Operator):
             )
 
     def execute(self, context):
-        from rna_prop_ui import rna_idprop_ui_prop_get, rna_idprop_ui_prop_clear
+        from rna_prop_ui import (
+                rna_idprop_ui_prop_get,
+                rna_idprop_ui_prop_clear,
+                rna_idprop_ui_prop_update,
+                )
 
         data_path = self.data_path
         value = self.value
@@ -1161,6 +1168,9 @@ class WM_OT_properties_edit(Operator):
         exec_str = "item[%r] = %s" % (prop, repr(value_eval))
         # print(exec_str)
         exec(exec_str)
+
+        rna_idprop_ui_prop_update(item, prop)
+
         self._last_prop[:] = [prop]
 
         prop_type = type(item[prop])
@@ -1242,7 +1252,10 @@ class WM_OT_properties_add(Operator):
     data_path = rna_path
 
     def execute(self, context):
-        from rna_prop_ui import rna_idprop_ui_prop_get
+        from rna_prop_ui import (
+                rna_idprop_ui_prop_get,
+                rna_idprop_ui_prop_update,
+                )
 
         data_path = self.data_path
         item = eval("context.%s" % data_path)
@@ -1260,6 +1273,7 @@ class WM_OT_properties_add(Operator):
         prop = unique_name(item.keys())
 
         item[prop] = 1.0
+        rna_idprop_ui_prop_update(item, prop)
 
         # not essential, but without this we get [#31661]
         prop_ui = rna_idprop_ui_prop_get(item, prop)
@@ -1295,9 +1309,17 @@ class WM_OT_properties_remove(Operator):
     property = rna_property
 
     def execute(self, context):
+        from rna_prop_ui import (
+                rna_idprop_ui_prop_clear,
+                rna_idprop_ui_prop_update,
+                )
         data_path = self.data_path
         item = eval("context.%s" % data_path)
-        del item[self.property]
+        prop = self.property
+        rna_idprop_ui_prop_update(item, prop)
+        del item[prop]
+        rna_idprop_ui_prop_clear(item, prop)
+
         return {'FINISHED'}
 
 
@@ -1737,7 +1759,7 @@ class WM_OT_addon_enable(Operator):
             err_str = traceback.format_exc()
             print(err_str)
 
-        mod = addon_utils.enable(self.module, handle_error=err_cb)
+        mod = addon_utils.enable(self.module, default_set=True, handle_error=err_cb)
 
         if mod:
             info = addon_utils.module_bl_info(mod)
@@ -1781,7 +1803,7 @@ class WM_OT_addon_disable(Operator):
             err_str = traceback.format_exc()
             print(err_str)
 
-        addon_utils.disable(self.module, handle_error=err_cb)
+        addon_utils.disable(self.module, default_set=True, handle_error=err_cb)
 
         if err_str:
             self.report({'ERROR'}, err_str)
@@ -1987,7 +2009,6 @@ class WM_OT_addon_install(Operator):
             # if not compressed file just copy into the addon path
             try:
                 shutil.copyfile(pyfile, path_dest)
-
             except:
                 traceback.print_exc()
                 return {'CANCELLED'}
@@ -1998,7 +2019,7 @@ class WM_OT_addon_install(Operator):
         # disable any addons we may have enabled previously and removed.
         # this is unlikely but do just in case. bug [#23978]
         for new_addon in addons_new:
-            addon_utils.disable(new_addon)
+            addon_utils.disable(new_addon, default_set=True)
 
         # possible the zip contains multiple addons, we could disallow this
         # but for now just use the first
@@ -2062,7 +2083,7 @@ class WM_OT_addon_remove(Operator):
             return {'CANCELLED'}
 
         # in case its enabled
-        addon_utils.disable(self.module)
+        addon_utils.disable(self.module, default_set=True)
 
         import shutil
         if isdir:
@@ -2102,15 +2123,9 @@ class WM_OT_addon_expand(Operator):
 
         module_name = self.module
 
-        # unlikely to fail, module should have already been imported
-        try:
-            # mod = __import__(module_name)
-            mod = addon_utils.addons_fake_modules.get(module_name)
-        except:
-            import traceback
-            traceback.print_exc()
-            return {'CANCELLED'}
+        mod = addon_utils.addons_fake_modules.get(module_name)
+        if mod is not None:
+            info = addon_utils.module_bl_info(mod)
+            info["show_expanded"] = not info["show_expanded"]
 
-        info = addon_utils.module_bl_info(mod)
-        info["show_expanded"] = not info["show_expanded"]
         return {'FINISHED'}

@@ -149,8 +149,21 @@ void geom(vec3 co, vec3 nor, mat4 viewinvmat, vec3 attorco, vec2 attuv, vec4 att
 	uv_attribute(attuv, uv);
 	normal = -normalize(nor);	/* blender render normal is negated */
 	vcol_attribute(attvcol, vcol);
+	srgb_to_linearrgb(vcol, vcol);
 	vcol_alpha = attvcol.a;
 	frontback = (gl_FrontFacing)? 1.0: 0.0;
+}
+
+void particle_info(vec4 sprops, vec3 loc, vec3 vel, vec3 avel, out float index, out float age, out float life_time, out vec3 location, out float size, out vec3 velocity, out vec3 angular_velocity)
+{
+    index = sprops.x;
+    age = sprops.y;
+    life_time = sprops.z;
+    size = sprops.w;
+
+    location = loc;
+    velocity = vel;
+    angular_velocity = avel;
 }
 
 void mapping(vec3 vec, mat4 mat, vec3 minvec, vec3 maxvec, float domin, float domax, out vec3 outvec)
@@ -169,9 +182,9 @@ void camera(vec3 co, out vec3 outview, out float outdepth, out float outdist)
 	outview = normalize(co);
 }
 
-void lamp(vec4 col, vec3 lv, float dist, vec3 shadow, float visifac, out vec4 outcol, out vec3 outlv, out float outdist, out vec4 outshadow, out float outvisifac)
+void lamp(vec4 col, float energy, vec3 lv, float dist, vec3 shadow, float visifac, out vec4 outcol, out vec3 outlv, out float outdist, out vec4 outshadow, out float outvisifac)
 {
-	outcol = col;
+	outcol = col * energy;
 	outlv = lv;
 	outdist = dist;
 	outshadow = vec4(shadow, 1.0);
@@ -297,6 +310,10 @@ void math_modulo(float val1, float val2, out float outval)
 		outval = 0.0;
 	else
 		outval = mod(val1, val2);
+
+	/* change sign to match C convention, mod in GLSL will take absolute for negative numbers,
+	 * see https://www.opengl.org/sdk/docs/man/html/mod.xhtml */
+	outval = (val1 > 0.0) ? outval : -outval;
 }
 
 void math_abs(float val1, out float outval)
@@ -338,6 +355,7 @@ void vec_math_cross(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
 {
 	outvec = cross(v1, v2);
 	outval = length(outvec);
+	outvec /= outval;
 }
 
 void vec_math_normalize(vec3 v, out vec3 outvec, out float outval)
@@ -355,6 +373,12 @@ void normal(vec3 dir, vec3 nor, out vec3 outnor, out float outdot)
 {
 	outnor = nor;
 	outdot = -dot(dir, nor);
+}
+
+void normal_new_shading(vec3 dir, vec3 nor, out vec3 outnor, out float outdot)
+{
+	outnor = normalize(nor);
+	outdot = dot(normalize(dir), nor);
 }
 
 void curves_vec(float fac, vec3 vec, sampler2D curvemap, out vec3 outvec)
@@ -687,22 +711,7 @@ void mix_linear(float fac, vec4 col1, vec4 col2, out vec4 outcol)
 {
 	fac = clamp(fac, 0.0, 1.0);
 
-	outcol = col1;
-
-	if(col2.r > 0.5)
-		outcol.r= col1.r + fac*(2.0*(col2.r - 0.5));
-	else
-		outcol.r= col1.r + fac*(2.0*(col2.r) - 1.0);
-
-	if(col2.g > 0.5)
-		outcol.g= col1.g + fac*(2.0*(col2.g - 0.5));
-	else
-		outcol.g= col1.g + fac*(2.0*(col2.g) - 1.0);
-
-	if(col2.b > 0.5)
-		outcol.b= col1.b + fac*(2.0*(col2.b - 0.5));
-	else
-		outcol.b= col1.b + fac*(2.0*(col2.b) - 1.0);
+	outcol = col1 + fac*(2.0*(col2 - vec4(0.5)));
 }
 
 void valtorgb(float fac, sampler2D colormap, out vec4 outcol, out float outalpha)
@@ -720,6 +729,16 @@ void invert(float fac, vec4 col, out vec4 outcol)
 {
 	outcol.xyz = mix(col.xyz, vec3(1.0, 1.0, 1.0) - col.xyz, fac);
 	outcol.w = col.w;
+}
+
+void clamp_vec3(vec3 vec, vec3 min, vec3 max, out vec3 out_vec)
+{
+	out_vec = clamp(vec, min, max);
+}
+
+void clamp_val(float value, float min, float max, out float out_value)
+{
+	out_value = clamp(value, min, max);
 }
 
 void hue_sat(float hue, float sat, float value, float fac, vec4 col, out vec4 outcol)
@@ -1507,9 +1526,9 @@ void mtex_nspace_world(mat4 viewmat, vec3 texnormal, out vec3 outnormal)
 	outnormal = normalize((viewmat*vec4(texnormal, 0.0)).xyz);
 }
 
-void mtex_nspace_object(mat4 viewmat, mat4 obmat, vec3 texnormal, out vec3 outnormal)
+void mtex_nspace_object(vec3 texnormal, out vec3 outnormal)
 {
-	outnormal = normalize((viewmat*(obmat*vec4(texnormal, 0.0))).xyz);
+	outnormal = normalize(gl_NormalMatrix * texnormal);
 }
 
 void mtex_blend_normal(float norfac, vec3 normal, vec3 newnormal, out vec3 outnormal)
@@ -1925,6 +1944,17 @@ void shade_add_spec(float t, vec3 lampcol, vec3 speccol, out vec3 outcol)
 	outcol = t*lampcol*speccol;
 }
 
+void alpha_spec_correction(vec3 spec, float spectra, float alpha, out float outalpha)
+{
+	if (spectra > 0.0) {
+		float t = clamp(max(max(spec.r, spec.g), spec.b) * spectra, 0.0, 1.0);
+		outalpha = (1.0 - t) * alpha + t;
+	}
+	else {
+		outalpha = alpha;
+	}
+}
+
 void shade_add(vec4 col1, vec4 col2, out vec4 outcol)
 {
 	outcol = col1 + col2;
@@ -1956,6 +1986,11 @@ void shade_mul(vec4 col1, vec4 col2, out vec4 outcol)
 }
 
 void shade_mul_value(float fac, vec4 col, out vec4 outcol)
+{
+	outcol = col*fac;
+}
+
+void shade_mul_value_v3(float fac, vec3 col, out vec3 outcol)
 {
 	outcol = col*fac;
 }
@@ -2077,18 +2112,23 @@ void shade_exposure_correct(vec3 col, float linfac, float logfac, out vec3 outco
 	outcol = linfac*(1.0 - exp(col*logfac));
 }
 
-void shade_mist_factor(vec3 co, float miststa, float mistdist, float misttype, float misi, out float outfac)
+void shade_mist_factor(vec3 co, float enable, float miststa, float mistdist, float misttype, float misi, out float outfac)
 {
-	float fac, zcor;
+	if(enable == 1.0) {
+		float fac, zcor;
 
-	zcor = (gl_ProjectionMatrix[3][3] == 0.0)? length(co): -co[2];
-	
-	fac = clamp((zcor-miststa)/mistdist, 0.0, 1.0);
-	if(misttype == 0.0) fac *= fac;
-	else if(misttype == 1.0);
-	else fac = sqrt(fac);
+		zcor = (gl_ProjectionMatrix[3][3] == 0.0)? length(co): -co[2];
+		
+		fac = clamp((zcor - miststa) / mistdist, 0.0, 1.0);
+		if(misttype == 0.0) fac *= fac;
+		else if(misttype == 1.0);
+		else fac = sqrt(fac);
 
-	outfac = 1.0 - (1.0-fac)*(1.0-misi);
+		outfac = 1.0 - (1.0 - fac) * (1.0 - misi);
+	}
+	else {
+		outfac = 0.0;
+	}
 }
 
 void shade_world_mix(vec3 hor, vec4 col, out vec4 outcol)
@@ -2223,9 +2263,35 @@ void node_bsdf_hair(vec4 color, float offset, float roughnessu, float roughnessv
 	result = color;
 }
 
+void node_bsdf_refraction(vec4 color, float roughness, float ior, vec3 N, out vec4 result)
+{
+	node_bsdf_diffuse(color, 0.0, N, result);
+}
+
+void node_ambient_occlusion(vec4 color, out vec4 result)
+{
+	result = color;
+}
+
 /* emission */
 
 void node_emission(vec4 color, float strength, vec3 N, out vec4 result)
+{
+	result = color*strength;
+}
+
+/* background */
+
+void background_transform_to_world(vec3 viewvec, out vec3 worldvec)
+{
+	vec4 v = (gl_ProjectionMatrix[3][3] == 0.0) ? vec4(viewvec, 1.0) : vec4(0.0, 0.0, 1.0, 1.0);
+	vec4 co_homogenous = (gl_ProjectionMatrixInverse * v);
+
+	vec4 co = vec4(co_homogenous.xyz / co_homogenous.w, 0.0);
+	worldvec = (gl_ModelViewMatrixInverse * co).xyz;
+}
+
+void node_background(vec4 color, float strength, vec3 N, out vec4 result)
 {
 	result = color*strength;
 }
@@ -2259,10 +2325,12 @@ void node_layer_weight(float blend, vec3 N, vec3 I, out float fresnel, out float
 {
 	/* fresnel */
 	float eta = max(1.0 - blend, 0.00001);
-	fresnel = fresnel_dielectric(normalize(I), N, (gl_FrontFacing)? 1.0/eta : eta );
+	vec3 I_view = (gl_ProjectionMatrix[3][3] == 0.0)? normalize(I): vec3(0.0, 0.0, -1.0);
+
+	fresnel = fresnel_dielectric(I_view, N, (gl_FrontFacing)? 1.0/eta : eta );
 
 	/* facing */
-	facing = abs(dot(normalize(I), N));
+	facing = abs(dot(I_view, N));
 	if(blend != 0.5) {
 		blend = clamp(blend, 0.0, 0.99999);
 		blend = (blend < 0.5)? 2.0*blend: 0.5/(1.0 - blend);
@@ -2302,7 +2370,7 @@ void node_uvmap(vec3 attr_uv, out vec3 outvec)
 void node_geometry(vec3 I, vec3 N, mat4 toworld,
 	out vec3 position, out vec3 normal, out vec3 tangent,
 	out vec3 true_normal, out vec3 incoming, out vec3 parametric,
-	out float backfacing)
+	out float backfacing, out float pointiness)
 {
 	position = (toworld*vec4(I, 1.0)).xyz;
 	normal = (toworld*vec4(N, 0.0)).xyz;
@@ -2315,25 +2383,52 @@ void node_geometry(vec3 I, vec3 N, mat4 toworld,
 
 	parametric = vec3(0.0);
 	backfacing = (gl_FrontFacing)? 0.0: 1.0;
+	pointiness = 0.0;
 }
 
-void node_tex_coord(vec3 I, vec3 N, mat4 viewinvmat, mat4 obinvmat,
+void node_tex_coord(vec3 I, vec3 N, mat4 viewinvmat, mat4 obinvmat, vec4 camerafac,
 	vec3 attr_orco, vec3 attr_uv,
 	out vec3 generated, out vec3 normal, out vec3 uv, out vec3 object,
 	out vec3 camera, out vec3 window, out vec3 reflection)
 {
-	generated = mtex_2d_mapping(attr_orco);
+	generated = attr_orco * 0.5 + vec3(0.5);
 	normal = normalize((obinvmat*(viewinvmat*vec4(N, 0.0))).xyz);
 	uv = attr_uv;
 	object = (obinvmat*(viewinvmat*vec4(I, 1.0))).xyz;
-	camera = I;
+	camera = vec3(I.xy, -I.z);
 	vec4 projvec = gl_ProjectionMatrix * vec4(I, 1.0);
-	window = mtex_2d_mapping(projvec.xyz/projvec.w);
+	window = vec3(mtex_2d_mapping(projvec.xyz/projvec.w).xy * camerafac.xy + camerafac.zw, 0.0);
 
 	vec3 shade_I;
 	shade_view(I, shade_I);
 	vec3 view_reflection = reflect(shade_I, normalize(N));
 	reflection = (viewinvmat*vec4(view_reflection, 0.0)).xyz;
+}
+
+void node_tex_coord_background(vec3 I, vec3 N, mat4 viewinvmat, mat4 obinvmat, vec4 camerafac,
+	vec3 attr_orco, vec3 attr_uv,
+	out vec3 generated, out vec3 normal, out vec3 uv, out vec3 object,
+	out vec3 camera, out vec3 window, out vec3 reflection)
+{
+	vec4 v = (gl_ProjectionMatrix[3][3] == 0.0) ? vec4(I, 1.0) : vec4(0.0, 0.0, 1.0, 1.0);
+	vec4 co_homogenous = (gl_ProjectionMatrixInverse * v);
+
+	vec4 co = vec4(co_homogenous.xyz / co_homogenous.w, 0.0);
+
+	co = normalize(co);
+	vec3 coords = (gl_ModelViewMatrixInverse * co).xyz;
+
+	generated = coords;
+	normal = -coords;
+	uv = vec3(attr_uv.xy, 0.0);
+	object = coords;
+
+	camera = vec3(co.xy, -co.z);
+	window = (gl_ProjectionMatrix[3][3] == 0.0) ? 
+	              vec3(mtex_2d_mapping(I).xy * camerafac.xy + camerafac.zw, 0.0) : 
+	              vec3(vec2(0.5) * camerafac.xy + camerafac.zw, 0.0);
+
+	reflection = -coords;
 }
 
 /* textures */
@@ -2362,17 +2457,34 @@ void node_tex_clouds(vec3 co, float size, out vec4 color, out float fac)
 	fac = 1.0;
 }
 
-void node_tex_environment(vec3 co, sampler2D ima, out vec4 color)
+void node_tex_environment_equirectangular(vec3 co, sampler2D ima, out vec4 color)
 {
-	float u = (atan(co.y, co.x) + M_PI)/(2.0*M_PI);
-	float v = atan(co.z, hypot(co.x, co.y))/M_PI + 0.5;
+	vec3 nco = normalize(co);
+	float u = -atan(nco.y, nco.x)/(2.0*M_PI) + 0.5;
+	float v = atan(nco.z, hypot(nco.x, nco.y))/M_PI + 0.5;
+
+	color = texture2D(ima, vec2(u, v));
+}
+
+void node_tex_environment_mirror_ball(vec3 co, sampler2D ima, out vec4 color)
+{
+	vec3 nco = normalize(co);
+
+	nco.y -= 1.0;
+
+	float div = 2.0*sqrt(max(-0.5*nco.y, 0.0));
+	if(div > 0.0)
+		nco /= div;
+
+	float u = 0.5*(nco.x + 1.0);
+	float v = 0.5*(nco.z + 1.0);
 
 	color = texture2D(ima, vec2(u, v));
 }
 
 void node_tex_environment_empty(vec3 co, out vec4 color)
 {
-	color = vec4(0.0);
+	color = vec4(1.0, 0.0, 1.0, 1.0);
 }
 
 void node_tex_image(vec3 co, sampler2D ima, out vec4 color, out float alpha)
@@ -2480,6 +2592,11 @@ void node_output_material(vec4 surface, vec4 volume, float displacement, out vec
 	result = surface;
 }
 
+void node_output_world(vec4 surface, vec4 volume, out vec4 result)
+{
+	result = surface;
+}
+
 /* ********************** matcap style render ******************** */
 
 void material_preview_matcap(vec4 color, sampler2D ima, vec4 N, vec4 mask, out vec4 result)
@@ -2487,6 +2604,7 @@ void material_preview_matcap(vec4 color, sampler2D ima, vec4 N, vec4 mask, out v
 	vec3 normal;
 	vec2 tex;
 	
+#ifndef USE_OPENSUBDIV
 	/* remap to 0.0 - 1.0 range. This is done because OpenGL 2.0 clamps colors 
 	 * between shader stages and we want the full range of the normal */
 	normal = vec3(2.0, 2.0, 2.0) * vec3(N.x, N.y, N.z) - vec3(1.0, 1.0, 1.0);
@@ -2494,6 +2612,10 @@ void material_preview_matcap(vec4 color, sampler2D ima, vec4 N, vec4 mask, out v
 		normal.z = 0.0;
 	}
 	normal = normalize(normal);
+#else
+	normal = inpt.v.normal;
+	mask = vec4(1.0, 1.0, 1.0, 1.0);
+#endif
 
 	tex.x = 0.5 + 0.49 * normal.x;
 	tex.y = 0.5 + 0.49 * normal.y;

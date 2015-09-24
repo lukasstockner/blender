@@ -40,6 +40,7 @@ extern "C" {
 #include "../scene_graph/NodeDrawingStyle.h"
 #include "../scene_graph/NodeShape.h"
 #include "../scene_graph/NodeTransform.h"
+#include "../scene_graph/NodeSceneRenderLayer.h"
 #include "../scene_graph/ScenePrettyPrinter.h"
 #include "../scene_graph/VertexRep.h"
 
@@ -67,6 +68,7 @@ extern "C" {
 
 #include "BKE_global.h"
 #include "BLI_utildefines.h"
+#include "BLI_path_util.h"
 
 #include "DNA_freestyle_types.h"
 
@@ -86,14 +88,14 @@ Controller::Controller()
 	_RootNode = new NodeGroup;
 	_RootNode->addRef();
 
-	_SilhouetteNode = NULL;
 #if 0
+	_SilhouetteNode = NULL;
 	_ProjectedSilhouette = NULL;
 	_VisibleProjectedSilhouette = NULL;
-#endif
 
 	_DebugNode = new NodeGroup;
 	_DebugNode->addRef();
+#endif
 
 	_winged_edge = NULL;
 
@@ -118,6 +120,7 @@ Controller::Controller()
 	_Canvas = new AppCanvas;
 
 	_inter = new PythonInterpreter();
+	_EnableViewMapCache = false;
 	_EnableQI = true;
 	_EnableFaceSmoothness = false;
 	_ComputeRidges = true;
@@ -126,6 +129,7 @@ Controller::Controller()
 	_ComputeMaterialBoundaries = true;
 	_sphereRadius = 1.0;
 	_creaseAngle = 134.43;
+	prevSceneHash = -1.0;
 
 	init_options();
 }
@@ -138,6 +142,7 @@ Controller::~Controller()
 			delete _RootNode;
 	}
 
+#if 0
 	if (NULL != _SilhouetteNode) {
 		int ref = _SilhouetteNode->destroy();
 		if (0 == ref)
@@ -149,6 +154,7 @@ Controller::~Controller()
 		if (0 == ref)
 			delete _DebugNode;
 	}
+#endif
 
 	if (_winged_edge) {
 		delete _winged_edge;
@@ -212,6 +218,18 @@ void Controller::setContext(bContext *C)
 	py_inter->setContext(C);
 }
 
+bool Controller::hitViewMapCache()
+{
+	if (!_EnableViewMapCache) {
+		return false;
+	}
+	if (sceneHashFunc.match()) {
+		return (NULL != _ViewMap);
+	}
+	sceneHashFunc.store();
+	return false;
+}
+
 int Controller::LoadMesh(Render *re, SceneRenderLayer *srl)
 {
 	BlenderFileLoader loader(re, srl);
@@ -242,6 +260,7 @@ int Controller::LoadMesh(Render *re, SceneRenderLayer *srl)
 	if (G.debug & G_DEBUG_FREESTYLE) {
 		cout << "Scene loaded" << endl;
 		printf("Mesh cleaning    : %lf\n", duration);
+		printf("View map cache   : %s\n", _EnableViewMapCache ? "enabled" : "disabled");
 	}
 	_SceneNumFaces += loader.numFacesRead();
 
@@ -262,6 +281,39 @@ int Controller::LoadMesh(Render *re, SceneRenderLayer *srl)
 
 	if (_pRenderMonitor->testBreak())
 		return 0;
+
+	if (_EnableViewMapCache) {
+
+		NodeCamera *cam;
+		if (freestyle_proj[3][3] != 0.0)
+			cam = new NodeOrthographicCamera;
+		else
+			cam = new NodePerspectiveCamera;
+		double proj[16];
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				proj[i * 4 + j] = freestyle_proj[i][j];
+			}
+		}
+		cam->setProjectionMatrix(proj);
+		_RootNode->AddChild(cam);
+		_RootNode->AddChild(new NodeSceneRenderLayer(*re->scene, *srl));
+
+		sceneHashFunc.reset();
+		//blenderScene->accept(sceneHashFunc);
+		_RootNode->accept(sceneHashFunc);
+		if (G.debug & G_DEBUG_FREESTYLE) {
+			cout << "Scene hash       : " << sceneHashFunc.toString() << endl;
+		}
+		if (hitViewMapCache()) {
+			ClearRootNode();
+			return 0;
+		}
+		else {
+			delete _ViewMap;
+			_ViewMap = NULL;
+		}
+	}
 
 	_Chrono.start();
 
@@ -357,8 +409,9 @@ void Controller::DeleteWingedEdge()
 	_minEdgeSize = DBL_MAX;
 }
 
-void Controller::DeleteViewMap()
+void Controller::DeleteViewMap(bool freeCache)
 {
+#if 0
 	_pView->DetachSilhouette();
 	if (NULL != _SilhouetteNode) {
 		int ref = _SilhouetteNode->destroy();
@@ -368,7 +421,6 @@ void Controller::DeleteViewMap()
 		}
 	}
 
-#if 0
 	if (NULL != _ProjectedSilhouette) {
 		int ref = _ProjectedSilhouette->destroy();
 		if (0 == ref) {
@@ -383,18 +435,24 @@ void Controller::DeleteViewMap()
 			_VisibleProjectedSilhouette = NULL;
 		}
 	}
-#endif
 
 	_pView->DetachDebug();
 	if (NULL != _DebugNode) {
-	int ref = _DebugNode->destroy();
+		int ref = _DebugNode->destroy();
 		if (0 == ref)
 			_DebugNode->addRef();
 	}
+#endif
 
 	if (NULL != _ViewMap) {
-		delete _ViewMap;
-		_ViewMap = NULL;
+		if (freeCache || !_EnableViewMapCache) {
+			delete _ViewMap;
+			_ViewMap = NULL;
+			prevSceneHash = -1.0;
+		}
+		else {
+			_ViewMap->Clean();
+		}
 	}
 }
 
@@ -403,40 +461,7 @@ void Controller::ComputeViewMap()
 	if (!_ListOfModels.size())
 		return;
 
-	if (NULL != _ViewMap) {
-		delete _ViewMap;
-		_ViewMap = NULL;
-	}
-
-	_pView->DetachDebug();
-	if (NULL != _DebugNode) {
-		int ref = _DebugNode->destroy();
-		if (0 == ref)
-			_DebugNode->addRef();
-	}
-
-	_pView->DetachSilhouette();
-	if (NULL != _SilhouetteNode) {
-		int ref = _SilhouetteNode->destroy();
-		if (0 == ref)
-			delete _SilhouetteNode;
-	}
-
-#if 0
-	if (NULL != _ProjectedSilhouette) {
-		int ref = _ProjectedSilhouette->destroy();
-		if (0 == ref)
-			delete _ProjectedSilhouette;
-	}
-
-	if (NULL != _VisibleProjectedSilhouette) {
-		int ref = _VisibleProjectedSilhouette->destroy();
-		if (0 == ref) {
-			delete _VisibleProjectedSilhouette;
-			_VisibleProjectedSilhouette = NULL;
-		}
-	}
-#endif
+	DeleteViewMap(true);
 
 	// retrieve the 3D viewpoint and transformations information
 	//----------------------------------------------------------
@@ -446,7 +471,7 @@ void Controller::ComputeViewMap()
 	// Restore the context of view:
 	// we need to perform all these operations while the 
 	// 3D context is on.
-	Vec3r vp(freestyle_viewpoint[0], freestyle_viewpoint[1], freestyle_viewpoint[2]);
+	Vec3f vp(freestyle_viewpoint[0], freestyle_viewpoint[1], freestyle_viewpoint[2]);
 
 #if 0
 	if (G.debug & G_DEBUG_FREESTYLE) {
@@ -510,7 +535,7 @@ void Controller::ComputeViewMap()
 	}
 	_Chrono.start();
 
-	edgeDetector.setViewpoint(Vec3r(vp));
+	edgeDetector.setViewpoint(vp);
 	edgeDetector.enableOrthographicProjection(proj[3][3] != 0.0);
 	edgeDetector.enableRidgesAndValleysFlag(_ComputeRidges);
 	edgeDetector.enableSuggestiveContours(_ComputeSuggestive);
@@ -534,20 +559,20 @@ void Controller::ComputeViewMap()
 	//----------------------------------------------------------
 	ViewMapBuilder vmBuilder;
 	vmBuilder.setEnableQI(_EnableQI);
-	vmBuilder.setViewpoint(Vec3r(vp));
+	vmBuilder.setViewpoint(vp);
 	vmBuilder.setTransform(mv, proj, viewport, _pView->GetFocalLength(), _pView->GetAspect(), _pView->GetFovyRadian());
 	vmBuilder.setFrustum(_pView->znear(), _pView->zfar());
 	vmBuilder.setGrid(&_Grid);
 	vmBuilder.setRenderMonitor(_pRenderMonitor);
 
+#if 0
 	// Builds a tesselated form of the silhouette for display purpose:
 	//---------------------------------------------------------------
 	ViewMapTesselator3D sTesselator3d;
-#if 0
 	ViewMapTesselator2D sTesselator2d;
 	sTesselator2d.setNature(_edgeTesselationNature);
-#endif
 	sTesselator3d.setNature(_edgeTesselationNature);
+#endif
 
 	if (G.debug & G_DEBUG_FREESTYLE) {
 		cout << "\n===  Building the view map  ===" << endl;
@@ -561,12 +586,12 @@ void Controller::ComputeViewMap()
 		printf("ViewMap edge count : %i\n", _ViewMap->viewedges_size());
 	}
 
+#if 0
 	// Tesselate the 3D edges:
 	_SilhouetteNode = sTesselator3d.Tesselate(_ViewMap);
 	_SilhouetteNode->addRef();
 
 	// Tesselate 2D edges
-#if 0
 	_ProjectedSilhouette = sTesselator2d.Tesselate(_ViewMap);
 	_ProjectedSilhouette->addRef();
 #endif
@@ -576,13 +601,13 @@ void Controller::ComputeViewMap()
 		printf("ViewMap building : %lf\n", duration);
 	}
 
-	_pView->AddSilhouette(_SilhouetteNode);
 #if 0
+	_pView->AddSilhouette(_SilhouetteNode);
 	_pView->AddSilhouette(_WRoot);
 	_pView->Add2DSilhouette(_ProjectedSilhouette);
 	_pView->Add2DVisibleSilhouette(_VisibleProjectedSilhouette);
-#endif
 	_pView->AddDebug(_DebugNode);
+#endif
 
 	// Draw the steerable density map:
 	//--------------------------------
@@ -763,6 +788,16 @@ int Controller::getVisibilityAlgo()
 	return FREESTYLE_ALGO_ADAPTIVE_TRADITIONAL;
 }
 
+void Controller::setViewMapCache(bool iBool)
+{
+	_EnableViewMapCache = iBool;
+}
+
+bool Controller::getViewMapCache() const
+{
+	return _EnableViewMapCache;
+}
+
 void Controller::setQuantitativeInvisibility(bool iBool)
 {
 	_EnableQI = iBool;
@@ -836,7 +871,7 @@ void Controller::DrawStrokes()
 	real d = _Chrono.stop();
 	if (G.debug & G_DEBUG_FREESTYLE) {
 		cout << "Strokes generation  : " << d << endl;
-		cout << "Stroke count  : " << _Canvas->stroke_count << endl;
+		cout << "Stroke count  : " << _Canvas->getStrokeCount() << endl;
 	}
 	resetModified();
 	DeleteViewMap();
@@ -849,10 +884,13 @@ void Controller::ResetRenderCount()
 
 Render *Controller::RenderStrokes(Render *re, bool render)
 {
+	int totmesh = 0;
 	_Chrono.start();
 	BlenderStrokeRenderer *blenderRenderer = new BlenderStrokeRenderer(re, ++_render_count);
-	if (render)
+	if (render) {
 		_Canvas->Render(blenderRenderer);
+		totmesh = blenderRenderer->GenerateScene();
+	}
 	real d = _Chrono.stop();
 	if (G.debug & G_DEBUG_FREESTYLE) {
 		cout << "Temporary scene generation: " << d << endl;
@@ -871,8 +909,8 @@ Render *Controller::RenderStrokes(Render *re, bool render)
 		float mmap_used_memory = (mmap_in_use) / (1024.0 * 1024.0);
 		float megs_peak_memory = (peak_memory) / (1024.0 * 1024.0);
 
-		printf("%d verts, %d faces, mem %.2fM (%.2fM, peak %.2fM)\n",
-		       freestyle_render->i.totvert, freestyle_render->i.totface,
+		printf("%d objs, %d verts, %d faces, mem %.2fM (%.2fM, peak %.2fM)\n",
+		       totmesh, freestyle_render->i.totvert, freestyle_render->i.totface,
 		       megs_used_memory, mmap_used_memory, megs_peak_memory);
 	}
 	delete blenderRenderer;
@@ -891,13 +929,19 @@ void Controller::InsertStyleModule(unsigned index, const char *iFileName)
 	_Canvas->InsertStyleModule(index, sm);
 }
 
+void Controller::InsertStyleModule(unsigned index, const char *iName, const char *iBuffer)
+{
+	StyleModule *sm = new BufferedStyleModule(iBuffer, iName, _inter);
+	_Canvas->InsertStyleModule(index, sm);
+}
+
 void Controller::InsertStyleModule(unsigned index, const char *iName, struct Text *iText)
 {
 	StyleModule *sm = new BlenderStyleModule(iText, iName, _inter);
 	_Canvas->InsertStyleModule(index, sm);
 }
 
-void Controller::AddStyleModule(const char *iFileName)
+void Controller::AddStyleModule(const char * /*iFileName*/)
 {
 	//_pStyleWindow->Add(iFileName);
 }
@@ -967,7 +1011,7 @@ void Controller::toggleEdgeTesselationNature(Nature::EdgeNature iNature)
 	ComputeViewMap();
 }
 
-void Controller::setModelsDir(const string& dir)
+void Controller::setModelsDir(const string& /*dir*/)
 {
 	//_current_dirs->setValue("models/dir", dir);
 }
@@ -979,7 +1023,7 @@ string Controller::getModelsDir() const
 	return dir;
 }
 
-void Controller::setModulesDir(const string& dir)
+void Controller::setModulesDir(const string& /*dir*/)
 {
 	//_current_dirs->setValue("modules/dir", dir);
 }

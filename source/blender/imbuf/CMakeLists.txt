@@ -62,9 +62,11 @@ set(SRC
 	intern/rectop.c
 	intern/rotate.c
 	intern/scaling.c
+	intern/stereoimbuf.c
 	intern/targa.c
 	intern/thumbs.c
 	intern/thumbs_blend.c
+	intern/thumbs_font.c
 	intern/util.c
 	intern/writeimage.c
 
@@ -118,7 +120,7 @@ if(WITH_IMAGE_OPENJPEG)
 		intern/jp2.c
 	)
 
-	add_definitions(-DWITH_OPENJPEG)
+	add_definitions(-DWITH_OPENJPEG ${OPENJPEG_DEFINES})
 endif()
 
 if(WITH_IMAGE_REDCODE)

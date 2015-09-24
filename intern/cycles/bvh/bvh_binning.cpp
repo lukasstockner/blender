@@ -29,10 +29,10 @@ CCL_NAMESPACE_BEGIN
 
 /* SSE replacements */
 
-__forceinline void prefetch_L1 (const void* ptr) { }
-__forceinline void prefetch_L2 (const void* ptr) { }
-__forceinline void prefetch_L3 (const void* ptr) { }
-__forceinline void prefetch_NTA(const void* ptr) { }
+__forceinline void prefetch_L1 (const void* /*ptr*/) { }
+__forceinline void prefetch_L2 (const void* /*ptr*/) { }
+__forceinline void prefetch_L3 (const void* /*ptr*/) { }
+__forceinline void prefetch_NTA(const void* /*ptr*/) { }
 
 template<size_t src> __forceinline float extract(const int4& b)
 { return b[src]; }
@@ -76,8 +76,8 @@ BVHObjectBinning::BVHObjectBinning(const BVHRange& job, BVHReference *prims)
 			prefetch_L2(&prims[start() + i + 8]);
 
 			/* map even and odd primitive to bin */
-			BVHReference prim0 = prims[start() + i + 0];
-			BVHReference prim1 = prims[start() + i + 1];
+			const BVHReference& prim0 = prims[start() + i + 0];
+			const BVHReference& prim1 = prims[start() + i + 1];
 
 			int4 bin0 = get_bin(prim0.bounds());
 			int4 bin1 = get_bin(prim1.bounds());
@@ -96,7 +96,7 @@ BVHObjectBinning::BVHObjectBinning(const BVHRange& job, BVHReference *prims)
 		/* for uneven number of primitives */
 		if(i < ssize_t(size())) {
 			/* map primitive to bin */
-			BVHReference prim0 = prims[start() + i];
+			const BVHReference& prim0 = prims[start() + i];
 			int4 bin0 = get_bin(prim0.bounds());
 
 			/* increase bounds of bins */

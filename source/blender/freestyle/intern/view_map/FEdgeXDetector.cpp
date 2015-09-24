@@ -39,7 +39,9 @@ namespace Freestyle {
 void FEdgeXDetector::processShapes(WingedEdge& we)
 {
 	bool progressBarDisplay = false;
+#if 0
 	Vec3r Min, Max;
+#endif
 	vector<WShape*> wshapes = we.getWShapes();
 	WXShape *wxs;
 
@@ -55,22 +57,24 @@ void FEdgeXDetector::processShapes(WingedEdge& we)
 		if (_pRenderMonitor && _pRenderMonitor->testBreak())
 			break;
 		wxs = dynamic_cast<WXShape*>(*it);
+#if 0
 		wxs->bbox(Min, Max);
 		_bbox_diagonal = (Max - Min).norm();
+#endif
 		if (_changes) {
 			vector<WFace*>& wfaces = wxs->GetFaceList();
 			for (vector<WFace*>::iterator wf = wfaces.begin(), wfend = wfaces.end(); wf != wfend; ++wf) {
 				WXFace *wxf = dynamic_cast<WXFace*>(*wf);
 				wxf->Clear();
 			}
-			_computeViewIndependant = true;
+			_computeViewIndependent = true;
 		}
-		else if (!(wxs)->getComputeViewIndependantFlag()) {
+		else if (!(wxs)->getComputeViewIndependentFlag()) {
 			wxs->Reset();
-			_computeViewIndependant = false;
+			_computeViewIndependent = false;
 		}
 		else {
-			_computeViewIndependant = true;
+			_computeViewIndependent = true;
 		}
 		preProcessShape(wxs);
 		if (progressBarDisplay)
@@ -97,8 +101,8 @@ void FEdgeXDetector::processShapes(WingedEdge& we)
 		if (progressBarDisplay)
 			_pProgressBar->setProgress(_pProgressBar->getProgress() + 1);
 
-		wxs->setComputeViewIndependantFlag(false);
-		_computeViewIndependant = false;
+		wxs->setComputeViewIndependentFlag(false);
+		_computeViewIndependent = false;
 		_changes = false;
 
 		// reset user data
@@ -117,7 +121,11 @@ void FEdgeXDetector::preProcessShape(WXShape *iWShape)
 	_minKr = FLT_MAX;
 	_maxKr = -FLT_MAX;
 	_nPoints = 0;
+#if 0
 	_meanEdgeSize = iWShape->getMeanEdgeSize();
+#else
+	_meanEdgeSize = iWShape->ComputeMeanEdgeSize();
+#endif
 
 	vector<WFace*>& wfaces = iWShape->GetFaceList();
 	vector<WFace*>::iterator f, fend;
@@ -140,16 +148,16 @@ void FEdgeXDetector::preProcessShape(WXShape *iWShape)
 
 void FEdgeXDetector::preProcessFace(WXFace *iFace)
 {
-	Vec3r firstPoint = iFace->GetVertex(0)->GetVertex();
-	Vec3r N = iFace->GetNormal();
+	Vec3f firstPoint = iFace->GetVertex(0)->GetVertex();
+	Vec3f N = iFace->GetNormal();
 
 	// Compute the dot product between V (=_Viewpoint - firstPoint) and N:
-	Vec3r V;
+	Vec3f V;
 	if (_orthographicProjection) {
-		V = Vec3r(0.0, 0.0, _Viewpoint.z() - firstPoint.z());
+		V = Vec3f(0.0f, 0.0f, _Viewpoint.z() - firstPoint.z());
 	}
 	else {
-		V = Vec3r(_Viewpoint - firstPoint);
+		V = Vec3f(_Viewpoint - firstPoint);
 	}
 	N.normalize();
 	V.normalize();
@@ -160,7 +168,7 @@ void FEdgeXDetector::preProcessFace(WXFace *iFace)
 		iFace->setZ(iFace->center().z() - _Viewpoint.z());
 	}
 	else {
-		Vec3r dist_vec(iFace->center() - _Viewpoint);
+		Vec3f dist_vec(iFace->center() - _Viewpoint);
 		iFace->setZ(dist_vec.norm());
 	}
 }
@@ -187,8 +195,8 @@ void FEdgeXDetector::computeCurvatures(WXVertex *vertex)
 	CurvatureInfo *C;
 	float radius = _sphereRadius * _meanEdgeSize; 
 
-	// view independant stuff
-	if (_computeViewIndependant) {
+	// view independent stuff
+	if (_computeViewIndependent) {
 		C = new CurvatureInfo();
 		vertex->setCurvatures(C);
 		OGF::NormalCycle ncycle;
@@ -265,33 +273,33 @@ void FEdgeXDetector::processSilhouetteShape(WXShape *iWShape)
 void FEdgeXDetector::ProcessSilhouetteFace(WXFace *iFace)
 {
 	// SILHOUETTE LAYER
-	Vec3r normal;
+	Vec3f normal;
 	// Compute the dot products between View direction and N at each vertex of the face:
-	Vec3r point;
+	Vec3f point;
 	int closestPointId = 0;
-	real dist, minDist = FLT_MAX;
+	float dist, minDist = FLT_MAX;
 	int numVertices = iFace->numberOfVertices();
 	WXFaceLayer *faceLayer = new WXFaceLayer(iFace, Nature::SILHOUETTE, true);
 	for (int i = 0; i < numVertices; i++) {
 		point = iFace->GetVertex(i)->GetVertex();
 		normal = iFace->GetVertexNormal(i);
 		normal.normalize();
-		Vec3r V;
+		Vec3f V;
 		if (_orthographicProjection) {
-			V = Vec3r(0.0, 0.0, _Viewpoint.z() - point.z());
+			V = Vec3f(0.0f, 0.0f, _Viewpoint.z() - point.z());
 		}
 		else {
-			V = Vec3r(_Viewpoint - point);
+			V = Vec3f(_Viewpoint - point);
 		}
 		V.normalize();
-		real d = normal * V;
+		float d = normal * V;
 		faceLayer->PushDotP(d);
 		// Find the point the closest to the viewpoint
 		if (_orthographicProjection) {
 			dist = point.z() - _Viewpoint.z();
 		}
 		else {
-			Vec3r dist_vec(point - _Viewpoint);
+			Vec3f dist_vec(point - _Viewpoint);
 			dist = dist_vec.norm();
 		}
 		if (dist < minDist) {
@@ -333,7 +341,7 @@ void FEdgeXDetector::ProcessSilhouetteEdge(WXEdge *iEdge)
 /////////
 void FEdgeXDetector::processBorderShape(WXShape *iWShape)
 {
-	if (!_computeViewIndependant)
+	if (!_computeViewIndependent)
 		return;
 	// Make a pass on the edges to detect the BORDER
 	vector<WEdge*>::iterator we, weend;
@@ -358,7 +366,7 @@ void FEdgeXDetector::ProcessBorderEdge(WXEdge *iEdge)
 /////////
 void FEdgeXDetector::processCreaseShape(WXShape *iWShape)
 {
-	if (!_computeViewIndependant)
+	if (!_computeViewIndependent)
 		return;
 
 	// Make a pass on the edges to detect the CREASE 
@@ -390,7 +398,7 @@ void FEdgeXDetector::processRidgesAndValleysShape(WXShape *iWShape)
 	// Don't forget to add the built layer to the face at the end of the ProcessFace:
 	//iFace->AddSmoothLayer(faceLayer);
 
-	if (!_computeViewIndependant)
+	if (!_computeViewIndependent)
 		return;
 
 	// Here the curvatures must already have been computed
@@ -416,6 +424,7 @@ void FEdgeXDetector::ProcessRidgeFace(WXFace *iFace)
 		flayer->PushDotP(wxv->curvatures()->K1);
 	}
 
+#if 0 // XXX fabs(flayer->dotP(i)) < threshold cannot be true
 	real threshold = 0;
 	//real threshold = _maxK1 - (_maxK1 - _meanK1) / 20.0;
 
@@ -428,6 +437,7 @@ void FEdgeXDetector::ProcessRidgeFace(WXFace *iFace)
 			flayer->ReplaceDotP(2, 0);
 		}
 	}
+#endif
 }
 
 #if 0
@@ -497,7 +507,7 @@ void FEdgeXDetector::ProcessRidgeFace(WXFace *iFace)
 				}
 			}
 		}
-		// Once we have K1 along the the ppal direction compute the derivative : K1b - K1a put it in DotP
+		// Once we have K1 along the ppal direction compute the derivative : K1b - K1a put it in DotP
 		//real d = fabs(K1_b) - fabs(K1_a);
 		real d = 0;
 		real threshold = _meanK1 + (_maxK1 - _meanK1) / 7.0;
@@ -684,7 +694,7 @@ void FEdgeXDetector::postProcessSuggestiveContourFace(WXFace *iFace)
 ////////////////////
 void FEdgeXDetector::processMaterialBoundaryShape(WXShape *iWShape)
 {
-	if (!_computeViewIndependant)
+	if (!_computeViewIndependent)
 		return;
 	// Make a pass on the edges to detect material boundaries
 	vector<WEdge*>::iterator we, weend;

@@ -38,8 +38,10 @@ extern "C" {
 
 #include "BLI_compiler_attrs.h"
 
+struct BlendThumbnail;
 struct ListBase;
 struct ID;
+struct ImBuf;
 struct Main;
 struct Library;
 struct wmWindowManager;
@@ -87,6 +89,10 @@ void BKE_main_free(struct Main *mainvar);
 void BKE_main_lock(struct Main *bmain);
 void BKE_main_unlock(struct Main *bmain);
 
+struct BlendThumbnail *BKE_main_thumbnail_from_imbuf(struct Main *bmain, struct ImBuf *img);
+struct ImBuf *BKE_main_thumbnail_to_imbuf(struct Main *bmain, struct BlendThumbnail *data);
+void BKE_main_thumbnail_create(struct Main *bmain);
+
 void BKE_main_id_tag_idcode(struct Main *mainvar, const short type, const bool tag);
 void BKE_main_id_tag_listbase(struct ListBase *lb, const bool tag);
 void BKE_main_id_tag_all(struct Main *mainvar, const bool tag);
@@ -107,8 +113,9 @@ void BKE_library_make_local(struct Main *bmain, struct Library *lib, bool untagg
 struct ID *BKE_libblock_find_name_ex(struct Main *bmain, const short type, const char *name) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 struct ID *BKE_libblock_find_name(const short type, const char *name) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
-void set_free_windowmanager_cb(void (*func)(struct bContext *, struct wmWindowManager *) );
-void set_free_notifier_reference_cb(void (*func)(const void *) );
+void BKE_library_callback_free_window_manager_set(void (*func)(struct bContext *, struct wmWindowManager *));
+void BKE_library_callback_free_notifier_reference_set(void (*func)(const void *));
+void BKE_library_callback_free_editor_id_reference_set(void (*func)(const struct ID *));
 
 /* use when "" is given to new_id() */
 #define ID_FALLBACK_NAME N_("Untitled")

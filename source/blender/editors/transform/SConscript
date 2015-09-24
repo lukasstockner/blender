@@ -31,22 +31,28 @@ sources = env.Glob('*.c')
 
 incs = [
     '#/intern/guardedalloc',
-    '#/extern/glew/include',
+    env['BF_GLEW_INC'],
+    '#/intern/glew-mx',
     '../include',
     '../../blenfont',
     '../../blenkernel',
     '../../blenlib',
+    '../../blentranslation',
     '../../bmesh',
+    '../../gpu',
     '../../ikplugin',
     '../../makesdna',
     '../../makesrna',
-    '../../gpu',
     '../../windowmanager',
     ]
 
 defs = []
+defs += env['BF_GL_DEFINITIONS']
 
 if env['WITH_BF_INTERNATIONAL']:
     defs.append('WITH_INTERNATIONAL')
+
+if env['WITH_BF_LEGACY_DEPSGRAPH']:
+    defs.append('WITH_LEGACY_DEPSGRAPH')
 
 env.BlenderLib ( 'bf_editors_transform', sources, incs, defs, libtype=['core'], priority=[40] )

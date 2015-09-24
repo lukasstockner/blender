@@ -38,6 +38,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_packedFile_types.h"
 
@@ -48,7 +49,7 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -58,9 +59,12 @@
 #include "BKE_paint.h"
 
 #include "ED_armature.h"
+#include "ED_buttons.h"
 #include "ED_image.h"
 #include "ED_mesh.h"
+#include "ED_node.h"
 #include "ED_object.h"
+#include "ED_outliner.h"
 #include "ED_paint.h"
 #include "ED_space_api.h"
 #include "ED_util.h"
@@ -107,7 +111,7 @@ void ED_editors_init(bContext *C)
 
 	/* image editor paint mode */
 	if (sce) {
-		ED_space_image_paint_update(wm, sce->toolsettings);
+		ED_space_image_paint_update(wm, sce);
 	}
 
 	SWAP(int, reports->flag, reports_flag_prev);
@@ -153,19 +157,20 @@ void ED_editors_exit(bContext *C)
 
 /* flush any temp data from object editing to DNA before writing files,
  * rendering, copying, etc. */
-void ED_editors_flush_edits(const bContext *C, bool for_render)
+bool ED_editors_flush_edits(const bContext *C, bool for_render)
 {
+	bool has_edited = false;
 	Object *ob;
-	Object *obedit = CTX_data_edit_object(C);
 	Main *bmain = CTX_data_main(C);
-	/* get editmode results */
-	if (obedit)
-		ED_object_editmode_load(obedit);
 
+	/* loop through all data to find edit mode or object mode, because during
+	 * exiting we might not have a context for edit object and multiple sculpt
+	 * objects can exist at the same time */
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
-		if (ob && (ob->mode & OB_MODE_SCULPT)) {
+		if (ob->mode & OB_MODE_SCULPT) {
 			/* flush multires changes (for sculpt) */
 			multires_force_update(ob);
+			has_edited = true;
 
 			if (for_render) {
 				/* flush changes from dynamic topology sculpt */
@@ -173,11 +178,18 @@ void ED_editors_flush_edits(const bContext *C, bool for_render)
 			}
 			else {
 				/* Set reorder=false so that saving the file doesn't reorder
-			 * the BMesh's elements */
+				 * the BMesh's elements */
 				BKE_sculptsession_bm_to_me(ob, false);
 			}
 		}
+		else if (ob->mode & OB_MODE_EDIT) {
+			/* get editmode results */
+			has_edited = true;
+			ED_object_editmode_load(ob);
+		}
 	}
+
+	return has_edited;
 }
 
 /* ***** XXX: functions are using old blender names, cleanup later ***** */
@@ -210,8 +222,8 @@ void unpack_menu(bContext *C, const char *opname, const char *id_name, const cha
 	char line[FILE_MAX + 100];
 	wmOperatorType *ot = WM_operatortype_find(opname, 1);
 
-	pup = uiPupMenuBegin(C, IFACE_("Unpack File"), ICON_NONE);
-	layout = uiPupMenuLayout(pup);
+	pup = UI_popup_menu_begin(C, IFACE_("Unpack File"), ICON_NONE);
+	layout = UI_popup_menu_layout(pup);
 
 	props_ptr = uiItemFullO_ptr(layout, ot, IFACE_("Remove Pack"), ICON_NONE,
 	                            NULL, WM_OP_EXEC_DEFAULT, UI_ITEM_O_RETURN_PROPS);
@@ -223,7 +235,7 @@ void unpack_menu(bContext *C, const char *opname, const char *id_name, const cha
 
 		BLI_split_file_part(abs_name, fi, sizeof(fi));
 		BLI_snprintf(local_name, sizeof(local_name), "//%s/%s", folder, fi);
-		if (strcmp(abs_name, local_name) != 0) {
+		if (!STREQ(abs_name, local_name)) {
 			switch (checkPackedFile(local_name, pf)) {
 				case PF_NOFILE:
 					BLI_snprintf(line, sizeof(line), IFACE_("Create %s"), local_name);
@@ -287,7 +299,7 @@ void unpack_menu(bContext *C, const char *opname, const char *id_name, const cha
 			break;
 	}
 
-	uiPupMenuEnd(C, pup);
+	UI_popup_menu_end(C, pup);
 }
 
 /* ********************* generic callbacks for drawcall api *********************** */
@@ -309,4 +321,26 @@ void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *ar, void *arg_info
 	glVertex2fv(mval_src);
 	glEnd();
 	setlinestyle(0);
+}
+
+/**
+ * Use to free ID references within runtime data (stored outside of DNA)
+ *
+ * \note Typically notifiers take care of this,
+ * but there are times we have to free references immediately, see: T44376
+ */
+void ED_spacedata_id_unref(struct SpaceLink *sl, const ID *id)
+{
+
+	switch (sl->spacetype) {
+		case SPACE_OUTLINER:
+			ED_outliner_id_unref((SpaceOops *)sl, id);
+			break;
+		case SPACE_BUTS:
+			ED_buttons_id_unref((SpaceButs *)sl, id);
+			break;
+		case SPACE_NODE:
+			ED_node_id_unref((SpaceNode *)sl, id);
+			break;
+	}
 }

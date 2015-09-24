@@ -48,8 +48,6 @@ OSL::ClosureParam *closure_holdout_params();
 OSL::ClosureParam *closure_ambient_occlusion_params();
 OSL::ClosureParam *closure_bsdf_diffuse_ramp_params();
 OSL::ClosureParam *closure_bsdf_phong_ramp_params();
-OSL::ClosureParam *closure_westin_backscatter_params();
-OSL::ClosureParam *closure_westin_sheen_params();
 OSL::ClosureParam *closure_bssrdf_cubic_params();
 OSL::ClosureParam *closure_bssrdf_gaussian_params();
 OSL::ClosureParam *closure_henyey_greenstein_volume_params();
@@ -60,8 +58,6 @@ void closure_holdout_prepare(OSL::RendererServices *, int id, void *data);
 void closure_ambient_occlusion_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bsdf_diffuse_ramp_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bsdf_phong_ramp_prepare(OSL::RendererServices *, int id, void *data);
-void closure_westin_backscatter_prepare(OSL::RendererServices *, int id, void *data);
-void closure_westin_sheen_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bssrdf_cubic_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bssrdf_gaussian_prepare(OSL::RendererServices *, int id, void *data);
 void closure_henyey_greenstein_volume_prepare(OSL::RendererServices *, int id, void *data);
@@ -82,6 +78,11 @@ void name(RendererServices *, int id, void *data) \
 #define TO_COLOR3(v) OSL::Color3(v.x, v.y, v.z)
 #define TO_FLOAT3(v) make_float3(v[0], v[1], v[2])
 
+#if OSL_LIBRARY_VERSION_CODE < 10700
+#  undef CLOSURE_STRING_KEYPARAM
+#  define CLOSURE_STRING_KEYPARAM(st, fld, key) { TypeDesc::TypeString, 0, key, 0 }
+#endif
+
 /* Closure */
 
 class CClosurePrimitive {
@@ -101,6 +102,10 @@ public:
 	virtual void setup() {}
 
 	Category category;
+
+#if OSL_LIBRARY_VERSION_CODE >= 10700
+	OSL::ustring label;
+#endif
 };
 
 /* BSDF */
@@ -151,14 +156,14 @@ public: \
 \
 	float3 eval_reflect(const float3 &omega_out, const float3 &omega_in, float& pdf) const \
 	{ \
-		pdf = 0; \
-		return make_float3(0, 0, 0); \
+		pdf = 0.0f; \
+		return make_float3(0.0f, 0.0f, 0.0f); \
 	} \
 \
 	float3 eval_transmit(const float3 &omega_out, const float3 &omega_in, float& pdf) const \
 	{ \
-		pdf = 0; \
-		return make_float3(0, 0, 0); \
+		pdf = 0.0f; \
+		return make_float3(0.0f, 0.0f, 0.0f); \
 	} \
 \
 	int sample(const float3 &Ng, \
@@ -179,7 +184,7 @@ static ClosureParam *bsdf_##lower##_params() \
 /* parameters */
 
 #define BSDF_CLOSURE_CLASS_END(Upper, lower) \
-		CLOSURE_STRING_KEYPARAM("label"), \
+		CLOSURE_STRING_KEYPARAM(Upper##Closure, label, "label"), \
 	    CLOSURE_FINISH_PARAM(Upper##Closure) \
 	}; \
 	return params; \
@@ -227,7 +232,7 @@ static ClosureParam *volume_##lower##_params() \
 /* parameters */
 
 #define VOLUME_CLOSURE_CLASS_END(Upper, lower) \
-		CLOSURE_STRING_KEYPARAM("label"), \
+		CLOSURE_STRING_KEYPARAM(Upper##Closure, label, "label"), \
 	    CLOSURE_FINISH_PARAM(Upper##Closure) \
 	}; \
 	return params; \

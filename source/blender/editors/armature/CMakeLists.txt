@@ -20,14 +20,15 @@
 
 set(INC
 	../include
-	../../blenfont
 	../../blenkernel
 	../../blenlib
+	../../blentranslation
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../windowmanager
-	../../gpu
 	../../../../intern/guardedalloc
+	../../../../intern/glew-mx
 )
 
 set(INC_SYS
@@ -73,5 +74,7 @@ if(WITH_OPENNL)
 		../../../../intern/opennl/extern
 	)
 endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_editor_armature "${SRC}" "${INC}" "${INC_SYS}")

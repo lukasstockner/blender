@@ -59,6 +59,7 @@
 #include "ED_screen.h"
 #include "ED_screen_types.h"
 #include "ED_clip.h"
+#include "ED_node.h"
 #include "ED_render.h"
 
 #include "UI_interface.h"
@@ -1009,7 +1010,7 @@ static void scrarea_draw_shape_light(ScrArea *sa, char UNUSED(dir))
 	glDisable(GL_BLEND);
 }
 
-static void drawscredge_area_draw(int sizex, int sizey, short x1, short y1, short x2, short y2, short a) 
+static void drawscredge_area_draw(int sizex, int sizey, int x1, int y1, int x2, int y2, int a)
 {
 	/* right border area */
 	if (x2 < sizex - 1)
@@ -1058,7 +1059,7 @@ bScreen *ED_screen_duplicate(wmWindow *win, bScreen *sc)
 {
 	bScreen *newsc;
 	
-	if (sc->full != SCREENNORMAL) return NULL;  /* XXX handle this case! */
+	if (sc->state != SCREENNORMAL) return NULL;  /* XXX handle this case! */
 	
 	/* make new empty screen: */
 	newsc = ED_screen_add(win, sc->scene, sc->id.name + 2);
@@ -1313,7 +1314,8 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen)
 	if (screen->animtimer)
 		WM_event_remove_timer(wm, window, screen->animtimer);
 	screen->animtimer = NULL;
-	
+	screen->scrubbing = false;
+
 	if (screen->mainwin)
 		wm_subwindow_close(window, screen->mainwin);
 	screen->mainwin = 0;
@@ -1439,7 +1441,7 @@ void ED_screen_set_subwinactive(bContext *C, wmEvent *event)
 				/* this used to be a notifier, but needs to be done immediate
 				 * because it can undo setting the right button as active due
 				 * to delayed notifier handling */
-				uiFreeActiveButtons(C, win->screen);
+				UI_screen_free_active_but(C, win->screen);
 			}
 			else
 				region_cursor_set(win, scr->subwinactive, false);
@@ -1467,25 +1469,26 @@ int ED_screen_area_active(const bContext *C)
 	return 0;
 }
 
-/* operator call, WM + Window + screen already existed before */
-/* Do NOT call in area/region queues! */
-void ED_screen_set(bContext *C, bScreen *sc)
+/**
+ * operator call, WM + Window + screen already existed before
+ *
+ * \warning Do NOT call in area/region queues!
+ * \returns success.
+ */
+bool ED_screen_set(bContext *C, bScreen *sc)
 {
 	Main *bmain = CTX_data_main(C);
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmWindow *win = CTX_wm_window(C);
 	bScreen *oldscreen = CTX_wm_screen(C);
-	ID *id;
 	
 	/* validate screen, it's called with notifier reference */
-	for (id = bmain->screen.first; id; id = id->next)
-		if (sc == (bScreen *)id)
-			break;
-	if (id == NULL)
-		return;
-	
+	if (BLI_findindex(&bmain->screen, sc) == -1) {
+		return true;
+	}
 
-	if (sc->full) {             /* find associated full */
+	if (ELEM(sc->state, SCREENMAXIMIZED, SCREENFULL)) {
+		/* find associated full */
 		bScreen *sc1;
 		for (sc1 = bmain->screen.first; sc1; sc1 = sc1->id.next) {
 			ScrArea *sa = sc1->areabase.first;
@@ -1497,8 +1500,9 @@ void ED_screen_set(bContext *C, bScreen *sc)
 	}
 
 	/* check for valid winid */
-	if (sc->winid != 0 && sc->winid != win->winid)
-		return;
+	if (sc->winid != 0 && sc->winid != win->winid) {
+		return false;
+	}
 	
 	if (oldscreen != sc) {
 		wmTimer *wt = oldscreen->animtimer;
@@ -1558,60 +1562,75 @@ void ED_screen_set(bContext *C, bScreen *sc)
 		}
 
 		/* Always do visible update since it's possible new screen will
-		 * have different layers visible in 3D viewpots. This is possible
-		 * because of view3d.lock_camera_and_layers option.
+		 * have different layers visible in 3D view-ports.
+		 * This is possible because of view3d.lock_camera_and_layers option.
 		 */
 		DAG_on_visible_update(bmain, false);
 	}
+
+	return true;
 }
 
-static int ed_screen_used(wmWindowManager *wm, bScreen *sc)
+static bool ed_screen_used(wmWindowManager *wm, bScreen *sc)
 {
 	wmWindow *win;
 
-	for (win = wm->windows.first; win; win = win->next)
-		if (win->screen == sc)
-			return 1;
-	
-	return 0;
+	for (win = wm->windows.first; win; win = win->next) {
+		if (win->screen == sc) {
+			return true;
+		}
+
+		if (ELEM(win->screen->state, SCREENMAXIMIZED, SCREENFULL)) {
+			ScrArea *sa = win->screen->areabase.first;
+			if (sa->full == sc) {
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 /* only call outside of area/region loops */
-void ED_screen_delete(bContext *C, bScreen *sc)
+bool ED_screen_delete(bContext *C, bScreen *sc)
 {
 	Main *bmain = CTX_data_main(C);
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmWindow *win = CTX_wm_window(C);
 	bScreen *newsc;
-	int delete = 1;
 	
 	/* don't allow deleting temp fullscreens for now */
-	if (sc->full == SCREENFULL) {
-		return;
+	if (ELEM(sc->state, SCREENMAXIMIZED, SCREENFULL)) {
+		return false;
 	}
-	
-		
+
 	/* screen can only be in use by one window at a time, so as
 	 * long as we are able to find a screen that is unused, we
 	 * can safely assume ours is not in use anywhere an delete it */
 
 	for (newsc = sc->id.prev; newsc; newsc = newsc->id.prev)
-		if (!ed_screen_used(wm, newsc))
+		if (!ed_screen_used(wm, newsc) && !newsc->temp)
 			break;
 	
 	if (!newsc) {
 		for (newsc = sc->id.next; newsc; newsc = newsc->id.next)
-			if (!ed_screen_used(wm, newsc))
+			if (!ed_screen_used(wm, newsc) && !newsc->temp)
 				break;
 	}
 
-	if (!newsc)
-		return;
+	if (!newsc) {
+		return false;
+	}
 
 	ED_screen_set(C, newsc);
 
-	if (delete && win->screen != sc)
+	if (win->screen != sc) {
 		BKE_libblock_free(bmain, sc);
+		return true;
+	}
+	else {
+		return false;
+	}
 }
 
 static void ed_screen_set_3dview_camera(Scene *scene, bScreen *sc, ScrArea *sa, View3D *v3d)
@@ -1705,8 +1724,11 @@ void ED_screen_set_scene(bContext *C, bScreen *screen, Scene *scene)
 	
 }
 
-/* only call outside of area/region loops */
-void ED_screen_delete_scene(bContext *C, Scene *scene)
+/**
+ * \note Only call outside of area/region loops
+ * \return true if successful
+ */
+bool ED_screen_delete_scene(bContext *C, Scene *scene)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *newscene;
@@ -1716,11 +1738,13 @@ void ED_screen_delete_scene(bContext *C, Scene *scene)
 	else if (scene->id.next)
 		newscene = scene->id.next;
 	else
-		return;
+		return false;
 
 	ED_screen_set_scene(C, CTX_wm_screen(C), newscene);
 
 	BKE_scene_unlink(bmain, scene, newscene);
+
+	return true;
 }
 
 ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *sa, int type)
@@ -1730,11 +1754,11 @@ ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *sa, int type)
 	ScrArea *newsa = NULL;
 
 	if (!sa || sa->full == NULL) {
-		newsa = ED_screen_full_toggle(C, win, sa);
+		newsa = ED_screen_state_toggle(C, win, sa, SCREENMAXIMIZED);
 	}
 	
 	if (!newsa) {
-		if (sa->full) {
+		if (sa->full && (screen->state == SCREENMAXIMIZED)) {
 			/* if this has been called from the temporary info header generated in
 			 * temp fullscreen layouts, find the correct fullscreen area to change
 			 * to create a new space inside */
@@ -1747,20 +1771,54 @@ ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *sa, int type)
 			newsa = sa;
 		}
 	}
-	
+
+	BLI_assert(newsa);
+
+	if (sa && (sa->spacetype != type)) {
+		newsa->flag |= AREA_FLAG_TEMP_TYPE;
+	}
+	else {
+		newsa->flag &= ~AREA_FLAG_TEMP_TYPE;
+	}
+
 	ED_area_newspace(C, newsa, type);
 	
 	return newsa;
 }
 
-void ED_screen_full_prevspace(bContext *C, ScrArea *sa)
+/**
+ * \a was_prev_temp for the case previous space was a temporary fullscreen as well
+ */
+void ED_screen_full_prevspace(bContext *C, ScrArea *sa, const bool was_prev_temp)
 {
-	wmWindow *win = CTX_wm_window(C);
+	BLI_assert(sa->full);
 
-	ED_area_prevspace(C, sa);
-	
-	if (sa->full)
-		ED_screen_full_toggle(C, win, sa);
+	if (sa->flag & AREA_FLAG_STACKED_FULLSCREEN) {
+		/* stacked fullscreen -> only go back to previous screen and don't toggle out of fullscreen */
+		ED_area_prevspace(C, sa);
+		/* only clear if previous space wasn't a temp fullscreen as well */
+		if (!was_prev_temp) {
+			sa->flag &= ~AREA_FLAG_TEMP_TYPE;
+		}
+	}
+	else {
+		ED_screen_restore_temp_type(C, sa);
+	}
+}
+
+void ED_screen_restore_temp_type(bContext *C, ScrArea *sa)
+{
+	/* incase nether functions below run */
+	ED_area_tag_redraw(sa);
+
+	if (sa->flag & AREA_FLAG_TEMP_TYPE) {
+		ED_area_prevspace(C, sa);
+		sa->flag &= ~AREA_FLAG_TEMP_TYPE;
+	}
+
+	if (sa->full) {
+		ED_screen_state_toggle(C, CTX_wm_window(C), sa, SCREENMAXIMIZED);
+	}
 }
 
 /* restore a screen / area back to default operation, after temp fullscreen modes */
@@ -1768,40 +1826,33 @@ void ED_screen_full_restore(bContext *C, ScrArea *sa)
 {
 	wmWindow *win = CTX_wm_window(C);
 	SpaceLink *sl = sa->spacedata.first;
+	bScreen *screen = CTX_wm_screen(C);
+	short state = (screen ? screen->state : SCREENMAXIMIZED);
 	
-	/* if fullscreen area has a secondary space (such as a file browser or fullscreen render 
-	 * overlaid on top of a existing setup) then return to the previous space */
+	/* if fullscreen area has a temporary space (such as a file browser or fullscreen render
+	 * overlaid on top of an existing setup) then return to the previous space */
 	
 	if (sl->next) {
-		/* specific checks for space types */
-
-		/* Special check added for non-render image window (back from fullscreen through "Back to Previous" button) */
-		if (sl->spacetype == SPACE_IMAGE) {
-			SpaceImage *sima = sa->spacedata.first;
-
-			if (sima->flag & (SI_PREVSPACE | SI_FULLWINDOW)) {
-				sima->flag &= ~SI_PREVSPACE;
-				sima->flag &= ~SI_FULLWINDOW;
-				ED_screen_full_prevspace(C, sa);
-			}
-			else
-				ED_screen_full_toggle(C, win, sa);
-		}
-		else if (sl->spacetype == SPACE_FILE) {
-			ED_screen_full_prevspace(C, sa);
+		if (sa->flag & AREA_FLAG_TEMP_TYPE) {
+			ED_screen_full_prevspace(C, sa, false);
 		}
 		else {
-			ED_screen_full_toggle(C, win, sa);
+			ED_screen_state_toggle(C, win, sa, state);
 		}
+		/* warning: 'sa' may be freed */
 	}
 	/* otherwise just tile the area again */
 	else {
-		ED_screen_full_toggle(C, win, sa);
+		ED_screen_state_toggle(C, win, sa, state);
 	}
 }
 
-/* this function toggles: if area is full then the parent will be restored */
-ScrArea *ED_screen_full_toggle(bContext *C, wmWindow *win, ScrArea *sa)
+/**
+ * this function toggles: if area is maximized/full then the parent will be restored
+ *
+ * \warning \a sa may be freed.
+ */
+ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *sa, const short state)
 {
 	bScreen *sc, *oldscreen;
 	ARegion *ar;
@@ -1811,24 +1862,21 @@ ScrArea *ED_screen_full_toggle(bContext *C, wmWindow *win, ScrArea *sa)
 		 * switching screens with tooltip open because region and tooltip
 		 * are no longer in the same screen */
 		for (ar = sa->regionbase.first; ar; ar = ar->next)
-			uiFreeBlocks(C, &ar->uiblocks);
-		
+			UI_blocklist_free(C, &ar->uiblocks);
+
 		/* prevent hanging header prints */
 		ED_area_headerprint(sa, NULL);
 	}
 
 	if (sa && sa->full) {
+		/* restoring back to SCREENNORMAL */
 		ScrArea *old;
-		/*short fulltype;*/ /*UNUSED*/
 
 		sc = sa->full;       /* the old screen to restore */
 		oldscreen = win->screen; /* the one disappearing */
 
-		/*fulltype = sc->full;*/
-		sc->full = 0;
+		sc->state = SCREENNORMAL;
 
-		/* removed: SCREENAUTOPLAY exception here */
-	
 		/* find old area */
 		for (old = sc->areabase.first; old; old = old->next)
 			if (old->full) break;
@@ -1836,6 +1884,13 @@ ScrArea *ED_screen_full_toggle(bContext *C, wmWindow *win, ScrArea *sa)
 			if (G.debug & G_DEBUG)
 				printf("%s: something wrong in areafullscreen\n", __func__);
 			return NULL;
+		}
+
+		if (state == SCREENFULL) {
+			/* restore the old side panels/header visibility */
+			for (ar = sa->regionbase.first; ar; ar = ar->next) {
+				ar->flag = ar->flagfullscreen;
+			}
 		}
 
 		ED_area_data_swap(old, sa);
@@ -1851,46 +1906,74 @@ ScrArea *ED_screen_full_toggle(bContext *C, wmWindow *win, ScrArea *sa)
 		BKE_screen_free(oldscreen);
 		BKE_libblock_free(CTX_data_main(C), oldscreen);
 
+		/* After we've restored back to SCREENNORMAL, we have to wait with
+		 * screen handling as it uses the area coords which aren't updated yet.
+		 * Without doing so, the screen handling gets wrong area coords,
+		 * which in worst case can lead to crashes (see T43139) */
+		sc->skip_handling = true;
 	}
 	else {
+		/* change from SCREENNORMAL to new state */
 		ScrArea *newa;
 		char newname[MAX_ID_NAME - 2];
 
 		oldscreen = win->screen;
 
-		/* nothing wrong with having only 1 area, as far as I can see...
-		 * is there only 1 area? */
-#if 0
-		if (oldscreen->areabase.first == oldscreen->areabase.last)
-			return NULL;
-#endif
-
-		oldscreen->full = SCREENFULL;
-		BLI_snprintf(newname, sizeof(newname), "%s-%s", oldscreen->id.name + 2, "full");
+		oldscreen->state = state;
+		BLI_snprintf(newname, sizeof(newname), "%s-%s", oldscreen->id.name + 2, "nonnormal");
 		sc = ED_screen_add(win, oldscreen->scene, newname);
-		sc->full = SCREENFULL; // XXX
+		sc->state = state;
+		sc->redraws_flag = oldscreen->redraws_flag;
 
 		/* timer */
 		sc->animtimer = oldscreen->animtimer;
 		oldscreen->animtimer = NULL;
-
-		/* returns the top small area */
-		newa = area_split(sc, (ScrArea *)sc->areabase.first, 'h', 0.99f, 1);
-		ED_area_newspace(C, newa, SPACE_INFO);
 
 		/* use random area when we have no active one, e.g. when the
 		 * mouse is outside of the window and we open a file browser */
 		if (!sa)
 			sa = oldscreen->areabase.first;
 
-		/* copy area */
-		newa = newa->prev;
-		ED_area_data_swap(newa, sa);
-		sa->flag |= AREA_TEMP_INFO;
+		if (state == SCREENMAXIMIZED) {
+			/* returns the top small area */
+			newa = area_split(sc, (ScrArea *)sc->areabase.first, 'h', 0.99f, 1);
+			ED_area_newspace(C, newa, SPACE_INFO);
 
-		sa->full = oldscreen;
-		newa->full = oldscreen;
-		newa->next->full = oldscreen; // XXX
+			/* copy area */
+			newa = newa->prev;
+			ED_area_data_swap(newa, sa);
+			sa->flag |= AREA_TEMP_INFO;
+
+			sa->full = oldscreen;
+			newa->full = oldscreen;
+			newa->next->full = oldscreen; // XXX
+		}
+		else if (state == SCREENFULL) {
+			newa = (ScrArea *)sc->areabase.first;
+
+			/* copy area */
+			ED_area_data_swap(newa, sa);
+			newa->flag = sa->flag; /* mostly for AREA_FLAG_WASFULLSCREEN */
+
+			/* temporarily hide the side panels/header */
+			for (ar = newa->regionbase.first; ar; ar = ar->next) {
+				ar->flagfullscreen = ar->flag;
+
+				if (ELEM(ar->regiontype,
+				         RGN_TYPE_UI,
+				         RGN_TYPE_HEADER,
+				         RGN_TYPE_TOOLS))
+				{
+					ar->flag |= RGN_FLAG_HIDDEN;
+				}
+			}
+
+			sa->full = oldscreen;
+			newa->full = oldscreen;
+		}
+		else {
+			BLI_assert(false);
+		}
 
 		ED_screen_set(C, sc);
 	}
@@ -2049,7 +2132,7 @@ void ED_update_for_newframe(Main *bmain, Scene *scene, int UNUSED(mute))
 	/* this function applies the changes too */
 	BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, layers);
 	
-	//if ( (CFRA>1) && (!mute) && (scene->r.audio.flag & AUDIO_SCRUB)) 
+	//if ((CFRA > 1) && (!mute) && (scene->r.audio.flag & AUDIO_SCRUB))
 	//	audiostream_scrub( CFRA );
 	
 	/* 3d window, preview */
@@ -2073,4 +2156,85 @@ void ED_update_for_newframe(Main *bmain, Scene *scene, int UNUSED(mute))
 	
 }
 
+/*
+ * return true if any active area requires to see in 3D
+ */
+bool ED_screen_stereo3d_required(bScreen *screen)
+{
+	ScrArea *sa;
+	Scene *sce = screen->scene;
+	const bool is_multiview = (sce->r.scemode & R_MULTIVIEW) != 0;
 
+	for (sa = screen->areabase.first; sa; sa = sa->next) {
+		switch (sa->spacetype) {
+			case SPACE_VIEW3D:
+			{
+				View3D *v3d;
+
+				if (!is_multiview)
+					continue;
+
+				v3d = sa->spacedata.first;
+				if (v3d->camera && v3d->stereo3d_camera == STEREO_3D_ID) {
+					ARegion *ar;
+					for (ar = sa->regionbase.first; ar; ar = ar->next) {
+						if (ar->regiondata && ar->regiontype == RGN_TYPE_WINDOW) {
+							RegionView3D *rv3d = ar->regiondata;
+							if (rv3d->persp == RV3D_CAMOB) {
+								return true;
+							}
+						}
+					}
+				}
+				break;
+			}
+			case SPACE_IMAGE:
+			{
+				SpaceImage *sima;
+
+				/* images should always show in stereo, even if
+				 * the file doesn't have views enabled */
+				sima = sa->spacedata.first;
+				if (sima->image && (sima->image->flag & IMA_IS_STEREO) &&
+				    (sima->iuser.flag & IMA_SHOW_STEREO))
+				{
+					return true;
+				}
+				break;
+			}
+			case SPACE_NODE:
+			{
+				SpaceNode *snode;
+
+				if (!is_multiview)
+					continue;
+
+				snode = sa->spacedata.first;
+				if ((snode->flag & SNODE_BACKDRAW) && ED_node_is_compositor(snode)) {
+					return true;
+				}
+				break;
+			}
+			case SPACE_SEQ:
+			{
+				SpaceSeq *sseq;
+
+				if (!is_multiview)
+					continue;
+
+				sseq = sa->spacedata.first;
+				if (ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
+					return true;
+				}
+
+				if (sseq->draw_flag & SEQ_DRAW_BACKDROP) {
+					return true;
+				}
+
+				break;
+			}
+		}
+	}
+
+	return false;
+}

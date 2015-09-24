@@ -72,7 +72,7 @@
 #include "BLI_utildefines.h"
 
 #include "BLI_threads.h"
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_action.h"
 #include "BKE_animsys.h"
@@ -115,7 +115,12 @@
 #include "BKE_texture.h"
 #include "BKE_world.h"
 
+#include "DEG_depsgraph.h"
+
 #include "RNA_access.h"
+
+#include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
 
 #ifdef WITH_PYTHON
 #include "BPY_extern.h"
@@ -139,7 +144,7 @@ void BKE_id_lib_local_paths(Main *bmain, Library *lib, ID *id)
 	BKE_bpath_traverse_id(bmain, id,
 	                      BKE_bpath_relocate_visitor,
 	                      BKE_BPATH_TRAVERSE_SKIP_MULTIFILE,
-	                      bpath_user_data);
+	                      (void *)bpath_user_data);
 }
 
 void id_lib_extern(ID *id)
@@ -291,7 +296,7 @@ bool id_make_local(ID *id, bool test)
 
 /**
  * Invokes the appropriate copy method for the block and returns the result in
- * newid, unless test. Returns true iff the block can be copied.
+ * newid, unless test. Returns true if the block can be copied.
  */
 bool id_copy(ID *id, ID **newid, bool test)
 {
@@ -351,7 +356,7 @@ bool id_copy(ID *id, ID **newid, bool test)
 		case ID_VF:
 			return false;  /* not implemented */
 		case ID_TXT:
-			if (!test) *newid = (ID *)BKE_text_copy((Text *)id);
+			if (!test) *newid = (ID *)BKE_text_copy(G.main, (Text *)id);
 			return true;
 		case ID_SCRIPT:
 			return false;  /* deprecated */
@@ -378,12 +383,13 @@ bool id_copy(ID *id, ID **newid, bool test)
 		case ID_WM:
 			return false;  /* can't be copied from here */
 		case ID_GD:
-			return false;  /* not implemented */
+			if (!test) *newid = (ID *)gpencil_data_duplicate((bGPdata *)id, false);
+			return true;
 		case ID_MSK:
 			if (!test) *newid = (ID *)BKE_mask_copy((Mask *)id);
 			return true;
 		case ID_LS:
-			if (!test) *newid = (ID *)BKE_linestyle_copy((FreestyleLineStyle *)id);
+			if (!test) *newid = (ID *)BKE_linestyle_copy(G.main, (FreestyleLineStyle *)id);
 			return true;
 	}
 	
@@ -431,7 +437,7 @@ bool id_single_user(bContext *C, ID *id, PointerRNA *ptr, PropertyRNA *prop)
 		if (RNA_property_editable(ptr, prop)) {
 			if (id_copy(id, &newid, false) && newid) {
 				/* copy animation actions too */
-				BKE_copy_animdata_id_action(id);
+				BKE_animdata_copy_id_action(id);
 				/* us is 1 by convention, but RNA_property_pointer_set
 				 * will also increment it, so set it to zero */
 				newid->us = 0;
@@ -553,9 +559,11 @@ void BKE_main_lib_objects_recalc_all(Main *bmain)
 	Object *ob;
 
 	/* flag for full recalc */
-	for (ob = bmain->object.first; ob; ob = ob->id.next)
-		if (ob->id.lib)
-			ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
+	for (ob = bmain->object.first; ob; ob = ob->id.next) {
+		if (ob->id.lib) {
+			DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+		}
+	}
 
 	DAG_id_type_tag(bmain, ID_OB);
 }
@@ -609,13 +617,13 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[a++] = &(main->speaker);
 
 	lb[a++] = &(main->world);
+	lb[a++] = &(main->movieclip);
 	lb[a++] = &(main->screen);
 	lb[a++] = &(main->object);
 	lb[a++] = &(main->linestyle); /* referenced by scenes */
 	lb[a++] = &(main->scene);
 	lb[a++] = &(main->library);
 	lb[a++] = &(main->wm);
-	lb[a++] = &(main->movieclip);
 	lb[a++] = &(main->mask);
 	
 	lb[a] = NULL;
@@ -784,7 +792,7 @@ static void id_copy_animdata(ID *id, const bool do_action)
 	
 	if (adt) {
 		IdAdtTemplate *iat = (IdAdtTemplate *)id;
-		iat->adt = BKE_copy_animdata(iat->adt, do_action); /* could be set to false, need to investigate */
+		iat->adt = BKE_animdata_copy(iat->adt, do_action); /* could be set to false, need to investigate */
 	}
 }
 
@@ -864,18 +872,24 @@ static void BKE_library_free(Library *lib)
 
 static void (*free_windowmanager_cb)(bContext *, wmWindowManager *) = NULL;
 
-void set_free_windowmanager_cb(void (*func)(bContext *C, wmWindowManager *) )
+void BKE_library_callback_free_window_manager_set(void (*func)(bContext *C, wmWindowManager *) )
 {
 	free_windowmanager_cb = func;
 }
 
 static void (*free_notifier_reference_cb)(const void *) = NULL;
 
-void set_free_notifier_reference_cb(void (*func)(const void *) )
+void BKE_library_callback_free_notifier_reference_set(void (*func)(const void *) )
 {
 	free_notifier_reference_cb = func;
 }
 
+static void (*free_editor_id_reference_cb)(const ID *) = NULL;
+
+void BKE_library_callback_free_editor_id_reference_set(void (*func)(const ID *))
+{
+	free_editor_id_reference_cb = func;
+}
 
 static void animdata_dtar_clear_cb(ID *UNUSED(id), AnimData *adt, void *userdata)
 {
@@ -1033,8 +1047,13 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 	/* avoid notifying on removed data */
 	BKE_main_lock(bmain);
 
-	if (free_notifier_reference_cb)
+	if (free_notifier_reference_cb) {
 		free_notifier_reference_cb(id);
+	}
+
+	if (free_editor_id_reference_cb) {
+		free_editor_id_reference_cb(id);
+	}
 
 	BLI_remlink(lb, id);
 
@@ -1069,8 +1088,7 @@ void BKE_libblock_free_us(Main *bmain, void *idv)      /* test users */
 Main *BKE_main_new(void)
 {
 	Main *bmain = MEM_callocN(sizeof(Main), "new main");
-	bmain->eval_ctx = MEM_callocN(sizeof(EvaluationContext),
-	                              "EvaluationContext");
+	bmain->eval_ctx = DEG_evaluation_context_new(DAG_EVAL_VIEWPORT);
 	bmain->lock = MEM_mallocN(sizeof(SpinLock), "main lock");
 	BLI_spin_init((SpinLock *)bmain->lock);
 	return bmain;
@@ -1081,6 +1099,8 @@ void BKE_main_free(Main *mainvar)
 	/* also call when reading a file, erase all, etc */
 	ListBase *lbarray[MAX_LIBARRAY];
 	int a;
+
+	MEM_SAFE_FREE(mainvar->blen_thumb);
 
 	a = set_listbasepointers(mainvar, lbarray);
 	while (a--) {
@@ -1127,6 +1147,7 @@ void BKE_main_free(Main *mainvar)
 				case  30: BKE_libblock_free_ex(mainvar, id, false); break;
 				case  31: BKE_libblock_free_ex(mainvar, id, false); break;
 				case  32: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  33: BKE_libblock_free_ex(mainvar, id, false); break;
 				default:
 					BLI_assert(0);
 					break;
@@ -1137,7 +1158,7 @@ void BKE_main_free(Main *mainvar)
 
 	BLI_spin_end((SpinLock *)mainvar->lock);
 	MEM_freeN(mainvar->lock);
-	MEM_freeN(mainvar->eval_ctx);
+	DEG_evaluation_context_free(mainvar->eval_ctx);
 	MEM_freeN(mainvar);
 }
 
@@ -1149,6 +1170,74 @@ void BKE_main_lock(struct Main *bmain)
 void BKE_main_unlock(struct Main *bmain)
 {
 	BLI_spin_unlock((SpinLock *) bmain->lock);
+}
+
+/**
+ * Generates a raw .blend file thumbnail data from given image.
+ *
+ * \param bmain If not NULL, also store generated data in this Main.
+ * \param img ImBuf image to generate thumbnail data from.
+ * \return The generated .blend file raw thumbnail data.
+ */
+BlendThumbnail *BKE_main_thumbnail_from_imbuf(Main *bmain, ImBuf *img)
+{
+	BlendThumbnail *data = NULL;
+
+	if (bmain) {
+		MEM_SAFE_FREE(bmain->blen_thumb);
+	}
+
+	if (img) {
+		const size_t sz = BLEN_THUMB_MEMSIZE(img->x, img->y);
+		data = MEM_mallocN(sz, __func__);
+
+		IMB_rect_from_float(img);  /* Just in case... */
+		data->width = img->x;
+		data->height = img->y;
+		memcpy(data->rect, img->rect, sz - sizeof(*data));
+	}
+
+	if (bmain) {
+		bmain->blen_thumb = data;
+	}
+	return data;
+}
+
+/**
+ * Generates an image from raw .blend file thumbnail \a data.
+ *
+ * \param bmain Use this bmain->blen_thumb data if given \a data is NULL.
+ * \param data Raw .blend file thumbnail data.
+ * \return An ImBuf from given data, or NULL if invalid.
+ */
+ImBuf *BKE_main_thumbnail_to_imbuf(Main *bmain, BlendThumbnail *data)
+{
+	ImBuf *img = NULL;
+
+	if (!data && bmain) {
+		data = bmain->blen_thumb;
+	}
+
+	if (data) {
+		/* Note: we cannot use IMB_allocFromBuffer(), since it tries to dupalloc passed buffer, which will fail
+		 *       here (we do not want to pass the first two ints!). */
+		img = IMB_allocImBuf((unsigned int)data->width, (unsigned int)data->height, 32, IB_rect | IB_metadata);
+		memcpy(img->rect, data->rect, BLEN_THUMB_MEMSIZE(data->width, data->height) - sizeof(*data));
+	}
+
+	return img;
+}
+
+/**
+ * Generates an empty (black) thumbnail for given Main.
+ */
+void BKE_main_thumbnail_create(struct Main *bmain)
+{
+	MEM_SAFE_FREE(bmain->blen_thumb);
+
+	bmain->blen_thumb = MEM_callocN(BLEN_THUMB_MEMSIZE(BLEN_THUMB_SIZE, BLEN_THUMB_SIZE), __func__);
+	bmain->blen_thumb->width = BLEN_THUMB_SIZE;
+	bmain->blen_thumb->height = BLEN_THUMB_SIZE;
 }
 
 /* ***************** ID ************************ */
@@ -1202,7 +1291,7 @@ static ID *is_dupid(ListBase *lb, ID *id, const char *name)
 			/* do not test alphabetic! */
 			/* optimized */
 			if (idtest->name[2] == name[0]) {
-				if (strcmp(name, idtest->name + 2) == 0) break;
+				if (STREQ(name, idtest->name + 2)) break;
 			}
 		}
 	}
@@ -1260,7 +1349,7 @@ static bool check_for_dupid(ListBase *lb, ID *id, char *name)
 			if ( (id != idtest) &&
 			     (idtest->lib == NULL) &&
 			     (*name == *(idtest->name + 2)) &&
-			     (strncmp(name, idtest->name + 2, left_len) == 0) &&
+			     STREQLEN(name, idtest->name + 2, left_len) &&
 			     (BLI_split_name_num(leftest, &nrtest, idtest->name + 2, '.') == left_len)
 			     )
 			{
@@ -1403,16 +1492,20 @@ void id_clear_lib_data(Main *bmain, ID *id)
 	/* internal bNodeTree blocks inside ID types below
 	 * also stores id->lib, make sure this stays in sync.
 	 */
-	switch (GS(id->name)) {
-		case ID_SCE:	ntree = ((Scene *)id)->nodetree;		break;
-		case ID_MA:		ntree = ((Material *)id)->nodetree;		break;
-		case ID_LA:		ntree = ((Lamp *)id)->nodetree;			break;
-		case ID_WO:		ntree = ((World *)id)->nodetree;		break;
-		case ID_TE:		ntree = ((Tex *)id)->nodetree;			break;
-		case ID_LS:		ntree = ((FreestyleLineStyle *)id)->nodetree; break;
-	}
-	if (ntree)
+	ntree = ntreeFromID(id);
+
+	if (ntree) {
 		ntree->id.lib = NULL;
+	}
+
+	if (GS(id->name) == ID_OB) {
+		Object *object = (Object *)id;
+		if (object->proxy_from != NULL) {
+			object->proxy_from->proxy = NULL;
+			object->proxy_from->proxy_group = NULL;
+		}
+		object->proxy = object->proxy_from = object->proxy_group = NULL;
+	}
 }
 
 /* next to indirect usage in read/writefile also in editobject.c scene.c */
@@ -1571,7 +1664,7 @@ void test_idbutton(char *name)
 	ID *idtest;
 	
 
-	lb = which_libbase(G.main, GS(name) );
+	lb = which_libbase(G.main, GS(name));
 	if (lb == NULL) return;
 	
 	/* search for id */
@@ -1590,7 +1683,7 @@ void rename_id(ID *id, const char *name)
 	ListBase *lb;
 
 	BLI_strncpy(id->name + 2, name, sizeof(id->name) - 2);
-	lb = which_libbase(G.main, GS(id->name) );
+	lb = which_libbase(G.main, GS(id->name));
 	
 	new_id(lb, id, name);
 }
@@ -1602,7 +1695,7 @@ void rename_id(ID *id, const char *name)
 void name_uiprefix_id(char *name, const ID *id)
 {
 	name[0] = id->lib ? 'L' : ' ';
-	name[1] = id->flag & LIB_FAKEUSER ? 'F' : (id->us == 0) ? '0' : ' ';
+	name[1] = (id->flag & LIB_FAKEUSER) ? 'F' : ((id->us == 0) ? '0' : ' ');
 	name[2] = ' ';
 
 	strcpy(name + 3, id->name + 2);

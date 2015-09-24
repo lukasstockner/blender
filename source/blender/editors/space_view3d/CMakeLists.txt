@@ -23,6 +23,7 @@ set(INC
 	../../blenfont
 	../../blenkernel
 	../../blenlib
+	../../blentranslation
 	../../bmesh
 	../../gpu
 	../../imbuf
@@ -30,7 +31,9 @@ set(INC
 	../../makesrna
 	../../render/extern/include
 	../../windowmanager
+	../../depsgraph
 	../../../../intern/guardedalloc
+	../../../../intern/glew-mx
 	../../../../intern/smoke/extern
 )
 
@@ -43,6 +46,7 @@ set(SRC
 	drawarmature.c
 	drawmesh.c
 	drawobject.c
+	drawsimdebug.c
 	drawvolume.c
 	space_view3d.c
 	view3d_buttons.c
@@ -76,7 +80,7 @@ if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)
 endif()
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
@@ -84,6 +88,10 @@ endif()
 
 if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)
+endif()
+
+if(WITH_LEGACY_DEPSGRAPH)
+	add_definitions(-DWITH_LEGACY_DEPSGRAPH)
 endif()
 
 blender_add_lib(bf_editor_space_view3d "${SRC}" "${INC}" "${INC_SYS}")

@@ -30,6 +30,7 @@ set(INC
 	../blenkernel
 	../blenlib
 	../blenfont
+	../depsgraph
 	../makesdna
 	../makesrna
 	../bmesh
@@ -40,7 +41,6 @@ set(INC
 
 set(INC_SYS
 	${ZLIB_INCLUDE_DIRS}
-	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
@@ -52,7 +52,9 @@ set(SRC
 	intern/MOD_cast.c
 	intern/MOD_cloth.c
 	intern/MOD_collision.c
+	intern/MOD_correctivesmooth.c
 	intern/MOD_curve.c
+	intern/MOD_datatransfer.c
 	intern/MOD_decimate.c
 	intern/MOD_displace.c
 	intern/MOD_dynamicpaint.c
@@ -73,6 +75,7 @@ set(SRC
 	intern/MOD_mirror.c
 	intern/MOD_multires.c
 	intern/MOD_none.c
+	intern/MOD_normal_edit.c
 	intern/MOD_ocean.c
 	intern/MOD_particleinstance.c
 	intern/MOD_particlesystem.c
@@ -146,6 +149,10 @@ if(WITH_OPENNL)
 	list(APPEND INC_SYS
 		../../../intern/opennl/extern
 	)
+endif()
+
+if(WITH_OPENSUBDIV)
+	add_definitions(-DWITH_OPENSUBDIV)
 endif()
 
 blender_add_lib(bf_modifiers "${SRC}" "${INC}" "${INC_SYS}")

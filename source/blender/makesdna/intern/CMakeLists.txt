@@ -57,7 +57,7 @@ add_executable(makesdna ${SRC} ${SRC_DNA_INC})
 # Output dna.c
 add_custom_command(
 	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dna.c
-	COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/makesdna ${CMAKE_CURRENT_BINARY_DIR}/dna.c ${CMAKE_SOURCE_DIR}/source/blender/makesdna/
+	COMMAND "$<TARGET_FILE:makesdna>" ${CMAKE_CURRENT_BINARY_DIR}/dna.c ${CMAKE_SOURCE_DIR}/source/blender/makesdna/
 	DEPENDS makesdna
 )
 
@@ -74,7 +74,7 @@ set(INC_SYS
 
 set(SRC
 	dna_genfile.c
-	dna.c
+	${CMAKE_CURRENT_BINARY_DIR}/dna.c
 	${SRC_DNA_INC}
 )
 
@@ -97,6 +97,7 @@ set(SRC
 	../../blenlib/intern/BLI_mempool.c
 	../../blenlib/intern/listbase.c
 	../../blenlib/intern/BLI_ghash.c
+	../../blenlib/intern/hash_mm2a.c
 )
 
 blender_add_lib(bf_dna_blenlib "${SRC}" "${INC}" "${INC_SYS}")

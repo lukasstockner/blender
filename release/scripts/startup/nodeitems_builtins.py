@@ -66,6 +66,8 @@ node_tree_group_type = {
 
 # generic node group items generator for shader, compositor and texture node groups
 def node_group_items(context):
+    if context is None:
+        return
     space = context.space_data
     if not space:
         return
@@ -112,6 +114,20 @@ def line_style_shader_nodes_poll(context):
             snode.shader_type == 'LINESTYLE')
 
 
+# only show nodes working in world node trees
+def world_shader_nodes_poll(context):
+    snode = context.space_data
+    return (snode.tree_type == 'ShaderNodeTree' and
+                snode.shader_type == 'WORLD')
+
+
+# only show nodes working in object node trees
+def object_shader_nodes_poll(context):
+    snode = context.space_data
+    return (snode.tree_type == 'ShaderNodeTree' and
+            snode.shader_type == 'OBJECT')
+
+
 # All standard node categories currently used in nodes.
 
 shader_node_categories = [
@@ -125,6 +141,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeTexture"),
         NodeItem("ShaderNodeGeometry"),
         NodeItem("ShaderNodeExtendedMaterial"),
+        NodeItem("ShaderNodeParticleInfo"),
         NodeItem("NodeGroupInput", poll=group_input_output_item_poll),
         ]),
     ShaderOldNodeCategory("SH_OUTPUT", "Output", items=[
@@ -136,6 +153,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeRGBCurve"),
         NodeItem("ShaderNodeInvert"),
         NodeItem("ShaderNodeHueSaturation"),
+        NodeItem("ShaderNodeGamma"),
         ]),
     ShaderOldNodeCategory("SH_OP_VECTOR", "Vector", items=[
         NodeItem("ShaderNodeNormal"),
@@ -180,30 +198,30 @@ shader_node_categories = [
         NodeItem("NodeGroupInput", poll=group_input_output_item_poll),
         ]),
     ShaderNewNodeCategory("SH_NEW_OUTPUT", "Output", items=[
-        NodeItem("ShaderNodeOutputMaterial"),
-        NodeItem("ShaderNodeOutputLamp"),
-        NodeItem("ShaderNodeOutputWorld"),
+        NodeItem("ShaderNodeOutputMaterial", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeOutputLamp", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeOutputWorld", poll=world_shader_nodes_poll),
         NodeItem("ShaderNodeOutputLineStyle", poll=line_style_shader_nodes_poll),
         NodeItem("NodeGroupOutput", poll=group_input_output_item_poll),
         ]),
     ShaderNewNodeCategory("SH_NEW_SHADER", "Shader", items=[
         NodeItem("ShaderNodeMixShader"),
         NodeItem("ShaderNodeAddShader"),
-        NodeItem("ShaderNodeBsdfDiffuse"),
-        NodeItem("ShaderNodeBsdfGlossy"),
-        NodeItem("ShaderNodeBsdfTransparent"),
-        NodeItem("ShaderNodeBsdfRefraction"),
-        NodeItem("ShaderNodeBsdfGlass"),
-        NodeItem("ShaderNodeBsdfTranslucent"),
-        NodeItem("ShaderNodeBsdfAnisotropic"),
-        NodeItem("ShaderNodeBsdfVelvet"),
-        NodeItem("ShaderNodeBsdfToon"),
-        NodeItem("ShaderNodeSubsurfaceScattering"),
-        NodeItem("ShaderNodeEmission"),
-        NodeItem("ShaderNodeBsdfHair"),
-        NodeItem("ShaderNodeBackground"),
-        NodeItem("ShaderNodeAmbientOcclusion"),
-        NodeItem("ShaderNodeHoldout"),
+        NodeItem("ShaderNodeBsdfDiffuse", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeBsdfGlossy", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeBsdfTransparent", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeBsdfRefraction", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeBsdfGlass", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeBsdfTranslucent", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeBsdfAnisotropic", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeBsdfVelvet", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeBsdfToon", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeSubsurfaceScattering", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeEmission", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeBsdfHair", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeBackground", poll=world_shader_nodes_poll),
+        NodeItem("ShaderNodeAmbientOcclusion", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeHoldout", poll=object_shader_nodes_poll),
         NodeItem("ShaderNodeVolumeAbsorption"),
         NodeItem("ShaderNodeVolumeScatter"),
         ]),
@@ -219,6 +237,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeTexMagic"),
         NodeItem("ShaderNodeTexChecker"),
         NodeItem("ShaderNodeTexBrick"),
+        NodeItem("ShaderNodeTexPointDensity"),
         ]),
     ShaderNewNodeCategory("SH_NEW_OP_COLOR", "Color", items=[
         NodeItem("ShaderNodeMixRGB"),
@@ -313,6 +332,7 @@ compositor_node_categories = [
         NodeItem("CompositorNodeCombYUVA"),
         NodeItem("CompositorNodeSepYCCA"),
         NodeItem("CompositorNodeCombYCCA"),
+        NodeItem("CompositorNodeSwitchView"),
         ]),
     CompositorNodeCategory("CMP_OP_FILTER", "Filter", items=[
         NodeItem("CompositorNodeBlur"),

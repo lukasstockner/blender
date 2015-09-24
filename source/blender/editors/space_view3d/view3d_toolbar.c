@@ -39,12 +39,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
@@ -118,7 +117,7 @@ static void view3d_panel_operator_redo(const bContext *C, Panel *pa)
 			uiLayoutSetEnabled(pa->layout, false);
 
 		/* note, blockfunc is a default but->func, use Handle func to allow button callbacks too */
-		uiBlockSetHandleFunc(block, ED_undo_operator_repeat_cb_evt, op);
+		UI_block_func_handle_set(block, ED_undo_operator_repeat_cb_evt, op);
 
 		view3d_panel_operator_redo_operator(C, pa, op);
 	}
@@ -151,20 +150,19 @@ static void operator_call_cb(struct bContext *C, void *arg_listbase, void *arg2)
 
 static void operator_search_cb(const struct bContext *C, void *UNUSED(arg), const char *str, uiSearchItems *items)
 {
-	GHashIterator *iter = WM_operatortype_iter();
+	GHashIterator iter;
 
-	for (; !BLI_ghashIterator_done(iter); BLI_ghashIterator_step(iter)) {
-		wmOperatorType *ot = BLI_ghashIterator_getValue(iter);
+	for (WM_operatortype_iter(&iter); !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter)) {
+		wmOperatorType *ot = BLI_ghashIterator_getValue(&iter);
 
 		if (BLI_strcasestr(ot->name, str)) {
 			if (WM_operator_poll((bContext *)C, ot)) {
 				
-				if (false == uiSearchItemAdd(items, ot->name, ot, 0))
+				if (false == UI_search_item_add(items, ot->name, ot, 0))
 					break;
 			}
 		}
 	}
-	BLI_ghashIterator_free(iter);
 }
 
 
@@ -180,18 +178,18 @@ static uiBlock *tool_search_menu(bContext *C, ARegion *ar, void *arg_listbase)
 	/* clear initial search string, then all items show */
 	search[0] = 0;
 	
-	block = uiBeginBlock(C, ar, "_popup", UI_EMBOSS);
-	uiBlockSetFlag(block, UI_BLOCK_LOOP | UI_BLOCK_REDRAW | UI_BLOCK_SEARCH_MENU);
+	block = UI_block_begin(C, ar, "_popup", UI_EMBOSS);
+	UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_SEARCH_MENU);
 	
 	/* fake button, it holds space for search items */
-	uiDefBut(block, LABEL, 0, "", 10, 15, uiSearchBoxWidth(), uiSearchBoxHeight(), NULL, 0, 0, 0, 0, NULL);
+	uiDefBut(block, UI_BTYPE_LABEL, 0, "", 10, 15, UI_searchbox_size_x(), UI_searchbox_size_y(), NULL, 0, 0, 0, 0, NULL);
 	
 	but = uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, sizeof(search), 10, 0, 150, 19, 0, 0, "");
-	uiButSetSearchFunc(but, operator_search_cb, arg_listbase, operator_call_cb, NULL);
+	UI_but_func_search_set(but, operator_search_cb, arg_listbase, operator_call_cb, NULL);
 	
-	uiBoundsBlock(block, 6);
-	uiBlockSetDirection(block, UI_DOWN);
-	uiEndBlock(C, block);
+	UI_block_bounds_set_normal(block, 6);
+	UI_block_direction_set(block, UI_DIR_DOWN);
+	UI_block_end(C, block);
 	
 	wm_event_init_from_window(win, &event);
 	event.type = EVT_BUT_OPEN;
@@ -218,7 +216,7 @@ static void view3d_panel_tool_shelf(const bContext *C, Panel *pa)
 		CustomTool *ct;
 		
 		for (ct = st->toolshelf.first; ct; ct = ct->next) {
-			if (0 == strncmp(context, ct->context, OP_MAX_TYPENAME)) {
+			if (STREQLEN(context, ct->context, OP_MAX_TYPENAME)) {
 				col = uiLayoutColumn(pa->layout, true);
 				uiItemFullO(col, ct->opname, NULL, ICON_NONE, NULL, WM_OP_INVOKE_REGION_WIN, 0);
 			}
@@ -236,7 +234,7 @@ void view3d_toolshelf_register(ARegionType *art)
 	pt = MEM_callocN(sizeof(PanelType), "spacetype view3d panel tools");
 	strcpy(pt->idname, "VIEW3D_PT_tool_shelf");
 	strcpy(pt->label, N_("Tool Shelf"));
-	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = view3d_panel_tool_shelf;
 	BLI_addtail(&art->paneltypes, pt);
 }
@@ -248,7 +246,7 @@ void view3d_tool_props_register(ARegionType *art)
 	pt = MEM_callocN(sizeof(PanelType), "spacetype view3d panel last operator");
 	strcpy(pt->idname, "VIEW3D_PT_last_operator");
 	strcpy(pt->label, N_("Operator"));
-	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw_header = view3d_panel_operator_redo_header;
 	pt->draw = view3d_panel_operator_redo;
 	BLI_addtail(&art->paneltypes, pt);

@@ -25,6 +25,7 @@ __all__ = (
 import bpy
 
 
+# XXX visual keying is actually always considered as True in this code...
 def bake_action(frame_start,
                 frame_end,
                 frame_step=1,
@@ -73,7 +74,7 @@ def bake_action(frame_start,
     # -------------------------------------------------------------------------
     # Helper Functions and vars
 
-    def pose_frame_info(obj, do_visual_keying):
+    def pose_frame_info(obj):
         matrix = {}
         for name, pbone in obj.pose.bones.items():
             if do_visual_keying:
@@ -84,16 +85,29 @@ def bake_action(frame_start,
         return matrix
 
     if do_parents_clear:
-        def obj_frame_info(obj, do_visual_keying):
-            parent = obj.parent
-            matrix = obj.matrix_local if do_visual_keying else obj.matrix_local
-            if parent:
-                return parent.matrix_world * matrix
-            else:
-                return matrix.copy()
+        if do_visual_keying:
+            def obj_frame_info(obj):
+                return obj.matrix_world.copy()
+        else:
+            def obj_frame_info(obj):
+                parent = obj.parent
+                matrix = obj.matrix_basis
+                if parent:
+                    return parent.matrix_world * matrix
+                else:
+                    return matrix.copy()
     else:
-        def obj_frame_info(obj, do_visual_keying):
-            return obj.matrix_local.copy() if do_visual_keying else obj.matrix_local.copy()
+        if do_visual_keying:
+            def obj_frame_info(obj):
+                parent = obj.parent
+                matrix = obj.matrix_world
+                if parent:
+                    return parent.matrix_world.inverted_safe() * matrix
+                else:
+                    return matrix.copy()
+        else:
+            def obj_frame_info(obj):
+                return obj.matrix_basis.copy()
 
     # -------------------------------------------------------------------------
     # Setup the Context
@@ -123,9 +137,16 @@ def bake_action(frame_start,
         scene.frame_set(f)
         scene.update()
         if do_pose:
-            pose_info.append(pose_frame_info(obj, do_visual_keying))
+            pose_info.append(pose_frame_info(obj))
         if do_object:
-            obj_info.append(obj_frame_info(obj, do_visual_keying))
+            obj_info.append(obj_frame_info(obj))
+
+    # -------------------------------------------------------------------------
+    # Clean (store initial data)
+    if do_clean and action is not None:
+        clean_orig_data = {fcu: {p.co[1] for p in fcu.keyframe_points} for fcu in action.fcurves}
+    else:
+        clean_orig_data = {}
 
     # -------------------------------------------------------------------------
     # Create action
@@ -216,12 +237,19 @@ def bake_action(frame_start,
 
     if do_clean:
         for fcu in action.fcurves:
+            fcu_orig_data = clean_orig_data.get(fcu, set())
+
             keyframe_points = fcu.keyframe_points
             i = 1
-            while i < len(fcu.keyframe_points) - 1:
+            while i < len(keyframe_points) - 1:
+                val = keyframe_points[i].co[1]
+
+                if val in fcu_orig_data:
+                    i += 1
+                    continue
+
                 val_prev = keyframe_points[i - 1].co[1]
                 val_next = keyframe_points[i + 1].co[1]
-                val = keyframe_points[i].co[1]
 
                 if abs(val - val_prev) + abs(val - val_next) < 0.0001:
                     keyframe_points.remove(keyframe_points[i])

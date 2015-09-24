@@ -208,14 +208,11 @@ static void bm_loop_customdata_merge(
 			 */
 			const void *data_src;
 
-			CustomData_data_add(
+			CustomData_data_mix_value(
 			        type,
 			        BM_ELEM_CD_GET_VOID_P(l_a_inner_inset, offset),
-			        BM_ELEM_CD_GET_VOID_P(l_b_inner_inset, offset));
-			CustomData_data_multiply(
-			        type,
-			        BM_ELEM_CD_GET_VOID_P(l_a_inner_inset, offset),
-			        0.5f);
+			        BM_ELEM_CD_GET_VOID_P(l_b_inner_inset, offset),
+			        CDT_MIX_MIX, 0.5f);
 			CustomData_data_copy_value(
 			        type,
 			        BM_ELEM_CD_GET_VOID_P(l_a_inner_inset, offset),
@@ -390,8 +387,10 @@ static void bmo_face_inset_individual(
 
 
 	if (use_interpolate) {
-		BM_face_interp_from_face_ex(bm, iface->f, iface->f, true,
-		                            iface->blocks_l, iface->blocks_v, iface->cos_2d, iface->axis_mat);
+		BM_face_interp_from_face_ex(
+		        bm, iface->f, iface->f, true,
+		        (const void **)iface->blocks_l, (const void **)iface->blocks_v,
+		        iface->cos_2d, iface->axis_mat);
 
 		/* build rim faces */
 		l_iter = l_first;
@@ -658,9 +657,10 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
 			es->l = es->e_old->l; /* must be a boundary */
 		}
 
-
 		/* run the separate arg */
-		bmesh_edge_separate(bm, es->e_old, es->l, false);
+		if (!BM_edge_is_boundary(es->e_old)) {
+			bmesh_edge_separate(bm, es->e_old, es->l, false);
+		}
 
 		/* calc edge-split info */
 		es->e_new = es->l->e;
@@ -972,7 +972,7 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
 								v_glue = v_split;
 							}
 							else {
-								BM_vert_splice(bm, v_split, v_glue);
+								BM_vert_splice(bm, v_glue, v_split);
 							}
 						}
 					}
@@ -993,8 +993,10 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
 		for (i = 0; i < iface_array_len; i++) {
 			if (iface_array[i]) {
 				InterpFace *iface = iface_array[i];
-				BM_face_interp_from_face_ex(bm, iface->f, iface->f, true,
-				                            iface->blocks_l, iface->blocks_v, iface->cos_2d, iface->axis_mat);
+				BM_face_interp_from_face_ex(
+				        bm, iface->f, iface->f, true,
+				        (const void **)iface->blocks_l, (const void **)iface->blocks_v,
+				        iface->cos_2d, iface->axis_mat);
 			}
 		}
 	}

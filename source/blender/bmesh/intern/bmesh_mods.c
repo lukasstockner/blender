@@ -72,7 +72,8 @@
  */
 bool BM_vert_dissolve(BMesh *bm, BMVert *v)
 {
-	const int len = BM_vert_edge_count(v);
+	/* logic for 3 or more is identical */
+	const int len = BM_vert_edge_count_ex(v, 3);
 	
 	if (len == 1) {
 		BM_vert_kill(bm, v); /* will kill edges too */
@@ -97,7 +98,7 @@ bool BM_vert_dissolve(BMesh *bm, BMVert *v)
 			return false;
 		}
 	}
-	else if (len == 2 && BM_vert_face_count(v) == 1) {
+	else if (len == 2 && BM_vert_face_count_is_equal(v, 1)) {
 		/* boundary vertex on a face */
 		return (BM_vert_collapse_edge(bm, v->e, v, true, true) != NULL);
 	}
@@ -265,19 +266,21 @@ BMFace *BM_faces_join_pair(BMesh *bm, BMFace *f_a, BMFace *f_b, BMEdge *e, const
  *
  * \param bm The bmesh
  * \param f the original face
- * \param v1, v2 vertices which define the split edge, must be different
+ * \param l_a, l_b  Loops of this face, their vertices define
+ * the split edge to be created (must be differ and not can't be adjacent in the face).
  * \param r_l pointer which will receive the BMLoop for the split edge in the new face
  * \param example Edge used for attributes of splitting edge, if non-NULL
- * \param nodouble Use an existing edge if found
+ * \param no_double: Use an existing edge if found
  *
  * \return Pointer to the newly created face representing one side of the split
  * if the split is successful (and the original original face will be the
  * other side). NULL if the split fails.
  */
-BMFace *BM_face_split(BMesh *bm, BMFace *f,
-                      BMLoop *l_a, BMLoop *l_b,
-                      BMLoop **r_l, BMEdge *example,
-                      const bool no_double)
+BMFace *BM_face_split(
+        BMesh *bm, BMFace *f,
+        BMLoop *l_a, BMLoop *l_b,
+        BMLoop **r_l, BMEdge *example,
+        const bool no_double)
 {
 	const bool has_mdisp = CustomData_has_layer(&bm->ldata, CD_MDISPS);
 	BMFace *f_new, *f_tmp;
@@ -348,17 +351,18 @@ BMFace *BM_face_split(BMesh *bm, BMFace *f,
  * \param l_a, l_b vertices which define the split edge, must be different
  * \param cos Array of coordinates for intermediate points
  * \param n Length of \a cos (must be > 0)
- * \param r_l pointer which will receive the BMLoop for the first split edge (from \a v1) in the new face
+ * \param r_l pointer which will receive the BMLoop for the first split edge (from \a l_a) in the new face
  * \param example Edge used for attributes of splitting edge, if non-NULL
  *
  * \return Pointer to the newly created face representing one side of the split
  * if the split is successful (and the original original face will be the
  * other side). NULL if the split fails.
  */
-BMFace *BM_face_split_n(BMesh *bm, BMFace *f,
-                        BMLoop *l_a, BMLoop *l_b,
-                        float cos[][3], int n,
-                        BMLoop **r_l, BMEdge *example)
+BMFace *BM_face_split_n(
+        BMesh *bm, BMFace *f,
+        BMLoop *l_a, BMLoop *l_b,
+        float cos[][3], int n,
+        BMLoop **r_l, BMEdge *example)
 {
 	BMFace *f_new, *f_tmp;
 	BMLoop *l_dummy;
@@ -901,7 +905,9 @@ bool BM_face_split_edgenet(
 							if (l_first == NULL) {
 								mul_v2_m3v3(co, axis_mat, v->co);
 								interp_weights_poly_v2(w, cos_2d, f->len, co);
-								CustomData_bmesh_interp(&bm->ldata, blocks, w, NULL, f->len, l_iter->head.data);
+								CustomData_bmesh_interp(
+								        &bm->ldata, (const void **)blocks,
+								        w, NULL, f->len, l_iter->head.data);
 								l_first = l_iter;
 							}
 							else {
@@ -987,8 +993,9 @@ bool BM_face_split_edgenet(
  *
  * \returns The New Edge
  */
-BMEdge *BM_vert_collapse_faces(BMesh *bm, BMEdge *e_kill, BMVert *v_kill, float fac,
-                               const bool do_del, const bool join_faces, const bool kill_degenerate_faces)
+BMEdge *BM_vert_collapse_faces(
+        BMesh *bm, BMEdge *e_kill, BMVert *v_kill, float fac,
+        const bool do_del, const bool join_faces, const bool kill_degenerate_faces)
 {
 	BMEdge *e_new = NULL;
 	BMVert *tv = BM_edge_other_vert(e_kill, v_kill);
@@ -1009,7 +1016,7 @@ BMEdge *BM_vert_collapse_faces(BMesh *bm, BMEdge *e_kill, BMVert *v_kill, float 
 		l_iter = e_kill->l;
 		do {
 			if (l_iter->v == tv && l_iter->next->v == v_kill) {
-				void *src[2];
+				const void *src[2];
 				BMLoop *tvloop = l_iter;
 				BMLoop *kvloop = l_iter->next;
 
@@ -1100,8 +1107,9 @@ BMEdge *BM_vert_collapse_faces(BMesh *bm, BMEdge *e_kill, BMVert *v_kill, float 
  *
  * \return The New Edge
  */
-BMEdge *BM_vert_collapse_edge(BMesh *bm, BMEdge *e_kill, BMVert *v_kill,
-                              const bool do_del, const bool kill_degenerate_faces)
+BMEdge *BM_vert_collapse_edge(
+        BMesh *bm, BMEdge *e_kill, BMVert *v_kill,
+        const bool do_del, const bool kill_degenerate_faces)
 {
 	/* nice example implementation but we want loops to have their customdata
 	 * accounted for */
@@ -1148,7 +1156,7 @@ BMEdge *BM_vert_collapse_edge(BMesh *bm, BMEdge *e_kill, BMVert *v_kill,
  * </pre>
  *
  * \param e  The edge to split.
- * \param v  One of the vertices in \a e and defines the the "from" end of the splitting operation,
+ * \param v  One of the vertices in \a e and defines the "from" end of the splitting operation,
  * the new vertex will be \a fac of the way from \a v to the other end.
  * \param r_e  The newly created edge.
  * \return  The new vertex.
@@ -1350,8 +1358,9 @@ bool BM_face_validate(BMFace *face, FILE *err)
  *
  * \note #BM_edge_rotate_check must have already run.
  */
-void BM_edge_calc_rotate(BMEdge *e, const bool ccw,
-                         BMLoop **r_l1, BMLoop **r_l2)
+void BM_edge_calc_rotate(
+        BMEdge *e, const bool ccw,
+        BMLoop **r_l1, BMLoop **r_l2)
 {
 	BMVert *v1, *v2;
 	BMFace *fa, *fb;
@@ -1513,8 +1522,9 @@ bool BM_edge_rotate_check_degenerate(BMEdge *e, BMLoop *l1, BMLoop *l2)
 	return true;
 }
 
-bool BM_edge_rotate_check_beauty(BMEdge *e,
-                                 BMLoop *l1, BMLoop *l2)
+bool BM_edge_rotate_check_beauty(
+        BMEdge *e,
+        BMLoop *l1, BMLoop *l2)
 {
 	/* Stupid check for now:
 	 * Could compare angles of surrounding edges
@@ -1639,4 +1649,10 @@ BMVert *BM_face_vert_separate(BMesh *bm, BMFace *sf, BMVert *sv)
 BMVert *BM_face_loop_separate(BMesh *bm, BMLoop *sl)
 {
 	return bmesh_urmv_loop(bm, sl);
+}
+
+BMVert *BM_face_loop_separate_multi(
+        BMesh *bm, BMLoop **larr, int larr_len)
+{
+	return bmesh_urmv_loop_multi(bm, larr, larr_len);
 }

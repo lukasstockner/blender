@@ -25,13 +25,14 @@ set(INC
 	.
 	../blenkernel
 	../blenlib
+	../blentranslation
 	../editors/include
+	../gpu
 	../makesdna
 	../makesrna
-	../python
 	../imbuf
 	../../../intern/guardedalloc
-	../../../intern/locale
+	../../../intern/glew-mx
 )
 
 set(INC_SYS
@@ -43,22 +44,33 @@ set(SRC
 	intern/blf.c
 	intern/blf_dir.c
 	intern/blf_font.c
+	intern/blf_font_i18n.c
 	intern/blf_glyph.c
-	intern/blf_lang.c
-	intern/blf_translation.c
+	intern/blf_thumbs.c
 	intern/blf_util.c
 
 	BLF_api.h
-	BLF_translation.h
 	intern/blf_internal.h
 	intern/blf_internal_types.h
 )
+
+if(WIN32)
+	list(APPEND SRC
+		intern/blf_font_win32_compat.c
+	)
+endif()
 
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
-add_definitions(-DGLEW_STATIC)
+if(WITH_PYTHON)
+	add_definitions(-DWITH_PYTHON)
+	list(APPEND INC
+		../python
+	)
+endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_blenfont "${SRC}" "${INC}" "${INC_SYS}")
-

@@ -74,6 +74,12 @@ endif()
 # -----------------------------------------------------------------------------
 # Libraries
 
+if(UNIX AND NOT APPLE)
+	set(WITH_X11 ON)
+endif()
+# for now... default to this
+add_definitions(-DWITH_GL_PROFILE_COMPAT)
+
 # ghost
 include(${CMAKE_SOURCE_DIR}/../CMakeLists.txt)
 suffix_relpaths(INC_NEW "${INC}" "../")
@@ -109,6 +115,13 @@ suffix_relpaths(SRC_NEW "${SRC}" "../../../extern/wcwidth/")
 include_directories(${INC_NEW})
 add_library(wcwidth_lib ${SRC_NEW})
 
+# glew-mx
+include(${CMAKE_SOURCE_DIR}/../../../intern/glew-mx/CMakeLists.txt)
+suffix_relpaths(INC_NEW "${INC}" "../../../intern/glew-mx/")
+suffix_relpaths(SRC_NEW "${SRC}" "../../../intern/glew-mx/")
+include_directories(${INC_NEW})
+add_library(glewmx_lib ${SRC_NEW})
+
 # grr, blenfont needs BLI
 include_directories(
 		"../../../source/blender/blenlib"
@@ -130,6 +143,7 @@ add_library(bli_lib
 		"../../../source/blender/blenlib/intern/BLI_linklist.c"
 		"../../../source/blender/blenlib/intern/BLI_memarena.c"
 		"../../../source/blender/blenlib/intern/BLI_mempool.c"
+		"../../../source/blender/blenlib/intern/system.c"
 		)
 
 set(PLATFORM_CGLAGS)
@@ -184,6 +198,7 @@ add_executable(gears_c
 
 target_link_libraries(gears_c
 		ghost_lib
+		glewmx_lib
 		string_lib
 		${OPENGL_gl_LIBRARY}
 		${OPENGL_glu_LIBRARY}
@@ -197,6 +212,7 @@ add_executable(gears_cpp
 
 target_link_libraries(gears_cpp
 		ghost_lib
+		glewmx_lib
 		string_lib
 		${OPENGL_gl_LIBRARY}
 		${OPENGL_glu_LIBRARY}
@@ -225,6 +241,7 @@ target_link_libraries(multitest_c
 		blenfont_lib
 		bli_lib
 		ghost_lib
+		glewmx_lib
 		string_lib
 		guardedalloc_lib
 		wcwidth_lib

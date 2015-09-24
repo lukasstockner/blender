@@ -20,14 +20,17 @@
 
 set(INC
 	../include
-	../../blenfont
 	../../blenkernel
 	../../blenlib
+	../../blentranslation
 	../../bmesh
+	../../imbuf
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
+	../../../../intern/glew-mx
 )
 
 set(INC_SYS
@@ -67,6 +70,7 @@ set(SRC
 	../include/ED_node.h
 	../include/ED_numinput.h
 	../include/ED_object.h
+	../include/ED_outliner.h
 	../include/ED_paint.h
 	../include/ED_particle.h
 	../include/ED_physics.h
@@ -91,7 +95,7 @@ set(SRC
 	../include/UI_view2d.h
 )
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)

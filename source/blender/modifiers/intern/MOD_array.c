@@ -102,7 +102,9 @@ static void foreachObjectLink(
 }
 
 static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Scene *UNUSED(scene), Object *UNUSED(ob), DagNode *obNode)
+                           struct Main *UNUSED(bmain),
+                           struct Scene *UNUSED(scene),
+                           Object *UNUSED(ob), DagNode *obNode)
 {
 	ArrayModifierData *amd = (ArrayModifierData *) md;
 
@@ -130,6 +132,28 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 
 		dag_add_relation(forest, curNode, obNode,
 		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Array Modifier");
+	}
+}
+
+static void updateDepsgraph(ModifierData *md,
+                            struct Main *UNUSED(bmain),
+                            struct Scene *scene,
+                            Object *UNUSED(ob),
+                            struct DepsNodeHandle *node)
+{
+	ArrayModifierData *amd = (ArrayModifierData *)md;
+	if (amd->start_cap != NULL) {
+		DEG_add_object_relation(node, amd->start_cap, DEG_OB_COMP_TRANSFORM, "Hook Modifier Start Cap");
+	}
+	if (amd->end_cap != NULL) {
+		DEG_add_object_relation(node, amd->end_cap, DEG_OB_COMP_TRANSFORM, "Hook Modifier End Cap");
+	}
+	if (amd->curve_ob) {
+		DEG_add_object_relation(node, amd->end_cap, DEG_OB_COMP_GEOMETRY, "Hook Modifier Curve");
+		DEG_add_special_eval_flag(scene->depsgraph, &amd->curve_ob->id, DAG_EVAL_NEED_CURVE_PATH);
+	}
+	if (amd->offset_ob != NULL) {
+		DEG_add_object_relation(node, amd->offset_ob, DEG_OB_COMP_TRANSFORM, "Hook Modifier Offset");
 	}
 }
 
@@ -167,8 +191,8 @@ typedef struct SortVertsElem {
 
 static int svert_sum_cmp(const void *e1, const void *e2)
 {
-	const SortVertsElem *sv1 = (SortVertsElem *)e1;
-	const SortVertsElem *sv2 = (SortVertsElem *)e2;
+	const SortVertsElem *sv1 = e1;
+	const SortVertsElem *sv2 = e2;
 
 	if      (sv1->sum_co > sv2->sum_co) return  1;
 	else if (sv1->sum_co < sv2->sum_co) return -1;
@@ -201,7 +225,7 @@ static void dm_mvert_map_doubles(
         const float dist,
         const bool with_follow)
 {
-	const float dist3 = (M_SQRT3 + 0.00005f) * dist;   /* Just above sqrt(3) */
+	const float dist3 = ((float)M_SQRT3 + 0.00005f) * dist;   /* Just above sqrt(3) */
 	int i_source, i_target, i_target_low_bound, target_end, source_end;
 	SortVertsElem *sorted_verts_target, *sorted_verts_source;
 	SortVertsElem *sve_source, *sve_target, *sve_target_low_bound;
@@ -323,8 +347,8 @@ static void dm_merge_transform(
 	/* needed for subsurf so arrays are allocated */
 	cap_dm->getVertArray(cap_dm);
 	cap_dm->getEdgeArray(cap_dm);
-	cap_dm->getNumLoops(cap_dm);
-	cap_dm->getNumPolys(cap_dm);
+	cap_dm->getLoopArray(cap_dm);
+	cap_dm->getPolyArray(cap_dm);
 
 	DM_copy_vert_data(cap_dm, result, 0, cap_verts_index, cap_nverts);
 	DM_copy_edge_data(cap_dm, result, 0, cap_edges_index, cap_nedges);
@@ -362,22 +386,22 @@ static void dm_merge_transform(
 	/* set origindex */
 	index_orig = result->getVertDataArray(result, CD_ORIGINDEX);
 	if (index_orig) {
-		fill_vn_i(index_orig + cap_verts_index, cap_nverts, ORIGINDEX_NONE);
+		copy_vn_i(index_orig + cap_verts_index, cap_nverts, ORIGINDEX_NONE);
 	}
 
 	index_orig = result->getEdgeDataArray(result, CD_ORIGINDEX);
 	if (index_orig) {
-		fill_vn_i(index_orig + cap_edges_index, cap_nedges, ORIGINDEX_NONE);
+		copy_vn_i(index_orig + cap_edges_index, cap_nedges, ORIGINDEX_NONE);
 	}
 
 	index_orig = result->getPolyDataArray(result, CD_ORIGINDEX);
 	if (index_orig) {
-		fill_vn_i(index_orig + cap_polys_index, cap_npolys, ORIGINDEX_NONE);
+		copy_vn_i(index_orig + cap_polys_index, cap_npolys, ORIGINDEX_NONE);
 	}
 
 	index_orig = result->getLoopDataArray(result, CD_ORIGINDEX);
 	if (index_orig) {
-		fill_vn_i(index_orig + cap_loops_index, cap_nloops, ORIGINDEX_NONE);
+		copy_vn_i(index_orig + cap_loops_index, cap_nloops, ORIGINDEX_NONE);
 	}
 }
 
@@ -404,8 +428,11 @@ static DerivedMesh *arrayModifier_doArray(
 	int *full_doubles_map = NULL;
 	int tot_doubles;
 
-	const bool use_merge = amd->flags & MOD_ARR_MERGE;
+	const bool use_merge = (amd->flags & MOD_ARR_MERGE) != 0;
 	const bool use_recalc_normals = (dm->dirty & DM_DIRTY_NORMALS) || use_merge;
+	const bool use_offset_ob = ((amd->offset_type & MOD_ARR_OFF_OBJ) && amd->offset_ob);
+	/* allow pole vertices to be used by many faces */
+	const bool with_follow = use_offset_ob;
 
 	int start_cap_nverts = 0, start_cap_nedges = 0, start_cap_npolys = 0, start_cap_nloops = 0;
 	int end_cap_nverts = 0, end_cap_nedges = 0, end_cap_npolys = 0, end_cap_nloops = 0;
@@ -454,7 +481,7 @@ static DerivedMesh *arrayModifier_doArray(
 			offset[3][j] += amd->scale[j] * vertarray_size(src_mvert, chunk_nverts, j);
 	}
 
-	if ((amd->offset_type & MOD_ARR_OFF_OBJ) && (amd->offset_ob)) {
+	if (use_offset_ob) {
 		float obinv[4][4];
 		float result_mat[4][4];
 
@@ -496,7 +523,7 @@ static DerivedMesh *arrayModifier_doArray(
 		if (dist > eps) {
 			/* this gives length = first copy start to last copy end
 			 * add a tiny offset for floating point rounding errors */
-			count = (length + eps) / dist;
+			count = (length + eps) / dist + 1;
 		}
 		else {
 			/* if the offset has no translation, just make one copy */
@@ -520,7 +547,7 @@ static DerivedMesh *arrayModifier_doArray(
 	if (use_merge) {
 		/* Will need full_doubles_map for handling merge */
 		full_doubles_map = MEM_mallocN(sizeof(int) * result_nverts, "mod array doubles map");
-		fill_vn_i(full_doubles_map, result_nverts, -1);
+		copy_vn_i(full_doubles_map, result_nverts, -1);
 	}
 
 	/* copy customdata to original geometry */
@@ -606,10 +633,15 @@ static DerivedMesh *arrayModifier_doArray(
 					int target = full_doubles_map[prev_chunk_index];
 					if (target != -1) {
 						target += chunk_nverts; /* translate mapping */
-						/* The rule here is to not follow mapping to chunk N-2, which could be too far
-						 * so if target vertex was itself mapped, then this vertex is not mapped */
 						if (full_doubles_map[target] != -1) {
-							target = -1;
+							if (with_follow) {
+								target = full_doubles_map[target];
+							}
+							else {
+								/* The rule here is to not follow mapping to chunk N-2, which could be too far
+								 * so if target vertex was itself mapped, then this vertex is not mapped */
+								target = -1;
+							}
 						}
 					}
 					full_doubles_map[this_chunk_index] = target;
@@ -624,7 +656,7 @@ static DerivedMesh *arrayModifier_doArray(
 				        c * chunk_nverts,
 				        chunk_nverts,
 				        amd->merge_dist,
-				        false);
+				        with_follow);
 			}
 		}
 	}
@@ -644,7 +676,7 @@ static DerivedMesh *arrayModifier_doArray(
 		        first_chunk_start,
 		        first_chunk_nverts,
 		        amd->merge_dist,
-		        false);
+		        with_follow);
 	}
 
 	/* start capping */
@@ -699,19 +731,17 @@ static DerivedMesh *arrayModifier_doArray(
 	}
 	/* done capping */
 
-	/* In case org dm has dirty normals, or we made some merging, mark normals as dirty in new dm!
-	 * TODO: we may need to set other dirty flags as well?
-	 */
-	if (use_recalc_normals) {
-		result->dirty |= DM_DIRTY_NORMALS;
-	}
-
 	/* Handle merging */
 	tot_doubles = 0;
 	if (use_merge) {
 		for (i = 0; i < result_nverts; i++) {
 			if (full_doubles_map[i] != -1) {
-				tot_doubles++;
+				if (i == full_doubles_map[i]) {
+					full_doubles_map[i] = -1;
+				}
+				else {
+					tot_doubles++;
+				}
 			}
 		}
 		if (tot_doubles > 0) {
@@ -719,6 +749,14 @@ static DerivedMesh *arrayModifier_doArray(
 		}
 		MEM_freeN(full_doubles_map);
 	}
+
+	/* In case org dm has dirty normals, or we made some merging, mark normals as dirty in new dm!
+	 * TODO: we may need to set other dirty flags as well?
+	 */
+	if (use_recalc_normals) {
+		result->dirty |= DM_DIRTY_NORMALS;
+	}
+
 	return result;
 }
 
@@ -755,6 +793,7 @@ ModifierTypeInfo modifierType_Array = {
 	/* freeData */          NULL,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,

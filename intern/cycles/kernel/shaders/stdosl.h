@@ -249,7 +249,21 @@ point rotate (point p, float angle, point a, point b)
 {
     vector axis = normalize (b - a);
     float cosang, sinang;
+    /* Older OSX has major issues with sincos() function,
+     * it's likely a big in OSL or LLVM. For until we've
+     * updated to new versions of this libraries we'll
+     * use a workaround to prevent possible crashes on all
+     * the platforms.
+     *
+     * Shouldn't be that bad because it's mainly used for
+     * anisotropic shader where angle is usually constant.
+     */
+#if 0
     sincos (angle, sinang, cosang);
+#else
+    sinang = sin (angle);
+    cosang = cos (angle);
+#endif
     float cosang1 = 1.0 - cosang;
     float x = axis[0], y = axis[1], z = axis[2];
     matrix M = matrix (x * x + (1.0 - x * x) * cosang,
@@ -476,8 +490,6 @@ closure color diffuse_ramp(normal N, color colors[8]) BUILTIN;
 closure color phong_ramp(normal N, float exponent, color colors[8]) BUILTIN;
 closure color diffuse_toon(normal N, float size, float smooth) BUILTIN;
 closure color glossy_toon(normal N, float size, float smooth) BUILTIN;
-closure color westin_backscatter(normal N, float roughness) BUILTIN;
-closure color westin_sheen(normal N, float edginess) BUILTIN;
 closure color translucent(normal N) BUILTIN;
 closure color reflection(normal N) BUILTIN;
 closure color refraction(normal N, float eta) BUILTIN;
@@ -506,6 +518,47 @@ closure color hair_transmission(normal N, float roughnessu, float roughnessv, ve
 // Volume
 closure color henyey_greenstein(float g) BUILTIN;
 closure color absorption() BUILTIN;
+
+// OSL 1.5 Microfacet functions
+closure color microfacet(string distribution, normal N, vector U, float xalpha, float yalpha, float eta, int refract) {
+	/* GGX */
+	if (distribution == "ggx" || distribution == "default") {
+		if (!refract) {
+			if (xalpha == yalpha) {
+				/* Isotropic */
+				return microfacet_ggx(N, xalpha);
+			}
+			else {
+				/* Anisotropic */
+				return microfacet_ggx_aniso(N, U, xalpha, yalpha);
+			}
+		}
+		else {
+			return microfacet_ggx_refraction(N, xalpha, eta);
+		}
+	}
+	/* Beckmann */
+	else {
+		if (!refract) {
+			if (xalpha == yalpha) {
+				/* Isotropic */
+				return microfacet_beckmann(N, xalpha);
+			}
+			else {
+				/* Anisotropic */
+				return microfacet_beckmann_aniso(N, U, xalpha, yalpha);
+			}
+		}
+		else {
+			return microfacet_beckmann_refraction(N, xalpha, eta);
+		}
+	}
+}
+
+closure color microfacet (string distribution, normal N, float alpha, float eta, int refract) {
+	return microfacet(distribution, N, vector(0), alpha, alpha, eta, refract);
+}
+
 
 // Renderer state
 int backfacing () BUILTIN;

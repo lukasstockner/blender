@@ -43,6 +43,7 @@ __all__ = (
     "FalseUP0D",
     "FalseUP1D",
     "Length2DBP1D",
+    "MaterialBP1D",
     "NotBP1D",
     "NotUP1D",
     "ObjectNamesUP1D",
@@ -82,6 +83,8 @@ __all__ = (
     "pyNatureUP1D",
     "pyParameterUP0D",
     "pyParameterUP0DGoodOne",
+    "pyProjectedXBP1D",
+    "pyProjectedYBP1D",
     "pyShapeIdListUP1D",
     "pyShapeIdUP1D",
     "pyShuffleBP1D",
@@ -135,6 +138,8 @@ from freestyle.functions import (
     GetCurvilinearAbscissaF0D,
     GetDirectionalViewMapDensityF1D,
     GetOccludersF1D,
+    GetProjectedXF1D,
+    GetProjectedYF1D,
     GetProjectedZF1D,
     GetShapeF1D,
     GetSteerableViewMapDensityF1D,
@@ -146,11 +151,12 @@ from freestyle.functions import (
     pyViewMapGradientNormF1D,
     )
 
+from freestyle.utils import material_from_fedge
+
 import random
 
 
 # -- Unary predicates for 0D elements (vertices) -- #
-
 
 class pyHigherCurvature2DAngleUP0D(UnaryPredicate0D):
     def __init__(self, a):
@@ -230,9 +236,10 @@ class AndUP1D(UnaryPredicate1D):
     def __init__(self, *predicates):
         UnaryPredicate1D.__init__(self)
         self.predicates = predicates
-        # there are cases in which only one predicate is supplied (in the parameter editor)
-        if len(self.predicates) < 1:
-            raise ValueError("Expected one or more UnaryPredicate1D, got ", len(predicates))
+        correct_types = all(isinstance(p, UnaryPredicate1D) for p in self.predicates)
+        if not (correct_types and predicates):
+            raise TypeError("%s: Expected one or more UnaryPredicate1D, got %r" %
+                    (self.__class__.__name__, self.predicates))
 
     def __call__(self, inter):
         return all(pred(inter) for pred in self.predicates)
@@ -242,9 +249,10 @@ class OrUP1D(UnaryPredicate1D):
     def __init__(self, *predicates):
         UnaryPredicate1D.__init__(self)
         self.predicates = predicates
-        # there are cases in which only one predicate is supplied (in the parameter editor)
-        if len(self.predicates) < 1:
-            raise ValueError("Expected one or more UnaryPredicate1D, got ", len(predicates))
+        correct_types = all(isinstance(p, UnaryPredicate1D) for p in self.predicates)
+        if not (correct_types and predicates):
+            raise TypeError("%s: Expected one or more UnaryPredicate1D, got %r" %
+                    (self.__class__.__name__, self.predicates))
 
     def __call__(self, inter):
         return any(pred(inter) for pred in self.predicates)
@@ -253,10 +261,10 @@ class OrUP1D(UnaryPredicate1D):
 class NotUP1D(UnaryPredicate1D):
     def __init__(self, pred):
         UnaryPredicate1D.__init__(self)
-        self.__pred = pred
+        self.predicate = pred
 
     def __call__(self, inter):
-        return not self.__pred(inter)
+        return not self.predicate(inter)
 
 
 class ObjectNamesUP1D(UnaryPredicate1D):
@@ -559,38 +567,60 @@ class pyClosedCurveUP1D(UnaryPredicate1D):
 class AndBP1D(BinaryPredicate1D):
     def __init__(self, *predicates):
         BinaryPredicate1D.__init__(self)
-        self._predicates = predicates
-        if len(self.predicates) < 2:
-            raise ValueError("Expected two or more BinaryPredicate1D, got ", len(predictates))
+        self.predicates = tuple(predicates)
+        correct_types = all(isinstance(p, BinaryPredicate1D) for p in self.predicates)
+        if not (correct_types and predicates):
+            raise TypeError("%s: Expected one or more BinaryPredicate1D, got %r" %
+                    (self.__class__.__name__, self.predicates))
 
     def __call__(self, i1, i2):
-        return all(pred(i1, i2) for pred in self._predicates)
+        return all(pred(i1, i2) for pred in self.predicates)
 
 
 class OrBP1D(BinaryPredicate1D):
     def __init__(self, *predicates):
         BinaryPredicate1D.__init__(self)
-        self._predicates = predicates
-        if len(self.predicates) < 2:
-            raise ValueError("Expected two or more BinaryPredicate1D, got ", len(predictates))
+        self.predicates = tuple(predicates)
+        correct_types = all(isinstance(p, BinaryPredicate1D) for p in self.predicates)
+        if not (correct_types and predicates):
+            raise TypeError("%s: Expected one or more BinaryPredicate1D, got %r" %
+                    (self.__class__.__name__, self.predicates))
 
     def __call__(self, i1, i2):
-        return any(pred(i1, i2) for pred in self._predicates)
+        return any(pred(i1, i2) for pred in self.predicates)
 
 
 class NotBP1D(BinaryPredicate1D):
     def __init__(self, predicate):
         BinaryPredicate1D.__init__(self)
-        self._predicate = predicate
+        self.predicate = predicate
 
     def __call__(self, i1, i2):
-        return (not self._precicate(i1, i2))
+        return (not self.predicate(i1, i2))
 
 
 class pyZBP1D(BinaryPredicate1D):
     def __init__(self, iType=IntegrationType.MEAN):
         BinaryPredicate1D.__init__(self)
         self.func = GetZF1D(iType)
+
+    def __call__(self, i1, i2):
+        return (self.func(i1) > self.func(i2))
+
+
+class pyProjectedXBP1D(BinaryPredicate1D):
+    def __init__(self, iType=IntegrationType.MEAN):
+        BinaryPredicate1D.__init__(self)
+        self.func = GetProjectedXF1D(iType)
+
+    def __call__(self, i1, i2):
+        return (self.func(i1) > self.func(i2))
+
+
+class pyProjectedYBP1D(BinaryPredicate1D):
+    def __init__(self, iType=IntegrationType.MEAN):
+        BinaryPredicate1D.__init__(self)
+        self.func = GetProjectedYF1D(iType)
 
     def __call__(self, i1, i2):
         return (self.func(i1) > self.func(i2))
@@ -641,3 +671,10 @@ class pyShuffleBP1D(BinaryPredicate1D):
 
     def __call__(self, inter1, inter2):
         return (random.uniform(0, 1) < random.uniform(0, 1))
+
+class MaterialBP1D(BinaryPredicate1D):
+    """Checks whether the two supplied ViewEdges have the same material."""
+    def __call__(self, i1, i2):
+        fedges = (fe for ve in (i1, i2) for fe in (ve.first_fedge, ve.last_fedge))
+        materials = {material_from_fedge(fe) for fe in fedges}
+        return len(materials) < 2

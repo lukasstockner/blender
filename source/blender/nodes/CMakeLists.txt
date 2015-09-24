@@ -29,15 +29,16 @@ set(INC
 	intern
 	shader
 	texture
-	../blenfont
 	../blenkernel
 	../blenlib
+	../blentranslation
 	../gpu
 	../imbuf
 	../makesdna
 	../makesrna
 	../render/extern/include
 	../../../intern/guardedalloc
+	../../../intern/glew-mx
 )
 
 set(INC_SYS
@@ -121,6 +122,7 @@ set(SRC
 	composite/nodes/node_composite_boxmask.c
 	composite/nodes/node_composite_ellipsemask.c
 	composite/nodes/node_composite_switch.c
+	composite/nodes/node_composite_switchview.c
 	composite/nodes/node_composite_colorcorrection.c
 	composite/nodes/node_composite_pixelate.c
 
@@ -198,6 +200,7 @@ set(SRC
 	shader/nodes/node_shader_tex_magic.c
 	shader/nodes/node_shader_tex_musgrave.c
 	shader/nodes/node_shader_tex_noise.c
+	shader/nodes/node_shader_tex_pointdensity.c
 	shader/nodes/node_shader_tex_sky.c
 	shader/nodes/node_shader_tex_voronoi.c
 	shader/nodes/node_shader_tex_wave.c
@@ -279,8 +282,14 @@ if(WITH_COMPOSITOR)
 	add_definitions(-DWITH_COMPOSITOR)
 endif()
 
+add_definitions(${GL_DEFINITIONS})
+
 if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)
+endif()
+
+if(WITH_CYCLES AND WITH_CYCLES_DEBUG)
+	add_definitions(-DWITH_CYCLES_DEBUG)
 endif()
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}")

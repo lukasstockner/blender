@@ -29,6 +29,7 @@ set(INC
 	../blenkernel
 	../blenlib
 	../blenloader
+	../blentranslation
 	../compositor
 	../editors/include
 	../gpu
@@ -40,12 +41,12 @@ set(INC
 	../../gameengine/BlenderRoutines
 	../../../intern/ghost
 	../../../intern/guardedalloc
+	../../../intern/glew-mx
 	../../../intern/memutil
 )
 
 set(INC_SYS
 	${ZLIB_INCLUDE_DIRS}
-	${OPENGL_INCLUDE_DIR}
 	${GLEW_INCLUDE_PATH}
 )
 
@@ -64,6 +65,7 @@ set(SRC
 	intern/wm_operators.c
 	intern/wm_subwindow.c
 	intern/wm_window.c
+	intern/wm_stereo.c
 
 	WM_api.h
 	WM_keymap.h
@@ -78,7 +80,15 @@ set(SRC
 	wm_window.h
 )
 
-add_definitions(-DGLEW_STATIC)
+if(WITH_AUDASPACE)
+	add_definitions(${AUDASPACE_DEFINITIONS})
+
+	list(APPEND INC_SYS
+		${AUDASPACE_C_INCLUDE_DIRS}
+	)
+endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
@@ -107,6 +117,8 @@ endif()
 
 if(WITH_HEADLESS)
 	add_definitions(-DWITH_HEADLESS)
+elseif(WITH_X11)
+	add_definitions(-DWITH_X11)
 endif()
 
 if(WITH_PYTHON)
@@ -128,10 +140,17 @@ if(WITH_BUILDINFO)
 	add_definitions(-DWITH_BUILDINFO)
 endif()
 
-if(WIN322)
+if(WITH_OPENSUBDIV)
+	add_definitions(-DWITH_OPENSUBDIV)
 	list(APPEND INC
-		../../../intern/utfconv
+		../../../intern/opensubdiv
 	)
+endif()
+
+if(WIN32)
+	if(WITH_INPUT_IME)
+		add_definitions(-DWITH_INPUT_IME)
+	endif()
 endif()
 
 if(WITH_COMPOSITOR)

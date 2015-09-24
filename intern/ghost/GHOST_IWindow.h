@@ -212,9 +212,16 @@ public:
 
 	/**
 	 * Gets the current swap interval for swapBuffers.
-	 * \return An integer.
+	 * \param intervalOut pointer to location to return swap interval (left untouched if there is an error)
+	 * \return A boolean success indicator of if swap interval was successfully read.
 	 */
-	virtual int getSwapInterval() = 0;
+	virtual GHOST_TSuccess getSwapInterval(int& intervalOut) = 0;
+
+	/**
+	 * Gets the current swap interval for swapBuffers.
+	 * \return Number of AA Samples (0 if there is no multisample buffer)
+	 */
+	virtual GHOST_TUns16 getNumOfAASamples() = 0;
 
 	/**
 	 * Activates the drawing context of this window.
@@ -236,7 +243,7 @@ public:
 
 	/**
 	 * Changes the window user data.
-	 * \param data The window user data.
+	 * \param userData The window user data.
 	 */
 	virtual void setUserData(const GHOST_TUserDataPtr userData) = 0;
 
@@ -273,8 +280,8 @@ public:
 
 	/**
 	 * Set the shape of the cursor.
-	 * \param   cursor  The new cursor shape type id.
-	 * \return  Indication of success.
+	 * \param cursorShape:  The new cursor shape type id.
+	 * \return Indication of success.
 	 */
 	virtual GHOST_TSuccess setCursorShape(GHOST_TStandardCursor cursorShape) = 0;
 
@@ -315,7 +322,9 @@ public:
 	 * \param   grab The new grab state of the cursor.
 	 * \return  Indication of success.
 	 */
-	virtual GHOST_TSuccess setCursorGrab(GHOST_TGrabCursorMode mode, GHOST_Rect *bounds, GHOST_TInt32 mouse_ungrab_xy[2]) { return GHOST_kSuccess; }
+	virtual GHOST_TSuccess setCursorGrab(GHOST_TGrabCursorMode /*mode*/,
+	                                     GHOST_Rect * /*bounds*/,
+	                                     GHOST_TInt32 /*mouse_ungrab_xy*/[2]) { return GHOST_kSuccess; }
 
 	/** */
 	virtual GHOST_TSuccess beginFullScreen() const = 0;
@@ -323,6 +332,29 @@ public:
 
 	virtual float getNativePixelSize(void) = 0;
 
+#ifdef WITH_INPUT_IME
+	/**
+	 * Enable IME attached to the given window, i.e. allows user-input
+	 * events to be dispatched to the IME.
+	 * \param x Requested x-coordinate of the rectangle
+	 * \param y Requested y-coordinate of the rectangle
+	 * \param w Requested width of the rectangle
+	 * \param h Requested height of the rectangle
+	 * \param complete Whether or not to complete the ongoing composition
+	 * true:  Start a new composition
+	 * false: Move the IME windows to the given position without finishing it.
+	 */
+	virtual void beginIME(
+	        GHOST_TInt32 x, GHOST_TInt32 y,
+	        GHOST_TInt32 w, GHOST_TInt32 h,
+	        int completed) = 0;
+
+	/**
+	 * Disable the IME attached to the given window, i.e. prohibits any user-input
+	 * events from being dispatched to the IME.
+	 */
+	virtual void endIME() = 0;
+#endif /* WITH_INPUT_IME */
 	
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_IWindow")

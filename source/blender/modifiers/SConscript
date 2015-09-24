@@ -34,13 +34,13 @@ incs = [
     './intern', 
     '#/intern/guardedalloc',
     '#/intern/elbeem/extern',
-    '#/extern/glew/include',
     '#/intern/opennl/extern',
     '../render/extern/include',
     '../bmesh',
     '../include',
     '../blenlib',
     '../blenfont',
+    '../depsgraph',
     '../makesdna',
     '../makesrna',
     '../blenkernel',
@@ -53,6 +53,9 @@ defs = []
 if env['WITH_BF_BOOLEAN']:
     incs.append('#/extern/carve')
     defs.append('WITH_MOD_BOOLEAN')
+else:
+    from os import path
+    sources.remove(path.join('intern', 'MOD_boolean_util.c'))
 
 if env['WITH_BF_REMESH']:
     incs.append('#/intern/dualcon')
@@ -73,7 +76,10 @@ if env['WITH_BF_GAMEENGINE']:
 
 if env['WITH_BF_INTERNATIONAL']:
     defs.append('WITH_INTERNATIONAL')
-    
+
+if env['WITH_BF_OPENSUBDIV']:
+    defs.append('WITH_OPENSUBDIV')
+
 if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'linuxcross', 'win64-vc', 'win64-mingw'):
     incs.append(env['BF_PTHREADS_INC'])
 

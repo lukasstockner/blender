@@ -30,10 +30,10 @@
 
 // implementation
 
-#include "PyObjectPlus.h"
+#include "EXP_PyObjectPlus.h"
 #include <structmember.h>
 
-#include "GL/glew.h"
+#include "glew-mx.h"
 
 #include "KX_PythonInit.h"
 #include "RAS_ICanvas.h"
