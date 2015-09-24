@@ -40,6 +40,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_group_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lamp_types.h"
@@ -379,55 +380,84 @@ void BKE_object_free_caches(Object *object)
 	}
 }
 
-/* do not free object itself */
-void BKE_object_free_ex(Object *ob, bool do_id_user)
+/**
+ * Release all datablocks (ID) used by this object (datablocks are never freed, they are just unreferenced).
+ *
+ * \param ob The object which has to release its data.
+ */
+void BKE_object_release_datablocks(Object *ob)
 {
 	int a;
-	
-	BKE_object_free_derived_caches(ob);
-	
-	/* disconnect specific data, but not for lib data (might be indirect data, can get relinked) */
+
 	if (ob->data) {
 		ID *id = ob->data;
 		id->us--;
-		if (id->us == 0 && id->lib == NULL) {
-			switch (ob->type) {
-				case OB_MESH:
-					BKE_mesh_release_datablocks((Mesh *)id);
-					break;
-				case OB_CURVE:
-					BKE_curve_release_datablocks((Curve *)id);
-					break;
-				case OB_MBALL:
-					BKE_mball_release_datablocks((MetaBall *)id);
-					break;
-			}
-		}
 		ob->data = NULL;
 	}
 
 	if (ob->mat) {
 		for (a = 0; a < ob->totcol; a++) {
-			if (ob->mat[a]) ob->mat[a]->id.us--;
+			if (ob->mat[a]) {
+				ob->mat[a]->id.us--;
+				ob->mat[a] = NULL;
+			}
 		}
-		MEM_freeN(ob->mat);
 	}
-	if (ob->matbits) MEM_freeN(ob->matbits);
-	ob->mat = NULL;
-	ob->matbits = NULL;
-	if (ob->iuser) MEM_freeN(ob->iuser);
-	ob->iuser = NULL;
-	if (ob->bb) MEM_freeN(ob->bb); 
-	ob->bb = NULL;
-	if (ob->adt) BKE_animdata_free((ID *)ob);
-	if (ob->poselib) ob->poselib->id.us--;
-	if (ob->gpd) ((ID *)ob->gpd)->us--;
-	if (ob->defbase.first)
-		BLI_freelistN(&ob->defbase);
-	if (ob->pose)
+
+	if (ob->poselib) {
+		ob->poselib->id.us--;
+		ob->poselib = NULL;
+	}
+	if (ob->gpd) {
+		ob->gpd->id.us--;
+		ob->gpd = NULL;
+	}
+}
+
+/**
+ * Free (or release) any data used by this object (does not free the object itself).
+ *
+ * \param ob The object to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this object are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_object_free(Object *ob, const bool do_id_user)
+{
+	BKE_object_free_derived_caches(ob);
+
+	if (do_id_user) {
+		BKE_object_release_datablocks(ob);
+	}
+
+	if (ob->mat) {
+		MEM_freeN(ob->mat);
+		ob->mat = NULL;
+	}
+	if (ob->matbits) {
+		MEM_freeN(ob->matbits);
+		ob->matbits = NULL;
+	}
+	if (ob->iuser) {
+		MEM_freeN(ob->iuser);
+		ob->iuser = NULL;
+	}
+	if (ob->bb) {
+		MEM_freeN(ob->bb);
+		ob->bb = NULL;
+	}
+	if (ob->adt) {
+		BKE_animdata_free((ID *)ob);
+		ob->adt = NULL;
+	}
+	BLI_freelistN(&ob->defbase);
+	if (ob->pose) {
 		BKE_pose_free_ex(ob->pose, do_id_user);
-	if (ob->mpath)
+		ob->pose = NULL;
+	}
+	if (ob->mpath) {
 		animviz_free_motionpath(ob->mpath);
+		ob->mpath = NULL;
+	}
 	BKE_bproperty_free_list(&ob->prop);
 	BKE_object_free_modifiers(ob);
 	
@@ -441,13 +471,19 @@ void BKE_object_free_ex(Object *ob, bool do_id_user)
 	BKE_rigidbody_free_object(ob);
 	BKE_rigidbody_free_constraint(ob);
 
-	if (ob->soft) sbFree(ob->soft);
-	if (ob->bsoft) bsbFree(ob->bsoft);
-	if (ob->gpulamp.first) GPU_lamp_free(ob);
+	if (ob->soft) {
+		sbFree(ob->soft);
+		ob->soft = NULL;
+	}
+	if (ob->bsoft) {
+		bsbFree(ob->bsoft);
+		ob->bsoft = NULL;
+	}
+	GPU_lamp_free(ob);
 
 	BKE_sculptsession_free(ob);
 
-	if (ob->pc_ids.first) BLI_freelistN(&ob->pc_ids);
+	BLI_freelistN(&ob->pc_ids);
 
 	BLI_freelistN(&ob->lodlevels);
 
@@ -457,14 +493,10 @@ void BKE_object_free_ex(Object *ob, bool do_id_user)
 		if (ob->curve_cache->path)
 			free_path(ob->curve_cache->path);
 		MEM_freeN(ob->curve_cache);
+		ob->curve_cache = NULL;
 	}
 
 	BKE_previewimg_free(&ob->preview);
-}
-
-void BKE_object_free(Object *ob)
-{
-	BKE_object_free_ex(ob, true);
 }
 
 static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Object **obpoin)
@@ -478,6 +510,9 @@ static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Objec
 	}
 }
 
+/* XXX Horrific! This pretty much re-does BKE_library_foreach_ID_link() and
+ *     BKE_library_callback_free_editor_id_reference_set() & co...
+ * TODO This is to be replaced by/merged in more generic 'id-remap' process being worked on in same-named branch... */
 void BKE_object_unlink(Object *ob)
 {
 	Main *bmain = G.main;

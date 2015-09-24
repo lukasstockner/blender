@@ -101,9 +101,13 @@ void BKE_mball_free(MetaBall *mb, const bool do_id_user)
 		BKE_animdata_free((ID *)mb);
 		mb->adt = NULL;
 	}
-	if (mb->mat) MEM_freeN(mb->mat);
+	if (mb->mat) {
+		MEM_freeN(mb->mat);
+		mb->mat = NULL;
+	}
+
 	BLI_freelistN(&mb->elems);
-	if (mb->disp.first) BKE_displist_free(&mb->disp);
+	BKE_displist_free(&mb->disp);
 }
 
 MetaBall *BKE_mball_add(Main *bmain, const char *name)

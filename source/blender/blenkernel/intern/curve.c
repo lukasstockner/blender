@@ -167,16 +167,26 @@ void BKE_curve_free(Curve *cu, const bool do_id_user)
 
 	BKE_animdata_free((ID *)cu);
 
-	if (cu->mat)
+	if (cu->mat) {
 		MEM_freeN(cu->mat);
-	if (cu->str)
+		cu->mat = NULL;
+	}
+	if (cu->str) {
 		MEM_freeN(cu->str);
-	if (cu->strinfo)
+		cu->str = NULL;
+	}
+	if (cu->strinfo) {
 		MEM_freeN(cu->strinfo);
-	if (cu->bb)
+		cu->strinfo = NULL;
+	}
+	if (cu->bb) {
 		MEM_freeN(cu->bb);
-	if (cu->tb)
+		cu->bb = NULL;
+	}
+	if (cu->tb) {
 		MEM_freeN(cu->tb);
+		cu->tb = NULL;
+	}
 }
 
 Curve *BKE_curve_add(Main *bmain, const char *name, int type)
