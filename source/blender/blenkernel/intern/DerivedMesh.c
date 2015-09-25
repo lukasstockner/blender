@@ -2002,6 +2002,87 @@ static DerivedMesh *mesh_calc_create_input_dm(Object *ob, const ModifierEvalCont
 	return dm;
 }
 
+static DerivedMesh *mesh_calc_finalize_dm(Object *ob, const ModifierEvalContext *ctx, CustomDataMask data_mask,
+                                          DerivedMesh *dm, DerivedMesh *orcodm, DerivedMesh *deform, float (*deformedVerts)[3])
+{
+	Mesh *me = ob->data;
+	DerivedMesh *finaldm;
+
+	if (dm && deformedVerts) {
+		finaldm = CDDM_copy(dm);
+
+		dm->release(dm);
+
+		CDDM_apply_vert_coords(finaldm, deformedVerts);
+
+#if 0 /* For later nice mod preview! */
+		/* In case we need modified weights in CD_PREVIEW_MCOL, we have to re-compute it. */
+		if (ctx->do_final_wmcol)
+			DM_update_weight_mcol(ob, finaldm, ctx->draw_flag, NULL, 0, NULL);
+#endif
+	}
+	else if (dm) {
+		finaldm = dm;
+
+#if 0 /* For later nice mod preview! */
+		/* In case we need modified weights in CD_PREVIEW_MCOL, we have to re-compute it. */
+		if (ctx->do_final_wmcol)
+			DM_update_weight_mcol(ob, finaldm, ctx->draw_flag, NULL, 0, NULL);
+#endif
+	}
+	else {
+		finaldm = CDDM_from_mesh(me);
+		
+		if (ctx->build_shapekey_layers) {
+			add_shapekey_layers(finaldm, me, ob);
+		}
+		
+		if (deformedVerts) {
+			CDDM_apply_vert_coords(finaldm, deformedVerts);
+		}
+
+		/* In this case, we should never have weight-modifying modifiers in stack... */
+		if (ctx->do_init_wmcol)
+			DM_update_weight_mcol(ob, finaldm, ctx->draw_flag, NULL, 0, NULL);
+	}
+
+	/* add an orco layer if needed */
+	if (data_mask & CD_MASK_ORCO) {
+		add_orco_dm(ob, NULL, finaldm, orcodm, CD_ORCO);
+
+		if (deform)
+			add_orco_dm(ob, NULL, deform, NULL, CD_ORCO);
+	}
+
+	if (ctx->do_loop_normals) {
+		/* Compute loop normals (note: will compute poly and vert normals as well, if needed!) */
+		DM_calc_loop_normals(finaldm, ctx->do_loop_normals, ctx->loop_normals_split_angle);
+	}
+
+	if (!ctx->sculpt_dyntopo) {
+		/* watch this! after 2.75a we move to from tessface to looptri (by default) */
+		if (data_mask & CD_MASK_MFACE) {
+			DM_ensure_tessface(finaldm);
+		}
+		DM_ensure_looptri(finaldm);
+
+		/* without this, drawing ngon tri's faces will show ugly tessellated face
+		 * normals and will also have to calculate normals on the fly, try avoid
+		 * this where possible since calculating polygon normals isn't fast,
+		 * note that this isn't a problem for subsurf (only quads) or editmode
+		 * which deals with drawing differently.
+		 *
+		 * Only calc vertex normals if they are flagged as dirty.
+		 * If using loop normals, poly nors have already been computed.
+		 */
+		if (!ctx->do_loop_normals) {
+			dm_ensure_display_normals(finaldm);
+		}
+	}
+	
+	return finaldm;
+}
+
 static void mesh_calc_modifiers(
         Scene *scene, Object *ob, float (*inputVertexCos)[3],
         const bool useRenderParams, int useDeform,
@@ -2215,77 +2296,7 @@ static void mesh_calc_modifiers(
 	 * need to apply these back onto the DerivedMesh. If we have no
 	 * DerivedMesh then we need to build one.
 	 */
-	if (dm && deformedVerts) {
-		finaldm = CDDM_copy(dm);
-
-		dm->release(dm);
-
-		CDDM_apply_vert_coords(finaldm, deformedVerts);
-
-#if 0 /* For later nice mod preview! */
-		/* In case we need modified weights in CD_PREVIEW_MCOL, we have to re-compute it. */
-		if (ctx.do_final_wmcol)
-			DM_update_weight_mcol(ob, finaldm, ctx.draw_flag, NULL, 0, NULL);
-#endif
-	}
-	else if (dm) {
-		finaldm = dm;
-
-#if 0 /* For later nice mod preview! */
-		/* In case we need modified weights in CD_PREVIEW_MCOL, we have to re-compute it. */
-		if (ctx.do_final_wmcol)
-			DM_update_weight_mcol(ob, finaldm, ctx.draw_flag, NULL, 0, NULL);
-#endif
-	}
-	else {
-		finaldm = CDDM_from_mesh(me);
-		
-		if (build_shapekey_layers) {
-			add_shapekey_layers(finaldm, me, ob);
-		}
-		
-		if (deformedVerts) {
-			CDDM_apply_vert_coords(finaldm, deformedVerts);
-		}
-
-		/* In this case, we should never have weight-modifying modifiers in stack... */
-		if (ctx.do_init_wmcol)
-			DM_update_weight_mcol(ob, finaldm, ctx.draw_flag, NULL, 0, NULL);
-	}
-
-	/* add an orco layer if needed */
-	if (dataMask & CD_MASK_ORCO) {
-		add_orco_dm(ob, NULL, finaldm, orcodm, CD_ORCO);
-
-		if (r_deform && *r_deform)
-			add_orco_dm(ob, NULL, *r_deform, NULL, CD_ORCO);
-	}
-
-	if (ctx.do_loop_normals) {
-		/* Compute loop normals (note: will compute poly and vert normals as well, if needed!) */
-		DM_calc_loop_normals(finaldm, ctx.do_loop_normals, ctx.loop_normals_split_angle);
-	}
-
-	if (ctx.sculpt_dyntopo == false) {
-		/* watch this! after 2.75a we move to from tessface to looptri (by default) */
-		if (dataMask & CD_MASK_MFACE) {
-			DM_ensure_tessface(finaldm);
-		}
-		DM_ensure_looptri(finaldm);
-
-		/* without this, drawing ngon tri's faces will show ugly tessellated face
-		 * normals and will also have to calculate normals on the fly, try avoid
-		 * this where possible since calculating polygon normals isn't fast,
-		 * note that this isn't a problem for subsurf (only quads) or editmode
-		 * which deals with drawing differently.
-		 *
-		 * Only calc vertex normals if they are flagged as dirty.
-		 * If using loop normals, poly nors have already been computed.
-		 */
-		if (!ctx.do_loop_normals) {
-			dm_ensure_display_normals(finaldm);
-		}
-	}
+	finaldm = mesh_calc_finalize_dm(ob, &ctx, dataMask, dm, orcodm, r_deform? *r_deform: NULL, deformedVerts);
 
 #ifdef WITH_GAMEENGINE
 	/* NavMesh - this is a hack but saves having a NavMesh modifier */
