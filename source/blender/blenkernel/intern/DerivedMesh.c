@@ -1692,6 +1692,7 @@ static void dm_ensure_display_normals(DerivedMesh *dm)
 typedef struct ModifierEvalContext {
 	int draw_flag;
 	int required_mode;
+	bool need_mapping;
 
 	bool do_mod_mcol;
 	bool do_final_wmcol;
@@ -1723,7 +1724,7 @@ typedef struct ModifierEvalContext {
 static void mesh_init_modifier_context(ModifierEvalContext *ctx,
                                        Scene *scene, Object *ob,
                                        const bool useRenderParams, int useDeform,
-                                       const bool UNUSED(need_mapping),
+                                       const bool need_mapping,
                                        CustomDataMask dataMask,
                                        const int index,
                                        const bool useCache,
@@ -1744,6 +1745,7 @@ static void mesh_init_modifier_context(ModifierEvalContext *ctx,
 	
 	ctx->draw_flag = dm_drawflag_calc(scene->toolsettings);
 	ctx->required_mode = useRenderParams ? eModifierMode_Render : eModifierMode_Realtime;
+	ctx->need_mapping = need_mapping;
 	
 	/* Generic preview only in object mode! */
 	ctx->do_mod_mcol = (ob->mode == OB_MODE_OBJECT);
@@ -1918,6 +1920,88 @@ static void mesh_calc_deform_modifier(Object *ob, const ModifierEvalContext *ctx
 	modwrap_deformVerts(md, ob, dm, *deformedVerts, *numVerts, ctx->deform_app_flags);
 }
 
+static DerivedMesh *mesh_calc_create_input_dm(Object *ob, const ModifierEvalContext *ctx, ModifierData *md,
+                                              CustomDataMask mask, CustomDataMask append_mask, CustomDataMask nextmask,
+                                              DerivedMesh *dm, DerivedMesh *orcodm, DerivedMesh *clothorcodm,
+                                              float (*deformedVerts)[3])
+{
+	Mesh *me = ob->data;
+	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+	
+	if (dm) {
+		/* add an orco layer if needed by this modifier */
+		CustomDataMask mask = mti->requiredDataMask ? mti->requiredDataMask(ob, md) : 0;
+		if (mask & CD_MASK_ORCO)
+			add_orco_dm(ob, NULL, dm, orcodm, CD_ORCO);
+		
+		/* apply vertex coordinates or build a DerivedMesh as necessary */
+		if (deformedVerts) {
+			DerivedMesh *tdm = CDDM_copy(dm);
+			dm->release(dm);
+			dm = tdm;
+
+			CDDM_apply_vert_coords(dm, deformedVerts);
+		}
+	}
+	else {
+		dm = CDDM_from_mesh(me);
+		ASSERT_IS_VALID_DM(dm);
+
+		if (ctx->build_shapekey_layers)
+			add_shapekey_layers(dm, me, ob);
+
+		if (deformedVerts) {
+			CDDM_apply_vert_coords(dm, deformedVerts);
+		}
+
+		if (ctx->do_init_wmcol)
+			DM_update_weight_mcol(ob, dm, ctx->draw_flag, NULL, 0, NULL);
+
+		/* Constructive modifiers need to have an origindex
+		 * otherwise they wont have anywhere to copy the data from.
+		 *
+		 * Also create ORIGINDEX data if any of the following modifiers
+		 * requests it, this way Mirror, Solidify etc will keep ORIGINDEX
+		 * data by using generic DM_copy_vert_data() functions.
+		 */
+		if (ctx->need_mapping || (nextmask & CD_MASK_ORIGINDEX)) {
+			/* calc */
+			DM_add_vert_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
+			DM_add_edge_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
+			DM_add_poly_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
+
+#pragma omp parallel sections if (dm->numVertData + dm->numEdgeData + dm->numPolyData >= BKE_MESH_OMP_LIMIT)
+			{
+#pragma omp section
+				{ range_vn_i(DM_get_vert_data_layer(dm, CD_ORIGINDEX), dm->numVertData, 0); }
+#pragma omp section
+				{ range_vn_i(DM_get_edge_data_layer(dm, CD_ORIGINDEX), dm->numEdgeData, 0); }
+#pragma omp section
+				{ range_vn_i(DM_get_poly_data_layer(dm, CD_ORIGINDEX), dm->numPolyData, 0); }
+			}
+		}
+	}
+
+	/* set the DerivedMesh to only copy needed data */
+	/* needMapping check here fixes bug [#28112], otherwise its
+	 * possible that it wont be copied */
+	DM_set_only_copy(dm, mask | append_mask | (ctx->need_mapping ? CD_MASK_ORIGINDEX : 0));
+	
+	/* add cloth rest shape key if need */
+	if ((mask | append_mask) & CD_MASK_CLOTH_ORCO)
+		add_orco_dm(ob, NULL, dm, clothorcodm, CD_CLOTH_ORCO);
+
+	/* add an origspace layer if needed */
+	if (mask & CD_MASK_ORIGSPACE_MLOOP) {
+		if (!CustomData_has_layer(&dm->loopData, CD_ORIGSPACE_MLOOP)) {
+			DM_add_loop_layer(dm, CD_ORIGSPACE_MLOOP, CD_CALLOC, NULL);
+			DM_init_origspace(dm);
+		}
+	}
+	
+	return dm;
+}
+
 static void mesh_calc_modifiers(
         Scene *scene, Object *ob, float (*inputVertexCos)[3],
         const bool useRenderParams, int useDeform,
@@ -2028,9 +2112,10 @@ static void mesh_calc_modifiers(
 		}
 		else {
 			DerivedMesh *ndm;
-			/* determine which data layers are needed by following modifiers */
+			CustomDataMask mask = iter.datamask->mask;
+			CustomDataMask append_mask = iter.append_mask;
 			CustomDataMask nextmask = (iter.datamask->next) ? iter.datamask->next->mask : dataMask;
-			
+
 			if (!modifier_isEnabled(scene, md, ctx.required_mode)) {
 				continue;
 			}
@@ -2038,81 +2123,8 @@ static void mesh_calc_modifiers(
 			if (ctx.special_gameengine_hack && mti->dependsOnTime && mti->dependsOnTime(md)) {
 				continue;
 			}
-	
-			if (dm) {
-				/* add an orco layer if needed by this modifier */
-				CustomDataMask mask = mti->requiredDataMask ? mti->requiredDataMask(ob, md) : 0;
-				if (mask & CD_MASK_ORCO)
-					add_orco_dm(ob, NULL, dm, orcodm, CD_ORCO);
-				
-				/* apply vertex coordinates or build a DerivedMesh as necessary */
-				if (deformedVerts) {
-					DerivedMesh *tdm = CDDM_copy(dm);
-					dm->release(dm);
-					dm = tdm;
 
-					CDDM_apply_vert_coords(dm, deformedVerts);
-				}
-			}
-			else {
-				dm = CDDM_from_mesh(me);
-				ASSERT_IS_VALID_DM(dm);
-
-				if (build_shapekey_layers)
-					add_shapekey_layers(dm, me, ob);
-
-				if (deformedVerts) {
-					CDDM_apply_vert_coords(dm, deformedVerts);
-				}
-
-				if (ctx.do_init_wmcol)
-					DM_update_weight_mcol(ob, dm, ctx.draw_flag, NULL, 0, NULL);
-
-				/* Constructive modifiers need to have an origindex
-				 * otherwise they wont have anywhere to copy the data from.
-				 *
-				 * Also create ORIGINDEX data if any of the following modifiers
-				 * requests it, this way Mirror, Solidify etc will keep ORIGINDEX
-				 * data by using generic DM_copy_vert_data() functions.
-				 */
-				if (need_mapping || (nextmask & CD_MASK_ORIGINDEX)) {
-					/* calc */
-					DM_add_vert_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
-					DM_add_edge_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
-					DM_add_poly_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
-
-#pragma omp parallel sections if (dm->numVertData + dm->numEdgeData + dm->numPolyData >= BKE_MESH_OMP_LIMIT)
-					{
-#pragma omp section
-						{ range_vn_i(DM_get_vert_data_layer(dm, CD_ORIGINDEX), dm->numVertData, 0); }
-#pragma omp section
-						{ range_vn_i(DM_get_edge_data_layer(dm, CD_ORIGINDEX), dm->numEdgeData, 0); }
-#pragma omp section
-						{ range_vn_i(DM_get_poly_data_layer(dm, CD_ORIGINDEX), dm->numPolyData, 0); }
-					}
-				}
-			}
-
-			{
-				/* set the DerivedMesh to only copy needed data */
-				CustomDataMask mask = iter.datamask->mask;
-				/* needMapping check here fixes bug [#28112], otherwise its
-				 * possible that it wont be copied */
-				mask |= iter.append_mask;
-				DM_set_only_copy(dm, mask | (need_mapping ? CD_MASK_ORIGINDEX : 0));
-				
-				/* add cloth rest shape key if need */
-				if (mask & CD_MASK_CLOTH_ORCO)
-					add_orco_dm(ob, NULL, dm, clothorcodm, CD_CLOTH_ORCO);
-			}
-
-			/* add an origspace layer if needed */
-			if ((iter.datamask->mask) & CD_MASK_ORIGSPACE_MLOOP) {
-				if (!CustomData_has_layer(&dm->loopData, CD_ORIGSPACE_MLOOP)) {
-					DM_add_loop_layer(dm, CD_ORIGSPACE_MLOOP, CD_CALLOC, NULL);
-					DM_init_origspace(dm);
-				}
-			}
+			dm = mesh_calc_create_input_dm(ob, &ctx, md, mask, append_mask, nextmask, dm, orcodm, clothorcodm, deformedVerts);
 
 			ndm = modwrap_applyModifier(md, ob, dm, ctx.app_flags);
 			ASSERT_IS_VALID_DM(ndm);
