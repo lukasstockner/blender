@@ -1707,12 +1707,15 @@ typedef struct ModifierEvalContext {
 	bool sculpt_mode;
 	bool sculpt_dyntopo;
 	bool sculpt_only_deform;
-	
 	bool has_multires;
+	
+	bool build_shapekey_layers;
+	bool special_gameengine_hack;
 	
 	VirtualModifierData virtualModifierData;
 	
-	ModifierData *firstmd;
+	ModifierData *md_begin;
+	ModifierData *md_end;
 	ModifierData *previewmd;
 	CDMaskLink *datamasks;
 } ModifierEvalContext;
@@ -1722,9 +1725,9 @@ static void mesh_init_modifier_context(ModifierEvalContext *ctx,
                                        const bool useRenderParams, int useDeform,
                                        const bool UNUSED(need_mapping),
                                        CustomDataMask dataMask,
-                                       const int UNUSED(index),
+                                       const int index,
                                        const bool useCache,
-                                       const bool UNUSED(build_shapekey_layers),
+                                       const bool build_shapekey_layers,
                                        const bool allow_gpu)
 {
 	Mesh *me = ob->data;
@@ -1762,24 +1765,37 @@ static void mesh_init_modifier_context(ModifierEvalContext *ctx,
 
 	ctx->has_multires = (mmd && mmd->sculptlvl != 0);
 
+	/*
+	 * new value for useDeform -1  (hack for the gameengine):
+	 *
+	 * - apply only the modifier stack of the object, skipping the virtual modifiers,
+	 * - don't apply the key
+	 * - apply deform modifiers and input vertexco
+	 */
+	ctx->special_gameengine_hack = (useDeform < 0);
+	ctx->build_shapekey_layers = build_shapekey_layers;
+
 	/* precompute data */
 
 	if (!skipVirtualArmature) {
-		ctx->firstmd = modifiers_getVirtualModifierList(ob, &ctx->virtualModifierData);
+		ctx->md_begin = modifiers_getVirtualModifierList(ob, &ctx->virtualModifierData);
 	}
 	else {
 		/* game engine exception */
-		ctx->firstmd = ob->modifiers.first;
-		if (ctx->firstmd && ctx->firstmd->type == eModifierType_Armature)
-			ctx->firstmd = ctx->firstmd->next;
+		ctx->md_begin = ob->modifiers.first;
+		if (ctx->md_begin && ctx->md_begin->type == eModifierType_Armature)
+			ctx->md_begin = ctx->md_begin->next;
 	}
+
+	/* only handle modifiers until index */
+	ctx->md_end = (index >= 0) ? BLI_findlink(&ob->modifiers, index) : NULL;
 
 	if (ctx->do_mod_wmcol || ctx->do_mod_mcol) {
 		/* Find the last active modifier generating a preview, or NULL if none. */
 		/* XXX Currently, DPaint modifier just ignores this.
 		 *     Needs a stupid hack...
 		 *     The whole "modifier preview" thing has to be (re?)designed, anyway! */
-		ctx->previewmd = modifiers_getLastPreview(scene, ctx->firstmd, ctx->required_mode);
+		ctx->previewmd = modifiers_getLastPreview(scene, ctx->md_begin, ctx->required_mode);
 
 		/* even if the modifier doesn't need the data, to make a preview it may */
 		if (ctx->previewmd) {
@@ -1791,7 +1807,7 @@ static void mesh_init_modifier_context(ModifierEvalContext *ctx,
 	else
 		ctx->previewmd = NULL;
 
-	ctx->datamasks = modifiers_calcDataMasks(scene, ob, ctx->firstmd, dataMask, ctx->required_mode, ctx->previewmd, previewmask);
+	ctx->datamasks = modifiers_calcDataMasks(scene, ob, ctx->md_begin, dataMask, ctx->required_mode, ctx->previewmd, previewmask);
 }
 
 static void mesh_free_modifier_context(ModifierEvalContext *ctx)
@@ -1813,8 +1829,9 @@ typedef struct ModifierEvalIterator {
 static bool mesh_calc_modifier_sculptmode_skip(const ModifierEvalContext *ctx, ModifierData *md,
                                                const bool multires_applied)
 {
-	if (ctx->sculpt_mode
-	    && (!ctx->has_multires || multires_applied || ctx->sculpt_dyntopo))
+	const bool multires_pending = ctx->has_multires && !multires_applied;
+	
+	if (ctx->sculpt_mode && (!multires_pending || ctx->sculpt_dyntopo))
 	{
 		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 		const bool useRenderParams = ctx->app_flags & MOD_APPLY_RENDER;
@@ -1850,13 +1867,57 @@ static bool mesh_calc_modifier_sculptmode_skip(const ModifierEvalContext *ctx, M
 	return false;
 }
 
-/**
- * new value for useDeform -1  (hack for the gameengine):
- *
- * - apply only the modifier stack of the object, skipping the virtual modifiers,
- * - don't apply the key
- * - apply deform modifiers and input vertexco
- */
+static void mesh_calc_deform_modifier(Object *ob, const ModifierEvalContext *ctx, const ModifierEvalIterator *iter,
+                                      DerivedMesh *dm, DerivedMesh *orcodm, float (**deformedVerts)[3], int *numVerts)
+{
+	Mesh *me = ob->data;
+	ModifierData *md = iter->modifier;
+	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+	
+	if (!modifier_isEnabled(md->scene, md, ctx->required_mode))
+		return;
+	if (ctx->special_gameengine_hack && mti->dependsOnTime && mti->dependsOnTime(md))
+		return;
+	if (mesh_calc_modifier_sculptmode_skip(ctx, md, iter->multires_applied))
+		return;
+	
+	if (dm) {
+		/* add an orco layer if needed by this modifier */
+		CustomDataMask mask = mti->requiredDataMask ? mti->requiredDataMask(ob, md) : 0;
+		
+		if (mask & CD_MASK_ORCO)
+			add_orco_dm(ob, NULL, dm, orcodm, CD_ORCO);
+	}
+
+	/* No existing verts to deform, need to build them. */
+	if (!(*deformedVerts)) {
+		if (dm) {
+			/* Deforming a derived mesh, read the vertex locations
+			 * out of the mesh and deform them. Once done with this
+			 * run of deformers verts will be written back.
+			 */
+			*numVerts = dm->getNumVerts(dm);
+			*deformedVerts =
+			    MEM_mallocN(sizeof(**deformedVerts) * (*numVerts), "dfmv");
+			dm->getVertCos(dm, *deformedVerts);
+		}
+		else {
+			*deformedVerts = BKE_mesh_vertexCos_get(me, numVerts);
+		}
+	}
+
+	/* if this is not the last modifier in the stack then recalculate the normals
+	 * to avoid giving bogus normals to the next modifier see: [#23673] */
+	if (iter->isPrevDeform && mti->dependsOnNormals && mti->dependsOnNormals(md)) {
+		/* XXX, this covers bug #23673, but we may need normal calc for other types */
+		if (dm && dm->type == DM_TYPE_CDDM) {
+			CDDM_apply_vert_coords(dm, *deformedVerts);
+		}
+	}
+
+	modwrap_deformVerts(md, ob, dm, *deformedVerts, *numVerts, ctx->deform_app_flags);
+}
+
 static void mesh_calc_modifiers(
         Scene *scene, Object *ob, float (*inputVertexCos)[3],
         const bool useRenderParams, int useDeform,
@@ -1870,13 +1931,13 @@ static void mesh_calc_modifiers(
 	ModifierEvalContext ctx;
 	ModifierEvalIterator iter;
 	float (*deformedVerts)[3] = inputVertexCos;
-	DerivedMesh *dm = NULL, *orcodm, *clothorcodm, *finaldm;
+	DerivedMesh *dm, *orcodm, *clothorcodm, *finaldm;
 	int numVerts = me->totvert;
 
 	mesh_init_modifier_context(&ctx, scene, ob, useRenderParams, useDeform, need_mapping,
 	                           dataMask, index, useCache, build_shapekey_layers, allow_gpu);
 
-	iter.modifier = ctx.firstmd;
+	iter.modifier = ctx.md_begin;
 	iter.datamask = ctx.datamasks;
 	iter.multires_applied = false;
 	iter.isPrevDeform = false;
@@ -1885,53 +1946,42 @@ static void mesh_calc_modifiers(
 
 	modifiers_clearErrors(ob);
 
-	if (r_deform) {
+	if (r_deform)
 		*r_deform = NULL;
-	}
 	*r_final = NULL;
 
 	if (useDeform) {
-		/* Apply all leading deforming modifiers */
-		for (; iter.modifier; iter.modifier = iter.modifier->next, iter.datamask = iter.datamask->next) {
-			ModifierData *md = iter.modifier;
-			const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
-
-			md->scene = scene;
-			
-			if (!modifier_isEnabled(scene, md, ctx.required_mode)) {
-				continue;
+		if (!ctx.sculpt_dyntopo) {
+			/* Apply all leading deforming modifiers */
+			for (; iter.modifier != ctx.md_end; iter.modifier = iter.modifier->next, iter.datamask = iter.datamask->next) {
+				ModifierData *md = iter.modifier;
+				const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+				
+				md->scene = scene;
+				
+				if (mti->type == eModifierTypeType_OnlyDeform) {
+					mesh_calc_deform_modifier(ob, &ctx, &iter, NULL, NULL, &deformedVerts, &numVerts);
+				}
+				else {
+					break;
+				}
 			}
-
-			if (useDeform < 0 && mti->dependsOnTime && mti->dependsOnTime(md)) {
-				continue;
-			}
-
-			if (mti->type == eModifierTypeType_OnlyDeform && !ctx.sculpt_dyntopo) {
-				if (!deformedVerts)
-					deformedVerts = BKE_mesh_vertexCos_get(me, &numVerts);
-
-				modwrap_deformVerts(md, ob, NULL, deformedVerts, numVerts, ctx.deform_app_flags);
-			}
-			else {
-				break;
-			}
-			
-			/* grab modifiers until index i */
-			if ((index != -1) && (BLI_findindex(&ob->modifiers, md) >= index))
-				break;
 		}
-
+	
 		/* Result of all leading deforming modifiers is cached for
 		 * places that wish to use the original mesh but with deformed
 		 * coordinates (vpaint, etc.)
 		 */
 		if (r_deform) {
 			*r_deform = CDDM_from_mesh(me);
-
-			if (build_shapekey_layers)
-				add_shapekey_layers(dm, me, ob);
+	
+			/* XXX build_shapekey_layers is never true,
+			 * unreachable code path!
+			 */
+			if (ctx.build_shapekey_layers)
+				add_shapekey_layers(*r_deform, me, ob);
 			
-			if (deformedVerts) {
+			if (*deformedVerts) {
 				CDDM_apply_vert_coords(*r_deform, deformedVerts);
 			}
 		}
@@ -1950,43 +2000,19 @@ static void mesh_calc_modifiers(
 	orcodm = NULL;
 	clothorcodm = NULL;
 
-	for (; iter.modifier; iter.modifier = iter.modifier->next, iter.datamask = iter.datamask->next) {
+	for (; iter.modifier != ctx.md_end; iter.modifier = iter.modifier->next, iter.datamask = iter.datamask->next) {
 		ModifierData *md = iter.modifier;
 		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 		md->scene = scene;
-
-		if (!modifier_isEnabled(scene, md, ctx.required_mode)) {
-			continue;
-		}
-
-		if (mti->type == eModifierTypeType_OnlyDeform && !useDeform) {
-			continue;
-		}
 
 		if ((mti->flags & eModifierTypeFlag_RequiresOriginalData) && dm) {
 			modifier_setError(md, "Modifier requires original data, bad stack position");
 			continue;
 		}
 
-		if (mesh_calc_modifier_sculptmode_skip(&ctx, md, iter.multires_applied)) {
-			continue;
-		}
-
 		if (need_mapping && !modifier_supportsMapping(md)) {
 			continue;
-		}
-
-		if (useDeform < 0 && mti->dependsOnTime && mti->dependsOnTime(md)) {
-			continue;
-		}
-
-		{
-			/* add an orco layer if needed by this modifier */
-			CustomDataMask mask = mti->requiredDataMask ? mti->requiredDataMask(ob, md) : 0;
-			
-			if (dm && (mask & CD_MASK_ORCO))
-				add_orco_dm(ob, NULL, dm, orcodm, CD_ORCO);
 		}
 
 		/* How to apply modifier depends on (a) what we already have as
@@ -1995,41 +2021,31 @@ static void mesh_calc_modifiers(
 		 */
 
 		if (mti->type == eModifierTypeType_OnlyDeform) {
-			/* No existing verts to deform, need to build them. */
-			if (!deformedVerts) {
-				if (dm) {
-					/* Deforming a derived mesh, read the vertex locations
-					 * out of the mesh and deform them. Once done with this
-					 * run of deformers verts will be written back.
-					 */
-					numVerts = dm->getNumVerts(dm);
-					deformedVerts =
-					    MEM_mallocN(sizeof(*deformedVerts) * numVerts, "dfmv");
-					dm->getVertCos(dm, deformedVerts);
-				}
-				else {
-					deformedVerts = BKE_mesh_vertexCos_get(me, &numVerts);
-				}
-			}
-
-			/* if this is not the last modifier in the stack then recalculate the normals
-			 * to avoid giving bogus normals to the next modifier see: [#23673] */
-			if (iter.isPrevDeform && mti->dependsOnNormals && mti->dependsOnNormals(md)) {
-				/* XXX, this covers bug #23673, but we may need normal calc for other types */
-				if (dm && dm->type == DM_TYPE_CDDM) {
-					CDDM_apply_vert_coords(dm, deformedVerts);
-				}
-			}
-
-			modwrap_deformVerts(md, ob, dm, deformedVerts, numVerts, ctx.deform_app_flags);
+			if (useDeform)
+				continue;
+			
+			mesh_calc_deform_modifier(ob, &ctx, &iter, dm, orcodm, &deformedVerts, &numVerts);
 		}
 		else {
 			DerivedMesh *ndm;
 			/* determine which data layers are needed by following modifiers */
 			CustomDataMask nextmask = (iter.datamask->next) ? iter.datamask->next->mask : dataMask;
-
-			/* apply vertex coordinates or build a DerivedMesh as necessary */
+			
+			if (!modifier_isEnabled(scene, md, ctx.required_mode)) {
+				continue;
+			}
+	
+			if (ctx.special_gameengine_hack && mti->dependsOnTime && mti->dependsOnTime(md)) {
+				continue;
+			}
+	
 			if (dm) {
+				/* add an orco layer if needed by this modifier */
+				CustomDataMask mask = mti->requiredDataMask ? mti->requiredDataMask(ob, md) : 0;
+				if (mask & CD_MASK_ORCO)
+					add_orco_dm(ob, NULL, dm, orcodm, CD_ORCO);
+				
+				/* apply vertex coordinates or build a DerivedMesh as necessary */
 				if (deformedVerts) {
 					DerivedMesh *tdm = CDDM_copy(dm);
 					dm->release(dm);
@@ -2168,16 +2184,12 @@ static void mesh_calc_modifiers(
 
 		iter.isPrevDeform = (mti->type == eModifierTypeType_OnlyDeform);
 
-		/* grab modifiers until index i */
-		if ((index != -1) && (BLI_findindex(&ob->modifiers, md) >= index))
-			break;
-
 		if (ctx.sculpt_mode && md->type == eModifierType_Multires) {
 			iter.multires_applied = true;
 		}
 	}
 
-	for (iter.modifier = ctx.firstmd; iter.modifier; iter.modifier = iter.modifier->next)
+	for (iter.modifier = ctx.md_begin; iter.modifier; iter.modifier = iter.modifier->next)
 		modifier_freeTemporaryData(iter.modifier);
 
 	/* Yay, we are done. If we have a DerivedMesh and deformed vertices
