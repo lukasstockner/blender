@@ -1714,6 +1714,7 @@ typedef struct ModifierEvalContext {
 	bool special_gameengine_hack;
 	
 	VirtualModifierData virtualModifierData;
+	float (*inputVertexCos)[3]; /* XXX needed for freeing deformedVerts, not nice ... */
 	
 	ModifierData *md_begin;
 	ModifierData *md_end;
@@ -1723,6 +1724,7 @@ typedef struct ModifierEvalContext {
 
 static void mesh_init_modifier_context(ModifierEvalContext *ctx,
                                        Scene *scene, Object *ob,
+                                       float (*inputVertexCos)[3],
                                        const bool useRenderParams, int useDeform,
                                        const bool need_mapping,
                                        CustomDataMask dataMask,
@@ -1735,6 +1737,8 @@ static void mesh_init_modifier_context(ModifierEvalContext *ctx,
 	MultiresModifierData *mmd = get_multires_modifier(scene, ob, 0);
 	CustomDataMask previewmask = 0;
 	const bool skipVirtualArmature = (useDeform < 0);
+
+	ctx->inputVertexCos = inputVertexCos;
 
 	ctx->app_flags =   (useRenderParams ? MOD_APPLY_RENDER : 0)
 	                 | (useCache ? MOD_APPLY_USECACHE : 0)
@@ -1869,8 +1873,16 @@ static bool mesh_calc_modifier_sculptmode_skip(const ModifierEvalContext *ctx, M
 	return false;
 }
 
+typedef struct ModifierEvalResult {
+	DerivedMesh *dm;
+	DerivedMesh *orcodm;
+	DerivedMesh *clothorcodm;
+	float (*deformedVerts)[3];
+	int numVerts;
+} ModifierEvalResult;
+
 static void mesh_calc_deform_modifier(Object *ob, const ModifierEvalContext *ctx, const ModifierEvalIterator *iter,
-                                      DerivedMesh *dm, DerivedMesh *orcodm, float (**deformedVerts)[3], int *numVerts)
+                                      ModifierEvalResult *result)
 {
 	Mesh *me = ob->data;
 	ModifierData *md = iter->modifier;
@@ -1883,28 +1895,28 @@ static void mesh_calc_deform_modifier(Object *ob, const ModifierEvalContext *ctx
 	if (mesh_calc_modifier_sculptmode_skip(ctx, md, iter->multires_applied))
 		return;
 	
-	if (dm) {
+	if (result->dm) {
 		/* add an orco layer if needed by this modifier */
 		CustomDataMask mask = mti->requiredDataMask ? mti->requiredDataMask(ob, md) : 0;
 		
 		if (mask & CD_MASK_ORCO)
-			add_orco_dm(ob, NULL, dm, orcodm, CD_ORCO);
+			add_orco_dm(ob, NULL, result->dm, result->orcodm, CD_ORCO);
 	}
 
 	/* No existing verts to deform, need to build them. */
-	if (!(*deformedVerts)) {
-		if (dm) {
+	if (!result->deformedVerts) {
+		if (result->dm) {
 			/* Deforming a derived mesh, read the vertex locations
 			 * out of the mesh and deform them. Once done with this
 			 * run of deformers verts will be written back.
 			 */
-			*numVerts = dm->getNumVerts(dm);
-			*deformedVerts =
-			    MEM_mallocN(sizeof(**deformedVerts) * (*numVerts), "dfmv");
-			dm->getVertCos(dm, *deformedVerts);
+			result->numVerts = result->dm->getNumVerts(result->dm);
+			result->deformedVerts =
+			    MEM_mallocN(sizeof(*result->deformedVerts) * result->numVerts, "dfmv");
+			result->dm->getVertCos(result->dm, result->deformedVerts);
 		}
 		else {
-			*deformedVerts = BKE_mesh_vertexCos_get(me, numVerts);
+			result->deformedVerts = BKE_mesh_vertexCos_get(me, &result->numVerts);
 		}
 	}
 
@@ -1912,12 +1924,12 @@ static void mesh_calc_deform_modifier(Object *ob, const ModifierEvalContext *ctx
 	 * to avoid giving bogus normals to the next modifier see: [#23673] */
 	if (iter->isPrevDeform && mti->dependsOnNormals && mti->dependsOnNormals(md)) {
 		/* XXX, this covers bug #23673, but we may need normal calc for other types */
-		if (dm && dm->type == DM_TYPE_CDDM) {
-			CDDM_apply_vert_coords(dm, *deformedVerts);
+		if (result->dm && result->dm->type == DM_TYPE_CDDM) {
+			CDDM_apply_vert_coords(result->dm, result->deformedVerts);
 		}
 	}
 
-	modwrap_deformVerts(md, ob, dm, *deformedVerts, *numVerts, ctx->deform_app_flags);
+	modwrap_deformVerts(md, ob, result->dm, result->deformedVerts, result->numVerts, ctx->deform_app_flags);
 }
 
 static DerivedMesh *mesh_calc_create_input_dm(Object *ob, const ModifierEvalContext *ctx, ModifierData *md,
@@ -2000,6 +2012,101 @@ static DerivedMesh *mesh_calc_create_input_dm(Object *ob, const ModifierEvalCont
 	}
 	
 	return dm;
+}
+
+static void mesh_calc_constructive_modifier(Object *ob, const ModifierEvalContext *ctx, CustomDataMask data_mask,
+                                            ModifierEvalIterator *iter, ModifierEvalResult *result)
+{
+	Mesh *me = ob->data;
+	ModifierData *md = iter->modifier;
+	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+
+	CustomDataMask mask = iter->datamask->mask;
+	CustomDataMask append_mask = iter->append_mask;
+	CustomDataMask nextmask = (iter->datamask->next) ? iter->datamask->next->mask : data_mask;
+
+	if (!modifier_isEnabled(md->scene, md, ctx->required_mode))
+		return;
+	if (ctx->special_gameengine_hack && mti->dependsOnTime && mti->dependsOnTime(md))
+		return;
+
+	result->dm = mesh_calc_create_input_dm(ob, ctx, md, mask, append_mask, nextmask,
+	                                       result->dm, result->orcodm, result->clothorcodm, result->deformedVerts);
+
+	{
+		DerivedMesh *ndm;
+
+		ndm = modwrap_applyModifier(md, ob, result->dm, ctx->app_flags);
+		ASSERT_IS_VALID_DM(ndm);
+
+		if (ndm) {
+			/* if the modifier returned a new dm, release the old one */
+			if ((result->dm) && result->dm != ndm) (result->dm)->release(result->dm);
+
+			result->dm = ndm;
+
+			if (result->deformedVerts) {
+				if (result->deformedVerts != ctx->inputVertexCos)
+					MEM_freeN(result->deformedVerts);
+
+				result->deformedVerts = NULL;
+			}
+		}
+	}
+
+	/* create an orco derivedmesh in parallel */
+	if (nextmask & CD_MASK_ORCO) {
+		DerivedMesh *ndm;
+
+		if (!result->orcodm)
+			result->orcodm = create_orco_dm(ob, me, NULL, CD_ORCO);
+
+		nextmask &= ~CD_MASK_ORCO;
+		DM_set_only_copy(result->orcodm, nextmask | CD_MASK_ORIGINDEX |
+		                 (mti->requiredDataMask ?
+		                  mti->requiredDataMask(ob, md) : 0));
+
+		ndm = modwrap_applyModifier(md, ob, result->orcodm, (ctx->app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
+		ASSERT_IS_VALID_DM(ndm);
+
+		if (ndm) {
+			/* if the modifier returned a new dm, release the old one */
+			if (result->orcodm && result->orcodm != ndm) result->orcodm->release(result->orcodm);
+			result->orcodm = ndm;
+		}
+	}
+
+	/* create cloth orco derivedmesh in parallel */
+	if (nextmask & CD_MASK_CLOTH_ORCO) {
+		DerivedMesh *ndm;
+
+		if (!result->clothorcodm)
+			result->clothorcodm = create_orco_dm(ob, me, NULL, CD_CLOTH_ORCO);
+
+		nextmask &= ~CD_MASK_CLOTH_ORCO;
+		DM_set_only_copy(result->clothorcodm, nextmask | CD_MASK_ORIGINDEX);
+
+		ndm = modwrap_applyModifier(md, ob, result->clothorcodm, (ctx->app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
+		ASSERT_IS_VALID_DM(ndm);
+
+		if (ndm) {
+			/* if the modifier returned a new dm, release the old one */
+			if (result->clothorcodm && result->clothorcodm != ndm) {
+				result->clothorcodm->release(result->clothorcodm);
+			}
+			result->clothorcodm = ndm;
+		}
+	}
+
+	/* in case of dynamic paint, make sure preview mask remains for following modifiers */
+	/* XXX Temp and hackish solution! */
+	if (md->type == eModifierType_DynamicPaint)
+		iter->append_mask |= CD_MASK_PREVIEW_MLOOPCOL;
+	/* In case of active preview modifier, make sure preview mask remains for following modifiers. */
+	else if ((md == ctx->previewmd) && (ctx->do_mod_wmcol)) {
+		DM_update_weight_mcol(ob, result->dm, ctx->draw_flag, NULL, 0, NULL);
+		iter->append_mask |= CD_MASK_PREVIEW_MLOOPCOL;
+	}
 }
 
 static DerivedMesh *mesh_calc_finalize_dm(Object *ob, const ModifierEvalContext *ctx, CustomDataMask data_mask,
@@ -2095,11 +2202,10 @@ static void mesh_calc_modifiers(
 	Mesh *me = ob->data;
 	ModifierEvalContext ctx;
 	ModifierEvalIterator iter;
-	float (*deformedVerts)[3] = inputVertexCos;
-	DerivedMesh *dm, *orcodm, *clothorcodm, *finaldm;
-	int numVerts = me->totvert;
+	ModifierEvalResult result = {0};
+	DerivedMesh *finaldm;
 
-	mesh_init_modifier_context(&ctx, scene, ob, useRenderParams, useDeform, need_mapping,
+	mesh_init_modifier_context(&ctx, scene, ob, inputVertexCos, useRenderParams, useDeform, need_mapping,
 	                           dataMask, index, useCache, build_shapekey_layers, allow_gpu);
 
 	iter.modifier = ctx.md_begin;
@@ -2115,6 +2221,9 @@ static void mesh_calc_modifiers(
 		*r_deform = NULL;
 	*r_final = NULL;
 
+	result.deformedVerts = inputVertexCos;
+	result.numVerts = me->totvert;
+
 	if (useDeform) {
 		if (!ctx.sculpt_dyntopo) {
 			/* Apply all leading deforming modifiers */
@@ -2125,7 +2234,7 @@ static void mesh_calc_modifiers(
 				md->scene = scene;
 				
 				if (mti->type == eModifierTypeType_OnlyDeform) {
-					mesh_calc_deform_modifier(ob, &ctx, &iter, NULL, NULL, &deformedVerts, &numVerts);
+					mesh_calc_deform_modifier(ob, &ctx, &iter, &result);
 				}
 				else {
 					break;
@@ -2146,24 +2255,24 @@ static void mesh_calc_modifiers(
 			if (ctx.build_shapekey_layers)
 				add_shapekey_layers(*r_deform, me, ob);
 			
-			if (*deformedVerts) {
-				CDDM_apply_vert_coords(*r_deform, deformedVerts);
+			if (result.deformedVerts) {
+				CDDM_apply_vert_coords(*r_deform, result.deformedVerts);
 			}
 		}
 	}
 	else {
 		/* default behavior for meshes */
-		if (!deformedVerts)
-			deformedVerts = BKE_mesh_vertexCos_get(me, &numVerts);
+		if (!result.deformedVerts)
+			result.deformedVerts = BKE_mesh_vertexCos_get(me, &result.numVerts);
 	}
 
 
 	/* Now apply all remaining modifiers. If useDeform is off then skip
 	 * OnlyDeform ones. 
 	 */
-	dm = NULL;
-	orcodm = NULL;
-	clothorcodm = NULL;
+	result.dm = NULL;
+	result.orcodm = NULL;
+	result.clothorcodm = NULL;
 
 	for (; iter.modifier != ctx.md_end; iter.modifier = iter.modifier->next, iter.datamask = iter.datamask->next) {
 		ModifierData *md = iter.modifier;
@@ -2171,7 +2280,7 @@ static void mesh_calc_modifiers(
 
 		md->scene = scene;
 
-		if ((mti->flags & eModifierTypeFlag_RequiresOriginalData) && dm) {
+		if ((mti->flags & eModifierTypeFlag_RequiresOriginalData) && result.dm) {
 			modifier_setError(md, "Modifier requires original data, bad stack position");
 			continue;
 		}
@@ -2189,97 +2298,10 @@ static void mesh_calc_modifiers(
 			if (useDeform)
 				continue;
 			
-			mesh_calc_deform_modifier(ob, &ctx, &iter, dm, orcodm, &deformedVerts, &numVerts);
+			mesh_calc_deform_modifier(ob, &ctx, &iter, &result);
 		}
 		else {
-			CustomDataMask mask = iter.datamask->mask;
-			CustomDataMask append_mask = iter.append_mask;
-			CustomDataMask nextmask = (iter.datamask->next) ? iter.datamask->next->mask : dataMask;
-
-			if (!modifier_isEnabled(scene, md, ctx.required_mode)) {
-				continue;
-			}
-	
-			if (ctx.special_gameengine_hack && mti->dependsOnTime && mti->dependsOnTime(md)) {
-				continue;
-			}
-
-			dm = mesh_calc_create_input_dm(ob, &ctx, md, mask, append_mask, nextmask, dm, orcodm, clothorcodm, deformedVerts);
-
-			{
-				DerivedMesh *ndm;
-
-				ndm = modwrap_applyModifier(md, ob, dm, ctx.app_flags);
-				ASSERT_IS_VALID_DM(ndm);
-
-				if (ndm) {
-					/* if the modifier returned a new dm, release the old one */
-					if (dm && dm != ndm) dm->release(dm);
-
-					dm = ndm;
-
-					if (deformedVerts) {
-						if (deformedVerts != inputVertexCos)
-							MEM_freeN(deformedVerts);
-
-						deformedVerts = NULL;
-					}
-				}
-			}
-
-			/* create an orco derivedmesh in parallel */
-			if (nextmask & CD_MASK_ORCO) {
-				DerivedMesh *ndm;
-
-				if (!orcodm)
-					orcodm = create_orco_dm(ob, me, NULL, CD_ORCO);
-
-				nextmask &= ~CD_MASK_ORCO;
-				DM_set_only_copy(orcodm, nextmask | CD_MASK_ORIGINDEX |
-				                 (mti->requiredDataMask ?
-				                  mti->requiredDataMask(ob, md) : 0));
-
-				ndm = modwrap_applyModifier(md, ob, orcodm, (ctx.app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
-				ASSERT_IS_VALID_DM(ndm);
-
-				if (ndm) {
-					/* if the modifier returned a new dm, release the old one */
-					if (orcodm && orcodm != ndm) orcodm->release(orcodm);
-					orcodm = ndm;
-				}
-			}
-
-			/* create cloth orco derivedmesh in parallel */
-			if (nextmask & CD_MASK_CLOTH_ORCO) {
-				DerivedMesh *ndm;
-
-				if (!clothorcodm)
-					clothorcodm = create_orco_dm(ob, me, NULL, CD_CLOTH_ORCO);
-
-				nextmask &= ~CD_MASK_CLOTH_ORCO;
-				DM_set_only_copy(clothorcodm, nextmask | CD_MASK_ORIGINDEX);
-
-				ndm = modwrap_applyModifier(md, ob, clothorcodm, (ctx.app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
-				ASSERT_IS_VALID_DM(ndm);
-
-				if (ndm) {
-					/* if the modifier returned a new dm, release the old one */
-					if (clothorcodm && clothorcodm != ndm) {
-						clothorcodm->release(clothorcodm);
-					}
-					clothorcodm = ndm;
-				}
-			}
-
-			/* in case of dynamic paint, make sure preview mask remains for following modifiers */
-			/* XXX Temp and hackish solution! */
-			if (md->type == eModifierType_DynamicPaint)
-				iter.append_mask |= CD_MASK_PREVIEW_MLOOPCOL;
-			/* In case of active preview modifier, make sure preview mask remains for following modifiers. */
-			else if ((md == ctx.previewmd) && (ctx.do_mod_wmcol)) {
-				DM_update_weight_mcol(ob, dm, ctx.draw_flag, NULL, 0, NULL);
-				iter.append_mask |= CD_MASK_PREVIEW_MLOOPCOL;
-			}
+			mesh_calc_constructive_modifier(ob, &ctx, dataMask, &iter, &result);
 		}
 
 		iter.isPrevDeform = (mti->type == eModifierTypeType_OnlyDeform);
@@ -2296,7 +2318,7 @@ static void mesh_calc_modifiers(
 	 * need to apply these back onto the DerivedMesh. If we have no
 	 * DerivedMesh then we need to build one.
 	 */
-	finaldm = mesh_calc_finalize_dm(ob, &ctx, dataMask, dm, orcodm, r_deform? *r_deform: NULL, deformedVerts);
+	finaldm = mesh_calc_finalize_dm(ob, &ctx, dataMask, result.dm, result.orcodm, r_deform? *r_deform: NULL, result.deformedVerts);
 
 #ifdef WITH_GAMEENGINE
 	/* NavMesh - this is a hack but saves having a NavMesh modifier */
@@ -2314,13 +2336,12 @@ static void mesh_calc_modifiers(
 
 	*r_final = finaldm;
 
-	if (orcodm)
-		orcodm->release(orcodm);
-	if (clothorcodm)
-		clothorcodm->release(clothorcodm);
-
-	if (deformedVerts && deformedVerts != inputVertexCos)
-		MEM_freeN(deformedVerts);
+	if (result.orcodm)
+		result.orcodm->release(result.orcodm);
+	if (result.clothorcodm)
+		result.clothorcodm->release(result.clothorcodm);
+	if (result.deformedVerts && result.deformedVerts != inputVertexCos)
+		MEM_freeN(result.deformedVerts);
 	
 	mesh_free_modifier_context(&ctx);
 }
