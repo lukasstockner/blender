@@ -277,7 +277,7 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 			GLUquadricObj *qobj = gluNewQuadric();
 			const float len = 0.25f;
 			const float width = 0.06f;
-			const bool use_lighting = !select && ((U.tw_flag & V3D_SHADED_WIDGETS) != 0);
+			const bool use_lighting = select == false && ((U.tw_flag & V3D_SHADED_WIDGETS) != 0);
 
 			/* translate to line end */
 			glTranslatef(0.0f, 0.0f, arrow->len);
@@ -298,7 +298,6 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 		}
 
 		glPopMatrix();
-		(void)select;
 #endif
 	}
 
@@ -337,7 +336,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, const bool select, const bool 
 	}
 
 	glEnable(GL_BLEND);
-	glTranslatef(UNPACK3(arrow->widget.offset));
+	glTranslate3fv(arrow->widget.offset);
 	arrow_draw_geom(arrow, select);
 	glDisable(GL_BLEND);
 
@@ -355,7 +354,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, const bool select, const bool 
 
 		glEnable(GL_BLEND);
 		glColor4f(0.5f, 0.5f, 0.5f, 0.5f);
-		glTranslatef(UNPACK3(arrow->widget.offset));
+		glTranslate3fv(arrow->widget.offset);
 		arrow_draw_geom(arrow, select);
 		glDisable(GL_BLEND);
 
@@ -395,6 +394,7 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 	float fac, zfac;
 	float facdir = 1.0f;
 	bool use_vertical = false;
+
 
 	copy_v3_v3(orig_origin, data->orig_origin);
 	orig_origin[3] = 1.0f;
@@ -766,7 +766,7 @@ static void dial_draw_geom(const DialWidget *dial, const bool select)
 	gluDisk(qobj, 0.0, width, resol, 1);
 	glLineWidth(1.0);
 
-	(void)select;
+	UNUSED_VARS(select);
 #endif
 
 	glDisable(GL_MULTISAMPLE_ARB);
@@ -791,7 +791,7 @@ static void dial_draw_intern(DialWidget *dial, const bool select, const bool hig
 	else
 		glColor4fv(dial->widget.col);
 
-	glTranslatef(UNPACK3(dial->widget.offset));
+	glTranslate3fv(dial->widget.offset);
 	dial_draw_geom(dial, select);
 
 	glPopMatrix();
@@ -972,7 +972,7 @@ static void widget_plane_draw_intern(PlaneWidget *plane, const bool UNUSED(selec
 	col_inner[3] *= 0.5f;
 
 	glEnable(GL_BLEND);
-	glTranslatef(UNPACK3(plane->widget.offset));
+	glTranslate3fv(plane->widget.offset);
 	widget_plane_draw_geom(col_inner, col_outer);
 	glDisable(GL_BLEND);
 
@@ -1105,7 +1105,7 @@ static void rect_transform_draw_interaction(
 {
 	float verts[4][2];
 	unsigned short elems[4] = {0, 1, 3, 2};
-	
+
 	switch (highlighted) {
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT:
 			verts[0][0] = -half_w + w;
@@ -1117,7 +1117,7 @@ static void rect_transform_draw_interaction(
 			verts[3][0] = -half_w + w;
 			verts[3][1] = half_h;
 			break;
-			
+
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT:
 			verts[0][0] = half_w - w;
 			verts[0][1] = -half_h;
@@ -1128,7 +1128,7 @@ static void rect_transform_draw_interaction(
 			verts[3][0] = half_w - w;
 			verts[3][1] = half_h;
 			break;
-			
+
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN:
 			verts[0][0] = -half_w;
 			verts[0][1] = -half_h + h;
@@ -1139,7 +1139,7 @@ static void rect_transform_draw_interaction(
 			verts[3][0] = half_w;
 			verts[3][1] = -half_h + h;
 			break;
-			
+
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP:
 			verts[0][0] = -half_w;
 			verts[0][1] = half_h - h;
@@ -1150,11 +1150,11 @@ static void rect_transform_draw_interaction(
 			verts[3][0] = half_w;
 			verts[3][1] = half_h - h;
 			break;
-			
+
 		default:
 			return;
 	}
-	
+
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(2, GL_FLOAT, 0, verts);
 	glLineWidth(line_width + 3.0);
@@ -1165,7 +1165,7 @@ static void rect_transform_draw_interaction(
 	glDrawArrays(GL_LINE_STRIP, 0, 3);
 	glLineWidth(1.0);
 
-	(void)elems;
+	UNUSED_VARS(elems);
 }
 
 static void widget_rect_transform_draw(const bContext *UNUSED(C), wmWidget *widget)
@@ -1177,12 +1177,12 @@ static void widget_rect_transform_draw(const bContext *UNUSED(C), wmWidget *widg
 	float half_w = w / 2.0f;
 	float half_h = h / 2.0f;
 	float aspx = 1.0f, aspy = 1.0f;
-	
+
 	r.xmin = -half_w;
 	r.ymin = -half_h;
 	r.xmax = half_w;
 	r.ymax = half_h;
-	
+
 	glPushMatrix();
 	glTranslatef(widget->origin[0] + widget->offset[0], widget->origin[1] + widget->offset[1], 0.0f);
 	if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM)
@@ -1245,7 +1245,7 @@ static int widget_rect_transform_intersect(bContext *UNUSED(C), const wmEvent *e
 	bool isect;
 	rctf r;
 	float aspx = 1.0f, aspy = 1.0f;
-	
+
 	/* rotate mouse in relation to the center and relocate it */
 	sub_v2_v2v2(point_local, mouse, widget->origin);
 	point_local[0] -= widget->offset[0];
@@ -1258,7 +1258,7 @@ static int widget_rect_transform_intersect(bContext *UNUSED(C), const wmEvent *e
 		point_local[0] /= cage->scale[0];
 		point_local[1] /= cage->scale[0];
 	}
-	
+
 	if (cage->w > cage->h)
 		aspx = h / w;
 	else
@@ -1271,9 +1271,9 @@ static int widget_rect_transform_intersect(bContext *UNUSED(C), const wmEvent *e
 	r.ymin = -half_h + h;
 	r.xmax = half_w - w;
 	r.ymax = half_h - h;
-	
+
 	isect = BLI_rctf_isect_pt_v(&r, point_local);
-	
+
 	if (isect)
 		return WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE;
 
@@ -1283,43 +1283,43 @@ static int widget_rect_transform_intersect(bContext *UNUSED(C), const wmEvent *e
 		r.ymin = -half_h;
 		r.xmax = -half_w + w;
 		r.ymax = half_h;
-		
+
 		isect = BLI_rctf_isect_pt_v(&r, point_local);
-		
+
 		if (isect)
 			return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT;
-		
+
 		r.xmin = half_w - w;
 		r.ymin = -half_h;
 		r.xmax = half_w;
 		r.ymax = half_h;
-		
+
 		isect = BLI_rctf_isect_pt_v(&r, point_local);
-		
+
 		if (isect)
 			return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT;
-		
+
 		r.xmin = -half_w;
 		r.ymin = -half_h;
 		r.xmax = half_w;
 		r.ymax = -half_h + h;
-		
+
 		isect = BLI_rctf_isect_pt_v(&r, point_local);
-		
+
 		if (isect)
 			return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN;
-		
+
 		r.xmin = -half_w;
 		r.ymin = half_h - h;
 		r.xmax = half_w;
 		r.ymax = half_h;
-		
+
 		isect = BLI_rctf_isect_pt_v(&r, point_local);
-		
+
 		if (isect)
 			return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP;
 	}
-	
+
 	return 0;
 }
 
@@ -1343,13 +1343,13 @@ static bool widget_rect_transform_get_property(wmWidget *widget, const int slot,
 				fprintf(stderr, "Rect Transform widget offset not only be bound to array float property");
 				return false;
 			}
-			
 			RNA_property_float_get_array(&widget->ptr[slot], widget->props[slot], value);
 		}
 		else if (slot == RECT_TRANSFORM_SLOT_SCALE) {
 			RectTransformWidget *cage = (RectTransformWidget *)widget;
-			if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM)
+			if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) {
 				*value = RNA_property_float_get(&widget->ptr[slot], widget->props[slot]);
+			}
 			else {
 				if (RNA_property_array_length(&widget->ptr[slot], widget->props[slot]) != 2) {
 					fprintf(stderr, "Rect Transform widget scale not only be bound to array float property");
@@ -1359,7 +1359,7 @@ static bool widget_rect_transform_get_property(wmWidget *widget, const int slot,
 			}
 		}
 	}
-	
+
 	return true;
 }
 
@@ -1367,15 +1367,15 @@ static int widget_rect_transform_invoke(bContext *UNUSED(C), const wmEvent *even
 {
 	RectTransformWidget *cage = (RectTransformWidget *) widget;
 	RectTransformInteraction *data = MEM_callocN(sizeof (RectTransformInteraction), "cage_interaction");
-	
+
 	copy_v2_v2(data->orig_offset, widget->offset);
 	copy_v2_v2(data->orig_scale, cage->scale);
-	
+
 	data->orig_mouse[0] = event->mval[0];
 	data->orig_mouse[1] = event->mval[1];
-	
+
 	widget->interaction_data = data;
-	
+
 	return OPERATOR_RUNNING_MODAL;
 }
 
@@ -1387,10 +1387,10 @@ static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWi
 	float valuex, valuey;
 	/* needed here as well in case clamping occurs */
 	const float orig_ofx = widget->offset[0], orig_ofy = widget->offset[1];
-	
+
 	valuex = (event->mval[0] - data->orig_mouse[0]);
 	valuey = (event->mval[1] - data->orig_mouse[1]);
-	
+
 	if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE) {
 		widget->offset[0] = data->orig_offset[0] + valuex;
 		widget->offset[1] = data->orig_offset[1] + valuey;
@@ -1405,7 +1405,7 @@ static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWi
 	}
 	else if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN) {
 		widget->offset[1] = data->orig_offset[1] + valuey / 2.0;
-		
+
 		if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) {
 			cage->scale[0] = (cage->h * data->orig_scale[0] - valuey) / cage->h;
 		}
@@ -1415,7 +1415,7 @@ static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWi
 	}
 	else if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP) {
 		widget->offset[1] = data->orig_offset[1] + valuey / 2.0;
-		
+
 		if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) {
 			cage->scale[0] = (cage->h * data->orig_scale[0] + valuey) / cage->h;
 		}
@@ -1423,7 +1423,7 @@ static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWi
 			cage->scale[1] = (cage->h * data->orig_scale[1] + valuey) / cage->h;
 		}
 	}
-	
+
 	/* clamping - make sure widget is at least 5 pixels wide */
 	if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) {
 		if (cage->scale[0] < WIDGET_RECT_MIN_WIDTH / cage->h || 
@@ -1444,7 +1444,7 @@ static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWi
 			widget->offset[1] = orig_ofy;
 		}
 	}
-	
+
 	if (widget->props[RECT_TRANSFORM_SLOT_OFFSET]) {
 		PointerRNA ptr = widget->ptr[RECT_TRANSFORM_SLOT_OFFSET];
 		PropertyRNA *prop = widget->props[RECT_TRANSFORM_SLOT_OFFSET];
@@ -1465,17 +1465,17 @@ static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWi
 		}
 		RNA_property_update(C, &ptr, prop);
 	}
-	
+
 	/* tag the region for redraw */
 	ED_region_tag_redraw(ar);
-	
+
 	return OPERATOR_PASS_THROUGH;
 }
 
 static void widget_rect_transform_bind_to_prop(wmWidget *widget, const int slot)
 {
 	RectTransformWidget *cage = (RectTransformWidget *) widget;
-	
+
 	if (slot == RECT_TRANSFORM_SLOT_OFFSET)
 		widget_rect_transform_get_property(widget, RECT_TRANSFORM_SLOT_OFFSET, widget->offset);
 	if (slot == RECT_TRANSFORM_SLOT_SCALE)
@@ -1532,9 +1532,9 @@ wmWidget *WIDGET_rect_transform_new(
 	cage->style = style;
 	cage->w = width;
 	cage->h = height;
-	
+
 	wm_widget_register(wgroup, &cage->widget, name);
-	
+
 	return (wmWidget *)cage;
 }
 
@@ -1564,7 +1564,7 @@ static void widget_facemap_draw(const bContext *C, wmWidget *widget)
 	FacemapWidget *fmap_widget = (FacemapWidget *)widget;
 	glPushMatrix();
 	glMultMatrixf(fmap_widget->ob->obmat);
-	glTranslatef(UNPACK3(widget->offset));
+	glTranslate3fv(widget->offset);
 	glEnable(GL_MULTISAMPLE_ARB);
 	ED_draw_object_facemap(CTX_data_scene(C), fmap_widget->ob, fmap_widget->facemap);
 	glDisable(GL_MULTISAMPLE_ARB);
@@ -1610,7 +1610,7 @@ wmWidget *WIDGET_facemap_new(
 	fmap_widget->style = style;
 
 	wm_widget_register(wgroup, &fmap_widget->widget, name);
-	
+
 	return (wmWidget *)fmap_widget;
 }
 
@@ -1622,5 +1622,5 @@ wmWidget *WIDGET_facemap_new(
 
 void fix_linking_widget_lib(void)
 {
-	(void) 0;
+	(void)0;
 }

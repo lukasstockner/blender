@@ -106,16 +106,16 @@ void wm_widgetmap_handler_context(bContext *C, wmEventHandler *handler);
 
 void wm_widgetgrouptype_keymap_init(wmWidgetGroupType *wgrouptype, wmKeyConfig *keyconf);
 
-struct wmWidget *wm_widget_find_highlighted_3D(struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event, unsigned char *part);
-wmWidget *wm_widget_find_highlighted(struct wmWidgetMap *wmap, bContext *C, const struct wmEvent *event, unsigned char *part);
-void wm_widgetmap_set_highlighted_widget(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget, unsigned char part);
-struct wmWidget *wm_widgetmap_get_highlighted_widget(struct wmWidgetMap *wmap);
+wmWidget *wm_widget_find_highlighted_3D(wmWidgetMap *wmap, bContext *C, const wmEvent *event, unsigned char *part);
+wmWidget *wm_widget_find_highlighted(wmWidgetMap *wmap, bContext *C, const wmEvent *event, unsigned char *part);
+void      wm_widgetmap_set_highlighted_widget(wmWidgetMap *wmap, bContext *C, wmWidget *widget, unsigned char part);
+wmWidget *wm_widgetmap_get_highlighted_widget(wmWidgetMap *wmap);
 
-void wm_widgetmap_set_active_widget(struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
-struct wmWidget *wm_widgetmap_get_active_widget(struct wmWidgetMap *wmap);
+void      wm_widgetmap_set_active_widget(wmWidgetMap *wmap, bContext *C, const wmEvent *event, wmWidget *widget);
+wmWidget *wm_widgetmap_get_active_widget(wmWidgetMap *wmap);
 
-void wm_widgetmap_set_selected_widget(struct bContext *C, wmWidgetMap *wmap, wmWidget *widget);
-struct wmWidget *wm_widgetmap_get_selected_widget(wmWidgetMap *wmap);
+void      wm_widgetmap_set_selected_widget(bContext *C, wmWidgetMap *wmap, wmWidget *widget);
+wmWidget *wm_widgetmap_get_selected_widget(wmWidgetMap *wmap);
 
 #endif /* __WM_EVENT_SYSTEM_H__ */
 

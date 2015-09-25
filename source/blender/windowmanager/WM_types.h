@@ -674,12 +674,10 @@ typedef struct wmDropBox {
 
 
 /* WidgetGroups store and manage groups of widgets.
- * They are responsible for drawing necessary widgets and updating their state and position. 
- * Also they */
+ * They are responsible for drawing necessary widgets and updating their state and position. */
 typedef struct wmWidget wmWidget;
 typedef struct wmWidgetGroup wmWidgetGroup;
 typedef struct wmWidgetMapType wmWidgetMapType;
-typedef struct wmWidgetGroupType wmWidgetGroupType;
 
 /* factory class for a widgetgroup type, gets called every time a new area is spawned */
 typedef struct wmWidgetGroupType {
@@ -695,7 +693,7 @@ typedef struct wmWidgetGroupType {
 	void (*create)(const struct bContext *C, struct wmWidgetGroup *wgroup);
 
 	/* keymap init callback for this widgetgroup */
-	struct wmKeyMap *(*keymap_init)(struct wmKeyConfig *, struct wmWidgetGroupType *);
+	struct wmKeyMap *(*keymap_init)(struct wmKeyConfig *, const char *);
 
 	/* keymap created with callback from above */
 	struct wmKeyMap *keymap;

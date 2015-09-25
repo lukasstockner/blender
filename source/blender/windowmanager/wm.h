@@ -49,10 +49,10 @@ typedef struct wmPaintCursor {
 	void (*draw)(bContext *C, int, int, void *customdata);
 } wmPaintCursor;
 
-/* widgets are set per screen/area/region by registering them on widgetmaps */
+/* widgets are set per region by registering them on widgetmaps */
 typedef struct wmWidget {
 	struct wmWidget *next, *prev;
-	
+
 	char idname[MAX_NAME + 4]; /* + 4 for unique '.001', '.002', etc suffix */
 
 	/* pointer back to parent widget group */
@@ -83,8 +83,8 @@ typedef struct wmWidget {
 	void (*cancel)(struct bContext *C, struct wmWidget *widget);
 
 	int (*get_cursor)(struct wmWidget *widget);
-	
-	int  flag; /* flags set by drawing and interaction, such as highlighting */
+
+	int flag; /* flags set by drawing and interaction, such as highlighting */
 
 	unsigned char highlighted_part;
 
@@ -112,14 +112,14 @@ typedef struct wmWidget {
 	const char *opname;
 
 	/* operator properties if widget spawns and controls an operator, or owner pointer if widget spawns and controls a property */
-	struct PointerRNA opptr;
+	PointerRNA opptr;
 
 	/* maximum number of properties attached to the widget */
 	int max_prop;
-	
+
 	/* arrays of properties attached to various widget parameters. As the widget is interacted with, those properties get updated */
-	struct PointerRNA *ptr;
-	struct PropertyRNA **props;
+	PointerRNA *ptr;
+	PropertyRNA **props;
 } wmWidget;
 
 
@@ -169,8 +169,8 @@ void wm_open_init_load_ui(wmOperator *op, bool use_prefs);
 void wm_open_init_use_scripts(wmOperator *op, bool use_prefs);
 
 /* wm_widgets.c */
-bool wm_widgetmap_is_3d(const struct wmWidgetMap *wmap);
-bool wm_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget, const char *name);
+bool wm_widgetmap_is_3d(const wmWidgetMap *wmap);
+bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *name);
 void wm_widgets_keymap(wmKeyConfig *keyconf);
 
 void WIDGETGROUP_OT_widget_set_active(wmOperatorType *ot);
