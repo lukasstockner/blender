@@ -2111,7 +2111,6 @@ static void mesh_calc_modifiers(
 			mesh_calc_deform_modifier(ob, &ctx, &iter, dm, orcodm, &deformedVerts, &numVerts);
 		}
 		else {
-			DerivedMesh *ndm;
 			CustomDataMask mask = iter.datamask->mask;
 			CustomDataMask append_mask = iter.append_mask;
 			CustomDataMask nextmask = (iter.datamask->next) ? iter.datamask->next->mask : dataMask;
@@ -2126,25 +2125,31 @@ static void mesh_calc_modifiers(
 
 			dm = mesh_calc_create_input_dm(ob, &ctx, md, mask, append_mask, nextmask, dm, orcodm, clothorcodm, deformedVerts);
 
-			ndm = modwrap_applyModifier(md, ob, dm, ctx.app_flags);
-			ASSERT_IS_VALID_DM(ndm);
+			{
+				DerivedMesh *ndm;
 
-			if (ndm) {
-				/* if the modifier returned a new dm, release the old one */
-				if (dm && dm != ndm) dm->release(dm);
+				ndm = modwrap_applyModifier(md, ob, dm, ctx.app_flags);
+				ASSERT_IS_VALID_DM(ndm);
 
-				dm = ndm;
+				if (ndm) {
+					/* if the modifier returned a new dm, release the old one */
+					if (dm && dm != ndm) dm->release(dm);
 
-				if (deformedVerts) {
-					if (deformedVerts != inputVertexCos)
-						MEM_freeN(deformedVerts);
+					dm = ndm;
 
-					deformedVerts = NULL;
+					if (deformedVerts) {
+						if (deformedVerts != inputVertexCos)
+							MEM_freeN(deformedVerts);
+
+						deformedVerts = NULL;
+					}
 				}
 			}
 
 			/* create an orco derivedmesh in parallel */
 			if (nextmask & CD_MASK_ORCO) {
+				DerivedMesh *ndm;
+
 				if (!orcodm)
 					orcodm = create_orco_dm(ob, me, NULL, CD_ORCO);
 
@@ -2165,6 +2170,8 @@ static void mesh_calc_modifiers(
 
 			/* create cloth orco derivedmesh in parallel */
 			if (nextmask & CD_MASK_CLOTH_ORCO) {
+				DerivedMesh *ndm;
+
 				if (!clothorcodm)
 					clothorcodm = create_orco_dm(ob, me, NULL, CD_CLOTH_ORCO);
 
