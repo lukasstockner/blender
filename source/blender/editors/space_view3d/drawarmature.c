@@ -1780,7 +1780,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 							}
 
 							draw_custom_bone(scene, v3d, rv3d, pchan->custom,
-							                 OB_SOLID, arm->flag, flag, index, bone->length);
+							                 OB_SOLID, arm->flag, flag, index, PCHAN_CUSTOM_DRAW_SIZE(pchan));
 						}
 					}
 					else {
@@ -1871,7 +1871,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 								flag |= BONE_DRAW_ACTIVE;
 							
 							draw_custom_bone(scene, v3d, rv3d, pchan->custom,
-							                 OB_WIRE, arm->flag, flag, index, bone->length);
+							                 OB_WIRE, arm->flag, flag, index, PCHAN_CUSTOM_DRAW_SIZE(pchan));
 							
 							glPopMatrix();
 						}
