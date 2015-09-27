@@ -72,7 +72,7 @@ static int cu_isectLL(const float v1[3], const float v2[3], const float v3[3], c
 /**
  * Release all datablocks (ID) used by this curve (datablocks are never freed, they are just unreferenced).
  *
- * @param cu The curve which has to release its data.
+ * \param cu The curve which has to release its data.
  */
 void BKE_curve_release_datablocks(Curve *cu)
 {

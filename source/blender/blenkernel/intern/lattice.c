@@ -293,25 +293,57 @@ Lattice *BKE_lattice_copy(Lattice *lt)
 	return ltn;
 }
 
-void BKE_lattice_free(Lattice *lt)
+/**
+ * Release all datablocks (ID) used by this lattice (datablocks are never freed, they are just unreferenced).
+ *
+ * \param lt The lattice which has to release its data.
+ */
+void BKE_lattice_release_datablocks(Lattice *lt)
 {
-	if (lt->def) MEM_freeN(lt->def);
-	if (lt->dvert) BKE_defvert_array_free(lt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
+	if (lt == NULL)
+		return;
+
+	if (lt->key) {
+		lt->key->id.us--;
+		lt->key = NULL;
+	}
+}
+
+/**
+ * Free (or release) any data used by this lattice (does not free the lattice itself).
+ *
+ * \param lt The lattice to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this lattice are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_lattice_free(Lattice *lt, const bool do_id_user)
+{
+	if (do_id_user) {
+		BKE_lattice_release_datablocks(lt);
+	}
+
+	if (lt->def) {
+		MEM_freeN(lt->def);
+		lt->def = NULL;
+	}
+	if (lt->dvert) {
+		BKE_defvert_array_free(lt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
+		lt->dvert = NULL;
+	}
 	if (lt->editlatt) {
 		Lattice *editlt = lt->editlatt->latt;
 
-		if (editlt->def) MEM_freeN(editlt->def);
-		if (editlt->dvert) BKE_defvert_array_free(editlt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
+		if (editlt->def)
+			MEM_freeN(editlt->def);
+		if (editlt->dvert)
+			BKE_defvert_array_free(editlt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
 
 		MEM_freeN(editlt);
 		MEM_freeN(lt->editlatt);
+		lt->editlatt = NULL;
 	}
 	
-	/* free animation data */
-	if (lt->adt) {
-		BKE_animdata_free(&lt->id);
-		lt->adt = NULL;
-	}
+	BKE_animdata_free(&lt->id);
 }
 
 

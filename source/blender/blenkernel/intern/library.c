@@ -970,19 +970,19 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_image_free((Image *)id, do_id_user);
 			break;
 		case ID_LT:
-			BKE_lattice_free((Lattice *)id);
+			BKE_lattice_free((Lattice *)id, do_id_user);
 			break;
 		case ID_LA:
 			BKE_lamp_free((Lamp *)id, do_id_user);
 			break;
 		case ID_CA:
-			BKE_camera_free((Camera *) id);
+			BKE_camera_free((Camera *) id, do_id_user);
 			break;
-		case ID_IP:
+		case ID_IP:  /* Deprecated. */
 			BKE_ipo_free((Ipo *)id);
 			break;
 		case ID_KE:
-			BKE_key_free((Key *)id);
+			BKE_key_free((Key *)id, do_id_user);
 			break;
 		case ID_WO:
 			BKE_world_free((World *)id);
