@@ -828,7 +828,7 @@ static void shader_preview_free(void *customdata)
 		/* get rid of copied material */
 		BLI_remlink(&pr_main->mat, sp->matcopy);
 		
-		BKE_material_free_ex(sp->matcopy, false);
+		BKE_material_free(sp->matcopy, false);
 
 		properties = IDP_GetProperties((ID *)sp->matcopy, false);
 		if (properties) {
@@ -844,7 +844,7 @@ static void shader_preview_free(void *customdata)
 		
 		/* get rid of copied texture */
 		BLI_remlink(&pr_main->tex, sp->texcopy);
-		BKE_texture_free(sp->texcopy);
+		BKE_texture_free(sp->texcopy, false);
 		
 		properties = IDP_GetProperties((ID *)sp->texcopy, false);
 		if (properties) {

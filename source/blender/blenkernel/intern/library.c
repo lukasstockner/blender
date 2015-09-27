@@ -961,10 +961,10 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_mball_free((MetaBall *)id, do_id_user);
 			break;
 		case ID_MA:
-			BKE_material_free((Material *)id);
+			BKE_material_free((Material *)id, do_id_user);
 			break;
 		case ID_TE:
-			BKE_texture_free((Tex *)id);
+			BKE_texture_free((Tex *)id, do_id_user);
 			break;
 		case ID_IM:
 			BKE_image_free((Image *)id);

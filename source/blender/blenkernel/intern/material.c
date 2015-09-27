@@ -81,33 +81,66 @@ void init_def_material(void)
 	init_material(&defmaterial);
 }
 
-/* not material itself */
-void BKE_material_free(Material *ma)
+/**
+ * Release all datablocks (ID) used by this material (datablocks are never freed, they are just unreferenced).
+ *
+ * \param ma The material which has to release its data.
+ */
+void BKE_material_release_datablocks(Material *ma)
 {
-	BKE_material_free_ex(ma, true);
+	MTex *mtex;
+	int a;
+
+	if (ma == NULL)
+		return;
+
+	for (a = 0; a < MAX_MTEX; a++) {
+		mtex = ma->mtex[a];
+		if (mtex && mtex->tex) {
+			mtex->tex->id.us--;
+			mtex->tex = NULL;
+		}
+	}
+
+	/* No ID refcount here... */
+	ma->group = NULL;
 }
 
-/* not material itself */
-void BKE_material_free_ex(Material *ma, bool do_id_user)
+/**
+ * Free (or release) any data used by this material (does not free the material itself).
+ *
+ * \param ma The material to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this material are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_material_free(Material *ma, const bool do_id_user)
 {
 	MTex *mtex;
 	int a;
 	
+	BKE_material_release_datablocks(ma);
+
 	for (a = 0; a < MAX_MTEX; a++) {
 		mtex = ma->mtex[a];
-		if (do_id_user && mtex && mtex->tex) mtex->tex->id.us--;
-		if (mtex) MEM_freeN(mtex);
+		if (mtex) {
+			MEM_freeN(mtex);
+			ma->mtex[a] = NULL;
+		}
 	}
 	
-	if (ma->ramp_col) MEM_freeN(ma->ramp_col);
-	if (ma->ramp_spec) MEM_freeN(ma->ramp_spec);
+	if (ma->ramp_col) {
+		MEM_freeN(ma->ramp_col);
+		ma->ramp_col = NULL;
+	}
+	if (ma->ramp_spec) {
+		MEM_freeN(ma->ramp_spec);
+		ma->ramp_spec = NULL;
+	}
 	
 	BKE_animdata_free((ID *)ma);
 	
-	if (ma->preview)
-		BKE_previewimg_free(&ma->preview);
-	BKE_icon_id_delete((struct ID *)ma);
-	ma->id.icon_id = 0;
+	BKE_previewimg_free(&ma->preview);
+	BKE_icon_id_delete((ID *)ma);
 	
 	/* is no lib link block, but material extension */
 	if (ma->nodetree) {
@@ -115,11 +148,12 @@ void BKE_material_free_ex(Material *ma, bool do_id_user)
 		MEM_freeN(ma->nodetree);
 	}
 
-	if (ma->texpaintslot)
+	if (ma->texpaintslot) {
 		MEM_freeN(ma->texpaintslot);
+		ma->texpaintslot = NULL;
+	}
 
-	if (ma->gpumaterial.first)
-		GPU_material_free(&ma->gpumaterial);
+	GPU_material_free(&ma->gpumaterial);
 }
 
 void init_material(Material *ma)
