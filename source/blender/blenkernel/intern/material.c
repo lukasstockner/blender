@@ -146,6 +146,7 @@ void BKE_material_free(Material *ma, const bool do_id_user)
 	if (ma->nodetree) {
 		ntreeFreeTree_ex(ma->nodetree, do_id_user);
 		MEM_freeN(ma->nodetree);
+		ma->nodetree = NULL;
 	}
 
 	if (ma->texpaintslot) {

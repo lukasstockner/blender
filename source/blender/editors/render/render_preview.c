@@ -876,7 +876,7 @@ static void shader_preview_free(void *customdata)
 		
 		/* get rid of copied lamp */
 		BLI_remlink(&pr_main->lamp, sp->lampcopy);
-		BKE_lamp_free(sp->lampcopy);
+		BKE_lamp_free(sp->lampcopy, false);
 		
 		properties = IDP_GetProperties((ID *)sp->lampcopy, false);
 		if (properties) {

@@ -329,17 +329,39 @@ void BKE_image_free_buffers(Image *ima)
 	ima->ok = IMA_OK;
 }
 
-/* called by library too, do not free ima itself */
-void BKE_image_free(Image *ima)
+#if 0  /* Not needed currently. */
+/**
+ * Release all datablocks (ID) used by this image (datablocks are never freed, they are just unreferenced).
+ *
+ * \param ima The image which has to release its data.
+ */
+void BKE_image_release_datablocks(Image *ima)
+{
+}
+#endif
+
+/**
+ * Free (or release) any data used by this image (does not free the image itself).
+ *
+ * \param ima The image to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this image are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_image_free(Image *ima, const bool UNUSED(do_id_user))
 {
 	int a;
+
+#if 0
+	if (do_id_user) {
+		BKE_image_release_datablocks(ima);
+	}
+#endif
 
 	BKE_image_free_buffers(ima);
 
 	image_free_packedfiles(ima);
 
 	BKE_icon_id_delete(&ima->id);
-	ima->id.icon_id = 0;
 
 	BKE_previewimg_free(&ima->preview);
 
@@ -351,7 +373,10 @@ void BKE_image_free(Image *ima)
 	}
 
 	image_free_views(ima);
-	MEM_freeN(ima->stereo3d_format);
+	if (ima->stereo3d_format) {
+		MEM_freeN(ima->stereo3d_format);
+		ima->stereo3d_format = NULL;
+	}
 }
 
 /* only image block itself */

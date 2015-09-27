@@ -967,13 +967,13 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_texture_free((Tex *)id, do_id_user);
 			break;
 		case ID_IM:
-			BKE_image_free((Image *)id);
+			BKE_image_free((Image *)id, do_id_user);
 			break;
 		case ID_LT:
 			BKE_lattice_free((Lattice *)id);
 			break;
 		case ID_LA:
-			BKE_lamp_free((Lamp *)id);
+			BKE_lamp_free((Lamp *)id, do_id_user);
 			break;
 		case ID_CA:
 			BKE_camera_free((Camera *) id);
