@@ -864,7 +864,7 @@ void *BKE_libblock_copy(ID *id)
 	return BKE_libblock_copy_ex(G.main, id);
 }
 
-static void BKE_library_free(Library *lib)
+static void library_free(Library *lib, const bool UNUSED(do_id_user))
 {
 	if (lib->packedfile)
 		freePackedFile(lib->packedfile);
@@ -925,7 +925,10 @@ void BKE_libblock_free_data(Main *bmain, ID *id)
 	BKE_animdata_main_cb(bmain, animdata_dtar_clear_cb, (void *)id);
 }
 
-/* used in headerbuttons.c image.c mesh.c screen.c sound.c and library.c */
+/**
+ * used in headerbuttons.c image.c mesh.c screen.c sound.c and library.c
+ *
+ * \param do_id_user if \a true, try to release other ID's 'references' hold by \a idv. */
 void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 {
 	ID *id = idv;
@@ -940,10 +943,10 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 
 	switch (type) {    /* GetShort from util.h */
 		case ID_SCE:
-			BKE_scene_free((Scene *)id);
+			BKE_scene_free((Scene *)id, do_id_user);
 			break;
 		case ID_LI:
-			BKE_library_free((Library *)id);
+			library_free((Library *)id, do_id_user);
 			break;
 		case ID_OB:
 			BKE_object_free((Object *)id, do_id_user);

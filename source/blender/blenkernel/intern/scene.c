@@ -360,22 +360,33 @@ void BKE_scene_groups_relink(Scene *sce)
 		BKE_rigidbody_world_groups_relink(sce->rigidbody_world);
 }
 
-/* do not free scene itself */
-void BKE_scene_free(Scene *sce)
+/**
+ * Release all datablocks (ID) used by this scene (datablocks are never freed, they are just unreferenced).
+ *
+ * \param sce The scene which has to release its data.
+ */
+void BKE_scene_release_datablocks(Scene *sce)
 {
 	Base *base;
-	SceneRenderLayer *srl;
 
-	/* check all sequences */
-	BKE_sequencer_clear_scene_in_allseqs(G.main, sce);
+	if (sce == NULL)
+		return;
 
 	base = sce->base.first;
 	while (base) {
 		base->object->id.us--;
+		base->object = NULL;
 		base = base->next;
 	}
 	/* do not free objects! */
-	
+
+	if (sce->world) {
+		sce->world->id.us--;
+		sce->world = NULL;
+	}
+
+	BLI_assert(sce->obedit == NULL);
+
 	if (sce->gpd) {
 #if 0   /* removed since this can be invalid memory when freeing everything */
 		/* since the grease pencil data is freed before the scene.
@@ -386,15 +397,48 @@ void BKE_scene_free(Scene *sce)
 		sce->gpd = NULL;
 	}
 
+	/* No ID refcount here... */
+	sce->camera = NULL;
+	sce->set = NULL;
+	sce->clip = NULL;
+}
+
+/**
+ * Free (or release) any data used by this scene (does not free the scene itself).
+ *
+ * \param sce The scene to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this scene are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_scene_free(Scene *sce, const bool do_id_user)
+{
+	SceneRenderLayer *srl;
+
+	if (do_id_user) {
+		BKE_scene_release_datablocks(sce);
+	}
+
+	/* check all sequences */
+	BKE_sequencer_clear_scene_in_allseqs(G.main, sce);
+
+	sce->basact = NULL;
 	BLI_freelistN(&sce->base);
 	BKE_sequencer_editing_free(sce);
 
 	BKE_animdata_free((ID *)sce);
 	BKE_keyingsets_free(&sce->keyingsets);
-	
-	if (sce->rigidbody_world)
+
+	/* is no lib link block, but material extension */
+	if (sce->nodetree) {
+		ntreeFreeTree_ex(sce->nodetree, do_id_user);
+		sce->nodetree = NULL;
+	}
+
+	if (sce->rigidbody_world) {
 		BKE_rigidbody_free_world(sce->rigidbody_world);
-	
+		sce->rigidbody_world = NULL;
+	}
+
 	if (sce->r.avicodecdata) {
 		free_avicodecdata(sce->r.avicodecdata);
 		MEM_freeN(sce->r.avicodecdata);
@@ -447,15 +491,14 @@ void BKE_scene_free(Scene *sce)
 	if (sce->depsgraph)
 		DEG_graph_free(sce->depsgraph);
 	
-	if (sce->nodetree) {
-		ntreeFreeTree(sce->nodetree);
-		MEM_freeN(sce->nodetree);
-	}
-
-	if (sce->stats)
+	if (sce->stats) {
 		MEM_freeN(sce->stats);
-	if (sce->fps_info)
+		sce->stats = NULL;
+	}
+	if (sce->fps_info) {
 		MEM_freeN(sce->fps_info);
+		sce->fps_info = NULL;
+	}
 
 	BKE_sound_destroy_scene(sce);
 
