@@ -1218,6 +1218,7 @@ static int gpsculpt_brush_exec(bContext *C, wmOperator *op)
 static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	tGP_BrushEditData *gso = NULL;
+	const bool is_modal = RNA_boolean_get(op->ptr, "wait_for_input");
 	bool needs_timer = false;
 	float brush_rate = 0.0f;
 	
@@ -1262,6 +1263,18 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	/* register modal handler */
 	WM_event_add_modal_handler(C, op);
 	
+	/* start drawing immediately? */
+	if (is_modal == false) {
+		ARegion *ar = CTX_wm_region(C);
+		
+		/* apply first dab... */
+		gso->is_painting = true;
+		gpsculpt_brush_apply_event(C, op, event);
+		
+		/* redraw view with feedback */
+		ED_region_tag_redraw(ar);
+	}
+	
 	return OPERATOR_RUNNING_MODAL;
 }
 
@@ -1269,6 +1282,7 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	tGP_BrushEditData *gso = op->customdata;
+	const bool is_modal = RNA_boolean_get(op->ptr, "wait_for_input");
 	bool redraw_region = false;
 	
 	/* The operator can be in 2 states: Painting and Idling */
@@ -1297,7 +1311,17 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 			/* Painting mbut release = Stop painting (back to idle) */
 			case LEFTMOUSE:
 				//BLI_assert(event->val == KM_RELEASE);
-				gso->is_painting = false;
+				if (is_modal) {
+					/* go back to idling... */
+					gso->is_painting = false;
+				}
+				else {
+					/* end sculpt session, since we're not modal */
+					gso->is_painting = false;
+					
+					gpsculpt_brush_exit(C, op);
+					return OPERATOR_FINISHED;
+				}
 				break;
 				
 			/* Abort painting if any of the usual things are tried */
@@ -1311,6 +1335,8 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 	}
 	else {
 		/* Idling */
+		BLI_assert(is_modal == true);
+		
 		switch (event->type) {
 			/* Painting mbut press = Start painting (switch to painting state) */
 			case LEFTMOUSE:
@@ -1417,6 +1443,9 @@ void GPENCIL_OT_brush_paint(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
+	
+	RNA_def_boolean(ot->srna, "wait_for_input", true, "Wait for Input",
+	                "Enter a mini 'sculpt-mode' if enabled, otherwise, exit after drawing a single stroke");
 }
 
 /* ************************************************ */

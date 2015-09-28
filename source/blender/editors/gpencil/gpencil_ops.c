@@ -214,7 +214,12 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	
 	
 	/* Brush-Based Editing */
-	WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", EKEY, KM_PRESS, 0, 0);
+	/* 1) EKEY + LMB = Single stroke, draw immediately */
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", LEFTMOUSE, KM_PRESS, 0, EKEY);
+	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
+	/* 2) EKEY + CTRL = Enter sculpt mode */
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", EKEY, KM_PRESS, KM_CTRL, 0);
+	RNA_boolean_set(kmi->ptr, "wait_for_input", true);
 	
 	/* Shift-FKEY = Sculpt Strength */
 	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_SHIFT, 0);
