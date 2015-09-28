@@ -580,11 +580,10 @@ static bool gp_brush_twist_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 	float angle, inf;
 	
 	/* Angle to rotate by */
-	// FIXME: falloffs for this brush don't work that great
-	//inf = gp_brush_influence_calc(gso, radius, co);
-	//angle = DEG2RADF(1.0f) * inf; // XXX: base value needs work
+	inf = gp_brush_influence_calc(gso, radius, co);
+	angle = DEG2RADF(1.0f) * inf;
 	
-	angle = DEG2RAD(1.0f);
+	//angle = DEG2RAD(1.0f);
 	
 	if (gp_brush_invert_check(gso)) {
 		/* invert angle that we rotate by */
@@ -613,6 +612,7 @@ static bool gp_brush_twist_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 	if (gps->flag & GP_STROKE_3DSPACE) {
 		/* 3D: Project to 3D space */
 		if (gso->sa->spacetype == SPACE_VIEW3D) {
+			// XXX: this conversion process sometimes introduces noise to the data -> some parts don't seem to move at all, while others get random offsets
 			gp_point_xy_to_3d(&gso->gsc, gso->scene, nco, &pt->x);
 		}
 		else {
@@ -1163,7 +1163,8 @@ static void gpsculpt_brush_apply_event(bContext *C, wmOperator *op, const wmEven
 	float mouse[2];
 	int tablet = 0;
 	
-	VECCOPY2D(mouse, event->mval);
+	mouse[0] = event->mval[0] + 1;
+	mouse[1] = event->mval[1] + 1;
 	
 	/* fill in stroke */
 	RNA_collection_add(op->ptr, "stroke", &itemptr);
