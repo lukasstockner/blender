@@ -197,6 +197,13 @@ bGPDlayer *gpencil_layer_addnew(bGPdata *gpd, const char *name, int setactive)
 	copy_v4_v4(gpl->color, U.gpencil_new_layer_col);
 	gpl->thickness = 3;
 	
+	/* onion-skinning settings */
+	gpl->flag |= (GP_LAYER_GHOST_PREVCOL | GP_LAYER_GHOST_NEXTCOL);
+	
+	ARRAY_SET_ITEMS(gpl->gcolor_prev, 0.145098f, 0.419608f, 0.137255f); /* green */
+	ARRAY_SET_ITEMS(gpl->gcolor_next, 0.125490f, 0.082353f, 0.529412f); /* blue */
+	
+	
 	/* auto-name */
 	BLI_strncpy(gpl->info, name, sizeof(gpl->info));
 	BLI_uniquename(&gpd->layers, gpl, DATA_("GP_Layer"), '.', offsetof(bGPDlayer, info), sizeof(gpl->info));
