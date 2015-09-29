@@ -213,13 +213,24 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	RNA_boolean_set(kmi->ptr, "unselected", true);
 	
 	
-	/* Brush-Based Editing */
-	/* 1) EKEY + LMB = Single stroke, draw immediately */
+	/* Brush-Based Editing:
+	 *   EKEY + LMB                          = Single stroke, draw immediately 
+	 *        + Other Modifiers (Ctrl/Shift) = Invert, Smooth, etc.
+	 *
+	 * For the modal version, use D+E -> Sculpt
+	 */
 	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", LEFTMOUSE, KM_PRESS, 0, EKEY);
 	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
-	/* 2) EKEY + CTRL = Enter sculpt mode */
-	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", EKEY, KM_PRESS, KM_CTRL, 0);
-	RNA_boolean_set(kmi->ptr, "wait_for_input", true);
+	
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", LEFTMOUSE, KM_PRESS, KM_CTRL, EKEY);
+	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
+	/*RNA_boolean_set(kmi->ptr, "use_invert", true);*/
+	
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", LEFTMOUSE, KM_PRESS, KM_SHIFT, EKEY);
+	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
+	/*RNA_boolean_set(kmi->ptr, "use_smooth", true);*/
+	
+	
 	
 	/* Shift-FKEY = Sculpt Strength */
 	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_SHIFT, 0);
