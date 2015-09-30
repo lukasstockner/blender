@@ -197,22 +197,48 @@ Brush *BKE_brush_copy(Brush *brush)
 	return brushn;
 }
 
-/* not brush itself */
-void BKE_brush_free(Brush *brush)
+/**
+ * Release all datablocks (ID) used by this brush (datablocks are never freed, they are just unreferenced).
+ *
+ * \param brush The brush which has to release its data.
+ */
+void BKE_brush_release_datablocks(Brush *brush)
 {
 	id_us_min((ID *)brush->mtex.tex);
-	id_us_min((ID *)brush->mask_mtex.tex);
-	id_us_min((ID *)brush->paint_curve);
+	brush->mtex.tex = NULL;
 
-	if (brush->icon_imbuf)
+	id_us_min((ID *)brush->mask_mtex.tex);
+	brush->mask_mtex.tex = NULL;
+
+	id_us_min((ID *)brush->paint_curve);
+	brush->paint_curve = NULL;
+
+	/* No ID refcount here... */
+	brush->toggle_brush = NULL;
+}
+
+/**
+ * Free (or release) any data used by this brush (does not free the brush itself).
+ *
+ * \param brush The brush to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this brush are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_brush_free(Brush *brush, const bool do_id_user)
+{
+	if (do_id_user) {
+		BKE_brush_release_datablocks(brush);
+	}
+
+	if (brush->icon_imbuf) {
 		IMB_freeImBuf(brush->icon_imbuf);
+	}
 
 	BKE_previewimg_free(&(brush->preview));
 
 	curvemapping_free(brush->curve);
 
-	if (brush->gradient)
-		MEM_freeN(brush->gradient);
+	MEM_SAFE_FREE(brush->gradient);
 }
 
 static void extern_local_brush(Brush *brush)

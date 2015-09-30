@@ -985,7 +985,7 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_key_free((Key *)id, do_id_user);
 			break;
 		case ID_WO:
-			BKE_world_free((World *)id);
+			BKE_world_free((World *)id, do_id_user);
 			break;
 		case ID_SCR:
 			BKE_screen_free((bScreen *)id, do_id_user);
@@ -1015,10 +1015,10 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_action_free((bAction *)id);
 			break;
 		case ID_NT:
-			ntreeFreeTree_ex((bNodeTree *)id, do_id_user);
+			ntreeFreeTree_ex((bNodeTree *)id, do_id_user);  /* TODO! */
 			break;
 		case ID_BR:
-			BKE_brush_free((Brush *)id);
+			BKE_brush_free((Brush *)id, do_id_user);
 			break;
 		case ID_PA:
 			BKE_particlesettings_free((ParticleSettings *)id, do_id_user);
