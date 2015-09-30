@@ -423,28 +423,16 @@ void BKE_object_release_datablocks(Object *ob)
  */
 void BKE_object_free(Object *ob, const bool do_id_user)
 {
-	BKE_object_free_derived_caches(ob);
-
 	if (do_id_user) {
 		BKE_object_release_datablocks(ob);
 	}
 
-	if (ob->mat) {
-		MEM_freeN(ob->mat);
-		ob->mat = NULL;
-	}
-	if (ob->matbits) {
-		MEM_freeN(ob->matbits);
-		ob->matbits = NULL;
-	}
-	if (ob->iuser) {
-		MEM_freeN(ob->iuser);
-		ob->iuser = NULL;
-	}
-	if (ob->bb) {
-		MEM_freeN(ob->bb);
-		ob->bb = NULL;
-	}
+	BKE_object_free_derived_caches(ob);
+
+	MEM_SAFE_FREE(ob->mat);
+	MEM_SAFE_FREE(ob->matbits);
+	MEM_SAFE_FREE(ob->iuser);
+	MEM_SAFE_FREE(ob->bb);
 	if (ob->adt) {
 		BKE_animdata_free((ID *)ob);
 		ob->adt = NULL;

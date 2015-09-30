@@ -156,37 +156,22 @@ void BKE_curve_editNurb_free(Curve *cu)
  */
 void BKE_curve_free(Curve *cu, const bool do_id_user)
 {
+	if (do_id_user) {
+		BKE_curve_release_datablocks(cu);
+	}
+
 	BKE_nurbList_free(&cu->nurb);
 	BKE_curve_editfont_free(cu);
 
 	BKE_curve_editNurb_free(cu);
 
-	if (do_id_user) {
-		BKE_curve_release_datablocks(cu);
-	}
-
 	BKE_animdata_free((ID *)cu);
 
-	if (cu->mat) {
-		MEM_freeN(cu->mat);
-		cu->mat = NULL;
-	}
-	if (cu->str) {
-		MEM_freeN(cu->str);
-		cu->str = NULL;
-	}
-	if (cu->strinfo) {
-		MEM_freeN(cu->strinfo);
-		cu->strinfo = NULL;
-	}
-	if (cu->bb) {
-		MEM_freeN(cu->bb);
-		cu->bb = NULL;
-	}
-	if (cu->tb) {
-		MEM_freeN(cu->tb);
-		cu->tb = NULL;
-	}
+	MEM_SAFE_FREE(cu->mat);
+	MEM_SAFE_FREE(cu->str);
+	MEM_SAFE_FREE(cu->strinfo);
+	MEM_SAFE_FREE(cu->bb);
+	MEM_SAFE_FREE(cu->tb);
 }
 
 Curve *BKE_curve_add(Main *bmain, const char *name, int type)

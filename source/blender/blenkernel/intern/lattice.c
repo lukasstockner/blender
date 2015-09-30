@@ -322,10 +322,7 @@ void BKE_lattice_free(Lattice *lt, const bool do_id_user)
 		BKE_lattice_release_datablocks(lt);
 	}
 
-	if (lt->def) {
-		MEM_freeN(lt->def);
-		lt->def = NULL;
-	}
+	MEM_SAFE_FREE(lt->def);
 	if (lt->dvert) {
 		BKE_defvert_array_free(lt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
 		lt->dvert = NULL;

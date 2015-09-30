@@ -97,7 +97,7 @@ void BKE_paint_reset_overlay_invalid(OverlayControlFlags flag);
 void BKE_paint_set_overlay_override(enum OverlayFlags flag);
 
 /* palettes */
-void                 BKE_palette_free(struct Palette *palette);
+void                 BKE_palette_free(struct Palette *palette, const bool do_id_user);
 struct Palette      *BKE_palette_add(struct Main *bmain, const char *name);
 struct PaletteColor *BKE_palette_color_add(struct Palette *palette);
 bool                 BKE_palette_is_empty(const struct Palette *palette);
@@ -106,7 +106,7 @@ void                 BKE_palette_clear(struct Palette *palette);
 
 /* paint curves */
 struct PaintCurve *BKE_paint_curve_add(struct Main *bmain, const char *name);
-void BKE_paint_curve_free(struct PaintCurve *pc);
+void BKE_paint_curve_free(struct PaintCurve *pc, const bool do_id_user);
 
 void BKE_paint_init(struct Scene *sce, PaintMode mode, const char col[3]);
 void BKE_paint_free(struct Paint *p);

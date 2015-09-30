@@ -329,17 +329,6 @@ void BKE_image_free_buffers(Image *ima)
 	ima->ok = IMA_OK;
 }
 
-#if 0  /* Not needed currently. */
-/**
- * Release all datablocks (ID) used by this image (datablocks are never freed, they are just unreferenced).
- *
- * \param ima The image which has to release its data.
- */
-void BKE_image_release_datablocks(Image *ima)
-{
-}
-#endif
-
 /**
  * Free (or release) any data used by this image (does not free the image itself).
  *
@@ -350,12 +339,6 @@ void BKE_image_release_datablocks(Image *ima)
 void BKE_image_free(Image *ima, const bool UNUSED(do_id_user))
 {
 	int a;
-
-#if 0
-	if (do_id_user) {
-		BKE_image_release_datablocks(ima);
-	}
-#endif
 
 	BKE_image_free_buffers(ima);
 
@@ -373,10 +356,7 @@ void BKE_image_free(Image *ima, const bool UNUSED(do_id_user))
 	}
 
 	image_free_views(ima);
-	if (ima->stereo3d_format) {
-		MEM_freeN(ima->stereo3d_format);
-		ima->stereo3d_format = NULL;
-	}
+	MEM_SAFE_FREE(ima->stereo3d_format);
 }
 
 /* only image block itself */

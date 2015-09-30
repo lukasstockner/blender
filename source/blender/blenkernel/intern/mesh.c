@@ -485,22 +485,10 @@ void BKE_mesh_free(Mesh *me, const bool do_id_user)
 		BKE_animdata_free(&me->id);
 		me->adt = NULL;
 	}
-	if (me->mat) {
-		MEM_freeN(me->mat);
-		me->mat = NULL;
-	}
-	if (me->bb) {
-		MEM_freeN(me->bb);
-		me->bb = NULL;
-	}
-	if (me->mselect) {
-		MEM_freeN(me->mselect);
-		me->mselect = NULL;
-	}
-	if (me->edit_btmesh) {
-		MEM_freeN(me->edit_btmesh);
-		me->edit_btmesh = NULL;
-	}
+	MEM_SAFE_FREE(me->mat);
+	MEM_SAFE_FREE(me->bb);
+	MEM_SAFE_FREE(me->mselect);
+	MEM_SAFE_FREE(me->edit_btmesh);
 }
 
 static void mesh_tessface_clear_intern(Mesh *mesh, int free_customdata)

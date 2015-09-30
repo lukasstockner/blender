@@ -241,7 +241,6 @@ void BKE_lamp_release_datablocks(Lamp *la)
  */
 void BKE_lamp_free(Lamp *la, const bool do_id_user)
 {
-	MTex *mtex;
 	int a;
 
 	if (do_id_user) {
@@ -249,11 +248,7 @@ void BKE_lamp_free(Lamp *la, const bool do_id_user)
 	}
 
 	for (a = 0; a < MAX_MTEX; a++) {
-		mtex = la->mtex[a];
-		if (mtex) {
-			MEM_freeN(mtex);
-			la->mtex[a] = NULL;
-		}
+		MEM_SAFE_FREE(la->mtex[a]);
 	}
 	
 	BKE_animdata_free((ID *)la);

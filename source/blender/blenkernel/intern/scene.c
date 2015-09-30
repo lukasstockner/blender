@@ -491,14 +491,8 @@ void BKE_scene_free(Scene *sce, const bool do_id_user)
 	if (sce->depsgraph)
 		DEG_graph_free(sce->depsgraph);
 	
-	if (sce->stats) {
-		MEM_freeN(sce->stats);
-		sce->stats = NULL;
-	}
-	if (sce->fps_info) {
-		MEM_freeN(sce->fps_info);
-		sce->fps_info = NULL;
-	}
+	MEM_SAFE_FREE(sce->stats);
+	MEM_SAFE_FREE(sce->fps_info);
 
 	BKE_sound_destroy_scene(sce);
 

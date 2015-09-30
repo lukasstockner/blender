@@ -101,10 +101,7 @@ void BKE_mball_free(MetaBall *mb, const bool do_id_user)
 		BKE_animdata_free((ID *)mb);
 		mb->adt = NULL;
 	}
-	if (mb->mat) {
-		MEM_freeN(mb->mat);
-		mb->mat = NULL;
-	}
+	MEM_SAFE_FREE(mb->mat);
 
 	BLI_freelistN(&mb->elems);
 	BKE_displist_free(&mb->disp);

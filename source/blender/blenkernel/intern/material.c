@@ -115,27 +115,16 @@ void BKE_material_release_datablocks(Material *ma)
  */
 void BKE_material_free(Material *ma, const bool do_id_user)
 {
-	MTex *mtex;
 	int a;
 	
 	BKE_material_release_datablocks(ma);
 
 	for (a = 0; a < MAX_MTEX; a++) {
-		mtex = ma->mtex[a];
-		if (mtex) {
-			MEM_freeN(mtex);
-			ma->mtex[a] = NULL;
-		}
+		MEM_SAFE_FREE(ma->mtex[a]);
 	}
 	
-	if (ma->ramp_col) {
-		MEM_freeN(ma->ramp_col);
-		ma->ramp_col = NULL;
-	}
-	if (ma->ramp_spec) {
-		MEM_freeN(ma->ramp_spec);
-		ma->ramp_spec = NULL;
-	}
+	MEM_SAFE_FREE(ma->ramp_col);
+	MEM_SAFE_FREE(ma->ramp_spec);
 	
 	BKE_animdata_free((ID *)ma);
 	
@@ -149,10 +138,7 @@ void BKE_material_free(Material *ma, const bool do_id_user)
 		ma->nodetree = NULL;
 	}
 
-	if (ma->texpaintslot) {
-		MEM_freeN(ma->texpaintslot);
-		ma->texpaintslot = NULL;
-	}
+	MEM_SAFE_FREE(ma->texpaintslot);
 
 	GPU_material_free(&ma->gpumaterial);
 }

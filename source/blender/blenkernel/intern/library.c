@@ -988,7 +988,7 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_world_free((World *)id);
 			break;
 		case ID_SCR:
-			BKE_screen_free((bScreen *)id);
+			BKE_screen_free((bScreen *)id, do_id_user);
 			break;
 		case ID_VF:
 			BKE_vfont_free((VFont *)id);
@@ -1037,13 +1037,13 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_mask_free(bmain, (Mask *)id);
 			break;
 		case ID_LS:
-			BKE_linestyle_free((FreestyleLineStyle *)id);
+			BKE_linestyle_free((FreestyleLineStyle *)id, do_id_user);
 			break;
 		case ID_PAL:
-			BKE_palette_free((Palette *)id);
+			BKE_palette_free((Palette *)id, do_id_user);
 			break;
 		case ID_PC:
-			BKE_paint_curve_free((PaintCurve *)id);
+			BKE_paint_curve_free((PaintCurve *)id, do_id_user);
 			break;
 	}
 

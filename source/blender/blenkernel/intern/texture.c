@@ -595,10 +595,7 @@ void BKE_texture_free(Tex *tex, const bool do_id_user)
 		tex->nodetree = NULL;
 	}
 
-	if (tex->coba) {
-		MEM_freeN(tex->coba);
-		tex->coba = NULL;
-	}
+	MEM_SAFE_FREE(tex->coba);
 	if (tex->env) {
 		BKE_texture_envmap_free(tex->env);
 		tex->env = NULL;
