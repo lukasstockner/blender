@@ -381,13 +381,10 @@ void BKE_particlesettings_release_datablocks(ParticleSettings *part)
 	MTex *mtex;
 	int a;
 
-	if (part == NULL)
-		return;
-
 	for (a = 0; a < MAX_MTEX; a++) {
 		mtex = part->mtex[a];
 		if (mtex && mtex->tex) {
-			mtex->tex->id.us--;
+			id_us_min(&mtex->tex->id);
 			mtex->tex = NULL;
 		}
 	}

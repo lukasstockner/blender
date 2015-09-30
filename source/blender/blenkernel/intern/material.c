@@ -91,13 +91,10 @@ void BKE_material_release_datablocks(Material *ma)
 	MTex *mtex;
 	int a;
 
-	if (ma == NULL)
-		return;
-
 	for (a = 0; a < MAX_MTEX; a++) {
 		mtex = ma->mtex[a];
 		if (mtex && mtex->tex) {
-			mtex->tex->id.us--;
+			id_us_min(&mtex->tex->id);
 			mtex->tex = NULL;
 		}
 	}
@@ -116,8 +113,10 @@ void BKE_material_release_datablocks(Material *ma)
 void BKE_material_free(Material *ma, const bool do_id_user)
 {
 	int a;
-	
-	BKE_material_release_datablocks(ma);
+
+	if (do_id_user)	 {
+		BKE_material_release_datablocks(ma);
+	}
 
 	for (a = 0; a < MAX_MTEX; a++) {
 		MEM_SAFE_FREE(ma->mtex[a]);
@@ -127,9 +126,6 @@ void BKE_material_free(Material *ma, const bool do_id_user)
 	MEM_SAFE_FREE(ma->ramp_spec);
 	
 	BKE_animdata_free((ID *)ma);
-	
-	BKE_previewimg_free(&ma->preview);
-	BKE_icon_id_delete((ID *)ma);
 	
 	/* is no lib link block, but material extension */
 	if (ma->nodetree) {
@@ -141,6 +137,9 @@ void BKE_material_free(Material *ma, const bool do_id_user)
 	MEM_SAFE_FREE(ma->texpaintslot);
 
 	GPU_material_free(&ma->gpumaterial);
+
+	BKE_previewimg_free(&ma->preview);
+	BKE_icon_id_delete((ID *)ma);
 }
 
 void init_material(Material *ma)

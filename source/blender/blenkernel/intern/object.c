@@ -390,26 +390,25 @@ void BKE_object_release_datablocks(Object *ob)
 	int a;
 
 	if (ob->data) {
-		ID *id = ob->data;
-		id->us--;
+		id_us_min((ID *)ob->data);
 		ob->data = NULL;
 	}
 
 	if (ob->mat) {
 		for (a = 0; a < ob->totcol; a++) {
 			if (ob->mat[a]) {
-				ob->mat[a]->id.us--;
+				id_us_min(&ob->mat[a]->id);
 				ob->mat[a] = NULL;
 			}
 		}
 	}
 
 	if (ob->poselib) {
-		ob->poselib->id.us--;
+		id_us_min(&ob->poselib->id);
 		ob->poselib = NULL;
 	}
 	if (ob->gpd) {
-		ob->gpd->id.us--;
+		id_us_min(&ob->gpd->id);
 		ob->gpd = NULL;
 	}
 }
@@ -433,10 +432,9 @@ void BKE_object_free(Object *ob, const bool do_id_user)
 	MEM_SAFE_FREE(ob->matbits);
 	MEM_SAFE_FREE(ob->iuser);
 	MEM_SAFE_FREE(ob->bb);
-	if (ob->adt) {
-		BKE_animdata_free((ID *)ob);
-		ob->adt = NULL;
-	}
+
+	BKE_animdata_free((ID *)ob);
+
 	BLI_freelistN(&ob->defbase);
 	if (ob->pose) {
 		BKE_pose_free_ex(ob->pose, do_id_user);

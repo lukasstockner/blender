@@ -369,30 +369,26 @@ void BKE_scene_release_datablocks(Scene *sce)
 {
 	Base *base;
 
-	if (sce == NULL)
-		return;
-
-	base = sce->base.first;
-	while (base) {
-		base->object->id.us--;
+	for (base = sce->base.first; base; base = base->next) {
+		id_us_min(&base->object->id);
 		base->object = NULL;
-		base = base->next;
 	}
 	/* do not free objects! */
 
 	if (sce->world) {
-		sce->world->id.us--;
+		id_us_min(&sce->world->id);
 		sce->world = NULL;
 	}
 
 	BLI_assert(sce->obedit == NULL);
 
 	if (sce->gpd) {
+		/* XXX TODO Fix This! */
 #if 0   /* removed since this can be invalid memory when freeing everything */
 		/* since the grease pencil data is freed before the scene.
 		 * since grease pencil data is not (yet?), shared between objects
 		 * its probably safe not to do this, some save and reload will free this. */
-		sce->gpd->id.us--;
+		id_us_min(&sce->gpd->id);
 #endif
 		sce->gpd = NULL;
 	}

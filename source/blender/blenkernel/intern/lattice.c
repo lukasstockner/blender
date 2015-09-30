@@ -300,11 +300,8 @@ Lattice *BKE_lattice_copy(Lattice *lt)
  */
 void BKE_lattice_release_datablocks(Lattice *lt)
 {
-	if (lt == NULL)
-		return;
-
 	if (lt->key) {
-		lt->key->id.us--;
+		id_us_min(&lt->key->id);
 		lt->key = NULL;
 	}
 }

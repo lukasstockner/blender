@@ -220,13 +220,10 @@ void BKE_lamp_release_datablocks(Lamp *la)
 	MTex *mtex;
 	int a;
 
-	if (la == NULL)
-		return;
-
 	for (a = 0; a < MAX_MTEX; a++) {
 		mtex = la->mtex[a];
 		if (mtex && mtex->tex) {
-			mtex->tex->id.us--;
+			id_us_min(&mtex->tex->id);
 			mtex->tex = NULL;
 		}
 	}

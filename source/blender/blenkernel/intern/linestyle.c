@@ -133,13 +133,10 @@ void BKE_linestyle_release_datablocks(FreestyleLineStyle *linestyle)
 	MTex *mtex;
 	int a;
 
-	if (linestyle == NULL)
-		return;
-
 	for (a = 0; a < MAX_MTEX; a++) {
 		mtex = linestyle->mtex[a];
 		if (mtex && mtex->tex) {
-			mtex->tex->id.us--;
+			id_us_min(&mtex->tex->id);
 			mtex->tex = NULL;
 		}
 	}
@@ -169,9 +166,11 @@ void BKE_linestyle_free(FreestyleLineStyle *linestyle, const bool do_id_user)
 	if (linestyle->nodetree) {
 		ntreeFreeTree(linestyle->nodetree);
 		MEM_freeN(linestyle->nodetree);
+		linestyle->nodetree = NULL;
 	}
 
 	BKE_animdata_free(&linestyle->id);
+
 	while ((m = (LineStyleModifier *)linestyle->color_modifiers.first))
 		BKE_linestyle_color_modifier_remove(linestyle, m);
 	while ((m = (LineStyleModifier *)linestyle->alpha_modifiers.first))

@@ -564,11 +564,8 @@ int colorband_element_remove(struct ColorBand *coba, int index)
  */
 void BKE_texture_release_datablocks(Tex *tex)
 {
-	if (tex == NULL)
-		return;
-
 	if (tex->ima) {
-		tex->ima->id.us--;
+		id_us_min(&tex->ima->id);
 		tex->ima = NULL;
 	}
 }

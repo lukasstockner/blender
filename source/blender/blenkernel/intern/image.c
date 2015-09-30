@@ -344,10 +344,6 @@ void BKE_image_free(Image *ima, const bool UNUSED(do_id_user))
 
 	image_free_packedfiles(ima);
 
-	BKE_icon_id_delete(&ima->id);
-
-	BKE_previewimg_free(&ima->preview);
-
 	for (a = 0; a < IMA_MAX_RENDER_SLOT; a++) {
 		if (ima->renders[a]) {
 			RE_FreeRenderResult(ima->renders[a]);
@@ -357,6 +353,9 @@ void BKE_image_free(Image *ima, const bool UNUSED(do_id_user))
 
 	image_free_views(ima);
 	MEM_SAFE_FREE(ima->stereo3d_format);
+
+	BKE_previewimg_free(&ima->preview);
+	BKE_icon_id_delete(&ima->id);
 }
 
 /* only image block itself */

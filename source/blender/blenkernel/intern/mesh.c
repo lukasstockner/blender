@@ -440,26 +440,22 @@ void BKE_mesh_release_datablocks(Mesh *me)
 {
 	int a;
 	
-	if (me == NULL)
-		return;
-
 	if (me->mat) {
 		for (a = 0; a < me->totcol; a++) {
 			if (me->mat[a]) {
-				me->mat[a]->id.us--;
+				id_us_min(&me->mat[a]->id);
 				me->mat[a] = NULL;
 			}
 		}
 	}
 
 	if (me->key) {
-		me->key->id.us--;
+		id_us_min(&me->key->id);
 		me->key = NULL;
 	}
 	
-	if (me->texcomesh) {
-		me->texcomesh = NULL;  /* No user refcount handling here??? */
-	}
+	/* No ID refcount here... */
+	me->texcomesh = NULL;
 }
 
 /**
@@ -481,10 +477,8 @@ void BKE_mesh_free(Mesh *me, const bool do_id_user)
 	CustomData_free(&me->ldata, me->totloop);
 	CustomData_free(&me->pdata, me->totpoly);
 
-	if (me->adt) {
-		BKE_animdata_free(&me->id);
-		me->adt = NULL;
-	}
+	BKE_animdata_free(&me->id);
+
 	MEM_SAFE_FREE(me->mat);
 	MEM_SAFE_FREE(me->bb);
 	MEM_SAFE_FREE(me->mselect);

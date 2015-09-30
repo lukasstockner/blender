@@ -204,17 +204,24 @@ Brush *BKE_brush_copy(Brush *brush)
  */
 void BKE_brush_release_datablocks(Brush *brush)
 {
-	id_us_min((ID *)brush->mtex.tex);
-	brush->mtex.tex = NULL;
+	if (brush->mtex.tex) {
+		id_us_min(&brush->mtex.tex->id);
+		brush->mtex.tex = NULL;
+	}
 
-	id_us_min((ID *)brush->mask_mtex.tex);
-	brush->mask_mtex.tex = NULL;
+	if (brush->mask_mtex.tex) {
+		id_us_min(&brush->mask_mtex.tex->id);
+		brush->mask_mtex.tex = NULL;
+	}
 
-	id_us_min((ID *)brush->paint_curve);
-	brush->paint_curve = NULL;
+	if (brush->paint_curve) {
+		id_us_min(&brush->paint_curve->id);
+		brush->paint_curve = NULL;
+	}
 
 	/* No ID refcount here... */
 	brush->toggle_brush = NULL;
+	brush->clone.image = NULL;
 }
 
 /**
@@ -234,11 +241,11 @@ void BKE_brush_free(Brush *brush, const bool do_id_user)
 		IMB_freeImBuf(brush->icon_imbuf);
 	}
 
-	BKE_previewimg_free(&(brush->preview));
-
 	curvemapping_free(brush->curve);
 
 	MEM_SAFE_FREE(brush->gradient);
+
+	BKE_previewimg_free(&(brush->preview));
 }
 
 static void extern_local_brush(Brush *brush)

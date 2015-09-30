@@ -99,8 +99,8 @@ void BKE_world_free(World *wrld, const bool do_id_user)
 
 	GPU_material_free(&wrld->gpumaterial);
 	
-	BKE_icon_id_delete((struct ID *)wrld);
 	BKE_previewimg_free(&wrld->preview);
+	BKE_icon_id_delete((struct ID *)wrld);
 }
 
 World *add_world(Main *bmain, const char *name)

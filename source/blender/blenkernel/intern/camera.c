@@ -151,9 +151,6 @@ void BKE_camera_make_local(Camera *cam)
  */
 void BKE_camera_release_datablocks(Camera *ca)
 {
-	if (ca == NULL)
-		return;
-
 	/* No ID refcount here... */
 	ca->dof_ob = NULL;
 }
