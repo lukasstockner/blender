@@ -718,7 +718,6 @@ static void rna_Main_grease_pencil_remove(Main *bmain, ReportList *reports, Poin
 {
 	bGPdata *gpd = gpd_ptr->data;
 	if (ID_REAL_USERS(gpd) <= 0) {
-		BKE_gpencil_free(gpd);
 		BKE_libblock_free(bmain, gpd);
 		RNA_POINTER_INVALIDATE(gpd_ptr);
 	}

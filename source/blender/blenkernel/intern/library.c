@@ -1021,14 +1021,14 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_brush_free((Brush *)id);
 			break;
 		case ID_PA:
-			BKE_particlesettings_free((ParticleSettings *)id);
+			BKE_particlesettings_free((ParticleSettings *)id, do_id_user);
 			break;
 		case ID_WM:
 			if (free_windowmanager_cb)
 				free_windowmanager_cb(NULL, (wmWindowManager *)id);
 			break;
 		case ID_GD:
-			BKE_gpencil_free((bGPdata *)id);
+			BKE_gpencil_free((bGPdata *)id, do_id_user);
 			break;
 		case ID_MC:
 			BKE_movieclip_free((MovieClip *)id);
