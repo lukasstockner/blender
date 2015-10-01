@@ -99,8 +99,10 @@ bSound *BKE_sound_new_file(struct Main *bmain, const char *filename)
 	return sound;
 }
 
-void BKE_sound_free(bSound *sound)
+void BKE_sound_free(bSound *sound, const bool UNUSED(do_id_user))
 {
+	/* This ID has no animdata. */
+
 	if (sound->packedfile) {
 		freePackedFile(sound->packedfile);
 		sound->packedfile = NULL;
@@ -124,8 +126,7 @@ void BKE_sound_free(bSound *sound)
 		BLI_spin_end(sound->spinlock);
 		MEM_freeN(sound->spinlock);
 		sound->spinlock = NULL;
-	}
-	
+	}	
 #endif  /* WITH_AUDASPACE */
 }
 
@@ -290,15 +291,6 @@ bSound *BKE_sound_new_limiter(struct Main *bmain, bSound *source, float start, f
 	return sound;
 }
 #endif
-
-void BKE_sound_delete(struct Main *bmain, bSound *sound)
-{
-	if (sound) {
-		BKE_sound_free(sound);
-
-		BKE_libblock_free(bmain, sound);
-	}
-}
 
 void BKE_sound_cache(bSound *sound)
 {

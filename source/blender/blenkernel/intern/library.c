@@ -1000,10 +1000,10 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			/* deprecated */
 			break;
 		case ID_SPK:
-			BKE_speaker_free((Speaker *)id);
+			BKE_speaker_free((Speaker *)id, do_id_user);
 			break;
 		case ID_SO:
-			BKE_sound_free((bSound *)id);
+			BKE_sound_free((bSound *)id, do_id_user);
 			break;
 		case ID_GR:
 			BKE_group_free((Group *)id);
