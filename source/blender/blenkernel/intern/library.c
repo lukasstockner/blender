@@ -991,10 +991,10 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_screen_free((bScreen *)id, do_id_user);
 			break;
 		case ID_VF:
-			BKE_vfont_free((VFont *)id);
+			BKE_vfont_free((VFont *)id, do_id_user);
 			break;
 		case ID_TXT:
-			BKE_text_free((Text *)id);
+			BKE_text_free((Text *)id, do_id_user);
 			break;
 		case ID_SCRIPT:
 			/* deprecated */
