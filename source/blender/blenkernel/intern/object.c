@@ -387,6 +387,8 @@ void BKE_object_free_caches(Object *object)
  */
 void BKE_object_release_datablocks(Object *ob)
 {
+	/* Note: This totally ignores indirectly-'linked' datablocks (through constraints, modifiers...).
+	 *       That’s fine for now (none of them actually refcount IDs), remap project will rework this deeply anyway. */
 	int a;
 
 	if (ob->data) {
