@@ -1009,10 +1009,10 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_group_free((Group *)id);
 			break;
 		case ID_AR:
-			BKE_armature_free((bArmature *)id);
+			BKE_armature_free((bArmature *)id, do_id_user);
 			break;
 		case ID_AC:
-			BKE_action_free((bAction *)id);
+			BKE_action_free((bAction *)id, do_id_user);
 			break;
 		case ID_NT:
 			ntreeFreeTree_ex((bNodeTree *)id, do_id_user);  /* TODO! */
