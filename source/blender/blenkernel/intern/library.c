@@ -1031,10 +1031,10 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_gpencil_free((bGPdata *)id, do_id_user);
 			break;
 		case ID_MC:
-			BKE_movieclip_free((MovieClip *)id);
+			BKE_movieclip_free((MovieClip *)id, do_id_user);
 			break;
 		case ID_MSK:
-			BKE_mask_free(bmain, (Mask *)id);
+			BKE_mask_free((Mask *)id, do_id_user);
 			break;
 		case ID_LS:
 			BKE_linestyle_free((FreestyleLineStyle *)id, do_id_user);

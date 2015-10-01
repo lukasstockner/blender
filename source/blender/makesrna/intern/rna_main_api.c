@@ -709,7 +709,7 @@ static Mask *rna_Main_mask_new(Main *bmain, const char *name)
 static void rna_Main_masks_remove(Main *bmain, PointerRNA *mask_ptr)
 {
 	Mask *mask = mask_ptr->data;
-	BKE_mask_free(bmain, mask);
+	BKE_mask_unlink(bmain, mask);
 	BKE_libblock_free(bmain, mask);
 	RNA_POINTER_INVALIDATE(mask_ptr);
 }
