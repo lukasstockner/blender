@@ -424,9 +424,10 @@ void BKE_scene_free(Scene *sce, const bool do_id_user)
 	BKE_animdata_free((ID *)sce);
 	BKE_keyingsets_free(&sce->keyingsets);
 
-	/* is no lib link block, but material extension */
+	/* is no lib link block, but scene extension */
 	if (sce->nodetree) {
-		ntreeFreeTree_ex(sce->nodetree, do_id_user);
+		ntreeFreeTree(sce->nodetree, do_id_user);
+		MEM_freeN(sce->nodetree);
 		sce->nodetree = NULL;
 	}
 

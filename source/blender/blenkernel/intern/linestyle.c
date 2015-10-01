@@ -164,7 +164,7 @@ void BKE_linestyle_free(FreestyleLineStyle *linestyle, const bool do_id_user)
 
 	/* is no lib link block, but linestyle extension */
 	if (linestyle->nodetree) {
-		ntreeFreeTree(linestyle->nodetree);
+		ntreeFreeTree(linestyle->nodetree, true);  /* XXX Or do_id_user? */
 		MEM_freeN(linestyle->nodetree);
 		linestyle->nodetree = NULL;
 	}

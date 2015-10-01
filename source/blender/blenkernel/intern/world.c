@@ -93,8 +93,9 @@ void BKE_world_free(World *wrld, const bool do_id_user)
 
 	/* is no lib link block, but world extension */
 	if (wrld->nodetree) {
-		ntreeFreeTree_ex(wrld->nodetree, do_id_user);
-		MEM_SAFE_FREE(wrld->nodetree);
+		ntreeFreeTree(wrld->nodetree, do_id_user);
+		MEM_freeN(wrld->nodetree);
+		wrld->nodetree = NULL;
 	}
 
 	GPU_material_free(&wrld->gpumaterial);

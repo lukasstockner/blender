@@ -585,9 +585,9 @@ void BKE_texture_free(Tex *tex, const bool do_id_user)
 
 	BKE_animdata_free((ID *)tex);
 
-	/* is no lib link block, but material extension */
+	/* is no lib link block, but texture extension */
 	if (tex->nodetree) {
-		ntreeFreeTree_ex(tex->nodetree, do_id_user);
+		ntreeFreeTree(tex->nodetree, do_id_user);
 		MEM_freeN(tex->nodetree);
 		tex->nodetree = NULL;
 	}

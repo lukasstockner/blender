@@ -255,7 +255,7 @@ void BKE_lamp_free(Lamp *la, const bool do_id_user)
 
 	/* is no lib link block, but lamp extension */
 	if (la->nodetree) {
-		ntreeFreeTree_ex(la->nodetree, do_id_user);
+		ntreeFreeTree(la->nodetree, do_id_user);
 		MEM_freeN(la->nodetree);
 		la->nodetree = NULL;
 	}

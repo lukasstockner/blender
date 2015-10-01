@@ -129,7 +129,7 @@ void BKE_material_free(Material *ma, const bool do_id_user)
 	
 	/* is no lib link block, but material extension */
 	if (ma->nodetree) {
-		ntreeFreeTree_ex(ma->nodetree, do_id_user);
+		ntreeFreeTree(ma->nodetree, do_id_user);
 		MEM_freeN(ma->nodetree);
 		ma->nodetree = NULL;
 	}
@@ -1777,7 +1777,7 @@ void free_matcopybuf(void)
 	matcopybuf.ramp_spec = NULL;
 
 	if (matcopybuf.nodetree) {
-		ntreeFreeTree_ex(matcopybuf.nodetree, false);
+		ntreeFreeTree(matcopybuf.nodetree, false);
 		MEM_freeN(matcopybuf.nodetree);
 		matcopybuf.nodetree = NULL;
 	}
@@ -1827,7 +1827,7 @@ void paste_matcopybuf(Material *ma)
 	}
 
 	if (ma->nodetree) {
-		ntreeFreeTree(ma->nodetree);
+		ntreeFreeTree(ma->nodetree, true);  /* XXX Or do_id_user? */
 		MEM_freeN(ma->nodetree);
 	}
 

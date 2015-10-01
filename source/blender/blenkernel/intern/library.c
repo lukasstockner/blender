@@ -1006,7 +1006,7 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_sound_free((bSound *)id, do_id_user);
 			break;
 		case ID_GR:
-			BKE_group_free((Group *)id);
+			BKE_group_free((Group *)id, do_id_user);
 			break;
 		case ID_AR:
 			BKE_armature_free((bArmature *)id, do_id_user);
@@ -1015,7 +1015,7 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_action_free((bAction *)id, do_id_user);
 			break;
 		case ID_NT:
-			ntreeFreeTree_ex((bNodeTree *)id, do_id_user);  /* TODO! */
+			ntreeFreeTree((bNodeTree *)id, do_id_user);
 			break;
 		case ID_BR:
 			BKE_brush_free((Brush *)id, do_id_user);
