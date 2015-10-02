@@ -52,6 +52,11 @@ ccl_device_inline float3 stack_load_float3(float *stack, uint a)
 	return make_float3(stack[a+0], stack[a+1], stack[a+2]);
 }
 
+ccl_device_inline float3 stack_load_float3_default(float *stack, uint a, float3 value)
+{
+	return (a == (uint)SVM_STACK_INVALID)? value: stack_load_float3(stack, a);
+}
+
 ccl_device_inline void stack_store_float3(float *stack, uint a, float3 f)
 {
 	kernel_assert(a+2 < SVM_STACK_SIZE);
@@ -158,6 +163,7 @@ CCL_NAMESPACE_END
 #include "svm_camera.h"
 #include "svm_geometry.h"
 #include "svm_hsv.h"
+#include "svm_ies.h"
 #include "svm_image.h"
 #include "svm_gamma.h"
 #include "svm_brightness.h"
@@ -408,6 +414,9 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ccl_a
 				break;
 			case NODE_LIGHT_FALLOFF:
 				svm_node_light_falloff(sd, stack, node);
+				break;
+			case NODE_IES:
+				svm_node_ies(kg, sd, stack, node, &offset);
 				break;
 #  endif  /* __EXTRA_NODES__ */
 #endif  /* NODES_GROUP(NODE_GROUP_LEVEL_2) */

@@ -77,8 +77,12 @@ KERNEL_TEX(float, texture_float, __lookup_table)
 /* sobol */
 KERNEL_TEX(uint, texture_uint, __sobol_directions)
 
+/* ies lights */
+KERNEL_TEX(float, texture_float, __ies)
+
 #ifdef __KERNEL_CUDA__
 #  if __CUDA_ARCH__ < 300
+
 /* full-float image */
 KERNEL_IMAGE_TEX(float4, texture_image_float4, __tex_image_float4_000)
 KERNEL_IMAGE_TEX(float4, texture_image_float4, __tex_image_float4_001)

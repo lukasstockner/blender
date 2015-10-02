@@ -389,10 +389,10 @@ void ImageTextureNode::compile(OSLCompiler& compiler)
 		/* TODO(sergey): It's not so simple to pass custom attribute
 		 * to the texture() function in order to make builtin images
 		 * support more clear. So we use special file name which is
-		 * "@<slot_number>" and check whether file name matches this
+		 * "@i<slot_number>" and check whether file name matches this
 		 * mask in the OSLRenderServices::texture().
 		 */
-		compiler.parameter("filename", string_printf("@%d", slot).c_str());
+		compiler.parameter("filename", string_printf("@i%d", slot).c_str());
 	}
 	if(is_linear || color_space != NODE_COLOR_SPACE_COLOR)
 		compiler.parameter("color_space", "linear");
@@ -574,7 +574,7 @@ void EnvironmentTextureNode::compile(OSLCompiler& compiler)
 		compiler.parameter(this, "filename");
 	}
 	else {
-		compiler.parameter("filename", string_printf("@%d", slot).c_str());
+		compiler.parameter("filename", string_printf("@i%d", slot).c_str());
 	}
 	compiler.parameter(this, "projection");
 	if(is_linear || color_space != NODE_COLOR_SPACE_COLOR)
@@ -959,6 +959,77 @@ void VoronoiTextureNode::compile(OSLCompiler& compiler)
 
 	compiler.parameter(this, "coloring");
 	compiler.add(this, "node_voronoi_texture");
+}
+
+/* IES Light */
+
+NODE_DEFINE(IESLightNode)
+{
+	NodeType* type = NodeType::add("ies_light", create, NodeType::SHADER);
+
+	SOCKET_STRING(filename, "Filename", ustring(""));
+
+	SOCKET_IN_FLOAT(strength, "Strength", 0.0f);
+	SOCKET_IN_VECTOR(vector, "Vector", make_float3(0.0f, 0.0f, 0.0f));
+
+	SOCKET_OUT_FLOAT(fac, "Fac");
+
+	return type;
+}
+
+IESLightNode::IESLightNode()
+: ShaderNode(node_type)
+{
+	image_manager = NULL;
+	slot = -1;
+}
+
+ShaderNode *IESLightNode::clone() const
+{
+	IESLightNode *node = new IESLightNode(*this);
+	node->image_manager = NULL;
+	node->slot = -1;
+	return node;
+}
+
+IESLightNode::~IESLightNode()
+{
+	if(image_manager)
+		image_manager->remove_ies(slot);
+}
+
+void IESLightNode::compile(SVMCompiler& compiler)
+{
+	image_manager = compiler.image_manager;
+	if(slot == -1) {
+		if(ies.empty())
+			slot = image_manager->add_ies_from_file(filename);
+		else
+			slot = image_manager->add_ies(ies);
+	}
+
+	ShaderInput *strength_in = input("Strength");
+	ShaderInput *vector_in = input("Vector");
+	ShaderOutput *fac_out = output("Fac");
+
+	if(vector_in->link) compiler.stack_assign(vector_in);
+	if(strength_in->link) compiler.stack_assign(strength_in);
+	compiler.stack_assign(fac_out);
+
+	compiler.add_node(NODE_IES, compiler.encode_uchar4(strength_in->stack_offset, vector_in->stack_offset, fac_out->stack_offset, 0), slot, __float_as_int(strength));
+}
+
+void IESLightNode::compile(OSLCompiler& compiler)
+{
+	image_manager = compiler.image_manager;
+	if(slot == -1) {
+		if(ies.empty())
+			slot = image_manager->add_ies_from_file(filename);
+		else
+			slot = image_manager->add_ies(ies);
+	}
+	compiler.parameter("slot", slot);
+	compiler.add(this, "node_ies_light");
 }
 
 /* Musgrave Texture */
@@ -1477,7 +1548,7 @@ void PointDensityTextureNode::compile(OSLCompiler& compiler)
 		}
 
 		if(slot != -1) {
-			compiler.parameter("filename", string_printf("@%d", slot).c_str());
+			compiler.parameter("filename", string_printf("@i%d", slot).c_str());
 		}
 		if(space == NODE_TEX_VOXEL_SPACE_WORLD) {
 			compiler.parameter("mapping", transform_transpose(tfm));
