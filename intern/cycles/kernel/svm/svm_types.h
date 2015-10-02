@@ -127,6 +127,7 @@ typedef enum NodeType {
 	NODE_HAIR_INFO,
 	NODE_UVMAP,
 	NODE_TEX_VOXEL,
+	NODE_IES
 } NodeType;
 
 typedef enum NodeAttributeType {

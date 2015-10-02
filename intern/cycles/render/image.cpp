@@ -163,6 +163,12 @@ static bool image_equals(ImageManager::Image *image,
 	       image->extension == extension;
 }
 
+static bool ies_equals(ImageManager::IESLight *ies,
+                       const string& filename)
+{
+	return ies->filename == filename;
+}
+
 int ImageManager::add_image(const string& filename,
                             void *builtin_data,
                             bool animated,
@@ -391,6 +397,146 @@ void ImageManager::tag_reload_image(const string& filename,
 				float_images[slot]->need_load = true;
 				break;
 			}
+		}
+	}
+}
+
+ImageManager::IESLight::IESLight(const string& filename_)
+{
+	filename = filename_;
+	users = 1;
+
+	bool successful = false;
+	float factor;
+	v_angles = h_angles = NULL;
+	intensity = NULL;
+	h_angles_num = 0;
+	FILE *file = fopen(filename.c_str(), "r");
+	if(file != NULL) {
+		char line[1024];
+		bool found_tilt = false;
+		while(fgets(line, 1024, file)) {
+			if(strncmp(line, "TILT=", 5) == 0) {
+				found_tilt = true;
+				break;
+			}
+		}
+		if(found_tilt) {
+			if(strncmp(line, "TILT=INCLUDE", 12) == 0) {
+				for(int i = 0; i < 4; i++)
+					fgets(line, 1024, file);
+			}
+			int num_lamps, photo_type, unit;
+			float lumen_per_lamp, width, height, length, ballast, ballast_fac, watts;
+			if(   fscanf(file, "%d %f %f %d %d %d %d %f %f %f\r\n", &num_lamps, &lumen_per_lamp, &factor, &v_angles_num, &h_angles_num, &photo_type, &unit, &width, &length, &height) == 10
+			   && fscanf(file, "%f %f %f\r\n", &ballast, &ballast_fac, &watts) == 3) {
+				factor *= ballast * ballast_fac;
+				v_angles = new float[v_angles_num];
+				if(fgets(line, 1024, file)) {
+					char *line_next = line-1;
+					int pos = 0;
+					while(line_next && sscanf(line_next+1, "%f", &v_angles[pos++])) {
+						line_next = strchr(line_next+1, ' ');
+					}
+					if(pos == v_angles_num) {
+						h_angles = new float[h_angles_num];
+						if(fgets(line, 1024, file)) {
+							line_next = line-1;
+							pos = 0;
+							while(line_next && sscanf(line_next+1, "%f", &h_angles[pos++])) {
+								line_next = strchr(line_next+1, ' ');
+							}
+							if(pos == h_angles_num) {
+								intensity = new float*[h_angles_num];
+								int h;
+								for(h = 0; h < h_angles_num; h++)
+									intensity[h] = NULL;
+								for(h = 0; h < h_angles_num; h++) {
+									if(!fgets(line, 1024, file))
+										break;
+									line_next = line-1;
+									pos = 0;
+									intensity[h] = new float[v_angles_num];
+									while(line_next && sscanf(line_next+1, "%f", &intensity[h][pos++])) {
+										line_next = strchr(line_next+1, ' ');
+									}
+									if(pos != v_angles_num)
+										break;
+								}
+								if(h == h_angles_num) {
+									successful = true;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	if(!successful) {
+		delete[] v_angles;
+		delete[] h_angles;
+		if(intensity)
+			for(int i = 0; i < h_angles_num; i++)
+				delete[] intensity[i];
+		delete[] intensity;
+		printf("Loading %s failed!\n", filename.c_str());
+	} else printf("Loaded %s, is %d by %d!\n", filename.c_str(), h_angles_num, v_angles_num);
+}
+
+ImageManager::IESLight::~IESLight()
+{
+	delete[] v_angles;
+	delete[] h_angles;
+	if(intensity) {
+		for(int i = 0; i < h_angles_num; i++)
+			delete[] intensity[i];
+	}
+	delete[] intensity;
+}
+
+int ImageManager::add_ies(const string& filename)
+{
+	size_t slot;
+	IESLight *ies;
+	for(slot = 0; slot < ies_lights.size(); slot++) {
+		ies = ies_lights[slot];
+		if(ies && ies_equals(ies, filename)) {
+			ies->users++;
+			return slot;
+		}
+	}
+	for(slot = 0; slot < ies_lights.size(); slot++) {
+		if(!ies_lights[slot])
+			break;
+	}
+
+	if(slot == ies_lights.size())
+		ies_lights.resize(ies_lights.size() + 1);
+
+	ies = new IESLight(filename);
+
+	ies_lights[slot] = ies;
+	need_update = true;
+
+	return slot;
+}
+
+void ImageManager::remove_ies(int slot)
+{
+	ies_lights[slot]->users--;
+	assert(ies_lights[slot]->users >= 0);
+
+	if(ies_lights[slot]->users == 0)
+		need_update = true;
+}
+
+void ImageManager::remove_ies(const string& filename)
+{
+	for(size_t slot = 0; slot < ies_lights.size(); slot++) {
+		if(ies_lights[slot] && ies_equals(ies_lights[slot], filename)) {
+			remove_ies(slot);
+			break;
 		}
 	}
 }
@@ -839,12 +985,85 @@ void ImageManager::device_update(Device *device, DeviceScene *dscene, Progress& 
 		}
 	}
 
+	for(size_t slot = 0; slot < ies_lights.size(); slot++) {
+		if(!ies_lights[slot])
+			continue;
+
+		if(ies_lights[slot]->users == 0) {
+			delete ies_lights[slot];
+			ies_lights[slot] = NULL;
+		}
+	}
+
 	pool.wait_work();
 
 	if(pack_images)
 		device_pack_images(device, dscene, progress);
+	device_update_ies(device, dscene);
 
 	need_update = false;
+}
+
+void ImageManager::device_update_ies(Device *device,
+                                     DeviceScene *dscene)
+{
+	KernelIntegrator *kintegrator = &dscene->data.integrator;
+	if(ies_lights.size() > 0) {
+		int max_data_len = 0;
+		for(int i = 0; i < ies_lights.size(); i++) {
+			IESLight *ies = ies_lights[i];
+			if(ies) {
+				int data_len;
+				if(ies->v_angles_num > 0 && ies->h_angles_num > 0)
+					data_len = ies->h_angles_num + ies->v_angles_num + ies->h_angles_num*ies->v_angles_num;
+				else
+					data_len = 3;
+				max_data_len = max(max_data_len, data_len);
+			}
+		}
+
+		int len = (max_data_len + 2)*ies_lights.size(); //2 floats (actually ints) for v_num and h_num
+		float *data = dscene->ies_lights.resize(len);
+		for(int i = 0; i < ies_lights.size(); i++) {
+			float *ies_data = data + (max_data_len + 2)*i;
+			IESLight *ies = ies_lights[i];
+			if(ies) {
+				if(ies->v_angles_num > 0 && ies->h_angles_num > 0) {
+					*(ies_data++) = __int_as_float(ies->h_angles_num);
+					*(ies_data++) = __int_as_float(ies->v_angles_num);
+					for(int h = 0; h < ies->h_angles_num; h++)
+						*(ies_data++) = ies->h_angles[h] / 180.f * M_PI_F;
+					for(int v = 0; v < ies->v_angles_num; v++)
+						*(ies_data++) = ies->v_angles[v] / 180.f * M_PI_F;
+					for(int h = 0; h < ies->h_angles_num; h++)
+						for(int v = 0; v < ies->v_angles_num; v++)
+							 *(ies_data++) = ies->intensity[h][v];
+				} else {
+					//IES was not loaded correctly => Fallback (1x1 IES, Angle is 0° 0°, Intensity is 1)
+					*(ies_data++) = __int_as_float(1);
+					*(ies_data++) = __int_as_float(1);
+					*(ies_data++) = 0.0f;
+					*(ies_data++) = 0.0f;
+					*(ies_data++) = 1.0f;
+				}
+			}
+			else {
+				ies_data[0] = ies_data[1] = __int_as_float(0);
+			}
+		}
+
+		if(dscene->ies_lights.device_pointer) {
+			thread_scoped_lock device_lock(device_mutex);
+			device->tex_free(dscene->ies_lights);
+		}
+		device->tex_alloc("__ies", dscene->ies_lights);
+
+		kintegrator->ies_num = ies_lights.size();
+		kintegrator->ies_stride = max_data_len+2;
+	} else {
+		kintegrator->ies_num = 0;
+		kintegrator->ies_stride = 0;
+	}
 }
 
 void ImageManager::device_update_slot(Device *device,
@@ -949,12 +1168,15 @@ void ImageManager::device_free(Device *device, DeviceScene *dscene)
 
 	device->tex_free(dscene->tex_image_packed);
 	device->tex_free(dscene->tex_image_packed_info);
+	device->tex_free(dscene->ies_lights);
 
 	dscene->tex_image_packed.clear();
 	dscene->tex_image_packed_info.clear();
+	dscene->ies_lights.clear();
 
 	images.clear();
 	float_images.clear();
+	ies_lights.clear();
 }
 
 CCL_NAMESPACE_END

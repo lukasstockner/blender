@@ -44,6 +44,8 @@ public:
 	float3 axisv;
 	float sizev;
 
+	Transform tfm;
+
 	int map_resolution;
 
 	float spot_angle;

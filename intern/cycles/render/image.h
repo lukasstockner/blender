@@ -75,6 +75,10 @@ public:
 	                      ExtensionType extension);
 	bool is_float_image(const string& filename, void *builtin_data, bool& is_linear);
 
+	int add_ies(const string& filename);
+	void remove_ies(int slot);
+	void remove_ies(const string& filename);
+
 	void device_update(Device *device, DeviceScene *dscene, Progress& progress);
 	void device_update_slot(Device *device, DeviceScene *dscene, int slot, Progress *progress);
 	void device_free(Device *device, DeviceScene *dscene);
@@ -105,6 +109,23 @@ public:
 		int users;
 	};
 
+	class IESLight {
+	public:
+		IESLight(const string& filename);
+		~IESLight();
+
+		string filename;
+		int users;
+
+		int v_angles_num, h_angles_num;
+		float *v_angles, *h_angles;
+		float **intensity;
+		float lat_min;
+		float lat_max;
+		float lon_min;
+		float lon_max;
+	};
+
 private:
 	int tex_num_images;
 	int tex_num_float_images;
@@ -114,6 +135,7 @@ private:
 
 	vector<Image*> images;
 	vector<Image*> float_images;
+	vector<IESLight*> ies_lights;
 	void *osl_texture_system;
 	bool pack_images;
 
@@ -124,6 +146,7 @@ private:
 	void device_free_image(Device *device, DeviceScene *dscene, int slot);
 
 	void device_pack_images(Device *device, DeviceScene *dscene, Progress& progess);
+	void device_update_ies(Device *device, DeviceScene *dscene);
 };
 
 CCL_NAMESPACE_END

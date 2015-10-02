@@ -36,7 +36,7 @@ CCL_NAMESPACE_BEGIN
 /* constants */
 #define OBJECT_SIZE 		11
 #define OBJECT_VECTOR_SIZE	6
-#define LIGHT_SIZE			5
+#define LIGHT_SIZE		12
 #define FILTER_TABLE_SIZE	256
 #define RAMP_TABLE_SIZE		256
 #define PARTICLE_SIZE 		5
@@ -521,6 +521,8 @@ typedef enum PrimitiveType {
 	PRIMITIVE_MOTION_TRIANGLE = 2,
 	PRIMITIVE_CURVE = 4,
 	PRIMITIVE_MOTION_CURVE = 8,
+	/* Lamp primitive is not included below on purpose, since it is no real traceable primitive */
+	PRIMITIVE_LAMP = 16,
 
 	PRIMITIVE_ALL_TRIANGLE = (PRIMITIVE_TRIANGLE|PRIMITIVE_MOTION_TRIANGLE),
 	PRIMITIVE_ALL_CURVE = (PRIMITIVE_CURVE|PRIMITIVE_MOTION_CURVE),
@@ -951,7 +953,13 @@ typedef struct KernelIntegrator {
 	float volume_step_size;
 	int volume_samples;
 
+	/* ies lights */
+	int ies_num;
+	int ies_stride;
+
 	int pad;
+	int pad1;
+	int pad2;
 } KernelIntegrator;
 
 typedef struct KernelBVH {
