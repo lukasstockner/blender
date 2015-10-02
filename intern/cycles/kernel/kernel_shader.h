@@ -244,8 +244,7 @@ ccl_device_inline void shader_setup_from_sample(KernelGlobals *kg,
                                                 const float3 I,
                                                 int shader, int object, int prim,
                                                 float u, float v, float t,
-                                                float time,
-                                                bool object_space,
+                                                float time, bool object_space,
                                                 int lamp)
 {
 	/* vectors */

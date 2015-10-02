@@ -1248,7 +1248,9 @@ typedef struct KernelIntegrator {
 	int volume_samples;
 
 	int start_sample;
-	int pad1, pad2, pad3;
+
+	int ies_stride;
+	int pad1, pad2;
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 

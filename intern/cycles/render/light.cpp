@@ -117,6 +117,8 @@ NODE_DEFINE(Light)
 	SOCKET_VECTOR(dir, "Dir", make_float3(0.0f, 0.0f, 0.0f));
 	SOCKET_FLOAT(size, "Size", 0.0f);
 
+	SOCKET_TRANSFORM(tfm, "Transform", transform_identity());	
+	
 	SOCKET_VECTOR(axisu, "Axis U", make_float3(0.0f, 0.0f, 0.0f));
 	SOCKET_FLOAT(sizeu, "Size U", 1.0f);
 	SOCKET_VECTOR(axisv, "Axis V", make_float3(0.0f, 0.0f, 0.0f));
@@ -780,6 +782,7 @@ void LightManager::device_update_points(Device *device,
 		Transform itfm = transform_inverse(tfm);
 		memcpy(&light_data[light_index*LIGHT_SIZE + 5], &tfm, sizeof(float4)*3);
 		memcpy(&light_data[light_index*LIGHT_SIZE + 8], &itfm, sizeof(float4)*3);
+
 
 		light_index++;
 	}

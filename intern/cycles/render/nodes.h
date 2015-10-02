@@ -277,6 +277,25 @@ public:
 	}
 };
 
+class IESLightNode : public ShaderNode {
+public:
+	SHADER_NODE_NO_CLONE_CLASS(IESLightNode)
+
+	~IESLightNode();
+	ShaderNode *clone() const;
+
+	ImageManager *image_manager;
+
+	ustring filename;
+	float strength;
+	float3 vector;
+
+	string ies;
+	int slot;
+
+	virtual int get_group() { return NODE_GROUP_LEVEL_2; }
+};
+
 class MappingNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(MappingNode)
