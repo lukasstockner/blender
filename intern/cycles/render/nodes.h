@@ -1,4 +1,4 @@
-/*
+	/*
  * Copyright 2011-2013 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -275,6 +275,25 @@ public:
 		return ShaderNode::equals(other) &&
 		       builtin_data == point_dendity_node.builtin_data;
 	}
+};
+
+class IESLightNode : public ShaderNode {
+public:
+	SHADER_NODE_NO_CLONE_CLASS(IESLightNode)
+
+	~IESLightNode();
+	ShaderNode *clone() const;
+
+	ImageManager *image_manager;
+
+	ustring filename;
+	ustring ies;
+	int slot;
+
+	float strength;
+	float3 vector;
+
+	virtual int get_group() { return NODE_GROUP_LEVEL_2; }
 };
 
 class MappingNode : public ShaderNode {

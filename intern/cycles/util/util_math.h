@@ -1260,6 +1260,12 @@ ccl_device_inline float triangle_area(const float3& v1, const float3& v2, const 
 
 #endif
 
+/* Cubic interpolation between b and c, a and d are the previous and next point */
+ccl_device_inline float cubic_interp(float a, float b, float c, float d, float x)
+{
+	return (((-0.5f*a + 1.5f*b - 1.5f*c + 0.5f*d)*x + (a - 2.5f*b + 2.0f*c-0.5f*d))*x + (-0.5f*a+0.5f*c))*x + b;
+}
+
 /* Versions of functions which are safe for fast math. */
 ccl_device_inline bool isnan_safe(float f)
 {

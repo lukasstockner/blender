@@ -897,12 +897,10 @@ typedef ccl_addr_space struct ShaderData {
 	float3 dPdv;
 #endif
 
-#ifdef __OBJECT_MOTION__
 	/* object <-> world space transformations, cached to avoid
 	 * re-interpolating them constantly for shading */
 	Transform ob_tfm;
 	Transform ob_itfm;
-#endif
 
 	/* Closure data, we store a fixed array of closures */
 	struct ShaderClosure closure[MAX_CLOSURE];
@@ -1220,7 +1218,11 @@ typedef struct KernelIntegrator {
 	float light_inv_rr_threshold;
 
 	int start_sample;
-	int pad1, pad2, pad3;
+
+	/* ies lights */
+	int ies_stride;
+
+	int pad1, pad2;
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 
