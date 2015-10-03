@@ -77,7 +77,7 @@ void BKE_mball_release_datablocks(MetaBall *mb)
 	
 	for (a = 0; a < mb->totcol; a++) {
 		if (mb->mat[a]) {
-			mb->mat[a]->id.us--;
+			id_us_min(&mb->mat[a]->id);
 			mb->mat[a] = NULL;
 		}
 	}
@@ -97,14 +97,9 @@ void BKE_mball_free(MetaBall *mb, const bool do_id_user)
 		BKE_mball_release_datablocks(mb);
 	}
 	
-	if (mb->adt) {
-		BKE_animdata_free((ID *)mb);
-		mb->adt = NULL;
-	}
-	if (mb->mat) {
-		MEM_freeN(mb->mat);
-		mb->mat = NULL;
-	}
+	BKE_animdata_free((ID *)mb);
+
+	MEM_SAFE_FREE(mb->mat);
 
 	BLI_freelistN(&mb->elems);
 	BKE_displist_free(&mb->disp);

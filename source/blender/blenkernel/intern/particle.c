@@ -371,10 +371,45 @@ static void fluid_free_settings(SPHFluidSettings *fluid)
 		MEM_freeN(fluid); 
 }
 
-void BKE_particlesettings_free(ParticleSettings *part)
+/**
+ * Release all datablocks (ID) used by this partsett (datablocks are never freed, they are just unreferenced).
+ *
+ * \param part The particle settings which has to release its data.
+ */
+void BKE_particlesettings_release_datablocks(ParticleSettings *part)
 {
 	MTex *mtex;
 	int a;
+
+	for (a = 0; a < MAX_MTEX; a++) {
+		mtex = part->mtex[a];
+		if (mtex && mtex->tex) {
+			id_us_min(&mtex->tex->id);
+			mtex->tex = NULL;
+		}
+	}
+
+	/* No ID refcount here... */
+	part->dup_group = NULL;
+	part->dup_ob = NULL;
+	part->bb_ob = NULL;
+}
+
+/**
+ * Free (or release) any data used by this particle settings (does not free the partsett itself).
+ *
+ * \param part The particle settings to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this partsett are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_particlesettings_free(ParticleSettings *part, const bool do_id_user)
+{
+	int a;
+
+	if (do_id_user) {
+		BKE_particlesettings_release_datablocks(part);
+	}
+
 	BKE_animdata_free(&part->id);
 	
 	if (part->clumpcurve)
@@ -385,8 +420,7 @@ void BKE_particlesettings_free(ParticleSettings *part)
 	free_partdeflect(part->pd);
 	free_partdeflect(part->pd2);
 
-	if (part->effector_weights)
-		MEM_freeN(part->effector_weights);
+	MEM_SAFE_FREE(part->effector_weights);
 
 	BLI_freelistN(&part->dupliweights);
 
@@ -394,9 +428,7 @@ void BKE_particlesettings_free(ParticleSettings *part)
 	fluid_free_settings(part->fluid);
 
 	for (a = 0; a < MAX_MTEX; a++) {
-		mtex = part->mtex[a];
-		if (mtex && mtex->tex) mtex->tex->id.us--;
-		if (mtex) MEM_freeN(mtex);
+		MEM_SAFE_FREE(part->mtex[a]);
 	}
 }
 

@@ -125,24 +125,54 @@ FreestyleLineStyle *BKE_linestyle_new(struct Main *bmain, const char *name)
 	return linestyle;
 }
 
-void BKE_linestyle_free(FreestyleLineStyle *linestyle)
+/**
+ * Release all datablocks (ID) used by this linestyle (datablocks are never freed, they are just unreferenced).
+ *
+ * \param linestyle The linestyle which has to release its data.
+ */
+void BKE_linestyle_release_datablocks(FreestyleLineStyle *linestyle)
 {
-	LineStyleModifier *m;
-
 	MTex *mtex;
 	int a;
 
 	for (a = 0; a < MAX_MTEX; a++) {
 		mtex = linestyle->mtex[a];
-		if (mtex && mtex->tex) mtex->tex->id.us--;
-		if (mtex) MEM_freeN(mtex);
+		if (mtex && mtex->tex) {
+			id_us_min(&mtex->tex->id);
+			mtex->tex = NULL;
+		}
 	}
+}
+
+/**
+ * Free (or release) any data used by this linestyle (does not free the linestyle itself).
+ *
+ * \param linestyle The linestyle to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this linestyle are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_linestyle_free(FreestyleLineStyle *linestyle, const bool do_id_user)
+{
+	LineStyleModifier *m;
+	int a;
+
+	if (do_id_user) {
+		BKE_linestyle_release_datablocks(linestyle);
+	}
+
+	for (a = 0; a < MAX_MTEX; a++) {
+		MEM_SAFE_FREE(linestyle->mtex[a]);
+	}
+
+	/* is no lib link block, but linestyle extension */
 	if (linestyle->nodetree) {
-		ntreeFreeTree(linestyle->nodetree);
+		ntreeFreeTree(linestyle->nodetree, true);  /* XXX Or do_id_user? */
 		MEM_freeN(linestyle->nodetree);
+		linestyle->nodetree = NULL;
 	}
 
 	BKE_animdata_free(&linestyle->id);
+
 	while ((m = (LineStyleModifier *)linestyle->color_modifiers.first))
 		BKE_linestyle_color_modifier_remove(linestyle, m);
 	while ((m = (LineStyleModifier *)linestyle->alpha_modifiers.first))
@@ -160,7 +190,7 @@ FreestyleLineStyle *BKE_linestyle_copy(struct Main *bmain, FreestyleLineStyle *l
 	int a;
 
 	new_linestyle = BKE_linestyle_new(bmain, linestyle->id.name + 2);
-	BKE_linestyle_free(new_linestyle);
+	BKE_linestyle_free(new_linestyle, true);
 
 	for (a = 0; a < MAX_MTEX; a++) {
 		if (linestyle->mtex[a]) {

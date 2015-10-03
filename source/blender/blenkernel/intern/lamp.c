@@ -218,30 +218,58 @@ void BKE_lamp_make_local(Lamp *la)
 	}
 }
 
-void BKE_lamp_free(Lamp *la)
+/**
+ * Release all datablocks (ID) used by this lamp (datablocks are never freed, they are just unreferenced).
+ *
+ * \param la The lamp which has to release its data.
+ */
+void BKE_lamp_release_datablocks(Lamp *la)
 {
 	MTex *mtex;
 	int a;
 
 	for (a = 0; a < MAX_MTEX; a++) {
 		mtex = la->mtex[a];
-		if (mtex && mtex->tex) mtex->tex->id.us--;
-		if (mtex) MEM_freeN(mtex);
+		if (mtex && mtex->tex) {
+			id_us_min(&mtex->tex->id);
+			mtex->tex = NULL;
+		}
+	}
+}
+
+/**
+ * Free (or release) any data used by this lamp (does not free the lamp itself).
+ *
+ * \param la The lamp to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this lamp are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_lamp_free(Lamp *la, const bool do_id_user)
+{
+	int a;
+
+	if (do_id_user) {
+		BKE_lamp_release_datablocks(la);
+	}
+
+	for (a = 0; a < MAX_MTEX; a++) {
+		MEM_SAFE_FREE(la->mtex[a]);
 	}
 	
 	BKE_animdata_free((ID *)la);
 
 	curvemapping_free(la->curfalloff);
+	la->curfalloff = NULL;
 
 	/* is no lib link block, but lamp extension */
 	if (la->nodetree) {
-		ntreeFreeTree(la->nodetree);
+		ntreeFreeTree(la->nodetree, do_id_user);
 		MEM_freeN(la->nodetree);
+		la->nodetree = NULL;
 	}
 	
 	BKE_previewimg_free(&la->preview);
 	BKE_icon_id_delete(&la->id);
-	la->id.icon_id = 0;
 }
 
 /* Calculate all drivers for lamps, see material_drivers_update for why this is a bad hack */

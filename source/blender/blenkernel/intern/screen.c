@@ -359,7 +359,7 @@ void BKE_screen_area_free(ScrArea *sa)
 }
 
 /* don't free screen itself */
-void BKE_screen_free(bScreen *sc)
+void BKE_screen_free(bScreen *sc, const bool UNUSED(do_id_user))
 {
 	ScrArea *sa, *san;
 	ARegion *ar;

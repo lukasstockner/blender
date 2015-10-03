@@ -1780,14 +1780,14 @@ static void free_localized_node_groups(bNodeTree *ntree)
 	for (node = ntree->nodes.first; node; node = node->next) {
 		if (node->type == NODE_GROUP && node->id) {
 			bNodeTree *ngroup = (bNodeTree *)node->id;
-			ntreeFreeTree_ex(ngroup, false);
+			ntreeFreeTree(ngroup, false);
 			MEM_freeN(ngroup);
 		}
 	}
 }
 
 /* do not free ntree itself here, BKE_libblock_free calls this function too */
-void ntreeFreeTree_ex(bNodeTree *ntree, const bool do_id_user)
+void ntreeFreeTree(bNodeTree *ntree, const bool do_id_user)
 {
 	bNodeTree *tntree;
 	bNode *node, *next;
@@ -1871,11 +1871,6 @@ void ntreeFreeTree_ex(bNodeTree *ntree, const bool do_id_user)
 	if (tntree == NULL) {
 		BKE_libblock_free_data(G.main, &ntree->id);
 	}
-}
-/* same as ntreeFreeTree_ex but always manage users */
-void ntreeFreeTree(bNodeTree *ntree)
-{
-	ntreeFreeTree_ex(ntree, true);
 }
 
 void ntreeFreeCache(bNodeTree *ntree)
@@ -2150,7 +2145,7 @@ void ntreeLocalMerge(bNodeTree *localtree, bNodeTree *ntree)
 		if (ntree->typeinfo->local_merge)
 			ntree->typeinfo->local_merge(localtree, ntree);
 		
-		ntreeFreeTree_ex(localtree, false);
+		ntreeFreeTree(localtree, false);
 		MEM_freeN(localtree);
 	}
 }

@@ -3655,7 +3655,8 @@ void RE_free_sample_material(Material *mat)
 			MTex *mtex= mat->mtex[tex_nr];
 	
 			if (mtex->tex) {
-				BKE_texture_free(mtex->tex);
+				/* don't update user counts as we are freeing a duplicate */
+				BKE_texture_free(mtex->tex, false);
 				MEM_freeN(mtex->tex);
 				mtex->tex = NULL;
 			}
@@ -3663,7 +3664,7 @@ void RE_free_sample_material(Material *mat)
 	}
 
 	/* don't update user counts as we are freeing a duplicate */
-	BKE_material_free_ex(mat, false);
+	BKE_material_free(mat, false);
 	MEM_freeN(mat);
 }
 

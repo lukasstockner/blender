@@ -60,17 +60,17 @@ static void free_group_object(GroupObject *go)
 	MEM_freeN(go);
 }
 
-
-void BKE_group_free(Group *group)
+/* Note: technically, grouobjects are ID users (without refcount), but for now we can ignore those. */
+void BKE_group_free(Group *group, const bool UNUSED(do_id_user))
 {
 	/* don't free group itself */
 	GroupObject *go;
 
-	BKE_previewimg_free(&group->preview);
-
 	while ((go = BLI_pophead(&group->gobject))) {
 		free_group_object(go);
 	}
+
+	BKE_previewimg_free(&group->preview);
 }
 
 void BKE_group_unlink(Group *group)
@@ -132,7 +132,8 @@ void BKE_group_unlink(Group *group)
 	}
 	
 	/* group stays in library, but no members */
-	BKE_group_free(group);
+	/* XXX This is suspicious, means we keep a dangling, empty group? Also, does not take into account fakeuser? */
+	BKE_group_free(group, false);
 	group->id.us = 0;
 }
 

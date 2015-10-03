@@ -95,10 +95,8 @@ void BKE_vfont_free_data(struct VFont *vfont)
 	}
 }
 
-void BKE_vfont_free(struct VFont *vf)
+void BKE_vfont_free(struct VFont *vf, const bool UNUSED(do_id_user))
 {
-	if (vf == NULL) return;
-
 	BKE_vfont_free_data(vf);
 
 	if (vf->packedfile) {

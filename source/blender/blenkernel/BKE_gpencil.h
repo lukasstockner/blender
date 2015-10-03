@@ -42,7 +42,7 @@ struct bGPDstroke;
 bool free_gpencil_strokes(struct bGPDframe *gpf);
 void free_gpencil_frames(struct bGPDlayer *gpl);
 void free_gpencil_layers(struct ListBase *list);
-void BKE_gpencil_free(struct bGPdata *gpd);
+void BKE_gpencil_free(struct bGPdata *gpd, const bool do_id_user);
 
 void gpencil_stroke_sync_selection(struct bGPDstroke *gps);
 

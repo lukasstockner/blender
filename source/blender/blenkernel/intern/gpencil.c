@@ -112,16 +112,12 @@ void free_gpencil_layers(ListBase *list)
 }
 
 /* Free all of GPencil datablock's related data, but not the block itself */
-void BKE_gpencil_free(bGPdata *gpd)
+void BKE_gpencil_free(bGPdata *gpd, const bool UNUSED(do_id_user))
 {
 	/* free layers */
 	free_gpencil_layers(&gpd->layers);
 	
-	/* free animation data */
-	if (gpd->adt) {
-		BKE_animdata_free(&gpd->id);
-		gpd->adt = NULL;
-	}
+	BKE_animdata_free(&gpd->id);
 }
 
 /* -------- Container Creation ---------- */

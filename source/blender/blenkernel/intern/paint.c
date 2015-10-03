@@ -298,13 +298,10 @@ void BKE_paint_brush_set(Paint *p, Brush *br)
 	}
 }
 
-void BKE_paint_curve_free(PaintCurve *pc)
+void BKE_paint_curve_free(PaintCurve *pc, const bool UNUSED(do_id_user))
 {
-	if (pc->points) {
-		MEM_freeN(pc->points);
-		pc->points = NULL;
-		pc->tot_points = 0;
-	}
+	MEM_SAFE_FREE(pc->points);
+	pc->tot_points = 0;
 }
 
 PaintCurve *BKE_paint_curve_add(Main *bmain, const char *name)
@@ -378,7 +375,7 @@ Palette *BKE_palette_add(Main *bmain, const char *name)
 	return palette;
 }
 
-void BKE_palette_free(Palette *palette)
+void BKE_palette_free(Palette *palette, const bool UNUSED(do_id_user))
 {
 	BLI_freelistN(&palette->colors);
 }

@@ -709,7 +709,7 @@ static Mask *rna_Main_mask_new(Main *bmain, const char *name)
 static void rna_Main_masks_remove(Main *bmain, PointerRNA *mask_ptr)
 {
 	Mask *mask = mask_ptr->data;
-	BKE_mask_free(bmain, mask);
+	BKE_mask_unlink(bmain, mask);
 	BKE_libblock_free(bmain, mask);
 	RNA_POINTER_INVALIDATE(mask_ptr);
 }
@@ -718,7 +718,6 @@ static void rna_Main_grease_pencil_remove(Main *bmain, ReportList *reports, Poin
 {
 	bGPdata *gpd = gpd_ptr->data;
 	if (ID_REAL_USERS(gpd) <= 0) {
-		BKE_gpencil_free(gpd);
 		BKE_libblock_free(bmain, gpd);
 		RNA_POINTER_INVALIDATE(gpd_ptr);
 	}

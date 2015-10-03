@@ -72,7 +72,7 @@ static int cu_isectLL(const float v1[3], const float v2[3], const float v3[3], c
 /**
  * Release all datablocks (ID) used by this curve (datablocks are never freed, they are just unreferenced).
  *
- * @param cu The curve which has to release its data.
+ * \param cu The curve which has to release its data.
  */
 void BKE_curve_release_datablocks(Curve *cu)
 {
@@ -80,30 +80,35 @@ void BKE_curve_release_datablocks(Curve *cu)
 
 	for (a = 0; a < cu->totcol; a++) {
 		if (cu->mat[a]) {
-			cu->mat[a]->id.us--;
+			id_us_min(&cu->mat[a]->id);
 			cu->mat[a] = NULL;
 		}
 	}
 	if (cu->vfont) {
-		cu->vfont->id.us--;
+		id_us_min(&cu->vfont->id);
 		cu->vfont = NULL;
 	}
 	if (cu->vfontb) {
-		cu->vfontb->id.us--;
+		id_us_min(&cu->vfontb->id);
 		cu->vfontb = NULL;
 	}
 	if (cu->vfonti) {
-		cu->vfonti->id.us--;
+		id_us_min(&cu->vfonti->id);
 		cu->vfonti = NULL;
 	}
 	if (cu->vfontbi) {
-		cu->vfontbi->id.us--;
+		id_us_min(&cu->vfontbi->id);
 		cu->vfontbi = NULL;
 	}
 	if (cu->key) {
-		cu->key->id.us--;
+		id_us_min(&cu->key->id);
 		cu->key = NULL;
 	}
+
+	/* No ID refcount here... */
+	cu->bevobj = NULL;
+	cu->taperobj = NULL;
+	cu->textoncurve = NULL;
 }
 
 /* frees editcurve entirely */
@@ -156,37 +161,22 @@ void BKE_curve_editNurb_free(Curve *cu)
  */
 void BKE_curve_free(Curve *cu, const bool do_id_user)
 {
+	if (do_id_user) {
+		BKE_curve_release_datablocks(cu);
+	}
+
 	BKE_nurbList_free(&cu->nurb);
 	BKE_curve_editfont_free(cu);
 
 	BKE_curve_editNurb_free(cu);
 
-	if (do_id_user) {
-		BKE_curve_release_datablocks(cu);
-	}
-
 	BKE_animdata_free((ID *)cu);
 
-	if (cu->mat) {
-		MEM_freeN(cu->mat);
-		cu->mat = NULL;
-	}
-	if (cu->str) {
-		MEM_freeN(cu->str);
-		cu->str = NULL;
-	}
-	if (cu->strinfo) {
-		MEM_freeN(cu->strinfo);
-		cu->strinfo = NULL;
-	}
-	if (cu->bb) {
-		MEM_freeN(cu->bb);
-		cu->bb = NULL;
-	}
-	if (cu->tb) {
-		MEM_freeN(cu->tb);
-		cu->tb = NULL;
-	}
+	MEM_SAFE_FREE(cu->mat);
+	MEM_SAFE_FREE(cu->str);
+	MEM_SAFE_FREE(cu->strinfo);
+	MEM_SAFE_FREE(cu->bb);
+	MEM_SAFE_FREE(cu->tb);
 }
 
 void BKE_curve_init(Curve *cu)

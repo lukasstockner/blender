@@ -159,22 +159,16 @@ void BKE_action_make_local(bAction *act)
 
 /* .................................. */
 
-void BKE_action_free(bAction *act)
-{
-	/* sanity check */
-	if (act == NULL)
-		return;
-	
+void BKE_action_free(bAction *act, const bool UNUSED(do_id_user))
+{	
 	/* Free F-Curves */
 	free_fcurves(&act->curves);
 	
 	/* Free groups */
-	if (act->groups.first)
-		BLI_freelistN(&act->groups);
+	BLI_freelistN(&act->groups);
 		
 	/* Free pose-references (aka local markers) */
-	if (act->markers.first)
-		BLI_freelistN(&act->markers);
+	BLI_freelistN(&act->markers);
 }
 
 /* .................................. */

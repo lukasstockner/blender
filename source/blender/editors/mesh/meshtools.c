@@ -552,7 +552,7 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 		}
 #endif
 		
-		BKE_key_free(nkey);
+		BKE_key_free(nkey, true);
 		BLI_remlink(&bmain->key, nkey);
 		MEM_freeN(nkey);
 	}

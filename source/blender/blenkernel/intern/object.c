@@ -387,29 +387,30 @@ void BKE_object_free_caches(Object *object)
  */
 void BKE_object_release_datablocks(Object *ob)
 {
+	/* Note: This totally ignores indirectly-'linked' datablocks (through constraints, modifiers...).
+	 *       That’s fine for now (none of them actually refcount IDs), remap project will rework this deeply anyway. */
 	int a;
 
 	if (ob->data) {
-		ID *id = ob->data;
-		id->us--;
+		id_us_min((ID *)ob->data);
 		ob->data = NULL;
 	}
 
 	if (ob->mat) {
 		for (a = 0; a < ob->totcol; a++) {
 			if (ob->mat[a]) {
-				ob->mat[a]->id.us--;
+				id_us_min(&ob->mat[a]->id);
 				ob->mat[a] = NULL;
 			}
 		}
 	}
 
 	if (ob->poselib) {
-		ob->poselib->id.us--;
+		id_us_min(&ob->poselib->id);
 		ob->poselib = NULL;
 	}
 	if (ob->gpd) {
-		ob->gpd->id.us--;
+		id_us_min(&ob->gpd->id);
 		ob->gpd = NULL;
 	}
 }
@@ -423,32 +424,19 @@ void BKE_object_release_datablocks(Object *ob)
  */
 void BKE_object_free(Object *ob, const bool do_id_user)
 {
-	BKE_object_free_derived_caches(ob);
-
 	if (do_id_user) {
 		BKE_object_release_datablocks(ob);
 	}
 
-	if (ob->mat) {
-		MEM_freeN(ob->mat);
-		ob->mat = NULL;
-	}
-	if (ob->matbits) {
-		MEM_freeN(ob->matbits);
-		ob->matbits = NULL;
-	}
-	if (ob->iuser) {
-		MEM_freeN(ob->iuser);
-		ob->iuser = NULL;
-	}
-	if (ob->bb) {
-		MEM_freeN(ob->bb);
-		ob->bb = NULL;
-	}
-	if (ob->adt) {
-		BKE_animdata_free((ID *)ob);
-		ob->adt = NULL;
-	}
+	BKE_object_free_derived_caches(ob);
+
+	MEM_SAFE_FREE(ob->mat);
+	MEM_SAFE_FREE(ob->matbits);
+	MEM_SAFE_FREE(ob->iuser);
+	MEM_SAFE_FREE(ob->bb);
+
+	BKE_animdata_free((ID *)ob);
+
 	BLI_freelistN(&ob->defbase);
 	if (ob->pose) {
 		BKE_pose_free_ex(ob->pose, do_id_user);
