@@ -18,6 +18,14 @@ CCL_NAMESPACE_BEGIN
 
 /* IES Light */
 
+ccl_device_inline float cubic_interp(float a, float b, float c, float d, float x)
+{
+	return (((-0.5f*a + 1.5f*b - 1.5f*c + 0.5f*d)*x + (a - 2.5f*b + 2.0f*c-0.5f*d))*x + (-0.5f*a+0.5f*c))*x + b;
+}
+
+#define I_AT(h, v) (kernel_tex_fetch(__ies, ofs+(h)*v_num+(v)))
+/* Cubic interpolation at horizontal angle h (symmetric at the left boundary) */
+#define V_INTERP(h, v, x) cubic_interp(I_AT(h, (((v) > 0)? (v)-1: (v)+1)), I_AT(h, v), I_AT(h, (v)+1), I_AT(h, ((((v)+2) < v_num)? (v)+2: (v)+1)), x)
 ccl_device void svm_node_ies(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
 {
 	uint vector_offset, strength_offset, fac_offset, dummy, slot = node.z;
@@ -50,32 +58,12 @@ ccl_device void svm_node_ies(KernelGlobals *kg, ShaderData *sd, float *stack, ui
 				if(kernel_tex_fetch(__ies, ofs+h_num+v_i) <= v_angle && kernel_tex_fetch(__ies, ofs+h_num+v_i+1) > v_angle)
 					break;
 
-			if(h_i+1 < h_num) {
-				float h_frac = (h_angle - kernel_tex_fetch(__ies, ofs+h_i)) / (kernel_tex_fetch(__ies, ofs+h_i+1) - kernel_tex_fetch(__ies, ofs+h_i));
-				ofs += h_num;
+			float h_frac = (h_angle - kernel_tex_fetch(__ies, ofs+h_i)) / (kernel_tex_fetch(__ies, ofs+h_i+1) - kernel_tex_fetch(__ies, ofs+h_i));
+			ofs += h_num;
+			float v_frac = (v_angle - kernel_tex_fetch(__ies, ofs+v_i)) / (kernel_tex_fetch(__ies, ofs+v_i+1) - kernel_tex_fetch(__ies, ofs+v_i));
+			ofs += v_num;
 
-				float v_frac;
-				if(v_i+1 < v_num)
-					v_frac = (v_angle - kernel_tex_fetch(__ies, ofs+v_i)) / (kernel_tex_fetch(__ies, ofs+v_i+1) - kernel_tex_fetch(__ies, ofs+v_i));
-				ofs += v_num;
-
-				float lo_h = kernel_tex_fetch(__ies, ofs+h_i*v_num+v_i);
-				float hi_h = kernel_tex_fetch(__ies, ofs+(h_i+1)*v_num+v_i);
-				if(v_i+1 < v_num) {
-					lo_h = (1.0f - v_frac)*lo_h + v_frac*kernel_tex_fetch(__ies, ofs+h_i*v_num+v_i+1);
-					hi_h = (1.0f - v_frac)*hi_h + v_frac*kernel_tex_fetch(__ies, ofs+(h_i+1)*v_num+v_i+1);
-				}
-				val = (1.0f - h_frac)*lo_h + h_frac*hi_h;
-			}
-			else {
-				ofs += h_num;
-				val = kernel_tex_fetch(__ies, ofs+v_num+h_i*v_num+v_i);
-				if(v_i+1 < v_num) {
-					float v_frac = (v_angle - kernel_tex_fetch(__ies, ofs+v_i)) / (kernel_tex_fetch(__ies, ofs+v_i+1) - kernel_tex_fetch(__ies, ofs+v_i));
-					ofs += v_num;
-					val = (1.0f - v_frac)*val + v_frac*kernel_tex_fetch(__ies, ofs+h_i*v_num+v_i+1);
-				}
-			}
+			val = cubic_interp(V_INTERP((h_i > 0)? h_i-1: h_num-2, v_i, v_frac), V_INTERP(h_i, v_i, v_frac), V_INTERP(h_i+1, v_i, v_frac), V_INTERP((h_i+2 < h_num)? h_i+2: 1, v_i, v_frac), h_frac);
 		}
 		else
 			val = 0.0f;
@@ -85,5 +73,7 @@ ccl_device void svm_node_ies(KernelGlobals *kg, ShaderData *sd, float *stack, ui
 	if(stack_valid(fac_offset))
 		stack_store_float(stack, fac_offset, val);
 }
+#undef I_AT
+#undef V_INTERP
 
 CCL_NAMESPACE_END
