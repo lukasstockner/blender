@@ -389,6 +389,9 @@ void BKE_object_free_caches(Object *object)
  */
 void BKE_object_free(Object *ob, const bool do_id_user)
 {
+	/* Needs valid obdata pointer... */
+	BKE_object_free_derived_caches(ob);
+
 	if (do_id_user) {
 		/* Note: This totally ignores indirectly-'linked' datablocks (through constraints, modifiers...).
 		 *       That’s fine for now (none of them actually refcount IDs), remap project will rework this deeply anyway. */
@@ -419,8 +422,6 @@ void BKE_object_free(Object *ob, const bool do_id_user)
 	}
 
 	BKE_animdata_free((ID *)ob);
-
-	BKE_object_free_derived_caches(ob);
 
 	MEM_SAFE_FREE(ob->mat);
 	MEM_SAFE_FREE(ob->matbits);
