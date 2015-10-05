@@ -99,10 +99,10 @@ typedef struct LibraryForeachIDData {
 } LibraryForeachIDData;
 
 static void library_foreach_modifiersForeachIDLink(void *user_data, Object *UNUSED(object),
-                                                   ID **id_pointer)
+                                                   ID **id_pointer, int cd_flag)
 {
 	LibraryForeachIDData *data = (LibraryForeachIDData *) user_data;
-	FOREACH_CALLBACK_INVOKE_ID_PP(data->self_id, id_pointer, data->flag, data->callback, data->user_data, IDWALK_NOP);
+	FOREACH_CALLBACK_INVOKE_ID_PP(data->self_id, id_pointer, data->flag, data->callback, data->user_data, cd_flag);
 }
 
 static void library_foreach_constraintObjectLooper(bConstraint *UNUSED(con), ID **id_pointer,

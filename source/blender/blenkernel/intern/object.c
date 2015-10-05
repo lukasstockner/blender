@@ -478,7 +478,7 @@ void BKE_object_free(Object *ob, const bool do_id_user)
 	BKE_previewimg_free(&ob->preview);
 }
 
-static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Object **obpoin)
+static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Object **obpoin, int UNUSED(cd_flag))
 {
 	Object *unlinkOb = userData;
 
@@ -1596,7 +1596,7 @@ Object *BKE_object_copy(Object *ob)
 
 static void extern_local_object__modifiersForeachIDLink(
         void *UNUSED(userData), Object *UNUSED(ob),
-        ID **idpoin)
+        ID **idpoin, int UNUSED(cd_flag))
 {
 	if (*idpoin) {
 		/* intentionally omit ID_OB */
@@ -3743,7 +3743,8 @@ bool BKE_object_is_animated(Scene *scene, Object *ob)
 	return false;
 }
 
-static void copy_object__forwardModifierLinks(void *UNUSED(userData), Object *UNUSED(ob), ID **idpoin)
+static void copy_object__forwardModifierLinks(
+        void *UNUSED(userData), Object *UNUSED(ob), ID **idpoin, int UNUSED(cd_flag))
 {
 	/* this is copied from ID_NEW; it might be better to have a macro */
 	if (*idpoin && (*idpoin)->newid) *idpoin = (*idpoin)->newid;
