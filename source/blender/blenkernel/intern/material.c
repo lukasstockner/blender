@@ -82,28 +82,6 @@ void init_def_material(void)
 }
 
 /**
- * Release all datablocks (ID) used by this material (datablocks are never freed, they are just unreferenced).
- *
- * \param ma The material which has to release its data.
- */
-void BKE_material_release_datablocks(Material *ma)
-{
-	MTex *mtex;
-	int a;
-
-	for (a = 0; a < MAX_MTEX; a++) {
-		mtex = ma->mtex[a];
-		if (mtex && mtex->tex) {
-			id_us_min(&mtex->tex->id);
-			mtex->tex = NULL;
-		}
-	}
-
-	/* No ID refcount here... */
-	ma->group = NULL;
-}
-
-/**
  * Free (or release) any data used by this material (does not free the material itself).
  *
  * \param ma The material to free.
@@ -115,17 +93,28 @@ void BKE_material_free(Material *ma, const bool do_id_user)
 	int a;
 
 	if (do_id_user)	 {
-		BKE_material_release_datablocks(ma);
+		MTex *mtex;
+
+		for (a = 0; a < MAX_MTEX; a++) {
+			mtex = ma->mtex[a];
+			if (mtex && mtex->tex) {
+				id_us_min(&mtex->tex->id);
+				mtex->tex = NULL;
+			}
+		}
+
+		/* No ID refcount here... */
+		ma->group = NULL;
 	}
 
+	BKE_animdata_free((ID *)ma);
+	
 	for (a = 0; a < MAX_MTEX; a++) {
 		MEM_SAFE_FREE(ma->mtex[a]);
 	}
 	
 	MEM_SAFE_FREE(ma->ramp_col);
 	MEM_SAFE_FREE(ma->ramp_spec);
-	
-	BKE_animdata_free((ID *)ma);
 	
 	/* is no lib link block, but material extension */
 	if (ma->nodetree) {
@@ -138,8 +127,8 @@ void BKE_material_free(Material *ma, const bool do_id_user)
 
 	GPU_material_free(&ma->gpumaterial);
 
-	BKE_previewimg_free(&ma->preview);
 	BKE_icon_id_delete((ID *)ma);
+	BKE_previewimg_free(&ma->preview);
 }
 
 void init_material(Material *ma)

@@ -558,19 +558,6 @@ int colorband_element_remove(struct ColorBand *coba, int index)
 /* ******************* TEX ************************ */
 
 /**
- * Release all datablocks (ID) used by this texture (datablocks are never freed, they are just unreferenced).
- *
- * \param tex The texture which has to release its data.
- */
-void BKE_texture_release_datablocks(Tex *tex)
-{
-	if (tex->ima) {
-		id_us_min(&tex->ima->id);
-		tex->ima = NULL;
-	}
-}
-
-/**
  * Free (or release) any data used by this texture (does not free the texure itself).
  *
  * \param te The texure to free.
@@ -580,7 +567,10 @@ void BKE_texture_release_datablocks(Tex *tex)
 void BKE_texture_free(Tex *tex, const bool do_id_user)
 {
 	if (do_id_user) {
-		BKE_texture_release_datablocks(tex);
+		if (tex->ima) {
+			id_us_min(&tex->ima->id);
+			tex->ima = NULL;
+		}
 	}
 
 	BKE_animdata_free((ID *)tex);
@@ -610,8 +600,8 @@ void BKE_texture_free(Tex *tex, const bool do_id_user)
 		tex->ot = NULL;
 	}
 	
-	BKE_previewimg_free(&tex->preview);
 	BKE_icon_id_delete((ID *)tex);
+	BKE_previewimg_free(&tex->preview);
 }
 
 /* ------------------------------------------------------------------------- */

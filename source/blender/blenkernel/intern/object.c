@@ -381,41 +381,6 @@ void BKE_object_free_caches(Object *object)
 }
 
 /**
- * Release all datablocks (ID) used by this object (datablocks are never freed, they are just unreferenced).
- *
- * \param ob The object which has to release its data.
- */
-void BKE_object_release_datablocks(Object *ob)
-{
-	/* Note: This totally ignores indirectly-'linked' datablocks (through constraints, modifiers...).
-	 *       That’s fine for now (none of them actually refcount IDs), remap project will rework this deeply anyway. */
-	int a;
-
-	if (ob->data) {
-		id_us_min((ID *)ob->data);
-		ob->data = NULL;
-	}
-
-	if (ob->mat) {
-		for (a = 0; a < ob->totcol; a++) {
-			if (ob->mat[a]) {
-				id_us_min(&ob->mat[a]->id);
-				ob->mat[a] = NULL;
-			}
-		}
-	}
-
-	if (ob->poselib) {
-		id_us_min(&ob->poselib->id);
-		ob->poselib = NULL;
-	}
-	if (ob->gpd) {
-		id_us_min(&ob->gpd->id);
-		ob->gpd = NULL;
-	}
-}
-
-/**
  * Free (or release) any data used by this object (does not free the object itself).
  *
  * \param ob The object to free.
@@ -425,8 +390,35 @@ void BKE_object_release_datablocks(Object *ob)
 void BKE_object_free(Object *ob, const bool do_id_user)
 {
 	if (do_id_user) {
-		BKE_object_release_datablocks(ob);
+		/* Note: This totally ignores indirectly-'linked' datablocks (through constraints, modifiers...).
+		 *       That’s fine for now (none of them actually refcount IDs), remap project will rework this deeply anyway. */
+		int a;
+
+		if (ob->data) {
+			id_us_min((ID *)ob->data);
+			ob->data = NULL;
+		}
+
+		if (ob->mat) {
+			for (a = 0; a < ob->totcol; a++) {
+				if (ob->mat[a]) {
+					id_us_min(&ob->mat[a]->id);
+					ob->mat[a] = NULL;
+				}
+			}
+		}
+
+		if (ob->poselib) {
+			id_us_min(&ob->poselib->id);
+			ob->poselib = NULL;
+		}
+		if (ob->gpd) {
+			id_us_min(&ob->gpd->id);
+			ob->gpd = NULL;
+		}
 	}
+
+	BKE_animdata_free((ID *)ob);
 
 	BKE_object_free_derived_caches(ob);
 
@@ -434,8 +426,6 @@ void BKE_object_free(Object *ob, const bool do_id_user)
 	MEM_SAFE_FREE(ob->matbits);
 	MEM_SAFE_FREE(ob->iuser);
 	MEM_SAFE_FREE(ob->bb);
-
-	BKE_animdata_free((ID *)ob);
 
 	BLI_freelistN(&ob->defbase);
 	if (ob->pose) {

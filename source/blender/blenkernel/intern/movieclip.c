@@ -1404,19 +1404,6 @@ void BKE_movieclip_build_proxy_frame_for_ibuf(MovieClip *clip, ImBuf *ibuf, stru
 }
 
 /**
- * Release all datablocks (ID) used by this clip (datablocks are never freed, they are just unreferenced).
- *
- * \param clip The clip which has to release its data.
- */
-void BKE_movieclip_release_datablocks(MovieClip *clip)
-{
-	if (clip->gpd) {
-		id_us_min(&clip->gpd->id);
-		clip->gpd = NULL;
-	}
-}
-
-/**
  * Free (or release) any data used by this lamp (does not free the lamp itself).
  *
  * \param la The lamp to free.
@@ -1426,9 +1413,13 @@ void BKE_movieclip_release_datablocks(MovieClip *clip)
 void BKE_movieclip_free(MovieClip *clip, const bool do_id_user)
 {
 	if (do_id_user) {
-		BKE_movieclip_release_datablocks(clip);
+		if (clip->gpd) {
+			id_us_min(&clip->gpd->id);
+			clip->gpd = NULL;
+		}
 	}
 
+	/* Also frees animdata. */
 	free_buffers(clip);
 
 	BKE_tracking_free(&clip->tracking);

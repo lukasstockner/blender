@@ -126,19 +126,6 @@ void BKE_speaker_make_local(Speaker *spk)
 }
 
 /**
- * Release all datablocks (ID) used by this speaker (datablocks are never freed, they are just unreferenced).
- *
- * \param spk The speaker which has to release its data.
- */
-void BKE_speaker_release_datablocks(Speaker *spk)
-{
-	if (spk->sound) {
-		id_us_min(&spk->sound->id);
-		spk->sound = NULL;
-	}
-}
-
-/**
  * Free (or release) any data used by this speaker (does not free the speaker itself).
  *
  * \param spk The speaker to free.
@@ -148,7 +135,10 @@ void BKE_speaker_release_datablocks(Speaker *spk)
 void BKE_speaker_free(Speaker *spk, const bool do_id_user)
 {
 	if (do_id_user) {
-		BKE_speaker_release_datablocks(spk);
+		if (spk->sound) {
+			id_us_min(&spk->sound->id);
+			spk->sound = NULL;
+		}
 	}
 
 	BKE_animdata_free((ID *)spk);

@@ -47,7 +47,6 @@ struct WeightsArrayCache;
 extern "C" {
 #endif
 
-void        BKE_key_release_datablocks(struct Key *key);
 void        BKE_key_free(struct Key *sc, const bool do_id_user);
 void        BKE_key_free_nolib(struct Key *key);
 struct Key *BKE_key_add(struct ID *id);

@@ -99,9 +99,16 @@ bSound *BKE_sound_new_file(struct Main *bmain, const char *filename)
 	return sound;
 }
 
+/**
+ * Free (or release) any data used by this sound (does not free the sound itself).
+ *
+ * \param sound The sound to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this sound are 'released'
+ *                   (their user count is decreased).
+ */
 void BKE_sound_free(bSound *sound, const bool UNUSED(do_id_user))
 {
-	/* This ID has no animdata. */
+	/* No animdata here. */
 
 	if (sound->packedfile) {
 		freePackedFile(sound->packedfile);

@@ -357,11 +357,19 @@ void BKE_screen_area_free(ScrArea *sa)
 	BLI_freelistN(&sa->actionzones);
 }
 
-/* don't free screen itself */
+/**
+ * Free (or release) any data used by this screen (does not free the screen itself).
+ *
+ * \param sc The screen to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this screen are 'released'
+ *                   (their user count is decreased).
+ */
 void BKE_screen_free(bScreen *sc, const bool UNUSED(do_id_user))
 {
 	ScrArea *sa, *san;
 	ARegion *ar;
+
+	/* No animdata here. */
 	
 	for (ar = sc->regionbase.first; ar; ar = ar->next)
 		BKE_area_region_free(NULL, ar);

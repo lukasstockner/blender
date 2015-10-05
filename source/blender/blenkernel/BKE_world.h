@@ -36,7 +36,6 @@
 struct Main;
 struct World;
 
-void BKE_world_release_datablocks(struct World *wrld);
 void BKE_world_free(struct World *sc, const bool do_id_user);
 struct World *add_world(struct Main *bmian, const char *name);
 struct World *BKE_world_copy(struct World *wrld);

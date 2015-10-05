@@ -372,30 +372,6 @@ static void fluid_free_settings(SPHFluidSettings *fluid)
 }
 
 /**
- * Release all datablocks (ID) used by this partsett (datablocks are never freed, they are just unreferenced).
- *
- * \param part The particle settings which has to release its data.
- */
-void BKE_particlesettings_release_datablocks(ParticleSettings *part)
-{
-	MTex *mtex;
-	int a;
-
-	for (a = 0; a < MAX_MTEX; a++) {
-		mtex = part->mtex[a];
-		if (mtex && mtex->tex) {
-			id_us_min(&mtex->tex->id);
-			mtex->tex = NULL;
-		}
-	}
-
-	/* No ID refcount here... */
-	part->dup_group = NULL;
-	part->dup_ob = NULL;
-	part->bb_ob = NULL;
-}
-
-/**
  * Free (or release) any data used by this particle settings (does not free the partsett itself).
  *
  * \param part The particle settings to free.
@@ -407,11 +383,28 @@ void BKE_particlesettings_free(ParticleSettings *part, const bool do_id_user)
 	int a;
 
 	if (do_id_user) {
-		BKE_particlesettings_release_datablocks(part);
+		MTex *mtex;
+
+		for (a = 0; a < MAX_MTEX; a++) {
+			mtex = part->mtex[a];
+			if (mtex && mtex->tex) {
+				id_us_min(&mtex->tex->id);
+				mtex->tex = NULL;
+			}
+		}
+
+		/* No ID refcount here... */
+		part->dup_group = NULL;
+		part->dup_ob = NULL;
+		part->bb_ob = NULL;
 	}
 
 	BKE_animdata_free(&part->id);
 	
+	for (a = 0; a < MAX_MTEX; a++) {
+		MEM_SAFE_FREE(part->mtex[a]);
+	}
+
 	if (part->clumpcurve)
 		curvemapping_free(part->clumpcurve);
 	if (part->roughcurve)
@@ -427,9 +420,6 @@ void BKE_particlesettings_free(ParticleSettings *part, const bool do_id_user)
 	boid_free_settings(part->boids);
 	fluid_free_settings(part->fluid);
 
-	for (a = 0; a < MAX_MTEX; a++) {
-		MEM_SAFE_FREE(part->mtex[a]);
-	}
 }
 
 void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int dynamics)

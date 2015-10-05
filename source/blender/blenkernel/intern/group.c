@@ -60,11 +60,20 @@ static void free_group_object(GroupObject *go)
 	MEM_freeN(go);
 }
 
-/* Note: technically, grouobjects are ID users (without refcount), but for now we can ignore those. */
+/**
+ * Free (or release) any data used by this group (does not free the group itself).
+ *
+ * \param group The group to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this group are 'released'
+ *                   (their user count is decreased).
+ */
+/* Note: technically, groupobjects are ID users (without refcount), but for now we can ignore those. */
 void BKE_group_free(Group *group, const bool UNUSED(do_id_user))
 {
 	/* don't free group itself */
 	GroupObject *go;
+
+	/* No animdata here. */
 
 	while ((go = BLI_pophead(&group->gobject))) {
 		free_group_object(go);
