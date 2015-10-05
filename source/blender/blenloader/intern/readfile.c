@@ -620,7 +620,7 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
 	
 	/* Adapted from BKE_libblock_alloc(), with no lock of main, it's most likely already locked by caller code. */
 	lib = BKE_libblock_alloc_notest(ID_LI);
-	if (lib) {
+	{
 		/* Add library datablock itself to 'main' Main, since libraries are **never** linked data.
 		 * Fixes bug where you could end with all ID_LI datablocks having the same name... */
 		ListBase *libraries = &((Main *)mainlist->first)->library;
