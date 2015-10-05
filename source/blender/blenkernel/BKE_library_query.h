@@ -38,6 +38,7 @@ enum {
 	IDWALK_NOP = 0,
 	IDWALK_NEVER_NULL = (1 << 0),
 	IDWALK_NEVER_SELF = (1 << 1),
+	IDWALK_REFCOUNTED = (1 << 2),  /* Means that ID pointers affects id->us count. */
 };
 
 /* Call a callback for each ID link which the given ID uses.
