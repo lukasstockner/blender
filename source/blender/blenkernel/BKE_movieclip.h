@@ -39,7 +39,6 @@ struct MovieClipScopes;
 struct MovieClipUser;
 struct MovieDistortion;
 
-void BKE_movieclip_release_datablocks(struct MovieClip *clip);
 void BKE_movieclip_free(struct MovieClip *clip, const bool do_id_user);
 void BKE_movieclip_unlink(struct Main *bmain, struct MovieClip *clip);
 

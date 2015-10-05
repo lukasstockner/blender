@@ -126,25 +126,6 @@ FreestyleLineStyle *BKE_linestyle_new(struct Main *bmain, const char *name)
 }
 
 /**
- * Release all datablocks (ID) used by this linestyle (datablocks are never freed, they are just unreferenced).
- *
- * \param linestyle The linestyle which has to release its data.
- */
-void BKE_linestyle_release_datablocks(FreestyleLineStyle *linestyle)
-{
-	MTex *mtex;
-	int a;
-
-	for (a = 0; a < MAX_MTEX; a++) {
-		mtex = linestyle->mtex[a];
-		if (mtex && mtex->tex) {
-			id_us_min(&mtex->tex->id);
-			mtex->tex = NULL;
-		}
-	}
-}
-
-/**
  * Free (or release) any data used by this linestyle (does not free the linestyle itself).
  *
  * \param linestyle The linestyle to free.
@@ -157,8 +138,18 @@ void BKE_linestyle_free(FreestyleLineStyle *linestyle, const bool do_id_user)
 	int a;
 
 	if (do_id_user) {
-		BKE_linestyle_release_datablocks(linestyle);
+		MTex *mtex;
+
+		for (a = 0; a < MAX_MTEX; a++) {
+			mtex = linestyle->mtex[a];
+			if (mtex && mtex->tex) {
+				id_us_min(&mtex->tex->id);
+				mtex->tex = NULL;
+			}
+		}
 	}
+
+	BKE_animdata_free(&linestyle->id);
 
 	for (a = 0; a < MAX_MTEX; a++) {
 		MEM_SAFE_FREE(linestyle->mtex[a]);
@@ -170,8 +161,6 @@ void BKE_linestyle_free(FreestyleLineStyle *linestyle, const bool do_id_user)
 		MEM_freeN(linestyle->nodetree);
 		linestyle->nodetree = NULL;
 	}
-
-	BKE_animdata_free(&linestyle->id);
 
 	while ((m = (LineStyleModifier *)linestyle->color_modifiers.first))
 		BKE_linestyle_color_modifier_remove(linestyle, m);

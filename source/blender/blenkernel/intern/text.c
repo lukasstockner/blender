@@ -152,9 +152,18 @@ static void init_undo_text(Text *text)
 	text->undo_buf = MEM_mallocN(text->undo_len, "undo buf");
 }
 
+/**
+ * Free (or release) any data used by this text (does not free the text itself).
+ *
+ * \param text The text to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this text are 'released'
+ *                   (their user count is decreased).
+ */
 void BKE_text_free(Text *text, const bool UNUSED(do_id_user))
 {
 	TextLine *tmp;
+
+	/* No animdata here. */
 
 	for (tmp = text->lines.first; tmp; tmp = tmp->next) {
 		MEM_freeN(tmp->line);

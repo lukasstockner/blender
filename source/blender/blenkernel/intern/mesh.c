@@ -432,33 +432,6 @@ bool BKE_mesh_has_custom_loop_normals(Mesh *me)
 
 
 /**
- * Release all datablocks (ID) used by this mesh (datablocks are never freed, they are just unreferenced).
- *
- * \param me The mesh which has to release its data.
- */
-void BKE_mesh_release_datablocks(Mesh *me)
-{
-	int a;
-	
-	if (me->mat) {
-		for (a = 0; a < me->totcol; a++) {
-			if (me->mat[a]) {
-				id_us_min(&me->mat[a]->id);
-				me->mat[a] = NULL;
-			}
-		}
-	}
-
-	if (me->key) {
-		id_us_min(&me->key->id);
-		me->key = NULL;
-	}
-	
-	/* No ID refcount here... */
-	me->texcomesh = NULL;
-}
-
-/**
  * Free (or release) any data used by this mesh (does not free the mesh itself).
  *
  * \param me The mesh to free.
@@ -468,16 +441,33 @@ void BKE_mesh_release_datablocks(Mesh *me)
 void BKE_mesh_free(Mesh *me, const bool do_id_user)
 {
 	if (do_id_user) {
-		BKE_mesh_release_datablocks(me);
+		int a;
+	
+		if (me->mat) {
+			for (a = 0; a < me->totcol; a++) {
+				if (me->mat[a]) {
+					id_us_min(&me->mat[a]->id);
+					me->mat[a] = NULL;
+				}
+			}
+		}
+
+		if (me->key) {
+			id_us_min(&me->key->id);
+			me->key = NULL;
+		}
+	
+		/* No ID refcount here... */
+		me->texcomesh = NULL;
 	}
+
+	BKE_animdata_free(&me->id);
 
 	CustomData_free(&me->vdata, me->totvert);
 	CustomData_free(&me->edata, me->totedge);
 	CustomData_free(&me->fdata, me->totface);
 	CustomData_free(&me->ldata, me->totloop);
 	CustomData_free(&me->pdata, me->totpoly);
-
-	BKE_animdata_free(&me->id);
 
 	MEM_SAFE_FREE(me->mat);
 	MEM_SAFE_FREE(me->bb);

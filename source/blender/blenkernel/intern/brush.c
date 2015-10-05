@@ -206,33 +206,6 @@ Brush *BKE_brush_copy(Brush *brush)
 }
 
 /**
- * Release all datablocks (ID) used by this brush (datablocks are never freed, they are just unreferenced).
- *
- * \param brush The brush which has to release its data.
- */
-void BKE_brush_release_datablocks(Brush *brush)
-{
-	if (brush->mtex.tex) {
-		id_us_min(&brush->mtex.tex->id);
-		brush->mtex.tex = NULL;
-	}
-
-	if (brush->mask_mtex.tex) {
-		id_us_min(&brush->mask_mtex.tex->id);
-		brush->mask_mtex.tex = NULL;
-	}
-
-	if (brush->paint_curve) {
-		id_us_min(&brush->paint_curve->id);
-		brush->paint_curve = NULL;
-	}
-
-	/* No ID refcount here... */
-	brush->toggle_brush = NULL;
-	brush->clone.image = NULL;
-}
-
-/**
  * Free (or release) any data used by this brush (does not free the brush itself).
  *
  * \param brush The brush to free.
@@ -242,7 +215,24 @@ void BKE_brush_release_datablocks(Brush *brush)
 void BKE_brush_free(Brush *brush, const bool do_id_user)
 {
 	if (do_id_user) {
-		BKE_brush_release_datablocks(brush);
+		if (brush->mtex.tex) {
+			id_us_min(&brush->mtex.tex->id);
+			brush->mtex.tex = NULL;
+		}
+
+		if (brush->mask_mtex.tex) {
+			id_us_min(&brush->mask_mtex.tex->id);
+			brush->mask_mtex.tex = NULL;
+		}
+
+		if (brush->paint_curve) {
+			id_us_min(&brush->paint_curve->id);
+			brush->paint_curve = NULL;
+		}
+
+		/* No ID refcount here... */
+		brush->toggle_brush = NULL;
+		brush->clone.image = NULL;
 	}
 
 	if (brush->icon_imbuf) {

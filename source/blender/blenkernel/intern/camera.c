@@ -152,17 +152,6 @@ void BKE_camera_make_local(Camera *cam)
 }
 
 /**
- * Release all datablocks (ID) used by this camera (datablocks are never freed, they are just unreferenced).
- *
- * \param ca The camera which has to release its data.
- */
-void BKE_camera_release_datablocks(Camera *ca)
-{
-	/* No ID refcount here... */
-	ca->dof_ob = NULL;
-}
-
-/**
  * Free (or release) any data used by this camera (does not free the camera itself).
  *
  * \param ca The camera to free.
@@ -172,7 +161,8 @@ void BKE_camera_release_datablocks(Camera *ca)
 void BKE_camera_free(Camera *ca, const bool do_id_user)
 {
 	if (do_id_user) {
-		BKE_camera_release_datablocks(ca);
+		/* No ID refcount here... */
+		ca->dof_ob = NULL;
 	}
 
 	BKE_animdata_free((ID *)ca);

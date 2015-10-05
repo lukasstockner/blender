@@ -361,45 +361,6 @@ void BKE_scene_groups_relink(Scene *sce)
 }
 
 /**
- * Release all datablocks (ID) used by this scene (datablocks are never freed, they are just unreferenced).
- *
- * \param sce The scene which has to release its data.
- */
-void BKE_scene_release_datablocks(Scene *sce)
-{
-	Base *base;
-
-	for (base = sce->base.first; base; base = base->next) {
-		id_us_min(&base->object->id);
-		base->object = NULL;
-	}
-	/* do not free objects! */
-
-	if (sce->world) {
-		id_us_min(&sce->world->id);
-		sce->world = NULL;
-	}
-
-	BLI_assert(sce->obedit == NULL);
-
-	if (sce->gpd) {
-		/* XXX TODO Fix This! */
-#if 0   /* removed since this can be invalid memory when freeing everything */
-		/* since the grease pencil data is freed before the scene.
-		 * since grease pencil data is not (yet?), shared between objects
-		 * its probably safe not to do this, some save and reload will free this. */
-		id_us_min(&sce->gpd->id);
-#endif
-		sce->gpd = NULL;
-	}
-
-	/* No ID refcount here... */
-	sce->camera = NULL;
-	sce->set = NULL;
-	sce->clip = NULL;
-}
-
-/**
  * Free (or release) any data used by this scene (does not free the scene itself).
  *
  * \param sce The scene to free.
@@ -411,8 +372,39 @@ void BKE_scene_free(Scene *sce, const bool do_id_user)
 	SceneRenderLayer *srl;
 
 	if (do_id_user) {
-		BKE_scene_release_datablocks(sce);
+		Base *base;
+
+		for (base = sce->base.first; base; base = base->next) {
+			id_us_min(&base->object->id);
+			base->object = NULL;
+		}
+		/* do not free objects! */
+
+		if (sce->world) {
+			id_us_min(&sce->world->id);
+			sce->world = NULL;
+		}
+
+		BLI_assert(sce->obedit == NULL);
+
+		if (sce->gpd) {
+			/* XXX TODO Fix This! */
+#if 0	   /* removed since this can be invalid memory when freeing everything */
+			/* since the grease pencil data is freed before the scene.
+			 * since grease pencil data is not (yet?), shared between objects
+			 * its probably safe not to do this, some save and reload will free this. */
+			id_us_min(&sce->gpd->id);
+#endif
+			sce->gpd = NULL;
+		}
+
+		/* No ID refcount here... */
+		sce->camera = NULL;
+		sce->set = NULL;
+		sce->clip = NULL;
 	}
+
+	BKE_animdata_free((ID *)sce);
 
 	/* check all sequences */
 	BKE_sequencer_clear_scene_in_allseqs(G.main, sce);
@@ -421,7 +413,6 @@ void BKE_scene_free(Scene *sce, const bool do_id_user)
 	BLI_freelistN(&sce->base);
 	BKE_sequencer_editing_free(sce);
 
-	BKE_animdata_free((ID *)sce);
 	BKE_keyingsets_free(&sce->keyingsets);
 
 	/* is no lib link block, but scene extension */

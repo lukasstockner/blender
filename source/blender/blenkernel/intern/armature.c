@@ -106,6 +106,13 @@ void BKE_armature_bonelist_free(ListBase *lb)
 	BLI_freelistN(lb);
 }
 
+/**
+ * Free (or release) any data used by this armature (does not free the armature itself).
+ *
+ * \param arm The armature to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this armature are 'released'
+ *                   (their user count is decreased).
+ */
 void BKE_armature_free(bArmature *arm, const bool UNUSED(do_id_user))
 {
 	BKE_animdata_free(&arm->id);

@@ -301,19 +301,6 @@ Lattice *BKE_lattice_copy(Lattice *lt)
 }
 
 /**
- * Release all datablocks (ID) used by this lattice (datablocks are never freed, they are just unreferenced).
- *
- * \param lt The lattice which has to release its data.
- */
-void BKE_lattice_release_datablocks(Lattice *lt)
-{
-	if (lt->key) {
-		id_us_min(&lt->key->id);
-		lt->key = NULL;
-	}
-}
-
-/**
  * Free (or release) any data used by this lattice (does not free the lattice itself).
  *
  * \param lt The lattice to free.
@@ -323,8 +310,13 @@ void BKE_lattice_release_datablocks(Lattice *lt)
 void BKE_lattice_free(Lattice *lt, const bool do_id_user)
 {
 	if (do_id_user) {
-		BKE_lattice_release_datablocks(lt);
+		if (lt->key) {
+			id_us_min(&lt->key->id);
+			lt->key = NULL;
+		}
 	}
+
+	BKE_animdata_free(&lt->id);
 
 	MEM_SAFE_FREE(lt->def);
 	if (lt->dvert) {
@@ -343,8 +335,6 @@ void BKE_lattice_free(Lattice *lt, const bool do_id_user)
 		MEM_freeN(lt->editlatt);
 		lt->editlatt = NULL;
 	}
-	
-	BKE_animdata_free(&lt->id);
 }
 
 

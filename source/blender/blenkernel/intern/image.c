@@ -340,6 +340,7 @@ void BKE_image_free(Image *ima, const bool UNUSED(do_id_user))
 {
 	int a;
 
+	/* Also frees animdata. */
 	BKE_image_free_buffers(ima);
 
 	image_free_packedfiles(ima);
@@ -354,8 +355,8 @@ void BKE_image_free(Image *ima, const bool UNUSED(do_id_user))
 	image_free_views(ima);
 	MEM_SAFE_FREE(ima->stereo3d_format);
 
-	BKE_previewimg_free(&ima->preview);
 	BKE_icon_id_delete(&ima->id);
+	BKE_previewimg_free(&ima->preview);
 }
 
 /* only image block itself */

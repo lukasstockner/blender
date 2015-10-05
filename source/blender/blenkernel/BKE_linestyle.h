@@ -51,7 +51,6 @@ struct bContext;
 
 void BKE_linestyle_init(struct FreestyleLineStyle *linestyle);
 FreestyleLineStyle *BKE_linestyle_new(struct Main *bmain, const char *name);
-void                BKE_linestyle_release_datablocks(FreestyleLineStyle *linestyle);
 void                BKE_linestyle_free(FreestyleLineStyle *linestyle, const bool do_id_user);
 FreestyleLineStyle *BKE_linestyle_copy(struct Main *bmain, FreestyleLineStyle *linestyle);
 

@@ -982,7 +982,7 @@ void *BKE_libblock_copy(ID *id)
 	return BKE_libblock_copy_ex(G.main, id);
 }
 
-static void library_free(Library *lib, const bool UNUSED(do_id_user))
+static void BKE_library_free(Library *lib, const bool UNUSED(do_id_user))
 {
 	if (lib->packedfile)
 		freePackedFile(lib->packedfile);
@@ -1226,7 +1226,7 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_scene_free((Scene *)id, do_id_user);
 			break;
 		case ID_LI:
-			library_free((Library *)id, do_id_user);
+			BKE_library_free((Library *)id, do_id_user);
 			break;
 		case ID_OB:
 			BKE_object_free((Object *)id, do_id_user);
