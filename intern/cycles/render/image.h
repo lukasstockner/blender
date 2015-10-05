@@ -118,8 +118,8 @@ public:
 		int users;
 
 		int v_angles_num, h_angles_num;
-		float *v_angles, *h_angles;
-		float **intensity;
+		vector<float> v_angles, h_angles;
+		vector<float*> intensity;
 		float lat_min;
 		float lat_max;
 		float lon_min;

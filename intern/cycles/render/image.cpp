@@ -408,91 +408,114 @@ ImageManager::IESLight::IESLight(const string& filename_)
 
 	bool successful = false;
 	float factor;
-	v_angles = h_angles = NULL;
-	intensity = NULL;
+	h_angles.clear();
+	v_angles.clear();
+	intensity.clear();
 	h_angles_num = 0;
-	FILE *file = fopen(filename.c_str(), "r");
+	v_angles_num = 0;
+	FILE *file = fopen(filename.c_str(), "rb");
 	if(file != NULL) {
-		char line[1024];
-		bool found_tilt = false;
-		while(fgets(line, 1024, file)) {
-			if(strncmp(line, "TILT=", 5) == 0) {
-				found_tilt = true;
-				break;
+		fseek(file, 0, SEEK_END);
+		int len = ftell(file);
+		fseek(file, 0, SEEK_SET);
+		char *fdata = new char[len+1];
+		fread(fdata, 1, len, file);
+		fdata[len] = '\0';
+		fclose(file);
+
+		for(int i = 0; i < len; i++)
+			if(fdata[i] == ',')
+				fdata[i] = ' ';
+
+		char *data = strstr(fdata, "\nTILT=");
+		if(data != NULL) {
+			if(strncmp(data, "\nTILT=INCLUDE", 13) == 0)
+				for(int i = 0; i < 5 && data; i++)
+					data = strstr(data+1, "\n");
+			else
+				data = strstr(data+1, "\n");
+			if(data != NULL) {
+				data++;
+				strtol(data, &data, 10);
+				strtod(data, &data);
+				strtod(data, &data);
+				v_angles_num = strtol(data, &data, 10);
+				h_angles_num = strtol(data, &data, 10);
+				strtol(data, &data, 10);
+				strtol(data, &data, 10);
+				strtod(data, &data);
+				strtod(data, &data);
+				strtod(data, &data);
+				strtod(data, &data);
+				strtod(data, &data);
+				strtod(data, &data);
+				for(int i = 0; i < v_angles_num; i++)
+					v_angles.push_back(strtod(data, &data));
+				for(int i = 0; i < h_angles_num; i++)
+					h_angles.push_back(strtod(data, &data));
+				for(int i = 0; i < h_angles_num; i++) {
+					intensity.push_back(new float[v_angles_num]);
+					for(int j = 0; j < v_angles_num; j++)
+						intensity[i][j] = strtod(data, &data);
+				}
+				for(; isspace(*data); data++);
+				if(*data == 0 || strncmp(data, "END", 3) == 0)
+					successful = true;
 			}
 		}
-		if(found_tilt) {
-			if(strncmp(line, "TILT=INCLUDE", 12) == 0) {
-				for(int i = 0; i < 4; i++)
-					fgets(line, 1024, file);
+	}
+	if(successful) {
+		if(h_angles_num == 0 || v_angles_num == 0 || h_angles[0] != 0.0f || v_angles[0] != 0.0f)
+			successful = false;
+		else {
+			if(h_angles_num == 1) {
+				/* 1D IES */
+				h_angles_num = 2;
+				h_angles.push_back(360.f);
+				intensity.push_back(new float[v_angles_num]);
+				memcpy(intensity[1], intensity[0], v_angles_num*sizeof(float));
 			}
-			int num_lamps, photo_type, unit;
-			float lumen_per_lamp, width, height, length, ballast, ballast_fac, watts;
-			if(   fscanf(file, "%d %f %f %d %d %d %d %f %f %f\r\n", &num_lamps, &lumen_per_lamp, &factor, &v_angles_num, &h_angles_num, &photo_type, &unit, &width, &length, &height) == 10
-			   && fscanf(file, "%f %f %f\r\n", &ballast, &ballast_fac, &watts) == 3) {
-				factor *= ballast * ballast_fac;
-				v_angles = new float[v_angles_num];
-				if(fgets(line, 1024, file)) {
-					char *line_next = line-1;
-					int pos = 0;
-					while(line_next && sscanf(line_next+1, "%f", &v_angles[pos++])) {
-						line_next = strchr(line_next+1, ' ');
-					}
-					if(pos == v_angles_num) {
-						h_angles = new float[h_angles_num];
-						if(fgets(line, 1024, file)) {
-							line_next = line-1;
-							pos = 0;
-							while(line_next && sscanf(line_next+1, "%f", &h_angles[pos++])) {
-								line_next = strchr(line_next+1, ' ');
-							}
-							if(pos == h_angles_num) {
-								intensity = new float*[h_angles_num];
-								int h;
-								for(h = 0; h < h_angles_num; h++)
-									intensity[h] = NULL;
-								for(h = 0; h < h_angles_num; h++) {
-									if(!fgets(line, 1024, file))
-										break;
-									line_next = line-1;
-									pos = 0;
-									intensity[h] = new float[v_angles_num];
-									while(line_next && sscanf(line_next+1, "%f", &intensity[h][pos++])) {
-										line_next = strchr(line_next+1, ' ');
-									}
-									if(pos != v_angles_num)
-										break;
-								}
-								if(h == h_angles_num) {
-									successful = true;
-								}
-							}
+			else {
+				if(!(h_angles[h_angles_num-1] == 90.0f || h_angles[h_angles_num-1] == 180.0f || h_angles[h_angles_num-1] == 360.0f))
+					successful = false;
+				else {
+					/* 2D IES - potential symmetries must be considered here */
+					if(h_angles[h_angles_num-1] == 90.0f) {
+						/* All 4 quadrants are symmetric */
+						for(int i = h_angles_num-2; i >= 0; i--) {
+							intensity.push_back(new float[v_angles_num]);
+							memcpy(intensity[intensity.size()-1], intensity[i], v_angles_num*sizeof(float));
+							h_angles.push_back(180.0f - h_angles[i]);
 						}
+						h_angles_num = 2*h_angles_num-1;
+					}
+					if(h_angles[h_angles_num-1] == 180.0f) {
+						/* Quadrants 1 and 2 are symmetric with 3 and 4 */
+						for(int i = h_angles_num-2; i >= 0; i--) {
+							intensity.push_back(new float[v_angles_num]);
+							memcpy(intensity[intensity.size()-1], intensity[i], v_angles_num*sizeof(float));
+							h_angles.push_back(360.0f - h_angles[i]);
+						}
+						h_angles_num = 2*h_angles_num-1;
 					}
 				}
 			}
 		}
 	}
 	if(!successful) {
-		delete[] v_angles;
-		delete[] h_angles;
-		if(intensity)
-			for(int i = 0; i < h_angles_num; i++)
-				delete[] intensity[i];
-		delete[] intensity;
+		for(int i = 0; i < intensity.size(); i++)
+			delete[] intensity[i];
+		intensity.clear();
+		v_angles_num = h_angles_num = 0;
 		printf("Loading %s failed!\n", filename.c_str());
-	} else printf("Loaded %s, is %d by %d!\n", filename.c_str(), h_angles_num, v_angles_num);
+	}
+	else printf("Loaded %s, is %d by %d!\n", filename.c_str(), h_angles_num, v_angles_num);
 }
 
 ImageManager::IESLight::~IESLight()
 {
-	delete[] v_angles;
-	delete[] h_angles;
-	if(intensity) {
-		for(int i = 0; i < h_angles_num; i++)
-			delete[] intensity[i];
-	}
-	delete[] intensity;
+	for(int i = 0; i < intensity.size(); i++)
+		delete[] intensity[i];
 }
 
 int ImageManager::add_ies(const string& filename)
@@ -1015,17 +1038,17 @@ void ImageManager::device_update_ies(Device *device,
 			if(ies) {
 				int data_len;
 				if(ies->v_angles_num > 0 && ies->h_angles_num > 0)
-					data_len = ies->h_angles_num + ies->v_angles_num + ies->h_angles_num*ies->v_angles_num;
+					data_len = 2 + ies->h_angles_num + ies->v_angles_num + ies->h_angles_num*ies->v_angles_num;
 				else
-					data_len = 3;
+					data_len = 10;
 				max_data_len = max(max_data_len, data_len);
 			}
 		}
 
-		int len = (max_data_len + 2)*ies_lights.size(); //2 floats (actually ints) for v_num and h_num
+		int len = max_data_len*ies_lights.size();
 		float *data = dscene->ies_lights.resize(len);
 		for(int i = 0; i < ies_lights.size(); i++) {
-			float *ies_data = data + (max_data_len + 2)*i;
+			float *ies_data = data + max_data_len*i;
 			IESLight *ies = ies_lights[i];
 			if(ies) {
 				if(ies->v_angles_num > 0 && ies->h_angles_num > 0) {
@@ -1039,11 +1062,16 @@ void ImageManager::device_update_ies(Device *device,
 						for(int v = 0; v < ies->v_angles_num; v++)
 							 *(ies_data++) = ies->intensity[h][v];
 				} else {
-					//IES was not loaded correctly => Fallback (1x1 IES, Angle is 0° 0°, Intensity is 1)
-					*(ies_data++) = __int_as_float(1);
-					*(ies_data++) = __int_as_float(1);
+					//IES was not loaded correctly => Fallback
+					*(ies_data++) = __int_as_float(2);
+					*(ies_data++) = __int_as_float(2);
 					*(ies_data++) = 0.0f;
+					*(ies_data++) = M_PI_2_F;
 					*(ies_data++) = 0.0f;
+					*(ies_data++) = M_2PI_F;
+					*(ies_data++) = 1.0f;
+					*(ies_data++) = 1.0f;
+					*(ies_data++) = 1.0f;
 					*(ies_data++) = 1.0f;
 				}
 			}
