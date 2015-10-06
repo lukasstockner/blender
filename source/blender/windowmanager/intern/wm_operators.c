@@ -3125,9 +3125,10 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 
 					id_sort_by_name(which_libbase(bmain, GS(old_id->name)), old_id);
 
-					BKE_reportf(op->reports, RPT_ERROR,
+					BKE_reportf(op->reports, RPT_WARNING,
 					            "Lib Reload: Replacing all references to old datablock '%s' by reloaded one failed, "
-					            "old one had to be kept and was renamed to '%s'", new_id->name, old_id->name);
+					            "old (%d remaining users) one had to be kept and was renamed to '%s'",
+					            new_id->name, old_id->us, old_id->name);
 				}
 			}
 

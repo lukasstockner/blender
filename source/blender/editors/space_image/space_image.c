@@ -990,11 +990,12 @@ static void image_id_remap(SpaceLink *slink, ID *old_id, ID *new_id)
 		/* TODO_REMAP this does not work well. */
 		/* SpaceImage image->id.us is nasty, uses id_us_ensure_real(),
 		 * i.e. increasing it only if null, and never decreasing it ever. :|
-		 * Until better handling, work around that as best as we can... */
+		 * Until better handling, work around that as best as we can...
+		 * (only real fix is to make spaceimage a real image ID user!). */
 		if (old_id->us > 0) {
 			id_us_min(old_id);
 		}
-		if (new_id->us == 0) {
+		if (new_id && new_id->us == 0) {
 			id_us_plus(new_id);
 		}
 	}

@@ -235,7 +235,8 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			object->data = obdata;
 			CALLBACK_INVOKE(object->parent, IDWALK_NOP);
 			CALLBACK_INVOKE(object->track, IDWALK_NOP);
-			CALLBACK_INVOKE(object->proxy, IDWALK_NOP);
+			/* object->proxy is refcounted, but not object->proxy_group... *sigh* */
+			CALLBACK_INVOKE(object->proxy, IDWALK_REFCOUNTED);
 			CALLBACK_INVOKE(object->proxy_group, IDWALK_NOP);
 			CALLBACK_INVOKE(object->proxy_from, IDWALK_NOP);
 			CALLBACK_INVOKE(object->poselib, IDWALK_REFCOUNTED);
