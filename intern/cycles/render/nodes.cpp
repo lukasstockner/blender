@@ -990,14 +990,17 @@ ShaderNode *IESLightNode::clone() const
 IESLightNode::~IESLightNode()
 {
 	if(image_manager)
-		image_manager->remove_ies(filename);
+		image_manager->remove_ies(slot);
 }
 
 void IESLightNode::compile(SVMCompiler& compiler)
 {
 	image_manager = compiler.image_manager;
 	if(slot == -1) {
-		slot = image_manager->add_ies(filename);
+		if(ies.empty())
+			slot = image_manager->add_ies_from_file(filename);
+		else
+			slot = image_manager->add_ies(ies);
 	}
 
 	ShaderInput *strength_in = input("Strength");

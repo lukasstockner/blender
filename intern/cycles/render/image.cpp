@@ -19,9 +19,12 @@
 #include "scene.h"
 
 #include "util_foreach.h"
+#include "util_hash.h"
 #include "util_image.h"
 #include "util_path.h"
 #include "util_progress.h"
+
+#include <fstream>
 
 #ifdef WITH_OSL
 #include <OSL/oslexec.h>
@@ -161,12 +164,6 @@ static bool image_equals(ImageManager::Image *image,
 	       image->builtin_data == builtin_data &&
 	       image->interpolation == interpolation &&
 	       image->extension == extension;
-}
-
-static bool ies_equals(ImageManager::IESLight *ies,
-                       const string& filename)
-{
-	return ies->filename == filename;
 }
 
 int ImageManager::add_image(const string& filename,
@@ -401,128 +398,134 @@ void ImageManager::tag_reload_image(const string& filename,
 	}
 }
 
-ImageManager::IESLight::IESLight(const string& filename_)
+ImageManager::IESLight::IESLight(const string& ies_)
 {
-	filename = filename_;
+	ies = ies_;
 	users = 1;
+	hash = hash_string(ies.c_str());
 
-	bool successful = false;
-	h_angles.clear();
-	v_angles.clear();
-	intensity.clear();
-	h_angles_num = 0;
-	v_angles_num = 0;
-	FILE *file = fopen(filename.c_str(), "rb");
-	if(file != NULL) {
-		fseek(file, 0, SEEK_END);
-		int len = ftell(file);
-		fseek(file, 0, SEEK_SET);
-		char *fdata = new char[len+1];
-		fread(fdata, 1, len, file);
-		fdata[len] = '\0';
-		fclose(file);
-
-		for(int i = 0; i < len; i++)
-			if(fdata[i] == ',')
-				fdata[i] = ' ';
-
-		char *data = strstr(fdata, "\nTILT=");
-		if(data != NULL) {
-			if(strncmp(data, "\nTILT=INCLUDE", 13) == 0)
-				for(int i = 0; i < 5 && data; i++)
-					data = strstr(data+1, "\n");
-			else
-				data = strstr(data+1, "\n");
-			if(data != NULL) {
-				data++;
-				strtol(data, &data, 10); /* Number of lamps */
-				strtod(data, &data); /* Lumens per lamp */
-				double factor = strtod(data, &data); /* Candela multiplier */
-				v_angles_num = strtol(data, &data, 10); /* Number of vertical angles */
-				h_angles_num = strtol(data, &data, 10); /* Number of horizontal angles */
-				strtol(data, &data, 10); /* Photometric type (is assumed to be 1 => Type C) */
-				strtol(data, &data, 10); /* Unit of the geometry data */
-				strtod(data, &data); /* Width */
-				strtod(data, &data); /* Length */
-				strtod(data, &data); /* Height */
-				factor *= strtod(data, &data); /* Ballast factor */
-				factor *= strtod(data, &data); /* Ballast-Lamp Photometric factor */
-				strtod(data, &data); /* Input Watts */
-
-				/* Intensity values in IES files are specified in candela (lumen/sr), a photometric quantity.
-				 * Cycles expects radiometric quantities, though, which requires a conversion.
-				 * However, the Luminous efficacy (ratio of lumens per Watt) depends on the spectral distribution
-				 * of the light source since lumens take human perception into account.
-				 * Since this spectral distribution is not known from the IES file, a typical one must be assumed.
-				 * The D65 standard illuminant has a Luminous efficacy of 177.83, which is used here to convert to Watt/sr.
-				 * A more advanced approach would be to add a Blackbody Temperature input to the node and numerically
-				 * integrate the Luminous efficacy from the resulting spectral distribution.
-				 * Also, the Watt/sr value must be multiplied by 4*pi to get the Watt value that Cycles expects
-				 * for lamp strength. Therefore, the conversion here uses 4*pi/177.83 as a Candela to Watt factor.
-				 */
-				factor *= 0.0706650768394;
-
-				for(int i = 0; i < v_angles_num; i++)
-					v_angles.push_back(strtod(data, &data));
-				for(int i = 0; i < h_angles_num; i++)
-					h_angles.push_back(strtod(data, &data));
-				for(int i = 0; i < h_angles_num; i++) {
-					intensity.push_back(new float[v_angles_num]);
-					for(int j = 0; j < v_angles_num; j++)
-						intensity[i][j] = factor * strtod(data, &data);
-				}
-				for(; isspace(*data); data++);
-				if(*data == 0 || strncmp(data, "END", 3) == 0)
-					successful = true;
-			}
-		}
-	}
-	if(successful) {
-		if(h_angles_num == 0 || v_angles_num == 0 || h_angles[0] != 0.0f || v_angles[0] != 0.0f)
-			successful = false;
-		else {
-			if(h_angles_num == 1) {
-				/* 1D IES */
-				h_angles_num = 2;
-				h_angles.push_back(360.f);
-				intensity.push_back(new float[v_angles_num]);
-				memcpy(intensity[1], intensity[0], v_angles_num*sizeof(float));
-			}
-			else {
-				if(!(h_angles[h_angles_num-1] == 90.0f || h_angles[h_angles_num-1] == 180.0f || h_angles[h_angles_num-1] == 360.0f))
-					successful = false;
-				else {
-					/* 2D IES - potential symmetries must be considered here */
-					if(h_angles[h_angles_num-1] == 90.0f) {
-						/* All 4 quadrants are symmetric */
-						for(int i = h_angles_num-2; i >= 0; i--) {
-							intensity.push_back(new float[v_angles_num]);
-							memcpy(intensity[intensity.size()-1], intensity[i], v_angles_num*sizeof(float));
-							h_angles.push_back(180.0f - h_angles[i]);
-						}
-						h_angles_num = 2*h_angles_num-1;
-					}
-					if(h_angles[h_angles_num-1] == 180.0f) {
-						/* Quadrants 1 and 2 are symmetric with 3 and 4 */
-						for(int i = h_angles_num-2; i >= 0; i--) {
-							intensity.push_back(new float[v_angles_num]);
-							memcpy(intensity[intensity.size()-1], intensity[i], v_angles_num*sizeof(float));
-							h_angles.push_back(360.0f - h_angles[i]);
-						}
-						h_angles_num = 2*h_angles_num-1;
-					}
-				}
-			}
-		}
-	}
-	if(!successful) {
+	if(!parse() || !process()) {
 		for(int i = 0; i < intensity.size(); i++)
 			delete[] intensity[i];
 		intensity.clear();
 		v_angles_num = h_angles_num = 0;
-		printf("Loading %s failed!\n", filename.c_str());
 	}
-	else printf("Loaded %s, is %d by %d!\n", filename.c_str(), h_angles_num, v_angles_num);
+}
+
+ImageManager::IESLight::IESLight()
+{
+	v_angles_num = h_angles_num = 0;
+}
+
+bool ImageManager::IESLight::parse()
+{
+	int len = ies.length();
+	char *fdata = new char[len+1];
+	memcpy(fdata, ies.c_str(), len+1);
+
+	for(int i = 0; i < len; i++)
+		if(fdata[i] == ',')
+			fdata[i] = ' ';
+
+	char *data = strstr(fdata, "\nTILT=");
+	if(!data) {
+		delete[] fdata;
+		return false;
+	}
+
+	if(strncmp(data, "\nTILT=INCLUDE", 13) == 0)
+		for(int i = 0; i < 5 && data; i++)
+			data = strstr(data+1, "\n");
+	else
+		data = strstr(data+1, "\n");
+	if(!data) {
+		delete[] fdata;
+		return false;
+	}
+
+	data++;
+	strtol(data, &data, 10); /* Number of lamps */
+	strtod(data, &data); /* Lumens per lamp */
+	double factor = strtod(data, &data); /* Candela multiplier */
+	v_angles_num = strtol(data, &data, 10); /* Number of vertical angles */
+	h_angles_num = strtol(data, &data, 10); /* Number of horizontal angles */
+	strtol(data, &data, 10); /* Photometric type (is assumed to be 1 => Type C) */
+	strtol(data, &data, 10); /* Unit of the geometry data */
+	strtod(data, &data); /* Width */
+	strtod(data, &data); /* Length */
+	strtod(data, &data); /* Height */
+	factor *= strtod(data, &data); /* Ballast factor */
+	factor *= strtod(data, &data); /* Ballast-Lamp Photometric factor */
+	strtod(data, &data); /* Input Watts */
+
+	/* Intensity values in IES files are specified in candela (lumen/sr), a photometric quantity.
+	 * Cycles expects radiometric quantities, though, which requires a conversion.
+	 * However, the Luminous efficacy (ratio of lumens per Watt) depends on the spectral distribution
+	 * of the light source since lumens take human perception into account.
+	 * Since this spectral distribution is not known from the IES file, a typical one must be assumed.
+	 * The D65 standard illuminant has a Luminous efficacy of 177.83, which is used here to convert to Watt/sr.
+	 * A more advanced approach would be to add a Blackbody Temperature input to the node and numerically
+	 * integrate the Luminous efficacy from the resulting spectral distribution.
+	 * Also, the Watt/sr value must be multiplied by 4*pi to get the Watt value that Cycles expects
+	 * for lamp strength. Therefore, the conversion here uses 4*pi/177.83 as a Candela to Watt factor.
+	 */
+	factor *= 0.0706650768394;
+
+	for(int i = 0; i < v_angles_num; i++)
+		v_angles.push_back(strtod(data, &data));
+	for(int i = 0; i < h_angles_num; i++)
+		h_angles.push_back(strtod(data, &data));
+	for(int i = 0; i < h_angles_num; i++) {
+		intensity.push_back(new float[v_angles_num]);
+	for(int j = 0; j < v_angles_num; j++)
+			intensity[i][j] = factor * strtod(data, &data);
+	}
+	for(; isspace(*data); data++);
+	if(*data == 0 || strncmp(data, "END", 3) == 0) {
+		delete[] fdata;
+		return true;
+	}
+	delete[] fdata;
+	return false;
+}
+
+bool ImageManager::IESLight::process()
+{
+	if(h_angles_num == 0 || v_angles_num == 0 || h_angles[0] != 0.0f || v_angles[0] != 0.0f)
+		return false;
+
+	if(h_angles_num == 1) {
+		/* 1D IES */
+		h_angles_num = 2;
+		h_angles.push_back(360.f);
+		intensity.push_back(new float[v_angles_num]);
+		memcpy(intensity[1], intensity[0], v_angles_num*sizeof(float));
+	}
+	else {
+		if(!(h_angles[h_angles_num-1] == 90.0f || h_angles[h_angles_num-1] == 180.0f || h_angles[h_angles_num-1] == 360.0f))
+			return false;
+		/* 2D IES - potential symmetries must be considered here */
+		if(h_angles[h_angles_num-1] == 90.0f) {
+			/* All 4 quadrants are symmetric */
+			for(int i = h_angles_num-2; i >= 0; i--) {
+				intensity.push_back(new float[v_angles_num]);
+				memcpy(intensity[intensity.size()-1], intensity[i], v_angles_num*sizeof(float));
+				h_angles.push_back(180.0f - h_angles[i]);
+			}
+			h_angles_num = 2*h_angles_num-1;
+		}
+		if(h_angles[h_angles_num-1] == 180.0f) {
+			/* Quadrants 1 and 2 are symmetric with 3 and 4 */
+			for(int i = h_angles_num-2; i >= 0; i--) {
+				intensity.push_back(new float[v_angles_num]);
+				memcpy(intensity[intensity.size()-1], intensity[i], v_angles_num*sizeof(float));
+				h_angles.push_back(360.0f - h_angles[i]);
+			}
+			h_angles_num = 2*h_angles_num-1;
+		}
+	}
+
+	return true;
 }
 
 ImageManager::IESLight::~IESLight()
@@ -531,13 +534,25 @@ ImageManager::IESLight::~IESLight()
 		delete[] intensity[i];
 }
 
-int ImageManager::add_ies(const string& filename)
+int ImageManager::add_ies_from_file(const string& filename)
 {
+	string content;
+	std::ifstream in(filename, std::ios::in | std::ios::binary);
+	if(in)
+		content = string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+	/* If the file can't be opened, call with an empty string */
+	return add_ies(content);
+}
+
+int ImageManager::add_ies(const string& content)
+{
+	uint hash = hash_string(content.c_str());
+
 	size_t slot;
 	IESLight *ies;
 	for(slot = 0; slot < ies_lights.size(); slot++) {
 		ies = ies_lights[slot];
-		if(ies && ies_equals(ies, filename)) {
+		if(ies && ies->hash == hash) {
 			ies->users++;
 			return slot;
 		}
@@ -550,7 +565,7 @@ int ImageManager::add_ies(const string& filename)
 	if(slot == ies_lights.size())
 		ies_lights.resize(ies_lights.size() + 1);
 
-	ies = new IESLight(filename);
+	ies = new IESLight(content);
 
 	ies_lights[slot] = ies;
 	need_update = true;
@@ -560,21 +575,14 @@ int ImageManager::add_ies(const string& filename)
 
 void ImageManager::remove_ies(int slot)
 {
+	if(slot < 0 || slot >= ies_lights.size())
+		return;
+
 	ies_lights[slot]->users--;
 	assert(ies_lights[slot]->users >= 0);
 
 	if(ies_lights[slot]->users == 0)
 		need_update = true;
-}
-
-void ImageManager::remove_ies(const string& filename)
-{
-	for(size_t slot = 0; slot < ies_lights.size(); slot++) {
-		if(ies_lights[slot] && ies_equals(ies_lights[slot], filename)) {
-			remove_ies(slot);
-			break;
-		}
-	}
 }
 
 bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)

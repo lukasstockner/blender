@@ -247,6 +247,7 @@ public:
 	ImageManager *image_manager;
 
 	string filename;
+	string ies;
 	int slot;
 
 	virtual int get_group() { return NODE_GROUP_LEVEL_2; }

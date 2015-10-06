@@ -75,7 +75,8 @@ public:
 	                      ExtensionType extension);
 	bool is_float_image(const string& filename, void *builtin_data, bool& is_linear);
 
-	int add_ies(const string& filename);
+	int add_ies(const string& ies);
+	int add_ies_from_file(const string& filename);
 	void remove_ies(int slot);
 	void remove_ies(const string& filename);
 
@@ -111,19 +112,19 @@ public:
 
 	class IESLight {
 	public:
-		IESLight(const string& filename);
+		IESLight(const string& ies);
+		IESLight();
 		~IESLight();
+		bool parse();
+		bool process();
 
-		string filename;
+		string ies;
+		uint hash;
 		int users;
 
 		int v_angles_num, h_angles_num;
 		vector<float> v_angles, h_angles;
 		vector<float*> intensity;
-		float lat_min;
-		float lat_max;
-		float lon_min;
-		float lon_max;
 	};
 
 private:
