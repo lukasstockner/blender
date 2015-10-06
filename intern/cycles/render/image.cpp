@@ -407,7 +407,6 @@ ImageManager::IESLight::IESLight(const string& filename_)
 	users = 1;
 
 	bool successful = false;
-	float factor;
 	h_angles.clear();
 	v_angles.clear();
 	intensity.clear();
@@ -436,19 +435,33 @@ ImageManager::IESLight::IESLight(const string& filename_)
 				data = strstr(data+1, "\n");
 			if(data != NULL) {
 				data++;
-				strtol(data, &data, 10);
-				strtod(data, &data);
-				strtod(data, &data);
-				v_angles_num = strtol(data, &data, 10);
-				h_angles_num = strtol(data, &data, 10);
-				strtol(data, &data, 10);
-				strtol(data, &data, 10);
-				strtod(data, &data);
-				strtod(data, &data);
-				strtod(data, &data);
-				strtod(data, &data);
-				strtod(data, &data);
-				strtod(data, &data);
+				strtol(data, &data, 10); /* Number of lamps */
+				strtod(data, &data); /* Lumens per lamp */
+				double factor = strtod(data, &data); /* Candela multiplier */
+				v_angles_num = strtol(data, &data, 10); /* Number of vertical angles */
+				h_angles_num = strtol(data, &data, 10); /* Number of horizontal angles */
+				strtol(data, &data, 10); /* Photometric type (is assumed to be 1 => Type C) */
+				strtol(data, &data, 10); /* Unit of the geometry data */
+				strtod(data, &data); /* Width */
+				strtod(data, &data); /* Length */
+				strtod(data, &data); /* Height */
+				factor *= strtod(data, &data); /* Ballast factor */
+				factor *= strtod(data, &data); /* Ballast-Lamp Photometric factor */
+				strtod(data, &data); /* Input Watts */
+
+				/* Intensity values in IES files are specified in candela (lumen/sr), a photometric quantity.
+				 * Cycles expects radiometric quantities, though, which requires a conversion.
+				 * However, the Luminous efficacy (ratio of lumens per Watt) depends on the spectral distribution
+				 * of the light source since lumens take human perception into account.
+				 * Since this spectral distribution is not known from the IES file, a typical one must be assumed.
+				 * The D65 standard illuminant has a Luminous efficacy of 177.83, which is used here to convert to Watt/sr.
+				 * A more advanced approach would be to add a Blackbody Temperature input to the node and numerically
+				 * integrate the Luminous efficacy from the resulting spectral distribution.
+				 * Also, the Watt/sr value must be multiplied by 4*pi to get the Watt value that Cycles expects
+				 * for lamp strength. Therefore, the conversion here uses 4*pi/177.83 as a Candela to Watt factor.
+				 */
+				factor *= 0.0706650768394;
+
 				for(int i = 0; i < v_angles_num; i++)
 					v_angles.push_back(strtod(data, &data));
 				for(int i = 0; i < h_angles_num; i++)
@@ -456,7 +469,7 @@ ImageManager::IESLight::IESLight(const string& filename_)
 				for(int i = 0; i < h_angles_num; i++) {
 					intensity.push_back(new float[v_angles_num]);
 					for(int j = 0; j < v_angles_num; j++)
-						intensity[i][j] = strtod(data, &data);
+						intensity[i][j] = factor * strtod(data, &data);
 				}
 				for(; isspace(*data); data++);
 				if(*data == 0 || strncmp(data, "END", 3) == 0)
@@ -1087,7 +1100,7 @@ void ImageManager::device_update_ies(Device *device,
 		device->tex_alloc("__ies", dscene->ies_lights);
 
 		kintegrator->ies_num = ies_lights.size();
-		kintegrator->ies_stride = max_data_len+2;
+		kintegrator->ies_stride = max_data_len;
 	} else {
 		kintegrator->ies_num = 0;
 		kintegrator->ies_stride = 0;
