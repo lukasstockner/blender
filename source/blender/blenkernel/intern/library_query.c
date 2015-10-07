@@ -322,6 +322,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			}
 			CALLBACK_INVOKE(object->gpd, IDWALK_REFCOUNTED);
 			CALLBACK_INVOKE(object->dup_group, IDWALK_NOP);
+
 			if (object->particlesystem.first) {
 				ParticleSystem *psys;
 				for (psys = object->particlesystem.first; psys; psys = psys->next) {
@@ -334,9 +335,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 				bPoseChannel *pchan;
 				for (pchan = object->pose->chanbase.first; pchan; pchan = pchan->next) {
 					CALLBACK_INVOKE(pchan->custom, IDWALK_NOP);
-					BKE_constraints_id_loop(&pchan->constraints,
-					                        library_foreach_constraintObjectLooper,
-					                        &data);
+					BKE_constraints_id_loop(&pchan->constraints, library_foreach_constraintObjectLooper, &data);
 				}
 			}
 
@@ -415,19 +414,19 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 
 		case ID_TE:
 		{
-			Tex *tex = (Tex *) id;
-			CALLBACK_INVOKE(tex->nodetree, IDWALK_NOP);
-			CALLBACK_INVOKE(tex->ima, IDWALK_REFCOUNTED);
-			if (tex->env) {
-				CALLBACK_INVOKE(tex->env->object, IDWALK_NOP);
-				CALLBACK_INVOKE(tex->env->ima, IDWALK_NOP);
+			Tex *texture = (Tex *) id;
+			CALLBACK_INVOKE(texture->nodetree, IDWALK_NOP);
+			CALLBACK_INVOKE(texture->ima, IDWALK_REFCOUNTED);
+			if (texture->env) {
+				CALLBACK_INVOKE(texture->env->object, IDWALK_NOP);
+				CALLBACK_INVOKE(texture->env->ima, IDWALK_NOP);
 			}
-			if (tex->pd)
-				CALLBACK_INVOKE(tex->pd->object, IDWALK_NOP);
-			if (tex->vd)
-				CALLBACK_INVOKE(tex->vd->object, IDWALK_NOP);
-			if (tex->ot)
-				CALLBACK_INVOKE(tex->ot->object, IDWALK_NOP);
+			if (texture->pd)
+				CALLBACK_INVOKE(texture->pd->object, IDWALK_NOP);
+			if (texture->vd)
+				CALLBACK_INVOKE(texture->vd->object, IDWALK_NOP);
+			if (texture->ot)
+				CALLBACK_INVOKE(texture->ot->object, IDWALK_NOP);
 
 			break;
 		}
@@ -494,9 +493,9 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 		case ID_GR:
 		{
 			Group *group = (Group *) id;
-			GroupObject *group_object;
-			for (group_object = group->gobject.first; group_object; group_object = group_object->next) {
-				CALLBACK_INVOKE(group_object->ob, IDWALK_NOP);
+			GroupObject *gob;
+			for (gob = group->gobject.first; gob; gob = gob->next) {
+				CALLBACK_INVOKE(gob->ob, IDWALK_NOP);
 			}
 			break;
 		}
@@ -529,11 +528,13 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			CALLBACK_INVOKE(psett->dup_group, IDWALK_NOP);
 			CALLBACK_INVOKE(psett->dup_ob, IDWALK_NOP);
 			CALLBACK_INVOKE(psett->bb_ob, IDWALK_NOP);
+
 			for (i = 0; i < MAX_MTEX; i++) {
 				if (psett->mtex[i]) {
 					library_foreach_mtex(&data, psett->mtex[i]);
 				}
 			}
+
 			if (psett->effector_weights) {
 				CALLBACK_INVOKE(psett->effector_weights->group, IDWALK_NOP);
 			}
@@ -564,6 +565,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			MovieClip *clip = (MovieClip *) id;
 			MovieTracking *tracking = &clip->tracking;
 			MovieTrackingObject *object;
+
 			CALLBACK_INVOKE(clip->gpd, IDWALK_REFCOUNTED);
 			for (object = tracking->objects.first; object; object = object->next) {
 				ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, object);
@@ -595,7 +597,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 		case ID_LS:
 		{
 			FreestyleLineStyle *linestyle = (FreestyleLineStyle *) id;
-			LineStyleModifier *m;
+			LineStyleModifier *lsm;
 			for (i = 0; i < MAX_MTEX; i++) {
 				if (linestyle->mtex[i]) {
 					library_foreach_mtex(&data, linestyle->mtex[i]);
@@ -603,27 +605,32 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			}
 			CALLBACK_INVOKE(linestyle->nodetree, IDWALK_NOP);
 
-			for (m = (LineStyleModifier *)linestyle->color_modifiers.first; m; m = m->next) {
-				if (m->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
-					LineStyleColorModifier_DistanceFromObject *p = (LineStyleColorModifier_DistanceFromObject *)m;
-					CALLBACK_INVOKE(p->target, IDWALK_NOP);
+			for (lsm = linestyle->color_modifiers.first; lsm; lsm = lsm->next) {
+				if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
+					LineStyleColorModifier_DistanceFromObject *p = (LineStyleColorModifier_DistanceFromObject *)lsm;
+					if (p->target) {
+						CALLBACK_INVOKE(p->target, IDWALK_NOP);
+					}
 				}
 			}
-			for (m = (LineStyleModifier *)linestyle->alpha_modifiers.first; m; m = m->next) {
-				if (m->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
-					LineStyleAlphaModifier_DistanceFromObject *p = (LineStyleAlphaModifier_DistanceFromObject *)m;
-					CALLBACK_INVOKE(p->target, IDWALK_NOP);
+			for (lsm = linestyle->alpha_modifiers.first; lsm; lsm = lsm->next) {
+				if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
+					LineStyleAlphaModifier_DistanceFromObject *p = (LineStyleAlphaModifier_DistanceFromObject *)lsm;
+					if (p->target) {
+						CALLBACK_INVOKE(p->target, IDWALK_NOP);
+					}
 				}
 			}
-			for (m = (LineStyleModifier *)linestyle->thickness_modifiers.first; m; m = m->next) {
-				if (m->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
-					LineStyleThicknessModifier_DistanceFromObject *p = (LineStyleThicknessModifier_DistanceFromObject *)m;
-					CALLBACK_INVOKE(p->target, IDWALK_NOP);
+			for (lsm = linestyle->thickness_modifiers.first; lsm; lsm = lsm->next) {
+				if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
+					LineStyleThicknessModifier_DistanceFromObject *p = (LineStyleThicknessModifier_DistanceFromObject *)lsm;
+					if (p->target) {
+						CALLBACK_INVOKE(p->target, IDWALK_NOP);
+					}
 				}
 			}
 			break;
 		}
-
 	}
 
 #undef CALLBACK_INVOKE_ID
