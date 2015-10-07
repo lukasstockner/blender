@@ -1005,7 +1005,12 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 	ID *new_id = id_remap_data->new_id;
 	ID *id = id_remap_data->id;
 
-	if (*id_p == old_id) {
+	if (!old_id) {  /* Used to cleanup all IDs used by a specific one. */
+		BLI_assert(!new_id);
+		old_id = *id_p;
+	}
+
+	if (*id_p && (*id_p == old_id)) {
 		/* Note: proxy usage implies LIB_EXTERN, so on this aspect it is direct,
 		 *       on the other hand since they get reset to lib data on file open/reload it is indirect too...
 		 *       Edit Mode is also a 'skip direct' case. */
@@ -1034,7 +1039,7 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 				if (new_id)
 					new_id->us++;
 			}
-			DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB | OB_RECALC_DATA);
+			DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 			if (!is_indirect) {
 				id_remap_data->flag |= ID_REMAP_IS_LINKED_DIRECT;
 			}
@@ -1044,15 +1049,72 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 	return true;
 }
 
+static void libblock_remap_do(
+        Main *bmain, ID *id, ID *old_id, ID *new_id, const bool skip_indirect_usage,
+        int *r_skipped_direct, int *r_skipped_indirect)
+{
+	IDRemap id_remap_data = {bmain, old_id, new_id, NULL};
+	ListBase *lb_array[MAX_LIBARRAY];
+	int i;
+
+	printf("%s: %s (%p) replaced by %s (%p)\n", __func__,
+	       old_id ? old_id->name : "", old_id, new_id ? new_id->name : "", new_id);
+
+	if (skip_indirect_usage) {
+		id_remap_data.flag |= ID_REMAP_SKIP_INDIRECT_USAGE;
+	}
+
+	if (id) {
+		printf("\tchecking id %s (%p, %p)\n", id->name, id, id->lib);
+		id_remap_data.id = id;
+		BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)&id_remap_data, IDWALK_NOP);
+	}
+	else {
+		i = set_listbasepointers(bmain, lb_array);
+
+		/* Note that this is a very 'bruteforce' approach, maybe we could use some depsgraph to only process
+		 * objects actually using given old_id... sounds rather unlikely currently, though, so this will do for now. */
+
+		while (i--) {
+			ID *id = lb_array[i]->first;
+
+			for (; id; id = id->next) {
+				/* Note that we cannot skip indirect usages of old_id here (if requested), we still need to check it for
+				 * the user count handling...
+				 * XXX No more true (except for debug usage of those skipping counters). */
+				printf("\tchecking id %s (%p, %p)\n", id->name, id, id->lib);
+				id_remap_data.id = id;
+				BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)&id_remap_data, IDWALK_NOP);
+			}
+		}
+	}
+
+	if (old_id->flag & LIB_FAKEUSER) {
+		id_remap_data.skipped_direct++;
+	}
+
+	if (new_id && (new_id->flag & LIB_INDIRECT) && (id_remap_data.flag & ID_REMAP_IS_LINKED_DIRECT)) {
+		new_id->flag &= ~LIB_INDIRECT;
+		new_id->flag |= LIB_EXTERN;
+	}
+
+	if (r_skipped_direct)
+		*r_skipped_direct = id_remap_data.skipped_direct;
+
+	if (r_skipped_indirect)
+		*r_skipped_indirect = id_remap_data.skipped_indirect;
+
+	printf("%s: %d occurences skipped (%d direct and %d indirect ones)\n", __func__,
+	       id_remap_data.skipped_direct + id_remap_data.skipped_indirect,
+	       id_remap_data.skipped_direct, id_remap_data.skipped_indirect);
+}
+
 /** Replace all references in .blend file to \a old_id by \a new_id (if \a new_id is NULL, it unlinks \a old_id). */
 void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const bool skip_indirect_usage)
 {
 	ID *old_id = old_idv;
 	ID *new_id = new_idv;
-	IDRemap id_remap_data = {(void *)bmain, (void *)old_id, (void *)new_id, NULL};
-	ListBase *lb_array[MAX_LIBARRAY];
-	int skipped;
-	int i;
+	int skipped_direct;
 
 	BLI_assert(old_id != NULL);
 	BLI_assert((new_id == NULL) || GS(old_id->name) == GS(new_id->name));
@@ -1079,26 +1141,7 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 		}
 	}
 
-	if (skip_indirect_usage) {
-		id_remap_data.flag |= ID_REMAP_SKIP_INDIRECT_USAGE;
-	}
-
-	i = set_listbasepointers(bmain, lb_array);
-
-	/* Note that this is a very 'bruteforce' approach, maybe we could use some depsgraph to only process
-	 * objects actually using given old_id... But for now this will do. */
-
-	while (i--) {
-		ID *id = lb_array[i]->first;
-
-		for (; id; id = id->next) {
-			/* Note that we cannot skip indirect usages of old_id here (if requested), we still need to check it for
-			 * the user count handling... */
-			printf("\tchecking id %s (%p, %p)\n", id->name, id, id->lib);
-			id_remap_data.id = id;
-			BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)&id_remap_data, IDWALK_NOP);
-		}
-	}
+	libblock_remap_do(bmain, NULL, old_id, new_id, skip_indirect_usage, &skipped_direct, NULL);
 
 	if (free_notifier_reference_cb) {
 		free_notifier_reference_cb(old_id);
@@ -1110,11 +1153,6 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 		remap_editor_id_reference_cb(old_id, new_id);
 	}
 
-	if (old_id->flag & LIB_FAKEUSER) {
-		id_remap_data.skipped_direct++;
-	}
-	skipped = id_remap_data.skipped_direct + id_remap_data.skipped_indirect;
-
 	BLI_assert(old_id->us >= 0);
 
 #if 0
@@ -1125,12 +1163,7 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 	old_id->us = skipped;
 #endif
 
-	if (new_id && (new_id->flag & LIB_INDIRECT) && (id_remap_data.flag & ID_REMAP_IS_LINKED_DIRECT)) {
-		new_id->flag &= ~LIB_INDIRECT;
-		new_id->flag |= LIB_EXTERN;
-	}
-
-	if (id_remap_data.skipped_direct == 0) {
+	if (skipped_direct == 0) {
 		/* old_id is assumed to not be used directly anymore... */
 		if (old_id->lib && (old_id->flag & LIB_EXTERN)) {
 			old_id->flag &= ~LIB_EXTERN;
@@ -1186,6 +1219,38 @@ void BKE_libblock_unlink(Main *bmain, void *idv)
 	BKE_libblock_remap_locked(bmain, idv, NULL, true);
 
 	BKE_main_unlock(bmain);
+}
+
+/** Similar to libblock_remap, but only affects IDs used by given \a idv ID.
+ *
+ * \param old_id Unlike BKE_libblock_remap, can be NULL, in which case all ID usages by given \a idv will be cleared.
+ */
+/* Should be able to replace all _relink() funcs (constraints, rigidbody, etc.) ? */
+/* XXX Arg! Naming... :(
+ *     _relink? avoids confusion with _remap, but is confusing with _unlink
+ *     _remap_used_ids?
+ *     _remap_datablocks?
+ *     BKE_id_remap maybe?
+ *     ... sigh
+ */
+void BKE_libblock_relink(Main *bmain, void *idv, void *old_idv, void *new_idv)
+{
+	ID *id = idv;
+	ID *old_id = old_idv;
+	ID *new_id = new_idv;
+
+	/* No need to lock here, we are only affecting given ID. */
+
+	BLI_assert(id);
+	if (old_id) {
+		BLI_assert((new_id == NULL) || GS(old_id->name) == GS(new_id->name));
+		BLI_assert(old_id != new_id);
+	}
+	else {
+		BLI_assert(new_id == NULL);
+	}
+
+	libblock_remap_do(bmain, id, old_id, new_id, false, NULL, NULL);
 }
 
 static void animdata_dtar_clear_cb(ID *UNUSED(id), AnimData *adt, void *userdata)
