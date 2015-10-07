@@ -110,51 +110,9 @@ void BKE_curve_editNurb_free(Curve *cu)
 	}
 }
 
-/**
- * Free (or release) any data used by this curve (does not free the curve itself).
- *
- * \param cu The curve to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this curve are 'released'
- *                   (their user count is decreased).
- */
-void BKE_curve_free(Curve *cu, const bool do_id_user)
+/** Free (or release) any data used by this curve (does not free the curve itself). */
+void BKE_curve_free(Curve *cu)
 {
-	if (do_id_user) {
-		int a;
-
-		for (a = 0; a < cu->totcol; a++) {
-			if (cu->mat[a]) {
-				id_us_min(&cu->mat[a]->id);
-				cu->mat[a] = NULL;
-			}
-		}
-		if (cu->vfont) {
-			id_us_min(&cu->vfont->id);
-			cu->vfont = NULL;
-		}
-		if (cu->vfontb) {
-			id_us_min(&cu->vfontb->id);
-			cu->vfontb = NULL;
-		}
-		if (cu->vfonti) {
-			id_us_min(&cu->vfonti->id);
-			cu->vfonti = NULL;
-		}
-		if (cu->vfontbi) {
-			id_us_min(&cu->vfontbi->id);
-			cu->vfontbi = NULL;
-		}
-		if (cu->key) {
-			id_us_min(&cu->key->id);
-			cu->key = NULL;
-		}
-
-		/* No ID refcount here... */
-		cu->bevobj = NULL;
-		cu->taperobj = NULL;
-		cu->textoncurve = NULL;
-	}
-
 	BKE_animdata_free((ID *)cu);
 
 	BKE_nurbList_free(&cu->nurb);

@@ -557,27 +557,15 @@ int colorband_element_remove(struct ColorBand *coba, int index)
 
 /* ******************* TEX ************************ */
 
-/**
- * Free (or release) any data used by this texture (does not free the texure itself).
- *
- * \param te The texure to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this texture are 'released'
- *                   (their user count is decreased).
- */
-void BKE_texture_free(Tex *tex, const bool do_id_user)
+/** Free (or release) any data used by this texture (does not free the texure itself). */
+void BKE_texture_free(Tex *tex)
 {
-	if (do_id_user) {
-		if (tex->ima) {
-			id_us_min(&tex->ima->id);
-			tex->ima = NULL;
-		}
-	}
-
 	BKE_animdata_free((ID *)tex);
 
 	/* is no lib link block, but texture extension */
+	/* XXX Half-broken, idremap will NULL-ify that (though setting user count to zero) :/ */
 	if (tex->nodetree) {
-		ntreeFreeTree(tex->nodetree, do_id_user);
+		ntreeFreeTree(tex->nodetree);
 		MEM_freeN(tex->nodetree);
 		tex->nodetree = NULL;
 	}

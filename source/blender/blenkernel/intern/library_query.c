@@ -155,6 +155,8 @@ static void library_foreach_actuatorsObjectLooper(
 
 static void library_foreach_animationData(LibraryForeachIDData *data, AnimData *adt)
 {
+	/* XXX We do not cover adt->action & co here, why?
+	 * TODO check whether this can be added or not? */
 	FCurve *fcu;
 
 	for (fcu = adt->drivers.first; fcu; fcu = fcu->next) {
@@ -219,6 +221,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			CALLBACK_INVOKE(scene->world, IDWALK_REFCOUNTED);
 			CALLBACK_INVOKE(scene->set, IDWALK_NOP);
 			CALLBACK_INVOKE(scene->clip, IDWALK_NOP);
+			CALLBACK_INVOKE(scene->nodetree, IDWALK_REFCOUNTED);
 			if (scene->basact) {
 				CALLBACK_INVOKE(scene->basact->object, IDWALK_NOP);
 			}
@@ -262,7 +265,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 				SEQ_END
 			}
 
-			CALLBACK_INVOKE(scene->gpd, IDWALK_REFCOUNTED);  /* XXX Warning, see BKE_scene_free(). */
+			CALLBACK_INVOKE(scene->gpd, IDWALK_REFCOUNTED);
 
 			for (base = scene->base.first; base; base = base->next) {
 				CALLBACK_INVOKE(base->object, IDWALK_REFCOUNTED);
@@ -408,7 +411,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					library_foreach_mtex(&data, material->mtex[i]);
 				}
 			}
-			CALLBACK_INVOKE(material->nodetree, IDWALK_NOP);
+			CALLBACK_INVOKE(material->nodetree, IDWALK_REFCOUNTED);
 			CALLBACK_INVOKE(material->group, IDWALK_NOP);
 			break;
 		}
@@ -416,7 +419,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 		case ID_TE:
 		{
 			Tex *texture = (Tex *) id;
-			CALLBACK_INVOKE(texture->nodetree, IDWALK_NOP);
+			CALLBACK_INVOKE(texture->nodetree, IDWALK_REFCOUNTED);
 			CALLBACK_INVOKE(texture->ima, IDWALK_REFCOUNTED);
 			if (texture->env) {
 				CALLBACK_INVOKE(texture->env->object, IDWALK_NOP);
@@ -447,7 +450,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					library_foreach_mtex(&data, lamp->mtex[i]);
 				}
 			}
-			CALLBACK_INVOKE(lamp->nodetree, IDWALK_NOP);
+			CALLBACK_INVOKE(lamp->nodetree, IDWALK_REFCOUNTED);
 			break;
 		}
 
@@ -480,7 +483,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					library_foreach_mtex(&data, world->mtex[i]);
 				}
 			}
-			CALLBACK_INVOKE(world->nodetree, IDWALK_NOP);
+			CALLBACK_INVOKE(world->nodetree, IDWALK_REFCOUNTED);
 			break;
 		}
 
@@ -604,7 +607,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					library_foreach_mtex(&data, linestyle->mtex[i]);
 				}
 			}
-			CALLBACK_INVOKE(linestyle->nodetree, IDWALK_NOP);
+			CALLBACK_INVOKE(linestyle->nodetree, IDWALK_REFCOUNTED);
 
 			for (lsm = linestyle->color_modifiers.first; lsm; lsm = lsm->next) {
 				if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {

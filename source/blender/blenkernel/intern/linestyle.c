@@ -125,29 +125,11 @@ FreestyleLineStyle *BKE_linestyle_new(struct Main *bmain, const char *name)
 	return linestyle;
 }
 
-/**
- * Free (or release) any data used by this linestyle (does not free the linestyle itself).
- *
- * \param linestyle The linestyle to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this linestyle are 'released'
- *                   (their user count is decreased).
- */
-void BKE_linestyle_free(FreestyleLineStyle *linestyle, const bool do_id_user)
+/** Free (or release) any data used by this linestyle (does not free the linestyle itself). */
+void BKE_linestyle_free(FreestyleLineStyle *linestyle)
 {
 	LineStyleModifier *m;
 	int a;
-
-	if (do_id_user) {
-		MTex *mtex;
-
-		for (a = 0; a < MAX_MTEX; a++) {
-			mtex = linestyle->mtex[a];
-			if (mtex && mtex->tex) {
-				id_us_min(&mtex->tex->id);
-				mtex->tex = NULL;
-			}
-		}
-	}
 
 	BKE_animdata_free(&linestyle->id);
 
@@ -156,8 +138,9 @@ void BKE_linestyle_free(FreestyleLineStyle *linestyle, const bool do_id_user)
 	}
 
 	/* is no lib link block, but linestyle extension */
+	/* XXX Half-broken, idremap will NULL-ify that (though setting user count to zero) :/ */
 	if (linestyle->nodetree) {
-		ntreeFreeTree(linestyle->nodetree, true);  /* XXX Or do_id_user? */
+		ntreeFreeTree(linestyle->nodetree);
 		MEM_freeN(linestyle->nodetree);
 		linestyle->nodetree = NULL;
 	}
@@ -179,7 +162,7 @@ FreestyleLineStyle *BKE_linestyle_copy(struct Main *bmain, FreestyleLineStyle *l
 	int a;
 
 	new_linestyle = BKE_linestyle_new(bmain, linestyle->id.name + 2);
-	BKE_linestyle_free(new_linestyle, true);
+	BKE_linestyle_free(new_linestyle);
 
 	for (a = 0; a < MAX_MTEX; a++) {
 		if (linestyle->mtex[a]) {

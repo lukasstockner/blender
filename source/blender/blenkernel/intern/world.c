@@ -51,28 +51,10 @@
 
 #include "GPU_material.h"
 
-/**
- * Free (or release) any data used by this world (does not free the world itself).
- *
- * \param wrld The world to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this world are 'released'
- *                   (their user count is decreased).
- */
-void BKE_world_free(World *wrld, const bool do_id_user)
+/** Free (or release) any data used by this world (does not free the world itself). */
+void BKE_world_free(World *wrld)
 {
 	int a;
-
-	if (do_id_user) {
-		MTex *mtex;
-
-		for (a = 0; a < MAX_MTEX; a++) {
-			mtex = wrld->mtex[a];
-			if (mtex && mtex->tex) {
-				id_us_min(&mtex->tex->id);
-				mtex->tex = NULL;
-			}
-		}
-	}
 
 	BKE_animdata_free((ID *)wrld);
 
@@ -81,8 +63,9 @@ void BKE_world_free(World *wrld, const bool do_id_user)
 	}
 
 	/* is no lib link block, but world extension */
+	/* XXX Half-broken, idremap will NULL-ify that (though setting user count to zero) :/ */
 	if (wrld->nodetree) {
-		ntreeFreeTree(wrld->nodetree, do_id_user);
+		ntreeFreeTree(wrld->nodetree);
 		MEM_freeN(wrld->nodetree);
 		wrld->nodetree = NULL;
 	}

@@ -81,31 +81,10 @@ void init_def_material(void)
 	BKE_init_material(&defmaterial);
 }
 
-/**
- * Free (or release) any data used by this material (does not free the material itself).
- *
- * \param ma The material to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this material are 'released'
- *                   (their user count is decreased).
- */
-void BKE_material_free(Material *ma, const bool do_id_user)
+/** Free (or release) any data used by this material (does not free the material itself). */
+void BKE_material_free(Material *ma)
 {
 	int a;
-
-	if (do_id_user)	 {
-		MTex *mtex;
-
-		for (a = 0; a < MAX_MTEX; a++) {
-			mtex = ma->mtex[a];
-			if (mtex && mtex->tex) {
-				id_us_min(&mtex->tex->id);
-				mtex->tex = NULL;
-			}
-		}
-
-		/* No ID refcount here... */
-		ma->group = NULL;
-	}
 
 	BKE_animdata_free((ID *)ma);
 	
@@ -117,8 +96,9 @@ void BKE_material_free(Material *ma, const bool do_id_user)
 	MEM_SAFE_FREE(ma->ramp_spec);
 	
 	/* is no lib link block, but material extension */
+	/* XXX Half-broken, idremap will NULL-ify that (though setting user count to zero) :/ */
 	if (ma->nodetree) {
-		ntreeFreeTree(ma->nodetree, do_id_user);
+		ntreeFreeTree(ma->nodetree);
 		MEM_freeN(ma->nodetree);
 		ma->nodetree = NULL;
 	}
@@ -1768,7 +1748,7 @@ void free_matcopybuf(void)
 	matcopybuf.ramp_spec = NULL;
 
 	if (matcopybuf.nodetree) {
-		ntreeFreeTree(matcopybuf.nodetree, false);
+		ntreeFreeTree(matcopybuf.nodetree);
 		MEM_freeN(matcopybuf.nodetree);
 		matcopybuf.nodetree = NULL;
 	}
@@ -1818,7 +1798,7 @@ void paste_matcopybuf(Material *ma)
 	}
 
 	if (ma->nodetree) {
-		ntreeFreeTree(ma->nodetree, true);  /* XXX Or do_id_user? */
+		ntreeFreeTree(ma->nodetree);
 		MEM_freeN(ma->nodetree);
 	}
 

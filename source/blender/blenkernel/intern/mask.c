@@ -1016,14 +1016,8 @@ void BKE_mask_layer_free_list(ListBase *masklayers)
 	}
 }
 
-/**
- * Free (or release) any data used by this mask (does not free the mask itself).
- *
- * \param mask The mask to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this mask are 'released'
- *                   (their user count is decreased).
- */
-void BKE_mask_free(Mask *mask, const bool UNUSED(do_id_user))
+/** Free (or release) any data used by this mask (does not free the mask itself). */
+void BKE_mask_free(Mask *mask)
 {
 	BKE_animdata_free((ID *)mask);
 

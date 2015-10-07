@@ -132,21 +132,8 @@ void BKE_speaker_make_local(Speaker *spk)
 	}
 }
 
-/**
- * Free (or release) any data used by this speaker (does not free the speaker itself).
- *
- * \param spk The speaker to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this speaker are 'released'
- *                   (their user count is decreased).
- */
-void BKE_speaker_free(Speaker *spk, const bool do_id_user)
+/** Free (or release) any data used by this speaker (does not free the speaker itself). */
+void BKE_speaker_free(Speaker *spk)
 {
-	if (do_id_user) {
-		if (spk->sound) {
-			id_us_min(&spk->sound->id);
-			spk->sound = NULL;
-		}
-	}
-
 	BKE_animdata_free((ID *)spk);
 }

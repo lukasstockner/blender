@@ -300,22 +300,9 @@ Lattice *BKE_lattice_copy(Lattice *lt)
 	return ltn;
 }
 
-/**
- * Free (or release) any data used by this lattice (does not free the lattice itself).
- *
- * \param lt The lattice to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this lattice are 'released'
- *                   (their user count is decreased).
- */
-void BKE_lattice_free(Lattice *lt, const bool do_id_user)
+/** Free (or release) any data used by this lattice (does not free the lattice itself). */
+void BKE_lattice_free(Lattice *lt)
 {
-	if (do_id_user) {
-		if (lt->key) {
-			id_us_min(&lt->key->id);
-			lt->key = NULL;
-		}
-	}
-
 	BKE_animdata_free(&lt->id);
 
 	MEM_SAFE_FREE(lt->def);

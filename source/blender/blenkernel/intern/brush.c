@@ -205,36 +205,9 @@ Brush *BKE_brush_copy(Brush *brush)
 	return brushn;
 }
 
-/**
- * Free (or release) any data used by this brush (does not free the brush itself).
- *
- * \param brush The brush to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this brush are 'released'
- *                   (their user count is decreased).
- */
-void BKE_brush_free(Brush *brush, const bool do_id_user)
+/** Free (or release) any data used by this brush (does not free the brush itself). */
+void BKE_brush_free(Brush *brush)
 {
-	if (do_id_user) {
-		if (brush->mtex.tex) {
-			id_us_min(&brush->mtex.tex->id);
-			brush->mtex.tex = NULL;
-		}
-
-		if (brush->mask_mtex.tex) {
-			id_us_min(&brush->mask_mtex.tex->id);
-			brush->mask_mtex.tex = NULL;
-		}
-
-		if (brush->paint_curve) {
-			id_us_min(&brush->paint_curve->id);
-			brush->paint_curve = NULL;
-		}
-
-		/* No ID refcount here... */
-		brush->toggle_brush = NULL;
-		brush->clone.image = NULL;
-	}
-
 	if (brush->icon_imbuf) {
 		IMB_freeImBuf(brush->icon_imbuf);
 	}

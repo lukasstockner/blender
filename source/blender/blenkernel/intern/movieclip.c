@@ -1414,22 +1414,9 @@ void BKE_movieclip_build_proxy_frame_for_ibuf(MovieClip *clip, ImBuf *ibuf, stru
 	}
 }
 
-/**
- * Free (or release) any data used by this lamp (does not free the lamp itself).
- *
- * \param la The lamp to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this lamp are 'released'
- *                   (their user count is decreased).
- */
-void BKE_movieclip_free(MovieClip *clip, const bool do_id_user)
+/** Free (or release) any data used by this lamp (does not free the lamp itself). */
+void BKE_movieclip_free(MovieClip *clip)
 {
-	if (do_id_user) {
-		if (clip->gpd) {
-			id_us_min(&clip->gpd->id);
-			clip->gpd = NULL;
-		}
-	}
-
 	/* Also frees animdata. */
 	free_buffers(clip);
 

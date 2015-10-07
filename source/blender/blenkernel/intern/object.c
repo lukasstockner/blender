@@ -309,18 +309,17 @@ void BKE_object_free_derived_caches(Object *ob)
 	if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
 
-		if (me->bb) {
+		if (me && me->bb) {
 			me->bb->flag |= BOUNDBOX_DIRTY;
 		}
 	}
 	else if (ELEM(ob->type, OB_SURF, OB_CURVE, OB_FONT)) {
 		Curve *cu = ob->data;
 
-		if (cu->bb) {
+		if (cu && cu->bb) {
 			cu->bb->flag |= BOUNDBOX_DIRTY;
 		}
 	}
-
 	if (ob->bb) {
 		MEM_freeN(ob->bb);
 		ob->bb = NULL;
@@ -380,47 +379,9 @@ void BKE_object_free_caches(Object *object)
 	}
 }
 
-/**
- * Free (or release) any data used by this object (does not free the object itself).
- *
- * \param ob The object to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this object are 'released'
- *                   (their user count is decreased).
- */
-void BKE_object_free(Object *ob, const bool do_id_user)
+/** Free (or release) any data used by this object (does not free the object itself). */
+void BKE_object_free(Object *ob)
 {
-	/* Needs valid obdata pointer... */
-	BKE_object_free_derived_caches(ob);
-
-	if (do_id_user) {
-		/* Note: This totally ignores indirectly-'linked' datablocks (through constraints, modifiers...).
-		 *       That’s fine for now (none of them actually refcount IDs), remap project will rework this deeply anyway. */
-		int a;
-
-		if (ob->data) {
-			id_us_min((ID *)ob->data);
-			ob->data = NULL;
-		}
-
-		if (ob->mat) {
-			for (a = 0; a < ob->totcol; a++) {
-				if (ob->mat[a]) {
-					id_us_min(&ob->mat[a]->id);
-					ob->mat[a] = NULL;
-				}
-			}
-		}
-
-		if (ob->poselib) {
-			id_us_min(&ob->poselib->id);
-			ob->poselib = NULL;
-		}
-		if (ob->gpd) {
-			id_us_min(&ob->gpd->id);
-			ob->gpd = NULL;
-		}
-	}
-
 	BKE_animdata_free((ID *)ob);
 
 	MEM_SAFE_FREE(ob->mat);
@@ -430,7 +391,7 @@ void BKE_object_free(Object *ob, const bool do_id_user)
 
 	BLI_freelistN(&ob->defbase);
 	if (ob->pose) {
-		BKE_pose_free_ex(ob->pose, do_id_user);
+		BKE_pose_free_ex(ob->pose, false);
 		ob->pose = NULL;
 	}
 	if (ob->mpath) {
@@ -439,12 +400,14 @@ void BKE_object_free(Object *ob, const bool do_id_user)
 	}
 	BKE_bproperty_free_list(&ob->prop);
 	BKE_object_free_modifiers(ob);
-	
+
+	BKE_object_free_derived_caches(ob);
+
 	free_sensors(&ob->sensors);
 	free_controllers(&ob->controllers);
 	free_actuators(&ob->actuators);
 	
-	BKE_constraints_free_ex(&ob->constraints, do_id_user);
+	BKE_constraints_free_ex(&ob->constraints, false);
 	
 	free_partdeflect(ob->pd);
 	BKE_rigidbody_free_object(ob);

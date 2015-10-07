@@ -123,14 +123,8 @@ bSound *BKE_sound_new_file_exists(struct Main *bmain, const char *filepath)
 	return BKE_sound_new_file_exists_ex(bmain, filepath, NULL);
 }
 
-/**
- * Free (or release) any data used by this sound (does not free the sound itself).
- *
- * \param sound The sound to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this sound are 'released'
- *                   (their user count is decreased).
- */
-void BKE_sound_free(bSound *sound, const bool UNUSED(do_id_user))
+/** Free (or release) any data used by this sound (does not free the sound itself). */
+void BKE_sound_free(bSound *sound)
 {
 	/* No animdata here. */
 

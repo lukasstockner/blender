@@ -218,29 +218,10 @@ void BKE_lamp_make_local(Lamp *la)
 	}
 }
 
-/**
- * Free (or release) any data used by this lamp (does not free the lamp itself).
- *
- * \param la The lamp to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this lamp are 'released'
- *                   (their user count is decreased).
- */
-void BKE_lamp_free(Lamp *la, const bool do_id_user)
+/** Free (or release) any data used by this lamp (does not free the lamp itself). */
+void BKE_lamp_free(Lamp *la)
 {
 	int a;
-
-	if (do_id_user) {
-		MTex *mtex;
-		int a;
-
-		for (a = 0; a < MAX_MTEX; a++) {
-			mtex = la->mtex[a];
-			if (mtex && mtex->tex) {
-				id_us_min(&mtex->tex->id);
-				mtex->tex = NULL;
-			}
-		}
-	}
 
 	BKE_animdata_free((ID *)la);
 
@@ -252,8 +233,9 @@ void BKE_lamp_free(Lamp *la, const bool do_id_user)
 	la->curfalloff = NULL;
 
 	/* is no lib link block, but lamp extension */
+	/* XXX Half-broken, idremap will NULL-ify that (though setting user count to zero) :/ */
 	if (la->nodetree) {
-		ntreeFreeTree(la->nodetree, do_id_user);
+		ntreeFreeTree(la->nodetree);
 		MEM_freeN(la->nodetree);
 		la->nodetree = NULL;
 	}

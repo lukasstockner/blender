@@ -329,14 +329,8 @@ void BKE_image_free_buffers(Image *ima)
 	ima->ok = IMA_OK;
 }
 
-/**
- * Free (or release) any data used by this image (does not free the image itself).
- *
- * \param ima The image to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this image are 'released'
- *                   (their user count is decreased).
- */
-void BKE_image_free(Image *ima, const bool UNUSED(do_id_user))
+/** Free (or release) any data used by this image (does not free the image itself). */
+void BKE_image_free(Image *ima)
 {
 	int a;
 

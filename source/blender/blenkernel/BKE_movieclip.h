@@ -39,7 +39,7 @@ struct MovieClipScopes;
 struct MovieClipUser;
 struct MovieDistortion;
 
-void BKE_movieclip_free(struct MovieClip *clip, const bool do_id_user);
+void BKE_movieclip_free(struct MovieClip *clip);
 void BKE_movieclip_unlink(struct Main *bmain, struct MovieClip *clip);
 
 struct MovieClip *BKE_movieclip_file_add(struct Main *bmain, const char *name);

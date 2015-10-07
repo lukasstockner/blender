@@ -67,7 +67,7 @@ struct CBData *colorband_element_add(struct ColorBand *coba, float position);
 int colorband_element_remove(struct ColorBand *coba, int index);
 void colorband_update_sort(struct ColorBand *coba);
 
-void         BKE_texture_free(struct Tex *tex, const bool do_id_user);
+void         BKE_texture_free(struct Tex *tex);
 void         BKE_texture_default(struct Tex *tex);
 struct Tex  *BKE_texture_copy(struct Tex *tex);
 struct Tex  *BKE_texture_add(struct Main *bmain, const char *name);

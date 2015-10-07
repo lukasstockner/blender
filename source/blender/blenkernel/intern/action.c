@@ -159,14 +159,8 @@ void BKE_action_make_local(bAction *act)
 
 /* .................................. */
 
-/**
- * Free (or release) any data used by this action (does not free the action itself).
- *
- * \param act The action to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this action are 'released'
- *                   (their user count is decreased).
- */
-void BKE_action_free(bAction *act, const bool UNUSED(do_id_user))
+/** Free (or release) any data used by this action (does not free the action itself). */
+void BKE_action_free(bAction *act)
 {	
 	/* No animdata here. */
 

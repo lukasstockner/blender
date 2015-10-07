@@ -360,49 +360,10 @@ void BKE_scene_groups_relink(Scene *sce)
 		BKE_rigidbody_world_groups_relink(sce->rigidbody_world);
 }
 
-/**
- * Free (or release) any data used by this scene (does not free the scene itself).
- *
- * \param sce The scene to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this scene are 'released'
- *                   (their user count is decreased).
- */
-void BKE_scene_free(Scene *sce, const bool do_id_user)
+/** Free (or release) any data used by this scene (does not free the scene itself). */
+void BKE_scene_free(Scene *sce)
 {
 	SceneRenderLayer *srl;
-
-	if (do_id_user) {
-		Base *base;
-
-		for (base = sce->base.first; base; base = base->next) {
-			id_us_min(&base->object->id);
-			base->object = NULL;
-		}
-		/* do not free objects! */
-
-		if (sce->world) {
-			id_us_min(&sce->world->id);
-			sce->world = NULL;
-		}
-
-		BLI_assert(sce->obedit == NULL);
-
-		if (sce->gpd) {
-			/* XXX TODO Fix This! */
-#if 0	   /* removed since this can be invalid memory when freeing everything */
-			/* since the grease pencil data is freed before the scene.
-			 * since grease pencil data is not (yet?), shared between objects
-			 * its probably safe not to do this, some save and reload will free this. */
-			id_us_min(&sce->gpd->id);
-#endif
-			sce->gpd = NULL;
-		}
-
-		/* No ID refcount here... */
-		sce->camera = NULL;
-		sce->set = NULL;
-		sce->clip = NULL;
-	}
 
 	BKE_animdata_free((ID *)sce);
 
@@ -416,8 +377,9 @@ void BKE_scene_free(Scene *sce, const bool do_id_user)
 	BKE_keyingsets_free(&sce->keyingsets);
 
 	/* is no lib link block, but scene extension */
+	/* XXX Half-broken, idremap will NULL-ify that (though setting user count to zero) :/ */
 	if (sce->nodetree) {
-		ntreeFreeTree(sce->nodetree, do_id_user);
+		ntreeFreeTree(sce->nodetree);
 		MEM_freeN(sce->nodetree);
 		sce->nodetree = NULL;
 	}

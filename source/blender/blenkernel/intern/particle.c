@@ -371,33 +371,10 @@ static void fluid_free_settings(SPHFluidSettings *fluid)
 		MEM_freeN(fluid); 
 }
 
-/**
- * Free (or release) any data used by this particle settings (does not free the partsett itself).
- *
- * \param part The particle settings to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this partsett are 'released'
- *                   (their user count is decreased).
- */
-void BKE_particlesettings_free(ParticleSettings *part, const bool do_id_user)
+/** Free (or release) any data used by this particle settings (does not free the partsett itself). */
+void BKE_particlesettings_free(ParticleSettings *part)
 {
 	int a;
-
-	if (do_id_user) {
-		MTex *mtex;
-
-		for (a = 0; a < MAX_MTEX; a++) {
-			mtex = part->mtex[a];
-			if (mtex && mtex->tex) {
-				id_us_min(&mtex->tex->id);
-				mtex->tex = NULL;
-			}
-		}
-
-		/* No ID refcount here... */
-		part->dup_group = NULL;
-		part->dup_ob = NULL;
-		part->bb_ob = NULL;
-	}
 
 	BKE_animdata_free(&part->id);
 	
@@ -419,7 +396,6 @@ void BKE_particlesettings_free(ParticleSettings *part, const bool do_id_user)
 
 	boid_free_settings(part->boids);
 	fluid_free_settings(part->fluid);
-
 }
 
 void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int dynamics)

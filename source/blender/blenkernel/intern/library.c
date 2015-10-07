@@ -951,7 +951,7 @@ void *BKE_libblock_copy(ID *id)
 	return BKE_libblock_copy_ex(G.main, id);
 }
 
-static void BKE_library_free(Library *lib, const bool UNUSED(do_id_user))
+static void library_free(Library *lib)
 {
 	if (lib->packedfile)
 		freePackedFile(lib->packedfile);
@@ -1303,109 +1303,120 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 	BPY_id_release(id);
 #endif
 
-	switch (type) {    /* GetShort from util.h */
+	/* XXX This breaks the nodetree case, which are supposed to be 'owned' by their material/texture/scene/whatever.
+	 *     Quite odd, but...
+	 *     One solution would be to call this **after** calling BKE_xxx_free(), but here again nodetree are a PITA,
+	 *     since ntreeFreeTree() may free datablock itself. AAARRRRRRRRGGGGGGGG! >:(
+	 *     Or maybe we should not take into account in foreach_id code? Since it's private data...
+	 *     This has to be fixed one way or another!
+	 */
+	if (do_id_user) {
+		BKE_libblock_relink(bmain, id, NULL, NULL);
+	}
+
+	switch (type) {
 		case ID_SCE:
-			BKE_scene_free((Scene *)id, do_id_user);
+			BKE_scene_free((Scene *)id);
 			break;
 		case ID_LI:
-			BKE_library_free((Library *)id, do_id_user);
+			library_free((Library *)id);
 			break;
 		case ID_OB:
-			BKE_object_free((Object *)id, do_id_user);
+			BKE_object_free((Object *)id);
 			break;
 		case ID_ME:
-			BKE_mesh_free((Mesh *)id, do_id_user);
+			BKE_mesh_free((Mesh *)id);
 			break;
 		case ID_CU:
-			BKE_curve_free((Curve *)id, do_id_user);
+			BKE_curve_free((Curve *)id);
 			break;
 		case ID_MB:
-			BKE_mball_free((MetaBall *)id, do_id_user);
+			BKE_mball_free((MetaBall *)id);
 			break;
 		case ID_MA:
-			BKE_material_free((Material *)id, do_id_user);
+			BKE_material_free((Material *)id);
 			break;
 		case ID_TE:
-			BKE_texture_free((Tex *)id, do_id_user);
+			BKE_texture_free((Tex *)id);
 			break;
 		case ID_IM:
-			BKE_image_free((Image *)id, do_id_user);
+			BKE_image_free((Image *)id);
 			break;
 		case ID_LT:
-			BKE_lattice_free((Lattice *)id, do_id_user);
+			BKE_lattice_free((Lattice *)id);
 			break;
 		case ID_LA:
-			BKE_lamp_free((Lamp *)id, do_id_user);
+			BKE_lamp_free((Lamp *)id);
 			break;
 		case ID_CA:
-			BKE_camera_free((Camera *) id, do_id_user);
+			BKE_camera_free((Camera *) id);
 			break;
 		case ID_IP:  /* Deprecated. */
 			BKE_ipo_free((Ipo *)id);
 			break;
 		case ID_KE:
-			BKE_key_free((Key *)id, do_id_user);
+			BKE_key_free((Key *)id);
 			break;
 		case ID_WO:
-			BKE_world_free((World *)id, do_id_user);
+			BKE_world_free((World *)id);
 			break;
 		case ID_SCR:
-			BKE_screen_free((bScreen *)id, do_id_user);
+			BKE_screen_free((bScreen *)id);
 			break;
 		case ID_VF:
-			BKE_vfont_free((VFont *)id, do_id_user);
+			BKE_vfont_free((VFont *)id);
 			break;
 		case ID_TXT:
-			BKE_text_free((Text *)id, do_id_user);
+			BKE_text_free((Text *)id);
 			break;
 		case ID_SCRIPT:
 			/* deprecated */
 			break;
 		case ID_SPK:
-			BKE_speaker_free((Speaker *)id, do_id_user);
+			BKE_speaker_free((Speaker *)id);
 			break;
 		case ID_SO:
-			BKE_sound_free((bSound *)id, do_id_user);
+			BKE_sound_free((bSound *)id);
 			break;
 		case ID_GR:
-			BKE_group_free((Group *)id, do_id_user);
+			BKE_group_free((Group *)id);
 			break;
 		case ID_AR:
-			BKE_armature_free((bArmature *)id, do_id_user);
+			BKE_armature_free((bArmature *)id);
 			break;
 		case ID_AC:
-			BKE_action_free((bAction *)id, do_id_user);
+			BKE_action_free((bAction *)id);
 			break;
 		case ID_NT:
-			ntreeFreeTree((bNodeTree *)id, do_id_user);
+			ntreeFreeTree((bNodeTree *)id);
 			break;
 		case ID_BR:
-			BKE_brush_free((Brush *)id, do_id_user);
+			BKE_brush_free((Brush *)id);
 			break;
 		case ID_PA:
-			BKE_particlesettings_free((ParticleSettings *)id, do_id_user);
+			BKE_particlesettings_free((ParticleSettings *)id);
 			break;
 		case ID_WM:
 			if (free_windowmanager_cb)
 				free_windowmanager_cb(NULL, (wmWindowManager *)id);
 			break;
 		case ID_GD:
-			BKE_gpencil_free((bGPdata *)id, do_id_user);
+			BKE_gpencil_free((bGPdata *)id);
 			break;
 		case ID_MC:
-			BKE_movieclip_free((MovieClip *)id, do_id_user);
+			BKE_movieclip_free((MovieClip *)id);
 			break;
 		case ID_MSK:
-			BKE_mask_free((Mask *)id, do_id_user);
+			BKE_mask_free((Mask *)id);
 			break;
 		case ID_LS:
-			BKE_linestyle_free((FreestyleLineStyle *)id, do_id_user);
+			BKE_linestyle_free((FreestyleLineStyle *)id);
 			break;
 		case ID_PAL:
-			BKE_palette_free((Palette *)id, do_id_user);
+			BKE_palette_free((Palette *)id);
 			break;
 		case ID_PC:
-			BKE_paint_curve_free((PaintCurve *)id, do_id_user);
+			BKE_paint_curve_free((PaintCurve *)id);
 			break;
 	}
 

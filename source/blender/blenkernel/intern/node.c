@@ -1781,32 +1781,18 @@ static void free_localized_node_groups(bNodeTree *ntree)
 	for (node = ntree->nodes.first; node; node = node->next) {
 		if (node->type == NODE_GROUP && node->id) {
 			bNodeTree *ngroup = (bNodeTree *)node->id;
-			ntreeFreeTree(ngroup, false);
+			ntreeFreeTree(ngroup);
 			MEM_freeN(ngroup);
 		}
 	}
 }
 
-/**
- * Free (or release) any data used by this nodetree (does not free the nodetree itself).
- *
- * \param ntree The nodetree to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this nodetree are 'released'
- *                   (their user count is decreased).
- */
-void ntreeFreeTree(bNodeTree *ntree, const bool do_id_user)
+/** Free (or release) any data used by this nodetree (does not free the nodetree itself). */
+void ntreeFreeTree(bNodeTree *ntree)
 {
 	bNodeTree *tntree;
 	bNode *node, *next;
 	bNodeSocket *sock, *nextsock;
-
-	if (do_id_user) {
-		if (ntree->gpd) {
-			id_us_min(&ntree->gpd->id);
-			ntree->gpd = NULL;
-		}
-		/* XXX See comment below about id used by nodes... */
-	}
 
 	BKE_animdata_free((ID *)ntree);
 
@@ -1837,21 +1823,6 @@ void ntreeFreeTree(bNodeTree *ntree, const bool do_id_user)
 	
 	for (node = ntree->nodes.first; node; node = next) {
 		next = node->next;
-
-		/* ntreeUserIncrefID inline */
-
-		/* XXX, this is correct, however when freeing the entire database
-		 * this ends up accessing freed data which isn't properly unlinking
-		 * its self from scene nodes, SO - for now prefer invalid usercounts
-		 * on free rather then bad memory access - Campbell */
-#if 0
-		if (do_id_user) {
-			id_us_min(node->id);
-		}
-#else
-		(void)do_id_user;
-#endif
-
 		node_free_node_ex(ntree, node, false, false);
 	}
 
@@ -1876,6 +1847,7 @@ void ntreeFreeTree(bNodeTree *ntree, const bool do_id_user)
 		BLI_mutex_free(ntree->duplilock);
 	
 	/* if ntree is not part of library, free the libblock data explicitly */
+	/* XXX Ack! This is oposed to what all other BKE_xxx_free methods do... */
 	for (tntree = G.main->nodetree.first; tntree; tntree = tntree->id.next)
 		if (tntree == ntree)
 			break;
@@ -2156,7 +2128,7 @@ void ntreeLocalMerge(bNodeTree *localtree, bNodeTree *ntree)
 		if (ntree->typeinfo->local_merge)
 			ntree->typeinfo->local_merge(localtree, ntree);
 		
-		ntreeFreeTree(localtree, false);
+		ntreeFreeTree(localtree);
 		MEM_freeN(localtree);
 	}
 }

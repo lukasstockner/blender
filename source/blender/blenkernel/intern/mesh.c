@@ -431,36 +431,9 @@ bool BKE_mesh_has_custom_loop_normals(Mesh *me)
  * readfile.c */
 
 
-/**
- * Free (or release) any data used by this mesh (does not free the mesh itself).
- *
- * \param me The mesh to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this mesh are 'released'
- *                   (their user count is decreased).
- */
-void BKE_mesh_free(Mesh *me, const bool do_id_user)
+/** Free (or release) any data used by this mesh (does not free the mesh itself). */
+void BKE_mesh_free(Mesh *me)
 {
-	if (do_id_user) {
-		int a;
-	
-		if (me->mat) {
-			for (a = 0; a < me->totcol; a++) {
-				if (me->mat[a]) {
-					id_us_min(&me->mat[a]->id);
-					me->mat[a] = NULL;
-				}
-			}
-		}
-
-		if (me->key) {
-			id_us_min(&me->key->id);
-			me->key = NULL;
-		}
-	
-		/* No ID refcount here... */
-		me->texcomesh = NULL;
-	}
-
 	BKE_animdata_free(&me->id);
 
 	CustomData_free(&me->vdata, me->totvert);
