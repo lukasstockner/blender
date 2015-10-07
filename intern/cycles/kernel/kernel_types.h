@@ -954,12 +954,7 @@ typedef struct KernelIntegrator {
 	int volume_samples;
 
 	/* ies lights */
-	int ies_num;
 	int ies_stride;
-
-	int pad;
-	int pad1;
-	int pad2;
 } KernelIntegrator;
 
 typedef struct KernelBVH {

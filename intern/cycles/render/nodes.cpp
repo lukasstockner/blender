@@ -349,10 +349,10 @@ void ImageTextureNode::compile(OSLCompiler& compiler)
 		/* TODO(sergey): It's not so simple to pass custom attribute
 		 * to the texture() function in order to make builtin images
 		 * support more clear. So we use special file name which is
-		 * "@<slot_number>" and check whether file name matches this
+		 * "@i<slot_number>" and check whether file name matches this
 		 * mask in the OSLRenderServices::texture().
 		 */
-		compiler.parameter("filename", string_printf("@%d", slot).c_str());
+		compiler.parameter("filename", string_printf("@i%d", slot).c_str());
 	}
 	if(is_linear || color_space != "Color")
 		compiler.parameter("color_space", "Linear");
@@ -557,7 +557,7 @@ void EnvironmentTextureNode::compile(OSLCompiler& compiler)
 		compiler.parameter("filename", filename.c_str());
 	}
 	else {
-		compiler.parameter("filename", string_printf("@%d", slot).c_str());
+		compiler.parameter("filename", string_printf("@i%d", slot).c_str());
 	}
 	compiler.parameter("projection", projection);
 	if(is_linear || color_space != "Color")
@@ -1016,6 +1016,15 @@ void IESLightNode::compile(SVMCompiler& compiler)
 
 void IESLightNode::compile(OSLCompiler& compiler)
 {
+	image_manager = compiler.image_manager;
+	if(slot == -1) {
+		if(ies.empty())
+			slot = image_manager->add_ies_from_file(filename);
+		else
+			slot = image_manager->add_ies(ies);
+	}
+	compiler.parameter("slot", slot);
+	compiler.add(this, "node_ies_light");
 }
 
 /* Musgrave Texture */
@@ -1531,7 +1540,7 @@ void PointDensityTextureNode::compile(OSLCompiler& compiler)
 		}
 
 		if(slot != -1) {
-			compiler.parameter("filename", string_printf("@%d", slot).c_str());
+			compiler.parameter("filename", string_printf("@i%d", slot).c_str());
 		}
 		if(space == "World") {
 			compiler.parameter("mapping", transform_transpose(tfm));

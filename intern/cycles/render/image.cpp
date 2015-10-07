@@ -1056,14 +1056,11 @@ void ImageManager::device_update_ies(Device *device,
 		int max_data_len = 0;
 		for(int i = 0; i < ies_lights.size(); i++) {
 			IESLight *ies = ies_lights[i];
-			if(ies) {
-				int data_len;
-				if(ies->v_angles_num > 0 && ies->h_angles_num > 0)
-					data_len = 2 + ies->h_angles_num + ies->v_angles_num + ies->h_angles_num*ies->v_angles_num;
-				else
-					data_len = 10;
-				max_data_len = max(max_data_len, data_len);
-			}
+			int data_len;
+			if(ies && ies->v_angles_num > 0 && ies->h_angles_num > 0)
+				data_len = 2 + ies->h_angles_num + ies->v_angles_num + ies->h_angles_num*ies->v_angles_num;
+			else data_len = 10;
+			max_data_len = max(max_data_len, data_len);
 		}
 
 		int len = max_data_len*ies_lights.size();
@@ -1071,33 +1068,29 @@ void ImageManager::device_update_ies(Device *device,
 		for(int i = 0; i < ies_lights.size(); i++) {
 			float *ies_data = data + max_data_len*i;
 			IESLight *ies = ies_lights[i];
-			if(ies) {
-				if(ies->v_angles_num > 0 && ies->h_angles_num > 0) {
-					*(ies_data++) = __int_as_float(ies->h_angles_num);
-					*(ies_data++) = __int_as_float(ies->v_angles_num);
-					for(int h = 0; h < ies->h_angles_num; h++)
-						*(ies_data++) = ies->h_angles[h] / 180.f * M_PI_F;
+			if(ies && ies->v_angles_num > 0 && ies->h_angles_num > 0) {
+				*(ies_data++) = __int_as_float(ies->h_angles_num);
+				*(ies_data++) = __int_as_float(ies->v_angles_num);
+				for(int h = 0; h < ies->h_angles_num; h++)
+					*(ies_data++) = ies->h_angles[h] / 180.f * M_PI_F;
+				for(int v = 0; v < ies->v_angles_num; v++)
+					*(ies_data++) = ies->v_angles[v] / 180.f * M_PI_F;
+				for(int h = 0; h < ies->h_angles_num; h++)
 					for(int v = 0; v < ies->v_angles_num; v++)
-						*(ies_data++) = ies->v_angles[v] / 180.f * M_PI_F;
-					for(int h = 0; h < ies->h_angles_num; h++)
-						for(int v = 0; v < ies->v_angles_num; v++)
-							 *(ies_data++) = ies->intensity[h][v];
-				} else {
-					//IES was not loaded correctly => Fallback
-					*(ies_data++) = __int_as_float(2);
-					*(ies_data++) = __int_as_float(2);
-					*(ies_data++) = 0.0f;
-					*(ies_data++) = M_PI_2_F;
-					*(ies_data++) = 0.0f;
-					*(ies_data++) = M_2PI_F;
-					*(ies_data++) = 1.0f;
-					*(ies_data++) = 1.0f;
-					*(ies_data++) = 1.0f;
-					*(ies_data++) = 1.0f;
-				}
+						 *(ies_data++) = ies->intensity[h][v];
 			}
 			else {
-				ies_data[0] = ies_data[1] = __int_as_float(0);
+				/* IES was not loaded correctly => Fallback */
+				*(ies_data++) = __int_as_float(2);
+				*(ies_data++) = __int_as_float(2);
+				*(ies_data++) = 0.0f;
+				*(ies_data++) = M_2PI_F;
+				*(ies_data++) = 0.0f;
+				*(ies_data++) = M_PI_2_F;
+				*(ies_data++) = 100.0f;
+				*(ies_data++) = 100.0f;
+				*(ies_data++) = 100.0f;
+				*(ies_data++) = 100.0f;
 			}
 		}
 
@@ -1107,12 +1100,9 @@ void ImageManager::device_update_ies(Device *device,
 		}
 		device->tex_alloc("__ies", dscene->ies_lights);
 
-		kintegrator->ies_num = ies_lights.size();
 		kintegrator->ies_stride = max_data_len;
-	} else {
-		kintegrator->ies_num = 0;
-		kintegrator->ies_stride = 0;
 	}
+	else kintegrator->ies_stride = 0;
 }
 
 void ImageManager::device_update_slot(Device *device,
