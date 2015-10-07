@@ -257,6 +257,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					CALLBACK_INVOKE(seq->scene_camera, IDWALK_NOP);
 					CALLBACK_INVOKE(seq->clip, IDWALK_NOP);
 					CALLBACK_INVOKE(seq->mask, IDWALK_NOP);
+					CALLBACK_INVOKE(seq->sound, IDWALK_NOP);
 				}
 				SEQ_END
 			}

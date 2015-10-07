@@ -59,9 +59,9 @@ void  BKE_libblock_copy_data(struct ID *id, const struct ID *id_from, const bool
 
 /* Note: Requiring new_id to be non-null, this *may* not be the case ultimately, but makes things simpler for now. */
 void BKE_libblock_remap_locked(
-        struct Main *bmain, struct ID *old_id, struct ID *new_id, const bool skip_indirect_usage) ATTR_NONNULL(1, 2);
+        struct Main *bmain, void *old_id, void *new_id, const bool skip_indirect_usage) ATTR_NONNULL(1, 2);
 void BKE_libblock_remap(
-        struct Main *bmain, struct ID *old_id, struct ID *new_id, const bool skip_indirect_usage) ATTR_NONNULL(1, 2);
+        struct Main *bmain, void *old_idv, void *new_idv, const bool skip_indirect_usage) ATTR_NONNULL(1, 2);
 
 void BKE_libblock_unlink(struct Main *bmain, void *idv) ATTR_NONNULL();
 

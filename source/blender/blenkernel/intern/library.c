@@ -1045,8 +1045,10 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 }
 
 /** Replace all references in .blend file to \a old_id by \a new_id (if \a new_id is NULL, it unlinks \a old_id). */
-void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id, const bool skip_indirect_usage)
+void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const bool skip_indirect_usage)
 {
+	ID *old_id = old_idv;
+	ID *new_id = new_idv;
 	IDRemap id_remap_data = {(void *)bmain, (void *)old_id, (void *)new_id, NULL};
 	ListBase *lb_array[MAX_LIBARRAY];
 	int skipped;
@@ -1167,11 +1169,11 @@ void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id, const bool s
 	DAG_relations_tag_update(bmain);
 }
 
-void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id, const bool skip_indirect_usage)
+void BKE_libblock_remap(Main *bmain, void *old_idv, void *new_idv, const bool skip_indirect_usage)
 {
 	BKE_main_lock(bmain);
 
-	BKE_libblock_remap_locked(bmain, old_id, new_id, skip_indirect_usage);
+	BKE_libblock_remap_locked(bmain, old_idv, new_idv, skip_indirect_usage);
 
 	BKE_main_unlock(bmain);
 }
@@ -1181,7 +1183,7 @@ void BKE_libblock_unlink(Main *bmain, void *idv)
 {
 	BKE_main_lock(bmain);
 
-	BKE_libblock_remap_locked(bmain, (ID *)idv, NULL, true);
+	BKE_libblock_remap_locked(bmain, idv, NULL, true);
 
 	BKE_main_unlock(bmain);
 }
