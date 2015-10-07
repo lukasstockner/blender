@@ -30,10 +30,12 @@
 #include <stdlib.h>
 
 
+#include "DNA_actuator_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_controller_types.h"
 #include "DNA_group_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_key_types.h"
@@ -48,6 +50,7 @@
 #include "DNA_node_types.h"
 #include "DNA_object_force.h"
 #include "DNA_scene_types.h"
+#include "DNA_sensor_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_speaker_types.h"
@@ -64,6 +67,7 @@
 #include "BKE_library_query.h"
 #include "BKE_modifier.h"
 #include "BKE_particle.h"
+#include "BKE_sca.h"
 #include "BKE_sequencer.h"
 #include "BKE_tracking.h"
 
@@ -110,6 +114,27 @@ static void library_foreach_constraintObjectLooper(bConstraint *UNUSED(con), ID 
 {
 	LibraryForeachIDData *data = (LibraryForeachIDData *) user_data;
 	FOREACH_CALLBACK_INVOKE_ID_PP(data->self_id, id_pointer, data->flag, data->callback, data->user_data, IDWALK_NOP);
+}
+
+static void library_foreach_sensorsObjectLooper(
+        bSensor *UNUSED(sensor), ID **id_pointer, void *user_data, int cd_flag)
+{
+	LibraryForeachIDData *data = (LibraryForeachIDData *) user_data;
+	FOREACH_CALLBACK_INVOKE_ID_PP(data->self_id, id_pointer, data->flag, data->callback, data->user_data, cd_flag);
+}
+
+static void library_foreach_controllersObjectLooper(
+        bController *UNUSED(controller), ID **id_pointer, void *user_data, int cd_flag)
+{
+	LibraryForeachIDData *data = (LibraryForeachIDData *) user_data;
+	FOREACH_CALLBACK_INVOKE_ID_PP(data->self_id, id_pointer, data->flag, data->callback, data->user_data, cd_flag);
+}
+
+static void library_foreach_actuatorsObjectLooper(
+        bActuator *UNUSED(actuator), ID **id_pointer, void *user_data, int cd_flag)
+{
+	LibraryForeachIDData *data = (LibraryForeachIDData *) user_data;
+	FOREACH_CALLBACK_INVOKE_ID_PP(data->self_id, id_pointer, data->flag, data->callback, data->user_data, cd_flag);
 }
 
 static void library_foreach_animationData(LibraryForeachIDData *data, AnimData *adt)
@@ -275,6 +300,16 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			BKE_constraints_id_loop(&object->constraints,
 			                        library_foreach_constraintObjectLooper,
 			                        &data);
+
+			BKE_sca_sensors_id_loop(&object->sensors,
+			                        library_foreach_sensorsObjectLooper,
+			                        &data);
+			BKE_sca_controllers_id_loop(&object->controllers,
+			                            library_foreach_controllersObjectLooper,
+			                            &data);
+			BKE_sca_actuators_id_loop(&object->actuators,
+			                          library_foreach_actuatorsObjectLooper,
+			                          &data);
 			break;
 		}
 
