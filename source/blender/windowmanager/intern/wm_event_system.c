@@ -253,7 +253,7 @@ void WM_main_remap_editor_id_reference(ID *old_id, ID *new_id)
 			SpaceLink *sl;
 
 			for (sl = sa->spacedata.first; sl; sl = sl->next) {
-				ED_spacedata_id_remap(sl, old_id, new_id);
+				ED_spacedata_id_remap(sa, sl, old_id, new_id);
 			}
 		}
 	}

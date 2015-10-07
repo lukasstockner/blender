@@ -868,40 +868,6 @@ Scene *BKE_scene_set_name(Main *bmain, const char *name)
 	return NULL;
 }
 
-void BKE_scene_unlink(Main *bmain, Scene *sce, Scene *newsce)
-{
-	Scene *sce1;
-	bScreen *screen;
-
-	/* check all sets */
-	for (sce1 = bmain->scene.first; sce1; sce1 = sce1->id.next)
-		if (sce1->set == sce)
-			sce1->set = NULL;
-	
-	for (sce1 = bmain->scene.first; sce1; sce1 = sce1->id.next) {
-		bNode *node;
-		
-		if (sce1 == sce || !sce1->nodetree)
-			continue;
-		
-		for (node = sce1->nodetree->nodes.first; node; node = node->next) {
-			if (node->id == &sce->id)
-				node->id = NULL;
-		}
-	}
-	
-	/* all screens */
-	for (screen = bmain->screen.first; screen; screen = screen->id.next) {
-		if (screen->scene == sce) {
-			screen->scene = newsce;
-		}
-
-		/* editors are handled by WM_main_remove_editor_id_reference */
-	}
-
-	BKE_libblock_free(bmain, sce);
-}
-
 /* Used by metaballs, return *all* objects (including duplis) existing in the scene (including scene's sets) */
 int BKE_scene_base_iter_next(EvaluationContext *eval_ctx, SceneBaseIter *iter,
                              Scene **scene, int val, Base **base, Object **ob)
@@ -1155,8 +1121,10 @@ void BKE_scene_base_unlink(Scene *sce, Base *base)
 	/* remove rigid body object from world before removing object */
 	if (base->object->rigidbody_object)
 		BKE_rigidbody_remove_object(sce, base->object);
-	
+
 	BLI_remlink(&sce->base, base);
+	if (sce->basact == base)
+		sce->basact = NULL;
 }
 
 void BKE_scene_base_deselect_all(Scene *sce)

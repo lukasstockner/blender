@@ -82,70 +82,6 @@ void BKE_group_free(Group *group, const bool UNUSED(do_id_user))
 	BKE_previewimg_free(&group->preview);
 }
 
-void BKE_group_unlink(Group *group)
-{
-	Main *bmain = G.main;
-	Material *ma;
-	Object *ob;
-	Scene *sce;
-	SceneRenderLayer *srl;
-	ParticleSystem *psys;
-	
-	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
-		if (ma->group == group)
-			ma->group = NULL;
-	}
-	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
-		if (ma->group == group)
-			ma->group = NULL;
-	}
-	for (sce = bmain->scene.first; sce; sce = sce->id.next) {
-		Base *base = sce->base.first;
-		
-		/* ensure objects are not in this group */
-		for (; base; base = base->next) {
-			if (BKE_group_object_unlink(group, base->object, sce, base) &&
-			    BKE_group_object_find(NULL, base->object) == NULL)
-			{
-				base->object->flag &= ~OB_FROMGROUP;
-				base->flag &= ~OB_FROMGROUP;
-			}
-		}
-		
-		for (srl = sce->r.layers.first; srl; srl = srl->next) {
-			FreestyleLineSet *lineset;
-
-			if (srl->light_override == group)
-				srl->light_override = NULL;
-			for (lineset = srl->freestyleConfig.linesets.first; lineset; lineset = lineset->next) {
-				if (lineset->group == group)
-					lineset->group = NULL;
-			}
-		}
-	}
-	
-	for (ob = bmain->object.first; ob; ob = ob->id.next) {
-		
-		if (ob->dup_group == group) {
-			ob->dup_group = NULL;
-		}
-		
-		for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-			if (psys->part->dup_group == group)
-				psys->part->dup_group = NULL;
-#if 0       /* not used anymore, only keps for readfile.c, no need to account for this */
-			if (psys->part->eff_group == group)
-				psys->part->eff_group = NULL;
-#endif
-		}
-	}
-	
-	/* group stays in library, but no members */
-	/* XXX This is suspicious, means we keep a dangling, empty group? Also, does not take into account fakeuser? */
-	BKE_group_free(group, false);
-	group->id.us = 0;
-}
-
 Group *BKE_group_add(Main *bmain, const char *name)
 {
 	Group *group;
@@ -224,16 +160,14 @@ static int group_object_unlink_internal(Group *group, Object *ob)
 	int removed = 0;
 	if (group == NULL) return 0;
 	
-	go = group->gobject.first;
-	while (go) {
+	for (go = group->gobject.first; go; go = gon) {
 		gon = go->next;
 		if (go->ob == ob) {
 			BLI_remlink(&group->gobject, go);
 			free_group_object(go);
 			removed = 1;
-			/* should break here since an object being in a group twice cant happen? */
+			break;
 		}
-		go = gon;
 	}
 	return removed;
 }

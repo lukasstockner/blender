@@ -67,13 +67,12 @@ void clear_sca_new_poins_ob(struct Object *ob);
 void clear_sca_new_poins(void);
 void set_sca_new_poins_ob(struct Object *ob);
 void set_sca_new_poins(void);
-void sca_remove_ob_poin(struct Object *obt, struct Object *ob);
 
 void sca_move_sensor(struct bSensor *sens_to_move, struct Object *ob, int move_up);
 void sca_move_controller(struct bController *cont_to_move, struct Object *ob, int move_up);
 void sca_move_actuator(struct bActuator *act_to_move, struct Object *ob, int move_up);
 
-/* Callback format for performing operations on ID-pointers for Constraints */
+/* Callback format for performing operations on ID-pointers for sensors/controllers/actuators. */
 typedef void (*SCASensorIDFunc)(struct bSensor *sensor, struct ID **idpoin, void *userdata, int cd_flag);
 typedef void (*SCAControllerIDFunc)(struct bController *controller, struct ID **idpoin, void *userdata, int cd_flag);
 typedef void (*SCAActuatorIDFunc)(struct bActuator *actuator, struct ID **idpoin, void *userdata, int cd_flag);

@@ -398,37 +398,6 @@ bool id_copy(ID *id, ID **newid, bool test)
 	return false;
 }
 
-bool id_unlink(ID *id, int test)
-{
-	Main *mainlib = G.main;
-	short type = GS(id->name);
-
-	switch (type) {
-		case ID_TXT:
-			if (test) return true;
-			BKE_text_unlink(mainlib, (Text *)id);
-			break;
-		case ID_GR:
-			if (test) return true;
-			BKE_group_unlink((Group *)id);
-			break;
-		case ID_OB:
-			if (test) return true;
-			BKE_object_unlink((Object *)id);
-			break;
-	}
-
-	if (id->us == 0) {
-		if (test) return true;
-
-		BKE_libblock_free(mainlib, id);
-
-		return true;
-	}
-
-	return false;
-}
-
 bool id_single_user(bContext *C, ID *id, PointerRNA *ptr, PropertyRNA *prop)
 {
 	ID *newid = NULL;
@@ -1014,6 +983,7 @@ typedef struct IDRemap {
 	ID *old_id;
 	ID *new_id;
 	ID *id;  /* The ID in which we are replacing old_id by new_id usages. */
+	/* XXX TODO: keeping this for now (also as debug data), in theory we can get rid of it. */
 	int skipped_direct;  /* Number of direct usecase that could not be remapped (e.g.: obdata when in edit mode). */
 	int skipped_indirect;  /* Number of indirect usecase that could not be remapped. */
 	int flag;
@@ -1045,7 +1015,8 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 		const bool is_indirect = (id->lib != NULL);
 		const bool skip_indirect = (id_remap_data->flag & ID_REMAP_SKIP_INDIRECT_USAGE) != 0;
 
-		printf("\t\tIn %s (%p): remapping %s (%p) to %s (%p)\n", id->name, id, old_id->name, old_id, new_id->name, new_id);
+		printf("\t\tIn %s (%p): remapping %s (%p) to %s (%p)\n",
+		       id->name, id, old_id->name, old_id, new_id ? new_id->name : "", new_id);
 
 		/* Special hack in case it's Object->data and we are in edit mode (skipped_direct too). */
 		if ((is_obj_editmode && (((Object *)id)->data == *id_p)) || (skip_indirect && (is_proxy || is_indirect))) {
@@ -1060,7 +1031,8 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 			*id_p = new_id;
 			if (cb_flag & IDWALK_REFCOUNTED) {
 				old_id->us--;
-				new_id->us++;
+				if (new_id)
+					new_id->us++;
 			}
 			DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB | OB_RECALC_DATA);
 			if (!is_indirect) {
@@ -1072,7 +1044,7 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 	return true;
 }
 
-/** Replace all references in .blend file to \a old_id by \a new_id. */
+/** Replace all references in .blend file to \a old_id by \a new_id (if \a new_id is NULL, it unlinks \a old_id). */
 void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id, const bool skip_indirect_usage)
 {
 	IDRemap id_remap_data = {(void *)bmain, (void *)old_id, (void *)new_id, NULL};
@@ -1080,10 +1052,30 @@ void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id, const bool s
 	int skipped;
 	int i;
 
-	BLI_assert(GS(old_id->name) == GS(new_id->name));
+	BLI_assert(old_id != NULL);
+	BLI_assert((new_id == NULL) || GS(old_id->name) == GS(new_id->name));
 	BLI_assert(old_id != new_id);
 
-	printf("%s: %s (%p) replaced by %s (%p)\n", __func__, old_id->name, old_id, new_id->name, new_id);
+	printf("%s: %s (%p) replaced by %s (%p)\n", __func__, old_id->name, old_id, new_id ? new_id->name : "", new_id);
+
+	/* Some pre-processing.
+	 * This is a bit ugly, but cannot see a way to avoid it...
+	 */
+	if (GS(old_id->name) == ID_OB) {
+		Object *old_ob = (Object *)old_id;
+		Scene *sce;
+		Base *base;
+
+		for (sce = bmain->scene.first; sce; sce = sce->id.next) {
+			base = BKE_scene_base_find(sce, old_ob);
+
+			if (base) {
+				BKE_scene_base_unlink(sce, base);
+				base->object->id.us--;
+				MEM_freeN(base);
+			}
+		}
+	}
 
 	if (skip_indirect_usage) {
 		id_remap_data.flag |= ID_REMAP_SKIP_INDIRECT_USAGE;
@@ -1126,11 +1118,12 @@ void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id, const bool s
 #if 0
 	/* All ID 'users' do not actually incref it, so we just assume all uses of this ID have been cleared... */
 	BLI_assert(old_id->us - skipped >= 0);
-	new_id->us += old_id->us - skipped;
+	if (new_id)
+		new_id->us += old_id->us - skipped;
 	old_id->us = skipped;
 #endif
 
-	if ((new_id->flag & LIB_INDIRECT) && (id_remap_data.flag & ID_REMAP_IS_LINKED_DIRECT)) {
+	if (new_id && (new_id->flag & LIB_INDIRECT) && (id_remap_data.flag & ID_REMAP_IS_LINKED_DIRECT)) {
 		new_id->flag &= ~LIB_INDIRECT;
 		new_id->flag |= LIB_EXTERN;
 	}
@@ -1143,6 +1136,33 @@ void BKE_libblock_remap_locked(Main *bmain, ID *old_id, ID *new_id, const bool s
 		}
 	}
 
+	/* Some after-process updates.
+	 * This is a bit ugly, but cannot see a way to avoid it. Maybe we should do a per-ID callback for this instead?
+	 */
+	if (GS(old_id->name) == ID_OB) {
+		Object *old_ob = (Object *)old_id;
+		Object *new_ob = (Object *)new_id;
+
+		if (old_ob->flag & OB_FROMGROUP) {
+			/* Note that for Scene's BaseObject->flag, either we:
+			 *     - unlinked old_ob (i.e. new_ob is NULL), in which case scenes' bases have been removed already.
+			 *     - remaped old_ob by new_ob, in which case scenes' bases are still valid as is.
+			 * So in any case, no need to update them here. */
+			if (BKE_group_object_find(NULL, old_ob) == NULL) {
+				old_ob->flag &= ~OB_FROMGROUP;
+			}
+			if (new_ob == NULL) {  /* We need to remove NULL-ified groupobjects... */
+				Group *group;
+				for (group = bmain->group.first; group; group = group->id.next) {
+					BKE_group_object_unlink(group, NULL, NULL, NULL);
+				}
+			}
+			else {
+				new_ob->flag |= OB_FROMGROUP;
+			}
+		}
+	}
+
 	/* Full rebuild of DAG! */
 	DAG_relations_tag_update(bmain);
 }
@@ -1152,6 +1172,16 @@ void BKE_libblock_remap(Main *bmain, ID *old_id, ID *new_id, const bool skip_ind
 	BKE_main_lock(bmain);
 
 	BKE_libblock_remap_locked(bmain, old_id, new_id, skip_indirect_usage);
+
+	BKE_main_unlock(bmain);
+}
+
+/** Unlink given \a id from given \a bmain (does not touch to indirect, i.e. library, usages of the ID). */
+void BKE_libblock_unlink(Main *bmain, void *idv)
+{
+	BKE_main_lock(bmain);
+
+	BKE_libblock_remap_locked(bmain, (ID *)idv, NULL, true);
 
 	BKE_main_unlock(bmain);
 }
@@ -1343,11 +1373,11 @@ void BKE_libblock_free_us(Main *bmain, void *idv)      /* test users */
 	id->us--;
 
 	if (id->us < 0) {
-		if (id->lib) printf("ERROR block %s %s users %d\n", id->lib->name, id->name, id->us);
-		else printf("ERROR block %s users %d\n", id->name, id->us);
+		printf("ERROR block %s (from %s lib): %d users\n", id->name, id->lib ?  id->lib->name : "<MAIN>", id->us);
+		id->us = 0;
 	}
 	if (id->us == 0) {
-		if (GS(id->name) == ID_OB) BKE_object_unlink((Object *)id);
+		BKE_libblock_unlink(bmain, id);
 		
 		BKE_libblock_free(bmain, id);
 	}

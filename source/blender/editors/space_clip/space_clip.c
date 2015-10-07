@@ -1513,7 +1513,7 @@ static void clip_properties_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(s
 
 /********************* registration ********************/
 
-static void clip_id_remap(SpaceLink *slink, ID *old_id, ID *new_id)
+static void clip_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	SpaceClip *sclip = (SpaceClip *)slink;
 

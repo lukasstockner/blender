@@ -690,7 +690,7 @@ static void sequencer_buttons_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED
 	}
 }
 
-static void sequencer_id_remap(SpaceLink *slink, ID *old_id, ID *new_id)
+static void sequencer_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	SpaceSeq *sseq = (SpaceSeq *)slink;
 

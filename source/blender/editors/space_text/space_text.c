@@ -555,7 +555,7 @@ static void text_properties_area_draw(const bContext *C, ARegion *ar)
 	}
 }
 
-static void text_id_remap(SpaceLink *slink, ID *old_id, ID *new_id)
+static void text_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	SpaceText *stext = (SpaceText *)slink;
 

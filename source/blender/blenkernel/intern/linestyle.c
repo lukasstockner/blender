@@ -1469,33 +1469,6 @@ char *BKE_linestyle_path_to_color_ramp(FreestyleLineStyle *linestyle, ColorBand 
 	return NULL;
 }
 
-void BKE_linestyle_target_object_unlink(FreestyleLineStyle *linestyle, struct Object *ob)
-{
-	LineStyleModifier *m;
-
-	for (m = (LineStyleModifier *)linestyle->color_modifiers.first; m; m = m->next) {
-		if (m->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
-			if (((LineStyleColorModifier_DistanceFromObject *)m)->target == ob) {
-				((LineStyleColorModifier_DistanceFromObject *)m)->target = NULL;
-			}
-		}
-	}
-	for (m = (LineStyleModifier *)linestyle->alpha_modifiers.first; m; m = m->next) {
-		if (m->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
-			if (((LineStyleAlphaModifier_DistanceFromObject *)m)->target == ob) {
-				((LineStyleAlphaModifier_DistanceFromObject *)m)->target = NULL;
-			}
-		}
-	}
-	for (m = (LineStyleModifier *)linestyle->thickness_modifiers.first; m; m = m->next) {
-		if (m->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
-			if (((LineStyleThicknessModifier_DistanceFromObject *)m)->target == ob) {
-				((LineStyleThicknessModifier_DistanceFromObject *)m)->target = NULL;
-			}
-		}
-	}
-}
-
 bool BKE_linestyle_use_textures(FreestyleLineStyle *linestyle, const bool use_shading_nodes)
 {
 	if (use_shading_nodes) {

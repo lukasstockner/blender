@@ -218,7 +218,7 @@ static void unlink_texture_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeEle
 	}
 }
 
-static void unlink_group_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeElement *UNUSED(te),
+static void unlink_group_cb(bContext *C, Scene *UNUSED(scene), TreeElement *UNUSED(te),
                             TreeStoreElem *tsep, TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Group *group = (Group *)tselem->id;
@@ -230,7 +230,9 @@ static void unlink_group_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeEleme
 		}
 	}
 	else {
-		BKE_group_unlink(group);
+		Main *bmain = CTX_data_main(C);
+		BKE_libblock_unlink(bmain, group);
+		BKE_libblock_free(bmain, group);
 	}
 }
 

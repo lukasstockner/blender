@@ -59,9 +59,11 @@ void  BKE_libblock_copy_data(struct ID *id, const struct ID *id_from, const bool
 
 /* Note: Requiring new_id to be non-null, this *may* not be the case ultimately, but makes things simpler for now. */
 void BKE_libblock_remap_locked(
-        struct Main *bmain, struct ID *old_id, struct ID *new_id, const bool skip_indirect_usage) ATTR_NONNULL();
+        struct Main *bmain, struct ID *old_id, struct ID *new_id, const bool skip_indirect_usage) ATTR_NONNULL(1, 2);
 void BKE_libblock_remap(
-        struct Main *bmain, struct ID *old_id, struct ID *new_id, const bool skip_indirect_usage) ATTR_NONNULL();
+        struct Main *bmain, struct ID *old_id, struct ID *new_id, const bool skip_indirect_usage) ATTR_NONNULL(1, 2);
+
+void BKE_libblock_unlink(struct Main *bmain, void *idv) ATTR_NONNULL();
 
 void BKE_id_lib_local_paths(struct Main *bmain, struct Library *lib, struct ID *id);
 void id_lib_extern(struct ID *id);
@@ -73,7 +75,6 @@ void id_us_min(struct ID *id);
 bool id_make_local(struct ID *id, bool test);
 bool id_single_user(struct bContext *C, struct ID *id, struct PointerRNA *ptr, struct PropertyRNA *prop);
 bool id_copy(struct ID *id, struct ID **newid, bool test);
-bool id_unlink(struct ID *id, int test);
 void id_sort_by_name(struct ListBase *lb, struct ID *id);
 
 bool new_id(struct ListBase *lb, struct ID *id, const char *name);

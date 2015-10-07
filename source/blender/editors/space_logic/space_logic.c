@@ -303,7 +303,7 @@ static void logic_header_area_draw(const bContext *C, ARegion *ar)
 
 /**************************** spacetype *****************************/
 
-static void logic_id_remap(SpaceLink *slink, ID *old_id, ID *new_id)
+static void logic_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	SpaceLogic *slog = (SpaceLogic *)slink;
 
