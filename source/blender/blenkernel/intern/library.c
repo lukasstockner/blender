@@ -1114,7 +1114,7 @@ static void libblock_remap_do(
 		}
 	}
 
-	if (old_id->flag & LIB_FAKEUSER) {
+	if (old_id && (old_id->flag & LIB_FAKEUSER)) {
 		id_remap_data.skipped_direct++;
 	}
 
