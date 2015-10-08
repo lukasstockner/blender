@@ -234,7 +234,7 @@ struct ID *BLO_library_link_named_part(
 
 /**
  * Link a named datablock from an external blend file.
- * optionally instance the object/group in the scene when the flags are set.
+ * optionally instanciate the object/group in the scene when the flags are set.
  *
  * \param mainl The main database to link from (not the active one).
  * \param bh The blender file handle.
