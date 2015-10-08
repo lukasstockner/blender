@@ -95,6 +95,7 @@
 #include "BKE_lamp.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
+#include "BKE_library_query.h"
 #include "BKE_linestyle.h"
 #include "BKE_mesh.h"
 #include "BKE_material.h"
@@ -864,7 +865,32 @@ void *BKE_libblock_copy(ID *id)
 	return BKE_libblock_copy_ex(G.main, id);
 }
 
-static void BKE_library_free(Library *lib, const bool UNUSED(do_id_user))
+static bool id_relink_looper(void *UNUSED(user_data), ID **id_pointer, const int cd_flag)
+{
+	ID *id = *id_pointer;
+	if (id) {
+		/* See: NEW_ID macro */
+		if (id->newid) {
+			BKE_library_update_ID_link_user(id->newid, id, cd_flag);
+			*id_pointer = id->newid;
+		}
+		else if (id->flag & LIB_NEW) {
+			id->flag &= ~LIB_NEW;
+			BKE_libblock_relink(id);
+		}
+	}
+	return true;
+}
+
+void BKE_libblock_relink(ID *id)
+{
+	if (id->lib)
+		return;
+
+	BKE_library_foreach_ID_link(id, id_relink_looper, NULL, 0);
+}
+
+static void library_free(Library *lib, const bool UNUSED(do_id_user))
 {
 	if (lib->packedfile)
 		freePackedFile(lib->packedfile);
@@ -946,7 +972,7 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_scene_free((Scene *)id, do_id_user);
 			break;
 		case ID_LI:
-			BKE_library_free((Library *)id, do_id_user);
+			library_free((Library *)id, do_id_user);
 			break;
 		case ID_OB:
 			BKE_object_free((Object *)id, do_id_user);
