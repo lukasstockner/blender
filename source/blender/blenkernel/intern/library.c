@@ -1150,7 +1150,7 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 	/* Some pre-processing.
 	 * This is a bit ugly, but cannot see a way to avoid it...
 	 */
-	if (GS(old_id->name) == ID_OB) {
+	if ((GS(old_id->name) == ID_OB) && (new_id == NULL)) {
 		Object *old_ob = (Object *)old_id;
 		Scene *sce;
 		Base *base;
