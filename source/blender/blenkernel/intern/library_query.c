@@ -224,7 +224,10 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			CALLBACK_INVOKE(scene->world, IDWALK_USER);
 			CALLBACK_INVOKE(scene->set, IDWALK_NOP);
 			CALLBACK_INVOKE(scene->clip, IDWALK_NOP);
-			CALLBACK_INVOKE(scene->nodetree, IDWALK_NOP);
+			if (scene->nodetree) {
+				/* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
+				BKE_library_foreach_ID_link((ID *)scene->nodetree, callback, user_data, flag);
+			}
 			if (scene->basact) {
 				CALLBACK_INVOKE(scene->basact->object, IDWALK_NOP);
 			}
@@ -429,7 +432,10 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					library_foreach_mtex(&data, material->mtex[i]);
 				}
 			}
-			CALLBACK_INVOKE(material->nodetree, IDWALK_NOP);
+			if (material->nodetree) {
+				/* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
+				BKE_library_foreach_ID_link((ID *)material->nodetree, callback, user_data, flag);
+			}
 			CALLBACK_INVOKE(material->group, IDWALK_USER);
 			break;
 		}
@@ -437,7 +443,10 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 		case ID_TE:
 		{
 			Tex *texture = (Tex *) id;
-			CALLBACK_INVOKE(texture->nodetree, IDWALK_NOP);
+			if (texture->nodetree) {
+				/* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
+				BKE_library_foreach_ID_link((ID *)texture->nodetree, callback, user_data, flag);
+			}
 			CALLBACK_INVOKE(texture->ima, IDWALK_USER);
 			if (texture->env) {
 				CALLBACK_INVOKE(texture->env->object, IDWALK_NOP);
@@ -467,7 +476,10 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					library_foreach_mtex(&data, lamp->mtex[i]);
 				}
 			}
-			CALLBACK_INVOKE(lamp->nodetree, IDWALK_NOP);
+			if (lamp->nodetree) {
+				/* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
+				BKE_library_foreach_ID_link((ID *)lamp->nodetree, callback, user_data, flag);
+			}
 			break;
 		}
 
@@ -500,7 +512,10 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					library_foreach_mtex(&data, world->mtex[i]);
 				}
 			}
-			CALLBACK_INVOKE(world->nodetree, IDWALK_NOP);
+			if (world->nodetree) {
+				/* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
+				BKE_library_foreach_ID_link((ID *)world->nodetree, callback, user_data, flag);
+			}
 			break;
 		}
 
@@ -625,7 +640,10 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					library_foreach_mtex(&data, linestyle->mtex[i]);
 				}
 			}
-			CALLBACK_INVOKE(linestyle->nodetree, IDWALK_NOP);
+			if (linestyle->nodetree) {
+				/* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
+				BKE_library_foreach_ID_link((ID *)linestyle->nodetree, callback, user_data, flag);
+			}
 
 			for (lsm = linestyle->color_modifiers.first; lsm; lsm = lsm->next) {
 				if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
