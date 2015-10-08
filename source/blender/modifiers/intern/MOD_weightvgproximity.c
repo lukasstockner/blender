@@ -124,7 +124,7 @@ static void get_vert2geom_distance(int numVerts, float (*v_cos)[3],
 		 * If we already had an hit before, we assume this vertex is going to have a close hit to
 		 * that other vertex, so we can initiate the "nearest.dist" with the expected value to that
 		 * last hit.
-		 * This will lead in prunning of the search tree.
+		 * This will lead in pruning of the search tree.
 		 */
 		if (dist_v) {
 			nearest_v.dist_sq = nearest_v.index != -1 ? len_squared_v3v3(tmp_co, nearest_v.co) : FLT_MAX;
@@ -299,7 +299,7 @@ static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *u
 {
 	WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *) md;
 
-	walk(userData, ob, (ID **)&wmd->mask_texture, IDWALK_REFCOUNTED);
+	walk(userData, ob, (ID **)&wmd->mask_texture, IDWALK_USER);
 
 	foreachObjectLink(md, ob, (ObjectWalkFunc)walk, userData);
 }

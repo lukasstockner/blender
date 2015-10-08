@@ -133,7 +133,7 @@ static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *u
 {
 	WeightVGEditModifierData *wmd = (WeightVGEditModifierData *) md;
 
-	walk(userData, ob, (ID **)&wmd->mask_texture, IDWALK_REFCOUNTED);
+	walk(userData, ob, (ID **)&wmd->mask_texture, IDWALK_USER);
 
 	foreachObjectLink(md, ob, (ObjectWalkFunc)walk, userData);
 }

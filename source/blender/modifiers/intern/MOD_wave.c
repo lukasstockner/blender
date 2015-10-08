@@ -120,7 +120,7 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 {
 	WaveModifierData *wmd = (WaveModifierData *) md;
 
-	walk(userData, ob, (ID **)&wmd->texture, IDWALK_REFCOUNTED);
+	walk(userData, ob, (ID **)&wmd->texture, IDWALK_USER);
 
 	foreachObjectLink(md, ob, (ObjectWalkFunc)walk, userData);
 }

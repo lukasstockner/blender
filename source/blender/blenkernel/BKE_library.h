@@ -56,6 +56,7 @@ void *BKE_libblock_copy_ex(struct Main *bmain, struct ID *id) ATTR_WARN_UNUSED_R
 void *BKE_libblock_copy_nolib(struct ID *id, const bool do_action) ATTR_NONNULL();
 void *BKE_libblock_copy(struct ID *id) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 void  BKE_libblock_copy_data(struct ID *id, const struct ID *id_from, const bool do_action);
+void  BKE_libblock_relink(struct ID *id);
 
 /* Note: Requiring new_id to be non-null, this *may* not be the case ultimately, but makes things simpler for now. */
 void BKE_libblock_remap_locked(
@@ -65,7 +66,7 @@ void BKE_libblock_remap(
 
 void BKE_libblock_unlink(struct Main *bmain, void *idv) ATTR_NONNULL();
 
-void BKE_libblock_relink(struct Main *bmain, void *idv, void *old_idv, void *new_idv) ATTR_NONNULL(1, 2);
+void BKE_libblock_relink_ex(struct Main *bmain, void *idv, void *old_idv, void *new_idv) ATTR_NONNULL(1, 2);
 
 void BKE_id_lib_local_paths(struct Main *bmain, struct Library *lib, struct ID *id);
 void id_lib_extern(struct ID *id);

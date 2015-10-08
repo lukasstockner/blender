@@ -951,6 +951,31 @@ void *BKE_libblock_copy(ID *id)
 	return BKE_libblock_copy_ex(G.main, id);
 }
 
+static bool id_relink_looper(void *UNUSED(user_data), ID **id_pointer, const int cd_flag)
+{
+	ID *id = *id_pointer;
+	if (id) {
+		/* See: NEW_ID macro */
+		if (id->newid) {
+			BKE_library_update_ID_link_user(id->newid, id, cd_flag);
+			*id_pointer = id->newid;
+		}
+		else if (id->flag & LIB_NEW) {
+			id->flag &= ~LIB_NEW;
+			BKE_libblock_relink(id);
+		}
+	}
+	return true;
+}
+
+void BKE_libblock_relink(ID *id)
+{
+	if (id->lib)
+		return;
+
+	BKE_library_foreach_ID_link(id, id_relink_looper, NULL, 0);
+}
+
 static void library_free(Library *lib)
 {
 	if (lib->packedfile)
@@ -1034,7 +1059,7 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 		}
 		else {
 			*id_p = new_id;
-			if (cb_flag & IDWALK_REFCOUNTED) {
+			if (cb_flag & IDWALK_USER) {
 				old_id->us--;
 				if (new_id)
 					new_id->us++;
@@ -1233,7 +1258,7 @@ void BKE_libblock_unlink(Main *bmain, void *idv)
  *     BKE_id_remap maybe?
  *     ... sigh
  */
-void BKE_libblock_relink(Main *bmain, void *idv, void *old_idv, void *new_idv)
+void BKE_libblock_relink_ex(Main *bmain, void *idv, void *old_idv, void *new_idv)
 {
 	ID *id = idv;
 	ID *old_id = old_idv;
@@ -1311,7 +1336,7 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 	 *     This has to be fixed one way or another!
 	 */
 	if (do_id_user) {
-		BKE_libblock_relink(bmain, id, NULL, NULL);
+		BKE_libblock_relink_ex(bmain, id, NULL, NULL);
 	}
 
 	switch (type) {

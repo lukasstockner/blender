@@ -350,7 +350,7 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 	}
 
 	if (smd->type == MOD_SMOKE_TYPE_FLOW && smd->flow) {
-		walk(userData, ob, (ID **)&smd->flow->noise_texture, IDWALK_REFCOUNTED);
+		walk(userData, ob, (ID **)&smd->flow->noise_texture, IDWALK_USER);
 	}
 }
 

@@ -100,7 +100,7 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 {
 	UVProjectModifierData *umd = (UVProjectModifierData *) md;
 
-	walk(userData, ob, (ID **)&umd->image, IDWALK_REFCOUNTED);
+	walk(userData, ob, (ID **)&umd->image, IDWALK_USER);
 
 	foreachObjectLink(md, ob, (ObjectWalkFunc)walk, userData);
 }

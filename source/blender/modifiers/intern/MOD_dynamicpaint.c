@@ -172,11 +172,11 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 
 		for (; surface; surface = surface->next) {
 			walk(userData, ob, (ID **)&surface->brush_group, IDWALK_NOP);
-			walk(userData, ob, (ID **)&surface->init_texture, IDWALK_REFCOUNTED);
+			walk(userData, ob, (ID **)&surface->init_texture, IDWALK_USER);
 		}
 	}
 	if (pmd->brush) {
-		walk(userData, ob, (ID **)&pmd->brush->mat, IDWALK_REFCOUNTED);
+		walk(userData, ob, (ID **)&pmd->brush->mat, IDWALK_USER);
 	}
 }
 

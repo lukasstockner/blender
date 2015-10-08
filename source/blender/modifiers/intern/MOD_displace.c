@@ -138,7 +138,7 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 {
 	DisplaceModifierData *dmd = (DisplaceModifierData *) md;
 
-	walk(userData, ob, (ID **)&dmd->texture, IDWALK_REFCOUNTED);
+	walk(userData, ob, (ID **)&dmd->texture, IDWALK_USER);
 
 	foreachObjectLink(md, ob, (ObjectWalkFunc)walk, userData);
 }

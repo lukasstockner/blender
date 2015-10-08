@@ -65,6 +65,7 @@
 #include "BKE_animsys.h"
 #include "BKE_constraint.h"
 #include "BKE_fcurve.h"
+#include "BKE_library.h"
 #include "BKE_library_query.h"
 #include "BKE_modifier.h"
 #include "BKE_particle.h"
@@ -86,16 +87,19 @@
 			/* TODO(sergey): Make it less creepy without too much duplicated code.. */ \
 			return; \
 		} \
-	} (void) 0
+	} ((void)0)
 
 #define FOREACH_CALLBACK_INVOKE_ID(self_id, id, flag, callback, user_data, cb_flag) \
-	FOREACH_CALLBACK_INVOKE_ID_PP(self_id, &(id), flag, callback, user_data, cb_flag) \
+	{ \
+		CHECK_TYPE_ANY(id, ID *, void *); \
+		FOREACH_CALLBACK_INVOKE_ID_PP(self_id, (ID **)&(id), flag, callback, user_data, cb_flag); \
+	} ((void)0)
 
 #define FOREACH_CALLBACK_INVOKE(self_id, id_super, flag, callback, user_data, cb_flag) \
 	{ \
 		CHECK_TYPE(&((id_super)->id), ID *); \
 		FOREACH_CALLBACK_INVOKE_ID_PP(self_id, (ID **)&id_super, flag, callback, user_data, cb_flag); \
-	} (void) 0
+	} ((void)0)
 
 typedef struct LibraryForeachIDData {
 	ID *self_id;
@@ -174,11 +178,10 @@ static void library_foreach_animationData(LibraryForeachIDData *data, AnimData *
 	}
 }
 
-
 static void library_foreach_mtex(LibraryForeachIDData *data, MTex *mtex)
 {
 	FOREACH_CALLBACK_INVOKE(data->self_id, mtex->object, data->flag, data->callback, data->user_data, IDWALK_NOP);
-	FOREACH_CALLBACK_INVOKE(data->self_id, mtex->tex, data->flag, data->callback, data->user_data, IDWALK_REFCOUNTED);
+	FOREACH_CALLBACK_INVOKE(data->self_id, mtex->tex, data->flag, data->callback, data->user_data, IDWALK_USER);
 }
 
 
@@ -218,10 +221,10 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			Base *base;
 
 			CALLBACK_INVOKE(scene->camera, IDWALK_NOP);
-			CALLBACK_INVOKE(scene->world, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(scene->world, IDWALK_USER);
 			CALLBACK_INVOKE(scene->set, IDWALK_NOP);
 			CALLBACK_INVOKE(scene->clip, IDWALK_NOP);
-			CALLBACK_INVOKE(scene->nodetree, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(scene->nodetree, IDWALK_NOP);
 			if (scene->basact) {
 				CALLBACK_INVOKE(scene->basact->object, IDWALK_NOP);
 			}
@@ -232,10 +235,10 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 				FreestyleLineSet *fls;
 
 				if (srl->mat_override) {
-					CALLBACK_INVOKE(srl->mat_override, IDWALK_REFCOUNTED);
+					CALLBACK_INVOKE(srl->mat_override, IDWALK_USER);
 				}
 				if (srl->light_override) {
-					CALLBACK_INVOKE(srl->light_override, IDWALK_NOP);
+					CALLBACK_INVOKE(srl->light_override, IDWALK_USER);
 				}
 				for (fmc = srl->freestyleConfig.modules.first; fmc; fmc = fmc->next) {
 					if (fmc->script) {
@@ -244,10 +247,10 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 				}
 				for (fls = srl->freestyleConfig.linesets.first; fls; fls = fls->next) {
 					if (fls->group) {
-						CALLBACK_INVOKE(fls->group, IDWALK_NOP);
+						CALLBACK_INVOKE(fls->group, IDWALK_USER);
 					}
 					if (fls->linestyle) {
-						CALLBACK_INVOKE(fls->linestyle, IDWALK_NOP);
+						CALLBACK_INVOKE(fls->linestyle, IDWALK_USER);
 					}
 				}
 			}
@@ -258,17 +261,17 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 				{
 					CALLBACK_INVOKE(seq->scene, IDWALK_NOP);
 					CALLBACK_INVOKE(seq->scene_camera, IDWALK_NOP);
-					CALLBACK_INVOKE(seq->clip, IDWALK_NOP);
-					CALLBACK_INVOKE(seq->mask, IDWALK_NOP);
-					CALLBACK_INVOKE(seq->sound, IDWALK_NOP);
+					CALLBACK_INVOKE(seq->clip, IDWALK_USER);
+					CALLBACK_INVOKE(seq->mask, IDWALK_USER);
+					CALLBACK_INVOKE(seq->sound, IDWALK_USER);
 				}
 				SEQ_END
 			}
 
-			CALLBACK_INVOKE(scene->gpd, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(scene->gpd, IDWALK_USER);
 
 			for (base = scene->base.first; base; base = base->next) {
-				CALLBACK_INVOKE(base->object, IDWALK_REFCOUNTED);
+				CALLBACK_INVOKE(base->object, IDWALK_USER);
 			}
 
 			if (toolsett) {
@@ -308,24 +311,32 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 		case ID_OB:
 		{
 			Object *object = (Object *) id;
-			ID *obdata = object->data;
 			ParticleSystem *psys;
-			LodLevel *lod;
 
-			CALLBACK_INVOKE_ID(obdata, IDWALK_REFCOUNTED);
-			object->data = obdata;
+			/* object data special case */
+			if (object->type == OB_EMPTY) {
+				/* empty can have NULL or Image */
+				CALLBACK_INVOKE_ID(object->data, IDWALK_USER);
+			}
+			else {
+				/* when set, this can't be NULL */
+				if (object->data) {
+					CALLBACK_INVOKE_ID(object->data, IDWALK_USER | IDWALK_NEVER_NULL);
+				}
+			}
+
 			CALLBACK_INVOKE(object->parent, IDWALK_NOP);
 			CALLBACK_INVOKE(object->track, IDWALK_NOP);
 			/* object->proxy is refcounted, but not object->proxy_group... *sigh* */
-			CALLBACK_INVOKE(object->proxy, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(object->proxy, IDWALK_USER);
 			CALLBACK_INVOKE(object->proxy_group, IDWALK_NOP);
 			CALLBACK_INVOKE(object->proxy_from, IDWALK_NOP);
-			CALLBACK_INVOKE(object->poselib, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(object->poselib, IDWALK_USER);
 			for (i = 0; i < object->totcol; i++) {
-				CALLBACK_INVOKE(object->mat[i], IDWALK_REFCOUNTED);
+				CALLBACK_INVOKE(object->mat[i], IDWALK_USER);
 			}
-			CALLBACK_INVOKE(object->gpd, IDWALK_REFCOUNTED);
-			CALLBACK_INVOKE(object->dup_group, IDWALK_NOP);
+			CALLBACK_INVOKE(object->gpd, IDWALK_USER);
+			CALLBACK_INVOKE(object->dup_group, IDWALK_USER);
 
 			if (object->particlesystem.first) {
 				ParticleSystem *psys;
@@ -335,17 +346,29 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 				}
 			}
 
+			if (object->pd) {
+				CALLBACK_INVOKE(object->pd->tex, IDWALK_USER);
+				CALLBACK_INVOKE(object->pd->f_source, IDWALK_NOP);
+			}
+
 			if (object->pose) {
 				bPoseChannel *pchan;
 				for (pchan = object->pose->chanbase.first; pchan; pchan = pchan->next) {
-					CALLBACK_INVOKE(pchan->custom, IDWALK_NOP);
+					CALLBACK_INVOKE(pchan->custom, IDWALK_USER);
 					BKE_constraints_id_loop(&pchan->constraints, library_foreach_constraintObjectLooper, &data);
 				}
 			}
 
-			/* levels of detail */
-			for (lod = object->lodlevels.first; lod; lod = lod->next) {
-				CALLBACK_INVOKE(lod->source, IDWALK_NOP);
+			if (object->rigidbody_constraint) {
+				CALLBACK_INVOKE(object->rigidbody_constraint->ob1, IDWALK_NOP);
+				CALLBACK_INVOKE(object->rigidbody_constraint->ob2, IDWALK_NOP);
+			}
+
+			if (object->lodlevels.first) {
+				LodLevel *level;
+				for (level = object->lodlevels.first; level; level = level->next) {
+					CALLBACK_INVOKE(level->source, IDWALK_NOP);
+				}
 			}
 
 			modifiers_foreachIDLink(object, library_foreach_modifiersForeachIDLink, &data);
@@ -353,11 +376,6 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 
 			for (psys = object->particlesystem.first; psys; psys = psys->next) {
 				BKE_particlesystem_id_loop(psys, library_foreach_particlesystemsObjectLooper, &data);
-			}
-
-			if (object->rigidbody_constraint) {
-				CALLBACK_INVOKE(object->rigidbody_constraint->ob1, IDWALK_NOP);
-				CALLBACK_INVOKE(object->rigidbody_constraint->ob2, IDWALK_NOP);
 			}
 
 			BKE_sca_sensors_id_loop(&object->sensors, library_foreach_sensorsObjectLooper, &data);
@@ -369,10 +387,10 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 		case ID_ME:
 		{
 			Mesh *mesh = (Mesh *) id;
-			CALLBACK_INVOKE(mesh->texcomesh, IDWALK_NOP);
-			CALLBACK_INVOKE(mesh->key, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(mesh->texcomesh, IDWALK_USER);
+			CALLBACK_INVOKE(mesh->key, IDWALK_USER);
 			for (i = 0; i < mesh->totcol; i++) {
-				CALLBACK_INVOKE(mesh->mat[i], IDWALK_REFCOUNTED);
+				CALLBACK_INVOKE(mesh->mat[i], IDWALK_USER);
 			}
 			break;
 		}
@@ -383,14 +401,14 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			CALLBACK_INVOKE(curve->bevobj, IDWALK_NOP);
 			CALLBACK_INVOKE(curve->taperobj, IDWALK_NOP);
 			CALLBACK_INVOKE(curve->textoncurve, IDWALK_NOP);
-			CALLBACK_INVOKE(curve->key, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(curve->key, IDWALK_USER);
 			for (i = 0; i < curve->totcol; i++) {
-				CALLBACK_INVOKE(curve->mat[i], IDWALK_REFCOUNTED);
+				CALLBACK_INVOKE(curve->mat[i], IDWALK_USER);
 			}
-			CALLBACK_INVOKE(curve->vfont, IDWALK_REFCOUNTED);
-			CALLBACK_INVOKE(curve->vfontb, IDWALK_REFCOUNTED);
-			CALLBACK_INVOKE(curve->vfonti, IDWALK_REFCOUNTED);
-			CALLBACK_INVOKE(curve->vfontbi, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(curve->vfont, IDWALK_USER);
+			CALLBACK_INVOKE(curve->vfontb, IDWALK_USER);
+			CALLBACK_INVOKE(curve->vfonti, IDWALK_USER);
+			CALLBACK_INVOKE(curve->vfontbi, IDWALK_USER);
 			break;
 		}
 
@@ -398,7 +416,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 		{
 			MetaBall *metaball = (MetaBall *) id;
 			for (i = 0; i < metaball->totcol; i++) {
-				CALLBACK_INVOKE(metaball->mat[i], IDWALK_REFCOUNTED);
+				CALLBACK_INVOKE(metaball->mat[i], IDWALK_USER);
 			}
 			break;
 		}
@@ -411,16 +429,16 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					library_foreach_mtex(&data, material->mtex[i]);
 				}
 			}
-			CALLBACK_INVOKE(material->nodetree, IDWALK_REFCOUNTED);
-			CALLBACK_INVOKE(material->group, IDWALK_NOP);
+			CALLBACK_INVOKE(material->nodetree, IDWALK_NOP);
+			CALLBACK_INVOKE(material->group, IDWALK_USER);
 			break;
 		}
 
 		case ID_TE:
 		{
 			Tex *texture = (Tex *) id;
-			CALLBACK_INVOKE(texture->nodetree, IDWALK_REFCOUNTED);
-			CALLBACK_INVOKE(texture->ima, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(texture->nodetree, IDWALK_NOP);
+			CALLBACK_INVOKE(texture->ima, IDWALK_USER);
 			if (texture->env) {
 				CALLBACK_INVOKE(texture->env->object, IDWALK_NOP);
 				CALLBACK_INVOKE(texture->env->ima, IDWALK_NOP);
@@ -431,14 +449,13 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 				CALLBACK_INVOKE(texture->vd->object, IDWALK_NOP);
 			if (texture->ot)
 				CALLBACK_INVOKE(texture->ot->object, IDWALK_NOP);
-
 			break;
 		}
 
 		case ID_LT:
 		{
 			Lattice *lattice = (Lattice *) id;
-			CALLBACK_INVOKE(lattice->key, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(lattice->key, IDWALK_USER);
 			break;
 		}
 
@@ -450,7 +467,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					library_foreach_mtex(&data, lamp->mtex[i]);
 				}
 			}
-			CALLBACK_INVOKE(lamp->nodetree, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(lamp->nodetree, IDWALK_NOP);
 			break;
 		}
 
@@ -471,7 +488,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 		case ID_SCR:
 		{
 			bScreen *screen = (bScreen *) id;
-			CALLBACK_INVOKE(screen->scene, IDWALK_NOP);
+			CALLBACK_INVOKE(screen->scene, IDWALK_USER_ONE);
 			break;
 		}
 
@@ -483,14 +500,14 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					library_foreach_mtex(&data, world->mtex[i]);
 				}
 			}
-			CALLBACK_INVOKE(world->nodetree, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(world->nodetree, IDWALK_NOP);
 			break;
 		}
 
 		case ID_SPK:
 		{
 			Speaker *speaker = (Speaker *) id;
-			CALLBACK_INVOKE(speaker->sound, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(speaker->sound, IDWALK_USER);
 			break;
 		}
 
@@ -508,9 +525,9 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 		{
 			bNodeTree *ntree = (bNodeTree *) id;
 			bNode *node;
-			CALLBACK_INVOKE(ntree->gpd, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(ntree->gpd, IDWALK_USER);
 			for (node = ntree->nodes.first; node; node = node->next) {
-				CALLBACK_INVOKE_ID(node->id, IDWALK_REFCOUNTED);  /* XXX Warning see ntreeFreeTree() comment. */
+				CALLBACK_INVOKE_ID(node->id, IDWALK_USER);
 			}
 			break;
 		}
@@ -520,7 +537,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			Brush *brush = (Brush *) id;
 			CALLBACK_INVOKE(brush->toggle_brush, IDWALK_NOP);
 			CALLBACK_INVOKE(brush->clone.image, IDWALK_NOP);
-			CALLBACK_INVOKE(brush->paint_curve, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(brush->paint_curve, IDWALK_USER);
 			library_foreach_mtex(&data, &brush->mtex);
 			library_foreach_mtex(&data, &brush->mask_mtex);
 			break;
@@ -570,12 +587,12 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			MovieTracking *tracking = &clip->tracking;
 			MovieTrackingObject *object;
 
-			CALLBACK_INVOKE(clip->gpd, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(clip->gpd, IDWALK_USER);
 			for (object = tracking->objects.first; object; object = object->next) {
 				ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, object);
 				MovieTrackingTrack *track;
 				for (track = tracksbase->first; track; track = track->next) {
-					CALLBACK_INVOKE(track->gpd, IDWALK_REFCOUNTED);
+					CALLBACK_INVOKE(track->gpd, IDWALK_USER);
 				}
 			}
 			break;
@@ -591,7 +608,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 				for (mask_spline = mask_layer->splines.first; mask_spline; mask_spline = mask_spline->next) {
 					for (i = 0; i < mask_spline->tot_point; i++) {
 						MaskSplinePoint *point = &mask_spline->points[i];
-						CALLBACK_INVOKE_ID(point->parent.id, IDWALK_NOP);
+						CALLBACK_INVOKE_ID(point->parent.id, IDWALK_USER);
 					}
 				}
 			}
@@ -607,7 +624,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					library_foreach_mtex(&data, linestyle->mtex[i]);
 				}
 			}
-			CALLBACK_INVOKE(linestyle->nodetree, IDWALK_REFCOUNTED);
+			CALLBACK_INVOKE(linestyle->nodetree, IDWALK_USER);
 
 			for (lsm = linestyle->color_modifiers.first; lsm; lsm = lsm->next) {
 				if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
@@ -643,3 +660,19 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 
 #undef FOREACH_CALLBACK_INVOKE_ID
 #undef FOREACH_CALLBACK_INVOKE
+
+/**
+ * re-usable function, use when replacing ID's
+ */
+void BKE_library_update_ID_link_user(ID *id_dst, ID *id_src, const int cd_flag)
+{
+	if (cd_flag & IDWALK_USER) {
+		id_us_min(id_src);
+		id_us_plus(id_dst);
+	}
+	else if (cd_flag & IDWALK_USER_ONE) {
+		if (id_dst->us == 0) {
+			id_us_plus(id_dst);
+		}
+	}
+}
