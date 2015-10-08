@@ -115,8 +115,8 @@ static void library_foreach_rigidbodyworldSceneLooper(
 	FOREACH_CALLBACK_INVOKE_ID_PP(data->self_id, id_pointer, data->flag, data->callback, data->user_data, cd_flag);
 }
 
-static void library_foreach_modifiersForeachIDLink(void *user_data, Object *UNUSED(object),
-                                                   ID **id_pointer, int cd_flag)
+static void library_foreach_modifiersForeachIDLink(
+        void *user_data, Object *UNUSED(object), ID **id_pointer, int cd_flag)
 {
 	LibraryForeachIDData *data = (LibraryForeachIDData *) user_data;
 	FOREACH_CALLBACK_INVOKE_ID_PP(data->self_id, id_pointer, data->flag, data->callback, data->user_data, cd_flag);
@@ -441,7 +441,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			CALLBACK_INVOKE(texture->ima, IDWALK_USER);
 			if (texture->env) {
 				CALLBACK_INVOKE(texture->env->object, IDWALK_NOP);
-				CALLBACK_INVOKE(texture->env->ima, IDWALK_NOP);
+				CALLBACK_INVOKE(texture->env->ima, IDWALK_USER);
 			}
 			if (texture->pd)
 				CALLBACK_INVOKE(texture->pd->object, IDWALK_NOP);
@@ -591,6 +591,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			for (object = tracking->objects.first; object; object = object->next) {
 				ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, object);
 				MovieTrackingTrack *track;
+
 				for (track = tracksbase->first; track; track = track->next) {
 					CALLBACK_INVOKE(track->gpd, IDWALK_USER);
 				}
@@ -624,7 +625,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					library_foreach_mtex(&data, linestyle->mtex[i]);
 				}
 			}
-			CALLBACK_INVOKE(linestyle->nodetree, IDWALK_USER);
+			CALLBACK_INVOKE(linestyle->nodetree, IDWALK_NOP);
 
 			for (lsm = linestyle->color_modifiers.first; lsm; lsm = lsm->next) {
 				if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
