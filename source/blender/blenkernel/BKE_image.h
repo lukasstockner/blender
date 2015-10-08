@@ -59,7 +59,7 @@ void    BKE_image_free_packedfiles(struct Image *image);
 void    BKE_image_free_views(struct Image *image);
 void    BKE_image_free_buffers(struct Image *image);
 /* call from library */
-void    BKE_image_free(struct Image *image);
+void    BKE_image_free(struct Image *image, const bool do_id_user);
 
 typedef void (StampCallback)(void *data, const char *propname, char *propvalue, int len);
 

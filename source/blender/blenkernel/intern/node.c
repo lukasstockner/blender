@@ -38,6 +38,7 @@
 
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
@@ -1780,21 +1781,35 @@ static void free_localized_node_groups(bNodeTree *ntree)
 	for (node = ntree->nodes.first; node; node = node->next) {
 		if (node->type == NODE_GROUP && node->id) {
 			bNodeTree *ngroup = (bNodeTree *)node->id;
-			ntreeFreeTree_ex(ngroup, false);
+			ntreeFreeTree(ngroup, false);
 			MEM_freeN(ngroup);
 		}
 	}
 }
 
-/* do not free ntree itself here, BKE_libblock_free calls this function too */
-void ntreeFreeTree_ex(bNodeTree *ntree, const bool do_id_user)
+/**
+ * Free (or release) any data used by this nodetree (does not free the nodetree itself).
+ *
+ * \param ntree The nodetree to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this nodetree are 'released'
+ *                   (their user count is decreased).
+ */
+void ntreeFreeTree(bNodeTree *ntree, const bool do_id_user)
 {
 	bNodeTree *tntree;
 	bNode *node, *next;
 	bNodeSocket *sock, *nextsock;
-	
-	if (ntree == NULL) return;
-	
+
+	if (do_id_user) {
+		if (ntree->gpd) {
+			id_us_min(&ntree->gpd->id);
+			ntree->gpd = NULL;
+		}
+		/* XXX See comment below about id used by nodes... */
+	}
+
+	BKE_animdata_free((ID *)ntree);
+
 	/* XXX hack! node trees should not store execution graphs at all.
 	 * This should be removed when old tree types no longer require it.
 	 * Currently the execution data for texture nodes remains in the tree
@@ -1818,10 +1833,6 @@ void ntreeFreeTree_ex(bNodeTree *ntree, const bool do_id_user)
 	/* unregister associated RNA types */
 	ntreeInterfaceTypeFree(ntree);
 	
-	BKE_animdata_free((ID *)ntree);
-	
-	id_us_min((ID *)ntree->gpd);
-
 	BLI_freelistN(&ntree->links);   /* do first, then unlink_node goes fast */
 	
 	for (node = ntree->nodes.first; node; node = next) {
@@ -1871,11 +1882,6 @@ void ntreeFreeTree_ex(bNodeTree *ntree, const bool do_id_user)
 	if (tntree == NULL) {
 		BKE_libblock_free_data(G.main, &ntree->id);
 	}
-}
-/* same as ntreeFreeTree_ex but always manage users */
-void ntreeFreeTree(bNodeTree *ntree)
-{
-	ntreeFreeTree_ex(ntree, true);
 }
 
 void ntreeFreeCache(bNodeTree *ntree)
@@ -2150,7 +2156,7 @@ void ntreeLocalMerge(bNodeTree *localtree, bNodeTree *ntree)
 		if (ntree->typeinfo->local_merge)
 			ntree->typeinfo->local_merge(localtree, ntree);
 		
-		ntreeFreeTree_ex(localtree, false);
+		ntreeFreeTree(localtree, false);
 		MEM_freeN(localtree);
 	}
 }

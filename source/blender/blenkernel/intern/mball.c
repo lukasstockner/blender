@@ -66,29 +66,32 @@
 
 /* Functions */
 
-void BKE_mball_unlink(MetaBall *mb)
+/**
+ * Free (or release) any data used by this mball (does not free the mball itself).
+ *
+ * \param mb The mball to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this mball are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_mball_free(MetaBall *mb, const bool do_id_user)
 {
-	int a;
+	if (do_id_user) {
+		int a;
 	
-	for (a = 0; a < mb->totcol; a++) {
-		if (mb->mat[a]) mb->mat[a]->id.us--;
-		mb->mat[a] = NULL;
+		for (a = 0; a < mb->totcol; a++) {
+			if (mb->mat[a]) {
+				id_us_min(&mb->mat[a]->id);
+				mb->mat[a] = NULL;
+			}
+		}
 	}
-}
-
-
-/* do not free mball itself */
-void BKE_mball_free(MetaBall *mb)
-{
-	BKE_mball_unlink(mb);
 	
-	if (mb->adt) {
-		BKE_animdata_free((ID *)mb);
-		mb->adt = NULL;
-	}
-	if (mb->mat) MEM_freeN(mb->mat);
+	BKE_animdata_free((ID *)mb);
+
+	MEM_SAFE_FREE(mb->mat);
+
 	BLI_freelistN(&mb->elems);
-	if (mb->disp.first) BKE_displist_free(&mb->disp);
+	BKE_displist_free(&mb->disp);
 }
 
 void BKE_mball_init(MetaBall *mb)

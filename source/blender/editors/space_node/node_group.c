@@ -623,7 +623,7 @@ static bool node_group_make_test_selected(bNodeTree *ntree, bNode *gnode, const 
 	}
 	
 	/* free local pseudo node tree again */
-	ntreeFreeTree(ngroup);
+	ntreeFreeTree(ngroup, true);
 	MEM_freeN(ngroup);
 	if (!ok)
 		return false;

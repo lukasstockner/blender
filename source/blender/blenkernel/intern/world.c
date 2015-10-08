@@ -51,36 +51,46 @@
 
 #include "GPU_material.h"
 
-void BKE_world_free_ex(World *wrld, bool do_id_user)
+/**
+ * Free (or release) any data used by this world (does not free the world itself).
+ *
+ * \param wrld The world to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this world are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_world_free(World *wrld, const bool do_id_user)
 {
-	MTex *mtex;
 	int a;
-	
-	for (a = 0; a < MAX_MTEX; a++) {
-		mtex = wrld->mtex[a];
-		if (do_id_user && mtex && mtex->tex) mtex->tex->id.us--;
-		if (mtex) MEM_freeN(mtex);
+
+	if (do_id_user) {
+		MTex *mtex;
+
+		for (a = 0; a < MAX_MTEX; a++) {
+			mtex = wrld->mtex[a];
+			if (mtex && mtex->tex) {
+				id_us_min(&mtex->tex->id);
+				mtex->tex = NULL;
+			}
+		}
 	}
-	BKE_previewimg_free(&wrld->preview);
 
 	BKE_animdata_free((ID *)wrld);
 
-	/* is no lib link block, but world extension */
-	if (wrld->nodetree) {
-		ntreeFreeTree_ex(wrld->nodetree, do_id_user);
-		MEM_freeN(wrld->nodetree);
+	for (a = 0; a < MAX_MTEX; a++) {
+		MEM_SAFE_FREE(wrld->mtex[a]);
 	}
 
-	if (wrld->gpumaterial.first)
-		GPU_material_free(&wrld->gpumaterial);
+	/* is no lib link block, but world extension */
+	if (wrld->nodetree) {
+		ntreeFreeTree(wrld->nodetree, do_id_user);
+		MEM_freeN(wrld->nodetree);
+		wrld->nodetree = NULL;
+	}
+
+	GPU_material_free(&wrld->gpumaterial);
 	
 	BKE_icon_id_delete((struct ID *)wrld);
-	wrld->id.icon_id = 0;
-}
-
-void BKE_world_free(World *wrld)
-{
-	BKE_world_free_ex(wrld, true);
+	BKE_previewimg_free(&wrld->preview);
 }
 
 void BKE_world_init(World *wrld)

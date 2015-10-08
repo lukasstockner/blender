@@ -298,13 +298,17 @@ void BKE_paint_brush_set(Paint *p, Brush *br)
 	}
 }
 
-void BKE_paint_curve_free(PaintCurve *pc)
+/**
+ * Free (or release) any data used by this paint curve (does not free the pcurve itself).
+ *
+ * \param pc The paint curve to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this paint curve are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_paint_curve_free(PaintCurve *pc, const bool UNUSED(do_id_user))
 {
-	if (pc->points) {
-		MEM_freeN(pc->points);
-		pc->points = NULL;
-		pc->tot_points = 0;
-	}
+	MEM_SAFE_FREE(pc->points);
+	pc->tot_points = 0;
 }
 
 PaintCurve *BKE_paint_curve_add(Main *bmain, const char *name)
@@ -378,7 +382,14 @@ Palette *BKE_palette_add(Main *bmain, const char *name)
 	return palette;
 }
 
-void BKE_palette_free(Palette *palette)
+/**
+ * Free (or release) any data used by this palette (does not free the palette itself).
+ *
+ * \param palette The palette to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this palette are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_palette_free(Palette *palette, const bool UNUSED(do_id_user))
 {
 	BLI_freelistN(&palette->colors);
 }

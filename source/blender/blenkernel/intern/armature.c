@@ -106,30 +106,31 @@ void BKE_armature_bonelist_free(ListBase *lb)
 	BLI_freelistN(lb);
 }
 
-void BKE_armature_free(bArmature *arm)
+/**
+ * Free (or release) any data used by this armature (does not free the armature itself).
+ *
+ * \param arm The armature to free.
+ * \param do_id_user When \a true, ID datablocks used (referenced) by this armature are 'released'
+ *                   (their user count is decreased).
+ */
+void BKE_armature_free(bArmature *arm, const bool UNUSED(do_id_user))
 {
-	if (arm) {
-		BKE_armature_bonelist_free(&arm->bonebase);
+	BKE_animdata_free(&arm->id);
 
-		/* free editmode data */
-		if (arm->edbo) {
-			BLI_freelistN(arm->edbo);
+	BKE_armature_bonelist_free(&arm->bonebase);
 
-			MEM_freeN(arm->edbo);
-			arm->edbo = NULL;
-		}
+	/* free editmode data */
+	if (arm->edbo) {
+		BLI_freelistN(arm->edbo);
 
-		/* free sketch */
-		if (arm->sketch) {
-			freeSketch(arm->sketch);
-			arm->sketch = NULL;
-		}
+		MEM_freeN(arm->edbo);
+		arm->edbo = NULL;
+	}
 
-		/* free animation data */
-		if (arm->adt) {
-			BKE_animdata_free(&arm->id);
-			arm->adt = NULL;
-		}
+	/* free sketch */
+	if (arm->sketch) {
+		freeSketch(arm->sketch);
+		arm->sketch = NULL;
 	}
 }
 

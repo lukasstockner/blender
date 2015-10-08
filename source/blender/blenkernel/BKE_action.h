@@ -61,7 +61,7 @@ struct bAction *add_empty_action(struct Main *bmain, const char name[]);
 struct bAction *BKE_action_copy(struct bAction *src);
 
 /* Deallocate all of the Action's data, but not the Action itself */
-void BKE_action_free(struct bAction *act);
+void BKE_action_free(struct bAction *act, const bool do_id_user);
 
 // XXX is this needed?
 void BKE_action_make_local(struct bAction *act);
