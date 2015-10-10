@@ -69,6 +69,7 @@
 #include "UI_view2d.h"
 
 #include "ED_gpencil.h"
+#include "ED_object.h"
 #include "ED_view3d.h"
 
 #include "gpencil_intern.h"
@@ -81,7 +82,7 @@ static int gpencil_editmode_toggle_poll(bContext *C)
 	return ED_gpencil_data_get_active(C) != NULL;
 }
 
-static int gpencil_editmode_toggle_exec(bContext *C, wmOperator *UNUSED(op))
+static int gpencil_editmode_toggle_exec(bContext *C, wmOperator *op)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	Object *ob = CTX_data_active_object(C);
@@ -91,32 +92,44 @@ static int gpencil_editmode_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 	if (gpd == NULL)
 		return OPERATOR_CANCELLED;
 	
-	gpd->flag ^= GP_DATA_STROKE_EDITMODE;
-	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, NULL);
-	
-	
-	/* Update active object's mode setting,
-	 * as it now needs to reflect GPencil status...
+	/* Grease Pencil in the 3D view should be synced with the active object's
+	 * mode setting (ob->mode) which now reflects GPencil status...
 	 *
-	 * NOTE: Since Grease Pencil can be used in various editors,
-	 * we will only do this in the 3D view, where the ob->mode
-	 * gets shown.
+	 * Other editors though can just toggle the mode
 	 */
 	if (((sa == NULL) || (sa->spacetype == SPACE_VIEW3D)) && 
 	    (ob != NULL)) 
 	{
+		const int mode_flag = OB_MODE_GPENCIL;
+		const bool is_mode_set = (ob->mode & mode_flag) != 0;
+		
+		if (!is_mode_set) {
+			if (!ED_object_mode_compat_set(C, ob, mode_flag, op->reports)) {
+				return OPERATOR_CANCELLED;
+			}
+		}
+		
+		/* Toggle editmode and sync with object mode */
 		ob->restore_mode = ob->mode;
 		
-		if (gpd->flag & GP_DATA_STROKE_EDITMODE) {
-			ob->mode |= OB_MODE_GPENCIL;
+		if (is_mode_set) {
+			gpd->flag &= ~GP_DATA_STROKE_EDITMODE;
+			ob->mode &= ~mode_flag;
 		}
 		else {
-			ob->mode &= ~OB_MODE_GPENCIL;
+			gpd->flag |= GP_DATA_STROKE_EDITMODE;
+			ob->mode |= mode_flag;
 		}
 		
 		WM_event_add_notifier(C, NC_SCENE | ND_MODE, NULL);
 	}
+	else {
+		/* Just toggle editmode */
+		gpd->flag ^= GP_DATA_STROKE_EDITMODE;
+	}
 	
+	/* GP editmode should have changed if we reach this point... */
+	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, NULL);
 	return OPERATOR_FINISHED;
 }
 
