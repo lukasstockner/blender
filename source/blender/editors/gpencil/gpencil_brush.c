@@ -884,7 +884,7 @@ static void gpsculpt_brush_init_stroke(tGP_BrushEditData *gso)
 				bool found = false;
 				
 				/* Find frame to insert it before */
-				for (gf = gpf->next; gf; gf = gf->next) {
+				for (gf = gpl->frames.first; gf; gf = gf->next) {
 					if (gf->framenum > cfra) {
 						/* Add it here */
 						BLI_insertlinkbefore(&gpl->frames, gf, new_frame);
