@@ -38,6 +38,7 @@
 #include "BLI_bitmap.h"
 
 #include "BKE_cdderivedmesh.h"
+#include "BKE_library_query.h"
 #include "BKE_mesh.h"
 #include "BKE_deform.h"
 
@@ -387,7 +388,7 @@ static DerivedMesh *normalEditModifier_do(NormalEditModifierData *smd, Object *o
 	polynors = dm->getPolyDataArray(dm, CD_NORMAL);
 	if (!polynors) {
 		polynors = MEM_mallocN(sizeof(*polynors) * num_polys, __func__);
-		BKE_mesh_calc_normals_poly(mvert, num_verts, mloop, mpoly, num_loops, num_polys, polynors, false);
+		BKE_mesh_calc_normals_poly(mvert, NULL, num_verts, mloop, mpoly, num_loops, num_polys, polynors, false);
 		free_polynors = true;
 	}
 
@@ -450,7 +451,7 @@ static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk,
 {
 	NormalEditModifierData *smd = (NormalEditModifierData *) md;
 
-	walk(userData, ob, &smd->target);
+	walk(userData, ob, &smd->target, IDWALK_NOP);
 }
 
 static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
