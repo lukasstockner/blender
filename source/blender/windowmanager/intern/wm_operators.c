@@ -1323,6 +1323,22 @@ void WM_operator_properties_select_action_simple(wmOperatorType *ot, int default
 	wm_operator_properties_select_action_ex(ot, default_action, select_actions);
 }
 
+/**
+ * Use for all select random operators.
+ * Adds properties: percent, seed, action.
+ */
+void WM_operator_properties_select_random(wmOperatorType *ot)
+{
+	RNA_def_float_percentage(
+	        ot->srna, "percent", 50.f, 0.0f, 100.0f,
+	        "Percent", "Percentage of objects to select randomly", 0.f, 100.0f);
+	RNA_def_int(
+	        ot->srna, "seed", 0, 0, INT_MAX,
+	        "Random Seed", "Seed for the random number generator", 0, 255);
+
+	WM_operator_properties_select_action_simple(ot, SEL_SELECT);
+}
+
 void WM_operator_properties_select_all(wmOperatorType *ot)
 {
 	WM_operator_properties_select_action(ot, SEL_TOGGLE);
@@ -1542,6 +1558,8 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *ar, void *arg_op)
 	if (op->type->flag & OPTYPE_MACRO) {
 		for (op = op->macro.first; op; op = op->next) {
 			uiLayoutOperatorButs(C, layout, op, NULL, 'H', UI_LAYOUT_OP_SHOW_TITLE);
+			if (op->next)
+				uiItemS(layout);
 		}
 	}
 	else {
