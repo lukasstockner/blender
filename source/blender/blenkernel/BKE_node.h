@@ -340,7 +340,8 @@ void ntreeSetTypes(const struct bContext *C, struct bNodeTree *ntree);
 struct bNodeTree *ntreeAddTree(struct Main *bmain, const char *name, const char *idname);
 
 /* copy/free funcs, need to manage ID users */
-void              ntreeFreeTree(struct bNodeTree *ntree, const bool do_id_user);
+void              ntreeFreeTree_ex(struct bNodeTree *ntree, const bool do_id_user);
+void              ntreeFreeTree(struct bNodeTree *ntree);
 struct bNodeTree *ntreeCopyTree_ex(struct bNodeTree *ntree, struct Main *bmain, const bool do_id_user);
 struct bNodeTree *ntreeCopyTree(struct bNodeTree *ntree);
 void              ntreeSwitchID_ex(struct bNodeTree *ntree, struct ID *sce_from, struct ID *sce_to, const bool do_id_user);

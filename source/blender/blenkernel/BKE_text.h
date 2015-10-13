@@ -41,7 +41,7 @@ struct Main;
 struct Text;
 struct TextLine;
 
-void			BKE_text_free		(struct Text *text, const bool do_id_user);
+void			BKE_text_free		(struct Text *text);
 void 			txt_set_undostate	(int u);
 int 			txt_get_undostate	(void);
 struct Text    *BKE_text_add	(struct Main *bmain, const char *name);

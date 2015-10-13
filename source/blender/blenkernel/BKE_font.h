@@ -78,7 +78,7 @@ bool BKE_vfont_is_builtin(struct VFont *vfont);
 void BKE_vfont_builtin_register(void *mem, int size);
 
 void BKE_vfont_free_data(struct VFont *vfont);
-void BKE_vfont_free(struct VFont *sc, const bool do_id_user);
+void BKE_vfont_free(struct VFont *sc); 
 struct VFont *BKE_vfont_builtin_get(void);
 struct VFont *BKE_vfont_load(struct Main *bmain, const char *filepath);
 struct VFont *BKE_vfont_load_exists_ex(struct Main *bmain, const char *filepath, bool *r_exists);

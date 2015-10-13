@@ -1016,22 +1016,13 @@ void BKE_mask_layer_free_list(ListBase *masklayers)
 	}
 }
 
-/**
- * Free (or release) any data used by this mask (does not free the mask itself).
- *
- * \param mask The mask to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this mask are 'released'
- *                   (their user count is decreased).
- */
-void BKE_mask_free(Mask *mask, const bool UNUSED(do_id_user))
+/** free for temp copy, but don't manage unlinking from other pointers */
+void BKE_mask_free_nolib(Mask *mask)
 {
-	BKE_animdata_free((ID *)mask);
-
-	/* free mask data */
 	BKE_mask_layer_free_list(&mask->masklayers);
 }
 
-void BKE_mask_unlink(Main *bmain, Mask *mask)
+void BKE_mask_free(Main *bmain, Mask *mask)
 {
 	bScreen *scr;
 	ScrArea *area;
@@ -1082,6 +1073,9 @@ void BKE_mask_unlink(Main *bmain, Mask *mask)
 	FOREACH_NODETREE(bmain, ntree, id) {
 		BKE_node_tree_unlink_id((ID *)mask, ntree);
 	} FOREACH_NODETREE_END
+
+	/* free mask data */
+	BKE_mask_layer_free_list(&mask->masklayers);
 }
 
 void BKE_mask_coord_from_frame(float r_co[2], const float co[2], const float frame_size[2])

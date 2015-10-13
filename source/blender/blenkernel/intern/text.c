@@ -152,18 +152,9 @@ static void init_undo_text(Text *text)
 	text->undo_buf = MEM_mallocN(text->undo_len, "undo buf");
 }
 
-/**
- * Free (or release) any data used by this text (does not free the text itself).
- *
- * \param text The text to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this text are 'released'
- *                   (their user count is decreased).
- */
-void BKE_text_free(Text *text, const bool UNUSED(do_id_user))
+void BKE_text_free(Text *text)
 {
 	TextLine *tmp;
-
-	/* No animdata here. */
 
 	for (tmp = text->lines.first; tmp; tmp = tmp->next) {
 		MEM_freeN(tmp->line);
@@ -173,10 +164,10 @@ void BKE_text_free(Text *text, const bool UNUSED(do_id_user))
 	
 	BLI_freelistN(&text->lines);
 
-	MEM_SAFE_FREE(text->name);
-	MEM_SAFE_FREE(text->undo_buf);
+	if (text->name) MEM_freeN(text->name);
+	MEM_freeN(text->undo_buf);
 #ifdef WITH_PYTHON
-	BPY_text_free_code(text);
+	if (text->compiled) BPY_text_free_code(text);
 #endif
 }
 

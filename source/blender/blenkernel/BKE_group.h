@@ -40,7 +40,7 @@ struct Main;
 struct Object;
 struct Scene;
 
-void          BKE_group_free(struct Group *group, const bool do_id_user);
+void          BKE_group_free(struct Group *group);
 void          BKE_group_unlink(struct Group *group);
 struct Group *BKE_group_add(struct Main *bmain, const char *name);
 struct Group *BKE_group_copy(struct Group *group);

@@ -95,15 +95,10 @@ void BKE_vfont_free_data(struct VFont *vfont)
 	}
 }
 
-/**
- * Free (or release) any data used by this font (does not free the font itself).
- *
- * \param vf The font to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this font are 'released'
- *                   (their user count is decreased).
- */
-void BKE_vfont_free(struct VFont *vf, const bool UNUSED(do_id_user))
+void BKE_vfont_free(struct VFont *vf)
 {
+	if (vf == NULL) return;
+
 	BKE_vfont_free_data(vf);
 
 	if (vf->packedfile) {

@@ -81,54 +81,45 @@ void init_def_material(void)
 	init_material(&defmaterial);
 }
 
-/**
- * Free (or release) any data used by this material (does not free the material itself).
- *
- * \param ma The material to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this material are 'released'
- *                   (their user count is decreased).
- */
-void BKE_material_free(Material *ma, const bool do_id_user)
+/* not material itself */
+void BKE_material_free(Material *ma)
 {
+	BKE_material_free_ex(ma, true);
+}
+
+/* not material itself */
+void BKE_material_free_ex(Material *ma, bool do_id_user)
+{
+	MTex *mtex;
 	int a;
-
-	if (do_id_user)	 {
-		MTex *mtex;
-
-		for (a = 0; a < MAX_MTEX; a++) {
-			mtex = ma->mtex[a];
-			if (mtex && mtex->tex) {
-				id_us_min(&mtex->tex->id);
-				mtex->tex = NULL;
-			}
-		}
-
-		/* No ID refcount here... */
-		ma->group = NULL;
-	}
-
-	BKE_animdata_free((ID *)ma);
 	
 	for (a = 0; a < MAX_MTEX; a++) {
-		MEM_SAFE_FREE(ma->mtex[a]);
+		mtex = ma->mtex[a];
+		if (do_id_user && mtex && mtex->tex) mtex->tex->id.us--;
+		if (mtex) MEM_freeN(mtex);
 	}
 	
-	MEM_SAFE_FREE(ma->ramp_col);
-	MEM_SAFE_FREE(ma->ramp_spec);
+	if (ma->ramp_col) MEM_freeN(ma->ramp_col);
+	if (ma->ramp_spec) MEM_freeN(ma->ramp_spec);
+	
+	BKE_animdata_free((ID *)ma);
+	
+	if (ma->preview)
+		BKE_previewimg_free(&ma->preview);
+	BKE_icon_id_delete((struct ID *)ma);
+	ma->id.icon_id = 0;
 	
 	/* is no lib link block, but material extension */
 	if (ma->nodetree) {
-		ntreeFreeTree(ma->nodetree, do_id_user);
+		ntreeFreeTree_ex(ma->nodetree, do_id_user);
 		MEM_freeN(ma->nodetree);
-		ma->nodetree = NULL;
 	}
 
-	MEM_SAFE_FREE(ma->texpaintslot);
+	if (ma->texpaintslot)
+		MEM_freeN(ma->texpaintslot);
 
-	GPU_material_free(&ma->gpumaterial);
-
-	BKE_icon_id_delete((ID *)ma);
-	BKE_previewimg_free(&ma->preview);
+	if (ma->gpumaterial.first)
+		GPU_material_free(&ma->gpumaterial);
 }
 
 void init_material(Material *ma)
@@ -1766,7 +1757,7 @@ void free_matcopybuf(void)
 	matcopybuf.ramp_spec = NULL;
 
 	if (matcopybuf.nodetree) {
-		ntreeFreeTree(matcopybuf.nodetree, false);
+		ntreeFreeTree_ex(matcopybuf.nodetree, false);
 		MEM_freeN(matcopybuf.nodetree);
 		matcopybuf.nodetree = NULL;
 	}
@@ -1816,7 +1807,7 @@ void paste_matcopybuf(Material *ma)
 	}
 
 	if (ma->nodetree) {
-		ntreeFreeTree(ma->nodetree, true);  /* XXX Or do_id_user? */
+		ntreeFreeTree(ma->nodetree);
 		MEM_freeN(ma->nodetree);
 	}
 

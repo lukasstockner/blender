@@ -828,7 +828,7 @@ static void shader_preview_free(void *customdata)
 		/* get rid of copied material */
 		BLI_remlink(&pr_main->mat, sp->matcopy);
 		
-		BKE_material_free(sp->matcopy, false);
+		BKE_material_free_ex(sp->matcopy, false);
 
 		properties = IDP_GetProperties((ID *)sp->matcopy, false);
 		if (properties) {
@@ -844,7 +844,7 @@ static void shader_preview_free(void *customdata)
 		
 		/* get rid of copied texture */
 		BLI_remlink(&pr_main->tex, sp->texcopy);
-		BKE_texture_free(sp->texcopy, false);
+		BKE_texture_free(sp->texcopy);
 		
 		properties = IDP_GetProperties((ID *)sp->texcopy, false);
 		if (properties) {
@@ -860,7 +860,7 @@ static void shader_preview_free(void *customdata)
 		
 		/* get rid of copied world */
 		BLI_remlink(&pr_main->world, sp->worldcopy);
-		BKE_world_free(sp->worldcopy, true); /* [#32865] - we need to unlink the texture copies, unlike for materials */
+		BKE_world_free_ex(sp->worldcopy, true); /* [#32865] - we need to unlink the texture copies, unlike for materials */
 		
 		properties = IDP_GetProperties((ID *)sp->worldcopy, false);
 		if (properties) {
@@ -876,7 +876,7 @@ static void shader_preview_free(void *customdata)
 		
 		/* get rid of copied lamp */
 		BLI_remlink(&pr_main->lamp, sp->lampcopy);
-		BKE_lamp_free(sp->lampcopy, true);
+		BKE_lamp_free(sp->lampcopy);
 		
 		properties = IDP_GetProperties((ID *)sp->lampcopy, false);
 		if (properties) {

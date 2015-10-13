@@ -44,7 +44,7 @@ struct Brush *BKE_brush_add(struct Main *bmain, const char *name, short ob_mode)
 struct Brush *BKE_brush_first_search(struct Main *bmain, short ob_mode);
 struct Brush *BKE_brush_copy(struct Brush *brush);
 void BKE_brush_make_local(struct Brush *brush);
-void BKE_brush_free(struct Brush *brush, const bool do_id_user);
+void BKE_brush_free(struct Brush *brush);
 
 void BKE_brush_sculpt_reset(struct Brush *brush);
 

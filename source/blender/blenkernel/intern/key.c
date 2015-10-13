@@ -74,22 +74,9 @@
 #define IPO_BEZTRIPLE   100
 #define IPO_BPOINT      101
 
-
-/**
- * Free (or release) any data used by this shapekey (does not free the key itself).
- *
- * \param key The shapekey to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this key are 'released'
- *                   (their user count is decreased).
- */
-void BKE_key_free(Key *key, const bool do_id_user)
+void BKE_key_free(Key *key)
 {
 	KeyBlock *kb;
-
-	if (do_id_user) {
-		/* No ID refcount here... */
-		key->from = NULL;
-	}
 	
 	BKE_animdata_free((ID *)key);
 
