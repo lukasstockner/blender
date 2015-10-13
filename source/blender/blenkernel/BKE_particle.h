@@ -297,7 +297,7 @@ void psys_check_group_weights(struct ParticleSettings *part);
 int psys_uses_gravity(struct ParticleSimulationData *sim);
 
 /* free */
-void BKE_particlesettings_free(struct ParticleSettings *part, const bool do_id_user);
+void BKE_particlesettings_free(struct ParticleSettings *part);
 void psys_free_path_cache(struct ParticleSystem *psys, struct PTCacheEdit *edit);
 void psys_free(struct Object *ob, struct ParticleSystem *psys);
 

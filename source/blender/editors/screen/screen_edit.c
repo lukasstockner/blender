@@ -494,7 +494,7 @@ static void screen_copy(bScreen *to, bScreen *from)
 	ScrArea *sa, *saf;
 	
 	/* free contents of 'to', is from blenkernel screen.c */
-	BKE_screen_free(to, false);
+	BKE_screen_free(to);
 	
 	BLI_duplicatelist(&to->vertbase, &from->vertbase);
 	BLI_duplicatelist(&to->edgebase, &from->edgebase);
@@ -1903,7 +1903,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *sa, const s
 
 		ED_screen_set(C, sc);
 
-		BKE_screen_free(oldscreen, false);
+		BKE_screen_free(oldscreen);
 		BKE_libblock_free(CTX_data_main(C), oldscreen);
 
 		/* After we've restored back to SCREENNORMAL, we have to wait with

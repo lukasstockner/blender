@@ -112,19 +112,16 @@ void free_gpencil_layers(ListBase *list)
 }
 
 /* Free all of GPencil datablock's related data, but not the block itself */
-/**
- * Free (or release) any data used by this grease pencil (does not free the gpencil itself).
- *
- * \param gpd The grease pencil to free.
- * \param do_id_user When \a true, ID datablocks used (referenced) by this gpencil are 'released'
- *                   (their user count is decreased).
- */
-void BKE_gpencil_free(bGPdata *gpd, const bool UNUSED(do_id_user))
+void BKE_gpencil_free(bGPdata *gpd)
 {
-	BKE_animdata_free(&gpd->id);
-
 	/* free layers */
 	free_gpencil_layers(&gpd->layers);
+	
+	/* free animation data */
+	if (gpd->adt) {
+		BKE_animdata_free(&gpd->id);
+		gpd->adt = NULL;
+	}
 }
 
 /* -------- Container Creation ---------- */
