@@ -741,6 +741,8 @@ void BKE_scene_init(Scene *sce)
 	copy_v2_fl2(sce->safe_areas.action, 10.0f / 100.0f, 5.0f / 100.0f);
 	copy_v2_fl2(sce->safe_areas.title_center, 17.5f / 100.0f, 5.0f / 100.0f);
 	copy_v2_fl2(sce->safe_areas.action_center, 15.0f / 100.0f, 5.0f / 100.0f);
+
+	sce->preview = NULL;
 }
 
 Scene *BKE_scene_add(Main *bmain, const char *name)
@@ -750,8 +752,6 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce = BKE_libblock_alloc(bmain, ID_SCE, name);
 
 	BKE_scene_init(sce);
-
-	sce->preview = NULL;
 
 	return sce;
 }

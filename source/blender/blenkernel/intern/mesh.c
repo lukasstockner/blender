@@ -514,9 +514,9 @@ void BKE_mesh_init(Mesh *me)
 Mesh *BKE_mesh_add(Main *bmain, const char *name)
 {
 	Mesh *me;
-	
+
 	me = BKE_libblock_alloc(bmain, ID_ME, name);
-	
+
 	BKE_mesh_init(me);
 
 	return me;

@@ -118,7 +118,7 @@ World *add_world(Main *bmain, const char *name)
 	World *wrld;
 
 	wrld = BKE_libblock_alloc(bmain, ID_WO, name);
-	
+
 	BKE_world_init(wrld);
 
 	return wrld;

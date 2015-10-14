@@ -209,9 +209,9 @@ void BKE_text_init(Text *ta)
 Text *BKE_text_add(Main *bmain, const char *name)
 {
 	Text *ta;
-	
+
 	ta = BKE_libblock_alloc(bmain, ID_TXT, name);
-	
+
 	BKE_text_init(ta);
 
 	return ta;
