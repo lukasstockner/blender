@@ -839,12 +839,11 @@ void BKE_libblock_init_empty(ID *id)
 			break;
 		case ID_IP:
 			/* Should not be needed - animation from lib pre-2.5 is broken anyway. */
-			/* TDOD: check this does not break completely at least. */
+			BLI_assert(0);
 			break;
 		case ID_KE:
-			/* XXX Shapekeys are a complex topic too - they depend on their 'user' data type...
-			 *     I think it should never reach here anyway (afaik you cannot link skeys).
-			 *     Adding an assert to be sure. */
+			/* Shapekeys are a complex topic too - they depend on their 'user' data type...
+			 * They are not linkable, though, so it should never reach here anyway. */
 			BLI_assert(0);
 			break;
 		case ID_WO:
@@ -863,7 +862,7 @@ void BKE_libblock_init_empty(ID *id)
 			BLI_assert(0);
 			break;
 		case ID_SO:
-			/* XXX Another fuzzy case, thing NULLified content is OK here... */
+			/* Another fuzzy case, think NULLified content is OK here... */
 			break;
 		case ID_GR:
 			/* Nothing to do. */
