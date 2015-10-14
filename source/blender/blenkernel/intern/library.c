@@ -808,12 +808,11 @@ void BKE_libblock_init_empty(ID *id)
 			break;
 		case ID_IP:
 			/* Should not be needed - animation from lib pre-2.5 is broken anyway. */
-			/* TDOD: check this does not break completely at least. */
+			BLI_assert(0);
 			break;
 		case ID_KE:
-			/* XXX Shapekeys are a complex topic too - they depend on their 'user' data type...
-			 *     I think it should never reach here anyway (afaik you cannot link skeys).
-			 *     Adding an assert to be sure. */
+			/* Shapekeys are a complex topic too - they depend on their 'user' data type...
+			 * They are not linkable, though, so it should never reach here anyway. */
 			BLI_assert(0);
 			break;
 		case ID_WO:
@@ -832,7 +831,7 @@ void BKE_libblock_init_empty(ID *id)
 			BLI_assert(0);
 			break;
 		case ID_SO:
-			/* XXX Another fuzzy case, thing NULLified content is OK here... */
+			/* Another fuzzy case, think NULLified content is OK here... */
 			break;
 		case ID_GR:
 			/* Nothing to do. */
@@ -976,7 +975,7 @@ void BKE_libblock_relink(ID *id)
 	BKE_library_foreach_ID_link(id, id_relink_looper, NULL, 0);
 }
 
-static void library_free(Library *lib)
+static void BKE_library_free(Library *lib)
 {
 	if (lib->packedfile)
 		freePackedFile(lib->packedfile);
@@ -1344,7 +1343,7 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_scene_free((Scene *)id);
 			break;
 		case ID_LI:
-			library_free((Library *)id);
+			BKE_library_free((Library *)id);
 			break;
 		case ID_OB:
 			BKE_object_free((Object *)id);

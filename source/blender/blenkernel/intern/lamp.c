@@ -233,7 +233,6 @@ void BKE_lamp_free(Lamp *la)
 	la->curfalloff = NULL;
 
 	/* is no lib link block, but lamp extension */
-	/* XXX Half-broken, idremap will NULL-ify that (though setting user count to zero) :/ */
 	if (la->nodetree) {
 		ntreeFreeTree(la->nodetree);
 		MEM_freeN(la->nodetree);

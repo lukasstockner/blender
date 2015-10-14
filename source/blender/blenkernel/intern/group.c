@@ -153,14 +153,16 @@ static int group_object_unlink_internal(Group *group, Object *ob)
 	int removed = 0;
 	if (group == NULL) return 0;
 	
-	for (go = group->gobject.first; go; go = gon) {
+	go = group->gobject.first;
+	while (go) {
 		gon = go->next;
 		if (go->ob == ob) {
 			BLI_remlink(&group->gobject, go);
 			free_group_object(go);
 			removed = 1;
-			break;
+			/* should break here since an object being in a group twice cant happen? */
 		}
+		go = gon;
 	}
 	return removed;
 }

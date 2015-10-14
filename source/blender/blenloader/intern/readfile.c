@@ -619,21 +619,9 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
 	m = BKE_main_new();
 	BLI_addtail(mainlist, m);
 	
-	/* Adapted from BKE_libblock_alloc(), with no lock of main, it's most likely already locked by caller code. */
-	lib = BKE_libblock_alloc_notest(ID_LI);
-	{
-		/* Add library datablock itself to 'main' Main, since libraries are **never** linked data.
-		 * Fixes bug where you could end with all ID_LI datablocks having the same name... */
-		ListBase *libraries = &((Main *)mainlist->first)->library;
-		ID *id = (ID *)lib;
-
-		BLI_addtail(libraries, id);
-		id->us = 1;
-		id->icon_id = 0;
-		*((short *)id->name) = ID_LI;
-		new_id(libraries, id, "Lib");
-	}
-
+	/* Add library datablock itself to 'main' Main, since libraries are **never** linked data.
+	 * Fixes bug where you could end with all ID_LI datablocks having the same name... */
+	lib = BKE_libblock_alloc(mainlist->first, ID_LI, "Lib");
 	BLI_strncpy(lib->name, filepath, sizeof(lib->name));
 	BLI_strncpy(lib->filepath, name1, sizeof(lib->filepath));
 	
@@ -7949,7 +7937,7 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 	if (id->flag & LIB_FAKEUSER) id->us= 1;
 	else id->us = 0;
 	id->icon_id = 0;
-	id->flag &= ~(LIB_ID_RECALC|LIB_ID_RECALC_DATA|LIB_DOIT|LIB_MISSING);
+	id->flag &= ~(LIB_ID_RECALC | LIB_ID_RECALC_DATA | LIB_DOIT | LIB_MISSING);
 	
 	/* this case cannot be direct_linked: it's just the ID part */
 	if (bhead->code == ID_ID) {
@@ -9627,13 +9615,12 @@ static void give_base_to_groups(
 	}
 }
 
-static ID *create_placeholder(Main *mainvar, const short idcode, const char *name, const short flag)
+static ID *create_placeholder(Main *mainvar, const short idcode, const char *idname, const short flag)
 {
 	ListBase *lb = which_libbase(mainvar, idcode);
 	ID *ph_id = BKE_libblock_alloc_notest(idcode);
 
-	*((short *)ph_id->name) = idcode;
-	memcpy(ph_id->name + 2, name, sizeof(ph_id->name) - 2);
+	memcpy(ph_id->name, idname, sizeof(ph_id->name));
 	BKE_libblock_init_empty(ph_id);
 	ph_id->lib = mainvar->curlib;
 	ph_id->flag = flag | LIB_MISSING;
@@ -9820,9 +9807,9 @@ static void link_id_part(ReportList *reports, FileData *fd, Main *mainvar, ID *i
 				mainvar->curlib->filepath,
 				library_parent_filepath(mainvar->curlib));
 
-		/* Generate a placeholder for this ID (limited version of read_libblock actually...). */
+		/* Generate a placeholder for this ID (simplified version of read_libblock actually...). */
 		if (r_id) {
-			*r_id = create_placeholder(mainvar, GS(id->name), id->name + 2, id->flag);
+			*r_id = create_placeholder(mainvar, GS(id->name), id->name, id->flag);
 		}
 	}
 }

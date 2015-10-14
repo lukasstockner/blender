@@ -63,7 +63,6 @@ void BKE_world_free(World *wrld)
 	}
 
 	/* is no lib link block, but world extension */
-	/* XXX Half-broken, idremap will NULL-ify that (though setting user count to zero) :/ */
 	if (wrld->nodetree) {
 		ntreeFreeTree(wrld->nodetree);
 		MEM_freeN(wrld->nodetree);

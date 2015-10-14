@@ -40,7 +40,6 @@
 #include "DNA_armature_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_gpencil_types.h"
 #include "DNA_group_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lamp_types.h"
@@ -320,6 +319,7 @@ void BKE_object_free_derived_caches(Object *ob)
 			cu->bb->flag |= BOUNDBOX_DIRTY;
 		}
 	}
+
 	if (ob->bb) {
 		MEM_freeN(ob->bb);
 		ob->bb = NULL;
@@ -565,7 +565,7 @@ void *BKE_object_obdata_add_from_type(Main *bmain, int type, const char *name)
 
 void BKE_object_init(Object *ob)
 {
-	BLI_assert(MEMCMP_NULL_STRUCT_OFS(ob, id));
+	/* BLI_assert(MEMCMP_NULL_STRUCT_OFS(ob, id)); */  /* ob->type is already initialized... */
 
 	ob->col[0] = ob->col[1] = ob->col[2] = 1.0;
 	ob->col[3] = 1.0;

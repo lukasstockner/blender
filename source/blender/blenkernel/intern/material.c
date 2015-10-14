@@ -96,7 +96,6 @@ void BKE_material_free(Material *ma)
 	MEM_SAFE_FREE(ma->ramp_spec);
 	
 	/* is no lib link block, but material extension */
-	/* XXX Half-broken, idremap will NULL-ify that (though setting user count to zero) :/ */
 	if (ma->nodetree) {
 		ntreeFreeTree(ma->nodetree);
 		MEM_freeN(ma->nodetree);

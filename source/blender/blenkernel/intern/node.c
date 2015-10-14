@@ -38,7 +38,6 @@
 
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
-#include "DNA_gpencil_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
@@ -1847,7 +1846,6 @@ void ntreeFreeTree(bNodeTree *ntree)
 		BLI_mutex_free(ntree->duplilock);
 	
 	/* if ntree is not part of library, free the libblock data explicitly */
-	/* XXX Ack! This is oposed to what all other BKE_xxx_free methods do... */
 	for (tntree = G.main->nodetree.first; tntree; tntree = tntree->id.next)
 		if (tntree == ntree)
 			break;

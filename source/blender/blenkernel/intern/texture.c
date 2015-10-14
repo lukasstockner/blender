@@ -563,7 +563,6 @@ void BKE_texture_free(Tex *tex)
 	BKE_animdata_free((ID *)tex);
 
 	/* is no lib link block, but texture extension */
-	/* XXX Half-broken, idremap will NULL-ify that (though setting user count to zero) :/ */
 	if (tex->nodetree) {
 		ntreeFreeTree(tex->nodetree);
 		MEM_freeN(tex->nodetree);

@@ -138,7 +138,6 @@ void BKE_linestyle_free(FreestyleLineStyle *linestyle)
 	}
 
 	/* is no lib link block, but linestyle extension */
-	/* XXX Half-broken, idremap will NULL-ify that (though setting user count to zero) :/ */
 	if (linestyle->nodetree) {
 		ntreeFreeTree(linestyle->nodetree);
 		MEM_freeN(linestyle->nodetree);
