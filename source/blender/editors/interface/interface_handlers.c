@@ -3962,8 +3962,12 @@ static float ui_numedit_apply_snapf(
 		/* snapping by 10's for float buttons is quite annoying (location, scale...),
 		 * but allow for rotations */
 		if (softrange >= 21.0f) {
+			UnitSettings *unit = but->block->unit;
 			int unit_type = UI_but_unit_type_get(but);
-			if (!ELEM(unit_type, PROP_UNIT_ROTATION)) {
+			if ((unit_type == PROP_UNIT_ROTATION) && (unit->system_rotation != USER_UNIT_ROT_RADIANS)) {
+				/* pass (degrees)*/
+			}
+			else {
 				softrange = 20.0f;
 			}
 		}
@@ -4346,7 +4350,9 @@ static bool ui_numedit_but_SLI(
 	float offs;
 
 	/* prevent unwanted drag adjustments */
-	if (ui_but_dragedit_update_mval(data, mx) == false) {
+	if ((but->type != UI_BTYPE_SCROLL) &&
+	    (ui_but_dragedit_update_mval(data, mx) == false))
+	{
 		return changed;
 	}
 
