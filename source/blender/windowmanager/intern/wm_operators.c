@@ -2629,7 +2629,7 @@ static short wm_link_append_flag(wmOperator *op)
 typedef struct WMLinkAppendDataItem {
 	char *name;
 	BLI_bitmap *libraries;  /* All libs (from WMLinkAppendData.libraries) to try to load this ID from. */
-	int idcode;
+	short idcode;
 
 	ID *new_id;
 	void *customdata;
@@ -2675,7 +2675,7 @@ static void wm_link_append_data_library_add(WMLinkAppendData *lapp_data, const c
 }
 
 static WMLinkAppendDataItem *wm_link_append_data_item_add(
-        WMLinkAppendData *lapp_data, const char *idname, const int idcode, void *customdata)
+        WMLinkAppendData *lapp_data, const char *idname, const short idcode, void *customdata)
 {
 	WMLinkAppendDataItem *item = BLI_memarena_alloc(lapp_data->memarena, sizeof(*item));
 	size_t len = strlen(idname) + 1;
@@ -2744,7 +2744,8 @@ static void wm_link_do(
 			}
 
 			new_id = BLO_library_link_named_part_ex(
-			             mainl, &bh, item->name, item->idcode, flag, scene, v3d, use_placeholders, force_indirect);
+			             mainl, &bh, item->idcode, item->name, flag, scene, v3d, use_placeholders, force_indirect);
+
 			if (new_id) {
 				/* If the link is sucessful, clear item's libs 'todo' flags.
 				 * This avoids trying to link same item with other libraries to come. */
