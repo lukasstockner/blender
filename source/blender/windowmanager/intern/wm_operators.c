@@ -3229,8 +3229,13 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 
 			BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, true);
 
+			/* XXX For now, locking is not reentrant so it's not safe to call core linking code with locked Main. */
+			BKE_main_unlock(bmain);
+
 			/* We do not want any instanciation here! */
 			wm_link_do(lapp_data, op->reports, bmain, NULL, NULL, false, false);
+
+			BKE_main_lock(bmain);
 
 			for (item_idx = 0, itemlink = lapp_data->items.list; itemlink; item_idx++, itemlink = itemlink->next) {
 				WMLinkAppendDataItem *item = itemlink->link;
