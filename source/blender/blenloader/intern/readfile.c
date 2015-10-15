@@ -9620,7 +9620,8 @@ static ID *create_placeholder(Main *mainvar, const short idcode, const char *idn
 	ListBase *lb = which_libbase(mainvar, idcode);
 	ID *ph_id = BKE_libblock_alloc_notest(idcode);
 
-	memcpy(ph_id->name, idname, sizeof(ph_id->name));
+	*((short *)ph_id->name) = idcode;
+	BLI_strncpy(ph_id->name + 2, idname, sizeof(ph_id->name) - 2);
 	BKE_libblock_init_empty(ph_id);
 	ph_id->lib = mainvar->curlib;
 	ph_id->flag = flag | LIB_MISSING;
@@ -9809,7 +9810,7 @@ static void link_id_part(ReportList *reports, FileData *fd, Main *mainvar, ID *i
 
 		/* Generate a placeholder for this ID (simplified version of read_libblock actually...). */
 		if (r_id) {
-			*r_id = create_placeholder(mainvar, GS(id->name), id->name, id->flag);
+			*r_id = create_placeholder(mainvar, GS(id->name), id->name + 2, id->flag);
 		}
 	}
 }
