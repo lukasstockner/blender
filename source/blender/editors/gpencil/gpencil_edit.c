@@ -309,7 +309,8 @@ void GPENCIL_OT_duplicate(wmOperatorType *ot)
  */
 
 /* list of bGPDstroke instances */
-static ListBase gp_strokes_copypastebuf = {NULL, NULL};
+/* NOTE: is exposed within the editors/gpencil module so that other tools can use it too */
+ListBase gp_strokes_copypastebuf = {NULL, NULL};
 
 /* Free copy/paste buffer data */
 void ED_gpencil_strokes_copybuf_free(void)
@@ -415,7 +416,7 @@ static int gp_strokes_paste_exec(bContext *C, wmOperator *op)
 		BKE_report(op->reports, RPT_ERROR, "No Grease Pencil data");
 		return OPERATOR_CANCELLED;
 	}
-	else if (gp_strokes_copypastebuf.first == NULL) {
+	else if (BLI_listbase_is_empty(&gp_strokes_copypastebuf)) {
 		BKE_report(op->reports, RPT_ERROR, "No strokes to paste, select and copy some points before trying again");
 		return OPERATOR_CANCELLED;
 	}
