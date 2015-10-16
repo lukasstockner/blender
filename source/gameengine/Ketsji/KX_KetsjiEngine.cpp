@@ -1019,6 +1019,10 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera* cam, RAS_Rect
 
 void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 {
+	if (scene->IsSuspended()) {
+		return;
+	}
+
 	// Handle the animations independently of the logic time step
 	if (GetRestrictAnimationFPS()) {
 		double anim_timestep = 1.0 / KX_GetActiveScene()->GetAnimationFPS();
@@ -1748,6 +1752,16 @@ void	KX_KetsjiEngine::SetAnimRecordMode(bool animation_record, int startFrame)
 		m_bFixedTime = false;
 	}
 	m_currentFrame = startFrame;
+}
+
+int KX_KetsjiEngine::getAnimRecordFrame() const
+{
+	return m_currentFrame;
+}
+
+void KX_KetsjiEngine::setAnimRecordFrame(int framenr)
+{
+	m_currentFrame = framenr;
 }
 
 bool KX_KetsjiEngine::GetUseFixedTime(void) const

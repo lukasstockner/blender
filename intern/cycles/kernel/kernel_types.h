@@ -720,7 +720,6 @@ typedef struct PathState {
 
 	/* random number generator state */
 	int rng_offset;    		/* dimension offset */
-	int rng_offset_bsdf;  	/* dimension offset for picking bsdf */
 	int sample;        		/* path sample number */
 	int num_samples;		/* total number of times this path will be sampled */
 
@@ -1037,7 +1036,7 @@ enum QueueNumber {
 	                                            * contribution for AO are enqueued here.
 	                                            */
 	QUEUE_SHADOW_RAY_CAST_DL_RAYS = 3,         /* All rays for which a shadow ray should be cast to determine radiance
-	                                            * contributuin for direct lighting are enqueued here.
+	                                            * contributing for direct lighting are enqueued here.
 	                                            */
 };
 

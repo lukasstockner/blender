@@ -48,7 +48,7 @@
 #include "BKE_tracking.h"
 
 #include "BLF_api.h"
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -391,6 +391,7 @@ static void node_draw_frame_label(bNodeTree *ntree, bNode *node, const float asp
 	float x, y;
 	const int font_size = data->label_size / aspect;
 	const float margin = (float)(NODE_DY / 4);
+	int label_height;
 
 	nodeLabel(ntree, node, label, sizeof(label));
 
@@ -403,10 +404,11 @@ static void node_draw_frame_label(bNodeTree *ntree, bNode *node, const float asp
 
 	width = BLF_width(fontid, label, sizeof(label));
 	ascender = BLF_ascender(fontid);
+	label_height = ((margin / aspect) + (ascender * aspect));
 	
 	/* 'x' doesn't need aspect correction */
 	x = BLI_rctf_cent_x(rct) - (0.5f * width);
-	y = rct->ymax - ((margin / aspect) + (ascender * aspect));
+	y = rct->ymax - label_height;
 
 	BLF_position(fontid, x, y, 0);
 	BLF_draw(fontid, label, BLF_DRAW_STR_DUMMY_MAX);
@@ -415,31 +417,39 @@ static void node_draw_frame_label(bNodeTree *ntree, bNode *node, const float asp
 	if (node->id) {
 		Text *text = (Text *)node->id;
 		TextLine *line;
-		const float line_spacing = (BLF_height_max(fontid) * aspect) * 0.7f;
+		const int   line_height_max = BLF_height_max(fontid);
+		const float line_spacing = (line_height_max * aspect);
+		const float line_width = (BLI_rctf_size_x(rct) - margin) / aspect;
+		int y_min;
 
 		/* 'x' doesn't need aspect correction */
 		x = rct->xmin + margin;
-		y = rct->ymax - ((margin / aspect) + (ascender * aspect));
-		y -= line_spacing;
+		y = rct->ymax - (label_height + line_spacing);
+		/* early exit */
+		y_min = y + ((margin * 2) - (y - rct->ymin));
 
-		BLF_enable(fontid, BLF_CLIPPING);
+		BLF_enable(fontid, BLF_CLIPPING | BLF_WORD_WRAP);
 		BLF_clipping(
 		        fontid,
 		        rct->xmin,
-		        rct->ymin,
-		        rct->xmin + ((rct->xmax - rct->xmin) / aspect) - margin,
+		        /* round to avoid clipping half-way through a line */
+		        y - (floorf(((y - rct->ymin) - (margin * 2)) / line_spacing) * line_spacing),
+		        rct->xmin + line_width,
 		        rct->ymax);
 
+		BLF_wordwrap(fontid, line_width);
+
 		for (line = text->lines.first; line; line = line->next) {
+			struct ResultBLF info;
 			BLF_position(fontid, x, y, 0);
-			BLF_draw(fontid, line->line, line->len);
-			y -= line_spacing;
-			if (y < rct->ymin) {
+			BLF_draw_ex(fontid, line->line, line->len, &info);
+			y -= line_spacing * info.lines;
+			if (y < y_min) {
 				break;
 			}
 		}
 
-		BLF_disable(fontid, BLF_CLIPPING);
+		BLF_disable(fontid, BLF_CLIPPING | BLF_WORD_WRAP);
 	}
 
 	BLF_disable(fontid, BLF_ASPECT);
@@ -847,6 +857,7 @@ static void node_shader_buts_tex_environment(uiLayout *layout, bContext *C, Poin
 	node_buts_image_user(layout, C, &iuserptr, &imaptr, &iuserptr);
 
 	uiItemR(layout, ptr, "color_space", 0, "", ICON_NONE);
+	uiItemR(layout, ptr, "interpolation", 0, "", ICON_NONE);
 	uiItemR(layout, ptr, "projection", 0, "", ICON_NONE);
 }
 
@@ -888,6 +899,7 @@ static void node_shader_buts_tex_environment_ex(uiLayout *layout, bContext *C, P
 	}
 
 	uiItemR(layout, ptr, "color_space", 0, IFACE_("Color Space"), ICON_NONE);
+	uiItemR(layout, ptr, "interpolation", 0, IFACE_("Interpolation"), ICON_NONE);
 	uiItemR(layout, ptr, "projection", 0, IFACE_("Projection"), ICON_NONE);
 }
 
@@ -3411,7 +3423,7 @@ int node_link_bezier_points(View2D *v2d, SpaceNode *snode, bNodeLink *link, floa
 
 #define LINK_RESOL  24
 #define LINK_ARROW  12  /* position of arrow on the link, LINK_RESOL/2 */
-#define ARROW_SIZE 7
+#define ARROW_SIZE (7 * UI_DPI_FAC)
 void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
                            int th_col1, bool do_shaded, int th_col2, bool do_triple, int th_col3)
 {
@@ -3424,6 +3436,7 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		/* store current linewidth */
 		float linew;
 		float arrow[2], arrow1[2], arrow2[2];
+		const float px_fac = UI_DPI_WINDOW_FAC;
 		glGetFloatv(GL_LINE_WIDTH, &linew);
 		
 		/* we can reuse the dist variable here to increment the GL curve eval amount*/
@@ -3450,7 +3463,7 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		}
 		if (do_triple) {
 			UI_ThemeColorShadeAlpha(th_col3, -80, -120);
-			glLineWidth(4.0f);
+			glLineWidth(4.0f * px_fac);
 			
 			glBegin(GL_LINE_STRIP);
 			for (i = 0; i <= LINK_RESOL; i++) {
@@ -3471,7 +3484,7 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		 * for Intel hardware, this breaks with GL_LINE_STRIP and
 		 * changing color in begin/end blocks.
 		 */
-		glLineWidth(1.5f);
+		glLineWidth(1.5f * px_fac);
 		if (do_shaded) {
 			glBegin(GL_LINES);
 			for (i = 0; i < LINK_RESOL; i++) {

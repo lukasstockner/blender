@@ -237,7 +237,7 @@ static void mesh_calc_eigen_matrix(
 
 		/* Protect against 1D/2D degenerated cases! */
 		/* Note: not sure why we need square root of eigen values here (which are equivalent to singular values,
-		 * as far as I have understood), but it seems to heavily reduce (if not completly nullify)
+		 * as far as I have understood), but it seems to heavily reduce (if not completely nullify)
 		 * the error due to non-uniform scalings... */
 		evi = (evi < 1e-6f && evi > -1e-6f) ? ((evi < 0.0f) ? -1e-3f : 1e-3f) : sqrtf_signed(evi);
 		mul_v3_fl(eigen_vec[i], evi);
@@ -1234,7 +1234,7 @@ void BKE_mesh_remap_calc_loops_from_dm(
 					CustomData_set_layer_flag(pdata_dst, CD_NORMAL, CD_FLAG_TEMPORARY);
 				}
 				if (dirty_nors_dst) {
-					BKE_mesh_calc_normals_poly(verts_dst, numverts_dst, loops_dst, polys_dst,
+					BKE_mesh_calc_normals_poly(verts_dst, NULL, numverts_dst, loops_dst, polys_dst,
 					                           numloops_dst, numpolys_dst, poly_nors_dst, true);
 				}
 			}
@@ -1416,6 +1416,9 @@ void BKE_mesh_remap_calc_loops_from_dm(
 					        looptri_active, num_looptri_active, bvh_epsilon, 2, 6);
 					if (verts_allocated_src) {
 						verts_allocated_src = false;  /* Only 'give' our verts once, to first tree! */
+					}
+					if (loops_allocated_src) {
+						loops_allocated_src = false;  /* Only 'give' our loops once, to first tree! */
 					}
 					if (looptri_allocated_src) {
 						looptri_allocated_src = false;  /* Only 'give' our looptri once, to first tree! */
@@ -1996,7 +1999,7 @@ void BKE_mesh_remap_calc_polys_from_dm(
 			CustomData_set_layer_flag(pdata_dst, CD_NORMAL, CD_FLAG_TEMPORARY);
 		}
 		if (dirty_nors_dst) {
-			BKE_mesh_calc_normals_poly(verts_dst, numverts_dst, loops_dst, polys_dst, numloops_dst, numpolys_dst,
+			BKE_mesh_calc_normals_poly(verts_dst, NULL, numverts_dst, loops_dst, polys_dst, numloops_dst, numpolys_dst,
 			                           poly_nors_dst, true);
 		}
 	}
@@ -2106,7 +2109,6 @@ void BKE_mesh_remap_calc_polys_from_dm(
 				int tot_rays, done_rays = 0;
 				float poly_area_2d_inv, done_area = 0.0f;
 
-				const float zvec[3] = {0.0f, 0.0f, 1.0f};
 				float pcent_dst[3];
 				float to_pnor_2d_mat[3][3], from_pnor_2d_mat[3][3];
 				float poly_dst_2d_min[2], poly_dst_2d_max[2], poly_dst_2d_z;
@@ -2135,7 +2137,7 @@ void BKE_mesh_remap_calc_polys_from_dm(
 					tri_vidx_2d = MEM_reallocN(tri_vidx_2d, sizeof(*tri_vidx_2d) * (tmp_poly_size - 2));
 				}
 
-				rotation_between_vecs_to_mat3(to_pnor_2d_mat, tmp_no, zvec);
+				axis_dominant_v3_to_m3(to_pnor_2d_mat, tmp_no);
 				invert_m3_m3(from_pnor_2d_mat, to_pnor_2d_mat);
 
 				mul_m3_v3(to_pnor_2d_mat, pcent_dst);
@@ -2168,7 +2170,9 @@ void BKE_mesh_remap_calc_polys_from_dm(
 				}
 				tot_rays *= tot_rays;
 
-				poly_area_2d_inv = 1.0f / area_poly_v2((const float(*)[2])poly_vcos_2d, (unsigned int)mp->totloop);
+				poly_area_2d_inv = area_poly_v2((const float(*)[2])poly_vcos_2d, (unsigned int)mp->totloop);
+				/* In case we have a null-area degenerated poly... */
+				poly_area_2d_inv = 1.0f / max_ff(poly_area_2d_inv, 1e-9f);
 
 				/* Tessellate our poly. */
 				if (mp->totloop == 3) {
@@ -2198,7 +2202,7 @@ void BKE_mesh_remap_calc_polys_from_dm(
 					/* All this allows us to get 'absolute' number of rays for each tri, avoiding accumulating
 					 * errors over iterations, and helping better even distribution. */
 					done_area += area_tri_v2(v1, v2, v3);
-					rays_num = (int)((float)tot_rays * done_area * poly_area_2d_inv + 0.5f) - done_rays;
+					rays_num = max_ii((int)((float)tot_rays * done_area * poly_area_2d_inv + 0.5f) - done_rays, 0);
 					done_rays += rays_num;
 
 					while (rays_num--) {

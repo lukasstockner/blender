@@ -959,8 +959,16 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	int totface = dm->getNumTessFaces(dm);
 	const char *tfaceName = "";
 
+	/* needs to be rewritten for loopdata */
 	if (tface) {
-		DM_add_tangent_layer(dm);
+		if (CustomData_get_layer_index(&dm->faceData, CD_TANGENT) == -1) {
+			bool generate_data = false;
+			if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) == -1) {
+				DM_calc_loop_tangents(dm);
+				generate_data = true;
+			}
+			DM_generate_tangent_tessface_data(dm, generate_data);
+		}
 		tangent = (float(*)[4])dm->getTessFaceDataArray(dm, CD_TANGENT);
 	}
 
@@ -1207,7 +1215,8 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blendero
 	shapeProps->m_step_height = blenderobject->step_height;
 	shapeProps->m_jump_speed = blenderobject->jump_speed;
 	shapeProps->m_fall_speed = blenderobject->fall_speed;
-	
+	shapeProps->m_max_jumps = blenderobject->max_jumps;
+
 	return shapeProps;
 }
 
@@ -1712,6 +1721,18 @@ static void UNUSED_FUNCTION(print_active_constraints2)(Object *ob) //not used, u
 	}
 }
 
+// Copy base layer to object layer like in BKE_scene_set_background
+static void blenderSceneSetBackground(Scene *blenderscene)
+{
+	Scene *it;
+	Base *base;
+
+	for (SETLOOPER(blenderscene, it, base)) {
+		base->object->lay = base->lay;
+		base->object->flag = base->flag;
+	}
+}
+
 static KX_GameObject* getGameOb(STR_String busc,CListValue* sumolist)
 {
 
@@ -1964,6 +1985,9 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	SetDefaultLightMode(blenderscene);
+
+	blenderSceneSetBackground(blenderscene);
+
 	// Let's support scene set.
 	// Beware of name conflict in linked data, it will not crash but will create confusion
 	// in Python scripting and in certain actuators (replace mesh). Linked scene *should* have
@@ -2032,14 +2056,13 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 														converter,
 														libloading);
 
-						/* Insert object to the constraint game object list
-						 * so we can check later if there is a instance in the scene or
-						 * an instance and its actual group definition. */
-						convertedlist.insert((KX_GameObject*)gameobj->AddRef());
-
 						bool isInActiveLayer = false;
-						if (gameobj)
-						{
+						if (gameobj) {
+							/* Insert object to the constraint game object list
+							 * so we can check later if there is a instance in the scene or
+							 * an instance and its actual group definition. */
+							convertedlist.insert((KX_GameObject*)gameobj->AddRef());
+
 							/* macro calls object conversion funcs */
 							BL_CONVERTBLENDEROBJECT_SINGLE;
 
@@ -2295,7 +2318,13 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 			/* Store constraints of grouped and instanced objects for all layers */
 			gameobj->AddConstraint(dat);
-						
+
+			/** if it's during libload we only add constraints in the object but
+			 * doesn't create it. Constraint will be replicated later in scene->MergeScene
+			 */
+			if (libloading)
+				continue;
+
 			/* Skipped already converted constraints. 
 			 * This will happen when a group instance is made from a linked group instance
 			 * and both are on the active layer. */

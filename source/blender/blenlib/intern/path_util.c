@@ -191,31 +191,6 @@ int BLI_split_name_num(char *left, int *nr, const char *name, const char delim)
 }
 
 /**
- * Looks for a string of digits within name (using BLI_stringdec) and adjusts it by add.
- */
-void BLI_newname(char *name, int add)
-{
-	char head[UNIQUE_NAME_MAX], tail[UNIQUE_NAME_MAX];
-	int pic;
-	unsigned short digits;
-	
-	pic = BLI_stringdec(name, head, tail, &digits);
-	
-	/* are we going from 100 -> 99 or from 10 -> 9 */
-	if (add < 0 && digits < 4 && digits > 0) {
-		int i, exp;
-		exp = 1;
-		for (i = digits; i > 1; i--) exp *= 10;
-		if (pic >= exp && (pic + add) < exp) digits--;
-	}
-	
-	pic += add;
-	
-	if (digits == 4 && pic < 0) pic = 0;
-	BLI_stringenc(name, head, tail, digits, pic);
-}
-
-/**
  * Ensures name is unique (according to criteria specified by caller in unique_check callback),
  * incrementing its numeric suffix as necessary. Returns true if name had to be adjusted.
  *
@@ -453,6 +428,7 @@ void BLI_cleanup_file(const char *relabase, char *path)
  *
  * \note Space case ' ' is a bit of an edge case here - in theory it is allowed, but again can be an issue
  *       in some cases, so we simply replace it by an underscore too (good practice anyway).
+ *       REMOVED based on popular demand (see T45900).
  *
  * \note On Windows, it also ensures there is no '.' (dot char) at the end of the file, this can lead to issues...
  *
@@ -461,9 +437,9 @@ void BLI_cleanup_file(const char *relabase, char *path)
  */
 bool BLI_filename_make_safe(char *fname)
 {
-	const char *invalid =     "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+	const char *invalid = "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
 	                      "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"
-	                      "/\\?%*:|\"<> ";
+	                      "/\\?%*:|\"<>";
 	char *fn;
 	bool changed = false;
 
@@ -533,7 +509,7 @@ bool BLI_filename_make_safe(char *fname)
 bool BLI_path_make_safe(char *path)
 {
 	/* Simply apply BLI_filename_make_safe() over each component of the path.
-	 * Luckily enough, same 'sfae' rules applies to filenames and dirnames. */
+	 * Luckily enough, same 'safe' rules applies to filenames and dirnames. */
 	char *curr_slash, *curr_path = path;
 	bool changed = false;
 	bool skip_first = false;
@@ -1202,7 +1178,7 @@ bool BLI_path_abs(char *path, const char *basepath)
  * \note Should only be done with command line paths.
  * this is _not_ something blenders internal paths support like the "//" prefix
  */
-bool BLI_path_cwd(char *path)
+bool BLI_path_cwd(char *path, const size_t maxlen)
 {
 	bool wasrelative = true;
 	const int filelen = strlen(path);
@@ -1216,24 +1192,15 @@ bool BLI_path_cwd(char *path)
 #endif
 	
 	if (wasrelative) {
-		char cwd[FILE_MAX] = "";
-		BLI_current_working_dir(cwd, sizeof(cwd)); /* in case the full path to the blend isn't used */
-		
-		if (cwd[0] == '\0') {
-			printf("Could not get the current working directory - $PWD for an unknown reason.\n");
-		}
-		else {
-			/* uses the blend path relative to cwd important for loading relative linked files.
-			 *
-			 * cwd should contain c:\ etc on win32 so the relbase can be NULL
-			 * relbase being NULL also prevents // being misunderstood as relative to the current
-			 * blend file which isn't a feature we want to use in this case since were dealing
-			 * with a path from the command line, rather than from inside Blender */
-
+		char cwd[FILE_MAX];
+		/* in case the full path to the blend isn't used */
+		if (BLI_current_working_dir(cwd, sizeof(cwd))) {
 			char origpath[FILE_MAX];
 			BLI_strncpy(origpath, path, FILE_MAX);
-			
-			BLI_make_file_string(NULL, path, cwd, origpath); 
+			BLI_join_dirfile(path, maxlen, cwd, origpath);
+		}
+		else {
+			printf("Could not get the current working directory - $PWD for an unknown reason.\n");
 		}
 	}
 	
@@ -1610,16 +1577,15 @@ bool BLI_testextensie_glob(const char *str, const char *ext_fnmatch)
 
 	while (ext_step[0]) {
 		const char *ext_next;
-		int len_ext;
+		size_t len_ext;
 
 		if ((ext_next = strchr(ext_step, ';'))) {
-			len_ext = (int)(ext_next - ext_step) + 1;
+			len_ext = ext_next - ext_step + 1;
+			BLI_strncpy(pattern, ext_step, (len_ext > sizeof(pattern)) ? sizeof(pattern) : len_ext);
 		}
 		else {
-			len_ext = sizeof(pattern);
+			len_ext = BLI_strncpy_rlen(pattern, ext_step, sizeof(pattern));
 		}
-
-		BLI_strncpy(pattern, ext_step, len_ext);
 
 		if (fnmatch(pattern, str, FNM_CASEFOLD) == 0) {
 			return true;

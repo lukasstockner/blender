@@ -259,11 +259,14 @@ class CyclesRender_PT_motion_blur(CyclesButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
-        rd = context.scene.render
+        scene = context.scene
+        cscene = scene.cycles
+        rd = scene.render
         layout.active = rd.use_motion_blur
 
-        row = layout.row()
-        row.prop(rd, "motion_blur_shutter")
+        col = layout.column()
+        col.prop(cscene, "motion_blur_position", text="Position")
+        col.prop(rd, "motion_blur_shutter")
 
 
 class CyclesRender_PT_film(CyclesButtonsPanel, Panel):
@@ -332,7 +335,6 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
         col.separator()
 
         col.label(text="Final Render:")
-        col.prop(cscene, "use_cache")
         col.prop(rd, "use_persistent_data", text="Persistent Images")
 
         col.separator()
@@ -438,6 +440,7 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
 class CyclesRender_PT_views(CyclesButtonsPanel, Panel):
     bl_label = "Views"
     bl_context = "render_layer"
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
         rd = context.scene.render
@@ -1163,12 +1166,16 @@ class CyclesMaterial_PT_settings(CyclesButtonsPanel, Panel):
         col.prop(mat, "alpha")
 
         col.separator()
-        col.prop(mat, "pass_index")
+        col.label("Viewport Alpha:")
+        col.prop(mat.game_settings, "alpha_blend", text="")
 
         col = split.column(align=True)
         col.label("Viewport Specular:")
         col.prop(mat, "specular_color", text="")
         col.prop(mat, "specular_hardness", text="Hardness")
+
+        col.separator()
+        col.prop(mat, "pass_index")
 
 
 class CyclesTexture_PT_context(CyclesButtonsPanel, Panel):

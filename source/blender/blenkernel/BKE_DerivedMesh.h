@@ -209,6 +209,8 @@ struct DerivedMesh {
 	void (*calcLoopNormalsSpaceArray)(DerivedMesh *dm, const bool use_split_normals, const float split_angle,
 	                                  struct MLoopNorSpaceArray *r_lnors_spacearr);
 
+	void (*calcLoopTangents)(DerivedMesh *dm);
+
 	/** Recalculates mesh tessellation */
 	void (*recalcTessellation)(DerivedMesh *dm);
 
@@ -228,7 +230,7 @@ struct DerivedMesh {
 	int (*getNumPolys)(DerivedMesh *dm);
 
 	/** Copy a single vert/edge/tessellated face from the derived mesh into
-	 * *{vert/edge/face}_r. note that the current implementation
+	 * ``*r_{vert/edge/face}``. note that the current implementation
 	 * of this function can be quite slow, iterating over all
 	 * elements (editmesh)
 	 */
@@ -496,6 +498,11 @@ void DM_init(
         DerivedMesh *dm, DerivedMeshType type, int numVerts, int numEdges,
         int numFaces, int numLoops, int numPolys);
 
+void DM_from_template_ex(
+        DerivedMesh *dm, DerivedMesh *source, DerivedMeshType type,
+        int numVerts, int numEdges, int numTessFaces,
+        int numLoops, int numPolys,
+        CustomDataMask mask);
 void DM_from_template(
         DerivedMesh *dm, DerivedMesh *source,
         DerivedMeshType type,
@@ -613,8 +620,10 @@ void DM_ensure_tessface(DerivedMesh *dm);
 
 void DM_ensure_looptri_data(DerivedMesh *dm);
 void DM_ensure_looptri(DerivedMesh *dm);
+void DM_verttri_from_looptri(MVertTri *verttri, const MLoop *mloop, const MLoopTri *looptri, int looptri_num);
 
 void DM_update_tessface_data(DerivedMesh *dm);
+void DM_generate_tangent_tessface_data(DerivedMesh *dm, bool generate);
 
 void DM_update_materials(DerivedMesh *dm, struct Object *ob);
 struct MLoopUV *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr);
@@ -769,7 +778,7 @@ void DM_vertex_attributes_from_gpu(
 
 void DM_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert, int loop);
 
-void DM_add_tangent_layer(DerivedMesh *dm);
+void DM_calc_loop_tangents(DerivedMesh *dm);
 void DM_calc_auto_bump_scale(DerivedMesh *dm);
 
 /** Set object's bounding box based on DerivedMesh min/max data */

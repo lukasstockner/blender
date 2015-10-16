@@ -268,11 +268,6 @@ bool BL_Action::Play(const char* name,
 	return true;
 }
 
-void BL_Action::Stop()
-{
-	m_done = true;
-}
-
 bool BL_Action::IsDone()
 {
 	return m_done;
@@ -299,6 +294,18 @@ bAction *BL_Action::GetAction()
 float BL_Action::GetFrame()
 {
 	return m_localtime;
+}
+
+const char *BL_Action::GetName()
+{
+	if (m_action != NULL) {
+		return m_action->id.name + 2;
+	}
+	else {
+		return "";
+	}
+
+	            
 }
 
 void BL_Action::SetFrame(float frame)

@@ -998,7 +998,7 @@ static void remove_particle_systems_from_object(Object *ob_to)
 static bool copy_particle_systems_to_object(Scene *scene, Object *ob_from, ParticleSystem *single_psys_from, Object *ob_to, int space)
 {
 	ModifierData *md;
-	ParticleSystem *psys_start, *psys, *psys_from;
+	ParticleSystem *psys_start = NULL, *psys, *psys_from;
 	ParticleSystem **tmp_psys;
 	DerivedMesh *final_dm;
 	CustomDataMask cdmask;
@@ -1095,6 +1095,7 @@ static bool copy_particle_systems_to_object(Scene *scene, Object *ob_from, Parti
 				break;
 			default:
 				/* should not happen */
+				from_mat = to_mat = NULL;
 				BLI_assert(false);
 				break;
 		}

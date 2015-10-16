@@ -41,7 +41,6 @@
 #  include "AUD_PyAPI.h"
 #endif
 
-#include <set>
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
@@ -814,10 +813,9 @@ int AUD_Device_read(AUD_Device *device, data_t *buffer, int length)
 
 void AUD_Device_free(AUD_Device *device)
 {
-	assert(device);
-
 	try {
-		delete device;
+		if(device != &AUD_device)
+			delete device;
 	}
 	catch(AUD_Exception&)
 	{
@@ -1225,44 +1223,6 @@ void AUD_Handle_free(AUD_Handle *handle)
 	delete handle;
 }
 
-void *AUD_createSet()
-{
-	return new std::set<void *>();
-}
-
-void AUD_destroySet(void *set)
-{
-	delete reinterpret_cast<std::set<void *>*>(set);
-}
-
-char AUD_removeSet(void *set, void *entry)
-{
-	if (set)
-		return reinterpret_cast<std::set<void *>*>(set)->erase(entry);
-	return 0;
-}
-
-void AUD_addSet(void *set, void *entry)
-{
-	if (entry)
-		reinterpret_cast<std::set<void *>*>(set)->insert(entry);
-}
-
-void *AUD_getSet(void *set)
-{
-	if (set) {
-		std::set<void *>* rset = reinterpret_cast<std::set<void *>*>(set);
-		if (!rset->empty()) {
-			std::set<void *>::iterator it = rset->begin();
-			void *result = *it;
-			rset->erase(it);
-			return result;
-		}
-	}
-
-	return NULL;
-}
-
 const char *AUD_mixdown(AUD_Sound *sound, unsigned int start, unsigned int length, unsigned int buffersize, const char *filename, AUD_DeviceSpecs specs, AUD_Container format, AUD_Codec codec, unsigned int bitrate)
 {
 	try {
@@ -1345,6 +1305,11 @@ AUD_Device *AUD_openMixdownDevice(AUD_DeviceSpecs specs, AUD_Sound *sequencer, f
 	{
 		return NULL;
 	}
+}
+
+AUD_Device *AUD_Device_getCurrent(void)
+{
+	return &AUD_device;
 }
 
 int AUD_isJackSupported(void)

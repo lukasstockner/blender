@@ -93,6 +93,8 @@
 
 #ifdef WITH_SMOKE
 
+static ThreadMutex object_update_lock = BLI_MUTEX_INITIALIZER;
+
 #ifdef _WIN32
 #include <time.h>
 #include <stdio.h>
@@ -1662,7 +1664,7 @@ static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, Smo
 			res[i] = em->res[i] * hires_multiplier;
 		}
 
-		if (bvhtree_from_mesh_faces(&treeData, dm, 0.0f, 4, 6)) {
+		if (bvhtree_from_mesh_looptri(&treeData, dm, 0.0f, 4, 6)) {
 #pragma omp parallel for schedule(static)
 			for (z = min[2]; z < max[2]; z++) {
 				int x, y;
@@ -2164,7 +2166,9 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 					}
 					else { /* MOD_SMOKE_FLOW_SOURCE_MESH */
 						/* update flow object frame */
+						BLI_mutex_lock(&object_update_lock);
 						subframe_updateObject(scene, collob, 1, 5, BKE_scene_frame_get(scene), for_render);
+						BLI_mutex_unlock(&object_update_lock);
 
 						/* apply flow */
 						emit_from_derivedmesh(collob, sds, sfs, &em_temp, sdt);
@@ -2650,7 +2654,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 
 		if (smd->flow->dm) smd->flow->dm->release(smd->flow->dm);
 		smd->flow->dm = CDDM_copy(dm);
-		DM_ensure_tessface(smd->flow->dm);
+		DM_ensure_looptri(smd->flow->dm);
 
 		if (scene->r.cfra > smd->time)
 		{
@@ -2673,7 +2677,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 				smd->coll->dm->release(smd->coll->dm);
 
 			smd->coll->dm = CDDM_copy(dm);
-			DM_ensure_tessface(smd->coll->dm);
+			DM_ensure_looptri(smd->coll->dm);
 		}
 
 		smd->time = scene->r.cfra;
