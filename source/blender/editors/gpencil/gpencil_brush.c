@@ -131,6 +131,8 @@ typedef struct tGP_BrushEditData {
 	/* Custom data for certain brushes */
 	/* - map from bGPDstroke's to structs containing custom data about those strokes */
 	GHash *stroke_customdata;
+	/* - general customdata */
+	void *customdata;
 	
 	
 	/* Timer for in-place accumulation of brush effect */
@@ -698,6 +700,188 @@ static bool gp_brush_randomise_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 }
 
 /* ************************************************ */
+/* Non Callback-Based Brushes */
+
+/* Clone Brush ------------------------------------- */
+/* How this brush currently works:
+ * - If this is start of the brush stroke, paste immediately under the cursor
+ *   by placing the midpoint of the buffer strokes under the cursor now
+ *
+ * - Otherwise, in:
+ *   "Stamp Mode" - Move the newly pasted strokes so that their center
+ *   "Continuous" - Repeatedly just paste new copies for where the brush is now
+ */
+
+/* Custom state data for clone brush */
+typedef struct tGPSB_CloneBrushData {
+	/* midpoint of the strokes on the clipboard */
+	float buffer_midpoint[3];
+	
+	/* number of strokes in the paste buffer (and/or to be created each time) */
+	size_t totitems;
+	
+	/* for "stamp" mode, the currently pasted brushes */
+	bGPDstroke **new_strokes;
+} tGPSB_CloneBrushData;
+
+/* Initialise "clone" brush data */
+static void gp_brush_clone_init(bContext *C, tGP_BrushEditData *gso)
+{
+	tGPSB_CloneBrushData *data;
+	bGPDstroke *gps;
+	
+	/* init custom data */
+	gso->customdata = data = MEM_callocN(sizeof(tGPSB_CloneBrushData), "CloneBrushData");
+	
+	/* compute midpoint of strokes on clipboard */
+	for (gps = gp_strokes_copypastebuf.first; gps; gps = gps->next) {
+		if (ED_gpencil_stroke_can_use(C, gps)) {
+			const float dfac = 1.0f / ((float)gps->totpoints);
+			float mid[3] = {0.0f};
+			
+			bGPDspoint *pt;
+			int i;
+			
+			/* compute midpoint of this stroke */
+			for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+				float co[3];
+				
+				mul_v3_v3fl(co, &pt->x, dfac);
+				add_v3_v3(mid, co);
+			}
+			
+			/* combine this stroke's data with the main data */
+			add_v3_v3(data->buffer_midpoint, mid);
+			data->totitems++;
+		}
+	}
+	
+	/* Divide the midpoint by the number of strokes, to finish averaging it */
+	if (data->totitems > 1) {
+		mul_v3_fl(data->buffer_midpoint, 1.0f / (float)data->totitems);
+	}
+	
+	/* Create a buffer for storing the current strokes */
+	if (1 /*gso->brush->mode == GP_EDITBRUSH_CLONE_MODE_STAMP*/) {
+		data->new_strokes = MEM_callocN(sizeof(bGPDstroke *) * data->totitems, "cloned strokes ptr array");
+	}
+}
+
+/* Free custom data used for "clone" brush */
+static void gp_brush_clone_free(tGP_BrushEditData *gso)
+{
+	tGPSB_CloneBrushData *data = gso->customdata;
+	
+	/* free strokes array */
+	if (data->new_strokes) {
+		MEM_freeN(data->new_strokes);
+		data->new_strokes = NULL;
+	}
+	
+	/* free the customdata itself */
+	MEM_freeN(data);
+	gso->customdata = NULL;
+}
+
+/* Create new copies of the strokes on the clipboard */
+static void gp_brush_clone_add(bContext *C, tGP_BrushEditData *gso)
+{
+	tGPSB_CloneBrushData *data = gso->customdata;
+	
+	Scene *scene = gso->scene;
+	bGPDlayer *gpl = CTX_data_active_gpencil_layer(C);
+	bGPDframe *gpf = gpencil_layer_getframe(gpl, CFRA, true);
+	bGPDstroke *gps;
+	
+	float delta[3];
+	size_t strokes_added = 0;
+	
+	/* Compute amount to offset the points by */
+	/* NOTE: This assumes that screenspace strokes are NOT used in the 3D view... */
+	
+	gp_brush_calc_midpoint(gso); /* this puts the cursor location into gso->dvec */
+	sub_v3_v3v3(delta, gso->dvec, data->buffer_midpoint);
+	
+	/* Copy each stroke into the layer */
+	for (gps = gp_strokes_copypastebuf.first; gps; gps = gps->next) {
+		if (ED_gpencil_stroke_can_use(C, gps)) {
+			bGPDstroke *new_stroke;
+			bGPDspoint *pt;
+			int i;
+			
+			/* Make a new stroke */
+			new_stroke = MEM_dupallocN(gps);
+			
+			new_stroke->points = MEM_dupallocN(gps->points);
+			new_stroke->next = new_stroke->prev = NULL;
+			
+			BLI_addtail(&gpf->strokes, new_stroke);
+			
+			/* Adjust all the stroke's points, so that the strokes
+			 * get pasted relative to where the cursor is now
+			 */
+			for (i = 0, pt = new_stroke->points; i < new_stroke->totpoints; i++, pt++) {
+				/* assume that the delta can just be applied, and then everything works */
+				add_v3_v3(&pt->x, delta);
+			}
+			
+			/* Store ref for later */
+			if ((data->new_strokes) && (strokes_added < data->totitems)) {
+				data->new_strokes[strokes_added] = new_stroke;
+				strokes_added++;
+			}
+		}
+	}
+}
+
+/* Move newly-added strokes around - "Stamp" mode of the Clone brush */
+static void gp_brush_clone_adjust(bContext *C, tGP_BrushEditData *gso)
+{
+	tGPSB_CloneBrushData *data = gso->customdata;
+	size_t snum;
+	
+	/* Compute the amount of movement to apply (overwrites dvec) */
+	gp_brush_grab_calc_dvec(gso);
+	
+	/* For each of the stored strokes, apply the offset to each point */
+	/* NOTE: Again this assumes that in the 3D view, we only have 3d space and not screenspace strokes... */
+	for (snum = 0; snum < data->totitems; snum++) {
+		bGPDstroke *gps = data->new_strokes[snum];
+		bGPDspoint *pt;
+		int i;
+		
+		for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+			// TODO: Use falloff info for controlling how this gets applied?
+			add_v3_v3(&pt->x, gso->dvec);
+		}
+	}
+}
+
+/* Entrypoint for applying "clone" brush */
+static bool gpsculpt_brush_apply_clone(bContext *C, tGP_BrushEditData *gso)
+{
+	/* Which "mode" are we operating in? */
+	if (gso->first) {
+		/* Create initial clones */
+		gp_brush_clone_add(C, gso);
+	}
+	else {
+		/* Stamp or Continous Mode */
+		if (1 /*gso->brush->mode == GP_EDITBRUSH_CLONE_MODE_STAMP*/) {
+			/* Stamp - Proceed to translate the newly added strokes */
+			gp_brush_clone_adjust(C, gso);
+		}
+		else {
+			/* Continuous - Just keep pasting everytime we move */
+			/* TODO: The spacing of repeat should be controlled using a "stepsize" or similar property? */
+			gp_brush_clone_add(C, gso);
+		}
+	}
+	
+	return true;
+}
+
+/* ************************************************ */
 /* Cursor drawing */
 
 /* Helper callback for drawing the cursor itself */
@@ -822,6 +1006,13 @@ static void gpsculpt_brush_exit(bContext *C, wmOperator *op)
 			 * - Values assigned to those keys do, as they are custom structs
 			 */
 			BLI_ghash_free(gso->stroke_customdata, NULL, gp_brush_grab_stroke_free);
+			break;
+		}
+		
+		case GP_EDITBRUSH_TYPE_CLONE:
+		{
+			/* Free customdata */
+			gp_brush_clone_free(gso);
 			break;
 		}
 		
@@ -1009,7 +1200,7 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso, bGPDstroke *gps, GP
 }
 
 /* Perform two-pass brushes which modify the existing strokes */
-static bool gpsculpt_brush_apply_deforms(bContext *C, tGP_BrushEditData *gso)
+static bool gpsculpt_brush_apply_standard(bContext *C, tGP_BrushEditData *gso)
 {
 	bool changed = false;
 	
@@ -1149,7 +1340,12 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 	
 	
 	/* Apply brush */
-	changed = gpsculpt_brush_apply_deforms(C, gso);
+	if (gso->brush_type == GP_EDITBRUSH_TYPE_CLONE) {
+		changed = gpsculpt_brush_apply_clone(C, gso);
+	}
+	else {
+		changed = gpsculpt_brush_apply_standard(C, gso);
+	}
 	
 	
 	/* Updates */
@@ -1213,6 +1409,8 @@ static int gpsculpt_brush_exec(bContext *C, wmOperator *op)
 	if (!gpsculpt_brush_init(C, op))
 		return OPERATOR_CANCELLED;
 	
+	// FIXME: needs the customdata to be able to do its job
+	
 	RNA_BEGIN(op->ptr, itemptr, "stroke") 
 	{
 		gpsculpt_brush_apply(C, op, &itemptr);
@@ -1249,6 +1447,10 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 				           "Copy some strokes to the clipboard before using the Clone brush to paste copies of them");
 				gpsculpt_brush_exit(C, op);
 				return OPERATOR_CANCELLED;
+			}
+			else {
+				/* initialise customdata */
+				gp_brush_clone_init(C, gso);
 			}
 			break;
 		
