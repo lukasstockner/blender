@@ -851,8 +851,26 @@ static void gp_brush_clone_adjust(bContext *C, tGP_BrushEditData *gso)
 		int i;
 		
 		for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-			// TODO: Use falloff info for controlling how this gets applied?
-			add_v3_v3(&pt->x, gso->dvec);
+			if (gso->brush->flag & GP_EDITBRUSH_FLAG_USE_FALLOFF) {
+				/* "Smudge" Effect when falloff is enabled */
+				float delta[3] = {0.0f};
+				int sco[2] = {0};
+				float influence;
+				
+				/* compute influence on point */
+				gp_point_to_xy(&gso->gsc, gps, pt, &sco[0], &sco[1]);
+				influence = gp_brush_influence_calc(gso, gso->brush->size, sco);
+				
+				/* adjust the amount of displacement to apply */
+				mul_v3_v3fl(delta, gso->dvec, influence);
+				
+				/* apply */
+				add_v3_v3(&pt->x, delta);
+			}
+			else {
+				/* Just apply the offset - All points move perfectly in sync with the cursor */
+				add_v3_v3(&pt->x, gso->dvec);
+			}
 		}
 	}
 }

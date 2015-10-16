@@ -913,6 +913,10 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				brush->size = 25;
 				brush->strength = 0.5f;
 				brush->flag = GP_EDITBRUSH_FLAG_USE_FALLOFF;
+				
+				brush = &gset->brush[GP_EDITBRUSH_TYPE_CLONE];
+				brush->size = 50;
+				brush->strength = 1.0f;
 			}
 		}
 	}
