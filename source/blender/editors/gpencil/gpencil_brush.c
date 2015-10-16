@@ -1459,10 +1459,21 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	switch (gso->brush_type) {
 		/* Brushes requiring certain context info... */
 		case GP_EDITBRUSH_TYPE_CLONE:
-			/* check if there's stuff in the copy buffer to use */
-			if (BLI_listbase_is_empty(&gp_strokes_copypastebuf)) {
+		{
+			bGPDstroke *gps;
+			bool found = false;
+			
+			/* check that there are some usable strokes in the buffer */
+			for (gps = gp_strokes_copypastebuf.first; gps; gps = gps->next) {
+				if (ED_gpencil_stroke_can_use(C, gps)) {
+					found = true;
+					break;
+				}
+			}
+			
+			if (found == false) {
 				BKE_report(op->reports, RPT_ERROR, 
-				           "Copy some strokes to the clipboard before using the Clone brush to paste copies of them");
+					   "Copy some strokes to the clipboard before using the Clone brush to paste copies of them");
 				gpsculpt_brush_exit(C, op);
 				return OPERATOR_CANCELLED;
 			}
@@ -1470,7 +1481,9 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 				/* initialise customdata */
 				gp_brush_clone_init(C, gso);
 			}
+			
 			break;
+		}
 		
 		/* Brushes with custom data */
 		case GP_EDITBRUSH_TYPE_GRAB:
