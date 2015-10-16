@@ -1008,42 +1008,10 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso, bGPDstroke *gps, GP
 	return changed;
 }
 
-/* Calculate settings for applying brush */
-// TODO: Add in "substeps" stuff for finer application of brush effects
-static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
+/* Perform two-pass brushes which modify the existing strokes */
+static bool gpsculpt_brush_apply_deforms(bContext *C, tGP_BrushEditData *gso)
 {
-	tGP_BrushEditData *gso = op->customdata;
-	const int radius = gso->brush->size;
-	float mousef[2];
-	int mouse[2];
 	bool changed = false;
-	
-	/* Get latest mouse coordinates */
-	RNA_float_get_array(itemptr, "mouse", mousef);
-	gso->mval[0] = mouse[0] = (int)(mousef[0]);
-	gso->mval[1] = mouse[1] = (int)(mousef[1]);
-	
-	gso->pressure = RNA_float_get(itemptr, "pressure");
-	
-	if (RNA_boolean_get(itemptr, "pen_flip"))
-		gso->flag |= GP_EDITBRUSH_FLAG_INVERT;
-	else
-		gso->flag &= ~GP_EDITBRUSH_FLAG_INVERT;
-	
-	
-	/* Store coordinates as reference, if operator just started running */
-	if (gso->first) {
-		gso->mval_prev[0]  = gso->mval[0];
-		gso->mval_prev[1]  = gso->mval[1];
-		gso->pressure_prev = gso->pressure;
-	}
-	
-	/* Update brush_rect, so that it represents the bounding rectangle of brush */
-	gso->brush_rect.xmin = mouse[0] - radius;
-	gso->brush_rect.ymin = mouse[1] - radius;
-	gso->brush_rect.xmax = mouse[0] + radius;
-	gso->brush_rect.ymax = mouse[1] + radius;
-	
 	
 	/* Calculate brush-specific data which applies equally to all points */
 	switch (gso->brush_type) {
@@ -1140,13 +1108,56 @@ static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itempt
 	}
 	CTX_DATA_END;
 	
+	return changed;
+}
+
+/* Calculate settings for applying brush */
+// TODO: Add in "substeps" stuff for finer application of brush effects
+static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
+{
+	tGP_BrushEditData *gso = op->customdata;
+	const int radius = gso->brush->size;
+	float mousef[2];
+	int mouse[2];
+	bool changed = false;
 	
-	/* updates */
+	/* Get latest mouse coordinates */
+	RNA_float_get_array(itemptr, "mouse", mousef);
+	gso->mval[0] = mouse[0] = (int)(mousef[0]);
+	gso->mval[1] = mouse[1] = (int)(mousef[1]);
+	
+	gso->pressure = RNA_float_get(itemptr, "pressure");
+	
+	if (RNA_boolean_get(itemptr, "pen_flip"))
+		gso->flag |= GP_EDITBRUSH_FLAG_INVERT;
+	else
+		gso->flag &= ~GP_EDITBRUSH_FLAG_INVERT;
+	
+	
+	/* Store coordinates as reference, if operator just started running */
+	if (gso->first) {
+		gso->mval_prev[0]  = gso->mval[0];
+		gso->mval_prev[1]  = gso->mval[1];
+		gso->pressure_prev = gso->pressure;
+	}
+	
+	/* Update brush_rect, so that it represents the bounding rectangle of brush */
+	gso->brush_rect.xmin = mouse[0] - radius;
+	gso->brush_rect.ymin = mouse[1] - radius;
+	gso->brush_rect.xmax = mouse[0] + radius;
+	gso->brush_rect.ymax = mouse[1] + radius;
+	
+	
+	/* Apply brush */
+	changed = gpsculpt_brush_apply_deforms(C, gso);
+	
+	
+	/* Updates */
 	if (changed) {
 		WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
 	}
 	
-	/* store values for next step */
+	/* Store values for next step */
 	gso->mval_prev[0]  = gso->mval[0];
 	gso->mval_prev[1]  = gso->mval[1];
 	gso->pressure_prev = gso->pressure;
@@ -1230,6 +1241,18 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	
 	/* initialise type-specific data (used for the entire session) */
 	switch (gso->brush_type) {
+		/* Brushes requiring certain context info... */
+		case GP_EDITBRUSH_TYPE_CLONE:
+			/* check if there's stuff in the copy buffer to use */
+			if (BLI_listbase_is_empty(&gp_strokes_copypastebuf)) {
+				BKE_report(op->reports, RPT_ERROR, 
+				           "Copy some strokes to the clipboard before using the Clone brush to paste copies of them");
+				gpsculpt_brush_exit(C, op);
+				return OPERATOR_CANCELLED;
+			}
+			break;
+		
+		/* Brushes with custom data */
 		case GP_EDITBRUSH_TYPE_GRAB:
 			/* initialise the cache needed for this brush */
 			gso->stroke_customdata = BLI_ghash_ptr_new("GP Grab Brush - Strokes Hash");
