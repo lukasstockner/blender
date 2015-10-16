@@ -997,6 +997,50 @@ static bool gpsculpt_brush_init(bContext *C, wmOperator *op)
 	gso->sa = CTX_wm_area(C);
 	gso->ar = CTX_wm_region(C);
 	
+	/* initialise custom data for brushes */
+	switch (gso->brush_type) {
+		case GP_EDITBRUSH_TYPE_CLONE:
+		{
+			bGPDstroke *gps;
+			bool found = false;
+			
+			/* check that there are some usable strokes in the buffer */
+			for (gps = gp_strokes_copypastebuf.first; gps; gps = gps->next) {
+				if (ED_gpencil_stroke_can_use(C, gps)) {
+					found = true;
+					break;
+				}
+			}
+			
+			if (found == false) {
+				/* STOP HERE! Nothing to paste! */
+				BKE_report(op->reports, RPT_ERROR, 
+					   "Copy some strokes to the clipboard before using the Clone brush to paste copies of them");
+					   
+				MEM_freeN(gso);
+				op->customdata = NULL;
+				return false;
+			}
+			else {
+				/* initialise customdata */
+				gp_brush_clone_init(C, gso);
+			}
+			break;
+		}
+		
+		case GP_EDITBRUSH_TYPE_GRAB:
+		{
+			/* initialise the cache needed for this brush */
+			gso->stroke_customdata = BLI_ghash_ptr_new("GP Grab Brush - Strokes Hash");
+			break;
+		}
+			
+		/* Others - No customdata needed */
+		default:
+			break;
+	}
+	
+	
 	/* setup space conversions */
 	gp_point_conversion_init(C, &gso->gsc);
 	
@@ -1427,8 +1471,6 @@ static int gpsculpt_brush_exec(bContext *C, wmOperator *op)
 	if (!gpsculpt_brush_init(C, op))
 		return OPERATOR_CANCELLED;
 	
-	// FIXME: needs the customdata to be able to do its job
-	
 	RNA_BEGIN(op->ptr, itemptr, "stroke") 
 	{
 		gpsculpt_brush_apply(C, op, &itemptr);
@@ -1457,40 +1499,6 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	
 	/* initialise type-specific data (used for the entire session) */
 	switch (gso->brush_type) {
-		/* Brushes requiring certain context info... */
-		case GP_EDITBRUSH_TYPE_CLONE:
-		{
-			bGPDstroke *gps;
-			bool found = false;
-			
-			/* check that there are some usable strokes in the buffer */
-			for (gps = gp_strokes_copypastebuf.first; gps; gps = gps->next) {
-				if (ED_gpencil_stroke_can_use(C, gps)) {
-					found = true;
-					break;
-				}
-			}
-			
-			if (found == false) {
-				BKE_report(op->reports, RPT_ERROR, 
-					   "Copy some strokes to the clipboard before using the Clone brush to paste copies of them");
-				gpsculpt_brush_exit(C, op);
-				return OPERATOR_CANCELLED;
-			}
-			else {
-				/* initialise customdata */
-				gp_brush_clone_init(C, gso);
-			}
-			
-			break;
-		}
-		
-		/* Brushes with custom data */
-		case GP_EDITBRUSH_TYPE_GRAB:
-			/* initialise the cache needed for this brush */
-			gso->stroke_customdata = BLI_ghash_ptr_new("GP Grab Brush - Strokes Hash");
-			break;
-		
 		/* Brushes requiring timer... */
 		case GP_EDITBRUSH_TYPE_THICKNESS:
 			brush_rate = 0.01f; // XXX: hardcoded
