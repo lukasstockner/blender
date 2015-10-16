@@ -1076,6 +1076,9 @@ typedef enum eGP_EditBrush_Types {
 	GP_EDITBRUSH_TYPE_TWIST     = 4,
 	GP_EDITBRUSH_TYPE_PINCH     = 5,
 	GP_EDITBRUSH_TYPE_RANDOMISE = 6,
+	GP_EDITBRUSH_TYPE_SUBDIVIDE = 7,
+	GP_EDITBRUSH_TYPE_SIMPLIFY  = 8,
+	GP_EDITBRUSH_TYPE_CLONE     = 9,
 	
 	/* !!! Update GP_EditBrush_Data brush[###]; below !!! */
 	TOT_GP_EDITBRUSH_TYPES
@@ -1107,7 +1110,7 @@ typedef enum eGP_EditBrush_Flag {
 
 /* GPencil Stroke Sculpting Settings */
 typedef struct GP_BrushEdit_Settings {
-	GP_EditBrush_Data brush[7];   /* TOT_GP_EDITBRUSH_TYPES */
+	GP_EditBrush_Data brush[10];  /* TOT_GP_EDITBRUSH_TYPES */
 	void *paintcursor;            /* runtime */
 	
 	int brushtype;                /* eGP_EditBrush_Types */
@@ -1977,7 +1980,12 @@ typedef enum ImagePaintMode {
 #define EDGE_MODE_TAG_FREESTYLE			5
 
 /* toolsettings->gpencil_flags */
-#define GP_TOOL_FLAG_PAINTSESSIONS_ON	(1<<0)
+typedef enum eGPencil_Flags {
+	/* "Continuous Drawing" - The drawing operator enters a mode where multiple strokes can be drawn */
+	GP_TOOL_FLAG_PAINTSESSIONS_ON       = (1 << 0),
+	/* When creating new frames, the last frame gets used as the basis for the new one */
+	GP_TOOL_FLAG_RETAIN_LAST            = (1 << 1),
+} eGPencil_Flags;
 
 /* toolsettings->gpencil_src */
 typedef enum eGPencil_Source_3D {
