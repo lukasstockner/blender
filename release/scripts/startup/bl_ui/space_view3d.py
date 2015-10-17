@@ -2896,6 +2896,7 @@ class VIEW3D_MT_edit_gpencil(Menu):
 
         layout.separator()
 
+        layout.operator("gpencil.move_to_layer", text="Move to Layer")
         layout.operator("gpencil.convert", text="Convert to Geometry...")
 
 

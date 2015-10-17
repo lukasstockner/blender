@@ -59,12 +59,14 @@
 #include "BKE_screen.h"
 
 #include "UI_interface.h"
+#include "UI_resources.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "UI_view2d.h"
 
@@ -509,6 +511,111 @@ void GPENCIL_OT_paste(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/* ******************* Move To Layer ****************************** */
+
+static int gp_move_to_layer_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(evt))
+{
+	uiPopupMenu *pup;
+	uiLayout *layout;
+	
+	/* call the menu, which will call this operator again, hence the canceled */
+	pup = UI_popup_menu_begin(C, op->type->name, ICON_NONE);
+	layout = UI_popup_menu_layout(pup);
+	uiItemsEnumO(layout, "GPENCIL_OT_move_to_layer", "layer");
+	UI_popup_menu_end(C, pup);
+	
+	return OPERATOR_INTERFACE;
+}
+
+// FIXME: allow moving partial strokes
+static int gp_move_to_layer_exec(bContext *C, wmOperator *op)
+{
+	bGPdata *gpd = CTX_data_gpencil_data(C);
+	bGPDlayer *target_layer = NULL;
+	ListBase strokes = {NULL, NULL};
+	int layer_num = RNA_enum_get(op->ptr, "layer");
+	
+	/* Get layer or create new one */
+	if (layer_num == -1) {
+		/* Create layer */
+		target_layer = gpencil_layer_addnew(gpd, DATA_("GP_Layer"), true);
+	}
+	else {
+		/* Try to get layer */
+		target_layer = BLI_findlink(&gpd->layers, layer_num);
+		
+		if (target_layer == NULL) {
+			BKE_reportf(op->reports, RPT_ERROR, "There is no layer number %d", layer_num);
+			return OPERATOR_CANCELLED;
+		}
+	}
+	
+	/* Extract all strokes to move to this layer
+	 * NOTE: We need to do this in a two-pass system to avoid conflicts with strokes
+	 *       getting repeatedly moved
+	 */
+	CTX_DATA_BEGIN(C, bGPDlayer *, gpl, editable_gpencil_layers)
+	{
+		bGPDframe *gpf = gpl->actframe;
+		bGPDstroke *gps, *gpsn;
+		
+		/* skip if no frame with strokes, or if this is the layer we're moving strokes to */
+		if ((gpl == target_layer) || (gpf == NULL))
+			continue;
+		
+		/* make copies of selected strokes, and deselect these once we're done */
+		for (gps = gpf->strokes.first; gps; gps = gpsn) {
+			gpsn = gps->next;
+			
+			/* skip strokes that are invalid for current view */
+			if (ED_gpencil_stroke_can_use(C, gps) == false)
+				continue;
+			
+			/* TODO: Don't just move entire strokes - instead, only copy the selected portions... */
+			if (gps->flag & GP_STROKE_SELECT) {
+				BLI_remlink(&gpf->strokes, gps);
+				BLI_addtail(&strokes, gps);
+			}
+		}
+	}
+	CTX_DATA_END;
+	
+	/* Paste them all in one go */
+	if (strokes.first) {
+		Scene *scene = CTX_data_scene(C);
+		bGPDframe *gpf = gpencil_layer_getframe(target_layer, CFRA, true);
+		
+		BLI_movelisttolist(&gpf->strokes, &strokes);
+		BLI_assert((strokes.first == strokes.last) && (atrokes.first == NULL));
+	}
+	
+	/* updates */
+	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+	
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_move_to_layer(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Move Strokes to Layer";
+	ot->idname = "GPENCIL_OT_move_to_layer";
+	ot->description = "Move selected strokes to another layer"; // XXX: allow moving individual points too?
+	
+	/* callbacks */
+	ot->invoke = gp_move_to_layer_invoke;
+	ot->exec = gp_move_to_layer_exec;
+	ot->poll = gp_stroke_edit_poll; // XXX?
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	/* gp layer to use (dynamic enum) */
+	ot->prop = RNA_def_enum(ot->srna, "layer", DummyRNA_DEFAULT_items, 0, "Grease Pencil Layer", "");
+	RNA_def_enum_funcs(ot->prop, ED_gpencil_layers_with_new_enum_itemf);
+
 }
 
 /* ******************* Delete Active Frame ************************ */

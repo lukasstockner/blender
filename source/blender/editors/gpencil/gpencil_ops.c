@@ -212,6 +212,8 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_hide", HKEY, KM_PRESS, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "unselected", true);
 	
+	/* Move to Layer */
+	WM_keymap_add_item(keymap, "GPENCIL_OT_move_to_layer", MKEY, KM_PRESS, 0, 0);
 	
 	/* Brush-Based Editing:
 	 *   EKEY + LMB                          = Single stroke, draw immediately 
@@ -310,6 +312,8 @@ void ED_operatortypes_gpencil(void)
 	WM_operatortype_append(GPENCIL_OT_dissolve);
 	WM_operatortype_append(GPENCIL_OT_copy);
 	WM_operatortype_append(GPENCIL_OT_paste);
+	
+	WM_operatortype_append(GPENCIL_OT_move_to_layer);
 	
 	WM_operatortype_append(GPENCIL_OT_brush_paint);
 	

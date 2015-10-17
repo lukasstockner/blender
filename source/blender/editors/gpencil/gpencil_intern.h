@@ -44,6 +44,10 @@ struct ARegion;
 struct View2D;
 struct wmOperatorType;
 
+struct PointerRNA;
+struct PropertyRNA;
+struct EnumPropertyItem;
+
 
 /* ***************************************************** */
 /* Internal API */
@@ -118,6 +122,11 @@ int gp_active_layer_poll(struct bContext *C);
 
 extern ListBase gp_strokes_copypastebuf;
 
+/* Layers Enums -------------------------------------- */
+
+struct EnumPropertyItem *ED_gpencil_layers_enum_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
+struct EnumPropertyItem *ED_gpencil_layers_with_new_enum_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
+
 /* ***************************************************** */
 /* Operator Defines */
 
@@ -152,6 +161,9 @@ void GPENCIL_OT_delete(struct wmOperatorType *ot);
 void GPENCIL_OT_dissolve(struct wmOperatorType *ot);
 void GPENCIL_OT_copy(struct wmOperatorType *ot);
 void GPENCIL_OT_paste(struct wmOperatorType *ot);
+
+void GPENCIL_OT_move_to_layer(struct wmOperatorType *ot);
+void GPENCIL_OT_layer_change(struct wmOperatorType *ot);
 
 /* stroke sculpting -- */
 

@@ -51,7 +51,9 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
+#include "UI_resources.h"
 #include "UI_view2d.h"
 
 #include "ED_gpencil.h"
@@ -229,6 +231,92 @@ int gp_active_layer_poll(bContext *C)
 	
 	return (gpl != NULL);
 }
+
+/* ******************************************************** */
+/* Dynamic Enums of GP Layers */
+/* NOTE: These include an option to create a new layer and use that... */
+
+/* Just existing layers */
+EnumPropertyItem *ED_gpencil_layers_enum_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
+{
+	bGPdata *gpd = CTX_data_gpencil_data(C);
+	bGPDlayer *gpl;
+	EnumPropertyItem *item = NULL, item_tmp = {0};
+	int totitem = 0;
+	int i = 0;
+	
+	if (ELEM(NULL, C, gpd)) {
+		return DummyRNA_DEFAULT_items;
+	}
+	
+	/* Existing layers */
+	for (gpl = gpd->layers.first; gpl; gpl = gpl->next, i++) {
+		item_tmp.identifier = gpl->info;
+		item_tmp.name = gpl->info;
+		item_tmp.value = i;
+		
+		if (gpl->flag & GP_LAYER_ACTIVE)
+			item_tmp.icon = ICON_RESTRICT_VIEW_OFF;
+		else 
+			item_tmp.icon = ICON_NONE;
+		
+		RNA_enum_item_add(&item, &totitem, &item_tmp);
+	}
+	
+	RNA_enum_item_end(&item, &totitem);
+	*r_free = true;
+
+	return item;
+}
+
+/* Existing + Option to add/use new layer */
+EnumPropertyItem *ED_gpencil_layers_with_new_enum_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
+{
+	bGPdata *gpd = CTX_data_gpencil_data(C);
+	bGPDlayer *gpl;
+	EnumPropertyItem *item = NULL, item_tmp = {0};
+	int totitem = 0;
+	int i = 0;
+	
+	if (ELEM(NULL, C, gpd)) {
+		return DummyRNA_DEFAULT_items;
+	}
+	
+	/* Create new layer */
+	/* TODO: have some way of specifying that we don't want this? */
+	{
+		/* active Keying Set */
+		item_tmp.identifier = "__CREATE__";
+		item_tmp.name = "New Layer";
+		item_tmp.value = -1;
+		item_tmp.icon = ICON_ZOOMIN;
+		RNA_enum_item_add(&item, &totitem, &item_tmp);
+		
+		/* separator */
+		RNA_enum_item_add_separator(&item, &totitem);
+	}
+	
+	/* Existing layers */
+	for (gpl = gpd->layers.first, i = 0; gpl; gpl = gpl->next, i++) {
+		item_tmp.identifier = gpl->info;
+		item_tmp.name = gpl->info;
+		item_tmp.value = i;
+		
+		if (gpl->flag & GP_LAYER_ACTIVE)
+			item_tmp.icon = ICON_RESTRICT_VIEW_OFF;
+		else 
+			item_tmp.icon = ICON_NONE;
+		
+		RNA_enum_item_add(&item, &totitem, &item_tmp);
+	}
+	
+	RNA_enum_item_end(&item, &totitem);
+	*r_free = true;
+
+	return item;
+}
+
+
 
 /* ******************************************************** */
 /* Brush Tool Core */
