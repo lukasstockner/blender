@@ -297,7 +297,6 @@ class GPENCIL_PIE_settings_palette(Menu):
         col.prop(gpl, "use_onion_skinning")
 
         # N - Active Layer
-        # XXX: this should show an operator to change the active layer instead
         col = pie.column()
         col.label("Active Layer:      ")
 
