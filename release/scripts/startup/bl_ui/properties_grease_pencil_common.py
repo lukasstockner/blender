@@ -360,17 +360,31 @@ class GPENCIL_PIE_sculpt(Menu):
         settings = context.tool_settings.gpencil_sculpt
         brush = settings.brush
 
+        # W - Launch Sculpt Mode
         col = pie.column()
         #col.label("Tool:")
         col.prop(settings, "tool", text="")
         col.operator("gpencil.brush_paint", text="Sculpt", icon='SCULPTMODE_HLT')
 
+        # E - Common Settings
         col = pie.column(align=True)
         col.prop(brush, "size", slider=True)
         row = col.row(align=True)
         row.prop(brush, "strength", slider=True)
        # row.prop(brush, "use_pressure_strength", text="", icon_only=True)
         col.prop(brush, "use_falloff")
+
+        # S - Change Brush Type Shortcuts
+        row = pie.row()
+        row.prop_enum(settings, "tool", value='GRAB')
+        row.prop_enum(settings, "tool", value='PUSH')
+        row.prop_enum(settings, "tool", value='CLONE')
+
+        # N - Change Brush Type Shortcuts
+        row = pie.row()
+        row.prop_enum(settings, "tool", value='SMOOTH')
+        row.prop_enum(settings, "tool", value='THICKNESS')
+        row.prop_enum(settings, "tool", value='RANDOMISE')
 
 
 ###############################

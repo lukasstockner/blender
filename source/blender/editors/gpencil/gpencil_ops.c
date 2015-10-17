@@ -215,6 +215,7 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	/* Move to Layer */
 	WM_keymap_add_item(keymap, "GPENCIL_OT_move_to_layer", MKEY, KM_PRESS, 0, 0);
 	
+	
 	/* Brush-Based Editing:
 	 *   EKEY + LMB                          = Single stroke, draw immediately 
 	 *        + Other Modifiers (Ctrl/Shift) = Invert, Smooth, etc.
@@ -233,7 +234,6 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	/*RNA_boolean_set(kmi->ptr, "use_smooth", true);*/
 	
 	
-	
 	/* Shift-FKEY = Sculpt Strength */
 	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_SHIFT, 0);
 	RNA_string_set(kmi->ptr, "data_path_primary", "tool_settings.gpencil_sculpt.brush.strength");
@@ -241,6 +241,8 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	/* Ctrl-FKEY = Sculpt Brush Size */
 	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_string_set(kmi->ptr, "data_path_primary", "tool_settings.gpencil_sculpt.brush.size");
+	
+	
 	
 	
 	/* Transform Tools */
