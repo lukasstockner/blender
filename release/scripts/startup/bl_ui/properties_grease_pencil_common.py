@@ -300,8 +300,13 @@ class GPENCIL_PIE_settings_palette(Menu):
         # XXX: this should show an operator to change the active layer instead
         col = pie.column()
         col.label("Active Layer:      ")
-        col.prop(gpl, "info", text="")
-        # col.prop(gpd, "layers")
+
+        row = col.row()
+        row.operator_context = 'EXEC_REGION_WIN'
+        row.operator_menu_enum("gpencil.layer_change", "layer", text="", icon='GREASEPENCIL')
+        row.prop(gpl, "info", text="")
+        row.operator("gpencil.layer_remove", text="", icon='X')
+
         row = col.row()
         row.prop(gpl, "lock")
         row.prop(gpl, "hide")

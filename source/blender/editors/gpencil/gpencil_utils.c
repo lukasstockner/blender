@@ -256,7 +256,7 @@ EnumPropertyItem *ED_gpencil_layers_enum_itemf(bContext *C, PointerRNA *UNUSED(p
 		item_tmp.value = i;
 		
 		if (gpl->flag & GP_LAYER_ACTIVE)
-			item_tmp.icon = ICON_RESTRICT_VIEW_OFF;
+			item_tmp.icon = ICON_GREASEPENCIL;
 		else 
 			item_tmp.icon = ICON_NONE;
 		
@@ -303,7 +303,7 @@ EnumPropertyItem *ED_gpencil_layers_with_new_enum_itemf(bContext *C, PointerRNA 
 		item_tmp.value = i;
 		
 		if (gpl->flag & GP_LAYER_ACTIVE)
-			item_tmp.icon = ICON_RESTRICT_VIEW_OFF;
+			item_tmp.icon = ICON_GREASEPENCIL;
 		else 
 			item_tmp.icon = ICON_NONE;
 		

@@ -615,7 +615,6 @@ void GPENCIL_OT_move_to_layer(wmOperatorType *ot)
 	/* gp layer to use (dynamic enum) */
 	ot->prop = RNA_def_enum(ot->srna, "layer", DummyRNA_DEFAULT_items, 0, "Grease Pencil Layer", "");
 	RNA_def_enum_funcs(ot->prop, ED_gpencil_layers_with_new_enum_itemf);
-
 }
 
 /* ******************* Delete Active Frame ************************ */

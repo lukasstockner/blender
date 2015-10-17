@@ -59,12 +59,14 @@
 #include "BKE_screen.h"
 
 #include "UI_interface.h"
+#include "UI_resources.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "ED_gpencil.h"
 
@@ -442,6 +444,72 @@ void GPENCIL_OT_reveal(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/* ********************** Change Layer ***************************** */
+
+static int gp_layer_change_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(evt))
+{
+	uiPopupMenu *pup;
+	uiLayout *layout;
+	
+	/* call the menu, which will call this operator again, hence the canceled */
+	pup = UI_popup_menu_begin(C, op->type->name, ICON_NONE);
+	layout = UI_popup_menu_layout(pup);
+	uiItemsEnumO(layout, "GPENCIL_OT_layer_change", "layer");
+	UI_popup_menu_end(C, pup);
+	
+	return OPERATOR_INTERFACE;
+}
+
+static int gp_layer_change_exec(bContext *C, wmOperator *op)
+{
+	bGPdata *gpd = CTX_data_gpencil_data(C);
+	bGPDlayer *gpl = NULL;
+	int layer_num = RNA_enum_get(op->ptr, "layer");
+	
+	/* Get layer or create new one */
+	if (layer_num == -1) {
+		/* Create layer */
+		gpl = gpencil_layer_addnew(gpd, DATA_("GP_Layer"), true);
+	}
+	else {
+		/* Try to get layer */
+		gpl = BLI_findlink(&gpd->layers, layer_num);
+		
+		if (gpl == NULL) {
+			BKE_reportf(op->reports, RPT_ERROR, "Cannot change to non-existent layer (index = %d)", layer_num);
+			return OPERATOR_CANCELLED;
+		}
+	}
+	
+	/* Set active layer */
+	gpencil_layer_setactive(gpd, gpl);
+	
+	/* updates */
+	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+	
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_layer_change(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Change Layer";
+	ot->idname = "GPENCIL_OT_layer_change";
+	ot->description = "Change active Grease Pencil layer";
+	
+	/* callbacks */
+	ot->invoke = gp_layer_change_invoke;
+	ot->exec = gp_layer_change_exec;
+	ot->poll = gp_active_layer_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	/* gp layer to use (dynamic enum) */
+	ot->prop = RNA_def_enum(ot->srna, "layer", DummyRNA_DEFAULT_items, 0, "Grease Pencil Layer", "");
+	RNA_def_enum_funcs(ot->prop, ED_gpencil_layers_with_new_enum_itemf);
 }
 
 /* ************************************************ */
