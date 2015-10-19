@@ -2936,7 +2936,7 @@ void UI_block_align_end(uiBlock *block)
 	block->flag &= ~UI_BUT_ALIGN;  /* all 4 flags */
 }
 
-#if 0
+#if 1
 typedef struct uiButAlign {
 	uiBut *but;
 	struct uiButAlign *left, *top, *right, *down;
@@ -3054,29 +3054,46 @@ static int buts_proximity(
 void ui_block_align_calc(uiBlock *block)
 {
 	uiBut *but;
-	const int num_buttons = BLI_listbase_count(&block->buttons);
+	int num_buttons = 0;
 
-	uiButAlign *but_align_array = MEM_callocN(sizeof(*but_align_array) * (size_t)num_buttons, __func__);
+	uiButAlign *but_align_array;
 	uiButAlign *but_align, *but_align_other;
 	int i, j;
 
-	for (but = block->buttons.first, but_align = but_align_array; but; but = but->next, but_align++) {
+	for (but = block->buttons.first; but; but = but->next) {
+		/* clear old flag */
+		but->drawflag &= ~UI_BUT_ALIGN;
+
+		if ((but->alignnr == 0) || !ui_but_can_align(but)) {
+			continue;
+		}
+		num_buttons++;
+	}
+
+	if (num_buttons < 2) {
+		return;
+	}
+
+	but_align_array = MEM_callocN(sizeof(*but_align_array) * (size_t)num_buttons, __func__);
+
+	for (but = block->buttons.first, but_align = but_align_array; but; but = but->next) {
+		if ((but->alignnr == 0) || !ui_but_can_align(but)) {
+			continue;
+		}
+
 		but_align->but = but;
 		copy_v4_fl(&but_align->dleft, FLT_MAX);
+		but_align++;
 	}
 
 	for (i = 0, but_align = but_align_array; i < num_buttons; i++, but_align++) {
 		const short alignnr = but_align->but->alignnr;
 
-		if ((alignnr == 0) || !ui_but_can_align(but_align->but)) {
-			continue;
-		}
-
 		for (j = i + 1, but_align_other = &but_align_array[i + 1]; j < num_buttons; j++, but_align_other++) {
 			float dleft = 0.0f, dtop = 0.0f, dright = 0.0f, ddown = 0.0f;
 			int corner;
 
-			if ((but_align_other->but->alignnr != alignnr) || !ui_but_can_align(but_align_other->but)) {
+			if (but_align_other->but->alignnr != alignnr) {
 				continue;
 			}
 
