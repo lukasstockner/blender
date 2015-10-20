@@ -514,7 +514,7 @@ extern "C" {
 } (void)0
 
 /* defined
- * in array_utils.c for now. I do not know where we should put it actually... */
+ * in memory_utils.c for now. I do not know where we should put it actually... */
 #ifndef __BLI_MEMORY_UTILS_H__
 extern bool BLI_memory_is_zero(const void *arr, const size_t arr_size);
 #endif

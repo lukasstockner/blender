@@ -191,15 +191,15 @@ void BKE_text_init(Text *ta)
 	tmp = (TextLine *) MEM_mallocN(sizeof(TextLine), "textline");
 	tmp->line = (char *) MEM_mallocN(1, "textline_string");
 	tmp->format = NULL;
-
+	
 	tmp->line[0] = 0;
 	tmp->len = 0;
-
+				
 	tmp->next = NULL;
 	tmp->prev = NULL;
-
+				
 	BLI_addhead(&ta->lines, tmp);
-
+	
 	ta->curl = ta->lines.first;
 	ta->curc = 0;
 	ta->sell = ta->lines.first;

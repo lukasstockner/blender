@@ -97,7 +97,7 @@ void BKE_mball_init(MetaBall *mb)
 
 	mb->size[0] = mb->size[1] = mb->size[2] = 1.0;
 	mb->texflag = MB_AUTOSPACE;
-
+	
 	mb->wiresize = 0.4f;
 	mb->rendersize = 0.2f;
 	mb->thresh = 0.6f;

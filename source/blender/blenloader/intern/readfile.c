@@ -9794,12 +9794,12 @@ static void link_id_part(ReportList *reports, FileData *fd, Main *mainvar, ID *i
 	}
 	else {
 		blo_reportf_wrap(
-				reports, RPT_WARNING,
-				TIP_("LIB ERROR: %s: '%s' missing from '%s', parent '%s'"),
-				BKE_idcode_to_name(GS(id->name)),
-				id->name + 2,
-				mainvar->curlib->filepath,
-				library_parent_filepath(mainvar->curlib));
+		        reports, RPT_WARNING,
+		        TIP_("LIB ERROR: %s: '%s' missing from '%s', parent '%s'"),
+		        BKE_idcode_to_name(GS(id->name)),
+		        id->name + 2,
+		        mainvar->curlib->filepath,
+		        library_parent_filepath(mainvar->curlib));
 
 		/* Generate a placeholder for this ID (simplified version of read_libblock actually...). */
 		if (r_id) {

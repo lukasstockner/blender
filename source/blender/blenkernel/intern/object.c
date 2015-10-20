@@ -1058,7 +1058,7 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 
 	/* default object vars */
 	ob->type = type;
-	
+
 	BKE_object_init(ob);
 
 	return ob;

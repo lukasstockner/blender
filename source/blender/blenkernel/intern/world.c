@@ -33,7 +33,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_world_types.h"
@@ -109,7 +108,7 @@ void BKE_world_init(World *wrld)
 	wrld->aobias = 0.05f;
 	wrld->ao_samp_method = WO_AOSAMP_HAMMERSLEY;
 	wrld->ao_approx_error = 0.25f;
-
+	
 	wrld->preview = NULL;
 	wrld->miststa = 5.0f;
 	wrld->mistdist = 25.0f;

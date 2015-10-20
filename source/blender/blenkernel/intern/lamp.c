@@ -96,16 +96,16 @@ void BKE_lamp_init(Lamp *la)
 	la->sky_colorspace = BLI_XYZ_CIE;
 	la->sky_exposure = 1.0f;
 	la->shadow_frustum_size = 10.0f;
-
+	
 	curvemapping_initialize(la->curfalloff);
 }
 
 Lamp *BKE_lamp_add(Main *bmain, const char *name)
 {
 	Lamp *la;
-	
+
 	la =  BKE_libblock_alloc(bmain, ID_LA, name);
-	
+
 	BKE_lamp_init(la);
 
 	return la;
