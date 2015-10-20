@@ -393,7 +393,7 @@ static void template_ID(
 	// lb = template->idlb;
 
 	block = uiLayoutGetBlock(layout);
-	UI_block_align_begin(block);
+//	UI_block_align_begin(block);
 
 	if (idptr.type)
 		type = idptr.type;
@@ -589,8 +589,8 @@ static void template_ID(
 
 	if (idcode == ID_TE)
 		uiTemplateTextureShow(layout, C, &template->ptr, template->prop);
-	
-	UI_block_align_end(block);
+
+//	UI_block_align_end(block);
 }
 
 static void ui_template_id(

@@ -42,6 +42,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BLI_alloca.h"
 #include "BLI_math.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
@@ -1251,8 +1252,8 @@ void UI_block_end_ex(const bContext *C, uiBlock *block, const int xy[2])
 		UI_block_layout_resolve(block, NULL, NULL);
 	}
 
-//	TIMEIT_BENCH(ui_block_align_calc(block), ui_block_align_calc);
-	ui_block_align_calc(block);
+	TIMEIT_BENCH(ui_block_align_calc(block), ui_block_align_calc);
+//	ui_block_align_calc(block);
 
 	if ((block->flag & UI_BLOCK_LOOP) && (block->flag & UI_BLOCK_NUMSELECT)) {
 		ui_menu_block_set_keyaccels(block); /* could use a different flag to check */
@@ -2937,7 +2938,7 @@ void UI_block_align_end(uiBlock *block)
 	block->flag &= ~UI_BUT_ALIGN;  /* all 4 flags */
 }
 
-#if 1
+#ifdef NEW_ALIGN_CODE
 typedef struct uiButAlign {
 	uiBut *but;
 
@@ -2960,10 +2961,10 @@ enum {
 	RIGHT        = 2,
 	DOWN         = 3,
 
-	STITCH_LEFT  = 1 << 4,
-	STITCH_TOP   = 1 << 5,
-	STITCH_RIGHT = 1 << 6,
-	STITCH_DOWN  = 1 << 7,
+	STITCH_LEFT  = 1 << LEFT,
+	STITCH_TOP   = 1 << TOP,
+	STITCH_RIGHT = 1 << RIGHT,
+	STITCH_DOWN  = 1 << DOWN,
 };
 
 #define OPPOSITE(_s) (((_s) + 2) % 4)
@@ -2996,7 +2997,7 @@ static int get_but_align_flag(const int i) {
 /* Only the shortest diff (if below acceptable limits) is set, other pointers are set to NULL. */
 static void buts_proximity_compute(uiButAlign *but1, uiButAlign *but2)
 {
-	const float max_delta = 0.5f * max_ii(UI_UNIT_Y, UI_UNIT_X);
+	const float max_delta = 0.45f * max_ii(UI_UNIT_Y, UI_UNIT_X);
 	float delta;
 	int i;
 
@@ -3013,15 +3014,32 @@ static void buts_proximity_compute(uiButAlign *but1, uiButAlign *but2)
 		if (buts_share[i_share]) {
 			const int i_opp = OPPOSITE(i);
 
-			delta = fabsf(*but1->borders[i] - *but2->borders[i_opp]);
+			/* We rely on exact zero value here as an 'already processed' flag, so ensure we never actually
+			 * set a zero value at this stage. FLT_MIN is zero-enough for UI position computing. ;) */
+			delta = max_ff(fabsf(*but1->borders[i] - *but2->borders[i_opp]), FLT_MIN);
 			if (delta < max_delta) {
 				if (delta <= but1->dists[i]) {
-					if (delta < but1->dists[i]) {
-						but1->neighbors[i] = but2;
-						but2->neighbors[i_opp] = but1;
+					const bool but1_can_align = ui_but_can_align(but1->but);
+					const bool but2_can_align = ui_but_can_align(but2->but);
+
+					if (!(but1_can_align || but2_can_align)) {
+						continue;
+					}
+
+					if ((but1_can_align && (delta < but1->dists[i])) || (delta < but2->dists[i])) {
+						if (but1_can_align && but2_can_align) {
+							but1->neighbors[i] = but2;
+							but2->neighbors[i_opp] = but1;
+						}
+						else if (but1_can_align) {
+							but1->neighbors[i] = NULL;
+						}
+						else /* if (but2_can_align) */ {
+							but2->neighbors[i_opp] = NULL;
+						}
 						but1->dists[i] = but2->dists[i_opp] = delta;
 					}
-					{
+					if (but1_can_align && but2_can_align) {
 						const int i_s1 = SIDE1(i);
 						const int i_s2 = SIDE2(i);
 
@@ -3053,31 +3071,32 @@ static void align_stitch_neighbors(
 {
 	uiButAlign *butal_neighbor;
 
-	printf("%s\n", butal->but->str);
-	if (STREQ(butal->but->str, "Frame Step:")) {
-		printf("%s: main side %d, stride side %d: %f\n", butal->but->str, i, i_s1, butal->dists[i]);
-	}
+//	printf("%s (%d) (%f, %f)\n", butal->but->str[0] ? butal->but->str : "<noname>", i, *butal->borders[i], *butal->borders[i_opp]);
+//	if (STREQ(butal->but->str, "Frame Step: ")) {
+//		printf("%s: main side %d, stride side %d: %f\n", butal->but->str, i, i_s1, butal->dists[i]);
+//	}
 
 	while ((butal->flags[i] & STITCH(i_s1)) &&
 	       (butal = butal->neighbors[i_s1]) &&
 	       (butal->flags[i] & STITCH(i_s2)))
 	{
-		if (STREQ(butal->but->str, "Frame Step:")) {
-			printf("%s: main side %d, stride side %d: %f\n", butal->but->str, i, i_s1, butal->dists[i]);
-		}
-		if (butal->dists[i]) {
-			butal_neighbor = butal->neighbors[i];
+//		printf("\t%s\n", butal->but->str[0] ? butal->but->str : "<noname>");
+//		if (STREQ(butal->but->str, "Frame Step: ")) {
+//			printf("%s: main side %d, stride side %d: %f (%f vs %f, %f)\n", butal->but->str, i, i_s1, butal->dists[i], co, *butal->borders[i], *butal->borders[i_opp]);
+//		}
+		butal_neighbor = butal->neighbors[i];
 
-			if (butal_neighbor) {
-				butal->but->drawflag |= align;
-				butal_neighbor->but->drawflag |= align_opp;
-				*butal_neighbor->borders[i_opp] = co;
-				butal_neighbor->dists[i_opp] = 0.0f;
-			}
-			*butal->borders[i] = co;
-			butal->dists[i] = 0.0f;
+		if (butal_neighbor) {
+			butal->but->drawflag |= align;
+			butal_neighbor->but->drawflag |= align_opp;
+			*butal_neighbor->borders[i_opp] = co;
+			butal_neighbor->dists[i_opp] = 0.0f;
 		}
+		*butal->borders[i] = co;
+		butal->dists[i] = 0.0f;
+		butal->flags[i] &= ~(STITCH(i_s2));
 	}
+//	printf("\n");
 }
 
 void ui_block_align_calc(uiBlock *block)
@@ -3093,7 +3112,7 @@ void ui_block_align_calc(uiBlock *block)
 		/* clear old flag */
 		but->drawflag &= ~UI_BUT_ALIGN;
 
-		if ((but->alignnr == 0) || !ui_but_can_align(but)) {
+		if (but->alignnr == 0) {
 			continue;
 		}
 		num_buttons++;
@@ -3103,10 +3122,11 @@ void ui_block_align_calc(uiBlock *block)
 		return;
 	}
 
-	but_align_array = MEM_callocN(sizeof(*but_align_array) * (size_t)num_buttons, __func__);
+	but_align_array = alloca(sizeof(*but_align_array) * (size_t)num_buttons);
+	memset(but_align_array, 0, sizeof(*but_align_array) * (size_t)num_buttons);
 
 	for (but = block->buttons.first, but_align = but_align_array; but; but = but->next) {
-		if ((but->alignnr == 0) || !ui_but_can_align(but)) {
+		if (but->alignnr == 0) {
 			continue;
 		}
 
@@ -3176,16 +3196,16 @@ void ui_block_align_calc(uiBlock *block)
 						but_align_other->dists[j_opp] = 0.0f;
 					}
 					*delta = 0.0f;
-
-					align_stitch_neighbors(but_align, j, j_opp, j_s1, j_s2, align, align_opp, co);
-					align_stitch_neighbors(but_align, j, j_opp, j_s2, j_s1, align, align_opp, co);
 				}
+				else {
+					co = *but_align->borders[j];
+				}
+
+				align_stitch_neighbors(but_align, j, j_opp, j_s1, j_s2, align, align_opp, co);
+				align_stitch_neighbors(but_align, j, j_opp, j_s2, j_s1, align, align_opp, co);
 			}
 		}
 	}
-
-	/* And we are done! */
-	MEM_freeN(but_align_array);
 }
 
 #else

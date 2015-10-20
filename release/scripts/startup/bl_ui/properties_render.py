@@ -135,10 +135,11 @@ class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
 
         row = col_a.row(align=True)
         row.menu("RENDER_MT_presets", text=bpy.types.RENDER_MT_presets.bl_label)
+        row.separator()
         row.operator("render.preset_add", text="", icon='ZOOMIN')
         row.operator("render.preset_add", text="", icon='ZOOMOUT').remove_active = True
 
-        split = col_a.split(align=True)
+        split = col_a.split(0.3333, align=True)
 
         col = split.column(align=True)
         sub = col.column(align=True)
@@ -159,8 +160,8 @@ class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
         col = split.column(align=True)
         sub = col.column(align=True)
         sub.prop(scene, "frame_start")
-        #~ sub.prop(scene, "frame_end")
         sub.label("")
+        #~ sub.prop(scene, "frame_end")
         sub.prop(scene, "frame_step")
 
         sub.label(text="Frame Rate:")
@@ -173,7 +174,22 @@ class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
         subrow.prop(rd, "frame_map_old", text="Old")
         subrow.prop(rd, "frame_map_new", text="New")
 
+        col = split.column(align=True)
+        col.template_ID_preview(context.scene.objects.active.material_slots[0], "material")
+
         col_a.prop(scene, "frame_end")
+
+        col_a = layout.column(align=True)
+        sub = col_a.row(align=True)
+        sub.prop(rd, "resolution_x", text="X")
+        sub.prop(scene, "frame_start")
+        sub = col_a.row(align=True)
+        sub.prop(rd, "resolution_y", text="Y")
+        sub.label("")
+        sub = col_a.row(align=True)
+        sub.prop(rd, "resolution_percentage", text="")
+        sub.prop(scene, "frame_step")
+
 
 
 class RENDER_PT_antialiasing(RenderButtonsPanel, Panel):
