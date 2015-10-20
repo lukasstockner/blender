@@ -175,7 +175,7 @@ void BKE_text_init(Text *ta)
 {
 	TextLine *tmp;
 
-	BLI_assert(MEMCMP_NULL_STRUCT_OFS(ta, id));
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(ta, id));
 
 	ta->name = NULL;
 

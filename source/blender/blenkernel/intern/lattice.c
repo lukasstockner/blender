@@ -253,7 +253,7 @@ void BKE_lattice_resize(Lattice *lt, int uNew, int vNew, int wNew, Object *ltOb)
 
 void BKE_lattice_init(Lattice *lt)
 {
-	BLI_assert(MEMCMP_NULL_STRUCT_OFS(lt, id));
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(lt, id));
 
 	lt->flag = LT_GRID;
 

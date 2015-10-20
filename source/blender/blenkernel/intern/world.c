@@ -31,7 +31,9 @@
 
 
 #include <string.h>
+#include <stdlib.h>
 #include <math.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_world_types.h"
@@ -85,7 +87,7 @@ void BKE_world_free(World *wrld)
 
 void BKE_world_init(World *wrld)
 {
-	BLI_assert(MEMCMP_NULL_STRUCT_OFS(wrld, id));
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(wrld, id));
 
 	wrld->horr = 0.05f;
 	wrld->horg = 0.05f;

@@ -471,7 +471,7 @@ void BKE_scene_init(Scene *sce)
 	const char *colorspace_name;
 	SceneRenderView *srv;
 
-	BLI_assert(MEMCMP_NULL_STRUCT_OFS(sce, id));
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(sce, id));
 
 	sce->lay = sce->layact = 1;
 	

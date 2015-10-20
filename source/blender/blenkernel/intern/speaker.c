@@ -39,7 +39,7 @@
 
 void BKE_speaker_init(Speaker *spk)
 {
-	BLI_assert(MEMCMP_NULL_STRUCT_OFS(spk, id));
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(spk, id));
 
 	spk->attenuation = 1.0f;
 	spk->cone_angle_inner = 360.0f;

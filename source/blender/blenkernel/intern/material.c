@@ -124,7 +124,7 @@ void BKE_material_free_ex(Material *ma, bool do_id_user)
 
 void BKE_init_material(Material *ma)
 {
-	BLI_assert(MEMCMP_NULL_STRUCT_OFS(ma, id));
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(ma, id));
 
 	ma->r = ma->g = ma->b = ma->ref = 0.8;
 	ma->specr = ma->specg = ma->specb = 1.0;

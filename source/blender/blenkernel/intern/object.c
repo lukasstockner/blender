@@ -974,7 +974,7 @@ void *BKE_object_obdata_add_from_type(Main *bmain, int type, const char *name)
 
 void BKE_object_init(Object *ob)
 {
-	/* BLI_assert(MEMCMP_NULL_STRUCT_OFS(ob, id)); */  /* ob->type is already initialized... */
+	/* BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(ob, id)); */  /* ob->type is already initialized... */
 
 	ob->col[0] = ob->col[1] = ob->col[2] = 1.0;
 	ob->col[3] = 1.0;
