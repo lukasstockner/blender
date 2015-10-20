@@ -10090,6 +10090,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 	}
 	
 	/* test if there are unread libblocks */
+	/* XXX This code block is kept for 2.77, until we are sure it never gets reached anymore. Can be removed later. */
 	for (mainptr = mainl->next; mainptr; mainptr = mainptr->next) {
 		a = set_listbasepointers(mainptr, lbarray);
 		while (a--) {
@@ -10098,11 +10099,12 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 			for (id = lbarray[a]->first; id; id = idn) {
 				idn = id->next;
 				if (id->flag & LIB_READ) {
-					printf("SHALL NOT HAPPEN ANYMORE!!!!!!!\n");
+					BLI_assert(0);
 					BLI_remlink(lbarray[a], id);
 					blo_reportf_wrap(
 					        basefd->reports, RPT_WARNING,
-					        TIP_("LIB ERROR: %s: '%s' unread lib block missing from '%s', parent '%s'"),
+					        TIP_("LIB ERROR: %s: '%s' unread lib block missing from '%s', parent '%s' - "
+					             "Please file a bug report if you see this message"),
 					        BKE_idcode_to_name(GS(id->name)),
 					        id->name + 2,
 					        mainptr->curlib->filepath,

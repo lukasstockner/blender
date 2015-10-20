@@ -282,6 +282,7 @@ enum {
 	LIB_TESTIND         = (LIB_NEED_EXPAND | LIB_INDIRECT),
 	LIB_READ            = 1 << 4,
 	LIB_NEED_LINK       = 1 << 5,
+	/* tag datablock as a place-holder (because the real one could not be linked from its library e.g.). */
 	LIB_MISSING         = 1 << 6,
 
 	LIB_NEW             = 1 << 8,
