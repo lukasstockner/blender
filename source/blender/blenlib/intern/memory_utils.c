@@ -20,9 +20,9 @@
 
 /** \file blender/blenlib/intern/memory_utils.c
  *  \ingroup bli
- *  \brief Generic array manipulation API.
+ *  \brief Generic memory manipulation API.
  *
- * \warning This is to extend on existing functions
+ * This is to extend on existing functions
  * such as ``memcpy`` & ``memcmp``.
  */
 #include <string.h>

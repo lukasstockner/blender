@@ -817,7 +817,7 @@ void BKE_libblock_init_empty(ID *id)
 			BKE_mball_init((MetaBall *)id);
 			break;
 		case ID_MA:
-			BKE_init_material((Material *)id);
+			BKE_material_init((Material *)id);
 			break;
 		case ID_TE:
 			BKE_texture_default((Tex *)id);
