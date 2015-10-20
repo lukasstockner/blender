@@ -1251,7 +1251,8 @@ void UI_block_end_ex(const bContext *C, uiBlock *block, const int xy[2])
 		UI_block_layout_resolve(block, NULL, NULL);
 	}
 
-	TIMEIT_BENCH(ui_block_align_calc(block), ui_block_align_calc);
+//	TIMEIT_BENCH(ui_block_align_calc(block), ui_block_align_calc);
+	ui_block_align_calc(block);
 
 	if ((block->flag & UI_BLOCK_LOOP) && (block->flag & UI_BLOCK_NUMSELECT)) {
 		ui_menu_block_set_keyaccels(block); /* could use a different flag to check */
@@ -2939,116 +2940,144 @@ void UI_block_align_end(uiBlock *block)
 #if 1
 typedef struct uiButAlign {
 	uiBut *but;
-	struct uiButAlign *left, *top, *right, *down;
-	float dleft, dtop, dright, ddown;
-	int flag;
+
+	/* Neighbor buttons */
+	struct uiButAlign *neighbors[4];
+
+	/* Pointers to coordinates (rctf values) of the button. */
+	float *borders[4];
+
+	/* Distances to the neighbors. */
+	float dists[4];
+
+	/* Flags, used to mark whether we should 'stitch' the corners of this button with its neighbors' ones. */
+	char flags[4];
 } uiButAlign;
 
 enum {
-	ALIGN_STITCH_LEFT_DOWN  = 1 << 0,
-	ALIGN_STITCH_LEFT_TOP   = 1 << 1,
-	ALIGN_STITCH_TOP_LEFT   = 1 << 2,
-	ALIGN_STITCH_TOP_RIGHT  = 1 << 3,
-	ALIGN_STITCH_RIGHT_TOP  = 1 << 4,
-	ALIGN_STITCH_RIGHT_DOWN = 1 << 5,
-	ALIGN_STITCH_DOWN_RIGHT = 1 << 6,
-	ALIGN_STITCH_DOWN_LEFT  = 1 << 7,
+	LEFT         = 0,
+	TOP          = 1,
+	RIGHT        = 2,
+	DOWN         = 3,
+
+	STITCH_LEFT  = 1 << 4,
+	STITCH_TOP   = 1 << 5,
+	STITCH_RIGHT = 1 << 6,
+	STITCH_DOWN  = 1 << 7,
 };
+
+#define OPPOSITE(_s) (((_s) + 2) % 4)
+#define SIDE1(_s) (((_s) + 1) % 4)
+#define SIDE2(_s) (((_s) + 3) % 4)
+
+#define STITCH(_s) (1 << ((_s) + 4))
 
 bool ui_but_can_align(uiBut *but)
 {
 	return !ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_CHECKBOX, UI_BTYPE_CHECKBOX_N, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE);
 }
 
-static bool buts_touching_vertical(uiBut *but1, uiBut *but2)
-{
-	return !((but1->rect.ymin >= but2->rect.ymax) || (but1->rect.ymax <= but2->rect.ymin));
-}
-
-static bool buts_touching_horizontal(uiBut *but1, uiBut *but2)
-{
-	return !((but1->rect.xmin >= but2->rect.xmax) || (but1->rect.xmax <= but2->rect.xmin));
+static int get_but_align_flag(const int i) {
+	switch (i) {
+		case LEFT:
+			return UI_BUT_ALIGN_LEFT;
+		case TOP:
+			return UI_BUT_ALIGN_TOP;
+		case RIGHT:
+			return UI_BUT_ALIGN_RIGHT;
+		case DOWN:
+			return UI_BUT_ALIGN_DOWN;
+		default:
+			BLI_assert(0);
+			return 0;
+	}
 }
 
 /* Only the shortest diff (if below acceptable limits) is set, other pointers are set to NULL. */
-static int buts_proximity(
-        uiBut *but1, uiBut *but2, float *r_dleft, float *r_dtop, float *r_dright, float *r_ddown, int *r_corners)
+static void buts_proximity_compute(uiButAlign *but1, uiButAlign *but2)
 {
-	const float max_delta_y = 0.5f * UI_UNIT_Y;
-	const float max_delta_x = 0.5f * UI_UNIT_X;
+	const float max_delta = 0.5f * max_ii(UI_UNIT_Y, UI_UNIT_X);
 	float delta;
-	int ret = 0;
+	int i;
 
-	*r_corners = 0;
+	const bool buts_share[2] = {
+	    /* Sharing same line? */
+	    !((*but1->borders[DOWN] >= *but2->borders[TOP]) || (*but1->borders[TOP] <= *but2->borders[DOWN])),
+	    /* Sharing same column? */
+	    !((*but1->borders[LEFT] >= *but2->borders[RIGHT]) || (*but1->borders[RIGHT] <= *but2->borders[LEFT])),
+	};
 
-	if (buts_touching_vertical(but1, but2)) {
-		delta = fabsf(but1->rect.xmax - but2->rect.xmin);
-		if (delta < max_delta_x ) {
-			*r_dright = delta;
-			ret |= UI_BUT_ALIGN_RIGHT;
+	for (i = 0; i < 4; i++) {
+		const int i_share = i % 2;
 
-			delta = fabsf(but1->rect.ymin - but2->rect.ymin);
-			if (delta < max_delta_y) {
-				*r_corners |= ALIGN_STITCH_RIGHT_DOWN;
-			}
-			delta = fabsf(but1->rect.ymax - but2->rect.ymax);
-			if (delta < max_delta_y) {
-				*r_corners |= ALIGN_STITCH_RIGHT_TOP;
-			}
-		}
-		else {
-			delta = fabsf(but1->rect.xmin - but2->rect.xmax);
-			if (delta < max_delta_x) {
-				*r_dleft = delta;
-				ret |= UI_BUT_ALIGN_LEFT;
+		if (buts_share[i_share]) {
+			const int i_opp = OPPOSITE(i);
 
-				delta = fabsf(but1->rect.ymin - but2->rect.ymin);
-				if (delta < max_delta_y) {
-					*r_corners |= ALIGN_STITCH_LEFT_DOWN;
+			delta = fabsf(*but1->borders[i] - *but2->borders[i_opp]);
+			if (delta < max_delta) {
+				if (delta <= but1->dists[i]) {
+					if (delta < but1->dists[i]) {
+						but1->neighbors[i] = but2;
+						but2->neighbors[i_opp] = but1;
+						but1->dists[i] = but2->dists[i_opp] = delta;
+					}
+					{
+						const int i_s1 = SIDE1(i);
+						const int i_s2 = SIDE2(i);
+
+						const int stitch = STITCH(i);
+						const int stitch_opp = STITCH(i_opp);
+
+						delta = fabsf(*but1->borders[i_s1] - *but2->borders[i_s1]);
+						if (delta < max_delta) {
+							but1->flags[i_s1] |= stitch;
+							but2->flags[i_s1] |= stitch_opp;
+						}
+						delta = fabsf(*but1->borders[i_s2] - *but2->borders[i_s2]);
+						if (delta < max_delta) {
+							but1->flags[i_s2] |= stitch;
+							but2->flags[i_s2] |= stitch_opp;
+						}
+					}
 				}
-				delta = fabsf(but1->rect.ymax - but2->rect.ymax);
-				if (delta < max_delta_y) {
-					*r_corners |= ALIGN_STITCH_LEFT_TOP;
-				}
-			}
-		}
-	}
-	else if (buts_touching_horizontal(but1, but2)) {
-		delta = fabsf(but1->rect.ymin - but2->rect.ymax);
-		if (delta < max_delta_y) {
-			*r_ddown = delta;
-			ret |= UI_BUT_ALIGN_DOWN;
-
-			delta = fabsf(but1->rect.xmin - but2->rect.xmin);
-			if (delta < max_delta_x) {
-				*r_corners |= ALIGN_STITCH_DOWN_LEFT;
-			}
-			delta = fabsf(but1->rect.xmax - but2->rect.xmax);
-			if (delta < max_delta_x) {
-				*r_corners |= ALIGN_STITCH_DOWN_RIGHT;
-			}
-		}
-		else {
-			delta = fabsf(but1->rect.ymax - but2->rect.ymin);
-			if (delta < max_delta_y) {
-				*r_dtop = delta;
-				ret |= UI_BUT_ALIGN_TOP;
-
-				delta = fabsf(but1->rect.xmin - but2->rect.xmin);
-				if (delta < max_delta_x) {
-					*r_corners |= ALIGN_STITCH_TOP_LEFT;
-				}
-				delta = fabsf(but1->rect.xmax - but2->rect.xmax);
-				if (delta < max_delta_x) {
-					*r_corners |= ALIGN_STITCH_TOP_RIGHT;
-				}
+				return;
 			}
 		}
 	}
+}
 
-	BLI_assert(ELEM(ret, 0, UI_BUT_ALIGN_LEFT, UI_BUT_ALIGN_TOP, UI_BUT_ALIGN_RIGHT, UI_BUT_ALIGN_DOWN));
+static void align_stitch_neighbors(
+        uiButAlign *butal,
+        const int i, const int i_opp, const int i_s1, const int i_s2,
+        const int align, const int align_opp, const float co)
+{
+	uiButAlign *butal_neighbor;
 
-	return ret;
+	printf("%s\n", butal->but->str);
+	if (STREQ(butal->but->str, "Frame Step:")) {
+		printf("%s: main side %d, stride side %d: %f\n", butal->but->str, i, i_s1, butal->dists[i]);
+	}
+
+	while ((butal->flags[i] & STITCH(i_s1)) &&
+	       (butal = butal->neighbors[i_s1]) &&
+	       (butal->flags[i] & STITCH(i_s2)))
+	{
+		if (STREQ(butal->but->str, "Frame Step:")) {
+			printf("%s: main side %d, stride side %d: %f\n", butal->but->str, i, i_s1, butal->dists[i]);
+		}
+		if (butal->dists[i]) {
+			butal_neighbor = butal->neighbors[i];
+
+			if (butal_neighbor) {
+				butal->but->drawflag |= align;
+				butal_neighbor->but->drawflag |= align_opp;
+				*butal_neighbor->borders[i_opp] = co;
+				butal_neighbor->dists[i_opp] = 0.0f;
+			}
+			*butal->borders[i] = co;
+			butal->dists[i] = 0.0f;
+		}
+	}
 }
 
 void ui_block_align_calc(uiBlock *block)
@@ -3082,7 +3111,11 @@ void ui_block_align_calc(uiBlock *block)
 		}
 
 		but_align->but = but;
-		copy_v4_fl(&but_align->dleft, FLT_MAX);
+		but_align->borders[LEFT] = &but->rect.xmin;
+		but_align->borders[RIGHT] = &but->rect.xmax;
+		but_align->borders[DOWN] = &but->rect.ymin;
+		but_align->borders[TOP] = &but->rect.ymax;
+		copy_v4_fl(but_align->dists, FLT_MAX);
 		but_align++;
 	}
 
@@ -3090,88 +3123,11 @@ void ui_block_align_calc(uiBlock *block)
 		const short alignnr = but_align->but->alignnr;
 
 		for (j = i + 1, but_align_other = &but_align_array[i + 1]; j < num_buttons; j++, but_align_other++) {
-			float dleft = 0.0f, dtop = 0.0f, dright = 0.0f, ddown = 0.0f;
-			int corner;
-
 			if (but_align_other->but->alignnr != alignnr) {
 				continue;
 			}
 
-			switch (buts_proximity(but_align->but, but_align_other->but, &dleft, &dtop, &dright, &ddown, &corner)) {
-				case UI_BUT_ALIGN_LEFT:
-					if (dleft <= but_align->dleft) {
-						if (dleft < but_align->dleft) {
-							but_align->left = but_align_other;
-							but_align_other->right = but_align;
-							but_align->dleft = but_align_other->dright = dleft;
-						}
-						if (corner & ALIGN_STITCH_LEFT_DOWN) {
-							but_align->flag |= ALIGN_STITCH_LEFT_DOWN;
-							but_align_other->flag |= ALIGN_STITCH_RIGHT_DOWN;
-						}
-						if (corner & ALIGN_STITCH_LEFT_TOP) {
-							but_align->flag |= ALIGN_STITCH_LEFT_TOP;
-							but_align_other->flag |= ALIGN_STITCH_RIGHT_TOP;
-						}
-					}
-					break;
-				case UI_BUT_ALIGN_TOP:
-					if (dleft <= but_align->dtop) {
-						if (dtop < but_align->dtop) {
-							but_align->top = but_align_other;
-							but_align_other->down = but_align;
-							but_align->dtop = but_align_other->ddown = dtop;
-						}
-						if (corner & ALIGN_STITCH_TOP_LEFT) {
-							but_align->flag |= ALIGN_STITCH_TOP_LEFT;
-							but_align_other->flag |= ALIGN_STITCH_DOWN_LEFT;
-						}
-						if (corner & ALIGN_STITCH_TOP_RIGHT) {
-							but_align->flag |= ALIGN_STITCH_TOP_RIGHT;
-							but_align_other->flag |= ALIGN_STITCH_DOWN_RIGHT;
-						}
-					}
-					break;
-				case UI_BUT_ALIGN_RIGHT:
-					if (dleft <= but_align->dright) {
-						if (dright < but_align->dright) {
-							but_align->right = but_align_other;
-							but_align_other->left = but_align;
-							but_align->dright = but_align_other->dleft = dright;
-						}
-						if (corner & ALIGN_STITCH_RIGHT_TOP) {
-							but_align->flag |= ALIGN_STITCH_RIGHT_TOP;
-							but_align_other->flag |= ALIGN_STITCH_LEFT_TOP;
-						}
-						if (corner & ALIGN_STITCH_RIGHT_DOWN) {
-							but_align->flag |= ALIGN_STITCH_RIGHT_DOWN;
-							but_align_other->flag |= ALIGN_STITCH_LEFT_DOWN;
-						}
-					}
-					break;
-				case UI_BUT_ALIGN_DOWN:
-					if (dleft <= but_align->ddown) {
-						if (ddown < but_align->ddown) {
-							but_align->down = but_align_other;
-							but_align_other->top = but_align;
-							but_align->ddown = but_align_other->dtop = ddown;
-						}
-						if (corner & ALIGN_STITCH_DOWN_RIGHT) {
-							but_align->flag |= ALIGN_STITCH_DOWN_RIGHT;
-							but_align_other->flag |= ALIGN_STITCH_TOP_RIGHT;
-						}
-						if (corner & ALIGN_STITCH_DOWN_LEFT) {
-							but_align->flag |= ALIGN_STITCH_DOWN_LEFT;
-							but_align_other->flag |= ALIGN_STITCH_TOP_LEFT;
-						}
-					}
-					break;
-				case 0:
-					break;
-				default:
-					BLI_assert(0);
-					break;
-			}
+			buts_proximity_compute(but_align, but_align_other);
 		}
 	}
 
@@ -3179,170 +3135,51 @@ void ui_block_align_calc(uiBlock *block)
 	 *     - update their relevant coordinates to stitch them.
 	 *     - assign them valid flags.
 	 */
+	for (i = 0; i < num_buttons; i++) {
+		but_align = &but_align_array[i];
 
-	for (i = 0, but_align = but_align_array; i < num_buttons; i++, but_align++) {
-		if (but_align->left) {
-			but_align->but->drawflag |= UI_BUT_ALIGN_LEFT;
-			but_align->left->but->drawflag |= UI_BUT_ALIGN_RIGHT;
-			if (but_align->dleft) {
-				but_align->dleft *= 0.5f;
-				but_align->but->rect.xmin -= but_align->dleft;
-				if (but_align->left->dright) {
-					BLI_assert(but_align->left->dright * 0.5f == but_align->dleft);
-					but_align->left->but->rect.xmax += but_align->dleft;
-					but_align->left->dright = 0.0f;
-				}
-				but_align->dleft = 0.0f;
-			}
+//		printf("but %s:\n", but_align->but->str);
+//		printf("\t left-aligned with %s\n", but_align->neighbors.left ? but_align->neighbors.left->but->str : "<NONE>");
+//		printf("\t  top-aligned with %s\n", but_align->neighbors.top ? but_align->neighbors.top->but->str : "<NONE>");
+//		printf("\tright-aligned with %s\n", but_align->neighbors.right ? but_align->neighbors.right->but->str : "<NONE>");
+//		printf("\t down-aligned with %s\n", but_align->neighbors.down ? but_align->neighbors.down->but->str : "<NONE>");
 
-			for (but_align_other = but_align;
-			     (but_align_other->flag & ALIGN_STITCH_TOP_LEFT) && (but_align_other = but_align_other->top) && (but_align_other->flag & ALIGN_STITCH_DOWN_LEFT); )
-			{
-				if (but_align_other->dleft) {
-					if (but_align_other->left) {
-						but_align_other->but->drawflag |= UI_BUT_ALIGN_LEFT;
-						but_align_other->left->but->drawflag |= UI_BUT_ALIGN_RIGHT;
-						but_align_other->left->but->rect.xmax = but_align->but->rect.xmin;
-						but_align_other->left->dright = 0.0f;
+		for (j = 0; j < 4; j++) {
+			but_align_other = but_align->neighbors[j];
+
+			if (but_align_other) {
+				const int j_opp = OPPOSITE(j);
+				const int j_s1 = SIDE1(j);
+				const int j_s2 = SIDE2(j);
+
+				const int align = get_but_align_flag(j);
+				const int align_opp = get_but_align_flag(j_opp);
+
+				float co;
+
+				but_align->but->drawflag |= align;
+				but_align_other->but->drawflag |= align_opp;
+				if (but_align->dists[j]) {
+					float *delta = &but_align->dists[j];
+
+					if (*but_align->borders[j] < *but_align_other->borders[j_opp]) {
+						*delta *= 0.5f;
 					}
-					but_align_other->but->rect.xmin = but_align->but->rect.xmin;
-					but_align_other->dleft = 0.0f;
-				}
-			}
-
-			for (but_align_other = but_align;
-			     (but_align_other->flag & ALIGN_STITCH_DOWN_LEFT) && (but_align_other = but_align_other->down) && (but_align_other->flag & ALIGN_STITCH_TOP_LEFT); )
-			{
-				if (but_align_other->dleft) {
-					if (but_align_other->left) {
-						but_align_other->but->drawflag |= UI_BUT_ALIGN_LEFT;
-						but_align_other->left->but->drawflag |= UI_BUT_ALIGN_RIGHT;
-						but_align_other->left->but->rect.xmax = but_align->but->rect.xmin;
-						but_align_other->left->dright = 0.0f;
+					else {
+						*delta *= -0.5f;
 					}
-					but_align_other->but->rect.xmin = but_align->but->rect.xmin;
-					but_align_other->dleft = 0.0f;
-				}
-			}
-		}
-		if (but_align->right) {
-			but_align->but->drawflag |= UI_BUT_ALIGN_RIGHT;
-			but_align->right->but->drawflag |= UI_BUT_ALIGN_LEFT;
-			if (but_align->dright) {
-				but_align->dright *= 0.5f;
-				but_align->but->rect.xmax += but_align->dright;
-				if (but_align->right->dleft) {
-					BLI_assert(but_align->right->dleft * 0.5f == but_align->dright);
-					but_align->right->but->rect.xmin -= but_align->dright;
-					but_align->right->dleft = 0.0f;
-				}
-				but_align->dright = 0.0f;
-			}
+					co = (*but_align->borders[j] += *delta);
 
-			for (but_align_other = but_align;
-			     (but_align_other->flag & ALIGN_STITCH_TOP_RIGHT) && (but_align_other = but_align_other->top) && (but_align_other->flag & ALIGN_STITCH_DOWN_RIGHT); )
-			{
-				if (but_align_other->right) {
-					but_align_other->but->drawflag |= UI_BUT_ALIGN_RIGHT;
-					but_align_other->right->but->drawflag |= UI_BUT_ALIGN_LEFT;
-					but_align_other->right->but->rect.xmin = but_align->but->rect.xmax;
-					but_align_other->right->dleft = 0.0f;
-				}
-				but_align_other->but->rect.xmax = but_align->but->rect.xmax;
-				but_align_other->dright = 0.0f;
-			}
+					if (but_align_other->dists[j_opp]) {
+						BLI_assert(but_align_other->dists[j_opp] * 0.5f == fabsf(*delta));
+						*but_align_other->borders[j_opp] = co;
+						but_align_other->dists[j_opp] = 0.0f;
+					}
+					*delta = 0.0f;
 
-			for (but_align_other = but_align;
-			     (but_align_other->flag & ALIGN_STITCH_DOWN_RIGHT) && (but_align_other = but_align_other->down) && (but_align_other->flag & ALIGN_STITCH_TOP_RIGHT); )
-			{
-				if (but_align_other->right) {
-					but_align_other->but->drawflag |= UI_BUT_ALIGN_RIGHT;
-					but_align_other->right->but->drawflag |= UI_BUT_ALIGN_LEFT;
-					but_align_other->right->but->rect.xmin = but_align->but->rect.xmax;
-					but_align_other->right->dleft = 0.0f;
+					align_stitch_neighbors(but_align, j, j_opp, j_s1, j_s2, align, align_opp, co);
+					align_stitch_neighbors(but_align, j, j_opp, j_s2, j_s1, align, align_opp, co);
 				}
-				but_align_other->but->rect.xmax = but_align->but->rect.xmax;
-				but_align_other->dright = 0.0f;
-			}
-		}
-		if (but_align->top) {
-			but_align->but->drawflag |= UI_BUT_ALIGN_TOP;
-			but_align->top->but->drawflag |= UI_BUT_ALIGN_DOWN;
-			if (but_align->dtop) {
-				but_align->dtop *= 0.5f;
-				but_align->but->rect.ymax += but_align->dtop;
-				if (but_align->top->ddown) {
-					BLI_assert(but_align->top->ddown * 0.5f == but_align->dtop);
-					but_align->top->but->rect.ymin -= but_align->dtop;
-					but_align->top->ddown = 0.0f;
-				}
-				but_align->dtop = 0.0f;
-			}
-
-			for (but_align_other = but_align;
-			     (but_align_other->flag & ALIGN_STITCH_LEFT_TOP) && (but_align_other = but_align_other->left) && (but_align_other->flag & ALIGN_STITCH_RIGHT_TOP); )
-			{
-				if (but_align_other->top) {
-					but_align_other->but->drawflag |= UI_BUT_ALIGN_TOP;
-					but_align_other->top->but->drawflag |= UI_BUT_ALIGN_DOWN;
-					but_align_other->top->but->rect.ymin = but_align->but->rect.ymax;
-					but_align_other->top->ddown = 0.0f;
-				}
-				but_align_other->but->rect.ymax = but_align->but->rect.ymax;
-				but_align_other->dtop = 0.0f;
-			}
-
-			for (but_align_other = but_align;
-			     (but_align_other->flag & ALIGN_STITCH_RIGHT_TOP) && (but_align_other = but_align_other->right) && (but_align_other->flag & ALIGN_STITCH_LEFT_TOP); )
-			{
-				if (but_align_other->top) {
-					but_align_other->but->drawflag |= UI_BUT_ALIGN_TOP;
-					but_align_other->top->but->drawflag |= UI_BUT_ALIGN_DOWN;
-					but_align_other->top->but->rect.ymin = but_align->but->rect.ymax;
-					but_align_other->top->ddown = 0.0f;
-				}
-				but_align_other->but->rect.ymax = but_align->but->rect.ymax;
-				but_align_other->dtop = 0.0f;
-			}
-		}
-		if (but_align->down) {
-			but_align->but->drawflag |= UI_BUT_ALIGN_DOWN;
-			but_align->down->but->drawflag |= UI_BUT_ALIGN_TOP;
-			if (but_align->ddown) {
-				but_align->ddown *= 0.5f;
-				but_align->but->rect.ymin -= but_align->ddown;
-				if (but_align->down->dtop) {
-					BLI_assert(but_align->down->dtop * 0.5f == but_align->ddown);
-					but_align->down->but->rect.ymax += but_align->ddown;
-					but_align->down->dtop = 0.0f;
-				}
-				but_align->ddown = 0.0f;
-			}
-
-			for (but_align_other = but_align;
-			     (but_align_other->flag & ALIGN_STITCH_RIGHT_DOWN) && (but_align_other = but_align_other->right) && (but_align_other->flag & ALIGN_STITCH_LEFT_DOWN); )
-			{
-				if (but_align_other->down) {
-					but_align_other->but->drawflag |= UI_BUT_ALIGN_DOWN;
-					but_align_other->down->but->drawflag |= UI_BUT_ALIGN_TOP;
-					but_align_other->down->but->rect.ymax = but_align->but->rect.ymin;
-					but_align_other->down->dtop = 0.0f;
-				}
-				but_align_other->but->rect.ymin = but_align->but->rect.ymin;
-				but_align_other->ddown = 0.0f;
-			}
-
-			for (but_align_other = but_align;
-			     (but_align_other->flag & ALIGN_STITCH_LEFT_DOWN) && (but_align_other = but_align_other->left) && (but_align_other->flag & ALIGN_STITCH_RIGHT_DOWN); )
-			{
-				if (but_align_other->down) {
-					but_align_other->but->drawflag |= UI_BUT_ALIGN_DOWN;
-					but_align_other->down->but->drawflag |= UI_BUT_ALIGN_TOP;
-					but_align_other->down->but->rect.ymax = but_align->but->rect.ymin;
-					but_align_other->down->dtop = 0.0f;
-				}
-				but_align_other->but->rect.ymin = but_align->but->rect.ymin;
-				but_align_other->ddown = 0.0f;
 			}
 		}
 	}

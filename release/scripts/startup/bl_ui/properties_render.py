@@ -131,16 +131,17 @@ class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
         scene = context.scene
         rd = scene.render
 
-        row = layout.row(align=True)
+        col_a = layout.column(align=True)
+
+        row = col_a.row(align=True)
         row.menu("RENDER_MT_presets", text=bpy.types.RENDER_MT_presets.bl_label)
         row.operator("render.preset_add", text="", icon='ZOOMIN')
         row.operator("render.preset_add", text="", icon='ZOOMOUT').remove_active = True
 
-        split = layout.split()
+        split = col_a.split(align=True)
 
-        col = split.column()
+        col = split.column(align=True)
         sub = col.column(align=True)
-        sub.label(text="Resolution:")
         sub.prop(rd, "resolution_x", text="X")
         sub.prop(rd, "resolution_y", text="Y")
         sub.prop(rd, "resolution_percentage", text="")
@@ -149,17 +150,17 @@ class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
         sub.prop(rd, "pixel_aspect_x", text="X")
         sub.prop(rd, "pixel_aspect_y", text="Y")
 
-        row = col.row()
+        row = col.row(align=True)
         row.prop(rd, "use_border", text="Border")
-        sub = row.row()
+        sub = row.row(align=True)
         sub.active = rd.use_border
         sub.prop(rd, "use_crop_to_border", text="Crop")
 
-        col = split.column()
+        col = split.column(align=True)
         sub = col.column(align=True)
-        sub.label(text="Frame Range:")
         sub.prop(scene, "frame_start")
-        sub.prop(scene, "frame_end")
+        #~ sub.prop(scene, "frame_end")
+        sub.label("")
         sub.prop(scene, "frame_step")
 
         sub.label(text="Frame Rate:")
@@ -171,6 +172,8 @@ class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
         subrow = sub.row(align=True)
         subrow.prop(rd, "frame_map_old", text="Old")
         subrow.prop(rd, "frame_map_new", text="New")
+
+        col_a.prop(scene, "frame_end")
 
 
 class RENDER_PT_antialiasing(RenderButtonsPanel, Panel):
