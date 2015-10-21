@@ -29,7 +29,6 @@
  * BLI_string_utf8() for unicode conversion.
  */
 
-
 #include <Python.h>
 #include <frameobject.h>
 
@@ -666,7 +665,8 @@ void PyC_SetHomePath(const char *py_path_bundle)
 
 bool PyC_IsInterpreterActive(void)
 {
-	return (((PyThreadState *)_Py_atomic_load_relaxed(&_PyThreadState_Current)) != NULL);
+	/* instead of PyThreadState_Get, which calls Py_FatalError */
+	return (PyThreadState_GetDict() != NULL);
 }
 
 /* Would be nice if python had this built in
@@ -1023,4 +1023,22 @@ int PyC_RunString_AsNumber(const char *expr, double *value, const char *filename
 	PyC_MainModule_Restore(main_mod);
 
 	return error_ret;
+}
+
+/**
+ * Use with PyArg_ParseTuple's "O&" formatting.
+ */
+int PyC_ParseBool(PyObject *o, void *p)
+{
+	bool *bool_p = p;
+	long value;
+	if (((value = PyLong_AsLong(o)) == -1) || !ELEM(value, 0, 1)) {
+		PyErr_Format(PyExc_ValueError,
+		             "expected a bool or int (0/1), got %s",
+		             Py_TYPE(o)->tp_name);
+		return 0;
+	}
+
+	*bool_p = value ? true : false;
+	return 1;
 }

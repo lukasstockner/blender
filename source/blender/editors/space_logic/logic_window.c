@@ -57,7 +57,7 @@
 
 #include "ED_util.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "UI_interface.h"
 #include "UI_view2d.h"
@@ -1033,7 +1033,7 @@ static void draw_sensor_keyboard(uiLayout *layout, PointerRNA *ptr)
 	uiLayout *row, *col;
 
 	row = uiLayoutRow(layout, false);
-	uiItemL(row, CTX_IFACE_(BLF_I18NCONTEXT_ID_WINDOWMANAGER, "Key:"), ICON_NONE);
+	uiItemL(row, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Key:"), ICON_NONE);
 	col = uiLayoutColumn(row, false);
 	uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_all_keys") == false);
 	uiItemR(col, ptr, "key", UI_ITEM_R_EVENT, "", ICON_NONE);
@@ -1696,7 +1696,7 @@ static void draw_actuator_filter_2d(uiLayout *layout, PointerRNA *ptr)
 static void draw_actuator_game(uiLayout *layout, PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "mode", 0, NULL, ICON_NONE);
-	if (RNA_enum_get(ptr, "mode") == ACT_GAME_LOAD)
+	if (ELEM(RNA_enum_get(ptr, "mode"), ACT_GAME_LOAD, ACT_GAME_SCREENSHOT))
 		uiItemR(layout, ptr, "filename", 0, NULL, ICON_NONE);
 }
 

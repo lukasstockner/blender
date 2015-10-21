@@ -183,17 +183,16 @@ typedef struct Object {
 	short transflag, protectflag;	/* transformation settings and transform locks  */
 	short trackflag, upflag;
 	short nlaflag;				/* used for DopeSheet filtering settings (expanded/collapsed) */
-	short ipoflag;				// xxx deprecated... old animation system
 	short scaflag;				/* ui state for game logic */
 	char scavisflag;			/* more display settings for game logic */
 	char depsflag;
 
-	/* dupli-frame settings */
-	int dupon, dupoff, dupsta, dupend;
-
 	/* did last modifier stack generation need mapping support? */
 	char lastNeedMapping;  /* bool */
-	char pad[3];
+	char pad;
+
+	/* dupli-frame settings */
+	int dupon, dupoff, dupsta, dupend;
 
 	/* during realtime */
 
@@ -223,6 +222,8 @@ typedef struct Object {
 	float step_height;
 	float jump_speed;
 	float fall_speed;
+	unsigned char max_jumps;
+	char pad2[3];
 
 	/** Collision mask settings */
 	unsigned short col_group, col_mask;
@@ -296,6 +297,8 @@ typedef struct Object {
 
 	ListBase lodlevels;		/* contains data for levels of detail */
 	LodLevel *currentlod;
+
+	struct PreviewImage *preview;
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */
@@ -414,13 +417,6 @@ enum {
 
 	OB_DUPLI            = OB_DUPLIFRAMES | OB_DUPLIVERTS | OB_DUPLIGROUP | OB_DUPLIFACES | OB_DUPLIPARTS,
 };
-
-/* (short) ipoflag */
-/* XXX: many old flags for features removed due to incompatibility
- * with new system and/or other design issues were here 
- */
-	/* for stride/path editing (XXX: NEEDS REVIEW) */
-#define OB_DISABLE_PATH     (1 << 10)
 
 /* (short) trackflag / upflag */
 enum {

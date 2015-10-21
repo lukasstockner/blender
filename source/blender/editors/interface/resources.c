@@ -1084,7 +1084,7 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tima.face,   255, 255, 255, 10);
 	rgba_char_args_set(btheme->tima.face_select, 255, 133, 0, 60);
 	rgba_char_args_set(btheme->tima.editmesh_active, 255, 255, 255, 128);
-	rgba_char_args_set_fl(btheme->tima.preview_back,    0.45, 0.45, 0.45, 1.0);
+	rgba_char_args_set_fl(btheme->tima.preview_back,        0.0, 0.0, 0.0, 0.3);
 	rgba_char_args_set_fl(btheme->tima.preview_stitch_face, 0.5, 0.5, 0.0, 0.2);
 	rgba_char_args_set_fl(btheme->tima.preview_stitch_edge, 1.0, 0.0, 1.0, 0.2);
 	rgba_char_args_set_fl(btheme->tima.preview_stitch_vert, 0.0, 0.0, 1.0, 0.2);
@@ -2646,7 +2646,14 @@ void init_userdef_do_versions(void)
 		U.node_margin = 80;
 	}
 
-	if (U.versionfile < 275 || (U.versionfile == 275 && U.subversionfile < 5)) {
+	if (!USER_VERSION_ATLEAST(276, 1)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_set_fl(btheme->tima.preview_back, 0.0f, 0.0f, 0.0f, 0.3f);
+		}
+	}
+
+	if (U.versionfile < 276 || (U.versionfile == 276 && U.subversionfile < 2)) {
 		bTheme *btheme;
 		ThemeSpace *ts;
 

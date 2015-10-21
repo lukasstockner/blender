@@ -55,7 +55,7 @@
 #include "BLI_math.h"
 #include "BLI_string.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_action.h"
 #include "BKE_anim.h"
@@ -509,7 +509,7 @@ static int effector_add_exec(bContext *C, wmOperator *op)
 
 	if (type == PFIELD_GUIDE) {
 		Curve *cu;
-		const char *name = CTX_DATA_(BLF_I18NCONTEXT_ID_OBJECT, "CurveGuide");
+		const char *name = CTX_DATA_(BLT_I18NCONTEXT_ID_OBJECT, "CurveGuide");
 		ob = ED_object_add_type(C, OB_CURVE, name, loc, rot, false, layer);
 
 		cu = ob->data;
@@ -521,7 +521,7 @@ static int effector_add_exec(bContext *C, wmOperator *op)
 			ED_object_editmode_exit(C, EM_FREEDATA);
 	}
 	else {
-		const char *name = CTX_DATA_(BLF_I18NCONTEXT_ID_OBJECT, "Field");
+		const char *name = CTX_DATA_(BLT_I18NCONTEXT_ID_OBJECT, "Field");
 		ob = ED_object_add_type(C, OB_EMPTY, name, loc, rot, false, layer);
 		BKE_object_obdata_size_init(ob, dia);
 		if (ELEM(type, PFIELD_WIND, PFIELD_VORTEX))
@@ -898,13 +898,13 @@ void OBJECT_OT_drop_named_image(wmOperatorType *ot)
 static const char *get_lamp_defname(int type)
 {
 	switch (type) {
-		case LA_LOCAL: return CTX_DATA_(BLF_I18NCONTEXT_ID_LAMP, "Point");
-		case LA_SUN: return CTX_DATA_(BLF_I18NCONTEXT_ID_LAMP, "Sun");
-		case LA_SPOT: return CTX_DATA_(BLF_I18NCONTEXT_ID_LAMP, "Spot");
-		case LA_HEMI: return CTX_DATA_(BLF_I18NCONTEXT_ID_LAMP, "Hemi");
-		case LA_AREA: return CTX_DATA_(BLF_I18NCONTEXT_ID_LAMP, "Area");
+		case LA_LOCAL: return CTX_DATA_(BLT_I18NCONTEXT_ID_LAMP, "Point");
+		case LA_SUN: return CTX_DATA_(BLT_I18NCONTEXT_ID_LAMP, "Sun");
+		case LA_SPOT: return CTX_DATA_(BLT_I18NCONTEXT_ID_LAMP, "Spot");
+		case LA_HEMI: return CTX_DATA_(BLT_I18NCONTEXT_ID_LAMP, "Hemi");
+		case LA_AREA: return CTX_DATA_(BLT_I18NCONTEXT_ID_LAMP, "Area");
 		default:
-			return CTX_DATA_(BLF_I18NCONTEXT_ID_LAMP, "Lamp");
+			return CTX_DATA_(BLT_I18NCONTEXT_ID_LAMP, "Lamp");
 	}
 }
 
@@ -952,7 +952,7 @@ void OBJECT_OT_lamp_add(wmOperatorType *ot)
 
 	/* properties */
 	ot->prop = RNA_def_enum(ot->srna, "type", lamp_type_items, 0, "Type", "");
-	RNA_def_property_translation_context(ot->prop, BLF_I18NCONTEXT_ID_LAMP);
+	RNA_def_property_translation_context(ot->prop, BLT_I18NCONTEXT_ID_LAMP);
 
 	ED_object_add_unit_props(ot);
 	ED_object_add_generic_props(ot, false);
@@ -1195,88 +1195,15 @@ void OBJECT_OT_delete(wmOperatorType *ot)
 /**************************** Copy Utilities ******************************/
 
 /* after copying objects, copied data should get new pointers */
-static void copy_object_set_idnew(bContext *C, int dupflag)
+static void copy_object_set_idnew(bContext *C)
 {
 	Main *bmain = CTX_data_main(C);
-	Material *ma, *mao;
-	ID *id;
-	int a;
 
-	/* XXX check object pointers */
 	CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects)
 	{
-		BKE_object_relink(ob);
+		BKE_libblock_relink(&ob->id);
 	}
 	CTX_DATA_END;
-
-	/* materials */
-	if (dupflag & USER_DUP_MAT) {
-		mao = bmain->mat.first;
-		while (mao) {
-			if (mao->id.newid) {
-				ma = (Material *)mao->id.newid;
-
-				if (dupflag & USER_DUP_TEX) {
-					for (a = 0; a < MAX_MTEX; a++) {
-						if (ma->mtex[a]) {
-							id = (ID *)ma->mtex[a]->tex;
-							if (id) {
-								ID_NEW_US(ma->mtex[a]->tex)
-								else
-									ma->mtex[a]->tex = BKE_texture_copy(ma->mtex[a]->tex);
-								id->us--;
-							}
-						}
-					}
-				}
-#if 0 // XXX old animation system
-				id = (ID *)ma->ipo;
-				if (id) {
-					ID_NEW_US(ma->ipo)
-					else
-						ma->ipo = copy_ipo(ma->ipo);
-					id->us--;
-				}
-#endif // XXX old animation system
-			}
-			mao = mao->id.next;
-		}
-	}
-
-#if 0 // XXX old animation system
-	  /* lamps */
-	if (dupflag & USER_DUP_IPO) {
-		Lamp *la = bmain->lamp.first;
-		while (la) {
-			if (la->id.newid) {
-				Lamp *lan = (Lamp *)la->id.newid;
-				id = (ID *)lan->ipo;
-				if (id) {
-					ID_NEW_US(lan->ipo)
-					else
-						lan->ipo = copy_ipo(lan->ipo);
-					id->us--;
-				}
-			}
-			la = la->id.next;
-		}
-	}
-
-	/* ipos */
-	ipo = bmain->ipo.first;
-	while (ipo) {
-		if (ipo->id.lib == NULL && ipo->id.newid) {
-			Ipo *ipon = (Ipo *)ipo->id.newid;
-			IpoCurve *icu;
-			for (icu = ipon->curve.first; icu; icu = icu->next) {
-				if (icu->driver) {
-					ID_NEW(icu->driver->ob);
-				}
-			}
-		}
-		ipo = ipo->id.next;
-	}
-#endif // XXX old animation system
 
 	set_sca_new_poins();
 
@@ -1468,7 +1395,7 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 	if (parent_gh)
 		BLI_ghash_free(parent_gh, NULL, NULL);
 
-	copy_object_set_idnew(C, 0);
+	copy_object_set_idnew(C);
 
 	free_object_duplilist(lb);
 
@@ -2023,9 +1950,6 @@ static Base *object_add_duplicate_internal(Main *bmain, Scene *scene, Base *base
 					ID_NEW_US2(obn->data)
 					else {
 						obn->data = BKE_mesh_copy(obn->data);
-						if (obn->fluidsimSettings) {
-							obn->fluidsimSettings->orgMesh = (Mesh *)obn->data;
-						}
 						didit = 1;
 					}
 					id->us--;
@@ -2190,7 +2114,7 @@ Base *ED_object_add_duplicate(Main *bmain, Scene *scene, Base *base, int dupflag
 	ob = basen->object;
 
 	/* link own references to the newly duplicated data [#26816] */
-	BKE_object_relink(ob);
+	BKE_libblock_relink(&ob->id);
 	set_sca_new_poins_ob(ob);
 
 	/* DAG_relations_tag_update(bmain); */ /* caller must do */
@@ -2235,7 +2159,7 @@ static int duplicate_exec(bContext *C, wmOperator *op)
 	}
 	CTX_DATA_END;
 
-	copy_object_set_idnew(C, dupflag);
+	copy_object_set_idnew(C);
 
 	DAG_relations_tag_update(bmain);
 
@@ -2320,7 +2244,7 @@ static int add_named_exec(bContext *C, wmOperator *op)
 	ED_base_object_select(basen, BA_SELECT);
 	ED_base_object_activate(C, basen);
 
-	copy_object_set_idnew(C, dupflag);
+	copy_object_set_idnew(C);
 
 	DAG_relations_tag_update(bmain);
 

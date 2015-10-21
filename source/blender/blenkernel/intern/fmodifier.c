@@ -37,7 +37,7 @@
 
 #include "DNA_anim_types.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
@@ -103,8 +103,8 @@ static FModifierTypeInfo FMI_MODNAME = {
 
 /* Generators available:
  *  1) simple polynomial generator:
- *		- Exanded form - (y = C[0]*(x^(n)) + C[1]*(x^(n-1)) + ... + C[n])  
- *		- Factorized form - (y = (C[0][0]*x + C[0][1]) * (C[1][0]*x + C[1][1]) * ... * (C[n][0]*x + C[n][1]))
+ *     - Expanded form - (y = C[0]*(x^(n)) + C[1]*(x^(n-1)) + ... + C[n])
+ *     - Factorized form - (y = (C[0][0]*x + C[0][1]) * (C[1][0]*x + C[1][1]) * ... * (C[n][0]*x + C[n][1]))
  */
 
 static void fcm_generator_free(FModifier *fcm)
@@ -849,7 +849,7 @@ static FModifierTypeInfo FMI_FILTER = {
 	NULL, /* copy data */
 	NULL, /* new data */
 	NULL /*fcm_filter_verify*/, /* verify */
-	NULL, /* evlauate time */
+	NULL, /* evaluate time */
 	fcm_filter_evaluate, /* evaluate */
 	NULL, /* evaluate time with storage */
 	NULL /* evaluate with storage */
@@ -1389,6 +1389,8 @@ static float eval_fmodifier_influence(FModifier *fcm, float evaltime)
  *	  working on the 'global' result of the modified curve, not some localised segment,
  *	  so nevaltime gets set to whatever the last time-modifying modifier likes...
  *	- we start from the end of the stack, as only the last one matters for now
+ *
+ * Note: *fcu might be NULL
  */
 float evaluate_time_fmodifiers(FModifierStackStorage *storage, ListBase *modifiers,
                                FCurve *fcu, float cvalue, float evaltime)
@@ -1399,7 +1401,7 @@ float evaluate_time_fmodifiers(FModifierStackStorage *storage, ListBase *modifie
 	if (ELEM(NULL, modifiers, modifiers->last))
 		return evaltime;
 
-	if (fcu->flag & FCURVE_MOD_OFF)
+	if (fcu && fcu->flag & FCURVE_MOD_OFF)
 		return evaltime;
 
 	/* Starting from the end of the stack, calculate the time effects of various stacked modifiers 

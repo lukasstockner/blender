@@ -25,10 +25,10 @@
 
 set(INC 
 	..
-	../../blenfont
 	../../blenkernel
 	../../blenlib
 	../../blenloader
+	../../blentranslation
 	../../editors/include
 	../../gpu
 	../../imbuf
@@ -46,6 +46,7 @@ set(INC_SYS
 
 set(SRC
 	gpu.c
+	gpu_offscreen.c
 	bpy.c
 	bpy_app.c
 	bpy_app_build_options.c

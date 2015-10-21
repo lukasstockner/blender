@@ -65,7 +65,7 @@ KX_SoundActuator::KX_SoundActuator(SCA_IObject* gameobj,
 								   KX_SOUNDACT_TYPE type)//,
 								   : SCA_IActuator(gameobj, KX_ACT_SOUND)
 {
-	m_sound = AUD_Sound_copy(sound);
+	m_sound = sound ? AUD_Sound_copy(sound) : NULL;
 	m_handle = NULL;
 	m_volume = volume;
 	m_pitch = pitch;
@@ -122,7 +122,9 @@ void KX_SoundActuator::play()
 		break;
 	}
 
-	//m_handle = AUD_Device_play(BKE_sound_get_device(), sound, false);
+	AUD_Device* device = AUD_Device_getCurrent();
+	m_handle = AUD_Device_play(device, sound, false);
+	AUD_Device_free(device);
 
 	// in case of pingpong, we have to free the sound
 	if(sound != m_sound)

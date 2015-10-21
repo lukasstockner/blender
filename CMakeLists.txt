@@ -158,6 +158,7 @@ option_defaults_init(
 	_init_SDL
 	_init_FFTW3
 	_init_GAMEENGINE
+	_init_OPENSUBDIV
 )
 
 # customize...
@@ -174,11 +175,13 @@ if (UNIX AND NOT APPLE)
 	set(_init_OPENCOLORIO                    OFF)
 	set(_init_SDL                            OFF)
 	set(_init_FFTW3                          OFF)
+	set(_init_OPENSUBDIV                     OFF)
 elseif(WIN32)
 	set(_init_JACK                           OFF)
 elseif(APPLE)
 	set(_init_INPUT_NDOF                     OFF)
 	set(_init_JACK                           OFF)
+	set(_init_OPENSUBDIV                     OFF)
 endif()
 
 
@@ -229,7 +232,7 @@ option(WITH_COMPOSITOR         "Enable the tile based nodal compositor" ON)
 option(WITH_COMPOSITOR_WERROR  "Treat warnings as errors in compositor code" OFF)
 mark_as_advanced(WITH_COMPOSITOR_WERROR)
 
-option(WITH_OPENSUBDIV    "Enable OpenSubdiv for surface subdivision" OFF)
+option(WITH_OPENSUBDIV    "Enable OpenSubdiv for surface subdivision" _init_OPENSUBDIV)
 option(WITH_SUBSURF_WERROR  "Treat warnings as errors in subsurf code" OFF)
 mark_as_advanced(WITH_COMPOSITOR_WERROR)
 
@@ -508,7 +511,11 @@ if(APPLE)
 	endif()
 	
 	execute_process(COMMAND uname -r OUTPUT_VARIABLE MAC_SYS) # check for actual system-version
-	if(${MAC_SYS} MATCHES 14)
+	if(${MAC_SYS} MATCHES 15)
+		set(OSX_SYSTEM 10.11)
+		# throw an error here, older cmake cannot handle 2 digit subversion!
+		cmake_minimum_required(VERSION 3.0.0)
+	elseif(${MAC_SYS} MATCHES 14)
 		set(OSX_SYSTEM 10.10)
 		# throw an error here, older cmake cannot handle 2 digit subversion!
 		cmake_minimum_required(VERSION 3.0.0)
@@ -525,13 +532,11 @@ if(APPLE)
 	else()
 		set(OSX_SYSTEM unsupported)
 	endif()
-	message(STATUS "Detected system-version: " ${OSX_SYSTEM})
 	
 	# workaround for incorrect cmake xcode lookup for developer previews - XCODE_VERSION does not take xcode-select path into accout
 	# but would always look into /Applications/Xcode.app while dev versions are named Xcode<version>-DP<preview_number>
 	execute_process(COMMAND xcode-select --print-path  OUTPUT_VARIABLE XCODE_CHECK OUTPUT_STRIP_TRAILING_WHITESPACE)
 	string(REPLACE "/Contents/Developer" "" XCODE_BUNDLE ${XCODE_CHECK}) # truncate to bundlepath in any case
-	message(STATUS "Xcode-bundle : " ${XCODE_BUNDLE})
 	
 	if(${CMAKE_GENERATOR} MATCHES "Xcode")
 	
@@ -559,8 +564,8 @@ if(APPLE)
 		string(SUBSTRING "${XCODE_VERS_BUILD_NR}" 6 3 XCODE_VERSION) # truncate away build-nr
 		unset(XCODE_VERS_BUILD_NR)
 	endif()
-	
-	message(STATUS "Detected Xcode-version: " ${XCODE_VERSION})
+
+	message(STATUS "Detected OS X ${OSX_SYSTEM} and Xcode ${XCODE_VERSION} at ${XCODE_BUNDLE}")
 
 	if(${XCODE_VERSION} VERSION_LESS 4.3)
 		set(CMAKE_OSX_SYSROOT /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk CACHE PATH "" FORCE)  # use guaranteed existing sdk
@@ -1147,7 +1152,7 @@ if(UNIX AND NOT APPLE)
 
 		if(NOT OPENSUBDIV_FOUND)
 			set(WITH_OPENSUBDIV OFF)
-			message(STATUS "OpenSundiv not found")
+			message(STATUS "OpenSubdiv not found")
 		endif()
 	endif()
 
@@ -2317,9 +2322,14 @@ endif()
 if(WITH_IMAGE_OPENJPEG)
 	if(WITH_SYSTEM_OPENJPEG)
 		# dealt with above
+		set(OPENJPEG_DEFINES "")
 	else()
 		set(OPENJPEG_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/libopenjpeg")
-		add_definitions(-DOPJ_STATIC)
+		set(OPENJPEG_DEFINES "-DOPJ_STATIC")
+	endif()
+	# Special handling of Windows platform where openjpeg is always static.
+	if(WIN32)
+		set(OPENJPEG_DEFINES "-DOPJ_STATIC")
 	endif()
 endif()
 

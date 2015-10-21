@@ -55,6 +55,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             layout.prop(game, "step_height", slider=True)
             layout.prop(game, "jump_speed")
             layout.prop(game, "fall_speed")
+            layout.prop(game, "jump_max")
 
         elif physics_type in {'DYNAMIC', 'RIGID_BODY'}:
             split = layout.split()
@@ -247,7 +248,7 @@ class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
         game = context.object.game
         rd = context.scene.render
         return (rd.engine in cls.COMPAT_ENGINES) \
-                and (game.physics_type in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'SOFT_BODY'})
+                and (game.physics_type in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'SOFT_BODY', 'CHARACTER', 'NO_COLLISION'})
 
     def draw_header(self, context):
         game = context.active_object.game

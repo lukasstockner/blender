@@ -59,7 +59,7 @@
 #include "BIF_gl.h"
 
 #include "BLF_api.h"
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "UI_interface.h"
 
@@ -222,6 +222,23 @@ void ui_region_to_window(const ARegion *ar, int *x, int *y)
 	*x += ar->winrct.xmin;
 	*y += ar->winrct.ymin;
 }
+
+/**
+ * Popups will add a margin to #ARegion.winrct for shadow,
+ * for interactivity (point-inside tests for eg), we want the winrct without the margin added.
+ */
+void ui_region_winrct_get_no_margin(const struct ARegion *ar, struct rcti *r_rect)
+{
+	uiBlock *block = ar->uiblocks.first;
+	if (block && (block->flag & UI_BLOCK_LOOP) && (block->flag & UI_BLOCK_RADIAL) == 0) {
+		BLI_rcti_rctf_copy_floor(r_rect, &block->rect);
+		BLI_rcti_translate(r_rect, ar->winrct.xmin, ar->winrct.ymin);
+	}
+	else {
+		*r_rect = ar->winrct;
+	}
+}
+
 /* ******************* block calc ************************* */
 
 void ui_block_translate(uiBlock *block, int x, int y)
@@ -358,9 +375,11 @@ static void ui_block_bounds_calc_popup(
         wmWindow *window, uiBlock *block,
         eBlockBoundsCalc bounds_calc, const int xy[2])
 {
-	int startx, starty, endx, endy, width, height, oldwidth, oldheight;
+	int width, height, oldwidth, oldheight;
 	int oldbounds, xmax, ymax;
 	const int margin = UI_SCREEN_MARGIN;
+	rcti rect, rect_bounds;
+	int ofs_dummy[2];
 
 	oldbounds = block->bounds;
 
@@ -395,27 +414,18 @@ static void ui_block_bounds_calc_popup(
 
 	/* offset block based on mouse position, user offset is scaled
 	 * along in case we resized the block in ui_block_bounds_calc_text */
-	startx = xy[0] + block->rect.xmin + (block->mx * width) / oldwidth;
-	starty = xy[1] + block->rect.ymin + (block->my * height) / oldheight;
+	rect.xmin = xy[0] + block->rect.xmin + (block->mx * width) / oldwidth;
+	rect.ymin = xy[1] + block->rect.ymin + (block->my * height) / oldheight;
+	rect.xmax = rect.xmin + width;
+	rect.ymax = rect.ymin + height;
 
-	if (startx < margin)
-		startx = margin;
-	if (starty < margin)
-		starty = margin;
+	rect_bounds.xmin = margin;
+	rect_bounds.ymin = margin;
+	rect_bounds.xmax = xmax - margin;
+	rect_bounds.ymax = ymax - UI_POPUP_MENU_TOP;
 
-	endx = startx + width;
-	endy = starty + height;
-
-	if (endx > xmax) {
-		endx = xmax - margin;
-		startx = endx - width;
-	}
-	if (endy > ymax - margin) {
-		endy = ymax - margin;
-		starty = endy - height;
-	}
-
-	ui_block_translate(block, startx - block->rect.xmin, starty - block->rect.ymin);
+	BLI_rcti_clamp(&rect, &rect_bounds, ofs_dummy);
+	ui_block_translate(block, rect.xmin - block->rect.xmin, rect.ymin - block->rect.ymin);
 
 	/* now recompute bounds and safety */
 	ui_block_bounds_calc(block);
@@ -758,6 +768,10 @@ static bool ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBu
 				oldbut->str = oldbut->strdata;
 			}
 			BLI_strncpy(oldbut->strdata, but->strdata, sizeof(oldbut->strdata));
+		}
+
+		if (but->dragpoin && (but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+			SWAP(void *, but->dragpoin, oldbut->dragpoin);
 		}
 
 		BLI_remlink(&block->buttons, but);
@@ -1316,16 +1330,8 @@ static void ui_but_to_pixelrect(rcti *rect, const ARegion *ar, uiBlock *block, u
 	rctf rectf;
 
 	ui_block_to_window_rctf(ar, block, &rectf, (but) ? &but->rect : &block->rect);
-
-	rectf.xmin -= ar->winrct.xmin;
-	rectf.ymin -= ar->winrct.ymin;
-	rectf.xmax -= ar->winrct.xmin;
-	rectf.ymax -= ar->winrct.ymin;
-
-	rect->xmin = floorf(rectf.xmin);
-	rect->ymin = floorf(rectf.ymin);
-	rect->xmax = floorf(rectf.xmax);
-	rect->ymax = floorf(rectf.ymax);
+	BLI_rcti_rctf_copy_floor(rect, &rectf);
+	BLI_rcti_translate(rect, -ar->winrct.xmin, -ar->winrct.ymin);
 }
 
 
@@ -1836,6 +1842,16 @@ bool ui_but_is_rna_valid(uiBut *but)
 	}
 }
 
+/**
+ * Checks if the button supports ctrl+mousewheel cycling
+ */
+bool ui_but_supports_cycling(const uiBut *but)
+{
+	return ((ELEM(but->type, UI_BTYPE_ROW, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER, UI_BTYPE_LISTBOX)) ||
+	        (but->type == UI_BTYPE_MENU && ui_but_menu_step_poll(but)) ||
+	        (but->type == UI_BTYPE_COLOR && but->a1 != -1));
+}
+
 double ui_but_value_get(uiBut *but)
 {
 	PropertyRNA *prop;
@@ -2108,14 +2124,32 @@ static void ui_get_but_string_unit(uiBut *but, char *str, int len_max, double va
 static float ui_get_but_step_unit(uiBut *but, float step_default)
 {
 	int unit_type = RNA_SUBTYPE_UNIT_VALUE(UI_but_unit_type_get(but));
-	double step;
-
-	step = bUnit_ClosestScalar(ui_get_but_scale_unit(but, step_default), but->block->unit->system, unit_type);
+	const double step_orig = step_default * UI_PRECISION_FLOAT_SCALE;
+	/* Scaling up 'step_origg ' here is a bit arbitrary, its just giving better scales from user POV */
+	const double scale_step = ui_get_but_scale_unit(but, step_orig * 10);
+	const double step = bUnit_ClosestScalar(scale_step, but->block->unit->system, unit_type);
 
 	/* -1 is an error value */
 	if (step != -1.0) {
+		const double scale_unit = ui_get_but_scale_unit(but, 1.0);
+		const double step_unit = bUnit_ClosestScalar(scale_unit, but->block->unit->system, unit_type);
+		double step_final;
+
 		BLI_assert(step > 0.0);
-		return (float)(step / ui_get_but_scale_unit(but, 1.0)) * 100.0f;
+
+		step_final = (step / scale_unit) / (double)UI_PRECISION_FLOAT_SCALE;
+
+		if (step == step_unit) {
+			/* Logic here is to scale by the original 'step_orig'
+			 * only when the unit step matches the scaled step.
+			 *
+			 * This is needed for units that don't have a wide range of scales (degrees for eg.).
+			 * Without this we can't select between a single degree, or a 10th of a degree.
+			 */
+			step_final *= step_orig;
+		}
+
+		return (float)step_final;
 	}
 	else {
 		return step_default;
@@ -2159,8 +2193,14 @@ void ui_but_string_get_ex(uiBut *but, char *str, const size_t maxlen, const int 
 			str[0] = '\0';
 		}
 		else if (buf && buf != str) {
+			BLI_assert(maxlen <= buf_len + 1);
 			/* string was too long, we have to truncate */
-			memcpy(str, buf, MIN2(maxlen, (size_t)(buf_len + 1)));
+			if (ui_but_is_utf8(but)) {
+				BLI_strncpy_utf8(str, buf, maxlen);
+			}
+			else {
+				BLI_strncpy(str, buf, maxlen);
+			}
 			MEM_freeN((void *)buf);
 		}
 	}
@@ -2275,12 +2315,6 @@ static void ui_but_string_set_internal(uiBut *but, const char *str, size_t str_l
 		but->str = but->strdata;
 	}
 	memcpy(but->str, str, str_len);
-}
-
-static void ui_but_submenu_enable(uiBlock *block, uiBut *but)
-{
-	but->flag |= UI_BUT_ICON_SUBMENU;
-	block->flag |= UI_BLOCK_HAS_SUBMENU;
 }
 
 static void ui_but_string_free_internal(uiBut *but)
@@ -2568,6 +2602,10 @@ static void ui_but_free(const bContext *C, uiBut *but)
 
 	if ((but->type == UI_BTYPE_IMAGE) && but->poin) {
 		IMB_freeImBuf((struct ImBuf *)but->poin);
+	}
+
+	if (but->dragpoin && (but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+		MEM_freeN(but->dragpoin);
 	}
 
 	if ((BLI_listbase_is_empty(&but->subbuts)) == false) {
@@ -3150,6 +3188,20 @@ void ui_block_cm_to_scene_linear_v3(uiBlock *block, float pixel[3])
 	IMB_colormanagement_display_to_scene_linear_v3(pixel, display);
 }
 
+void ui_block_cm_to_display_space_range(uiBlock *block, float *min, float *max)
+{
+	struct ColorManagedDisplay *display = ui_block_cm_display_get(block);
+	float pixel[3];
+
+	copy_v3_fl(pixel, *min);
+	IMB_colormanagement_scene_linear_to_display_v3(pixel, display);
+	*min = min_fff(UNPACK3(pixel));
+
+	copy_v3_fl(pixel, *max);
+	IMB_colormanagement_scene_linear_to_display_v3(pixel, display);
+	*max = max_fff(UNPACK3(pixel));
+}
+
 static uiSubBut *ui_def_subbut(
         uiBut *but, const int type,
         uiSubButAlign alignment,
@@ -3168,6 +3220,7 @@ static uiSubBut *ui_def_subbut(
 
 	return sbut;
 }
+
 
 /**
  * \brief ui_def_but is the function that draws many button types
@@ -3328,7 +3381,7 @@ void ui_def_but_icon(uiBut *but, const int icon, const int flag)
 	but->flag |= flag;
 
 	if (but->str && but->str[0]) {
-		but->drawflag |= (UI_BUT_ICON_LEFT | UI_BUT_TEXT_LEFT);
+		but->drawflag |= UI_BUT_ICON_LEFT;
 	}
 }
 
@@ -3391,7 +3444,9 @@ static void ui_def_but_rna__menu(bContext *UNUSED(C), uiLayout *layout, void *bu
 		rows++;
 
 	/* Title */
-	uiDefMenuTitleBut(block, RNA_property_ui_name(but->rnaprop));
+	uiDefBut(block, UI_BTYPE_LABEL, 0, RNA_property_ui_name(but->rnaprop),
+	         0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
+	uiItemS(layout);
 
 	/* note, item_array[...] is reversed on access */
 
@@ -3597,7 +3652,7 @@ static uiBut *ui_def_but_rna(
 	}
 	
 	if ((type == UI_BTYPE_MENU) && (but->dt == UI_EMBOSS_PULLDOWN)) {
-		ui_but_submenu_enable(block, but);
+		but->flag |= UI_BUT_ICON_SUBMENU;
 	}
 
 	if (!RNA_property_editable(&but->rnapoin, prop)) {
@@ -4124,24 +4179,43 @@ int UI_but_return_value_get(uiBut *but)
 void UI_but_drag_set_id(uiBut *but, ID *id)
 {
 	but->dragtype = WM_DRAG_ID;
+	if ((but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+		MEM_SAFE_FREE(but->dragpoin);
+		but->dragflag &= ~UI_BUT_DRAGPOIN_FREE;
+	}
 	but->dragpoin = (void *)id;
 }
 
 void UI_but_drag_set_rna(uiBut *but, PointerRNA *ptr)
 {
 	but->dragtype = WM_DRAG_RNA;
+	if ((but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+		MEM_SAFE_FREE(but->dragpoin);
+		but->dragflag &= ~UI_BUT_DRAGPOIN_FREE;
+	}
 	but->dragpoin = (void *)ptr;
 }
 
-void UI_but_drag_set_path(uiBut *but, const char *path)
+void UI_but_drag_set_path(uiBut *but, const char *path, const bool use_free)
 {
 	but->dragtype = WM_DRAG_PATH;
+	if ((but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+		MEM_SAFE_FREE(but->dragpoin);
+		but->dragflag &= ~UI_BUT_DRAGPOIN_FREE;
+	}
 	but->dragpoin = (void *)path;
+	if (use_free) {
+		but->dragflag |= UI_BUT_DRAGPOIN_FREE;
+	}
 }
 
 void UI_but_drag_set_name(uiBut *but, const char *name)
 {
 	but->dragtype = WM_DRAG_NAME;
+	if ((but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+		MEM_SAFE_FREE(but->dragpoin);
+		but->dragflag &= ~UI_BUT_DRAGPOIN_FREE;
+	}
 	but->dragpoin = (void *)name;
 }
 
@@ -4151,11 +4225,18 @@ void UI_but_drag_set_value(uiBut *but)
 	but->dragtype = WM_DRAG_VALUE;
 }
 
-void UI_but_drag_set_image(uiBut *but, const char *path, int icon, struct ImBuf *imb, float scale)
+void UI_but_drag_set_image(uiBut *but, const char *path, int icon, struct ImBuf *imb, float scale, const bool use_free)
 {
 	but->dragtype = WM_DRAG_PATH;
 	ui_def_but_icon(but, icon, 0);  /* no flag UI_HAS_ICON, so icon doesnt draw in button */
+	if ((but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+		MEM_SAFE_FREE(but->dragpoin);
+		but->dragflag &= ~UI_BUT_DRAGPOIN_FREE;
+	}
 	but->dragpoin = (void *)path;
+	if (use_free) {
+		but->dragflag |= UI_BUT_DRAGPOIN_FREE;
+	}
 	but->imb = imb;
 	but->imb_scale = scale;
 }
@@ -4322,7 +4403,7 @@ uiBut *uiDefIconTextMenuBut(uiBlock *block, uiMenuCreateFunc func, void *arg, in
 	ui_def_but_icon(but, icon, UI_HAS_ICON);
 
 	but->drawflag |= UI_BUT_ICON_LEFT;
-	ui_but_submenu_enable(block, but);
+	but->flag |= UI_BUT_ICON_SUBMENU;
 
 	but->menu_create_func = func;
 	ui_but_update(but);
@@ -4354,7 +4435,7 @@ uiBut *uiDefIconTextBlockBut(uiBlock *block, uiBlockCreateFunc func, void *arg, 
 		but->drawflag |= UI_BUT_ICON_LEFT;
 	}
 	but->flag |= UI_HAS_ICON;
-	ui_but_submenu_enable(block, but);
+	but->flag |= UI_BUT_ICON_SUBMENU;
 
 	but->block_create_func = func;
 	ui_but_update(but);
@@ -4623,7 +4704,7 @@ void UI_but_string_info_get(bContext *C, uiBut *but, ...)
 			}
 		}
 		else if (type == BUT_GET_RNA_LABEL_CONTEXT) {
-			const char *_tmp = BLF_I18NCONTEXT_DEFAULT;
+			const char *_tmp = BLT_I18NCONTEXT_DEFAULT;
 			if (but->rnaprop)
 				_tmp = RNA_property_translation_context(but->rnaprop);
 			else if (but->optype)
@@ -4633,8 +4714,8 @@ void UI_but_string_info_get(bContext *C, uiBut *but, ...)
 				if (mt)
 					_tmp = RNA_struct_translation_context(mt->ext.srna);
 			}
-			if (BLF_is_default_context(_tmp)) {
-				_tmp = BLF_I18NCONTEXT_DEFAULT_BPYRNA;
+			if (BLT_is_default_context(_tmp)) {
+				_tmp = BLT_I18NCONTEXT_DEFAULT_BPYRNA;
 			}
 			tmp = BLI_strdup(_tmp);
 		}

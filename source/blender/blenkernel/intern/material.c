@@ -78,7 +78,7 @@ Material defmaterial;
 /* called on startup, creator.c */
 void init_def_material(void)
 {
-	init_material(&defmaterial);
+	BKE_material_init(&defmaterial);
 }
 
 /* not material itself */
@@ -122,8 +122,10 @@ void BKE_material_free_ex(Material *ma, bool do_id_user)
 		GPU_material_free(&ma->gpumaterial);
 }
 
-void init_material(Material *ma)
+void BKE_material_init(Material *ma)
 {
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(ma, id));
+
 	ma->r = ma->g = ma->b = ma->ref = 0.8;
 	ma->specr = ma->specg = ma->specb = 1.0;
 	ma->mirr = ma->mirg = ma->mirb = 1.0;
@@ -221,7 +223,7 @@ Material *BKE_material_add(Main *bmain, const char *name)
 
 	ma = BKE_libblock_alloc(bmain, ID_MA, name);
 	
-	init_material(ma);
+	BKE_material_init(ma);
 	
 	return ma;
 }
@@ -879,8 +881,20 @@ void assign_material(Object *ob, Material *ma, short act, int assign_type)
 		*totcolp = act;
 	}
 
+	if (act > ob->totcol) {
+		/* Need more space in the material arrays */
+		ob->mat = MEM_recallocN_id(ob->mat, sizeof(void *) * act, "matarray2");
+		ob->matbits = MEM_recallocN_id(ob->matbits, sizeof(char) * act, "matbits1");
+		ob->totcol = act;
+	}
+
 	/* Determine the object/mesh linking */
-	if (assign_type == BKE_MAT_ASSIGN_USERPREF && ob->totcol && ob->actcol) {
+	if (assign_type == BKE_MAT_ASSIGN_EXISTING) {
+		/* keep existing option (avoid confusion in scripts),
+		 * intentionally ignore userpref (default to obdata). */
+		bit = ob->matbits[act - 1];
+	}
+	else if (assign_type == BKE_MAT_ASSIGN_USERPREF && ob->totcol && ob->actcol) {
 		/* copy from previous material */
 		bit = ob->matbits[ob->actcol - 1];
 	}
@@ -897,13 +911,6 @@ void assign_material(Object *ob, Material *ma, short act, int assign_type)
 				bit = (U.flag & USER_MAT_ON_OB) ? 1 : 0;
 				break;
 		}
-	}
-
-	if (act > ob->totcol) {
-		/* Need more space in the material arrays */
-		ob->mat = MEM_recallocN_id(ob->mat, sizeof(void *) * act, "matarray2");
-		ob->matbits = MEM_recallocN_id(ob->matbits, sizeof(char) * act, "matbits1");
-		ob->totcol = act;
 	}
 	
 	/* do it */
@@ -1073,7 +1080,10 @@ static void do_init_render_material(Material *ma, int r_mode, float *amb)
 static void init_render_nodetree(bNodeTree *ntree, Material *basemat, int r_mode, float *amb)
 {
 	bNode *node;
-	
+
+	/* parses the geom+tex nodes */
+	ntreeShaderGetTexcoMode(ntree, r_mode, &basemat->texco, &basemat->mode_l);
+
 	for (node = ntree->nodes.first; node; node = node->next) {
 		if (node->id) {
 			if (GS(node->id->name) == ID_MA) {
@@ -1110,9 +1120,6 @@ void init_render_material(Material *mat, int r_mode, float *amb)
 		mat->mode_l = (mat->mode & MA_MODE_PIPELINE) | MA_SHLESS;
 		mat->mode2_l = mat->mode2 & MA_MODE2_PIPELINE;
 
-		/* parses the geom+tex nodes */
-		ntreeShaderGetTexcoMode(mat->nodetree, r_mode, &mat->texco, &mat->mode_l);
-
 		init_render_nodetree(mat->nodetree, mat, r_mode, amb);
 		
 		if (!mat->nodetree->execdata)
@@ -1127,7 +1134,7 @@ void init_render_material(Material *mat, int r_mode, float *amb)
 	}
 }
 
-void init_render_materials(Main *bmain, int r_mode, float *amb)
+void init_render_materials(Main *bmain, int r_mode, float *amb, bool do_default_material)
 {
 	Material *ma;
 	
@@ -1148,8 +1155,10 @@ void init_render_materials(Main *bmain, int r_mode, float *amb)
 		if (ma->id.us) 
 			init_render_material(ma, r_mode, amb);
 	}
-	
-	init_render_material(&defmaterial, r_mode, amb);
+
+	if (do_default_material) {
+		init_render_material(&defmaterial, r_mode, amb);
+	}
 }
 
 /* only needed for nodes now */

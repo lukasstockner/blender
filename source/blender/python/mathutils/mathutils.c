@@ -113,7 +113,7 @@ Py_hash_t mathutils_array_hash(const float *array, size_t array_len)
 /* helper function returns length of the 'value', -1 on error */
 int mathutils_array_parse(float *array, int array_min, int array_max, PyObject *value, const char *error_prefix)
 {
-	const int flag = array_max;
+	const unsigned int flag = array_max;
 	int size;
 
 	array_max &= ~MU_ARRAY_FLAGS;
@@ -355,7 +355,7 @@ int mathutils_any_to_rotmat(float rmat[3][3], PyObject *value, const char *error
 /* XXX We may want to use 'safer' BLI's compare_ff_relative ultimately?
  *     LomontRRDCompare4() is an optimized version of Dawson's AlmostEqual2sComplement() (see [1] and [2]).
  *     Dawson himself now claims this is not a 'safe' thing to do (pushing ULP method beyond its limits),
- *     an recommands using work from [3] instead, which is done in BLI func...
+ *     an recommends using work from [3] instead, which is done in BLI func...
  *
  *     [1] http://www.randydillon.org/Papers/2007/everfast.htm
  *     [2] http://www.cygnus-software.com/papers/comparingfloats/comparingfloats.htm

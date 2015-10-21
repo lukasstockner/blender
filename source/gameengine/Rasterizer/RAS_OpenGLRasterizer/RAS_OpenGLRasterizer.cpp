@@ -99,9 +99,9 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, int storage)
 	m_motionblur(0),
 	m_motionblurvalue(-1.0),
 	m_usingoverrideshader(false),
-    m_clientobject(NULL),
-    m_auxilaryClientInfo(NULL),
-    m_drawingmode(KX_TEXTURED),
+	m_clientobject(NULL),
+	m_auxilaryClientInfo(NULL),
+	m_drawingmode(KX_TEXTURED),
 	m_texco_num(0),
 	m_attrib_num(0),
 	//m_last_alphablend(GPU_BLEND_SOLID),
@@ -1215,10 +1215,9 @@ void RAS_OpenGLRasterizer::RemoveLight(RAS_ILightObject* lightobject)
 		m_lights.erase(lit);
 }
 
-bool RAS_OpenGLRasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *result, void * const data)
+bool RAS_OpenGLRasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *result, double *oglmatrix)
 {
 	if (result->m_hitMesh) {
-		double* const oglmatrix = (double* const) data;
 
 		RAS_Polygon* poly = result->m_hitMesh->GetPolygon(result->m_hitPolygon);
 		if (!poly->IsVisible())
@@ -1303,7 +1302,7 @@ void RAS_OpenGLRasterizer::applyTransform(double* oglmatrix,int objectdrawmode )
 		                   up[0],   up[1],   up[2],   0,
 		                   0,       0,       0,       1};
 
-		glTranslated(objpos[0],objpos[1],objpos[2]);
+		glTranslatef(objpos[0],objpos[1],objpos[2]);
 		glMultMatrixd(maat);
 
 	}
@@ -1328,7 +1327,7 @@ void RAS_OpenGLRasterizer::applyTransform(double* oglmatrix,int objectdrawmode )
 			if (!physics_controller && parent)
 				physics_controller = parent->GetPhysicsController();
 
-			KX_RayCast::Callback<RAS_OpenGLRasterizer> callback(this, physics_controller, oglmatrix);
+			KX_RayCast::Callback<RAS_OpenGLRasterizer, double> callback(this, physics_controller, oglmatrix);
 			if (!KX_RayCast::RayTest(physics_environment, frompoint, topoint, callback))
 			{
 				// couldn't find something to cast the shadow on...

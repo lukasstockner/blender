@@ -748,6 +748,8 @@ typedef struct NodeTexEnvironment {
 	ImageUser iuser;
 	int color_space;
 	int projection;
+	int interpolation;
+	int pad;
 } NodeTexEnvironment;
 
 typedef struct NodeTexGradient {
@@ -795,6 +797,7 @@ typedef struct NodeShaderVectTransform {
 } NodeShaderVectTransform;
 
 typedef struct NodeShaderTexPointDensity {
+	NodeTexBase base;
 	short point_source, pad;
 	int particle_system;
 	float radius;

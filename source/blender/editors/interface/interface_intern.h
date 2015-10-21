@@ -146,6 +146,11 @@ typedef enum uiButExtraIconType {
 	UI_BUT_ICONEXTRA_EYEDROPPER,
 } uiButExtraIconType;
 
+/* uiBut->dragflag */
+enum {
+	UI_BUT_DRAGPOIN_FREE = (1 << 0),
+};
+
 /* but->pie_dir */
 typedef enum RadialDirection {
 	UI_RADIAL_NONE  = -1,
@@ -181,7 +186,7 @@ extern const short ui_radial_dir_to_angle[8];
 #define UI_BITBUT_SET(a, b)     ( (a) | 1 << (b) )
 #define UI_BITBUT_CLR(a, b)     ( (a) & ~(1 << (b)) )
 /* bit-row */
-#define UI_BITBUT_ROW(min, max)  (((max) >= 31 ? 0xFFFFFFFF : (1 << (max + 1)) - 1) - ((min) ? ((1 << (min)) - 1) : 0) )
+#define UI_BITBUT_ROW(min, max)  (((max) >= 31 ? 0xFFFFFFFF : (1 << ((max) + 1)) - 1) - ((min) ? ((1 << (min)) - 1) : 0) )
 
 /* split numbuts by ':' and align l/r */
 #define USE_NUMBUTS_LR_ALIGN
@@ -329,6 +334,7 @@ struct uiBut {
 
 	/* Draggable data, type is WM_DRAG_... */
 	char dragtype;
+	short dragflag;
 	void *dragpoin;
 	struct ImBuf *imb;
 	float imb_scale;
@@ -477,6 +483,7 @@ extern void ui_window_to_block_fl(const struct ARegion *ar, uiBlock *block, floa
 extern void ui_window_to_block(const struct ARegion *ar, uiBlock *block, int *x, int *y);
 extern void ui_window_to_region(const ARegion *ar, int *x, int *y);
 extern void ui_region_to_window(const struct ARegion *ar, int *x, int *y);
+extern void ui_region_winrct_get_no_margin(const struct ARegion *ar, struct rcti *r_rect);
 extern void ui_rcti_to_pixelrect(const ARegion *ar, uiBlock *block, rcti *rct_dst, const rcti *rct_src);
 extern void ui_rctf_to_pixelrect(const ARegion *ar, uiBlock *block, rctf *rct_dst, const rctf *rct_src);
 
@@ -513,6 +520,7 @@ extern bool ui_but_is_unit(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_but_is_compatible(const uiBut *but_a, const uiBut *but_b) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_but_is_rna_valid(uiBut *but) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_but_is_utf8(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
+extern bool ui_but_supports_cycling(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 
 extern int  ui_but_is_pushed_ex(uiBut *but, double *value) ATTR_WARN_UNUSED_RESULT;
 extern int  ui_but_is_pushed(uiBut *but) ATTR_WARN_UNUSED_RESULT;
@@ -525,6 +533,7 @@ extern void ui_block_align_calc(uiBlock *block);
 extern struct ColorManagedDisplay *ui_block_cm_display_get(uiBlock *block);
 void ui_block_cm_to_display_space_v3(uiBlock *block, float pixel[3]);
 void ui_block_cm_to_scene_linear_v3(uiBlock *block, float pixel[3]);
+void ui_block_cm_to_display_space_range(uiBlock *block, float *min, float *max);
 
 /* interface_regions.c */
 
@@ -633,11 +642,14 @@ uiPopupBlockHandle *ui_popup_menu_create(
 
 void ui_popup_block_free(struct bContext *C, uiPopupBlockHandle *handle);
 
-int ui_but_menu_step(uiBut *but, int step);
+int  ui_but_menu_step(uiBut *but, int step);
+bool ui_but_menu_step_poll(const uiBut *but);
 
 
 /* interface_panel.c */
-extern int ui_handler_panel_region(struct bContext *C, const struct wmEvent *event, struct ARegion *ar);
+extern int ui_handler_panel_region(
+        struct bContext *C, const struct wmEvent *event,
+        struct ARegion *ar, const uiBut *active_but);
 extern void ui_draw_aligned_panel(struct uiStyle *style, uiBlock *block, const rcti *rect, const bool show_pin);
 
 /* interface_draw.c */
@@ -705,6 +717,8 @@ void ui_draw_preview_item(struct uiFontStyle *fstyle, rcti *rect, const char *na
 
 #define UI_TEXT_MARGIN_X 0.4f
 #define UI_POPUP_MARGIN (UI_DPI_FAC * 12)
+/* margin at top of screen for popups */
+#define UI_POPUP_MENU_TOP (int)(8 * UI_DPI_FAC)
 
 /* interface_style.c */
 void uiStyleInit(void);

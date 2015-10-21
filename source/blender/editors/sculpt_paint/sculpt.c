@@ -41,7 +41,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "DNA_customdata_types.h"
 #include "DNA_mesh_types.h"
@@ -246,6 +246,9 @@ typedef struct StrokeCache {
 	 * calc_brush_local_mat() and used in tex_strength(). */
 	float brush_local_mat[4][4];
 	
+	float plane_offset[3]; /* used to shift the plane around when doing tiled strokes */
+	int tile_pass;
+
 	float last_center[3];
 	int radial_symmetry_pass;
 	float symm_rot_mat[4][4];
@@ -2501,8 +2504,8 @@ static void calc_sculpt_plane(
 
 	if (ss->cache->mirror_symmetry_pass == 0 &&
 	    ss->cache->radial_symmetry_pass == 0 &&
-	    (ss->cache->first_time || !(brush->flag & BRUSH_ORIGINAL_NORMAL) ||
-	     (sd->paint.symmetry_flags & PAINT_TILE_AXIS_ALL)))
+	    ss->cache->tile_pass == 0 &&
+	    (ss->cache->first_time || !(brush->flag & BRUSH_ORIGINAL_NORMAL)))
 	{
 		switch (brush->sculpt_plane) {
 			case SCULPT_DISP_DIR_VIEW:
@@ -2558,6 +2561,9 @@ static void calc_sculpt_plane(
 
 		/* for flatten center */
 		mul_m4_v3(ss->cache->symm_rot_mat, r_area_co);
+
+		/* shift the plane for the current tile */
+		add_v3_v3(r_area_co, ss->cache->plane_offset);
 	}
 }
 
@@ -3438,6 +3444,7 @@ static void calc_brushdata_symm(Sculpt *sd, StrokeCache *cache, const char symm,
 
 	unit_m4(cache->symm_rot_mat);
 	unit_m4(cache->symm_rot_mat_inv);
+	zero_v3(cache->plane_offset);
 
 	if (axis) { /* expects XYZ */
 		rotate_m4(cache->symm_rot_mat, axis, angle);
@@ -3462,37 +3469,48 @@ static void do_tiled(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSettings 
 	const float radius = cache->radius;
 	const float *bbMin = ob->bb->vec[0];
 	const float *bbMax = ob->bb->vec[6];
-
-	float start[3];
-	float end[3];
 	const float *step = sd->paint.tile_offset;
 	int dim;
 
+	/* These are integer locations, for real location: multiply with step and add orgLoc. So 0,0,0 is at orgLoc. */
+	int start[3];
+	int end[3];
+	int cur[3];
+
+	float orgLoc[3]; /* position of the "prototype" stroke for tiling */
+	copy_v3_v3(orgLoc, cache->location);
+
 	for (dim = 0; dim < 3; ++dim) {
 		if ((sd->paint.symmetry_flags & (PAINT_TILE_X << dim)) && step[dim] > 0) {
-			int n = (cache->location[dim] - bbMin[dim] + radius) / step[dim];
-			start[dim] = cache->location[dim] - n * step[dim];
-			end[dim] = bbMax[dim] + radius;
+			start[dim] = (bbMin[dim] - orgLoc[dim] - radius) / step[dim];
+			end[dim] = (bbMax[dim] - orgLoc[dim] + radius) / step[dim];
 		}
 		else
-			start[dim] = end[dim] = cache->location[dim];
+			start[dim] = end[dim] = 0;
 	}
 
-	copy_v3_v3(cache->location, start);
-	do {
-		do {
-			do {
+	/* first do the "untiled" position to initialize the stroke for this location */
+	cache->tile_pass = 0;
+	action(sd, ob, brush, ups);
+
+	/* now do it for all the tiles */
+	copy_v3_v3_int(cur, start);
+	for (cur[0] = start[0]; cur[0] <= end[0]; ++cur[0]) {
+		for (cur[1] = start[1]; cur[1] <= end[1]; ++cur[1]) {
+			for (cur[2] = start[2]; cur[2] <= end[2]; ++cur[2]) {
+				if (!cur[0] && !cur[1] && !cur[2])
+					continue; /* skip tile at orgLoc, this was already handled before all others */
+
+				++cache->tile_pass;
+
+				for (dim = 0; dim < 3; ++dim) {
+					cache->location[dim] = cur[dim] * step[dim] + orgLoc[dim];
+					cache->plane_offset[dim] = cur[dim] * step[dim];
+				}
 				action(sd, ob, brush, ups);
-				cache->location[2] += step[2];
-			} while (cache->location[2] < end[2]);
-			cache->location[2] = start[2];
-
-			cache->location[1] += step[1];
-		} while (cache->location[1] < end[1]);
-		cache->location[1] = start[1];
-
-		cache->location[0] += step[0];
-	} while (cache->location[0] < end[0]);
+			}
+		}
+	}
 }
 
 
@@ -4044,7 +4062,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 	 *      brush coord/pressure/etc.
 	 *      It's more an events design issue, which doesn't split coordinate/pressure/angle
 	 *      changing events. We should avoid this after events system re-design */
-	if (paint_supports_dynamic_size(brush, PAINT_SCULPT) || cache->first_time) {
+	if (paint_supports_dynamic_size(brush, ePaintSculpt) || cache->first_time) {
 		cache->pressure = RNA_float_get(ptr, "pressure");
 	}
 
@@ -4061,7 +4079,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 		}
 	}
 
-	if (BKE_brush_use_size_pressure(scene, brush) && paint_supports_dynamic_size(brush, PAINT_SCULPT)) {
+	if (BKE_brush_use_size_pressure(scene, brush) && paint_supports_dynamic_size(brush, ePaintSculpt)) {
 		cache->radius = cache->initial_radius * cache->pressure;
 	}
 	else {
@@ -4199,7 +4217,10 @@ static float sculpt_raycast_init(ViewContext *vc, const float mouse[2], float ra
 	sub_v3_v3v3(ray_normal, ray_end, ray_start);
 	dist = normalize_v3(ray_normal);
 
-	if (!rv3d->is_persp) {
+	if ((rv3d->is_persp == false) &&
+	    /* if the ray is clipped, don't adjust its start/end */
+	    ((rv3d->rflag & RV3D_CLIPPING) == 0))
+	{
 		BKE_pbvh_raycast_project_ray_root(ob->sculpt->pbvh, original, ray_start, ray_end, ray_normal);
 
 		/* recalculate the normal */
@@ -4879,7 +4900,7 @@ static int sculpt_dynamic_topology_toggle_invoke(bContext *C, wmOperator *op, co
 			if (!ELEM(i, CD_MVERT, CD_MEDGE, CD_MFACE, CD_MLOOP, CD_MPOLY, CD_PAINT_MASK, CD_ORIGINDEX) &&
 			    (CustomData_has_layer(&me->vdata, i) ||
 			     CustomData_has_layer(&me->edata, i) ||
-			     CustomData_has_layer(&me->fdata, i)))
+			     CustomData_has_layer(&me->ldata, i)))
 			{
 				vdata = true;
 				break;
@@ -5123,7 +5144,7 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 			           "Object has negative scale, sculpting may be unpredictable");
 		}
 
-		BKE_paint_init(&ts->unified_paint_settings, &ts->sculpt->paint, PAINT_CURSOR_SCULPT);
+		BKE_paint_init(scene, ePaintSculpt, PAINT_CURSOR_SCULPT);
 
 		paint_cursor_start(C, sculpt_poll_view3d);
 	}
