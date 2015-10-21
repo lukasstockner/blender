@@ -471,7 +471,7 @@ void BKE_object_free(Object *ob)
 	BKE_object_free_ex(ob, true);
 }
 
-static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Object **obpoin)
+static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Object **obpoin, int UNUSED(cd_flag))
 {
 	Object *unlinkOb = userData;
 
@@ -976,19 +976,10 @@ void *BKE_object_obdata_add_from_type(Main *bmain, int type, const char *name)
 	}
 }
 
-/* more general add: creates minimum required data, but without vertices etc. */
-Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
+void BKE_object_init(Object *ob)
 {
-	Object *ob;
+	/* BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(ob, id)); */  /* ob->type is already initialized... */
 
-	if (!name)
-		name = get_obdata_defname(type);
-
-	ob = BKE_libblock_alloc(bmain, ID_OB, name);
-
-	/* default object vars */
-	ob->type = type;
-	
 	ob->col[0] = ob->col[1] = ob->col[2] = 1.0;
 	ob->col[3] = 1.0;
 	
@@ -1016,7 +1007,7 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 	ob->empty_drawtype = OB_PLAINAXES;
 	ob->empty_drawsize = 1.0;
 
-	if (ELEM(type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
+	if (ELEM(ob->type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
 		ob->trackflag = OB_NEGZ;
 		ob->upflag = OB_POSY;
 	}
@@ -1045,6 +1036,7 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 	ob->step_height = 0.15f;
 	ob->jump_speed = 10.0f;
 	ob->fall_speed = 55.0f;
+	ob->max_jumps = 1;
 	ob->col_group = 0x01;
 	ob->col_mask = 0xffff;
 	ob->preview = NULL;
@@ -1056,6 +1048,22 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 	
 	/* Animation Visualization defaults */
 	animviz_settings_init(&ob->avs);
+}
+
+/* more general add: creates minimum required data, but without vertices etc. */
+Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
+{
+	Object *ob;
+
+	if (!name)
+		name = get_obdata_defname(type);
+
+	ob = BKE_libblock_alloc(bmain, ID_OB, name);
+
+	/* default object vars */
+	ob->type = type;
+
+	BKE_object_init(ob);
 
 	return ob;
 }
@@ -1579,8 +1587,7 @@ Object *BKE_object_copy(Object *ob)
 }
 
 static void extern_local_object__modifiersForeachIDLink(
-        void *UNUSED(userData), Object *UNUSED(ob),
-        ID **idpoin)
+        void *UNUSED(userData), Object *UNUSED(ob), ID **idpoin, int UNUSED(cd_flag))
 {
 	if (*idpoin) {
 		/* intentionally omit ID_OB */
@@ -3725,38 +3732,6 @@ bool BKE_object_is_animated(Scene *scene, Object *ob)
 			return true;
 		}
 	return false;
-}
-
-static void copy_object__forwardModifierLinks(void *UNUSED(userData), Object *UNUSED(ob), ID **idpoin)
-{
-	/* this is copied from ID_NEW; it might be better to have a macro */
-	if (*idpoin && (*idpoin)->newid) *idpoin = (*idpoin)->newid;
-}
-
-void BKE_object_relink(Object *ob)
-{
-	if (ob->id.lib)
-		return;
-
-	BKE_constraints_relink(&ob->constraints);
-	if (ob->pose) {
-		bPoseChannel *chan;
-		for (chan = ob->pose->chanbase.first; chan; chan = chan->next) {
-			BKE_constraints_relink(&chan->constraints);
-		}
-	}
-	modifiers_foreachIDLink(ob, copy_object__forwardModifierLinks, NULL);
-
-	if (ob->adt)
-		BKE_animdata_relink(ob->adt);
-	
-	if (ob->rigidbody_constraint)
-		BKE_rigidbody_relink_constraint(ob->rigidbody_constraint);
-
-	ID_NEW(ob->parent);
-
-	ID_NEW(ob->proxy);
-	ID_NEW(ob->proxy_group);
 }
 
 MovieClip *BKE_object_movieclip_get(Scene *scene, Object *ob, bool use_default)

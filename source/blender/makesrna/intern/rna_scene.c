@@ -554,6 +554,7 @@ static void rna_Scene_set_set(PointerRNA *ptr, PointerRNA value)
 			return;
 	}
 
+	id_lib_extern((ID *)set);
 	scene->set = set;
 }
 
@@ -1950,7 +1951,7 @@ static void rna_Stereo3dFormat_update(Main *UNUSED(bmain), Scene *UNUSED(scene),
 		ImBuf *ibuf;
 		void *lock;
 
-		if ((ima->flag & IMA_IS_STEREO) == 0)
+		if (!BKE_image_is_stereo(ima))
 			return;
 
 		ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
@@ -3814,6 +3815,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "exit_key", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "exitkey");
 	RNA_def_property_enum_items(prop, event_type_items);
+	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
 	RNA_def_property_enum_default(prop, ESCKEY);
 	RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_exit_key_set", NULL);
 	RNA_def_property_ui_text(prop, "Exit Key", "The key that exits the Game Engine");
