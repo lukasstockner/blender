@@ -86,9 +86,10 @@ static int gpencil_editmode_toggle_poll(bContext *C)
 
 static int gpencil_editmode_toggle_exec(bContext *C, wmOperator *op)
 {
-	ScrArea *sa = CTX_wm_area(C);
-	Object *ob = CTX_data_active_object(C);
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = OBACT;
+	ScrArea *sa = CTX_wm_area(C);
 	
 	/* Toggle editmode flag... */
 	if (gpd == NULL)

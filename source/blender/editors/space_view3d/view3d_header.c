@@ -305,12 +305,12 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 	UI_block_emboss_set(block, UI_EMBOSS);
 	
 	/* mode */
-	if (ob) {
+	if ((gpd) && (gpd->flag & GP_DATA_STROKE_EDITMODE)) {
+		modeselect = OB_MODE_GPENCIL;
+	}
+	else if (ob) {
 		modeselect = ob->mode;
 		is_paint = ELEM(ob->mode, OB_MODE_SCULPT, OB_MODE_VERTEX_PAINT, OB_MODE_WEIGHT_PAINT, OB_MODE_TEXTURE_PAINT);
-	}
-	else if ((gpd) && (gpd->flag & GP_DATA_STROKE_EDITMODE)) {
-		modeselect = OB_MODE_GPENCIL;
 	}
 	else {
 		modeselect = OB_MODE_OBJECT;
