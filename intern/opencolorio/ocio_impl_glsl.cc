@@ -36,6 +36,7 @@
 #include <limits>
 #include <sstream>
 #include <string.h>
+#include <cmath>
 
 #include "glew-mx.h"
 
@@ -72,6 +73,8 @@ typedef struct OCIO_GLSLDrawState {
 	float *lut3d;  /* 3D LUT table */
 
 	bool dither_used;
+	bool exposure_used;
+	bool tonemap_used;
 
 	bool curve_mapping_used;
 	bool curve_mapping_texture_allocated;
@@ -256,11 +259,13 @@ static bool supportGLSL13()
  */
 bool OCIOImpl::setupGLSLDraw(OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRcPtr *processor,
                              OCIO_CurveMappingSettings *curve_mapping_settings,
-                             float dither, bool use_predivide)
+							 float dither, float white_value, float exposure, bool use_predivide)
 {
 	ConstProcessorRcPtr ocio_processor = *(ConstProcessorRcPtr *) processor;
 	bool use_curve_mapping = curve_mapping_settings != NULL;
 	bool use_dither = dither > std::numeric_limits<float>::epsilon();
+	bool use_tonemap = fabsf(white_value) > std::numeric_limits<float>::epsilon();
+	bool use_exposure = fabsf(exposure) > std::numeric_limits<float>::epsilon();
 
 	/* Create state if needed. */
 	OCIO_GLSLDrawState *state;
@@ -327,7 +332,9 @@ bool OCIOImpl::setupGLSLDraw(OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRc
 	    shaderCacheID != state->shadercacheid ||
 	    use_predivide != state->predivide_used ||
 	    use_curve_mapping != state->curve_mapping_used ||
-	    use_dither != state->dither_used)
+	    use_dither != state->dither_used ||
+	    use_tonemap != state->tonemap_used ||
+	    use_exposure != state->exposure_used)
 	{
 		state->shadercacheid = shaderCacheID;
 
@@ -361,6 +368,14 @@ bool OCIOImpl::setupGLSLDraw(OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRc
 			os << "#define USE_CURVE_MAPPING\n";
 		}
 
+		if (use_tonemap) {
+			os << "#define USE_TONEMAP\n";
+		}
+
+		if (use_exposure) {
+			os << "#define USE_EXPOSURE\n";
+		}
+
 		os << ocio_processor->getGpuShaderText(shaderDesc) << "\n";
 		os << datatoc_gpu_shader_display_transform_glsl;
 
@@ -372,7 +387,9 @@ bool OCIOImpl::setupGLSLDraw(OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRc
 
 		state->curve_mapping_used = use_curve_mapping;
 		state->dither_used = use_dither;
+		state->tonemap_used = use_tonemap;
 		state->predivide_used = use_predivide;
+		state->exposure_used = use_exposure;
 	}
 
 	if (state->program) {
@@ -405,6 +422,14 @@ bool OCIOImpl::setupGLSLDraw(OCIO_GLSLDrawState **state_r, OCIO_ConstProcessorRc
 
 		if (use_dither) {
 			glUniform1f(glGetUniformLocation(state->program, "dither"), dither);
+		}
+
+		if (use_tonemap) {
+			glUniform1f(glGetUniformLocation(state->program, "white_inv_sqr"), powf(2.0f, -2.0f*white_value));
+		}
+
+		if (use_exposure) {
+			glUniform1f(glGetUniformLocation(state->program, "gain"), powf(2.0f, exposure));
 		}
 
 		if (use_curve_mapping) {
