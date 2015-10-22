@@ -3034,11 +3034,11 @@ static void block_align_proximity_compute(ButAlign *butal, ButAlign *butal_other
 			delta = max_ff(fabsf(*butal->borders[side] - *butal_other->borders[side_opp]), FLT_MIN);
 			if (delta < max_delta) {
 				/* We are only interested in neighbors that are at least as close as already found ones. */
-				if ((delta <= butal->dists[side]) || (delta < butal_other->dists[side_opp])) {
+				if (delta <= butal->dists[side]) {
 					const bool butal_can_align = ui_but_can_align(butal->but);
 					const bool butal_other_can_align = ui_but_can_align(butal_other->but);
 
-					if ((delta < butal->dists[side]) || (delta < butal_other->dists[side_opp])) {
+					if (delta < butal->dists[side]) {
 						/* We found a closer neighbor.
 						 * If both buttons are alignable, we set them as each other neighbors.
 						 * Else, we have an unalignable one, we need to reset the other's matching neighbor to NULL
@@ -3140,6 +3140,13 @@ static void block_align_stitch_neighbors(
 			*butal_neighbor->borders[side_opp] = co;
 			butal_neighbor->dists[side_opp] = 0.0f;
 		}
+		/* See definition of UI_BUT_ALIGN_STITCH_LEFT/TOP for reason of this... */
+		else if (side == LEFT) {
+			butal->but->drawflag |= UI_BUT_ALIGN_STITCH_LEFT;
+		}
+		else if (side == TOP) {
+			butal->but->drawflag |= UI_BUT_ALIGN_STITCH_TOP;
+		}
 		*butal->borders[side] = co;
 		butal->dists[side] = 0.0f;
 		/* Clearing one of the 'flags pair' here should be enough to prevent this loop running on
@@ -3183,7 +3190,7 @@ void ui_block_align_calc(uiBlock *block)
 	/* First loop: we count number of buttons belonging to an align group, and clear their align flag. */
 	for (but = block->buttons.first; but; but = but->next) {
 		/* Clear old align flags. */
-		but->drawflag &= ~UI_BUT_ALIGN;
+		but->drawflag &= ~UI_BUT_ALIGN_ALL;
 
 		if (but->alignnr == 0) {
 			continue;
