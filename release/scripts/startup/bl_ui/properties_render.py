@@ -187,7 +187,7 @@ class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
         sub.prop(rd, "resolution_y", text="Y")
         sub.label("")
         sub = col_a.row(align=True)
-        sub.prop(rd, "resolution_percentage", text="")
+        sub.prop(scene, "frame_end")
         sub.prop(scene, "frame_step")
 
 

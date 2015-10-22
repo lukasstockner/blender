@@ -1252,8 +1252,8 @@ void UI_block_end_ex(const bContext *C, uiBlock *block, const int xy[2])
 		UI_block_layout_resolve(block, NULL, NULL);
 	}
 
-	TIMEIT_BENCH(ui_block_align_calc(block), ui_block_align_calc);
-//	ui_block_align_calc(block);
+//	TIMEIT_BENCH(ui_block_align_calc(block), ui_block_align_calc);
+	ui_block_align_calc(block);
 
 	if ((block->flag & UI_BLOCK_LOOP) && (block->flag & UI_BLOCK_NUMSELECT)) {
 		ui_menu_block_set_keyaccels(block); /* could use a different flag to check */
@@ -3130,10 +3130,6 @@ static void block_align_stitch_neighbors(
 	       (butal = butal->neighbors[side_s1]) &&
 	       (butal->flags[side] & stitch_s2))
 	{
-//		printf("\t%s\n", butal->but->str[0] ? butal->but->str : "<noname>");
-//		if (STREQ(butal->but->str, "Frame Step: ")) {
-//			printf("%s: main side %d, stride side %d: %f (%f vs %f, %f)\n", butal->but->str, i, i_s1, butal->dists[i], co, *butal->borders[i], *butal->borders[i_opp]);
-//		}
 		butal_neighbor = butal->neighbors[side];
 
 		/* If we actually do have a neighbor, we directly set its values accordingly, and clear its matching 'dist'
@@ -3149,6 +3145,18 @@ static void block_align_stitch_neighbors(
 		/* Clearing one of the 'flags pair' here should be enough to prevent this loop running on
 		 * the same column, side and direction again. */
 		butal->flags[side] &= ~stitch_s2;
+
+//		printf("\t%s\n", butal->but->str[0] ? butal->but->str : "<noname>");
+//		if (STREQ(butal->but->str, "Frame Step: ")) {
+//			printf("\t\t%s: main side %d, stride side %d: %f (%f vs %f, %f)\n",
+//			       butal->but->str, side, side_s1, butal->dists[side], co,
+//			       *butal->borders[side], *butal->borders[side_opp]);
+//		}
+//		else if (butal_neighbor && STREQ(butal_neighbor->but->str, "Frame Step: ")) {
+//			printf("\t\t%s (neighbor): main side %d, stride side %d: %f (%f vs %f, %f)\n",
+//			       butal_neighbor->but->str, side, side_s1, butal_neighbor->dists[side], co,
+//			       *butal_neighbor->borders[side], *butal_neighbor->borders[side_opp]);
+//		}
 	}
 //	printf("\n");
 }
