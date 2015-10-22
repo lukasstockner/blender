@@ -399,6 +399,7 @@ void BKE_camera_params_compute_matrix(CameraParams *params)
 
 /***************************** Camera View Frame *****************************/
 
+/* keep logic in sync with WIDGETGROUP_camera_create */
 void BKE_camera_view_frame_ex(
         const Scene *scene, const Camera *camera,
         const float drawsize, const bool do_clip, const float scale[3],

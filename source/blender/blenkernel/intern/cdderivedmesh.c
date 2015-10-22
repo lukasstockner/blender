@@ -1572,6 +1572,63 @@ static void cdDM_buffer_copy_uvedge(
 	}
 }
 
+static void cdDM_buffer_copy_facemap(DerivedMesh *dm, unsigned int *varray)
+{
+	GPUDrawObject *gdo = dm->drawObject;
+	int *facemap_iter, *facemap = DM_get_poly_data_layer(dm, CD_FACEMAP);
+	int i, totpoly, offset = 0;
+	MPoly *mp_iter, *mp = dm->getPolyArray(dm);
+	const MLoopTri *ltri = dm->getLoopTriArray(dm);
+	MLoop *mloop = dm->getLoopArray(dm);
+	int *facemap_offset;
+
+	totpoly = dm->getNumPolys(dm);
+
+	gdo->totfacemaps = 0;
+
+	facemap_iter = facemap;
+
+	/* pretty crappy to iterate so many times but it's only being done on creation */
+	for (i = 0; i < totpoly; i++, facemap_iter++) {
+		gdo->totfacemaps = max_ii(*facemap_iter, gdo->totfacemaps);
+	}
+	/* account for 0 - n -1 range */
+	gdo->totfacemaps++;
+
+	gdo->facemap_start = MEM_callocN(gdo->totfacemaps * sizeof(*gdo->facemap_start), "GDO_facemap_start");
+	gdo->facemap_count = MEM_callocN(gdo->totfacemaps * sizeof(*gdo->facemap_count), "GDO_facemap_count");
+	facemap_offset = MEM_callocN(gdo->totfacemaps * sizeof(*facemap_offset), "facemap_offset");
+
+	facemap_iter = facemap;
+	mp_iter = mp;
+	for (i = 0; i < totpoly; i++, facemap_iter++, mp_iter++) {
+		gdo->facemap_count[*facemap_iter] += ME_POLY_TRI_TOT(mp_iter);
+	}
+
+	for (i = 0; i < gdo->totfacemaps; i++) {
+		gdo->facemap_start[i] = offset;
+		offset += gdo->facemap_count[i];
+	}
+
+	facemap_iter = facemap;
+	mp_iter = mp;
+	for (i = 0; i < totpoly; i++, facemap_iter++, mp_iter++) {
+		int numtri = ME_POLY_TRI_TOT(mp_iter);
+		int fmap_offset = (gdo->facemap_start[*facemap_iter] + facemap_offset[*facemap_iter]) * 3;
+		const MLoopTri *ltri_iter = ltri + poly_to_tri_count(i, mp_iter->loopstart);
+
+		facemap_offset[*facemap_iter] += numtri;
+
+		for (; numtri > 0; numtri--) {
+			varray[fmap_offset++] = gdo->vert_points[mloop[ltri_iter->tri[0]].v].point_index;
+			varray[fmap_offset++] = gdo->vert_points[mloop[ltri_iter->tri[1]].v].point_index;
+			varray[fmap_offset++] = gdo->vert_points[mloop[ltri_iter->tri[2]].v].point_index;
+		}
+	}
+
+	MEM_freeN(facemap_offset);
+}
+
 static void cdDM_copy_gpu_data(
         DerivedMesh *dm, int type, void *varray_p,
         const int *mat_orig_to_new, const void *user_data)
@@ -1601,6 +1658,9 @@ static void cdDM_copy_gpu_data(
 			break;
 		case GPU_BUFFER_TRIANGLES:
 			cdDM_buffer_copy_triangles(dm, (unsigned int *)varray_p, mat_orig_to_new);
+			break;
+		case GPU_BUFFER_FACEMAP:
+			cdDM_buffer_copy_facemap(dm, (unsigned int *)varray_p);
 			break;
 		default:
 			break;

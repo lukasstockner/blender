@@ -462,7 +462,7 @@ static void axis_angle_to_gimbal_axis(float gmat[3][3], const float axis[3], con
 	mul_qt_v3(quat, gmat[0]);
 
 	/* Y-axis */
-	axis_angle_to_quat(quat, axis, M_PI / 2.0);
+	axis_angle_to_quat(quat, axis, M_PI_2);
 	copy_v3_v3(gmat[1], gmat[0]);
 	mul_qt_v3(quat, gmat[1]);
 
@@ -847,8 +847,6 @@ static int calc_manipulator_stats(const bContext *C)
 		}
 	}
 	else {
-		float loc[3];
-
 		/* we need the one selected object, if its not active */
 		ob = OBACT;
 		if (ob && !(ob->flag & SELECT))
@@ -859,9 +857,7 @@ static int calc_manipulator_stats(const bContext *C)
 				if (ob == NULL)
 					ob = base->object;
 
-				/* updated object matrix after transform */
-				add_v3_v3v3(loc, base->object->loc, base->object->dloc);
-				calc_tw_center(scene, loc);
+				calc_tw_center(scene, base->object->loc);
 				protectflag_to_drawflags(base->object->protectflag, &rv3d->twdrawflag);
 				totsel++;
 			}
@@ -889,8 +885,7 @@ static int calc_manipulator_stats(const bContext *C)
 				/* fall-through */
 			case V3D_MANIP_NORMAL:
 				if (obedit || ob->mode & OB_MODE_POSE) {
-					float mat[3][3];
-					ED_getTransformOrientationMatrix(C, mat, (v3d->around == V3D_ACTIVE));
+					ED_getTransformOrientationMatrix(C, mat, v3d->around);
 					copy_m4_m3(rv3d->twmat, mat);
 					break;
 				}
@@ -902,8 +897,7 @@ static int calc_manipulator_stats(const bContext *C)
 					 * use the active pones axis for display [#33575], this works as expected on a single bone
 					 * and users who select many bones will understand whats going on and what local means
 					 * when they start transforming */
-					float mat[3][3];
-					ED_getTransformOrientationMatrix(C, mat, (v3d->around == V3D_ACTIVE));
+					ED_getTransformOrientationMatrix(C, mat, v3d->around);
 					copy_m4_m3(rv3d->twmat, mat);
 					break;
 				}
@@ -916,13 +910,10 @@ static int calc_manipulator_stats(const bContext *C)
 				copy_m4_m3(rv3d->twmat, mat);
 				break;
 			default: /* V3D_MANIP_CUSTOM */
-			{
-				float mat[3][3];
 				if (applyTransformOrientation(C, mat, NULL, v3d->twmode - V3D_MANIP_CUSTOM)) {
 					copy_m4_m3(rv3d->twmat, mat);
 				}
 				break;
-			}
 		}
 	}
 
@@ -961,11 +952,7 @@ static void manipulator_prepare_mat(Scene *scene, View3D *v3d, RegionView3D *rv3
 		{
 			Object *ob = OBACT;
 			if ((v3d->around == V3D_ACTIVE) && !scene->obedit && !(ob->mode & OB_MODE_POSE)) {
-				float loc[3];
-
-				/* updated object matrix after transform */
-				add_v3_v3v3(loc, ob->loc, ob->dloc);
-				copy_v3_v3(rv3d->twmat[3], loc);
+				copy_v3_v3(rv3d->twmat[3], ob->obmat[3]);
 			}
 			else {
 				mid_v3_v3v3(rv3d->twmat[3], scene->twmin, scene->twmax);
@@ -985,32 +972,33 @@ static void manipulator_prepare_mat(Scene *scene, View3D *v3d, RegionView3D *rv3
 }
 
 /**
- * Sets up \a r_vec for custom arrow widget line drawing. Needed to
- * adjust line drawing for combined manipulator axis types.
+ * Sets up \a r_start and \a r_len to define arrow line range.
+ * Needed to adjust line drawing for combined manipulator axis types.
  */
-static void manipulator_line_vec(const View3D *v3d, float r_vec[2][3], const short axis_type)
+static void manipulator_line_range(const View3D *v3d, const short axis_type, float *r_start, float *r_len)
 {
 	const float ofs = 0.2f;
-	float start[3] = {0.0f, 0.0f, 0.2f};
-	float end[3] = {0.0f, 0.0f, 1.0f};
+
+	*r_start = 0.2f;
+	*r_len = 1.0f;
 
 	switch (axis_type) {
 		case MAN_AXES_TRANSLATE:
 			if (v3d->twtype & V3D_MANIP_SCALE) {
-				start[2] = end[2] - ofs + 0.025f;
+				*r_start = *r_len - ofs + 0.075f;
 			}
 			if (v3d->twtype & V3D_MANIP_ROTATE) {
-				end[2] += ofs;
+				*r_len += ofs;
 			}
 			break;
 		case MAN_AXES_SCALE:
 			if (v3d->twtype & (V3D_MANIP_TRANSLATE | V3D_MANIP_ROTATE)) {
-				end[2] -= ofs + 0.025f;
+				*r_len -= ofs + 0.025f;
 			}
 			break;
 	}
-	copy_v3_v3(r_vec[0], start);
-	copy_v3_v3(r_vec[1], end);
+
+	*r_len -= *r_start;
 }
 
 
@@ -1087,7 +1075,7 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 	const bool trans_visble  = (any_visible && (v3d->twtype & V3D_MANIP_TRANSLATE));
 	const bool rot_visble    = (any_visible && (v3d->twtype & V3D_MANIP_ROTATE));
 	const bool scale_visible = (any_visible && (v3d->twtype & V3D_MANIP_SCALE));
-	const ManipulatorGroup *man = manipulatorgroup_init(wgroup, trans_visble, rot_visble, scale_visible);
+	ManipulatorGroup *man = manipulatorgroup_init(wgroup, trans_visble, rot_visble, scale_visible);
 
 	if (!man)
 		return;
@@ -1101,7 +1089,7 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f) {
 		MAN_ITER_AXES_BEGIN
 		{
-			WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
+			WM_widget_set_flag(axis, WM_WIDGET_HIDDEN, true);
 		}
 		MAN_ITER_AXES_END;
 
@@ -1118,11 +1106,10 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 		int constraint_axis[3] = {1, 0, 0};
 
 		PointerRNA *ptr;
-		float line_vec[2][3];
 		float col[4], col_hi[4];
 
 		if (manipulator_is_axis_visible(v3d, rv3d, axis_idx) == false) {
-			WM_widget_flag_set(axis, WM_WIDGET_HIDDEN, true);
+			WM_widget_set_flag(axis, WM_WIDGET_HIDDEN, true);
 			continue;
 		}
 
@@ -1141,17 +1128,23 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 			case MAN_AXIS_SCALE_X:
 			case MAN_AXIS_SCALE_Y:
 			case MAN_AXIS_SCALE_Z:
-				manipulator_line_vec(v3d, line_vec, axis_type);
+			{
+				float start_co[3] = {0.0f, 0.0f, 0.0f};
+				float len;
+
+				manipulator_line_range(v3d, axis_type, &start_co[2], &len);
 
 				WIDGET_arrow_set_direction(axis, rv3d->twmat[aidx_norm]);
-				WIDGET_arrow_set_line_vec(axis, (const float (*)[3])line_vec, ARRAY_SIZE(line_vec));
+				WIDGET_arrow_set_line_len(axis, len);
+				WM_widget_set_offset(axis, start_co);
 				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
 				break;
+			}
 			case MAN_AXIS_ROT_X:
 			case MAN_AXIS_ROT_Y:
 			case MAN_AXIS_ROT_Z:
+				WIDGET_dial_set_up_vector(axis, rv3d->twmat[aidx_norm]);
 				WM_widget_set_line_width(axis, MAN_AXIS_LINE_WIDTH);
-				WIDGET_dial_set_direction(axis, rv3d->twmat[aidx_norm]);
 				break;
 			case MAN_AXIS_TRANS_XY:
 			case MAN_AXIS_TRANS_YZ:
@@ -1167,38 +1160,40 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 				ofs[1] = ofs_ax;
 				ofs[2] = 0.0f;
 
-				WM_widget_set_scale(axis, 0.07f);
-				WM_widget_set_origin(axis, rv3d->twmat[3]);
-				WIDGET_plane_set_offset(axis, ofs);
 				WIDGET_plane_set_direction(axis, rv3d->twmat[aidx_norm - 1 < 0 ? 2 : aidx_norm - 1]);
 				WIDGET_plane_set_up_vector(axis, rv3d->twmat[aidx_norm + 1 > 2 ? 0 : aidx_norm + 1]);
+				WM_widget_set_scale(axis, 0.07f);
+				WM_widget_set_origin(axis, rv3d->twmat[3]);
+				WM_widget_set_offset(axis, ofs);
 				break;
 			}
 			case MAN_AXIS_TRANS_C:
 			case MAN_AXIS_ROT_C:
 			case MAN_AXIS_SCALE_C:
+				WIDGET_dial_set_up_vector(axis, rv3d->viewinv[2]);
 				if (axis_idx != MAN_AXIS_ROT_C) {
 					WM_widget_set_scale(axis, 0.2f);
 				}
-				WIDGET_dial_set_direction(axis, rv3d->viewinv[2]);
 				break;
 		}
 
 		switch (axis_type) {
 			case MAN_AXES_TRANSLATE:
-				ptr = WM_widget_operator(axis, "TRANSFORM_OT_translate");
+				ptr = WM_widget_set_operator(axis, "TRANSFORM_OT_translate");
 				break;
 			case MAN_AXES_ROTATE:
-				ptr = WM_widget_operator(axis, "TRANSFORM_OT_rotate");
+				ptr = WM_widget_set_operator(axis, "TRANSFORM_OT_rotate");
 				break;
 			case MAN_AXES_SCALE:
-				ptr = WM_widget_operator(axis, "TRANSFORM_OT_resize");
+				ptr = WM_widget_set_operator(axis, "TRANSFORM_OT_resize");
 				break;
 		}
 		RNA_boolean_set_array(ptr, "constraint_axis", constraint_axis);
 		RNA_boolean_set(ptr, "release_confirm", 1);
 	}
 	MAN_ITER_AXES_END;
+
+	MEM_freeN(man);
 }
 
 void WIDGETGROUP_object_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup)

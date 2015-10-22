@@ -108,6 +108,8 @@ extern "C" {
 
 struct bContext;
 struct wmEvent;
+struct wmKeyMap;
+struct wmKeyConfig;
 struct wmWindowManager;
 struct wmOperator;
 struct ImBuf;
@@ -672,24 +674,29 @@ typedef struct wmDropBox {
 
 
 /* WidgetGroups store and manage groups of widgets.
- * They are responsible for drawing necessary widgets and updating their state and position. 
- * Also they */
+ * They are responsible for drawing necessary widgets and updating their state and position. */
 typedef struct wmWidget wmWidget;
 typedef struct wmWidgetGroup wmWidgetGroup;
 typedef struct wmWidgetMapType wmWidgetMapType;
-typedef struct wmWidgetGroupType wmWidgetGroupType;
 
 /* factory class for a widgetgroup type, gets called every time a new area is spawned */
 typedef struct wmWidgetGroupType {
 	struct wmWidgetGroupType *next, *prev;
 
 	char idname[64]; /* MAX_NAME */
+	char name[64]; /* widget group name - displayed in UI (keymap editor) */
 
 	/* poll if widgetmap should be active */
 	int (*poll)(const struct bContext *C, struct wmWidgetGroupType *wgrouptype) ATTR_WARN_UNUSED_RESULT;
 
 	/* update widgets, called right before drawing */
 	void (*create)(const struct bContext *C, struct wmWidgetGroup *wgroup);
+
+	/* keymap init callback for this widgetgroup */
+	struct wmKeyMap *(*keymap_init)(struct wmKeyConfig *, const char *);
+
+	/* keymap created with callback from above */
+	struct wmKeyMap *keymap;
 
 	/* rna for properties */
 	struct StructRNA *srna;
@@ -711,16 +718,18 @@ typedef struct wmWidgetGroupType {
 
 typedef struct wmWidgetMap {
 	struct wmWidgetMap *next, *prev;
-	
+
 	struct wmWidgetMapType *type;
 	ListBase widgetgroups;
-	
+
 	/* highlighted widget for this map. We redraw the widgetmap when this changes  */
 	struct wmWidget *highlighted_widget;
 	/* active widget for this map. User has clicked currently this widget and it gets all input */
 	struct wmWidget *active_widget;
-	
-	/* active group is overriding all other widgets while active */
+	/* selected widget for this map. */
+	struct wmWidget *selected_widget;
+
+	/* active group - set while widget is highlighted/active */
 	struct wmWidgetGroup *activegroup;
 } wmWidgetMap;
 

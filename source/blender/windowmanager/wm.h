@@ -49,11 +49,14 @@ typedef struct wmPaintCursor {
 	void (*draw)(bContext *C, int, int, void *customdata);
 } wmPaintCursor;
 
-/* widgets are set per screen/area/region by registering them on widgetmaps */
+/* widgets are set per region by registering them on widgetmaps */
 typedef struct wmWidget {
 	struct wmWidget *next, *prev;
-	
+
 	char idname[MAX_NAME + 4]; /* + 4 for unique '.001', '.002', etc suffix */
+
+	/* pointer back to parent widget group */
+	wmWidgetGroup *wgroup;
 
 	/* draw widget */
 	void (*draw)(const struct bContext *C, struct wmWidget *widget);
@@ -76,14 +79,19 @@ typedef struct wmWidget {
 	/* activate a widget state when the user clicks on it */
 	int (*invoke)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 
+	/* called after canceling widget handling - used to reset property */
+	void (*cancel)(struct bContext *C, struct wmWidget *widget);
+
 	int (*get_cursor)(struct wmWidget *widget);
-	
-	int  flag; /* flags set by drawing and interaction, such as highlighting */
+
+	int flag; /* flags set by drawing and interaction, such as highlighting */
 
 	unsigned char highlighted_part;
 
 	/* center of widget in space, 2d or 3d */
 	float origin[3];
+	/* custom offset from origin */
+	float offset[3];
 
 	/* runtime property, set the scale while drawing on the viewport */
 	float scale;
@@ -104,26 +112,16 @@ typedef struct wmWidget {
 	const char *opname;
 
 	/* operator properties if widget spawns and controls an operator, or owner pointer if widget spawns and controls a property */
-	struct PointerRNA opptr;
+	PointerRNA opptr;
 
 	/* maximum number of properties attached to the widget */
 	int max_prop;
-	
+
 	/* arrays of properties attached to various widget parameters. As the widget is interacted with, those properties get updated */
-	struct PointerRNA *ptr;
-	struct PropertyRNA **props;
+	PointerRNA *ptr;
+	PropertyRNA **props;
 } wmWidget;
 
-/* wmWidget->flag */
-enum widgetflags {
-	/* states */
-	WM_WIDGET_HIGHLIGHT   = (1 << 0),
-	WM_WIDGET_ACTIVE      = (1 << 1),
-	WM_WIDGET_DRAW_HOVER  = (1 << 2),
-	WM_WIDGET_SCALE_3D    = (1 << 3),
-	WM_WIDGET_SCENE_DEPTH = (1 << 4), /* widget is depth culled with scene objects*/
-	WM_WIDGET_HIDDEN      = (1 << 5),
-};
 
 extern void wm_close_and_free(bContext *C, wmWindowManager *);
 extern void wm_close_and_free_all(bContext *C, ListBase *);
@@ -171,8 +169,14 @@ void wm_open_init_load_ui(wmOperator *op, bool use_prefs);
 void wm_open_init_use_scripts(wmOperator *op, bool use_prefs);
 
 /* wm_widgets.c */
-bool wm_widgetmap_is_3d(const struct wmWidgetMap *wmap);
-bool wm_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget, const char *name);
+bool wm_widgetmap_is_3d(const wmWidgetMap *wmap);
+bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *name);
+void wm_widgets_keymap(wmKeyConfig *keyconf);
+
+void WIDGETGROUP_OT_widget_set_active(wmOperatorType *ot);
+void WIDGETGROUP_OT_widget_set_select(wmOperatorType *ot);
+void WIDGETGROUP_OT_widget_tweak(wmOperatorType *ot);
+void WIDGETGROUP_OT_widget_tweak_cancel(wmOperatorType *ot);
 
 
 /* hack to store circle select size - campbell, must replace with nice operator memory */

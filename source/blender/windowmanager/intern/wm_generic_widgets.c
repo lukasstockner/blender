@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2009 Blender Foundation.
+ * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
  *
  * Contributor(s): Blender Foundation
@@ -23,8 +23,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editors/interface/interface_generic_widgets.c
- *  \ingroup edinterface
+/** \file blender/windowmanager/intern/wm_generic_widgets.c
+ *  \ingroup wm
+ *
+ * *****************************************************
+ *                GENERIC WIDGET LIBRARY                
+ * *****************************************************
  */
 
 #include "RNA_types.h"
@@ -69,16 +73,14 @@
 #include "WM_types.h"
 
 
-/******************************************************
- *            GENERIC WIDGET LIBRARY                  *
- ******************************************************/
-
-
 /* to use custom arrows exported to arrow_widget.c */
 //#define WIDGET_USE_CUSTOM_ARROWS
-/* to use custom dials exported to arrow_widget.c */
+/* to use custom dials exported to dial_widget.c */
 //#define WIDGET_USE_CUSTOM_DIAS
 
+
+/* -------------------------------------------------------------------- */
+/* Widget drawing */
 
 typedef struct WidgetDrawInfo {
 	int nverts;
@@ -151,24 +153,43 @@ static void widget_draw_intern(WidgetDrawInfo *info, const bool select)
 	}
 }
 
-/********* Arrow widget ************/
 
-#define ARROW_UP_VECTOR_SET 1
+/* -------------------------------------------------------------------- */
+/* Widget defines */
+
+/** \name Arrow Widget
+ *
+ * 3D Widget
+ *
+ * \brief Simple arrow widget which is dragged into a certain direction.
+ * The arrow head can have have varying shapes, e.g. cone, box, etc.
+ *
+ * \{ */
+
+/* ArrowWidget->flag */
+enum {
+	ARROW_UP_VECTOR_SET    = (1 << 0),
+	ARROW_CUSTOM_RANGE_SET = (1 << 1),
+};
 
 typedef struct ArrowWidget {
 	wmWidget widget;
 	int style;
 	int flag;
+
+	float len;          /* arrow line length */
 	float direction[3];
 	float up[3];
-	float (*line)[3];    /* custom coords for arrow line drawing */
-	int tot_line_points; /* amount of points for arrow line drawing */
+	float aspect[2];    /* cone style only */
+
+	float range_fac;      /* factor for arrow min/max distance */
 	float offset;
 	/* property range and minimum for constrained arrows */
 	float range, min;
 } ArrowWidget;
 
 typedef struct ArrowInteraction {
+	float orig_value; /* initial property value */
 	float orig_origin[3];
 	float orig_mouse[2];
 	float orig_offset;
@@ -203,41 +224,80 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 
 		glPopAttrib();
 	}
+	else if (arrow->style & WIDGET_ARROW_STYLE_CONE) {
+		const float unitx = arrow->aspect[0];
+		const float unity = arrow->aspect[1];
+		const float vec[4][3] = {
+			{-unitx, -unity, 0},
+			{ unitx, -unity, 0},
+			{ unitx,  unity, 0},
+			{-unitx,  unity, 0},
+		};
+
+		glLineWidth(arrow->widget.line_width);
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glVertexPointer(3, GL_FLOAT, 0, vec);
+		glDrawArrays(GL_LINE_LOOP, 0, ARRAY_SIZE(vec));
+		glDisableClientState(GL_VERTEX_ARRAY);
+		glLineWidth(1.0);
+	}
 	else {
 #ifdef WIDGET_USE_CUSTOM_ARROWS
 		widget_draw_intern(&arrow_head_draw_info, select);
 #else
+		const float vec[2][3] = {
+			{0.0f, 0.0f, 0.0f},
+			{0.0f, 0.0f, arrow->len},
+		};
+
 		glLineWidth(arrow->widget.line_width);
 		glEnableClientState(GL_VERTEX_ARRAY);
-		glVertexPointer(3, GL_FLOAT, 0, arrow->line);
-		glDrawArrays(GL_LINES, 0, arrow->tot_line_points);
+		glVertexPointer(3, GL_FLOAT, 0, vec);
+		glDrawArrays(GL_LINE_STRIP, 0, ARRAY_SIZE(vec));
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glLineWidth(1.0);
 
-		/* draw arrow head */
 
-		glTranslatef(UNPACK3(arrow->line[arrow->tot_line_points - 1]));
+		/* *** draw arrow head *** */
+
+		glPushMatrix();
 
 		if (arrow->style & WIDGET_ARROW_STYLE_BOX) {
 			const float size = 0.05f;
 
-			/* draw cube */
+			/* translate to line end with some extra offset so box starts exactly where line ends */
+			glTranslatef(0.0f, 0.0f, arrow->len + size);
+			/* scale down to box size */
 			glScalef(size, size, size);
+
+			/* draw cube */
 			widget_draw_intern(&cube_draw_info, select);
 		}
 		else {
 			GLUquadricObj *qobj = gluNewQuadric();
 			const float len = 0.25f;
 			const float width = 0.06f;
+			const bool use_lighting = select == false && ((U.tw_flag & V3D_SHADED_WIDGETS) != 0);
+
+			/* translate to line end */
+			glTranslatef(0.0f, 0.0f, arrow->len);
+
+			if (use_lighting) {
+				glShadeModel(GL_SMOOTH);
+			}
 
 			gluQuadricDrawStyle(qobj, GLU_FILL);
-			gluCylinder(qobj, width, 0.0, len, 8, 1);
 			gluQuadricOrientation(qobj, GLU_INSIDE);
 			gluDisk(qobj, 0.0, width, 8, 1);
 			gluQuadricOrientation(qobj, GLU_OUTSIDE);
+			gluCylinder(qobj, width, 0.0, len, 8, 1);
+
+			if (use_lighting) {
+				glShadeModel(GL_FLAT);
+			}
 		}
 
-		(void)select;
+		glPopMatrix();
 #endif
 	}
 
@@ -276,6 +336,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, const bool select, const bool 
 	}
 
 	glEnable(GL_BLEND);
+	glTranslate3fv(arrow->widget.offset);
 	arrow_draw_geom(arrow, select);
 	glDisable(GL_BLEND);
 
@@ -293,8 +354,8 @@ static void arrow_draw_intern(ArrowWidget *arrow, const bool select, const bool 
 
 		glEnable(GL_BLEND);
 		glColor4f(0.5f, 0.5f, 0.5f, 0.5f);
+		glTranslate3fv(arrow->widget.offset);
 		arrow_draw_geom(arrow, select);
-
 		glDisable(GL_BLEND);
 
 		glPopMatrix();
@@ -312,7 +373,11 @@ static void widget_arrow_draw(const bContext *UNUSED(C), wmWidget *widget)
 	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0);
 }
 
-#define ARROW_RANGE 1.5f
+/**
+ * Calculate arrow offset independent from prop min value,
+ * meaning the range will not be offset by min value first.
+ */
+#define USE_ABS_HANDLE_RANGE
 
 static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *widget)
 {
@@ -329,6 +394,7 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 	float fac, zfac;
 	float facdir = 1.0f;
 	bool use_vertical = false;
+
 
 	copy_v3_v3(orig_origin, data->orig_origin);
 	orig_origin[3] = 1.0f;
@@ -403,14 +469,24 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 	if (widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE]) {
 		PointerRNA ptr = widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE];
 		PropertyRNA *prop = widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE];
+		float max = arrow->min + arrow->range;
 		float value;
 
 		value = data->orig_offset + facdir * len_v3(offset);
 		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
-				value = arrow->min + arrow->range - (value * arrow->range / ARROW_RANGE);
+				value = max - (value * arrow->range / arrow->range_fac);
 			else
-				value = arrow->min + (value * arrow->range / ARROW_RANGE);
+#ifdef USE_ABS_HANDLE_RANGE
+				value = value * arrow->range / arrow->range_fac;
+#else
+				value = arrow->min + (value * arrow->range / arrow->range_fac);
+#endif
+		}
+
+		/* clamp to custom range */
+		if (arrow->flag & ARROW_CUSTOM_RANGE_SET) {
+			CLAMP(value, arrow->min, max);
 		}
 
 		RNA_property_float_set(&ptr, prop, value);
@@ -421,9 +497,13 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 		/* accounts for clamping properly */
 		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
-				arrow->offset = ARROW_RANGE * (arrow->min + arrow->range - value) / arrow->range;
+				arrow->offset = arrow->range_fac * (max - value) / arrow->range;
 			else
-				arrow->offset = ARROW_RANGE * ((value - arrow->min) / arrow->range);
+#ifdef USE_ABS_HANDLE_RANGE
+				arrow->offset = arrow->range_fac * (value / arrow->range);
+#else
+				arrow->offset = arrow->range_fac * ((value - arrow->min) / arrow->range);
+#endif
 		}
 		else
 			arrow->offset = value;
@@ -443,6 +523,12 @@ static int widget_arrow_invoke(bContext *UNUSED(C), const wmEvent *event, wmWidg
 {
 	ArrowWidget *arrow = (ArrowWidget *) widget;
 	ArrowInteraction *data = MEM_callocN(sizeof(ArrowInteraction), "arrow_interaction");
+	PointerRNA ptr = widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE];
+	PropertyRNA *prop = widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE];
+
+	if (prop) {
+		data->orig_value = RNA_property_float_get(&ptr, prop);
+	}
 
 	data->orig_offset = arrow->offset;
 
@@ -465,20 +551,29 @@ static void widget_arrow_bind_to_prop(wmWidget *widget, const int UNUSED(slot))
 	PropertyRNA *prop = widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE];
 
 	if (prop) {
-		const float float_prop = RNA_property_float_get(&ptr, prop);
+		float float_prop = RNA_property_float_get(&ptr, prop);
 
 		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
 			float min, max, step, precision;
 
-			RNA_property_float_ui_range(&ptr, prop, &min, &max, &step, &precision);
-			arrow->range = max - min;
-			arrow->min = min;
-
-			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED) {
-				arrow->offset = ARROW_RANGE * (max - float_prop) / arrow->range;
+			if (arrow->flag & ARROW_CUSTOM_RANGE_SET) {
+				max = arrow->min + arrow->range;
 			}
 			else {
-				arrow->offset = ARROW_RANGE * ((float_prop - arrow->min) / arrow->range);
+				RNA_property_float_ui_range(&ptr, prop, &min, &max, &step, &precision);
+				arrow->range = max - min;
+				arrow->min = min;
+			}
+
+			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED) {
+				arrow->offset = arrow->range_fac * (max - float_prop) / arrow->range;
+			}
+			else {
+#ifdef USE_ABS_HANDLE_RANGE
+				arrow->offset = arrow->range_fac * (float_prop / arrow->range);
+#else
+				arrow->offset = arrow->range_fac * ((float_prop - arrow->min) / arrow->range);
+#endif
 			}
 		}
 		else {
@@ -490,14 +585,25 @@ static void widget_arrow_bind_to_prop(wmWidget *widget, const int UNUSED(slot))
 		arrow->offset = 0.0f;
 }
 
+static void widget_arrow_cancel(bContext *C, wmWidget *widget)
+{
+	PointerRNA ptr = widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE];
+	PropertyRNA *prop = widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE];
+	ArrowInteraction *data = widget->interaction_data;
+
+	/* reset property */
+	RNA_property_float_set(&ptr, prop, data->orig_value);
+	RNA_property_update(C, &ptr, prop);
+}
+
+/** \name Arrow Widget API
+ *
+ * \{ */
+
 wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int style)
 {
 	ArrowWidget *arrow = MEM_callocN(sizeof(ArrowWidget), name);
 	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
-	const float line_default[2][3] = {
-		{0.0f, 0.0f, 0.0f},
-		{0.0f, 0.0f, 1.0f}
-	};
 	int real_style = style;
 
 #ifdef WIDGET_USE_CUSTOM_ARROWS
@@ -532,29 +638,33 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	arrow->widget.invoke = widget_arrow_invoke;
 	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
 	arrow->widget.bind_to_prop = widget_arrow_bind_to_prop;
-	arrow->widget.flag |= WM_WIDGET_SCALE_3D;
+	arrow->widget.cancel = widget_arrow_cancel;
+	arrow->widget.flag |= (WM_WIDGET_SCALE_3D | WM_WIDGET_DRAW_ACTIVE);
 
 	arrow->style = real_style;
-
-	/* defaults */
+	arrow->len = 1.0f;
+	arrow->range_fac = 1.0f;
 	copy_v3_v3(arrow->direction, dir_default);
-	arrow->tot_line_points = ARRAY_SIZE(line_default);
-	arrow->line = MEM_mallocN(sizeof(line_default), __func__);
-	memcpy(arrow->line, line_default, sizeof(line_default));
 
 	wm_widget_register(wgroup, &arrow->widget, name);
 
 	return (wmWidget *)arrow;
 }
 
+/**
+ * Define direction the arrow will point towards
+ */
 void WIDGET_arrow_set_direction(wmWidget *widget, const float direction[3])
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
-	
+
 	copy_v3_v3(arrow->direction, direction);
 	normalize_v3(arrow->direction);
 }
 
+/**
+ * Define up-direction of the arrow widget
+ */
 void WIDGET_arrow_set_up_vector(wmWidget *widget, const float direction[3])
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
@@ -570,20 +680,67 @@ void WIDGET_arrow_set_up_vector(wmWidget *widget, const float direction[3])
 }
 
 /**
- * Define a custom coord vec for arrow line drawing
+ * Define a custom arrow line length
  */
-void WIDGET_arrow_set_line_vec(wmWidget *widget, const float (*vec)[3], const int tot_points)
+void WIDGET_arrow_set_line_len(wmWidget *widget, const float len)
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
-	const size_t vec_size = 3 * tot_points * sizeof(float);
-
-	arrow->tot_line_points = tot_points;
-	arrow->line = MEM_reallocN(arrow->line, vec_size);
-	memcpy(arrow->line, vec, vec_size);
+	arrow->len = len;
 }
 
+/**
+ * Define a custom property UI range
+ *
+ * \note Needs to be called before WM_widget_set_property!
+ */
+void WIDGET_arrow_set_ui_range(wmWidget *widget, const float min, const float max)
+{
+	ArrowWidget *arrow = (ArrowWidget *)widget;
 
-/********* Dial widget ************/
+	BLI_assert(min < max);
+	BLI_assert(!(arrow->widget.props[0] && "Make sure this function is called before WM_widget_set_property"));
+
+	arrow->range = max - min;
+	arrow->min = min;
+	arrow->flag |= ARROW_CUSTOM_RANGE_SET;
+}
+
+/**
+ * Define a custom factor for arrow min/max distance
+ *
+ * \note Needs to be called before WM_widget_set_property!
+ */
+void WIDGET_arrow_set_range_fac(wmWidget *widget, const float range_fac)
+{
+	ArrowWidget *arrow = (ArrowWidget *)widget;
+
+	BLI_assert(!(arrow->widget.props[0] && "Make sure this function is called before WM_widget_set_property"));
+
+	arrow->range_fac = range_fac;
+}
+
+/**
+ * Define xy-aspect for arrow cone
+ */
+void WIDGET_arrow_cone_set_aspect(wmWidget *widget, const float aspect[2])
+{
+	ArrowWidget *arrow = (ArrowWidget *)widget;
+
+	copy_v2_v2(arrow->aspect, aspect);
+}
+
+/** \} */ // Arrow Widget API
+/** \} */ // Arrow Widget
+
+
+/** \name Dial Widget
+ *
+ * 3D Widget
+ *
+ * \brief Circle shaped widget for circular interaction.
+ * Currently no own handling, use with operator only.
+ *
+ * \{ */
 
 typedef struct DialWidget {
 	wmWidget widget;
@@ -593,24 +750,23 @@ typedef struct DialWidget {
 
 static void dial_draw_geom(const DialWidget *dial, const bool select)
 {
+#ifdef WIDGET_USE_CUSTOM_DIAS
+	glEnable(GL_MULTISAMPLE_ARB);
+
+	widget_draw_intern(&dial_draw_info, select);
+#else
 	GLUquadricObj *qobj = gluNewQuadric();
 	const float width = 1.0f;
 	const int resol = 32;
 
 	glEnable(GL_MULTISAMPLE_ARB);
 
-#ifdef WIDGET_USE_CUSTOM_DIAS
-	widget_draw_intern(&dial_draw_info, select);
-
-	(void)qobj; (void)width; (void)resol;
-#else
-
 	glLineWidth(dial->widget.line_width);
 	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
 	gluDisk(qobj, 0.0, width, resol, 1);
 	glLineWidth(1.0);
 
-	(void)select;
+	UNUSED_VARS(select);
 #endif
 
 	glDisable(GL_MULTISAMPLE_ARB);
@@ -635,6 +791,7 @@ static void dial_draw_intern(DialWidget *dial, const bool select, const bool hig
 	else
 		glColor4fv(dial->widget.col);
 
+	glTranslate3fv(dial->widget.offset);
 	dial_draw_geom(dial, select);
 
 	glPopMatrix();
@@ -688,6 +845,10 @@ static void widget_dial_draw(const bContext *C, wmWidget *widget)
 	}
 }
 
+/** \name Dial Widget API
+ *
+ * \{ */
+
 wmWidget *WIDGET_dial_new(wmWidgetGroup *wgroup, const char *name, const int style)
 {
 	DialWidget *dial = MEM_callocN(sizeof(DialWidget), name);
@@ -719,7 +880,10 @@ wmWidget *WIDGET_dial_new(wmWidgetGroup *wgroup, const char *name, const int sty
 	return (wmWidget *)dial;
 }
 
-void WIDGET_dial_set_direction(wmWidget *widget, const float direction[3])
+/**
+ * Define up-direction of the dial widget
+ */
+void WIDGET_dial_set_up_vector(wmWidget *widget, const float direction[3])
 {
 	DialWidget *dial = (DialWidget *)widget;
 
@@ -727,21 +891,32 @@ void WIDGET_dial_set_direction(wmWidget *widget, const float direction[3])
 	normalize_v3(dial->direction);
 }
 
-/********* Plane widget ************/
+/** \} */ // Dial Widget API
+/** \} */ // Dial Widget
 
+
+/** \name Plane Widget
+ *
+ * 3D Widget
+ *
+ * \brief Flat and rectangular shaped widget for planar interaction.
+ * Currently no own handling, use with operator only.
+ *
+ * \{ */
+
+/* PlaneWidget->flag */
 #define PLANE_UP_VECTOR_SET 1
 
 typedef struct PlaneWidget {
 	wmWidget widget;
 
 	float direction[3];
-	float offset[3];
 	float up[3];
 	int flag;
 } PlaneWidget;
 
 
-static void widget_plane_draw_geom(const float ofs[3], const float col_inner[4], const float col_outer[4])
+static void widget_plane_draw_geom(const float col_inner[4], const float col_outer[4])
 {
 	static float vec[4][3] = {
 		{-1, -1, 0},
@@ -749,8 +924,6 @@ static void widget_plane_draw_geom(const float ofs[3], const float col_inner[4],
 		{ 1,  1, 0},
 		{-1,  1, 0},
 	};
-
-	glTranslatef(UNPACK3(ofs));
 
 	glEnable(GL_MULTISAMPLE_ARB);
 
@@ -799,7 +972,8 @@ static void widget_plane_draw_intern(PlaneWidget *plane, const bool UNUSED(selec
 	col_inner[3] *= 0.5f;
 
 	glEnable(GL_BLEND);
-	widget_plane_draw_geom(plane->offset, col_inner, col_outer);
+	glTranslate3fv(plane->widget.offset);
+	widget_plane_draw_geom(col_inner, col_outer);
 	glDisable(GL_BLEND);
 
 	glPopMatrix();
@@ -816,6 +990,10 @@ static void widget_plane_draw(const bContext *UNUSED(C), wmWidget *widget)
 	widget_plane_draw_intern((PlaneWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT));
 }
 
+/** \name Plane Widget API
+ *
+ * \{ */
+
 wmWidget *WIDGET_plane_new(wmWidgetGroup *wgroup, const char *name, const int UNUSED(style))
 {
 	PlaneWidget *plane = MEM_callocN(sizeof(PlaneWidget), name);
@@ -828,13 +1006,15 @@ wmWidget *WIDGET_plane_new(wmWidgetGroup *wgroup, const char *name, const int UN
 
 	/* defaults */
 	copy_v3_v3(plane->direction, dir_default);
-	zero_v3(plane->offset);
 
 	wm_widget_register(wgroup, &plane->widget, name);
 
 	return (wmWidget *)plane;
 }
 
+/**
+ * Define direction the plane will point towards
+ */
 void WIDGET_plane_set_direction(wmWidget *widget, const float direction[3])
 {
 	PlaneWidget *plane = (PlaneWidget *)widget;
@@ -843,13 +1023,9 @@ void WIDGET_plane_set_direction(wmWidget *widget, const float direction[3])
 	normalize_v3(plane->direction);
 }
 
-void WIDGET_plane_set_offset(wmWidget *widget, const float offset[3])
-{
-	PlaneWidget *plane = (PlaneWidget *)widget;
-
-	copy_v3_v3(plane->offset, offset);
-}
-
+/**
+ * Define up-direction of the plane widget
+ */
 void WIDGET_plane_set_up_vector(wmWidget *widget, const float direction[3])
 {
 	PlaneWidget *plane = (PlaneWidget *)widget;
@@ -864,8 +1040,20 @@ void WIDGET_plane_set_up_vector(wmWidget *widget, const float direction[3])
 	}
 }
 
-/********* Cage widget ************/
+/** \} */ // Plane Widget API
+/** \} */ // Plane Widget
 
+
+/** \name Cage Widget
+ *
+ * 2D Widget
+ *
+ * \brief Rectangular widget acting as a 'cage' around its content.
+ * Interacting scales or translates the widget.
+ *
+ * \{ */
+
+/* wmWidget->highlighted_part */
 enum {
 	WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE     = 1,
 	WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT   = 2,
@@ -879,7 +1067,6 @@ enum {
 
 typedef struct RectTransformWidget {
 	wmWidget widget;
-	float offset[2]; /* position of widget */
 	float w, h;      /* dimensions of widget */
 	float rotation;  /* rotation of the rectangle */
 	float scale[2]; /* scaling for the widget for non-destructive editing. */
@@ -918,7 +1105,7 @@ static void rect_transform_draw_interaction(
 {
 	float verts[4][2];
 	unsigned short elems[4] = {0, 1, 3, 2};
-	
+
 	switch (highlighted) {
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT:
 			verts[0][0] = -half_w + w;
@@ -930,7 +1117,7 @@ static void rect_transform_draw_interaction(
 			verts[3][0] = -half_w + w;
 			verts[3][1] = half_h;
 			break;
-			
+
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT:
 			verts[0][0] = half_w - w;
 			verts[0][1] = -half_h;
@@ -941,7 +1128,7 @@ static void rect_transform_draw_interaction(
 			verts[3][0] = half_w - w;
 			verts[3][1] = half_h;
 			break;
-			
+
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN:
 			verts[0][0] = -half_w;
 			verts[0][1] = -half_h + h;
@@ -952,7 +1139,7 @@ static void rect_transform_draw_interaction(
 			verts[3][0] = half_w;
 			verts[3][1] = -half_h + h;
 			break;
-			
+
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP:
 			verts[0][0] = -half_w;
 			verts[0][1] = half_h - h;
@@ -963,11 +1150,11 @@ static void rect_transform_draw_interaction(
 			verts[3][0] = half_w;
 			verts[3][1] = half_h - h;
 			break;
-			
+
 		default:
 			return;
 	}
-	
+
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(2, GL_FLOAT, 0, verts);
 	glLineWidth(line_width + 3.0);
@@ -978,7 +1165,7 @@ static void rect_transform_draw_interaction(
 	glDrawArrays(GL_LINE_STRIP, 0, 3);
 	glLineWidth(1.0);
 
-	(void)elems;
+	UNUSED_VARS(elems);
 }
 
 static void widget_rect_transform_draw(const bContext *UNUSED(C), wmWidget *widget)
@@ -990,14 +1177,14 @@ static void widget_rect_transform_draw(const bContext *UNUSED(C), wmWidget *widg
 	float half_w = w / 2.0f;
 	float half_h = h / 2.0f;
 	float aspx = 1.0f, aspy = 1.0f;
-	
+
 	r.xmin = -half_w;
 	r.ymin = -half_h;
 	r.xmax = half_w;
 	r.ymax = half_h;
-	
+
 	glPushMatrix();
-	glTranslatef(widget->origin[0] + cage->offset[0], widget->origin[1] + cage->offset[1], 0.0f);
+	glTranslatef(widget->origin[0] + widget->offset[0], widget->origin[1] + widget->offset[1], 0.0f);
 	if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM)
 		glScalef(cage->scale[0], cage->scale[0], 1.0);
 	else
@@ -1029,7 +1216,7 @@ static void widget_rect_transform_draw(const bContext *UNUSED(C), wmWidget *widg
 	glPopMatrix();
 }
 
-static int widget_rect_tranfrorm_get_cursor(wmWidget *widget)
+static int widget_rect_transform_get_cursor(wmWidget *widget)
 {
 	switch (widget->highlighted_part) {
 		case WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE:
@@ -1045,7 +1232,7 @@ static int widget_rect_tranfrorm_get_cursor(wmWidget *widget)
 	}
 }
 
-static int widget_rect_tranfrorm_intersect(bContext *UNUSED(C), const wmEvent *event, wmWidget *widget)
+static int widget_rect_transform_intersect(bContext *UNUSED(C), const wmEvent *event, wmWidget *widget)
 {
 	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	const float mouse[2] = {event->mval[0], event->mval[1]};
@@ -1058,11 +1245,11 @@ static int widget_rect_tranfrorm_intersect(bContext *UNUSED(C), const wmEvent *e
 	bool isect;
 	rctf r;
 	float aspx = 1.0f, aspy = 1.0f;
-	
+
 	/* rotate mouse in relation to the center and relocate it */
 	sub_v2_v2v2(point_local, mouse, widget->origin);
-	point_local[0] -= cage->offset[0];
-	point_local[1] -= cage->offset[1];
+	point_local[0] -= widget->offset[0];
+	point_local[1] -= widget->offset[1];
 	//rotate_m2(matrot, -cage->transform.rotation);
 
 	if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM)
@@ -1071,7 +1258,7 @@ static int widget_rect_tranfrorm_intersect(bContext *UNUSED(C), const wmEvent *e
 		point_local[0] /= cage->scale[0];
 		point_local[1] /= cage->scale[0];
 	}
-	
+
 	if (cage->w > cage->h)
 		aspx = h / w;
 	else
@@ -1084,9 +1271,9 @@ static int widget_rect_tranfrorm_intersect(bContext *UNUSED(C), const wmEvent *e
 	r.ymin = -half_h + h;
 	r.xmax = half_w - w;
 	r.ymax = half_h - h;
-	
+
 	isect = BLI_rctf_isect_pt_v(&r, point_local);
-	
+
 	if (isect)
 		return WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE;
 
@@ -1096,43 +1283,43 @@ static int widget_rect_tranfrorm_intersect(bContext *UNUSED(C), const wmEvent *e
 		r.ymin = -half_h;
 		r.xmax = -half_w + w;
 		r.ymax = half_h;
-		
+
 		isect = BLI_rctf_isect_pt_v(&r, point_local);
-		
+
 		if (isect)
 			return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT;
-		
+
 		r.xmin = half_w - w;
 		r.ymin = -half_h;
 		r.xmax = half_w;
 		r.ymax = half_h;
-		
+
 		isect = BLI_rctf_isect_pt_v(&r, point_local);
-		
+
 		if (isect)
 			return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT;
-		
+
 		r.xmin = -half_w;
 		r.ymin = -half_h;
 		r.xmax = half_w;
 		r.ymax = -half_h + h;
-		
+
 		isect = BLI_rctf_isect_pt_v(&r, point_local);
-		
+
 		if (isect)
 			return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN;
-		
+
 		r.xmin = -half_w;
 		r.ymin = half_h - h;
 		r.xmax = half_w;
 		r.ymax = half_h;
-		
+
 		isect = BLI_rctf_isect_pt_v(&r, point_local);
-		
+
 		if (isect)
 			return WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP;
 	}
-	
+
 	return 0;
 }
 
@@ -1156,13 +1343,13 @@ static bool widget_rect_transform_get_property(wmWidget *widget, const int slot,
 				fprintf(stderr, "Rect Transform widget offset not only be bound to array float property");
 				return false;
 			}
-			
 			RNA_property_float_get_array(&widget->ptr[slot], widget->props[slot], value);
 		}
 		else if (slot == RECT_TRANSFORM_SLOT_SCALE) {
 			RectTransformWidget *cage = (RectTransformWidget *)widget;
-			if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM)
+			if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) {
 				*value = RNA_property_float_get(&widget->ptr[slot], widget->props[slot]);
+			}
 			else {
 				if (RNA_property_array_length(&widget->ptr[slot], widget->props[slot]) != 2) {
 					fprintf(stderr, "Rect Transform widget scale not only be bound to array float property");
@@ -1172,7 +1359,7 @@ static bool widget_rect_transform_get_property(wmWidget *widget, const int slot,
 			}
 		}
 	}
-	
+
 	return true;
 }
 
@@ -1180,45 +1367,45 @@ static int widget_rect_transform_invoke(bContext *UNUSED(C), const wmEvent *even
 {
 	RectTransformWidget *cage = (RectTransformWidget *) widget;
 	RectTransformInteraction *data = MEM_callocN(sizeof (RectTransformInteraction), "cage_interaction");
-	
-	copy_v2_v2(data->orig_offset, cage->offset);
+
+	copy_v2_v2(data->orig_offset, widget->offset);
 	copy_v2_v2(data->orig_scale, cage->scale);
-	
+
 	data->orig_mouse[0] = event->mval[0];
 	data->orig_mouse[1] = event->mval[1];
-	
+
 	widget->interaction_data = data;
-	
+
 	return OPERATOR_RUNNING_MODAL;
 }
 
 static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWidget *widget)
 {
-	RectTransformWidget *cage = (RectTransformWidget *) widget;
+	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	RectTransformInteraction *data = widget->interaction_data;
 	ARegion *ar = CTX_wm_region(C);
 	float valuex, valuey;
 	/* needed here as well in case clamping occurs */
-	const float orig_ofx = cage->offset[0], orig_ofy = cage->offset[1];
-	
+	const float orig_ofx = widget->offset[0], orig_ofy = widget->offset[1];
+
 	valuex = (event->mval[0] - data->orig_mouse[0]);
 	valuey = (event->mval[1] - data->orig_mouse[1]);
-	
+
 	if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE) {
-		cage->offset[0] = data->orig_offset[0] + valuex;
-		cage->offset[1] = data->orig_offset[1] + valuey;
+		widget->offset[0] = data->orig_offset[0] + valuex;
+		widget->offset[1] = data->orig_offset[1] + valuey;
 	}
 	else if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT) {
-		cage->offset[0] = data->orig_offset[0] + valuex / 2.0;
+		widget->offset[0] = data->orig_offset[0] + valuex / 2.0;
 		cage->scale[0] = (cage->w * data->orig_scale[0] - valuex) / cage->w;
 	}
 	else if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_RIGHT) {
-		cage->offset[0] = data->orig_offset[0] + valuex / 2.0;
+		widget->offset[0] = data->orig_offset[0] + valuex / 2.0;
 		cage->scale[0] = (cage->w * data->orig_scale[0] + valuex) / cage->w;
 	}
 	else if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_DOWN) {
-		cage->offset[1] = data->orig_offset[1] + valuey / 2.0;
-		
+		widget->offset[1] = data->orig_offset[1] + valuey / 2.0;
+
 		if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) {
 			cage->scale[0] = (cage->h * data->orig_scale[0] - valuey) / cage->h;
 		}
@@ -1227,8 +1414,8 @@ static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWi
 		}
 	}
 	else if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_SCALEY_UP) {
-		cage->offset[1] = data->orig_offset[1] + valuey / 2.0;
-		
+		widget->offset[1] = data->orig_offset[1] + valuey / 2.0;
+
 		if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) {
 			cage->scale[0] = (cage->h * data->orig_scale[0] + valuey) / cage->h;
 		}
@@ -1236,33 +1423,33 @@ static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWi
 			cage->scale[1] = (cage->h * data->orig_scale[1] + valuey) / cage->h;
 		}
 	}
-	
+
 	/* clamping - make sure widget is at least 5 pixels wide */
 	if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) {
 		if (cage->scale[0] < WIDGET_RECT_MIN_WIDTH / cage->h || 
 		    cage->scale[0] < WIDGET_RECT_MIN_WIDTH / cage->w) 
 		{
 			cage->scale[0] = max_ff(WIDGET_RECT_MIN_WIDTH / cage->h, WIDGET_RECT_MIN_WIDTH / cage->w);
-			cage->offset[0] = orig_ofx;
-			cage->offset[1] = orig_ofy;
+			widget->offset[0] = orig_ofx;
+			widget->offset[1] = orig_ofy;
 		}
 	}
 	else {
 		if (cage->scale[0] < WIDGET_RECT_MIN_WIDTH / cage->w) {
 			cage->scale[0] = WIDGET_RECT_MIN_WIDTH / cage->w;
-			cage->offset[0] = orig_ofx;
+			widget->offset[0] = orig_ofx;
 		}
 		if (cage->scale[1] < WIDGET_RECT_MIN_WIDTH / cage->h) {
 			cage->scale[1] = WIDGET_RECT_MIN_WIDTH / cage->h;
-			cage->offset[1] = orig_ofy;
+			widget->offset[1] = orig_ofy;
 		}
 	}
-	
+
 	if (widget->props[RECT_TRANSFORM_SLOT_OFFSET]) {
 		PointerRNA ptr = widget->ptr[RECT_TRANSFORM_SLOT_OFFSET];
 		PropertyRNA *prop = widget->props[RECT_TRANSFORM_SLOT_OFFSET];
 
-		RNA_property_float_set_array(&ptr, prop, cage->offset);
+		RNA_property_float_set_array(&ptr, prop, widget->offset);
 		RNA_property_update(C, &ptr, prop);
 	}
 
@@ -1278,22 +1465,53 @@ static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWi
 		}
 		RNA_property_update(C, &ptr, prop);
 	}
-	
+
 	/* tag the region for redraw */
 	ED_region_tag_redraw(ar);
-	
+
 	return OPERATOR_PASS_THROUGH;
 }
 
 static void widget_rect_transform_bind_to_prop(wmWidget *widget, const int slot)
 {
 	RectTransformWidget *cage = (RectTransformWidget *) widget;
-	
+
 	if (slot == RECT_TRANSFORM_SLOT_OFFSET)
-		widget_rect_transform_get_property(widget, RECT_TRANSFORM_SLOT_OFFSET, cage->offset);
+		widget_rect_transform_get_property(widget, RECT_TRANSFORM_SLOT_OFFSET, widget->offset);
 	if (slot == RECT_TRANSFORM_SLOT_SCALE)
 		widget_rect_transform_get_property(widget, RECT_TRANSFORM_SLOT_SCALE, cage->scale);
 }
+
+static void widget_rect_transform_cancel(bContext *C, wmWidget *widget)
+{
+	RectTransformWidget *cage = (RectTransformWidget *) widget;
+	RectTransformInteraction *data = widget->interaction_data;
+
+	/* reset properties */
+	if (widget->props[RECT_TRANSFORM_SLOT_OFFSET]) {
+		PointerRNA ptr = widget->ptr[RECT_TRANSFORM_SLOT_OFFSET];
+		PropertyRNA *prop = widget->props[RECT_TRANSFORM_SLOT_OFFSET];
+
+		RNA_property_float_set_array(&ptr, prop, data->orig_offset);
+		RNA_property_update(C, &ptr, prop);
+	}
+	if (widget->props[RECT_TRANSFORM_SLOT_SCALE]) {
+		PointerRNA ptr = widget->ptr[RECT_TRANSFORM_SLOT_SCALE];
+		PropertyRNA *prop = widget->props[RECT_TRANSFORM_SLOT_SCALE];
+
+		if (cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM){
+			RNA_property_float_set(&ptr, prop, data->orig_scale[0]);
+		}
+		else {
+			RNA_property_float_set_array(&ptr, prop, data->orig_scale);
+		}
+		RNA_property_update(C, &ptr, prop);
+	}
+}
+
+/** \name Cage Widget API
+ *
+ * \{ */
 
 wmWidget *WIDGET_rect_transform_new(
         wmWidgetGroup *wgroup, const char *name, const int style,
@@ -1305,27 +1523,33 @@ wmWidget *WIDGET_rect_transform_new(
 	cage->widget.invoke = widget_rect_transform_invoke;
 	cage->widget.bind_to_prop = widget_rect_transform_bind_to_prop;
 	cage->widget.handler = widget_rect_transform_handler;
-	cage->widget.intersect = widget_rect_tranfrorm_intersect;
-	cage->widget.get_cursor = widget_rect_tranfrorm_get_cursor;
+	cage->widget.intersect = widget_rect_transform_intersect;
+	cage->widget.cancel = widget_rect_transform_cancel;
+	cage->widget.get_cursor = widget_rect_transform_get_cursor;
 	cage->widget.max_prop = 2;
+	cage->widget.flag |= WM_WIDGET_DRAW_ACTIVE;
 	cage->scale[0] = cage->scale[1] = 1.0f;
 	cage->style = style;
 	cage->w = width;
 	cage->h = height;
-	
+
 	wm_widget_register(wgroup, &cage->widget, name);
-	
+
 	return (wmWidget *)cage;
 }
 
-void WIDGET_rect_transform_set_offset(wmWidget *widget, const float offset[2])
-{
-	RectTransformWidget *cage = (RectTransformWidget *)widget;
+/** \} */ // Cage Widget API
+/** \} */ // Cage Widget
 
-	copy_v2_v2(cage->offset, offset);
-}
 
-/********* Facemap widget ************/
+/** \name Facemap Widget
+ *
+ * 3D Widget
+ *
+ * \brief Widget representing shape of a face map.
+ * Currently no own handling, use with operator only.
+ *
+ * \{ */
 
 typedef struct FacemapWidget {
 	wmWidget widget;
@@ -1340,7 +1564,10 @@ static void widget_facemap_draw(const bContext *C, wmWidget *widget)
 	FacemapWidget *fmap_widget = (FacemapWidget *)widget;
 	glPushMatrix();
 	glMultMatrixf(fmap_widget->ob->obmat);
+	glTranslate3fv(widget->offset);
+	glEnable(GL_MULTISAMPLE_ARB);
 	ED_draw_object_facemap(CTX_data_scene(C), fmap_widget->ob, fmap_widget->facemap);
+	glDisable(GL_MULTISAMPLE_ARB);
 	glPopMatrix();
 }
 
@@ -1350,29 +1577,50 @@ static void widget_facemap_render_3d_intersect(const bContext *C, wmWidget *widg
 	widget_facemap_draw(C, widget);
 }
 
+#if 0
+static int widget_facemap_invoke(bContext *UNUSED(C), const wmEvent *event, wmWidget *widget)
+{
+	return OPERATOR_PASS_THROUGH;
+}
 
-struct wmWidget *WIDGET_facemap_new(
+static int widget_facemap_handler(bContext *C, const wmEvent *event, wmWidget *widget)
+{
+	return OPERATOR_PASS_THROUGH;
+}
+#endif
+
+/** \name Facemap Widget API
+ *
+ * \{ */
+
+wmWidget *WIDGET_facemap_new(
         wmWidgetGroup *wgroup, const char *name, const int style,
         Object *ob, const int facemap)
 {
 	FacemapWidget *fmap_widget = MEM_callocN(sizeof(FacemapWidget), "CageWidget");
 
 	fmap_widget->widget.draw = widget_facemap_draw;
-//	fmap_widget->widget.invoke = NULL;
+//	fmap_widget->widget.invoke = widget_facemap_invoke;
 //	fmap_widget->widget.bind_to_prop = NULL;
-//	fmap_widget->widget.handler = NULL;
+//	fmap_widget->widget.handler = widget_facemap_handler;
 	fmap_widget->widget.render_3d_intersection = widget_facemap_render_3d_intersect;
+	fmap_widget->widget.flag |= WM_WIDGET_SELECTABLE ;
 	fmap_widget->ob = ob;
 	fmap_widget->facemap = facemap;
 	fmap_widget->style = style;
-	
+
 	wm_widget_register(wgroup, &fmap_widget->widget, name);
-	
+
 	return (wmWidget *)fmap_widget;
 }
 
+/** \} */ // Facemap Widget API
+/** \} */ // Facemap Widget
+
+
+/* -------------------------------------------------------------------- */
 
 void fix_linking_widget_lib(void)
 {
-	(void) 0;
+	(void)0;
 }

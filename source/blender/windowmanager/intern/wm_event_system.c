@@ -1697,6 +1697,9 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 					CTX_wm_region_set(C, NULL);
 				}
 
+				/* update widgets during modal handlers */
+				wm_widget_handler_modal_update(C, event, handler);
+
 				/* remove modal handler, operator itself should have been canceled and freed */
 				if (retval & (OPERATOR_CANCELLED | OPERATOR_FINISHED)) {
 					WM_cursor_grab_disable(CTX_wm_window(C), NULL);
@@ -1933,6 +1936,9 @@ static int wm_action_not_handled(int action)
 	return action == WM_HANDLER_CONTINUE || action == (WM_HANDLER_BREAK | WM_HANDLER_MODAL);
 }
 
+/* use old, hardcoded widget map handling - kept in case new one doesn't work out */
+//#define USE_OLD_WIDGETMAP_HANDLING
+
 static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers)
 {
 #ifndef NDEBUG
@@ -2063,15 +2069,58 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				}
 			}
 			else if (handler->widgetmap) {
-				wmWidgetMap *wmap = handler->widgetmap;
-				unsigned char part;
-				short event_processed = 0;
-				wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
 				ScrArea *area = CTX_wm_area(C);
 				ARegion *region = CTX_wm_region(C);
+				wmWidgetMap *wmap = handler->widgetmap;
+				wmWidget *widget = wm_widgetmap_get_highlighted_widget(wmap);
+				short event_processed = 0;
+				unsigned char part;
 
 				wm_widgetmap_handler_context(C, handler);
 				wm_region_mouse_co(C, event);
+
+#ifndef USE_OLD_WIDGETMAP_HANDLING
+				/* handle widget highlighting */
+				if (event->type == MOUSEMOVE && !wm_widgetmap_get_active_widget(wmap)) {
+					if (wm_widgetmap_is_3d(wmap)) {
+						widget = wm_widget_find_highlighted_3D(wmap, C, event, &part);
+						wm_widgetmap_set_highlighted_widget(wmap, C, widget, part);
+					}
+					else {
+						widget = wm_widget_find_highlighted(wmap, C, event, &part);
+						wm_widgetmap_set_highlighted_widget(wmap, C, widget, part);
+					}
+				}
+				/* handle user configurable widgetmap keymap */
+				else if (widget && wmap->activegroup) {
+					/* get user customized keymap from default one */
+					const wmKeyMap *keymap = WM_keymap_active(wm, wmap->activegroup->type->keymap);
+					wmKeyMapItem *kmi;
+
+					if (!keymap->poll || keymap->poll(C)) {
+						for (kmi = keymap->items.first; kmi; kmi = kmi->next) {
+							if (wm_eventmatch(event, kmi)) {
+								wmOperator *op = handler->op;
+
+								/* weak, but allows interactive callback to not use rawkey */
+								event->keymap_idname = kmi->idname;
+
+								/* handler->op is called later, we want keymap op to be triggered here */
+								handler->op = NULL;
+								action |= wm_handler_operator_call(C, handlers, handler, event, kmi->ptr);
+								handler->op = op;
+
+								if (action & WM_HANDLER_BREAK) {
+									break;
+								}
+							}
+						}
+					}
+				}
+
+				UNUSED_VARS(event_processed);
+#else
+				widget = wm_widgetmap_get_active_widget(wmap);
 
 				/* handle the widget first, before passing the event down */
 				switch (event->type) {
@@ -2090,12 +2139,11 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 							wm_widgetmap_set_highlighted_widget(wmap, C, widget, part);
 						}
 						break;
-
 					case LEFTMOUSE:
-					{
 						if (widget) {
 							if (event->val == KM_RELEASE) {
 								wm_widgetmap_set_active_widget(wmap, C, event, NULL, false);
+								wm_widgetmap_set_selected_widget(C, wmap, NULL);
 								event_processed = EVT_WIDGET_RELEASED;
 								action |= WM_HANDLER_BREAK;
 							}
@@ -2112,27 +2160,51 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 							}
 						}
 						break;
+					case RIGHTMOUSE:
+					case ESCKEY:
+					{
+						wmWidget *highlight = wm_widgetmap_get_highlighted_widget(wmap);
+						if (event->type == RIGHTMOUSE && highlight) {
+							if (highlight->flag & WM_WIDGET_SELECTABLE) {
+								if (event->val == KM_RELEASE) {
+									wm_widgetmap_set_selected_widget(C, wmap, highlight);
+									action |= WM_HANDLER_BREAK;
+								}
+							}
+						}
+						else if (widget) {
+							if (widget->cancel) {
+								widget->cancel(C, widget);
+							}
+							wm_widgetmap_set_active_widget(wmap, C, event, NULL, false);
+							event_processed = EVT_WIDGET_RELEASED;
+							action |= WM_HANDLER_BREAK;
+						}
+						else {
+							wm_widgetmap_set_selected_widget(C, wmap, NULL);
+						}
+						break;
 					}
 				}
-				
+#endif
+
 				/* restore the area */
 				CTX_wm_area_set(C, area);
 				CTX_wm_region_set(C, region);
 
 				if (handler->op) {
+#ifdef USE_OLD_WIDGETMAP_HANDLING
 					/* if event was processed by an active widget pass the modified event to the operator */
 					if (event_processed) {
 						event->type = event_processed;
 					}
+#endif
 					action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
 				}
 			}
 			else {
 				/* modal, swallows all */
 				action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
-
-				/* update widgets during modal handlers */
-				wm_widget_handler_modal_update(C, event, handler);
 			}
 
 			if (action & WM_HANDLER_BREAK) {

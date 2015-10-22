@@ -279,8 +279,8 @@ static void widgetgroup_overdrop_create(const struct bContext *C, struct wmWidge
 	                     wgroup, "overdrop_cage",
 	                     WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE,
 	                     sizex, sizey);
-	WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
-	WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
+	WM_widget_set_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
+	WM_widget_set_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
 	
 	origin[0] = BLI_rcti_size_x(&ar->winrct)/2.0f;
 	origin[1] = BLI_rcti_size_y(&ar->winrct)/2.0f;
@@ -293,7 +293,10 @@ static int sequencer_overdrop_transform_invoke(bContext *C, wmOperator *op, cons
 	ScrArea *sa = CTX_wm_area(C);
 	SpaceSeq *sseq = CTX_wm_space_seq(C);
 	/* no poll, lives always for the duration of the operator */
-	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_overdrop_create, CTX_data_main(C), "Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false);
+	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_overdrop_create,
+	                                                     WM_widgetgroup_keymap_common, CTX_data_main(C),
+	                                                     "Seq_Canvas", "Backdrop Transform Widgets",
+	                                                     SPACE_SEQ, RGN_TYPE_WINDOW, false);
 	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
 	OverDropTransformData *data = MEM_mallocN(sizeof(OverDropTransformData), "overdrop transform data");
 	WM_modal_handler_attach_widgetgroup(C, handler, cagetype, op);
@@ -337,14 +340,15 @@ static int sequencer_overdrop_transform_modal(bContext *C, wmOperator *op, const
 	}
 	
 	switch (event->type) {
-		case EVT_WIDGET_UPDATE: {
+		case EVT_WIDGET_UPDATE:
+		case EVT_WIDGET_RELEASED:
+		{
 			SpaceSeq *sseq = CTX_wm_space_seq(C);
 			RNA_float_get_array(op->ptr, "offset", sseq->overdrop_offset);
 			sseq->overdrop_zoom = RNA_float_get(op->ptr, "scale");
 			break;
 		}
-			
-		case RKEY: 
+		case RKEY:
 		{
 			SpaceSeq *sseq = CTX_wm_space_seq(C);
 			ARegion *ar = CTX_wm_region(C);
@@ -369,12 +373,18 @@ static int sequencer_overdrop_transform_modal(bContext *C, wmOperator *op, const
 		case ESCKEY:
 		case RIGHTMOUSE:
 		{
+			ARegion *ar = CTX_wm_region(C);
+			wmWidgetMap *wmap = ar->widgetmaps.first;
 			SpaceSeq *sseq = CTX_wm_space_seq(C);
-			copy_v2_v2(sseq->overdrop_offset, data->init_offset);
-			sseq->overdrop_zoom = data->init_zoom;
-			
-			sequencer_overdrop_finish(C, data);
-			return OPERATOR_CANCELLED;
+
+			/* only end modal if we're not dragging a widget */
+			if (!wmap->active_widget && event->val == KM_PRESS) {
+				copy_v2_v2(sseq->overdrop_offset, data->init_offset);
+				sseq->overdrop_zoom = data->init_zoom;
+
+				sequencer_overdrop_finish(C, data);
+				return OPERATOR_CANCELLED;
+			}
 		}
 	}
 	
@@ -437,7 +447,7 @@ static void widgetgroup_image_transform_create(const struct bContext *C, struct 
 	           wgroup, "image_cage",
 	           WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM | WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE,
 	           viewrect[0] * scale[0], viewrect[1] * scale[1]);
-	WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
+	WM_widget_set_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
 
 	origin[0] = -(v2d->cur.xmin * scale[0]);
 	origin[1] = -(v2d->cur.ymin * scale[1]);
@@ -450,8 +460,10 @@ static int sequencer_image_transform_widget_invoke(bContext *C, wmOperator *op, 
 	SpaceSeq *sseq = CTX_wm_space_seq(C);
 	Scene *scene = CTX_data_scene(C);
 	/* no poll, lives always for the duration of the operator */
-	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_image_transform_create, CTX_data_main(C),
-	                                                     "Seq_Canvas", SPACE_SEQ, RGN_TYPE_PREVIEW, false);
+	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_image_transform_create,
+	                                                     WM_widgetgroup_keymap_common, CTX_data_main(C),
+	                                                     "Seq_Canvas", "Image Transform Widgets",
+	                                                     SPACE_SEQ, RGN_TYPE_PREVIEW, false);
 	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
 	ImageTransformData *data = MEM_mallocN(sizeof(ImageTransformData), "overdrop transform data");
 	ImBuf *ibuf = sequencer_ibuf_get(CTX_data_main(C), scene, sseq, CFRA, 0, NULL);
@@ -519,7 +531,7 @@ static int sequencer_image_transform_widget_modal(bContext *C, wmOperator *op, c
 
 			/* no offset needed in this case */
 			offset[0] = offset[1] = 0;
-			WIDGET_rect_transform_set_offset(wmap->active_widget, offset);
+			WM_widget_set_offset(wmap->active_widget, offset);
 			break;
 		}
 
