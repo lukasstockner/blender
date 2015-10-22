@@ -200,7 +200,7 @@ typedef struct Object {
 
 	/* did last modifier stack generation need mapping support? */
 	char lastNeedMapping;  /* bool */
-	char pad[5];
+	char pad;
 
 	/* dupli-frame settings */
 	int dupon, dupoff, dupsta, dupend;
@@ -233,6 +233,8 @@ typedef struct Object {
 	float step_height;
 	float jump_speed;
 	float fall_speed;
+	unsigned char max_jumps;
+	char pad2[3];
 
 	/** Collision mask settings */
 	unsigned short col_group, col_mask;
@@ -258,7 +260,7 @@ typedef struct Object {
 	short index;			/* custom index, for renderpasses */
 	unsigned short actdef;	/* current deformation group, note: index starts at 1 */
 	unsigned short actfmap;	/* current face map, note: index starts at 1 */
-	unsigned short pad2[3];
+	unsigned short pad3[3];
 	float col[4];			/* object color */
 
 	int gameflag;

@@ -1083,7 +1083,7 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tima.face,   255, 255, 255, 10);
 	rgba_char_args_set(btheme->tima.face_select, 255, 133, 0, 60);
 	rgba_char_args_set(btheme->tima.editmesh_active, 255, 255, 255, 128);
-	rgba_char_args_set_fl(btheme->tima.preview_back,    0.45, 0.45, 0.45, 1.0);
+	rgba_char_args_set_fl(btheme->tima.preview_back,        0.0, 0.0, 0.0, 0.3);
 	rgba_char_args_set_fl(btheme->tima.preview_stitch_face, 0.5, 0.5, 0.0, 0.2);
 	rgba_char_args_set_fl(btheme->tima.preview_stitch_edge, 1.0, 0.0, 1.0, 0.2);
 	rgba_char_args_set_fl(btheme->tima.preview_stitch_vert, 0.0, 0.0, 1.0, 0.2);
@@ -2492,10 +2492,10 @@ void init_userdef_do_versions(void)
 			ThemeSpace *ts;
 
 			for (ts = UI_THEMESPACE_START(btheme); ts != UI_THEMESPACE_END(btheme); ts++) {
-				rgba_char_args_set(ts->tabs.tab_active, 114, 114, 114, 255);
-				rgba_char_args_set(ts->tabs.tab_inactive, 83, 83, 83, 255);
-				rgba_char_args_set(ts->tabs.tab_back, 64, 64, 64, 255);
-				rgba_char_args_set(ts->tabs.tab_outline, 60, 60, 60, 255);
+				rgba_char_args_set(ts->tab_active, 114, 114, 114, 255);
+				rgba_char_args_set(ts->tab_inactive, 83, 83, 83, 255);
+				rgba_char_args_set(ts->tab_back, 64, 64, 64, 255);
+				rgba_char_args_set(ts->tab_outline, 60, 60, 60, 255);
 			}
 		}
 	}
@@ -2633,7 +2633,14 @@ void init_userdef_do_versions(void)
 		U.node_margin = 80;
 	}
 
-	if (!USER_VERSION_ATLEAST(275, 6)) {
+	if (!USER_VERSION_ATLEAST(276, 1)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_set_fl(btheme->tima.preview_back, 0.0f, 0.0f, 0.0f, 0.3f);
+		}
+	}
+
+	if (!USER_VERSION_ATLEAST(276, 2)) {
 		bTheme *btheme;
 		ThemeSpace *ts;
 
@@ -2662,7 +2669,7 @@ void init_userdef_do_versions(void)
 		}
 	}
 
-	if (!USER_VERSION_ATLEAST(275, 6)) {
+	if (!USER_VERSION_ATLEAST(276, 2)) {
 		bTheme *btheme;
 		ThemeSpace *ts;
 
@@ -2682,7 +2689,7 @@ void init_userdef_do_versions(void)
 		}
 	}
 
-	if (!USER_VERSION_ATLEAST(275, 5)) {
+	if (!USER_VERSION_ATLEAST(276, 2)) {
 		bTheme *btheme;
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			rgba_char_args_set_fl(btheme->tui.xaxis, 1.0f, 0.27f, 0.27f, 1.0f); /* red */
