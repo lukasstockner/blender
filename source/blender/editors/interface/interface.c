@@ -2939,11 +2939,26 @@ void UI_block_align_end(uiBlock *block)
 }
 
 #ifdef NEW_ALIGN_CODE
-typedef struct uiButAlign {
+
+/**
+ * This struct stores a (simplified) 2D representation of all buttons of a same align group, with their
+ * immediate neighbors (if found), and needed value to compute 'stitching' of aligned buttons.
+ *
+ * \note This simplistic struct cannot fully represent complex layouts where buttons share some 'align space' with
+ *       several others (see schema below), we'd need linked list and more complex code to handle that.
+ *       However, looks like we can do without that for now, wich is rather lucky!
+ *           +-----------+-----------+
+ *           |   BUT 1   |   BUT 2   |      BUT 3 has two 'top' neighbors...
+ *           |-----------------------|  =>  In practice, we only store one of BUT 1 or 2 (which ones is not
+ *           |         BUT 3         |      really deterministic), and assume the other stores a ref to BUT 3.
+ *           +-----------------------+
+ *       This will probably not work in all possible cases, but not sure we want to support such exotic cases anyway.
+ */
+typedef struct ButAlign {
 	uiBut *but;
 
 	/* Neighbor buttons */
-	struct uiButAlign *neighbors[4];
+	struct ButAlign *neighbors[4];
 
 	/* Pointers to coordinates (rctf values) of the button. */
 	float *borders[4];
@@ -2953,163 +2968,213 @@ typedef struct uiButAlign {
 
 	/* Flags, used to mark whether we should 'stitch' the corners of this button with its neighbors' ones. */
 	char flags[4];
-} uiButAlign;
+} ButAlign;
 
+/* Side-related enums and flags. */
 enum {
+	/* Sides (used as indices, order is **crucial**, this allows us to factorize code in a loop over the four sides). */
 	LEFT         = 0,
 	TOP          = 1,
 	RIGHT        = 2,
 	DOWN         = 3,
+	TOTSIDES     = 4,
 
+	/* Stict flags, built from sides values. */
 	STITCH_LEFT  = 1 << LEFT,
 	STITCH_TOP   = 1 << TOP,
 	STITCH_RIGHT = 1 << RIGHT,
 	STITCH_DOWN  = 1 << DOWN,
 };
 
-#define OPPOSITE(_s) (((_s) + 2) % 4)
-#define SIDE1(_s) (((_s) + 1) % 4)
-#define SIDE2(_s) (((_s) + 3) % 4)
+/* Given one side, compute the three other ones */
+#define SIDE1(_s) (((_s) + 1) % TOTSIDES)
+#define OPPOSITE(_s) (((_s) + 2) % TOTSIDES)
+#define SIDE2(_s) (((_s) + 3) % TOTSIDES)
 
-#define STITCH(_s) (1 << ((_s) + 4))
+/* 0: LEFT/RIGHT sides; 1 = TOP/DOWN sides. */
+#define IS_COLUMN(_s) ((_s) % 2)
+
+/* Stich flag from side value. */
+#define STITCH(_s) (1 << (_s))
 
 bool ui_but_can_align(uiBut *but)
 {
 	return !ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_CHECKBOX, UI_BTYPE_CHECKBOX_N, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE);
 }
 
-static int get_but_align_flag(const int i) {
-	switch (i) {
-		case LEFT:
-			return UI_BUT_ALIGN_LEFT;
-		case TOP:
-			return UI_BUT_ALIGN_TOP;
-		case RIGHT:
-			return UI_BUT_ALIGN_RIGHT;
-		case DOWN:
-			return UI_BUT_ALIGN_DOWN;
-		default:
-			BLI_assert(0);
-			return 0;
-	}
-}
-
-/* Only the shortest diff (if below acceptable limits) is set, other pointers are set to NULL. */
-static void buts_proximity_compute(uiButAlign *but1, uiButAlign *but2)
+/**
+ * This function chacks a pair of buttons (assumed in a same align group), and if they are neighbors,
+ * set needed data accordingly.
+ *
+ * \note It is designed to be called in total random order of buttons.
+ */
+static void block_align_proximity_compute(ButAlign *butal, ButAlign *butal_other)
 {
+	/* That's the biggest gap between two borders to consider them 'alignable'. */
 	const float max_delta = 0.45f * max_ii(UI_UNIT_Y, UI_UNIT_X);
 	float delta;
-	int i;
+	int side;
 
 	const bool buts_share[2] = {
 	    /* Sharing same line? */
-	    !((*but1->borders[DOWN] >= *but2->borders[TOP]) || (*but1->borders[TOP] <= *but2->borders[DOWN])),
+	    !((*butal->borders[DOWN] >= *butal_other->borders[TOP]) ||
+	      (*butal->borders[TOP] <= *butal_other->borders[DOWN])),
 	    /* Sharing same column? */
-	    !((*but1->borders[LEFT] >= *but2->borders[RIGHT]) || (*but1->borders[RIGHT] <= *but2->borders[LEFT])),
+	    !((*butal->borders[LEFT] >= *butal_other->borders[RIGHT]) ||
+	      (*butal->borders[RIGHT] <= *butal_other->borders[LEFT])),
 	};
 
-	for (i = 0; i < 4; i++) {
-		const int i_share = i % 2;
-
-		if (buts_share[i_share]) {
-			const int i_opp = OPPOSITE(i);
+	for (side = 0; side < TOTSIDES; side++) {
+		/* We are only interested in buttons which share a same line (LEFT/RIGHT sides) or column (TOP/DOWN sides). */
+		if (buts_share[IS_COLUMN(side)]) {
+			const int side_opp = OPPOSITE(side);
 
 			/* We rely on exact zero value here as an 'already processed' flag, so ensure we never actually
 			 * set a zero value at this stage. FLT_MIN is zero-enough for UI position computing. ;) */
-			delta = max_ff(fabsf(*but1->borders[i] - *but2->borders[i_opp]), FLT_MIN);
+			delta = max_ff(fabsf(*butal->borders[side] - *butal_other->borders[side_opp]), FLT_MIN);
 			if (delta < max_delta) {
-				if (delta <= but1->dists[i]) {
-					const bool but1_can_align = ui_but_can_align(but1->but);
-					const bool but2_can_align = ui_but_can_align(but2->but);
+				/* We are only interested in neighbors that are at least as close as already found ones. */
+				if ((delta <= butal->dists[side]) || (delta < butal_other->dists[side_opp])) {
+					const bool butal_can_align = ui_but_can_align(butal->but);
+					const bool butal_other_can_align = ui_but_can_align(butal_other->but);
 
-					if (!(but1_can_align || but2_can_align)) {
-						continue;
+					if ((delta < butal->dists[side]) || (delta < butal_other->dists[side_opp])) {
+						/* We found a closer neighbor.
+						 * If both buttons are alignable, we set them as each other neighbors.
+						 * Else, we have an unalignable one, we need to reset the other's matching neighbor to NULL
+						 * if its 'proximity distance' is really lower with current one. */
+						if (butal_can_align && butal_other_can_align) {
+							butal->neighbors[side] = butal_other;
+							butal_other->neighbors[side_opp] = butal;
+						}
+						else if (butal_can_align && (delta < butal->dists[side])) {
+							butal->neighbors[side] = NULL;
+						}
+						else if (butal_other_can_align && (delta < butal_other->dists[side_opp])) {
+							butal_other->neighbors[side_opp] = NULL;
+						}
+						butal->dists[side] = butal_other->dists[side_opp] = delta;
 					}
+					if (butal_can_align && butal_other_can_align) {
+						const int side_s1 = SIDE1(side);
+						const int side_s2 = SIDE2(side);
 
-					if ((but1_can_align && (delta < but1->dists[i])) || (delta < but2->dists[i])) {
-						if (but1_can_align && but2_can_align) {
-							but1->neighbors[i] = but2;
-							but2->neighbors[i_opp] = but1;
-						}
-						else if (but1_can_align) {
-							but1->neighbors[i] = NULL;
-						}
-						else /* if (but2_can_align) */ {
-							but2->neighbors[i_opp] = NULL;
-						}
-						but1->dists[i] = but2->dists[i_opp] = delta;
-					}
-					if (but1_can_align && but2_can_align) {
-						const int i_s1 = SIDE1(i);
-						const int i_s2 = SIDE2(i);
+						const int stitch = STITCH(side);
+						const int stitch_opp = STITCH(side_opp);
 
-						const int stitch = STITCH(i);
-						const int stitch_opp = STITCH(i_opp);
+						if (butal->neighbors[side] == NULL) {
+							butal->neighbors[side] = butal_other;
+						}
+						if (butal_other->neighbors[side_opp] == NULL) {
+							butal_other->neighbors[side_opp] = butal;
+						}
 
-						delta = fabsf(*but1->borders[i_s1] - *but2->borders[i_s1]);
+						/* We have a pair of neighbors, we have to check whether we can stitch their matching corners.
+						 *   E.g. if butal_other is on the left of butal (that is, side == LEFT),
+						 *        if both TOP (side_s1) coordinates of buttons are close enough, we can stitch
+						 *        their upper matching corners, and same for DOWN (side_s2) side. */
+						delta = fabsf(*butal->borders[side_s1] - *butal_other->borders[side_s1]);
 						if (delta < max_delta) {
-							but1->flags[i_s1] |= stitch;
-							but2->flags[i_s1] |= stitch_opp;
+							butal->flags[side_s1] |= stitch;
+							butal_other->flags[side_s1] |= stitch_opp;
 						}
-						delta = fabsf(*but1->borders[i_s2] - *but2->borders[i_s2]);
+						delta = fabsf(*butal->borders[side_s2] - *butal_other->borders[side_s2]);
 						if (delta < max_delta) {
-							but1->flags[i_s2] |= stitch;
-							but2->flags[i_s2] |= stitch_opp;
+							butal->flags[side_s2] |= stitch;
+							butal_other->flags[side_s2] |= stitch_opp;
 						}
 					}
 				}
+				/* We assume two buttons can only share one side at most - for until we have sperical UI... */
 				return;
 			}
 		}
 	}
 }
 
-static void align_stitch_neighbors(
-        uiButAlign *butal,
-        const int i, const int i_opp, const int i_s1, const int i_s2,
+/**
+ * This function takes care of case described in this schema:
+ *           +-----------+-----------+
+ *           |   BUT 1   |   BUT 2   |
+ *           |-----------------------+
+ *           |   BUT 3   |
+ *           +-----------+
+ * Here, BUT 3 RIGHT side would not get 'dragged' to align with BUT 1 RIGHT side, since BUT 3 has not RIGHT neighbor.
+ * So, this function, when called with BUT 1, will 'walk' the whole column in side_s1 direction (TOP or DOWN when
+ * called for RIGHT side), and force buttons like BUT 3 to align as needed, if BUT 1 and BUT 3 were detected as needing
+ * top-right corner stitching in block_align_proximity_compute() step.
+ *
+ * \note To avoid doing this twice, some stitching flags are cleared to break the 'stitching connection'
+ *       between neighbors.
+ */
+static void block_align_stitch_neighbors(
+        ButAlign *butal,
+        const int side, const int side_opp, const int side_s1, const int side_s2,
         const int align, const int align_opp, const float co)
 {
-	uiButAlign *butal_neighbor;
+	ButAlign *butal_neighbor;
+
+	const int stitch_s1 = STITCH(side_s1);
+	const int stitch_s2 = STITCH(side_s2);
 
 //	printf("%s (%d) (%f, %f)\n", butal->but->str[0] ? butal->but->str : "<noname>", i, *butal->borders[i], *butal->borders[i_opp]);
 //	if (STREQ(butal->but->str, "Frame Step: ")) {
 //		printf("%s: main side %d, stride side %d: %f\n", butal->but->str, i, i_s1, butal->dists[i]);
 //	}
 
-	while ((butal->flags[i] & STITCH(i_s1)) &&
-	       (butal = butal->neighbors[i_s1]) &&
-	       (butal->flags[i] & STITCH(i_s2)))
+	/* We have to check stitching flags on both sides of the stitching, since we only clear one of them flags to break
+	 * any future loop on same 'columns/side' case.
+     * Also, if butal is spanning over several rows or columns of neighbors, it may have both of its  stiching flags
+     * set, but would not be the case of its immediate neighbor! */
+	while ((butal->flags[side] & stitch_s1) &&
+	       (butal = butal->neighbors[side_s1]) &&
+	       (butal->flags[side] & stitch_s2))
 	{
 //		printf("\t%s\n", butal->but->str[0] ? butal->but->str : "<noname>");
 //		if (STREQ(butal->but->str, "Frame Step: ")) {
 //			printf("%s: main side %d, stride side %d: %f (%f vs %f, %f)\n", butal->but->str, i, i_s1, butal->dists[i], co, *butal->borders[i], *butal->borders[i_opp]);
 //		}
-		butal_neighbor = butal->neighbors[i];
+		butal_neighbor = butal->neighbors[side];
 
+		/* If we actually do have a neighbor, we directly set its values accordingly, and clear its matching 'dist'
+		 * to prevent it being set again later... */
 		if (butal_neighbor) {
 			butal->but->drawflag |= align;
 			butal_neighbor->but->drawflag |= align_opp;
-			*butal_neighbor->borders[i_opp] = co;
-			butal_neighbor->dists[i_opp] = 0.0f;
+			*butal_neighbor->borders[side_opp] = co;
+			butal_neighbor->dists[side_opp] = 0.0f;
 		}
-		*butal->borders[i] = co;
-		butal->dists[i] = 0.0f;
-		butal->flags[i] &= ~(STITCH(i_s2));
+		*butal->borders[side] = co;
+		butal->dists[side] = 0.0f;
+		/* Clearing one of the 'flags pair' here should be enough to prevent this loop running on
+		 * the same column, side and direction again. */
+		butal->flags[side] &= ~stitch_s2;
 	}
 //	printf("\n");
 }
 
+/**
+ * Compute the alignment of all 'align groups' of buttons in given block.
+ *
+ * This is using an order-independent alorithm, i.e. alignement of buttons should be OK regardless of order in which
+ * they are added to the block.
+ */
 void ui_block_align_calc(uiBlock *block)
 {
 	uiBut *but;
 	int num_buttons = 0;
 
-	uiButAlign *but_align_array;
-	uiButAlign *but_align, *but_align_other;
+	const int sides_to_ui_but_align_flags[4] = {
+	    UI_BUT_ALIGN_LEFT, UI_BUT_ALIGN_TOP, UI_BUT_ALIGN_RIGHT, UI_BUT_ALIGN_DOWN};
+
+	ButAlign *butal_array;
+	ButAlign *butal, *butal_other;
+	int side;
 	int i, j;
 
+	/* First loop: we count number of buttons belonging to an align group, and clear their align flag. */
 	for (but = block->buttons.first; but; but = but->next) {
-		/* clear old flag */
+		/* Clear old align flags. */
 		but->drawflag &= ~UI_BUT_ALIGN;
 
 		if (but->alignnr == 0) {
@@ -3119,90 +3184,98 @@ void ui_block_align_calc(uiBlock *block)
 	}
 
 	if (num_buttons < 2) {
+		/* No need to go further if we have nothing to align... */
 		return;
 	}
 
-	but_align_array = alloca(sizeof(*but_align_array) * (size_t)num_buttons);
-	memset(but_align_array, 0, sizeof(*but_align_array) * (size_t)num_buttons);
+	butal_array = alloca(sizeof(*butal_array) * (size_t)num_buttons);
+	memset(butal_array, 0, sizeof(*butal_array) * (size_t)num_buttons);
 
-	for (but = block->buttons.first, but_align = but_align_array; but; but = but->next) {
+	/* Second loop: we initialize our ButAlign data for each button. */
+	for (but = block->buttons.first, butal = butal_array; but; but = but->next) {
 		if (but->alignnr == 0) {
 			continue;
 		}
 
-		but_align->but = but;
-		but_align->borders[LEFT] = &but->rect.xmin;
-		but_align->borders[RIGHT] = &but->rect.xmax;
-		but_align->borders[DOWN] = &but->rect.ymin;
-		but_align->borders[TOP] = &but->rect.ymax;
-		copy_v4_fl(but_align->dists, FLT_MAX);
-		but_align++;
+		butal->but = but;
+		butal->borders[LEFT] = &but->rect.xmin;
+		butal->borders[RIGHT] = &but->rect.xmax;
+		butal->borders[DOWN] = &but->rect.ymin;
+		butal->borders[TOP] = &but->rect.ymax;
+		copy_v4_fl(butal->dists, FLT_MAX);
+		butal++;
 	}
 
-	for (i = 0, but_align = but_align_array; i < num_buttons; i++, but_align++) {
-		const short alignnr = but_align->but->alignnr;
+	/* Third loop: for each pair of buttons in the same align group, we compute ther potential proximity.
+     * Note that each pair is checked only once. */
+	for (i = 0, butal = butal_array; i < num_buttons; i++, butal++) {
+		const short alignnr = butal->but->alignnr;
 
-		for (j = i + 1, but_align_other = &but_align_array[i + 1]; j < num_buttons; j++, but_align_other++) {
-			if (but_align_other->but->alignnr != alignnr) {
+		for (j = i + 1, butal_other = &butal_array[i + 1]; j < num_buttons; j++, butal_other++) {
+			const bool butal_can_align = ui_but_can_align(butal->but);
+			const bool butal_other_can_align = ui_but_can_align(butal_other->but);
+
+			/* Nothing to do if both buttons are not in the same align group, or if none of them can be aligned. */
+			if ((butal_other->but->alignnr != alignnr) || !(butal_can_align || butal_other_can_align)) {
 				continue;
 			}
 
-			buts_proximity_compute(but_align, but_align_other);
+			block_align_proximity_compute(butal, butal_other);
 		}
 	}
 
-	/* Now we have all our 'aligned' buttons as a 'map' in but_align_array, all we have to do now is:
+	/* Forth loop: we have all our 'aligned' buttons as a 'map' in butal_array. We need to:
 	 *     - update their relevant coordinates to stitch them.
 	 *     - assign them valid flags.
 	 */
 	for (i = 0; i < num_buttons; i++) {
-		but_align = &but_align_array[i];
+		butal = &butal_array[i];
 
-//		printf("but %s:\n", but_align->but->str);
-//		printf("\t left-aligned with %s\n", but_align->neighbors.left ? but_align->neighbors.left->but->str : "<NONE>");
-//		printf("\t  top-aligned with %s\n", but_align->neighbors.top ? but_align->neighbors.top->but->str : "<NONE>");
-//		printf("\tright-aligned with %s\n", but_align->neighbors.right ? but_align->neighbors.right->but->str : "<NONE>");
-//		printf("\t down-aligned with %s\n", but_align->neighbors.down ? but_align->neighbors.down->but->str : "<NONE>");
+//		printf("but %s:\n", butal->but->str);
+//		printf("\t left-aligned with %s\n", butal->neighbors.left ? butal->neighbors.left->but->str : "<NONE>");
+//		printf("\t  top-aligned with %s\n", butal->neighbors.top ? butal->neighbors.top->but->str : "<NONE>");
+//		printf("\tright-aligned with %s\n", butal->neighbors.right ? butal->neighbors.right->but->str : "<NONE>");
+//		printf("\t down-aligned with %s\n", butal->neighbors.down ? butal->neighbors.down->but->str : "<NONE>");
 
-		for (j = 0; j < 4; j++) {
-			but_align_other = but_align->neighbors[j];
+		for (side = 0; side < 4; side++) {
+			butal_other = butal->neighbors[side];
 
-			if (but_align_other) {
-				const int j_opp = OPPOSITE(j);
-				const int j_s1 = SIDE1(j);
-				const int j_s2 = SIDE2(j);
+			if (butal_other) {
+				const int side_opp = OPPOSITE(side);
+				const int side_s1 = SIDE1(side);
+				const int side_s2 = SIDE2(side);
 
-				const int align = get_but_align_flag(j);
-				const int align_opp = get_but_align_flag(j_opp);
+				const int align = sides_to_ui_but_align_flags[side];
+				const int align_opp = sides_to_ui_but_align_flags[side_opp];
 
 				float co;
 
-				but_align->but->drawflag |= align;
-				but_align_other->but->drawflag |= align_opp;
-				if (but_align->dists[j]) {
-					float *delta = &but_align->dists[j];
+				butal->but->drawflag |= align;
+				butal_other->but->drawflag |= align_opp;
+				if (butal->dists[side]) {
+					float *delta = &butal->dists[side];
 
-					if (*but_align->borders[j] < *but_align_other->borders[j_opp]) {
+					if (*butal->borders[side] < *butal_other->borders[side_opp]) {
 						*delta *= 0.5f;
 					}
 					else {
 						*delta *= -0.5f;
 					}
-					co = (*but_align->borders[j] += *delta);
+					co = (*butal->borders[side] += *delta);
 
-					if (but_align_other->dists[j_opp]) {
-						BLI_assert(but_align_other->dists[j_opp] * 0.5f == fabsf(*delta));
-						*but_align_other->borders[j_opp] = co;
-						but_align_other->dists[j_opp] = 0.0f;
+					if (butal_other->dists[side_opp]) {
+						BLI_assert(butal_other->dists[side_opp] * 0.5f == fabsf(*delta));
+						*butal_other->borders[side_opp] = co;
+						butal_other->dists[side_opp] = 0.0f;
 					}
 					*delta = 0.0f;
 				}
 				else {
-					co = *but_align->borders[j];
+					co = *butal->borders[side];
 				}
 
-				align_stitch_neighbors(but_align, j, j_opp, j_s1, j_s2, align, align_opp, co);
-				align_stitch_neighbors(but_align, j, j_opp, j_s2, j_s1, align, align_opp, co);
+				block_align_stitch_neighbors(butal, side, side_opp, side_s1, side_s2, align, align_opp, co);
+				block_align_stitch_neighbors(butal, side, side_opp, side_s2, side_s1, align, align_opp, co);
 			}
 		}
 	}
