@@ -41,6 +41,7 @@ struct bGPdata;
 struct bGPDlayer;
 struct bGPDframe;
 struct bGPDstroke;
+struct bAnimContext;
 struct PointerRNA;
 struct wmWindowManager;
 struct wmKeyConfig;
@@ -123,11 +124,11 @@ void ED_gplayer_frames_keytype_set(struct bGPDlayer *gpl, short type);
 
 void  ED_gplayer_snap_frames(struct bGPDlayer *gpl, struct Scene *scene, short mode);
 
-#if 0
-void free_gpcopybuf(void);
-void copy_gpdata(void);
-void paste_gpdata(void);
+void ED_gpencil_anim_copybuf_free(void);
+bool ED_gpencil_anim_copybuf_copy(struct bAnimContext *ac);
+bool ED_gpencil_anim_copybuf_paste(struct bAnimContext *ac, const short copy_mode);
 
+#if 0
 void mirror_gplayer_frames(struct bGPDlayer *gpl, short mode);
 #endif
 
