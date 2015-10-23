@@ -87,52 +87,16 @@ static int gpencil_editmode_toggle_poll(bContext *C)
 static int gpencil_editmode_toggle_exec(bContext *C, wmOperator *op)
 {
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
-	Scene *scene = CTX_data_scene(C);
-	Object *ob = OBACT;
-	ScrArea *sa = CTX_wm_area(C);
 	
-	/* Toggle editmode flag... */
 	if (gpd == NULL)
 		return OPERATOR_CANCELLED;
 	
-	/* Grease Pencil in the 3D view should be synced with the active object's
-	 * mode setting (ob->mode) which now reflects GPencil status...
-	 *
-	 * Other editors though can just toggle the mode
-	 */
-	if (((sa == NULL) || (sa->spacetype == SPACE_VIEW3D)) && 
-	    (ob != NULL)) 
-	{
-		const int mode_flag = OB_MODE_GPENCIL;
-		const bool is_mode_set = (ob->mode & mode_flag) != 0;
-		
-		if (!is_mode_set) {
-			if (!ED_object_mode_compat_set(C, ob, mode_flag, op->reports)) {
-				return OPERATOR_CANCELLED;
-			}
-		}
-		
-		/* Toggle editmode and sync with object mode */
-		ob->restore_mode = ob->mode;
-		
-		if (is_mode_set) {
-			gpd->flag &= ~GP_DATA_STROKE_EDITMODE;
-			ob->mode &= ~mode_flag;
-		}
-		else {
-			gpd->flag |= GP_DATA_STROKE_EDITMODE;
-			ob->mode |= mode_flag;
-		}
-		
-		WM_event_add_notifier(C, NC_SCENE | ND_MODE, NULL);
-	}
-	else {
-		/* Just toggle editmode */
-		gpd->flag ^= GP_DATA_STROKE_EDITMODE;
-	}
+	/* Just toggle editmode flag... */
+	gpd->flag ^= GP_DATA_STROKE_EDITMODE;
 	
-	/* GP editmode should have changed if we reach this point... */
 	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, NULL);
+	WM_event_add_notifier(C, NC_SCENE | ND_MODE, NULL);
+	
 	return OPERATOR_FINISHED;
 }
 

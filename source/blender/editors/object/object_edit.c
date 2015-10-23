@@ -1656,12 +1656,22 @@ static int object_mode_set_exec(bContext *C, wmOperator *op)
 	ObjectMode restore_mode = (ob) ? ob->mode : OB_MODE_OBJECT;
 	const bool toggle = RNA_boolean_get(op->ptr, "toggle");
 	
-	if (!ob && gpd) {
-		/* HACK: Just toggle GPencil editmode anyway if there's no object,
-		 *       since GPencil editing can still work... Just don't go any
-		 *       further, or else the rest of the code will break.
+	if (gpd) {
+		/* GP Mode is not bound to a specific object. Therefore,
+		 * we don't want it to be actually saved on any objects,
+		 * as weirdness can happen if you select other objects,
+		 * or load old files.
+		 *
+		 * Instead, we use the following 2 rules to ensure that
+		 * the mode selector works as expected:
+		 *  1) If there's no object, we want to enter editmode.
+		 *     (i.e. with no object, we're in object mode)
+		 *  2) Otherwise, exit stroke editmode, so that we can
+		 *     enter another mode...
 		 */
-		return WM_operator_name_call(C, "GPENCIL_OT_editmode_toggle", WM_OP_EXEC_REGION_WIN, NULL);
+		if (!ob || (gpd->flag & GP_DATA_STROKE_EDITMODE)) {
+			WM_operator_name_call(C, "GPENCIL_OT_editmode_toggle", WM_OP_EXEC_REGION_WIN, NULL);
+		}
 	}
 	
 	if (!ob || !object_mode_compat_test(ob, mode))

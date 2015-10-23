@@ -60,31 +60,9 @@ static void rna_GPencil_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Pointe
 
 static void rna_GPencil_editmode_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
 {
-	bGPdata *gpd = (bGPdata *)ptr->id.data;
-	Object *ob = OBACT;
-	
 	/* Notify all places where GPencil data lives that the editing state is different */
 	WM_main_add_notifier(NC_GPENCIL | NA_EDITED, NULL);
-	
-	/* If this datablock is used as the scene or active object's GP data,
-	 * we're going to have to update the object's mode to keep those in sync,
-	 * since the normal mode selector can now be used for changing these modes
-	 * too when using the datablock in the 3D View.
-	 */
-	if (gpd && ob) {
-		if ((scene->gpd == gpd) || (ob->gpd == gpd)) {
-			ob->restore_mode = ob->mode;
-			
-			if (gpd->flag & GP_DATA_STROKE_EDITMODE) {
-				ob->mode |= OB_MODE_GPENCIL;
-			}
-			else {
-				ob->mode &= ~OB_MODE_GPENCIL;
-			}
-			
-			WM_main_add_notifier(NC_SCENE | ND_MODE, NULL);
-		}
-	}
+	WM_main_add_notifier(NC_SCENE | ND_MODE, NULL);
 }
 
 static char *rna_GPencilLayer_path(PointerRNA *ptr)
