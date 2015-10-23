@@ -2866,6 +2866,8 @@ class VIEW3D_MT_edit_gpencil(Menu):
     bl_label = "GPencil"
     
     def draw(self, context):
+        toolsettings = context.tool_settings
+
         layout = self.layout
 
         layout.operator("ed.undo")
@@ -2874,9 +2876,14 @@ class VIEW3D_MT_edit_gpencil(Menu):
 
         layout.separator()
 
+        layout.operator("gpencil.brush_paint", text="Sculpt Strokes").wait_for_input = True
+        layout.prop_menu_enum(toolsettings.gpencil_sculpt, "tool", text="Sculpt Brush")
+
+        layout.separator()
+
         layout.menu("VIEW3D_MT_edit_gpencil_transform")
         layout.menu("VIEW3D_MT_object_animation")   # NOTE: provides keyingset access...
-       
+
         layout.separator()
 
         layout.menu("VIEW3D_MT_edit_gpencil_delete")
@@ -2890,14 +2897,19 @@ class VIEW3D_MT_edit_gpencil(Menu):
 
         layout.separator()
 
+        layout.prop_menu_enum(toolsettings, "proportional_edit")
+        layout.prop_menu_enum(toolsettings, "proportional_edit_falloff")
+
+        layout.separator()
+
         layout.operator("gpencil.reveal")
         layout.operator("gpencil.hide", text="Show Active Layer Only").unselected = True
         layout.operator("gpencil.hide", text="Hide Active Layer").unselected = False
 
         layout.separator()
 
-        layout.operator("gpencil.move_to_layer", text="Move to Layer")
-        layout.operator("gpencil.convert", text="Convert to Geometry...")
+        layout.operator_menu_enum("gpencil.move_to_layer", "layer", text="Move to Layer")
+        layout.operator_menu_enum("gpencil.convert", "type", text="Convert to Geometry...")
 
 
 class VIEW3D_MT_edit_gpencil_transform(Menu):
@@ -2915,6 +2927,10 @@ class VIEW3D_MT_edit_gpencil_transform(Menu):
         layout.operator("transform.bend", text="Bend").gpencil_strokes = True
         layout.operator("transform.shear", text="Shear").gpencil_strokes = True
         layout.operator("transform.tosphere", text="To Sphere").gpencil_strokes = True
+
+        props = layout.operator("transform.transform", text="Shrink Fatten")
+        props.mode = 'GPENCIL_SHRINKFATTEN'
+        props.gpencil_strokes = True
 
 
 # ********** Panel **********
