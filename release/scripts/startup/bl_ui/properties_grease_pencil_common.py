@@ -138,21 +138,21 @@ class GreasePencilStrokeEditPanel:
         col = layout.column(align=True)
         col.operator("gpencil.delete", text="Delete")
         col.operator("gpencil.duplicate_move", text="Duplicate")
-        col.operator("transform.mirror", text="Mirror").gpencil_strokes = True
+        col.operator("transform.mirror", text="Mirror")
 
         layout.separator()
 
         col = layout.column(align=True)
-        col.operator("transform.translate").gpencil_strokes = True   # icon='MAN_TRANS'
-        col.operator("transform.rotate").gpencil_strokes = True      # icon='MAN_ROT'
-        col.operator("transform.resize", text="Scale").gpencil_strokes = True      # icon='MAN_SCALE'
+        col.operator("transform.translate")                # icon='MAN_TRANS'
+        col.operator("transform.rotate")                   # icon='MAN_ROT'
+        col.operator("transform.resize", text="Scale")     # icon='MAN_SCALE'
 
         layout.separator()
 
         col = layout.column(align=True)
-        col.operator("transform.bend", text="Bend").gpencil_strokes = True
-        col.operator("transform.shear", text="Shear").gpencil_strokes = True
-        col.operator("transform.tosphere", text="To Sphere").gpencil_strokes = True
+        col.operator("transform.bend", text="Bend")
+        col.operator("transform.shear", text="Shear")
+        col.operator("transform.tosphere", text="To Sphere")
 
 
 class GreasePencilStrokeSculptPanel:
@@ -231,9 +231,9 @@ class GPENCIL_PIE_tool_palette(Menu):
                 # N - Transforms
                 col = pie.column()
                 row = col.row(align=True)
-                row.operator("transform.translate", icon='MAN_TRANS').gpencil_strokes = True
-                row.operator("transform.rotate", icon='MAN_ROT').gpencil_strokes = True
-                row.operator("transform.resize", text="Scale", icon='MAN_SCALE').gpencil_strokes = True
+                row.operator("transform.translate", icon='MAN_TRANS')
+                row.operator("transform.rotate", icon='MAN_ROT')
+                row.operator("transform.resize", text="Scale", icon='MAN_SCALE')
                 row = col.row(align=True)
                 row.label("Proportional Edit:")
                 row.prop(context.tool_settings, "proportional_edit", text="", icon_only=True)
@@ -334,10 +334,10 @@ class GPENCIL_PIE_tools_more(Menu):
         col.operator("gpencil.select_more", icon='ZOOMIN')
         col.operator("gpencil.select_less", icon='ZOOMOUT')
 
-        pie.operator("transform.mirror", icon='MOD_MIRROR').gpencil_strokes = True
-        pie.operator("transform.bend", icon='MOD_SIMPLEDEFORM').gpencil_strokes = True
-        pie.operator("transform.shear", icon='MOD_TRIANGULATE').gpencil_strokes = True
-        pie.operator("transform.tosphere", icon='MOD_MULTIRES').gpencil_strokes = True
+        pie.operator("transform.mirror", icon='MOD_MIRROR')
+        pie.operator("transform.bend", icon='MOD_SIMPLEDEFORM')
+        pie.operator("transform.shear", icon='MOD_TRIANGULATE')
+        pie.operator("transform.tosphere", icon='MOD_MULTIRES')
 
         pie.operator("gpencil.convert", icon='OUTLINER_OB_CURVE', text="Convert...")
         pie.operator("wm.call_menu_pie", text="Back to Main Palette...").name = "GPENCIL_PIE_tool_palette"

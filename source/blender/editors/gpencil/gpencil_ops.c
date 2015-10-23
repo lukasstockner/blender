@@ -247,32 +247,23 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	
 	/* Transform Tools */
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
 	
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_S, KM_ANY, 0, 0);
-	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
 	
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_rotate", RKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
 	
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_resize", SKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
 	
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_mirror", MKEY, KM_PRESS, KM_CTRL, 0);
-	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
 	
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_bend", WKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
 	
 	WM_keymap_add_item(keymap, "TRANSFORM_OT_tosphere", SKEY, KM_PRESS, KM_ALT | KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
 	
 	WM_keymap_add_item(keymap, "TRANSFORM_OT_shear", SKEY, KM_PRESS, KM_ALT | KM_CTRL | KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
 	
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_transform", SKEY, KM_PRESS, KM_ALT, 0);
 	RNA_enum_set(kmi->ptr, "mode", TFM_GPENCIL_SHRINKFATTEN);
-	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
 	
 	/* Proportional Editing */
 	ED_keymap_proportional_cycle(keyconf, keymap);

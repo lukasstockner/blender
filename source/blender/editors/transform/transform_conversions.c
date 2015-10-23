@@ -7885,6 +7885,7 @@ void createTransData(bContext *C, TransInfo *t)
 {
 	Scene *scene = t->scene;
 	Object *ob = OBACT;
+	bGPdata *gpd = CTX_data_gpencil_data(C);
 
 	/* if tests must match recalcData for correct updates */
 	if (t->options & CTX_TEXTURE) {
@@ -7901,8 +7902,9 @@ void createTransData(bContext *C, TransInfo *t)
 			sort_trans_data_dist(t);
 		}
 	}
-	else if (t->options & CTX_GPENCIL_STROKES) {
-		t->flag |= T_POINTS; // XXX...
+	else if ((t->options & CTX_GPENCIL_STROKES) || ((gpd) && (gpd->flag & GP_DATA_STROKE_EDITMODE))) {
+		t->options |= CTX_GPENCIL_STROKES;
+		t->flag |= T_POINTS;
 		createTransGPencil(C, t);
 		
 		if (t->data && (t->flag & T_PROP_EDIT)) {

@@ -2888,7 +2888,7 @@ class VIEW3D_MT_edit_gpencil(Menu):
 
         layout.menu("VIEW3D_MT_edit_gpencil_delete")
         layout.operator("gpencil.duplicate_move", text="Duplicate")
-        layout.operator("transform.mirror", text="Mirror").gpencil_strokes = True
+        layout.operator("transform.mirror", text="Mirror")
 
         layout.separator()
 
@@ -2918,19 +2918,16 @@ class VIEW3D_MT_edit_gpencil_transform(Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("transform.translate").gpencil_strokes = True
-        layout.operator("transform.rotate").gpencil_strokes = True
-        layout.operator("transform.resize", text="Scale").gpencil_strokes = True
+        layout.operator("transform.translate")
+        layout.operator("transform.rotate")
+        layout.operator("transform.resize", text="Scale")
 
         layout.separator()
 
-        layout.operator("transform.bend", text="Bend").gpencil_strokes = True
-        layout.operator("transform.shear", text="Shear").gpencil_strokes = True
-        layout.operator("transform.tosphere", text="To Sphere").gpencil_strokes = True
-
-        props = layout.operator("transform.transform", text="Shrink Fatten")
-        props.mode = 'GPENCIL_SHRINKFATTEN'
-        props.gpencil_strokes = True
+        layout.operator("transform.bend", text="Bend")
+        layout.operator("transform.shear", text="Shear")
+        layout.operator("transform.tosphere", text="To Sphere")
+        layout.operator("transform.transform", text="Shrink Fatten").mode = 'GPENCIL_SHRINKFATTEN'
 
 
 # ********** Panel **********
