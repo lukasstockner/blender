@@ -153,29 +153,41 @@ void LWRR_apply(RenderTile &tile) {
 */
 }
 
-SampleMap::SampleMap(RenderTile &tile)
+SampleMap::SampleMap(RenderTile &tile, int ofs, int lwr_passes)
 {
+	offset = ofs;
+
 	w = tile.w;
 	h = tile.h;
 
 	marginal = new float[h];
 	conditional = new float[w*h];
 
-	int oT = 0;
-	foreach(Pass& pass, tile.buffers->params.passes) {
-		if(pass.type == PASS_MATERIAL_ID)
-			break;
-		else
-			oT += pass.components;
-	}
+	int oT = lwr_passes + 20;
 
 	float *buffer = (float*)tile.buffers->buffer.data_pointer;
 	int pass_stride = tile.buffers->params.get_passes_size();
+	//Prefilter
+	for(int y = 0; y < h; y++) {
+		for(int x = 0; x < w; x++) {
+			float sum_w = 0.0f;
+			float sum = 0.0f;
+			for(int py = max(0, y + tile.y - 3); py < min(tile.buffers->params.height, y + tile.y + 4); py++) {
+				for(int px = max(0, x + tile.x - 3); px < min(tile.buffers->params.width, x + tile.x + 4); px++) {
+					float dist = (py - (y+tile.y))*(py - (y+tile.y)) + (px - (x+tile.x))*(px - (x+tile.x));
+					float w = expf(-dist/2.0f);
+					sum_w += w;
+					sum += w*buffer[(tile.offset + py*tile.stride + px)*pass_stride + oT];
+				}
+			}
+			conditional[y*w+x] = sum/sum_w;
+		}
+	}
+
 	for(int y = 0; y < h; y++) {
 		float *row = conditional + y*w;
-		row[0] = buffer[(tile.offset + (y + tile.y)*tile.stride + tile.x)*pass_stride + oT];
 		for(int x = 1; x < w; x++)
-			row[x] = row[x-1] + buffer[(tile.offset + (y + tile.y)*tile.stride + (x + tile.x))*pass_stride + oT];
+			row[x] += row[x-1];
 		marginal[y] = row[w-1];
 		for(int x = 0; x < w; x++)
 			row[x] /= row[w-1];
@@ -194,6 +206,8 @@ SampleMap::~SampleMap()
 
 void SampleMap::sample(int sample, int2 &p)
 {
+	sample -= offset;
+
 	float u, v;
 	/* Sample 02-Sequence for pixel jittering (1D Sobol for v, Van-der-Corput for u) */
 	uint r = 0, i = sample;

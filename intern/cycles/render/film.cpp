@@ -425,7 +425,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 
 	if(lwr_passes) {
 		kfilm->pass_lwr = kfilm->pass_stride;
-		kfilm->pass_stride += 20;
+		kfilm->pass_stride += 21;
 	}
 	else
 		kfilm->pass_lwr = 0;

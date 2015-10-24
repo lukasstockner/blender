@@ -273,7 +273,8 @@ public:
 			int start_sample = tile.start_sample;
 			int end_sample = tile.start_sample + tile.num_samples;
 
-//			SampleMap *map = NULL;
+			tile.sample = start_sample;
+			SampleMap *map = tile.buffers->get_sample_map(&tile);
 
 			for(int sample = start_sample; sample < end_sample; sample++) {
 				if(task.get_cancel() || task_pool.canceled()) {
@@ -284,7 +285,7 @@ public:
 				for(int y = 0; y < tile.h; y++) {
 					for(int x = 0; x < tile.w; x++) {
 						int2 p = make_int2(x, y);
-//						if(map) map->sample(tile.sample - 32, p);
+						if(map) map->sample(tile.sample, p);
 						path_trace_kernel(&kg, render_buffer, rng_state,
 						                  sample, tile.x + p.x, tile.y + p.y, tile.offset, tile.stride);
 					}

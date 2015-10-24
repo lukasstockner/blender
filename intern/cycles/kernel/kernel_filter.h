@@ -30,7 +30,8 @@ void kernel_filter_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w,
 
 	int m_S = kernel_data.film.pass_mist    , m_C = kernel_data.film.pass_lwr + 14, v_C = kernel_data.film.pass_lwr + 17,
 	    m_D = kernel_data.film.pass_lwr     , v_D = kernel_data.film.pass_lwr + 1 , m_T = kernel_data.film.pass_lwr + 8 ,
-	    v_T = kernel_data.film.pass_lwr + 11, m_N = kernel_data.film.pass_lwr + 2 , v_N = kernel_data.film.pass_lwr + 5;
+	    v_T = kernel_data.film.pass_lwr + 11, m_N = kernel_data.film.pass_lwr + 2 , v_N = kernel_data.film.pass_lwr + 5 ,
+	    m_I = kernel_data.film.pass_lwr + 20;
 
 	float3 meanT = make_float3(0.0f, 0.0f, 0.0f);
 	float3 meanN = make_float3(0.0f, 0.0f, 0.0f);
@@ -517,13 +518,16 @@ void kernel_filter_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w,
 		Buf_F3(x, y, 0) = out;
 	}
 
-/*	float4 res;
-	res.x = coef_bias[0] + coef_bias[1]*h_opt*h_opt;
-	res.y = (coef_var[0] + coef_var[1]*pow(h_opt, -rank)) / spp;
-	res.z = h_opt;
-	res.w = rank;
+	{
+		int spp = Buf_F(x, y, m_S);
+		float var = (float) ((coef_var[0] + coef_var[1] * pow(h_opt, -rank)) / spp);
+		float bias = (float) (coef_bias[1]*h_opt*h_opt);
+		float mse = max(0.0f, var + bias*bias);
 
-	Buf_F4(x, y, 0) = res;*/
+		float dmse_dspp = mse * powf(spp, -4.0f / (rank + 4.0f));
+		float lum = linear_rgb_to_gray(Buf_F3(x, y, 0));
+		Buf_F(x, y, m_I) = dmse_dspp / (lum * lum + 0.001f);
+	}
 }
 
 CCL_NAMESPACE_END
