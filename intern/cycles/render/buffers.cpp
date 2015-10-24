@@ -45,6 +45,7 @@ BufferParams::BufferParams()
 
 	Pass::add(PASS_COMBINED, passes);
 	lwr_passes = false;
+	lwr_offset = 0;
 }
 
 void BufferParams::get_offset_stride(int& offset, int& stride)
@@ -73,7 +74,7 @@ int BufferParams::get_passes_size()
 		size += pass.components;
 
 	if(lwr_passes)
-		size += 20;
+		size += 21;
 
 	return align_up(size, 4);
 }
@@ -207,6 +208,17 @@ bool RenderBuffers::filter_lwr()
 	return true;
 }
 
+SampleMap* RenderBuffers::get_sample_map(RenderTile *tile) {
+	if(tile->sample < params.lwr_offset)
+		return NULL;
+
+	int lwr_pass_ofs = 0;
+	foreach(Pass& pass, passes)
+		lwr_pass_ofs += pass.components;
+	SampleMap *m = new SampleMap(*tile, params.lwr_offset, lwr_pass_ofs);
+	return m;
+}
+
 bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels)
 {
 	int oS = 0;
@@ -232,7 +244,7 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 			assert(pass.components == components);
 
 			/* scalar */
-			if(type == PASS_MATERIAL_ID) {
+			if(type == PASS_MIST) {
 				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
 					pixels[0] = *in;
 				}
@@ -264,13 +276,14 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 			/* RGBA */
 			if(type == PASS_COMBINED) {
+				float fac = (params.lwr_passes)? 1.0f: 1.0f / in[oS-pass_offset];
 				for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {
-					pixels[0] = in[0];
-					pixels[1] = in[1];
-					pixels[2] = in[2];
+					pixels[0] = in[0] * fac;
+					pixels[1] = in[1] * fac;
+					pixels[2] = in[2] * fac;
 
 					/* clamp since alpha might be > 1.0 due to russian roulette */
-					pixels[3] = saturate(in[3]);
+					pixels[3] = saturate(in[3] * fac);
 				}
 			} else {
 				for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {

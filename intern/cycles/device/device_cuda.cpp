@@ -1114,8 +1114,9 @@ public:
 			while(task->acquire_tile(this, tile)) {
 				int start_sample = tile.start_sample;
 				int end_sample = tile.start_sample + tile.num_samples;
+				tile.sample = start_sample;
 
-				SampleMap *map = NULL;
+				SampleMap *map = tile.buffers->get_sample_map(&tile);
 
 				printf("AS size %d, need %d\n", adaptive_samples.data_size, tile.w*tile.h);
 				if(adaptive_samples.data_size != tile.w*tile.h) {
@@ -1136,7 +1137,7 @@ public:
 						for(int y = 0; y < tile.h; y++) {
 							for(int x = 0; x < tile.w; x++) {
 								int2 p = make_int2(x, y);
-								map->sample(tile.sample - 32, p);
+								map->sample(tile.sample, p);
 								((int2*) adaptive_samples.data_pointer)[y*tile.w+x] = p;
 							}
 						}
@@ -1146,13 +1147,6 @@ public:
 					path_trace(tile, sample, branched, map? adaptive_samples.device_pointer: (device_ptr) NULL);
 
 					tile.sample = sample + 1;
-
-					if(tile.sample >= 32 && (tile.sample % 16 == 0)) {
-						printf("Building map!\n");
-						LWRR_apply(tile);
-						if(map) delete map;
-						map = new SampleMap(tile);
-					}
 
 					task->update_progress(&tile);
 				}

@@ -491,6 +491,7 @@ void BlenderSession::render()
 
 		buffer_params.passes = passes;
 		buffer_params.lwr_passes = session_params.filter;
+		buffer_params.lwr_offset = session_params.filter_period;
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes, session_params.filter);
 		scene->film->tag_update(scene);

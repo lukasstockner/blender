@@ -9,11 +9,12 @@ void LWRR_apply(RenderTile &tile);
 
 class SampleMap {
 public:
-	SampleMap(RenderTile &tile);
+	SampleMap(RenderTile &tile, int ofs);
 	~SampleMap();
 	void sample(int sample, int2 &p);
 
 	int w, h;
+	int offset;
 	float *marginal, *conditional;
 };
 

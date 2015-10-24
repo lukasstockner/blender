@@ -31,6 +31,8 @@
 CCL_NAMESPACE_BEGIN
 
 class Device;
+class RenderTile;
+class SampleMap;
 struct DeviceDrawParams;
 struct float4;
 
@@ -52,6 +54,7 @@ public:
 	/* passes */
 	vector<Pass> passes;
 	bool lwr_passes;
+	int lwr_offset;
 
 	/* functions */
 	BufferParams();
@@ -83,6 +86,7 @@ public:
 	bool copy_to_device();
 	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels);
 	bool filter_lwr();
+	SampleMap *get_sample_map(RenderTile *tile);
 
 protected:
 	void device_free();
