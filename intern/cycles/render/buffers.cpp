@@ -177,33 +177,34 @@ bool RenderBuffers::filter_lwr()
 {
 	copy_from_device();
 
-	const int blocksize = 64;
+	const int blocksize = 256;
 
-/*	int nx = (params.width + blocksize - 1) / blocksize;
+	int nx = (params.width + blocksize - 1) / blocksize;
 	int ny = (params.height + blocksize - 1) / blocksize;
 	for(int ty = 0; ty < ny; ty++) {
 		for(int tx = 0; tx < nx; tx++) {
 			int w = min(blocksize, params.width  - tx*blocksize);
-			int h = max(blocksize, params.height - ty*blocksize);
+			int h = min(blocksize, params.height - ty*blocksize);
 			DeviceTask task(DeviceTask::FILTER);
 			task.x = blocksize*tx;
 			task.y = blocksize*ty;
 			task.w = w;
 			task.h = h;
-			task.stride = params.width;
+			task.offset = params.width;
+			task.stride = params.height;
 			task.buffer = buffer.device_pointer;
 			device->task_add(task);
-			device->task_wait();
 		}
-	}*/
-	DeviceTask task(DeviceTask::FILTER);
+	}
+	device->task_wait();
+/*	DeviceTask task(DeviceTask::FILTER);
 	task.x = task.y = 0;
 	task.w = params.width;
 	task.h = params.height;
 	task.stride = params.height; //To know the original height after task splitting
 	task.buffer = buffer.device_pointer;
 	device->task_add(task);
-	device->task_wait();
+	device->task_wait();*/
 
 	return true;
 }
@@ -213,7 +214,7 @@ SampleMap* RenderBuffers::get_sample_map(RenderTile *tile) {
 		return NULL;
 
 	int lwr_pass_ofs = 0;
-	foreach(Pass& pass, passes)
+	foreach(Pass& pass, params.passes)
 		lwr_pass_ofs += pass.components;
 	SampleMap *m = new SampleMap(*tile, params.lwr_offset, lwr_pass_ofs);
 	return m;
@@ -227,6 +228,10 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 			break;
 		oS += pass.components;
 	}
+
+	int lwr_pass_ofs = 0;
+	foreach(Pass& pass, params.passes)
+		lwr_pass_ofs += pass.components;
 
 	int pass_offset = 0;
 	foreach(Pass& pass, params.passes) {
@@ -242,6 +247,12 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 		if(components == 1) {
 			assert(pass.components == components);
+			float *oin = in;
+
+			if(type == PASS_SUBSURFACE_DIRECT)
+				in = in - pass_offset + lwr_pass_ofs + 0;
+			else if(type == PASS_SUBSURFACE_INDIRECT)
+				in = in - pass_offset + lwr_pass_ofs + 1;
 
 			/* scalar */
 			if(type == PASS_MIST) {
@@ -251,20 +262,33 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 			}
 			else {
 				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
-					pixels[0] = *in / in[oS-pass_offset];
+					pixels[0] = *in / oin[oS-pass_offset];
 				}
 			}
 		}
 		else if(components == 3) {
 			assert(pass.components == 4);
+			float *oin = in;
 
+			if(type == PASS_DIFFUSE_DIRECT)
+				in = in - pass_offset + lwr_pass_ofs + 14;
+			else if(type == PASS_DIFFUSE_INDIRECT)
+				in = in - pass_offset + lwr_pass_ofs + 17;
+			else if(type == PASS_DIFFUSE_COLOR)
+				in = in - pass_offset + lwr_pass_ofs + 2;
+			else if(type == PASS_GLOSSY_DIRECT)
+				in = in - pass_offset + lwr_pass_ofs + 5;
+			else if(type == PASS_GLOSSY_INDIRECT)
+				in = in - pass_offset + lwr_pass_ofs + 8;
+			else if(type == PASS_GLOSSY_COLOR)
+				in = in - pass_offset + lwr_pass_ofs + 11;
 			/* RGBA */
 			{
 				/* RGB/vector */
 				for(int i = 0; i < size; i++, in += pass_stride, pixels += 3) {
 					float3 f = make_float3(in[0], in[1], in[2]);
 
-					float scale = 1.0f / in[oS-pass_offset];
+					float scale = 1.0f / oin[oS-pass_offset];
 					pixels[0] = f.x*scale;
 					pixels[1] = f.y*scale;
 					pixels[2] = f.z*scale;

@@ -22,7 +22,7 @@ CCL_NAMESPACE_BEGIN
 
 #define halfWindow 5
 
-void kernel_filter_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h)
+void kernel_filter_pixel_pass1(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, float* storage)
 {
 	int2 lo = make_int2(max(x - halfWindow, 0), max(y - halfWindow, 0));
 	int2 hi = make_int2(min(x + halfWindow, w-1), min(y + halfWindow, h-1));
@@ -107,6 +107,7 @@ void kernel_filter_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w,
 			S[i] = sqrtf(fabsf(S[i]));
 
 		float threshold = 0.01f + 2.0f * (sqrtf(norm) / (sqrtf(rank) * 0.5f));
+		storage[102] = threshold;
 		rank = 0;
 
 		/* Truncate matrix to reduce the rank */
@@ -354,7 +355,7 @@ void kernel_filter_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w,
 		double h2 = g_w*g_w;
 		double bias = average(beta - (Buf_F3(x, y, m_C)/spp));
 		double i_h_r = pow(g_w, -rank);
-		double svar = max(average(Buf_F3(x, y, v_C))/(spp-1), 0.0f);
+		double svar = max(spp*var, 0.0f);
 
 		bias_XtX[0] += 1.0;
 		bias_XtX[1] += h2;
@@ -389,6 +390,39 @@ void kernel_filter_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w,
 	double h_opt = pow((rank * coef_var[1]) / (4.0 * coef_bias[1] * coef_bias[1] * spp), 1.0 / (4 + rank));
 	h_opt = clamp(h_opt, 0.2, 1.0);
 
+	for(int i = 0; i < 9; i++)
+		storage[i] = (i < rank)? bi[i]: 0.0f;
+	for(int i = 0; i < 81; i++)
+		storage[i+9] = transform[i];
+	storage[90] = __int_as_float(rank);
+	storage[91] = meanD;
+	*((float3*) (storage + 92)) = meanN;
+	*((float3*) (storage + 95)) = meanT;
+	storage[98] = (float) coef_var[0];
+	storage[99] = (float) coef_var[1];
+	storage[100] = (float) coef_bias[1];
+	storage[101] = h_opt;
+}
+
+void kernel_filter_pixel_pass2(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, float *storage)
+{
+	int2 lo = make_int2(max(x - halfWindow, 0), max(y - halfWindow, 0));
+	int2 hi = make_int2(min(x + halfWindow, w-1), min(y + halfWindow, h-1));
+	int num = (hi.x - lo.x + 1) * (hi.y - lo.y + 1);
+
+	int m_S = kernel_data.film.pass_mist    , m_C = kernel_data.film.pass_lwr + 14, v_C = kernel_data.film.pass_lwr + 17,
+	    m_D = kernel_data.film.pass_lwr     , v_D = kernel_data.film.pass_lwr + 1 , m_T = kernel_data.film.pass_lwr + 8 ,
+	    v_T = kernel_data.film.pass_lwr + 11, m_N = kernel_data.film.pass_lwr + 2 , v_N = kernel_data.film.pass_lwr + 5 ,
+	    m_I = kernel_data.film.pass_lwr + 20;
+
+	//Load bi[]
+	float *bi = storage;
+	float *transform = storage + 9;
+	int rank = __float_as_int(storage[90]);
+	float meanD = storage[91];
+	float3 meanN = *((float3*) (storage + 92)), meanT = *((float3*) (storage + 95));
+	float3 coefs = *((float3*) (storage + 98));
+	float h_opt = storage[101];
 	{
 		float A[100], z[9], invL[100], invA[10];
 		for(int i = 0; i < 100; i++)
@@ -406,8 +440,8 @@ void kernel_filter_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w,
 				float invS = 1.0f / Buf_F(px, py, m_S);
 				float invSv = 1.0f / (Buf_F(px, py, m_S) - 1.0f);
 
-				if(fabsf(linear_rgb_to_gray(Buf_F3(px, py, m_C))*invS - cCm) > 3.0f * (cCs + sqrtf(average(Buf_F3(x, y, v_C))*invS*invSv)) + 0.005f)
-					continue;
+//				if(fabsf(linear_rgb_to_gray(Buf_F3(px, py, m_C))*invS - cCm) > 3.0f * (cCs + sqrtf(average(Buf_F3(x, y, v_C))*invS*invSv)) + 0.005f)
+//					continue;
 
 				float dD = Buf_F(px, py, m_D) * invS - meanD;
 				float3 dN = Buf_F3(px, py, m_N) * invS - meanN;
@@ -472,8 +506,8 @@ void kernel_filter_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w,
 				float invS = 1.0f / Buf_F(px, py, m_S);
 				float invSv = 1.0f / (Buf_F(px, py, m_S) - 1.0f);
 
-				if(fabsf(linear_rgb_to_gray(Buf_F3(px, py, m_C))*invS - cCm) > 3.0f * (cCs + sqrtf(average(Buf_F3(x, y, v_C))*invS*invSv)) + 0.005f)
-					continue;
+//				if(fabsf(linear_rgb_to_gray(Buf_F3(px, py, m_C))*invS - cCm) > 3.0f * (cCs + sqrtf(average(Buf_F3(x, y, v_C))*invS*invSv)) + 0.005f)
+//					continue;
 
 				float dD = Buf_F(px, py, m_D) * invS - meanD;
 				float3 dN = Buf_F3(px, py, m_N) * invS - meanN;
@@ -520,8 +554,8 @@ void kernel_filter_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w,
 
 	{
 		int spp = Buf_F(x, y, m_S);
-		float var = (float) ((coef_var[0] + coef_var[1] * pow(h_opt, -rank)) / spp);
-		float bias = (float) (coef_bias[1]*h_opt*h_opt);
+		float var = ((coefs.x + coefs.y * powf(h_opt, -rank)) / spp);
+		float bias = (coefs.z*h_opt*h_opt);
 		float mse = max(0.0f, var + bias*bias);
 
 		float dmse_dspp = mse * powf(spp, -4.0f / (rank + 4.0f));
