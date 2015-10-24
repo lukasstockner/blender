@@ -8,26 +8,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-bool write_pfm(const char *name, float *data, int w, int h) {
-        FILE *f = fopen(name, "wb");
-        if(!f)
-                return false;
-        fprintf(f, "Pf\n%d %d\n-1.0\n", w, h);
-        fwrite(data, sizeof(float), w*h, f);
-        fclose(f);
-        return true;
-}
-
-bool write_pfm3(const char *name, float *data, int w, int h) {
-        FILE *f = fopen(name, "wb");
-        if(!f)
-                return false;
-        fprintf(f, "PF\n%d %d\n-1.0\n", w, h);
-        fwrite(data, sizeof(float), 3*w*h, f);
-        fclose(f);
-        return true;
-}
-
 thread_mutex gpu_mutex;
 
 void LWRR_apply(RenderTile &tile) {
