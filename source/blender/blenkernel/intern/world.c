@@ -31,6 +31,7 @@
 
 
 #include <string.h>
+#include <stdlib.h>
 #include <math.h>
 #include "MEM_guardedalloc.h"
 
@@ -77,7 +78,7 @@ void BKE_world_free(World *wrld)
 
 void BKE_world_init(World *wrld)
 {
-	BLI_assert(MEMCMP_NULL_STRUCT_OFS(wrld, id));
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(wrld, id));
 
 	wrld->horr = 0.05f;
 	wrld->horg = 0.05f;
@@ -99,7 +100,7 @@ void BKE_world_init(World *wrld)
 	wrld->aobias = 0.05f;
 	wrld->ao_samp_method = WO_AOSAMP_HAMMERSLEY;
 	wrld->ao_approx_error = 0.25f;
-
+	
 	wrld->preview = NULL;
 	wrld->miststa = 5.0f;
 	wrld->mistdist = 25.0f;
@@ -110,7 +111,7 @@ World *add_world(Main *bmain, const char *name)
 	World *wrld;
 
 	wrld = BKE_libblock_alloc(bmain, ID_WO, name);
-	
+
 	BKE_world_init(wrld);
 
 	return wrld;

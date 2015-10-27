@@ -2220,14 +2220,6 @@ static void direct_link_paint_curve(FileData *fd, PaintCurve *pc)
 	pc->points = newdataadr(fd, pc->points);
 }
 
-
-static void direct_link_script(FileData *UNUSED(fd), Script *script)
-{
-	script->id.us = 1;
-	SCRIPT_SET_NULL(script);
-}
-
-
 /* ************ READ PACKEDFILE *************** */
 
 static PackedFile *direct_link_packedfile(FileData *fd, PackedFile *oldpf)
@@ -8035,9 +8027,6 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 		case ID_PA:
 			direct_link_particlesettings(fd, (ParticleSettings*)id);
 			break;
-		case ID_SCRIPT:
-			direct_link_script(fd, (Script*)id);
-			break;
 		case ID_GD:
 			direct_link_gpencil(fd, (bGPdata *)id);
 			break;
@@ -9801,12 +9790,12 @@ static void link_id_part(ReportList *reports, FileData *fd, Main *mainvar, ID *i
 	}
 	else {
 		blo_reportf_wrap(
-				reports, RPT_WARNING,
-				TIP_("LIB ERROR: %s: '%s' missing from '%s', parent '%s'"),
-				BKE_idcode_to_name(GS(id->name)),
-				id->name + 2,
-				mainvar->curlib->filepath,
-				library_parent_filepath(mainvar->curlib));
+		        reports, RPT_WARNING,
+		        TIP_("LIB ERROR: %s: '%s' missing from '%s', parent '%s'"),
+		        BKE_idcode_to_name(GS(id->name)),
+		        id->name + 2,
+		        mainvar->curlib->filepath,
+		        library_parent_filepath(mainvar->curlib));
 
 		/* Generate a placeholder for this ID (simplified version of read_libblock actually...). */
 		if (r_id) {
@@ -10097,6 +10086,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 	}
 	
 	/* test if there are unread libblocks */
+	/* XXX This code block is kept for 2.77, until we are sure it never gets reached anymore. Can be removed later. */
 	for (mainptr = mainl->next; mainptr; mainptr = mainptr->next) {
 		a = set_listbasepointers(mainptr, lbarray);
 		while (a--) {
@@ -10105,11 +10095,12 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 			for (id = lbarray[a]->first; id; id = idn) {
 				idn = id->next;
 				if (id->flag & LIB_READ) {
-					printf("SHALL NOT HAPPEN ANYMORE!!!!!!!\n");
+					BLI_assert(0);
 					BLI_remlink(lbarray[a], id);
 					blo_reportf_wrap(
 					        basefd->reports, RPT_WARNING,
-					        TIP_("LIB ERROR: %s: '%s' unread lib block missing from '%s', parent '%s'"),
+					        TIP_("LIB ERROR: %s: '%s' unread lib block missing from '%s', parent '%s' - "
+					             "Please file a bug report if you see this message"),
 					        BKE_idcode_to_name(GS(id->name)),
 					        id->name + 2,
 					        mainptr->curlib->filepath,

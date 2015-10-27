@@ -232,7 +232,6 @@ typedef struct PreviewImage {
 #define ID_ID		MAKE_ID2('I', 'D') /* (internal use only) */
 #define ID_AR		MAKE_ID2('A', 'R') /* bArmature */
 #define ID_AC		MAKE_ID2('A', 'C') /* bAction */
-#define ID_SCRIPT	MAKE_ID2('P', 'Y') /* Script (depreciated) */
 #define ID_NT		MAKE_ID2('N', 'T') /* bNodeTree */
 #define ID_BR		MAKE_ID2('B', 'R') /* Brush */
 #define ID_PA		MAKE_ID2('P', 'A') /* ParticleSettings */
@@ -282,6 +281,7 @@ enum {
 	LIB_TESTIND         = (LIB_NEED_EXPAND | LIB_INDIRECT),
 	LIB_READ            = 1 << 4,
 	LIB_NEED_LINK       = 1 << 5,
+	/* tag datablock as a place-holder (because the real one could not be linked from its library e.g.). */
 	LIB_MISSING         = 1 << 6,
 
 	LIB_NEW             = 1 << 8,

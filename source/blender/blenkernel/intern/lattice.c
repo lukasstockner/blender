@@ -253,12 +253,12 @@ void BKE_lattice_resize(Lattice *lt, int uNew, int vNew, int wNew, Object *ltOb)
 
 void BKE_lattice_init(Lattice *lt)
 {
-	BLI_assert(MEMCMP_NULL_STRUCT_OFS(lt, id));
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(lt, id));
 
 	lt->flag = LT_GRID;
-
+	
 	lt->typeu = lt->typev = lt->typew = KEY_BSPLINE;
-
+	
 	lt->def = MEM_callocN(sizeof(BPoint), "lattvert"); /* temporary */
 	BKE_lattice_resize(lt, 2, 2, 2, NULL);  /* creates a uniform lattice */
 	lt->actbp = LT_ACTBP_NONE;

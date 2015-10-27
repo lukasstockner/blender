@@ -96,16 +96,16 @@ void BKE_lamp_init(Lamp *la)
 	la->sky_colorspace = BLI_XYZ_CIE;
 	la->sky_exposure = 1.0f;
 	la->shadow_frustum_size = 10.0f;
-
+	
 	curvemapping_initialize(la->curfalloff);
 }
 
 Lamp *BKE_lamp_add(Main *bmain, const char *name)
 {
 	Lamp *la;
-	
+
 	la =  BKE_libblock_alloc(bmain, ID_LA, name);
-	
+
 	BKE_lamp_init(la);
 
 	return la;
@@ -218,29 +218,30 @@ void BKE_lamp_make_local(Lamp *la)
 	}
 }
 
-/** Free (or release) any data used by this lamp (does not free the lamp itself). */
 void BKE_lamp_free(Lamp *la)
 {
+	MTex *mtex;
 	int a;
 
-	BKE_animdata_free((ID *)la);
-
 	for (a = 0; a < MAX_MTEX; a++) {
-		MEM_SAFE_FREE(la->mtex[a]);
+		mtex = la->mtex[a];
+		if (mtex && mtex->tex) mtex->tex->id.us--;
+		if (mtex) MEM_freeN(mtex);
 	}
 	
+	BKE_animdata_free((ID *)la);
+
 	curvemapping_free(la->curfalloff);
-	la->curfalloff = NULL;
 
 	/* is no lib link block, but lamp extension */
 	if (la->nodetree) {
 		ntreeFreeTree(la->nodetree);
 		MEM_freeN(la->nodetree);
-		la->nodetree = NULL;
 	}
 	
-	BKE_icon_id_delete(&la->id);
 	BKE_previewimg_free(&la->preview);
+	BKE_icon_id_delete(&la->id);
+	la->id.icon_id = 0;
 }
 
 /* Calculate all drivers for lamps, see material_drivers_update for why this is a bad hack */

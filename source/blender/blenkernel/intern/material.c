@@ -78,7 +78,7 @@ Material defmaterial;
 /* called on startup, creator.c */
 void init_def_material(void)
 {
-	BKE_init_material(&defmaterial);
+	BKE_material_init(&defmaterial);
 }
 
 /** Free (or release) any data used by this material (does not free the material itself). */
@@ -110,9 +110,9 @@ void BKE_material_free(Material *ma)
 	BKE_previewimg_free(&ma->preview);
 }
 
-void BKE_init_material(Material *ma)
+void BKE_material_init(Material *ma)
 {
-	BLI_assert(MEMCMP_NULL_STRUCT_OFS(ma, id));
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(ma, id));
 
 	ma->r = ma->g = ma->b = ma->ref = 0.8;
 	ma->specr = ma->specg = ma->specb = 1.0;
@@ -211,7 +211,7 @@ Material *BKE_material_add(Main *bmain, const char *name)
 
 	ma = BKE_libblock_alloc(bmain, ID_MA, name);
 	
-	BKE_init_material(ma);
+	BKE_material_init(ma);
 	
 	return ma;
 }

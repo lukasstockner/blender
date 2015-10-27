@@ -565,7 +565,7 @@ void *BKE_object_obdata_add_from_type(Main *bmain, int type, const char *name)
 
 void BKE_object_init(Object *ob)
 {
-	/* BLI_assert(MEMCMP_NULL_STRUCT_OFS(ob, id)); */  /* ob->type is already initialized... */
+	/* BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(ob, id)); */  /* ob->type is already initialized... */
 
 	ob->col[0] = ob->col[1] = ob->col[2] = 1.0;
 	ob->col[3] = 1.0;
@@ -649,7 +649,7 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 
 	/* default object vars */
 	ob->type = type;
-	
+
 	BKE_object_init(ob);
 
 	return ob;
@@ -1536,13 +1536,15 @@ void BKE_object_rot_to_mat3(Object *ob, float mat[3][3], bool use_drot)
 
 void BKE_object_mat3_to_rot(Object *ob, float mat[3][3], bool use_compat)
 {
+	BLI_ASSERT_UNIT_M3(mat);
+
 	switch (ob->rotmode) {
 		case ROT_MODE_QUAT:
 		{
 			float dquat[4];
-			mat3_to_quat(ob->quat, mat);
+			mat3_normalized_to_quat(ob->quat, mat);
 			normalize_qt_qt(dquat, ob->dquat);
-			invert_qt(dquat);
+			invert_qt_normalized(dquat);
 			mul_qt_qtqt(ob->quat, dquat, ob->quat);
 			break;
 		}
@@ -1552,9 +1554,9 @@ void BKE_object_mat3_to_rot(Object *ob, float mat[3][3], bool use_compat)
 			float dquat[4];
 
 			/* without drot we could apply 'mat' directly */
-			mat3_to_quat(quat, mat);
+			mat3_normalized_to_quat(quat, mat);
 			axis_angle_to_quat(dquat, ob->drotAxis, ob->drotAngle);
-			invert_qt(dquat);
+			invert_qt_normalized(dquat);
 			mul_qt_qtqt(quat, dquat, quat);
 			quat_to_axis_angle(ob->rotAxis, &ob->rotAngle, quat);
 			break;
@@ -1563,18 +1565,16 @@ void BKE_object_mat3_to_rot(Object *ob, float mat[3][3], bool use_compat)
 		{
 			float quat[4];
 			float dquat[4];
-			float tmat[3][3];
 
 			/* without drot we could apply 'mat' directly */
-			mat3_to_quat(quat, mat);
+			mat3_normalized_to_quat(quat, mat);
 			eulO_to_quat(dquat, ob->drot, ob->rotmode);
-			invert_qt(dquat);
+			invert_qt_normalized(dquat);
 			mul_qt_qtqt(quat, dquat, quat);
-			quat_to_mat3(tmat, quat);
 			/* end drot correction */
 
-			if (use_compat) mat3_to_compatible_eulO(ob->rot, ob->rot, ob->rotmode, tmat);
-			else            mat3_to_eulO(ob->rot, ob->rotmode, tmat);
+			if (use_compat) quat_to_compatible_eulO(ob->rot, ob->rot, ob->rotmode, quat);
+			else            quat_to_eulO(ob->rot, ob->rotmode, quat);
 			break;
 		}
 	}
