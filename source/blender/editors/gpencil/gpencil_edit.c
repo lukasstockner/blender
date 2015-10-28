@@ -553,7 +553,7 @@ static int gp_move_to_layer_exec(bContext *C, wmOperator *op)
 		bGPDframe *gpf = gpencil_layer_getframe(target_layer, CFRA, true);
 		
 		BLI_movelisttolist(&gpf->strokes, &strokes);
-		BLI_assert((strokes.first == strokes.last) && (atrokes.first == NULL));
+		BLI_assert((strokes.first == strokes.last) && (strokes.first == NULL));
 	}
 	
 	/* updates */
