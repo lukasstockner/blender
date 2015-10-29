@@ -1531,6 +1531,9 @@ static int gpsculpt_brush_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	if (is_modal == false) {
 		ARegion *ar = CTX_wm_region(C);
 		
+		/* ensure that we'll have a new frame to draw on */
+		gpsculpt_brush_init_stroke(gso);
+		
 		/* apply first dab... */
 		gso->is_painting = true;
 		gpsculpt_brush_apply_event(C, op, event);
