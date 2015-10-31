@@ -39,6 +39,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_brush_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
@@ -1088,6 +1089,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	ScrArea *sa = CTX_wm_area(C);
 	Object *obedit = CTX_data_edit_object(C);
 	Object *ob = CTX_data_active_object(C);
+	bGPdata *gpd = CTX_data_gpencil_data(C);
 	PropertyRNA *prop;
 	
 	t->scene = sce;
@@ -1155,6 +1157,11 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		if (RNA_property_boolean_get(op->ptr, prop)) {
 			t->remove_on_cancel = true;
 		}
+	}
+	
+	/* GPencil editing context */
+	if ((gpd) && (gpd->flag & GP_DATA_STROKE_EDITMODE)) {
+		t->options |= CTX_GPENCIL_STROKES;
 	}
 
 	/* Assign the space type, some exceptions for running in different mode */
