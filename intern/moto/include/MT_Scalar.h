@@ -53,7 +53,7 @@
 #include "MT_random.h"
 #include "NM_Scalar.h"
 
-typedef double MT_Scalar; //this should be float !
+typedef float MT_Scalar;
 
 
 const MT_Scalar  MT_DEGS_PER_RAD(57.29577951308232286465);
