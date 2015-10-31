@@ -53,7 +53,7 @@ SG_Spatial(
 
 	m_parent_relation (NULL),
 	
-	m_bbox(MT_Point3(-1.0, -1.0, -1.0), MT_Point3(1.0, 1.0, 1.0)),
+	m_bbox(MT_Vector3(-1.0, -1.0, -1.0), MT_Vector3(1.0, 1.0, 1.0)),
 	m_radius(1.0),
 	m_modified(false),
 	m_ogldirty(false)
@@ -197,7 +197,7 @@ MT_Transform SG_Spatial::GetWorldTransform() const
 		m_worldScaling[0], m_worldScaling[1], m_worldScaling[2]));
 }
 
-bool SG_Spatial::inside(const MT_Point3 &point) const
+bool SG_Spatial::inside(const MT_Vector3 &point) const
 {
 	MT_Scalar radius = m_worldScaling[m_worldScaling.closestAxis()]*m_radius;
 	return (m_worldPosition.distance2(point) <= radius*radius) ?
@@ -205,12 +205,12 @@ bool SG_Spatial::inside(const MT_Point3 &point) const
 		false;
 }
 
-void SG_Spatial::getBBox(MT_Point3 *box) const
+void SG_Spatial::getBBox(MT_Vector3 *box) const
 {
 	m_bbox.get(box, GetWorldTransform());
 }
 
-void SG_Spatial::getAABBox(MT_Point3 *box) const
+void SG_Spatial::getAABBox(MT_Vector3 *box) const
 {
 	m_bbox.getaa(box, GetWorldTransform());
 }

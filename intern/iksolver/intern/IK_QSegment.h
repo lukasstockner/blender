@@ -117,10 +117,10 @@ public:
 	MT_Vector3 TranslationChange() const;
 
 	// the start and end of the segment
-	const MT_Point3 &GlobalStart() const
+	const MT_Vector3 &GlobalStart() const
 	{ return m_global_start; }
 
-	const MT_Point3 &GlobalEnd() const
+	const MT_Vector3 &GlobalEnd() const
 	{ return m_global_transform.getOrigin(); }
 
 	// the global transformation at the end of the segment
@@ -201,7 +201,7 @@ protected:
 	MT_Scalar m_max_extension;
 
 	// accumulated transformations starting from root
-	MT_Point3 m_global_start;
+	MT_Vector3 m_global_start;
 	MT_Transform m_global_transform;
 
 	// number degrees of freedom, (first) id of this segments DOF's

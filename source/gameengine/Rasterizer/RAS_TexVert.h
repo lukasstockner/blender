@@ -33,16 +33,16 @@
 #define __RAS_TEXVERT_H__
 
 
-#include "MT_Point3.h"
-#include "MT_Point2.h"
+#include "MT_Vector3.h"
+#include "MT_Vector2.h"
 #include "MT_Transform.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
 #endif
 
-static MT_Point3 g_pt3;
-static MT_Point2 g_pt2;
+static MT_Vector3 g_pt3;
+static MT_Vector2 g_pt2;
 
 class RAS_TexVert
 {
@@ -72,8 +72,8 @@ public:
 	
 	RAS_TexVert()// :m_xyz(0,0,0),m_uv(0,0),m_rgba(0)
 	{}
-	RAS_TexVert(const MT_Point3& xyz,
-				const MT_Point2 uvs[MAX_UNIT],
+	RAS_TexVert(const MT_Vector3& xyz,
+				const MT_Vector2 uvs[MAX_UNIT],
 				const MT_Vector4& tangent,
 				const unsigned int rgba,
 				const MT_Vector3& normal,
@@ -115,9 +115,9 @@ public:
 		return m_origindex;
 	}
 
-	void				SetXYZ(const MT_Point3& xyz);
+	void				SetXYZ(const MT_Vector3& xyz);
 	void				SetXYZ(const float xyz[3]);
-	void				SetUV(int index, const MT_Point2& uv);
+	void				SetUV(int index, const MT_Vector2& uv);
 	void				SetUV(int index, const float uv[2]);
 
 	void				SetRGBA(const unsigned int rgba);
@@ -127,7 +127,7 @@ public:
 	void				SetUnit(const unsigned u);
 	
 	void				SetRGBA(const MT_Vector4& rgba);
-	const MT_Point3&	xyz();
+	const MT_Vector3&	xyz();
 
 	void				Transform(const class MT_Matrix4x4& mat,
 	                              const class MT_Matrix4x4& nmat);

@@ -234,8 +234,8 @@ void KX_ObstacleSimulation::AddObstaclesForNavMesh(KX_NavMeshObject* navmeshobj)
 				KX_Obstacle* obstacle = CreateObstacle(navmeshobj);
 				obstacle->m_type = KX_OBSTACLE_NAV_MESH;
 				obstacle->m_shape = KX_OBSTACLE_SEGMENT;
-				obstacle->m_pos = MT_Point3(vj[0], vj[2], vj[1]);
-				obstacle->m_pos2 = MT_Point3(vi[0], vi[2], vi[1]);
+				obstacle->m_pos = MT_Vector3(vj[0], vj[2], vj[1]);
+				obstacle->m_pos2 = MT_Vector3(vi[0], vi[2], vi[1]);
 				obstacle->m_rad = 0;
 			}
 		}
@@ -308,8 +308,8 @@ void KX_ObstacleSimulation::DrawObstacles()
 	{
 		if (m_obstacles[i]->m_shape==KX_OBSTACLE_SEGMENT)
 		{
-			MT_Point3 p1 = m_obstacles[i]->m_pos;
-			MT_Point3 p2 = m_obstacles[i]->m_pos2;
+			MT_Vector3 p1 = m_obstacles[i]->m_pos;
+			MT_Vector3 p2 = m_obstacles[i]->m_pos2;
 			//apply world transform
 			if (m_obstacles[i]->m_type == KX_OBSTACLE_NAV_MESH)
 			{
@@ -328,7 +328,7 @@ void KX_ObstacleSimulation::DrawObstacles()
 	}
 }
 
-static MT_Point3 nearestPointToObstacle(MT_Point3& pos ,KX_Obstacle* obstacle)
+static MT_Vector3 nearestPointToObstacle(MT_Vector3& pos ,KX_Obstacle* obstacle)
 {
 	switch (obstacle->m_shape)
 	{
@@ -342,7 +342,7 @@ static MT_Point3 nearestPointToObstacle(MT_Point3& pos ,KX_Obstacle* obstacle)
 			MT_Vector3  v = pos - obstacle->m_pos;
 			MT_Scalar proj = abdir.dot(v);
 			CLAMP(proj, 0, dist);
-			MT_Point3 res = obstacle->m_pos + abdir*proj;
+			MT_Vector3 res = obstacle->m_pos + abdir*proj;
 			return res;
 		}
 	}
@@ -361,7 +361,7 @@ static bool filterObstacle(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavM
 		return false;
 
 	//filter obstacles by position
-	MT_Point3 p = nearestPointToObstacle(activeObst->m_pos, otherObst);
+	MT_Vector3 p = nearestPointToObstacle(activeObst->m_pos, otherObst);
 	if ( fabs(activeObst->m_pos.z() - p.z()) > levelHeight)
 		return false;
 
@@ -497,8 +497,8 @@ void KX_ObstacleSimulationTOI_rays::sampleRVO(KX_Obstacle* activeObst, KX_NavMes
 			}
 			else if (ob->m_shape == KX_OBSTACLE_SEGMENT)
 			{
-				MT_Point3 p1 = ob->m_pos;
-				MT_Point3 p2 = ob->m_pos2;
+				MT_Vector3 p1 = ob->m_pos;
+				MT_Vector3 p2 = ob->m_pos2;
 				//apply world transform
 				if (ob->m_type == KX_OBSTACLE_NAV_MESH)
 				{
@@ -669,8 +669,8 @@ static void processSamples(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavM
 			}
 			else if (ob->m_shape == KX_OBSTACLE_SEGMENT)
 			{
-				MT_Point3 p1 = ob->m_pos;
-				MT_Point3 p2 = ob->m_pos2;
+				MT_Vector3 p1 = ob->m_pos;
+				MT_Vector3 p2 = ob->m_pos2;
 				//apply world transform
 				if (ob->m_type == KX_OBSTACLE_NAV_MESH)
 				{

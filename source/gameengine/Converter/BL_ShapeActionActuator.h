@@ -35,7 +35,7 @@
 #include "CTR_HashedPtr.h"
 #include "SCA_IActuator.h"
 #include "BL_ActionActuator.h"
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 #include <vector>
 
 struct Key;
@@ -116,7 +116,7 @@ protected:
 	void SetLocalTime(float curtime);
 	bool ClampLocalTime();
 
-	MT_Point3	m_lastpos;
+	MT_Vector3	m_lastpos;
 	float	m_blendframe;
 	int		m_flag;
 	/** The frame this action starts */

@@ -257,7 +257,7 @@ void IK_QJacobianSolver::ConstrainPoleVector(IK_QSegment *root, std::list<IK_QTa
 		// desired rotation based on the pole vector constraint. we use
 		// transpose instead of inverse because we have orthogonal matrices
 		// anyway, and in case of a singular matrix we don't get NaN's.
-		MT_Transform trans(MT_Point3(0, 0, 0), polemat.transposed() * mat);
+		MT_Transform trans(MT_Vector3(0, 0, 0), polemat.transposed() * mat);
 		m_rootmatrix = trans * m_rootmatrix;
 	}
 }

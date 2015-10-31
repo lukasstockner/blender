@@ -57,7 +57,7 @@ public:
 	void set(RAS_MeshSlot *ms, RAS_MaterialBucket *bucket, const MT_Vector3& pnorm)
 	{
 		// would be good to use the actual bounding box center instead
-		MT_Point3 pos(ms->m_OpenGLMatrix[12], ms->m_OpenGLMatrix[13], ms->m_OpenGLMatrix[14]);
+		MT_Vector3 pos(ms->m_OpenGLMatrix[12], ms->m_OpenGLMatrix[13], ms->m_OpenGLMatrix[14]);
 
 		m_z = MT_dot(pnorm, pos);
 		m_ms = ms;

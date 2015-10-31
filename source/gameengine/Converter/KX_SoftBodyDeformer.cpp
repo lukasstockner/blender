@@ -101,7 +101,7 @@ bool KX_SoftBodyDeformer::Apply(class RAS_IPolyMaterial *polymat)
 			RAS_TexVert& v = it.vertex[i];
 			btAssert(v.getSoftBodyIndex() >= 0);
 
-			MT_Point3 pt (
+			MT_Vector3 pt (
 				nodes[v.getSoftBodyIndex()].m_x.getX(),
 				nodes[v.getSoftBodyIndex()].m_x.getY(),
 				nodes[v.getSoftBodyIndex()].m_x.getZ());

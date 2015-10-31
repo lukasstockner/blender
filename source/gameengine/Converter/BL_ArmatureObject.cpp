@@ -573,7 +573,7 @@ bool BL_ArmatureObject::GetBoneMatrix(Bone* bone, MT_Matrix4x4& matrix)
 
 float BL_ArmatureObject::GetBoneLength(Bone* bone) const
 {
-	return (float)(MT_Point3(bone->head) - MT_Point3(bone->tail)).length();
+	return (float)(MT_Vector3(bone->head) - MT_Vector3(bone->tail)).length();
 }
 
 #ifdef WITH_PYTHON

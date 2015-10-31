@@ -802,7 +802,7 @@ void KX_BlenderMaterial::setObjectMatrixData(int i, RAS_IRasterizer *ras)
 		mMaterial->mapping[i].scale[2]
 	);
 
-	MT_Point3 pos = obj->NodeGetWorldPosition();
+	MT_Vector3 pos = obj->NodeGetWorldPosition();
 	MT_Vector4 matmul = MT_Vector4(pos[0], pos[1], pos[2], 1.f);
 	MT_Vector4 t = mvmat*matmul;
 

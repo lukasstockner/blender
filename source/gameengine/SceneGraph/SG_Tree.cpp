@@ -141,14 +141,14 @@ SG_Tree* SG_Tree::Find(SG_Node *node)
 	return NULL;
 }
 
-void SG_Tree::get(MT_Point3 *box) const
+void SG_Tree::get(MT_Vector3 *box) const
 {
 	MT_Transform identity;
 	identity.setIdentity();
 	m_bbox.get(box, identity);
 }
 
-bool SG_Tree::inside(const MT_Point3 &point) const
+bool SG_Tree::inside(const MT_Vector3 &point) const
 {
 	return m_bbox.inside(point);
 }

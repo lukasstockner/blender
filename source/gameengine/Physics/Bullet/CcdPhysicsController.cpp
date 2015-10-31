@@ -1346,7 +1346,7 @@ void		CcdPhysicsController::SetLinearVelocity(const MT_Vector3& lin_vel,bool loc
 		}
 	}
 }
-void		CcdPhysicsController::ApplyImpulse(const MT_Point3& attach, const MT_Vector3& impulsein, bool local)
+void		CcdPhysicsController::ApplyImpulse(const MT_Vector3& attach, const MT_Vector3& impulsein, bool local)
 {
 	btVector3 pos;
 	btVector3 impulse(impulsein.x(), impulsein.y(), impulsein.z());
@@ -1452,7 +1452,7 @@ MT_Vector3		CcdPhysicsController::GetAngularVelocity()
 	return MT_Vector3(0.f, 0.f, 0.f);
 }
 
-MT_Vector3		CcdPhysicsController::GetVelocity(const MT_Point3 &posin)
+MT_Vector3		CcdPhysicsController::GetVelocity(const MT_Vector3 &posin)
 {
 	btVector3 pos(posin.x(), posin.y(), posin.z());
 	btRigidBody* body = GetRigidBody();

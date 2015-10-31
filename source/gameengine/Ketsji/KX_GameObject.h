@@ -435,7 +435,7 @@ public:
 	 */
 		MT_Vector3 
 	GetVelocity(
-		const MT_Point3& position
+		const MT_Vector3& position
 	);
 
 	/**
@@ -547,7 +547,7 @@ public:
 	 * \section Coordinate system manipulation functions
 	 */
 
-	void	NodeSetLocalPosition(const MT_Point3& trans	);
+	void	NodeSetLocalPosition(const MT_Vector3& trans	);
 
 	void	NodeSetLocalOrientation(const MT_Matrix3x3& rot	);
 	void	NodeSetGlobalOrientation(const MT_Matrix3x3& rot	);
@@ -558,7 +558,7 @@ public:
 	void	NodeSetRelativeScale(	const MT_Vector3& scale	);
 
 	// adapt local position so that world position is set to desired position
-	void	NodeSetWorldPosition(const MT_Point3& trans);
+	void	NodeSetWorldPosition(const MT_Vector3& trans);
 
 		void
 	NodeUpdateGS(
@@ -567,11 +567,11 @@ public:
 
 	const MT_Matrix3x3& NodeGetWorldOrientation(  ) const;
 	const MT_Vector3& NodeGetWorldScaling(  ) const;
-	const MT_Point3& NodeGetWorldPosition(  ) const;
+	const MT_Vector3& NodeGetWorldPosition(  ) const;
 
 	const MT_Matrix3x3& NodeGetLocalOrientation(  ) const;
 	const MT_Vector3& NodeGetLocalScaling(  ) const;
-	const MT_Point3& NodeGetLocalPosition(  ) const;
+	const MT_Vector3& NodeGetLocalPosition(  ) const;
 
 	/**
 	 * \section scene graph node accessor functions.

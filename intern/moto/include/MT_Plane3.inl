@@ -48,7 +48,7 @@ GEN_INLINE
 MT_Plane3::
 MT_Plane3(
 ):
-	MT_Tuple4()
+	MT_Vector4()
 {
 	m_co[0] = MT_Scalar(1);
 	m_co[1] = MT_Scalar(0);

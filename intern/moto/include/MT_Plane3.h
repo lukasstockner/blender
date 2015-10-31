@@ -33,8 +33,8 @@
 #ifndef MT_PLANE3
 #define MT_PLANE3
 
-#include "MT_Tuple4.h"
-#include "MT_Point3.h"
+#include "MT_Vector4.h"
+#include "MT_Vector3.h"
 
 /**
  * A simple 3d plane class.
@@ -42,12 +42,12 @@
  * This class represents a plane in 3d. The internal parameterization used
  * is n.x + d =0 where n is a unit vector and d is a scalar.
  *
- * It inherits data from MT_Tuple4 please see this class for low level
+ * It inherits data from MT_Vector4 please see this class for low level
  * access to the internal representation.
  * 
  */
 
-class MT_Plane3 : public MT_Tuple4
+class MT_Plane3 : public MT_Vector4
 {
 public :
 	/**
@@ -81,7 +81,7 @@ public :
 	MT_Plane3(
 		const MT_Plane3 & p
 	):
-		MT_Tuple4(p)
+		MT_Vector4(p)
 	{
 	}
 

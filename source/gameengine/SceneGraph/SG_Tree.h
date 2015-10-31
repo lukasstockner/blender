@@ -32,7 +32,7 @@
 #ifndef __SG_TREE_H__
 #define __SG_TREE_H__
  
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 #include "SG_BBox.h"
 
 #include <set> 
@@ -50,7 +50,7 @@ class SG_Tree
 	SG_Tree* m_right;
 	SG_Tree* m_parent;
 	SG_BBox  m_bbox;
-	MT_Point3 m_center;
+	MT_Vector3 m_center;
 	MT_Scalar m_radius;
 	SG_Node* m_client_object;
 public:
@@ -81,11 +81,11 @@ public:
 	/**
 	 * Gets the eight corners of this treenode's bounding box,
 	 * in world coordinates.
-	 * \param box: an array of 8 MT_Point3
-	 * \example MT_Point3 box[8];
+	 * \param box: an array of 8 MT_Vector3
+	 * \example MT_Vector3 box[8];
 	 *          treenode->get(box);
 	 */
-	void get(MT_Point3 *box) const;
+	void get(MT_Vector3 *box) const;
 	/**
 	 * Get the tree node's bounding box.
 	 */
@@ -94,12 +94,12 @@ public:
 	/**
 	 * Test if the given bounding box is inside this bounding box.
 	 */
-	bool inside(const MT_Point3 &point) const;
+	bool inside(const MT_Vector3 &point) const;
 	
 	void SetLeft(SG_Tree *left);
 	void SetRight(SG_Tree *right);
 
-	MT_Point3 Center() const { return m_center; }
+	MT_Vector3 Center() const { return m_center; }
 	MT_Scalar Radius() { return m_radius; }
 	
 	//friend class SG_TreeFactory;

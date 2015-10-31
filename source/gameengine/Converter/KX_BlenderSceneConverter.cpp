@@ -617,7 +617,7 @@ void KX_BlenderSceneConverter::WritePhysicsObjectToAnimationIpo(int frameNumber)
 					BKE_animdata_add_id(&blenderObject->id);
 
 				if (blenderObject->adt) {
-					const MT_Point3 &position = gameObj->NodeGetWorldPosition();
+					const MT_Vector3 &position = gameObj->NodeGetWorldPosition();
 					//const MT_Vector3& scale = gameObj->NodeGetWorldScaling();
 					const MT_Matrix3x3 &orn = gameObj->NodeGetWorldOrientation();
 
@@ -634,7 +634,7 @@ void KX_BlenderSceneConverter::WritePhysicsObjectToAnimationIpo(int frameNumber)
 					insert_keyframe(NULL, &blenderObject->id, NULL, NULL, "rotation_euler", -1, (float)frameNumber, INSERTKEY_FAST);
 
 #if 0
-					const MT_Point3& position = gameObj->NodeGetWorldPosition();
+					const MT_Vector3& position = gameObj->NodeGetWorldPosition();
 					//const MT_Vector3& scale = gameObj->NodeGetWorldScaling();
 					const MT_Matrix3x3& orn = gameObj->NodeGetWorldOrientation();
 					

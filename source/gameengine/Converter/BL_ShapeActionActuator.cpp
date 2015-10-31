@@ -306,8 +306,8 @@ bool BL_ShapeActionActuator::Update(double curtime, bool frame)
 	/* Perform increment */
 	if (keepgoing) {
 		if (m_playtype == ACT_ACTION_MOTION) {
-			MT_Point3	newpos;
-			MT_Point3	deltapos;
+			MT_Vector3	newpos;
+			MT_Vector3	deltapos;
 			
 			newpos = obj->NodeGetWorldPosition();
 			

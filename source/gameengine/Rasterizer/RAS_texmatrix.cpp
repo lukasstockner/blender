@@ -32,7 +32,7 @@
 
 #include "RAS_TexMatrix.h"
 
-void RAS_CalcTexMatrix(RAS_TexVert p[3],MT_Point3& origin,MT_Vector3& udir,MT_Vector3& vdir)
+void RAS_CalcTexMatrix(RAS_TexVert p[3],MT_Vector3& origin,MT_Vector3& udir,MT_Vector3& vdir)
 {
 // precondition: 3 vertices are non-collinear
 
@@ -90,14 +90,14 @@ void RAS_CalcTexMatrix(RAS_TexVert p[3],MT_Point3& origin,MT_Vector3& udir,MT_Ve
 int main()
 {
 
-	MT_Point2 puv0={0,0};
-	MT_Point3 pxyz0 (0,0,128);
+	MT_Vector2 puv0={0,0};
+	MT_Vector3 pxyz0 (0,0,128);
 
 	MT_Scalar puv1[2] = {1,0};
-	MT_Point3 pxyz1(128,0,128);
+	MT_Vector3 pxyz1(128,0,128);
 
 	MT_Scalar puv2[2] = {1,1};
-	MT_Point3 pxyz2(128,0,0);
+	MT_Vector3 pxyz2(128,0,0);
 
 	RAS_TexVert p0(pxyz0,puv0);
 	RAS_TexVert p1(pxyz1,puv1);
@@ -111,10 +111,10 @@ int main()
 	};
 
 	MT_Vector3 udir,vdir;
-	MT_Point3 origin;
+	MT_Vector3 origin;
 	CalcTexMatrix(vertices,origin,udir,vdir);
 
-	MT_Point3 testpoint(128,32,64);
+	MT_Vector3 testpoint(128,32,64);
 
 	MT_Scalar lenu = udir.length2();
 	MT_Scalar lenv = vdir.length2();

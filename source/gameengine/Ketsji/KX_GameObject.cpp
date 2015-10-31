@@ -83,7 +83,7 @@
 
 #include "BLI_math.h"
 
-static MT_Point3 dummy_point= MT_Point3(0.0, 0.0, 0.0);
+static MT_Vector3 dummy_point= MT_Vector3(0.0, 0.0, 0.0);
 static MT_Vector3 dummy_scaling = MT_Vector3(1.0, 1.0, 1.0);
 static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(1.0, 0.0, 0.0,
                                                      0.0, 1.0, 0.0,
@@ -362,7 +362,7 @@ void KX_GameObject::SetParent(KX_Scene *scene, KX_GameObject* obj, bool addToCom
 		MT_Vector3 newpos = invori*(NodeGetWorldPosition()-obj->NodeGetWorldPosition())*scale2;
 
 		NodeSetLocalScale(scale1);
-		NodeSetLocalPosition(MT_Point3(newpos[0],newpos[1],newpos[2]));
+		NodeSetLocalPosition(MT_Vector3(newpos[0],newpos[1],newpos[2]));
 		NodeSetLocalOrientation(invori*NodeGetWorldOrientation());
 		NodeUpdateGS(0.f);
 		// object will now be a child, it must be removed from the parent list
@@ -421,9 +421,9 @@ void KX_GameObject::RemoveParent(KX_Scene *scene)
 			if (m_pPhysicsController->IsDynamic() && (rootobj != NULL && rootobj->m_pPhysicsController))
 			{
 				// dynamic object should remember the velocity they had while being parented
-				MT_Point3 childPoint = GetSGNode()->GetWorldPosition();
-				MT_Point3 rootPoint = rootobj->GetSGNode()->GetWorldPosition();
-				MT_Point3 relPoint;
+				MT_Vector3 childPoint = GetSGNode()->GetWorldPosition();
+				MT_Vector3 rootPoint = rootobj->GetSGNode()->GetWorldPosition();
+				MT_Vector3 relPoint;
 				relPoint = (childPoint-rootPoint);
 				MT_Vector3 linVel = rootobj->m_pPhysicsController->GetVelocity(relPoint);
 				MT_Vector3 angVel = rootobj->m_pPhysicsController->GetAngularVelocity();
@@ -1335,7 +1335,7 @@ MT_Vector3 KX_GameObject::GetAngularVelocity(bool local)
 	return velocity;
 }
 
-MT_Vector3 KX_GameObject::GetVelocity(const MT_Point3& point)
+MT_Vector3 KX_GameObject::GetVelocity(const MT_Vector3& point)
 {
 	if (m_pPhysicsController)
 	{
@@ -1346,7 +1346,7 @@ MT_Vector3 KX_GameObject::GetVelocity(const MT_Point3& point)
 
 // scenegraph node stuff
 
-void KX_GameObject::NodeSetLocalPosition(const MT_Point3& trans)
+void KX_GameObject::NodeSetLocalPosition(const MT_Vector3& trans)
 {
 	// check on valid node in case a python controller holds a reference to a deleted object
 	if (!GetSGNode())
@@ -1453,7 +1453,7 @@ void KX_GameObject::NodeSetWorldScale(const MT_Vector3& scale)
 	}
 }
 
-void KX_GameObject::NodeSetWorldPosition(const MT_Point3& trans)
+void KX_GameObject::NodeSetWorldPosition(const MT_Vector3& trans)
 {
 	if (!GetSGNode())
 		return;
@@ -1473,7 +1473,7 @@ void KX_GameObject::NodeSetWorldPosition(const MT_Point3& trans)
 		scale[2] = 1.0/scale[2];
 		MT_Matrix3x3 invori = parent->GetWorldOrientation().inverse();
 		MT_Vector3 newpos = invori*(trans-parent->GetWorldPosition())*scale;
-		NodeSetLocalPosition(MT_Point3(newpos[0],newpos[1],newpos[2]));
+		NodeSetLocalPosition(MT_Vector3(newpos[0],newpos[1],newpos[2]));
 	}
 	else
 	{
@@ -1524,7 +1524,7 @@ const MT_Vector3& KX_GameObject::NodeGetLocalScaling() const
 	return GetSGNode()->GetLocalScale();
 }
 
-const MT_Point3& KX_GameObject::NodeGetWorldPosition() const
+const MT_Vector3& KX_GameObject::NodeGetWorldPosition() const
 {
 	// check on valid node in case a python controller holds a reference to a deleted object
 	if (GetSGNode())
@@ -1533,7 +1533,7 @@ const MT_Point3& KX_GameObject::NodeGetWorldPosition() const
 		return dummy_point;
 }
 
-const MT_Point3& KX_GameObject::NodeGetLocalPosition() const
+const MT_Vector3& KX_GameObject::NodeGetLocalPosition() const
 {
 	// check on valid node in case a python controller holds a reference to a deleted object
 	if (GetSGNode())
@@ -1789,15 +1789,15 @@ static int mathutils_kxgameob_vector_set(BaseMathObject *bmo, int subtype)
 	
 	switch (subtype) {
 		case MATHUTILS_VEC_CB_POS_LOCAL:
-			self->NodeSetLocalPosition(MT_Point3(bmo->data));
+			self->NodeSetLocalPosition(MT_Vector3(bmo->data));
 			self->NodeUpdateGS(0.f);
 			break;
 		case MATHUTILS_VEC_CB_POS_GLOBAL:
-			self->NodeSetWorldPosition(MT_Point3(bmo->data));
+			self->NodeSetWorldPosition(MT_Vector3(bmo->data));
 			self->NodeUpdateGS(0.f);
 			break;
 		case MATHUTILS_VEC_CB_SCALE_LOCAL:
-			self->NodeSetLocalScale(MT_Point3(bmo->data));
+			self->NodeSetLocalScale(MT_Vector3(bmo->data));
 			self->NodeUpdateGS(0.f);
 			break;
 		case MATHUTILS_VEC_CB_SCALE_GLOBAL:
@@ -1810,16 +1810,16 @@ static int mathutils_kxgameob_vector_set(BaseMathObject *bmo, int subtype)
 			self->SetObjectColor(MT_Vector4(bmo->data));
 			break;
 		case MATHUTILS_VEC_CB_LINVEL_LOCAL:
-			self->setLinearVelocity(MT_Point3(bmo->data),true);
+			self->setLinearVelocity(MT_Vector3(bmo->data),true);
 			break;
 		case MATHUTILS_VEC_CB_LINVEL_GLOBAL:
-			self->setLinearVelocity(MT_Point3(bmo->data),false);
+			self->setLinearVelocity(MT_Vector3(bmo->data),false);
 			break;
 		case MATHUTILS_VEC_CB_ANGVEL_LOCAL:
-			self->setAngularVelocity(MT_Point3(bmo->data),true);
+			self->setAngularVelocity(MT_Vector3(bmo->data),true);
 			break;
 		case MATHUTILS_VEC_CB_ANGVEL_GLOBAL:
-			self->setAngularVelocity(MT_Point3(bmo->data),false);
+			self->setAngularVelocity(MT_Vector3(bmo->data),false);
 			break;
 	}
 	
@@ -2616,7 +2616,7 @@ PyObject *KX_GameObject::pyattr_get_worldPosition(void *self_v, const KX_PYATTRI
 int KX_GameObject::pyattr_set_worldPosition(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
-	MT_Point3 pos;
+	MT_Vector3 pos;
 	if (!PyVecTo(value, pos))
 		return PY_SET_ATTR_FAIL;
 	
@@ -2640,7 +2640,7 @@ PyObject *KX_GameObject::pyattr_get_localPosition(void *self_v, const KX_PYATTRI
 int KX_GameObject::pyattr_set_localPosition(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
-	MT_Point3 pos;
+	MT_Vector3 pos;
 	if (!PyVecTo(value, pos))
 		return PY_SET_ATTR_FAIL;
 	
@@ -2798,7 +2798,7 @@ int KX_GameObject::pyattr_set_localTransform(void *self_v, const KX_PYATTRIBUTE_
 	temp.getValue(*transform);
 	mat4_to_loc_rot_size(loc, rot, size, transform);
 
-	self->NodeSetLocalPosition(MT_Point3(loc));
+	self->NodeSetLocalPosition(MT_Vector3(loc));
 
 	//MT_Matrix3x3's constructor expects a 4x4 matrix
 	orientation = MT_Matrix3x3();
@@ -2832,7 +2832,7 @@ int KX_GameObject::pyattr_set_worldTransform(void *self_v, const KX_PYATTRIBUTE_
 	temp.getValue(*transform);
 	mat4_to_loc_rot_size(loc, rot, size, transform);
 
-	self->NodeSetWorldPosition(MT_Point3(loc));
+	self->NodeSetWorldPosition(MT_Vector3(loc));
 
 	//MT_Matrix3x3's constructor expects a 4x4 matrix
 	orientation = MT_Matrix3x3();
@@ -3366,7 +3366,7 @@ PyObject *KX_GameObject::PySetOcclusion(PyObject *args)
 PyObject *KX_GameObject::PyGetVelocity(PyObject *args)
 {
 	// only can get the velocity if we have a physics object connected to us...
-	MT_Point3 point(0.0,0.0,0.0);
+	MT_Vector3 point(0.0,0.0,0.0);
 	PyObject *pypos = NULL;
 	
 	if (!PyArg_ParseTuple(args, "|O:getVelocity", &pypos) || (pypos && !PyVecTo(pypos, point)))
@@ -3470,7 +3470,7 @@ PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)
 	
 	if (PyArg_ParseTuple(args, "OO|i:applyImpulse", &pyattach, &pyimpulse, &local))
 	{
-		MT_Point3  attach;
+		MT_Vector3  attach;
 		MT_Vector3 impulse;
 		if (PyVecTo(pyattach, attach) && PyVecTo(pyimpulse, impulse))
 		{
@@ -3571,7 +3571,7 @@ PyObject *KX_GameObject::PyGetPropertyNames()
 KX_PYMETHODDEF_DOC_O(KX_GameObject, getDistanceTo,
 "getDistanceTo(other): get distance to another point/KX_GameObject")
 {
-	MT_Point3 b;
+	MT_Vector3 b;
 	if (PyVecTo(value, b))
 	{
 		return PyFloat_FromDouble(NodeGetWorldPosition().distance(b));
@@ -3591,7 +3591,7 @@ KX_PYMETHODDEF_DOC_O(KX_GameObject, getVectTo,
 "getVectTo(other): get vector and the distance to another point/KX_GameObject\n"
 "Returns a 3-tuple with (distance,worldVector,localVector)\n")
 {
-	MT_Point3 toPoint, fromPoint;
+	MT_Vector3 toPoint, fromPoint;
 	MT_Vector3 toDir, locToDir;
 	MT_Scalar distance;
 
@@ -3700,7 +3700,7 @@ KX_PYMETHODDEF_DOC(KX_GameObject, rayCastTo,
 " dist = max distance to look (can be negative => look behind); 0 or omitted => detect up to other\n"
 " other = 3-tuple or object reference")
 {
-	MT_Point3 toPoint;
+	MT_Vector3 toPoint;
 	PyObject *pyarg;
 	float dist = 0.0f;
 	char *propName = NULL;
@@ -3723,7 +3723,7 @@ KX_PYMETHODDEF_DOC(KX_GameObject, rayCastTo,
 			return NULL;
 		}
 	}
-	MT_Point3 fromPoint = NodeGetWorldPosition();
+	MT_Vector3 fromPoint = NodeGetWorldPosition();
 	
 	if (dist != 0.0f)
 		toPoint = fromPoint + dist * (toPoint-fromPoint).safe_normalized();
@@ -3810,8 +3810,8 @@ KX_PYMETHODDEF_DOC(KX_GameObject, rayCast,
 "        prop on,  xray off: return closest hit if it matches prop, no hit otherwise\n"
 "        prop on,  xray on : return closest hit matching prop or no hit if there is no object matching prop on the full extend of the ray\n")
 {
-	MT_Point3 toPoint;
-	MT_Point3 fromPoint;
+	MT_Vector3 toPoint;
+	MT_Vector3 fromPoint;
 	PyObject *pyto;
 	PyObject *pyfrom = NULL;
 	float dist = 0.0f;

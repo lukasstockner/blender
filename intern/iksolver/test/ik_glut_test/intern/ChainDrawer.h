@@ -184,7 +184,7 @@ private :
 
 		
 				MT_Transform seg_t_pre_rot(
-					MT_Point3(
+					MT_Vector3(
 						seg_start->seg_start[0],
 						seg_start->seg_start[1],
 						seg_start->seg_start[2]
@@ -196,11 +196,11 @@ private :
 
 				
 
-				MT_Transform seg_t_rot(MT_Point3(0,0,0),seg_rot);
+				MT_Transform seg_t_rot(MT_Vector3(0,0,0),seg_rot);
 				MT_Transform seg_local = seg_t_pre_rot * seg_t_rot * translation;
 
 				MT_Vector3 bone_start = global_transform * 	
-					MT_Point3(
+					MT_Vector3(
 						seg_start->seg_start[0],
 						seg_start->seg_start[1],
 						seg_start->seg_start[2]
