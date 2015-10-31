@@ -54,16 +54,17 @@ class MT_CmMatrix4x4
 
 public :
 
-	MT_CmMatrix4x4(
-		const float value[4][4]
-	);
+	template <typename T>
+	MT_CmMatrix4x4(const T value[4][4])
+	{
+		for (int i=0;i<4;i++)
+		{
+			for (int j=0;j<4;j++)
+				m_V[i][j] = (double)value[i][j];
+		}
+	}
 
 	MT_CmMatrix4x4(
-	);
-
-
-	MT_CmMatrix4x4(
-		const double value[16]
 	);
 
 	MT_CmMatrix4x4(
@@ -94,11 +95,11 @@ public :
 	getPointer(
 	) const;
 
-		void
-	setElem(
-		int pos,
-		double newvalue
-	);
+	template <typename T>
+	void setElem(int pos, T newvalue)
+	{
+		m_Vflat[pos] = (double)newvalue;
+	}
 
 		MT_Vector3
 	GetRight(

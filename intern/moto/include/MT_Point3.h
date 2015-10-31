@@ -52,8 +52,8 @@
 class MT_Point3 : public MT_Vector3 {
 public:
     MT_Point3() {}
-    MT_Point3(const float *v) : MT_Vector3(v) {} 
-    MT_Point3(const double *v) : MT_Vector3(v) {}
+    template <typename T>
+    MT_Point3(const T *v) : MT_Vector3(v) {} 
     MT_Point3(MT_Scalar xx, MT_Scalar yy, MT_Scalar zz) : MT_Vector3(xx, yy, zz) {}
 
     MT_Point3& operator+=(const MT_Vector3& v);

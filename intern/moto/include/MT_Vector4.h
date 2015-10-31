@@ -55,8 +55,8 @@ class MT_Vector4 : public MT_Tuple4 {
 public:
     virtual ~MT_Vector4() {}
     MT_Vector4() {}
-    MT_Vector4(const float *v) : MT_Tuple4(v) {}
-    MT_Vector4(const double *v) : MT_Tuple4(v) {}
+    template <typename T>
+    MT_Vector4(const T *v) : MT_Tuple4(v) {}
     MT_Vector4(MT_Scalar xx, MT_Scalar yy, MT_Scalar zz, MT_Scalar ww) : 
         MT_Tuple4(xx, yy, zz, ww) {}
   

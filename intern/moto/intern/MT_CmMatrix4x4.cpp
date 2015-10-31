@@ -40,27 +40,6 @@ MT_CmMatrix4x4::MT_CmMatrix4x4()
 	Identity();
 }
 
-
-
-MT_CmMatrix4x4::MT_CmMatrix4x4(const float value[4][4])
-{
-	for (int i=0;i<4;i++)
-	{
-		for (int j=0;j<4;j++)
-			m_V[i][j] = value[i][j];
-	}
-}
-
-
-
-MT_CmMatrix4x4::MT_CmMatrix4x4(const double value[16])
-{
-	for (int i=0;i<16;i++)
-		m_Vflat[i] = value[i];
-}
-
-
-
 MT_CmMatrix4x4::MT_CmMatrix4x4(const MT_CmMatrix4x4& other)
 {
 	SetMatrix(other);
@@ -158,13 +137,6 @@ double*	MT_CmMatrix4x4::getPointer()
 const double* MT_CmMatrix4x4::getPointer() const
 {
 	return &m_V[0][0];
-}	
-
-
-
-void MT_CmMatrix4x4::setElem(int pos,double newvalue)
-{
-	m_Vflat[pos] = newvalue;
 }	
 
 MT_CmMatrix4x4 MT_CmMatrix4x4::Perspective(

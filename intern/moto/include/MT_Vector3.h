@@ -54,8 +54,8 @@ class MT_Vector3 : public MT_Tuple3 {
 public:
     virtual ~MT_Vector3() {}
     MT_Vector3() {}
-    MT_Vector3(const float *v) : MT_Tuple3(v) {}
-    MT_Vector3(const double *v) : MT_Tuple3(v) {}
+    template <typename T>
+    MT_Vector3(const T *v) : MT_Tuple3(v) {}
     MT_Vector3(MT_Scalar xx, MT_Scalar yy, MT_Scalar zz) : MT_Tuple3(xx, yy, zz) {}
   
     MT_Vector3& operator+=(const MT_Vector3& v);

@@ -60,8 +60,8 @@
 class MT_Transform {
 public:
     MT_Transform() {}
-    MT_Transform(const float *m) { setValue(m); }
-    MT_Transform(const double *m) { setValue(m); }
+    template <typename T>
+    MT_Transform(const T *m) { setValue(m); }
     MT_Transform(const MT_Point3& p, const MT_Quaternion& q)
     	: m_type(IDENTITY)
 	{ 
@@ -111,8 +111,13 @@ public:
     const MT_Point3&      getOrigin()   const { return m_origin; }
     MT_Quaternion         getRotation() const { return m_basis.getRotation(); }
     
-    void setValue(const float *m);
-    void setValue(const double *m);
+	template <typename T>
+	void setValue(const T *m)
+	{
+		m_basis.setValue(m);
+		m_origin.setValue(&m[12]);
+		m_type = AFFINE;
+	}
 
     void setOrigin(const MT_Point3& origin) { 
         m_origin = origin;
@@ -129,9 +134,14 @@ public:
 		m_type &= ~SCALING;
 		m_type |= ROTATION;
     }
-    
-    void getValue(float *m) const;
-    void getValue(double *m) const;
+
+	template <typename T>
+	void getValue(T *m) const
+	{
+		m_basis.getValue(m);
+		m_origin.getValue(&m[12]);
+		m[15] = 1.0;
+	}
 
     void setIdentity();
     

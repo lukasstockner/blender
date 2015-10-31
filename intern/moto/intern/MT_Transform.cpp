@@ -53,30 +53,6 @@
 
 #include "MT_Transform.h"
 
-void MT_Transform::setValue(const float *m) {
-    m_basis.setValue(m);
-    m_origin.setValue(&m[12]);
-    m_type = AFFINE;
-}
-
-void MT_Transform::setValue(const double *m) {
-    m_basis.setValue(m);
-    m_origin.setValue(&m[12]);
-    m_type = AFFINE;
-}
-
-void MT_Transform::getValue(float *m) const {
-    m_basis.getValue(m);
-    m_origin.getValue(&m[12]);
-    m[15] = 1.0;
-}
-
-void MT_Transform::getValue(double *m) const {
-    m_basis.getValue(m);
-    m_origin.getValue(&m[12]);
-    m[15] = 1.0;
-}
-
 MT_Transform& MT_Transform::operator*=(const MT_Transform& t) {
     m_origin += m_basis * t.m_origin;
     m_basis *= t.m_basis;

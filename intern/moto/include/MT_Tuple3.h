@@ -53,8 +53,8 @@
 class MT_Tuple3 {
 public:
     MT_Tuple3() {}
-    MT_Tuple3(const float *v) { setValue(v); }
-    MT_Tuple3(const double *v) { setValue(v); }
+    template <typename T>
+    MT_Tuple3(const T *v) { setValue(v); }
     MT_Tuple3(MT_Scalar xx, MT_Scalar yy, MT_Scalar zz) { setValue(xx, yy, zz); }
     
     MT_Scalar&       operator[](int i)       { return m_co[i]; }
@@ -72,28 +72,18 @@ public:
     MT_Scalar       *getValue()       { return m_co; }
     const MT_Scalar *getValue() const { return m_co; }
 
-    void getValue(float *v) const { 
-        v[0] = float(m_co[0]); 
-		v[1] = float(m_co[1]); 
-		v[2] = float(m_co[2]);
+    template <typename T>
+    void getValue(T *v) const { 
+        v[0] = (T)m_co[0]; 
+		v[1] = (T)m_co[1]; 
+		v[2] = (T)m_co[2];
     }
-    
-    void getValue(double *v) const { 
-        v[0] = double(m_co[0]); 
-		v[1] = double(m_co[1]); 
-		v[2] = double(m_co[2]);
-    }
-    
-    void setValue(const float *v) {
-        m_co[0] = MT_Scalar(v[0]); 
-        m_co[1] = MT_Scalar(v[1]); 
-        m_co[2] = MT_Scalar(v[2]);
-    }
-    
-    void setValue(const double *v) {
-        m_co[0] = MT_Scalar(v[0]); 
-        m_co[1] = MT_Scalar(v[1]);
-        m_co[2] = MT_Scalar(v[2]);
+
+    template <typename T>
+    void setValue(const T *v) {
+        m_co[0] = (MT_Scalar)v[0]; 
+        m_co[1] = (MT_Scalar)v[1]; 
+        m_co[2] = (MT_Scalar)v[2];
     }
     
     void setValue(MT_Scalar xx, MT_Scalar yy, MT_Scalar zz) {
