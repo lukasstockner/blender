@@ -126,14 +126,14 @@ void MT_CmMatrix4x4::SetMatrix(const MT_CmMatrix4x4& other)
 
 
 
-double*	MT_CmMatrix4x4::getPointer()
+MT_Scalar*	MT_CmMatrix4x4::getPointer()
 {
 	return &m_V[0][0];
 }
 
 
 
-const double* MT_CmMatrix4x4::getPointer() const
+const MT_Scalar* MT_CmMatrix4x4::getPointer() const
 {
 	return &m_V[0][0];
 }	

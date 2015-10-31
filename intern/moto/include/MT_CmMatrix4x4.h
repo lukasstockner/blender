@@ -59,7 +59,7 @@ public :
 		for (int i=0;i<4;i++)
 		{
 			for (int j=0;j<4;j++)
-				m_V[i][j] = (double)value[i][j];
+				m_V[i][j] = (MT_Scalar)value[i][j];
 		}
 	}
 
@@ -85,19 +85,19 @@ public :
 		const MT_CmMatrix4x4 & other
 	);
 
-		double*
+		MT_Scalar*
 	getPointer(
 	);
 
 	const
-		double*
+		MT_Scalar*
 	getPointer(
 	) const;
 
 	template <typename T>
 	void setElem(int pos, T newvalue)
 	{
-		m_Vflat[pos] = (double)newvalue;
+		m_Vflat[pos] = (MT_Scalar)newvalue;
 	}
 
 		MT_Vector3
@@ -121,7 +121,7 @@ public :
 		const MT_Vector3 & v
 	);
 
-		double&
+		MT_Scalar&
 	operator (
 	) (int row,int col)	{ return m_V[col][row]; }
 
@@ -139,8 +139,8 @@ public :
 protected:
 	union
 	{
-		double m_V[4][4];
-		double m_Vflat[16];
+		MT_Scalar m_V[4][4];
+		MT_Scalar m_Vflat[16];
 	};
 };
 
