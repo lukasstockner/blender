@@ -3002,7 +3002,7 @@ bool ui_but_can_align(uiBut *but)
 }
 
 /**
- * This function chacks a pair of buttons (assumed in a same align group), and if they are neighbors,
+ * This function checks a pair of buttons (assumed in a same align group), and if they are neighbors,
  * set needed data accordingly.
  *
  * \note It is designed to be called in total random order of buttons.
