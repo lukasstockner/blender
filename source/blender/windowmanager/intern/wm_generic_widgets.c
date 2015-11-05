@@ -162,7 +162,7 @@ static void widget_draw_intern(WidgetDrawInfo *info, const bool select)
  * 3D Widget
  *
  * \brief Simple arrow widget which is dragged into a certain direction.
- * The arrow head can have have varying shapes, e.g. cone, box, etc.
+ * The arrow head can have varying shapes, e.g. cone, box, etc.
  *
  * \{ */
 
@@ -1604,7 +1604,7 @@ wmWidget *WIDGET_facemap_new(
 //	fmap_widget->widget.bind_to_prop = NULL;
 //	fmap_widget->widget.handler = widget_facemap_handler;
 	fmap_widget->widget.render_3d_intersection = widget_facemap_render_3d_intersect;
-	fmap_widget->widget.flag |= WM_WIDGET_SELECTABLE ;
+	fmap_widget->widget.flag |= WM_WIDGET_SELECTABLE;
 	fmap_widget->ob = ob;
 	fmap_widget->facemap = facemap;
 	fmap_widget->style = style;

@@ -8720,7 +8720,7 @@ void ED_draw_object_facemap(Scene *scene, struct Object *ob, int facemap)
 
 	if (dm->drawObject->facemapindices) {
 		if (dm->drawObject->facemapindices->use_vbo)
-			glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap], GL_UNSIGNED_INT, 
+			glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap], GL_UNSIGNED_INT,
 			               (int *)NULL + dm->drawObject->facemap_start[facemap]);
 		else
 			glDrawElements(GL_TRIANGLES, dm->drawObject->facemap_count[facemap], GL_UNSIGNED_INT,
