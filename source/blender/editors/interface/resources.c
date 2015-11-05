@@ -1608,10 +1608,6 @@ void init_userdef_do_versions(void)
 		U.savetime = 1;
 // XXX		error(STRINGIFY(BLENDER_STARTUP_FILE)" is buggy, please consider removing it.\n");
 	}
-	/* transform widget settings */
-	if (U.tw_size == 0) {
-		U.tw_size = 25;          /* percentage of window size */
-	}
 	if (U.pad_rot_angle == 0.0f)
 		U.pad_rot_angle = 15.0f;
 	
@@ -2635,6 +2631,15 @@ void init_userdef_do_versions(void)
 	}
 
 	if (!USER_VERSION_ATLEAST(276, 2)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_set(btheme->tclip.gp_vertex, 0, 0, 0, 255);
+			rgba_char_args_set(btheme->tclip.gp_vertex_select, 255, 133, 0, 255);
+			btheme->tclip.gp_vertex_size = 3;
+		}
+	}
+
+	if (!USER_VERSION_ATLEAST(276, 3)) {
 		bTheme *btheme;
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			rgba_char_args_set_fl(btheme->tui.xaxis, 1.0f, 0.27f, 0.27f, 1.0f); /* red */
