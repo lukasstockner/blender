@@ -3213,12 +3213,12 @@ static int ui_block_align_butal_cmp(const void *a, const void *b)
 	/* Sort vertically.
 	 * Note that Y of buttons is decreasing (first buttons have higher Y value than later ones). */
 	if (*butal->borders[TOP] != *butal_other->borders[TOP]) {
-		return *butal_other->borders[TOP] - *butal->borders[TOP];
+		return (*butal_other->borders[TOP] > *butal->borders[TOP]) ? 1 : -1;
 	}
 
 	/* Sort horizontally. */
 	if (*butal->borders[LEFT] != *butal_other->borders[LEFT]) {
-		return *butal->borders[LEFT] - *butal_other->borders[LEFT];
+		return (*butal->borders[LEFT] > *butal_other->borders[LEFT]) ? 1 : -1;
 	}
 
 	BLI_assert(0);
