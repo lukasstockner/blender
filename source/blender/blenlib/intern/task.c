@@ -140,10 +140,10 @@ static bool task_scheduler_thread_wait_pop(TaskScheduler *scheduler, Task **task
 		/* Assuming we can only have a void queue in 'exit' case here seems logical (we should only be here after
 		 * our worker thread has been woken up from a condition_wait(), which only happens after a new task was
 		 * added to the queue), but it is wrong.
-		 * Waiting on condition may wake up the thread even if condition is not signaled (spurious wakeups), and some
+		 * Waiting on condition may wake up the thread even if condition is not signaled (spurious wake-ups), and some
 		 * race condition may also empty the queue **after** condition has been signaled, but **before** awoken thread
 		 * reaches this point...
-		 * See http://stackoverflow.com/questions/8594591/why-does-pthread-cond-wait-have-spurious-wakeups
+		 * See http://stackoverflow.com/questions/8594591
 		 *
 		 * So we only abort here if do_exit is set.
 		 */
@@ -347,17 +347,15 @@ static TaskPool *task_pool_create_ex(TaskScheduler *scheduler, void *userdata, c
 	TaskPool *pool = MEM_callocN(sizeof(TaskPool), "TaskPool");
 
 #ifndef NDEBUG
-#  ifndef WIN32  /* WIN32 pthread_t seems to ba a struct, no direct comparison available, *sigh* */
 	/* Assert we do not try to create a background pool from some parent task - those only work OK from main thread. */
 	if (is_background) {
 		const pthread_t thread_id = pthread_self();
-        int i = scheduler->num_threads;
+		int i = scheduler->num_threads;
 
 		while (i--) {
-			BLI_assert(scheduler->threads[i] != thread_id);
+			BLI_assert(!pthread_equal(scheduler->threads[i], thread_id));
 		}
 	}
-#  endif
 #endif
 
 	pool->scheduler = scheduler;
@@ -401,7 +399,7 @@ TaskPool *BLI_task_pool_create(TaskScheduler *scheduler, void *userdata)
  * \a BLI_task_pool_work_and_wait() on it to be sure it will be processed).
  *
  * \note Background pools are non-recursive (that is, you should not create other background pools in tasks assigned
- *       to a brackground pool, they could end never being executed, since the 'fallback' background thread is already
+ *       to a background pool, they could end never being executed, since the 'fallback' background thread is already
  *       busy with parent task in single-threaded context).
  */
 TaskPool *BLI_task_pool_create_background(TaskScheduler *scheduler, void *userdata)
