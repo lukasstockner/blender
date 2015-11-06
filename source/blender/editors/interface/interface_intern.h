@@ -175,7 +175,7 @@ extern const short ui_radial_dir_to_angle[8];
 #define USE_NUMBUTS_LR_ALIGN
 
 /* Use new 'align' computation code. */
-#define NEW_ALIGN_CODE
+#define USE_UIBUT_SPATIAL_ALIGN
 
 /* PieMenuData->flags */
 enum {
