@@ -690,7 +690,7 @@ static void sequencer_buttons_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED
 	}
 }
 
-static void sequencer_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
+static bool sequencer_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	SpaceSeq *sseq = (SpaceSeq *)slink;
 
@@ -699,6 +699,8 @@ static void sequencer_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id
 		id_us_min(old_id);
 		id_us_plus(new_id);
 	}
+
+	return false;  /* no 'user_one' ID usage here. */
 }
 
 /* ************************************* */

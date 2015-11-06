@@ -982,9 +982,9 @@ void BKE_library_callback_free_notifier_reference_set(void (*func)(const void *)
 	free_notifier_reference_cb = func;
 }
 
-static void (*remap_editor_id_reference_cb)(ID *, ID *) = NULL;
+static bool (*remap_editor_id_reference_cb)(ID *, ID *) = NULL;
 
-void BKE_library_callback_remap_editor_id_reference_set(void (*func)(ID *, ID *))
+void BKE_library_callback_remap_editor_id_reference_set(bool (*func)(ID *, ID *))
 {
 	remap_editor_id_reference_cb = func;
 }
@@ -994,10 +994,11 @@ typedef struct IDRemap {
 	ID *old_id;
 	ID *new_id;
 	ID *id;  /* The ID in which we are replacing old_id by new_id usages. */
-	/* XXX TODO: keeping this for now (also as debug data), in theory we can get rid of it. */
-	int skipped_direct;  /* Number of direct usecase that could not be remapped (e.g.: obdata when in edit mode). */
-	int skipped_indirect;  /* Number of indirect usecase that could not be remapped. */
 	int flag;
+
+	int skipped_direct;  /* Number of direct usecases that could not be remapped (e.g.: obdata when in edit mode). */
+	int skipped_indirect;  /* Number of indirect usecases that could not be remapped. */
+	int skipped_refcounted;  /* Number of skipped usecases that refcount the datablock. */
 } IDRemap;
 
 enum {
@@ -1006,6 +1007,8 @@ enum {
 
 	/* Set by callback. */
 	ID_REMAP_IS_LINKED_DIRECT     = 1 << 16,  /* new_id is directly linked in current .blend. */
+	ID_REMAP_IS_USER_ONE          = 1 << 17,  /* old_id was used by some nasty 'user_one' stuff (like image editor). */
+	ID_REMAP_IS_USER_ONE_SKIPPED  = 1 << 18,  /* there was some skipped 'user_one' usages of old_id. */
 };
 
 static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_flag)
@@ -1030,17 +1033,28 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 		const bool is_obj_editmode = (is_obj && BKE_object_is_in_editmode((Object *)id));
 		const bool is_indirect = (id->lib != NULL);
 		const bool skip_indirect = (id_remap_data->flag & ID_REMAP_SKIP_INDIRECT_USAGE) != 0;
+		const bool is_never_null = ((cb_flag & IDWALK_NEVER_NULL) && (new_id == NULL));
 
 		printf("\t\tIn %s (%p): remapping %s (%p) to %s (%p)\n",
 		       id->name, id, old_id->name, old_id, new_id ? new_id->name : "", new_id);
 
 		/* Special hack in case it's Object->data and we are in edit mode (skipped_direct too). */
-		if ((is_obj_editmode && (((Object *)id)->data == *id_p)) || (skip_indirect && (is_proxy || is_indirect))) {
-			if (is_proxy || is_obj_editmode) {
+		if (is_never_null ||
+		    (is_obj_editmode && (((Object *)id)->data == *id_p)) ||
+		    (skip_indirect && (is_proxy || is_indirect)))
+		{
+			if (is_never_null || is_proxy || is_obj_editmode) {
 				id_remap_data->skipped_direct++;
 			}
 			else {
 				id_remap_data->skipped_indirect++;
+			}
+			if (cb_flag & IDWALK_USER) {
+				id_remap_data->skipped_refcounted++;
+			}
+			else if (cb_flag & IDWALK_USER_ONE) {
+				/* We cannot affect old_id->us directly, flag it as such for final handling... */
+				id_remap_data->flag |= ID_REMAP_IS_USER_ONE_SKIPPED;
 			}
 		}
 		else {
@@ -1049,6 +1063,11 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 				old_id->us--;
 				if (new_id)
 					new_id->us++;
+			}
+			else if (cb_flag & IDWALK_USER_ONE) {
+				id_us_ensure_real(new_id);
+				/* We cannot affect old_id->us directly, flag it as such for final handling... */
+				id_remap_data->flag |= ID_REMAP_IS_USER_ONE;
 			}
 			DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 			if (!is_indirect) {
@@ -1060,25 +1079,54 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 	return true;
 }
 
-static void libblock_remap_do(
-        Main *bmain, ID *id, ID *old_id, ID *new_id, const bool skip_indirect_usage,
-        int *r_skipped_direct, int *r_skipped_indirect)
+/**
+ * Execute the 'data' part of the remapping (that is, all ID pointers from other ID datablocks).
+ *
+ * Behavior differs depending on whether given \a id is NULL or not:
+ *   - \a id NULL: \a old_id must be non-NULL, \a new_id may be NULL (unlinking \a old_id) or not
+ *     (remapping \a old_id to \a new_id). The whole \a bmain database is checked, and all pointers to \a old_id
+ *     are remapped to \a new_id.
+ *   - \a id is non-NULL:
+ *     + If \a old_id is NULL, \a new_id must also be NULL, and all ID pointers from \a id are cleared (i.e. \a id
+ *       does not references any other datablock anymore).
+ *     + If \a old_id is non-NULL, behavior is as with a NULL \a id, but only for given \a id.
+ *
+ * \param bmain the Main data storage to operate on (if \a id is NULL).
+ * \param id the datablock to operate on (may be NULL).
+ * \param old_id the datablock to dereference (may be NULL if \a id is non-NULL).
+ * \param new_id the new datablock to replace \a old_id references with (may be NULL).
+ * \param skip_indirect_usage if true, do not remap/unlink indirect usages of \a old_id datablock.
+ * \param r_skipped_direct if non-NULL, the number of direct references that could not be replaced.
+ * \param r_skipped_indirect if non-NULL, the number of indirect references that could not be replaced.
+ * \param r_skipped_refcounted if non-NULL, the number of refcounted references that could not be replaced.
+ * \return true is there was some 'user_one' users of \a old_id (needed to handle correctly #old_id->us count).
+ */
+static bool libblock_remap_data(
+        Main *bmain, ID *id, ID *old_id, ID *new_id, const bool skip_indirect_usage, IDRemap *r_id_remap_data)
 {
-	IDRemap id_remap_data = {bmain, old_id, new_id, NULL};
+	IDRemap id_remap_data;
 	ListBase *lb_array[MAX_LIBARRAY];
 	int i;
+
+	if (r_id_remap_data == NULL) {
+		r_id_remap_data = &id_remap_data;
+	}
+	r_id_remap_data->bmain = bmain;
+	r_id_remap_data->old_id = old_id;
+	r_id_remap_data->new_id = new_id;
+	r_id_remap_data->id = NULL;
+	r_id_remap_data->flag = skip_indirect_usage ? ID_REMAP_SKIP_INDIRECT_USAGE : 0;
+	r_id_remap_data->skipped_direct = 0;
+	r_id_remap_data->skipped_indirect = 0;
+	r_id_remap_data->skipped_refcounted = 0;
 
 	printf("%s: %s (%p) replaced by %s (%p)\n", __func__,
 	       old_id ? old_id->name : "", old_id, new_id ? new_id->name : "", new_id);
 
-	if (skip_indirect_usage) {
-		id_remap_data.flag |= ID_REMAP_SKIP_INDIRECT_USAGE;
-	}
-
 	if (id) {
 		printf("\tchecking id %s (%p, %p)\n", id->name, id, id->lib);
-		id_remap_data.id = id;
-		BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)&id_remap_data, IDWALK_NOP);
+		r_id_remap_data->id = id;
+		BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)r_id_remap_data, IDWALK_NOP);
 	}
 	else {
 		i = set_listbasepointers(bmain, lb_array);
@@ -1094,38 +1142,37 @@ static void libblock_remap_do(
 				 * the user count handling...
 				 * XXX No more true (except for debug usage of those skipping counters). */
 				printf("\tchecking id %s (%p, %p)\n", id->name, id, id->lib);
-				id_remap_data.id = id;
-				BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)&id_remap_data, IDWALK_NOP);
+				r_id_remap_data->id = id;
+				BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)r_id_remap_data, IDWALK_NOP);
 			}
 		}
 	}
 
 	if (old_id && (old_id->flag & LIB_FAKEUSER)) {
-		id_remap_data.skipped_direct++;
+		r_id_remap_data->skipped_direct++;
+		r_id_remap_data->skipped_refcounted++;
 	}
 
-	if (new_id && (new_id->flag & LIB_INDIRECT) && (id_remap_data.flag & ID_REMAP_IS_LINKED_DIRECT)) {
+	if (new_id && (new_id->flag & LIB_INDIRECT) && (r_id_remap_data->flag & ID_REMAP_IS_LINKED_DIRECT)) {
 		new_id->flag &= ~LIB_INDIRECT;
 		new_id->flag |= LIB_EXTERN;
 	}
 
-	if (r_skipped_direct)
-		*r_skipped_direct = id_remap_data.skipped_direct;
-
-	if (r_skipped_indirect)
-		*r_skipped_indirect = id_remap_data.skipped_indirect;
-
 	printf("%s: %d occurences skipped (%d direct and %d indirect ones)\n", __func__,
-	       id_remap_data.skipped_direct + id_remap_data.skipped_indirect,
-	       id_remap_data.skipped_direct, id_remap_data.skipped_indirect);
+	       r_id_remap_data->skipped_direct + r_id_remap_data->skipped_indirect,
+	       r_id_remap_data->skipped_direct, r_id_remap_data->skipped_indirect);
+
+	return (r_id_remap_data->flag & ID_REMAP_IS_USER_ONE) != 0;
 }
 
 /** Replace all references in .blend file to \a old_id by \a new_id (if \a new_id is NULL, it unlinks \a old_id). */
 void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const bool skip_indirect_usage)
 {
+	IDRemap id_remap_data;
 	ID *old_id = old_idv;
 	ID *new_id = new_idv;
-	int skipped_direct;
+	int skipped_direct, skipped_refcounted;
+	bool is_user_one;
 
 	BLI_assert(old_id != NULL);
 	BLI_assert((new_id == NULL) || GS(old_id->name) == GS(new_id->name));
@@ -1152,7 +1199,7 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 		}
 	}
 
-	libblock_remap_do(bmain, NULL, old_id, new_id, skip_indirect_usage, &skipped_direct, NULL);
+	is_user_one = libblock_remap_data(bmain, NULL, old_id, new_id, skip_indirect_usage, &id_remap_data);
 
 	if (free_notifier_reference_cb) {
 		free_notifier_reference_cb(old_id);
@@ -1161,18 +1208,20 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 	/* We assume editors do not hold references to their IDs... This is false in some cases
 	 * (Image is especially tricky here), editors' code is to handle refcount (id->us) itself then. */
 	if (remap_editor_id_reference_cb) {
-		remap_editor_id_reference_cb(old_id, new_id);
+		is_user_one = is_user_one || remap_editor_id_reference_cb(old_id, new_id);
 	}
 
-	BLI_assert(old_id->us >= 0);
+	skipped_direct = id_remap_data.skipped_direct;
+	skipped_refcounted = id_remap_data.skipped_refcounted;
 
-#if 0
-	/* All ID 'users' do not actually incref it, so we just assume all uses of this ID have been cleared... */
-	BLI_assert(old_id->us - skipped >= 0);
-	if (new_id)
-		new_id->us += old_id->us - skipped;
-	old_id->us = skipped;
-#endif
+	BLI_assert(old_id->us - skipped_refcounted >= 0);
+
+	/* If old_id was used by some ugly 'user_one' stuff (like Image or Clip editors...), we have the right to
+	 * decrease once more its user count... unless we had to skip some 'user_one' cases. I hate that stuff!!! */
+	if (is_user_one && !(id_remap_data.flag & ID_REMAP_IS_USER_ONE_SKIPPED) && (old_id->us - skipped_refcounted > 0)) {
+		BLI_assert(old_id->us - skipped_refcounted == 1);
+		id_us_min(old_id);
+	}
 
 	if (skipped_direct == 0) {
 		/* old_id is assumed to not be used directly anymore... */
@@ -1261,7 +1310,7 @@ void BKE_libblock_relink_ex(Main *bmain, void *idv, void *old_idv, void *new_idv
 		BLI_assert(new_id == NULL);
 	}
 
-	libblock_remap_do(bmain, id, old_id, new_id, false, NULL, NULL);
+	libblock_remap_data(bmain, id, old_id, new_id, false, NULL);
 }
 
 static void animdata_dtar_clear_cb(ID *UNUSED(id), AnimData *adt, void *userdata)

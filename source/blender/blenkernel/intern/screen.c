@@ -272,9 +272,9 @@ void BKE_spacedata_draw_locks(int set)
 	}
 }
 
-static void (*spacedata_id_remap_cb)(struct ScrArea *sa, struct SpaceLink *sl, ID *old_id, ID *new_id) = NULL;
+static bool (*spacedata_id_remap_cb)(struct ScrArea *sa, struct SpaceLink *sl, ID *old_id, ID *new_id) = NULL;
 
-void BKE_spacedata_callback_id_remap_set(void (*func)(ScrArea *sa, SpaceLink *sl, ID *, ID *))
+void BKE_spacedata_callback_id_remap_set(bool (*func)(ScrArea *sa, SpaceLink *sl, ID *, ID *))
 {
 	spacedata_id_remap_cb = func;
 }

@@ -241,10 +241,11 @@ void WM_main_remove_notifier_reference(const void *reference)
 	}
 }
 
-void WM_main_remap_editor_id_reference(ID *old_id, ID *new_id)
+bool WM_main_remap_editor_id_reference(ID *old_id, ID *new_id)
 {
 	Main *bmain = G.main;
 	bScreen *sc;
+	bool is_user_one = false;
 
 	for (sc = bmain->screen.first; sc; sc = sc->id.next) {
 		ScrArea *sa;
@@ -253,10 +254,12 @@ void WM_main_remap_editor_id_reference(ID *old_id, ID *new_id)
 			SpaceLink *sl;
 
 			for (sl = sa->spacedata.first; sl; sl = sl->next) {
-				ED_spacedata_id_remap(sa, sl, old_id, new_id);
+				is_user_one = is_user_one || ED_spacedata_id_remap(sa, sl, old_id, new_id);
 			}
 		}
 	}
+
+	return is_user_one;
 }
 
 static void wm_notifier_clear(wmNotifier *note)

@@ -303,7 +303,7 @@ static void logic_header_area_draw(const bContext *C, ARegion *ar)
 
 /**************************** spacetype *****************************/
 
-static void logic_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
+static bool logic_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	SpaceLogic *slog = (SpaceLogic *)slink;
 
@@ -312,6 +312,8 @@ static void logic_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID
 		id_us_min(old_id);
 		id_us_plus(new_id);
 	}
+
+	return false;  /* no 'user_one' ID usage here. */
 }
 
 /* only called once, from space/spacetypes.c */

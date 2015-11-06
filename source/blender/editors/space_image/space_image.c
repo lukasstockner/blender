@@ -981,23 +981,15 @@ static void image_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa),
 	}
 }
 
-static void image_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
+static bool image_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	SpaceImage *simg = (SpaceImage *)slink;
+	bool is_user_one = false;
 
 	if ((ID *)simg->image == old_id) {
 		simg->image = (Image *)new_id;
-		/* TODO_REMAP this does not work well. */
-		/* SpaceImage image->id.us is nasty, uses id_us_ensure_real(),
-		 * i.e. increasing it only if null, and never decreasing it ever. :|
-		 * Until better handling, work around that as best as we can...
-		 * (only real fix is to make spaceimage a real image ID user!). */
-		if (old_id->us > 0) {
-			id_us_min(old_id);
-		}
-		if (new_id && new_id->us == 0) {
-			id_us_plus(new_id);
-		}
+		id_us_ensure_real(new_id);
+		is_user_one = true;
 	}
 
 	if ((ID *)simg->gpd == old_id) {
@@ -1005,6 +997,8 @@ static void image_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID
 		id_us_min(old_id);
 		id_us_plus(new_id);
 	}
+
+	return is_user_one;
 }
 
 /**************************** spacetype *****************************/

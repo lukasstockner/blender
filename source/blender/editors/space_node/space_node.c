@@ -822,7 +822,7 @@ static int node_context(const bContext *C, const char *member, bContextDataResul
 	return 0;
 }
 
-static void node_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
+static bool node_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	SpaceNode *snode = (SpaceNode *)slink;
 
@@ -864,6 +864,8 @@ static void node_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID 
 		id_us_min(old_id);
 		id_us_plus(new_id);
 	}
+
+	return false;  /* no 'user_one' ID usage here. */
 }
 
 /* only called once, from space/spacetypes.c */

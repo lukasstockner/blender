@@ -486,13 +486,13 @@ static SpaceLink *outliner_duplicate(SpaceLink *sl)
 	return (SpaceLink *)soutlinern;
 }
 
-static void outliner_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
+static bool outliner_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	SpaceOops *so = (SpaceOops *)slink;
 
 	/* Some early out checks. */
 	if (!TREESTORE_ID_TYPE(old_id)) {
-		return;  /* ID type is not used by outilner... */
+		return false;  /* ID type is not used by outilner... */
 	}
 
 	if (so->search_tse.id == old_id) {
@@ -517,6 +517,8 @@ static void outliner_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id,
 			so->storeflag |= SO_TREESTORE_REBUILD;
 		}
 	}
+
+	return false;  /* no 'user_one' ID usage here. */
 }
 
 /* only called once, from space_api/spacetypes.c */

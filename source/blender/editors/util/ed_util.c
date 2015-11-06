@@ -328,15 +328,14 @@ void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *ar, void *arg_info
  * Use to free ID references within runtime data (stored outside of DNA)
  *
  * \param new_id may be NULL...
- *
- * \note Typically notifiers take care of this,
- * but there are times we have to free references immediately, see: T44376
+ * \return true in case that space has some 'user_one' usage of given \a old_id.
  */
-void ED_spacedata_id_remap(struct ScrArea *sa, struct SpaceLink *sl, ID *old_id, ID *new_id)
+bool ED_spacedata_id_remap(struct ScrArea *sa, struct SpaceLink *sl, ID *old_id, ID *new_id)
 {
 	SpaceType *st = BKE_spacetype_from_id(sl->spacetype);
 
 	if (st && st->id_remap) {
-		st->id_remap(sa, sl, old_id, new_id);
+		return st->id_remap(sa, sl, old_id, new_id);
 	}
+	return false;
 }
