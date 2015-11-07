@@ -990,7 +990,6 @@ void BKE_library_callback_remap_editor_id_reference_set(bool (*func)(ID *, ID *)
 }
 
 typedef struct IDRemap {
-	Main *bmain;
 	ID *old_id;
 	ID *new_id;
 	ID *id;  /* The ID in which we are replacing old_id by new_id usages. */
@@ -1014,7 +1013,6 @@ enum {
 static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_flag)
 {
 	IDRemap *id_remap_data = user_data;
-	Main *bmain = id_remap_data->bmain;
 	ID *old_id = id_remap_data->old_id;
 	ID *new_id = id_remap_data->new_id;
 	ID *id = id_remap_data->id;
@@ -1069,7 +1067,6 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 				/* We cannot affect old_id->us directly, flag it as such for final handling... */
 				id_remap_data->flag |= ID_REMAP_IS_USER_ONE;
 			}
-			DAG_id_tag_update_ex(bmain, id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 			if (!is_indirect) {
 				id_remap_data->flag |= ID_REMAP_IS_LINKED_DIRECT;
 			}
@@ -1091,14 +1088,12 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
  *       does not references any other datablock anymore).
  *     + If \a old_id is non-NULL, behavior is as with a NULL \a id, but only for given \a id.
  *
- * \param bmain the Main data storage to operate on (if \a id is NULL).
- * \param id the datablock to operate on (may be NULL).
+ * \param bmain the Main data storage to operate on (can be NULL if \a id is non-NULL).
+ * \param id the datablock to operate on (can be NULL if \a bmain is non-NULL).
  * \param old_id the datablock to dereference (may be NULL if \a id is non-NULL).
  * \param new_id the new datablock to replace \a old_id references with (may be NULL).
  * \param skip_indirect_usage if true, do not remap/unlink indirect usages of \a old_id datablock.
- * \param r_skipped_direct if non-NULL, the number of direct references that could not be replaced.
- * \param r_skipped_indirect if non-NULL, the number of indirect references that could not be replaced.
- * \param r_skipped_refcounted if non-NULL, the number of refcounted references that could not be replaced.
+ * \param r_id_remap_data if non-NULL, the IDRemap struct to use (uselful to retrieve info about remapping process).
  * \return true is there was some 'user_one' users of \a old_id (needed to handle correctly #old_id->us count).
  */
 static bool libblock_remap_data(
@@ -1111,7 +1106,6 @@ static bool libblock_remap_data(
 	if (r_id_remap_data == NULL) {
 		r_id_remap_data = &id_remap_data;
 	}
-	r_id_remap_data->bmain = bmain;
 	r_id_remap_data->old_id = old_id;
 	r_id_remap_data->new_id = new_id;
 	r_id_remap_data->id = NULL;
@@ -1293,7 +1287,7 @@ void BKE_libblock_unlink(Main *bmain, void *idv)
  *     BKE_id_remap maybe?
  *     ... sigh
  */
-void BKE_libblock_relink_ex(Main *bmain, void *idv, void *old_idv, void *new_idv)
+void BKE_libblock_relink_ex(void *idv, void *old_idv, void *new_idv)
 {
 	ID *id = idv;
 	ID *old_id = old_idv;
@@ -1310,7 +1304,7 @@ void BKE_libblock_relink_ex(Main *bmain, void *idv, void *old_idv, void *new_idv
 		BLI_assert(new_id == NULL);
 	}
 
-	libblock_remap_data(bmain, id, old_id, new_id, false, NULL);
+	libblock_remap_data(NULL, id, old_id, new_id, false, NULL);
 }
 
 static void animdata_dtar_clear_cb(ID *UNUSED(id), AnimData *adt, void *userdata)
@@ -1363,15 +1357,8 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 	BPY_id_release(id);
 #endif
 
-	/* XXX This breaks the nodetree case, which are supposed to be 'owned' by their material/texture/scene/whatever.
-	 *     Quite odd, but...
-	 *     One solution would be to call this **after** calling BKE_xxx_free(), but here again nodetree are a PITA,
-	 *     since ntreeFreeTree() may free datablock itself. AAARRRRRRRRGGGGGGGG! >:(
-	 *     Or maybe we should not take into account in foreach_id code? Since it's private data...
-	 *     This has to be fixed one way or another!
-	 */
 	if (do_id_user) {
-		BKE_libblock_relink_ex(bmain, id, NULL, NULL);
+		BKE_libblock_relink_ex(id, NULL, NULL);
 	}
 
 	switch (type) {
