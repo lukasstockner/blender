@@ -532,6 +532,9 @@ enum widgetflags {
 
 void WM_widget_set_property(struct wmWidget *, int slot, struct PointerRNA *ptr, const char *propname);
 struct PointerRNA *WM_widget_set_operator(struct wmWidget *, const char *opname);
+void WM_widget_set_func_select(
+        struct wmWidget *widget,
+        void (*select)(struct bContext *, struct wmWidget *, const int action));
 void WM_widget_set_origin(struct wmWidget *widget, const float origin[3]);
 void WM_widget_set_offset(struct wmWidget *widget, const float offset[3]);
 void WM_widget_set_flag(struct wmWidget *widget, const int flag, const bool enable);
@@ -618,6 +621,7 @@ struct wmWidget *WIDGET_rect_transform_new(
 struct wmWidget *WIDGET_facemap_new(
         struct wmWidgetGroup *wgroup, const char *name, const int style,
         struct Object *ob, const int facemap);
+struct bFaceMap *WIDGET_facemap_get_fmap(struct wmWidget *widget);
 
 
 #ifdef WITH_INPUT_IME

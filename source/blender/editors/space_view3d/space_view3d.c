@@ -60,6 +60,7 @@
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 
+#include "ED_armature.h"
 #include "ED_space_api.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
@@ -941,6 +942,24 @@ static int WIDGETGROUP_armature_facemap_poll(const struct bContext *C, struct wm
 	return false;
 }
 
+static void WIDGET_armature_facemap_select(bContext *C, wmWidget *widget, const int action)
+{
+	Object *ob = CTX_data_active_object(C);
+	bPoseChannel *pchan;
+
+	switch (action) {
+		case SEL_SELECT:
+			for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+				if (pchan->fmap == WIDGET_facemap_get_fmap(widget)) {
+					ED_pose_bone_select(ob, pchan, true);
+				}
+			}
+			break;
+		default:
+			BLI_assert(0);
+	}
+}
+
 static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	Object *ob = CTX_data_active_object(C);
@@ -966,6 +985,7 @@ static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct
 			WM_widget_set_property(widget, FACEMAP_SLOT_FACEMAP, &famapptr, "name");
 			WM_widget_set_colors(widget, color_shape, color_shape);
 			WM_widget_set_flag(widget, WM_WIDGET_DRAW_HOVER, true);
+			WM_widget_set_func_select(widget, WIDGET_armature_facemap_select);
 			opptr = WM_widget_set_operator(widget, "TRANSFORM_OT_translate");
 			if ((prop = RNA_struct_find_property(opptr, "release_confirm"))) {
 				RNA_property_boolean_set(opptr, prop, true);

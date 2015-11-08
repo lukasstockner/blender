@@ -312,6 +312,11 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 	}
 }
 
+BLI_INLINE bool widgetgroup_poll_check(const bContext *C, const wmWidgetGroup *wgroup)
+{
+	return (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type));
+}
+
 void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_scene)
 {
 	wmWidget *widget;
@@ -351,7 +356,7 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 		wmWidgetGroup *wgroup;
 
 		for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
-			if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type)) {
+			if (widgetgroup_poll_check(C, wgroup)) {
 				for (widget = wgroup->widgets.first; widget; widget = widget->next) {
 					if ((widget->flag & WM_WIDGET_HIDDEN) == 0 &&
 					    (!(widget->flag & WM_WIDGET_DRAW_HOVER) || (widget->flag & WM_WIDGET_HIGHLIGHT)) &&
@@ -366,9 +371,11 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 
 	/* draw selected widgets last */
 	if ((widget = wmap->selected_widget) && in_scene == ((widget->flag & WM_WIDGET_SCENE_DEPTH) != 0)) {
-		/* notice that we don't update the widgetgroup, widget is now on
-		 * its own, it should have all relevant data to update itself */
-		widget->draw(C, widget);
+		if (widgetgroup_poll_check(C, widget->wgroup)) {
+			/* notice that we don't update the widgetgroup, widget is now on
+			 * its own, it should have all relevant data to update itself */
+			widget->draw(C, widget);
+		}
 	}
 
 	if (use_lighting)
@@ -505,6 +512,17 @@ PointerRNA *WM_widget_set_operator(wmWidget *widget, const char *opname)
 	}
 
 	return NULL;
+}
+
+/**
+ * \brief Set widget select callback
+ *
+ * Callback is called when widget gets selected/deselected
+ */
+void WM_widget_set_func_select(wmWidget *widget, void (*select)(bContext *, wmWidget *, const int action))
+{
+	widget->flag |= WM_WIDGET_SELECTABLE;
+	widget->select = select;
 }
 
 void WM_widget_set_origin(wmWidget *widget, const float origin[3])
@@ -1031,9 +1049,14 @@ wmWidget *wm_widgetmap_get_selected_widget(wmWidgetMap *wmap)
 
 void wm_widgetmap_set_selected_widget(bContext *C, wmWidgetMap *wmap, wmWidget *widget)
 {
+	const int action = SEL_SELECT; /* TODO currently SEL_SELECT only */
+
 	if (widget) {
 		wmap->selected_widget = widget;
 		widget->flag |= WM_WIDGET_SELECTED;
+		if (widget->select) {
+			widget->select(C, widget, action);
+		}
 		wm_widgetmap_set_highlighted_widget(wmap, C, NULL, wmap->highlighted_widget->highlighted_part);
 	}
 	else {

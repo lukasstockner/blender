@@ -42,6 +42,7 @@
 #include "DNA_userdef_types.h"
 #include "DNA_widget_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math.h"
@@ -1604,7 +1605,6 @@ wmWidget *WIDGET_facemap_new(
 //	fmap_widget->widget.bind_to_prop = NULL;
 //	fmap_widget->widget.handler = widget_facemap_handler;
 	fmap_widget->widget.render_3d_intersection = widget_facemap_render_3d_intersect;
-	fmap_widget->widget.flag |= WM_WIDGET_SELECTABLE;
 	fmap_widget->ob = ob;
 	fmap_widget->facemap = facemap;
 	fmap_widget->style = style;
@@ -1612,6 +1612,12 @@ wmWidget *WIDGET_facemap_new(
 	wm_widget_register(wgroup, &fmap_widget->widget, name);
 
 	return (wmWidget *)fmap_widget;
+}
+
+bFaceMap *WIDGET_facemap_get_fmap(wmWidget *widget)
+{
+	FacemapWidget *fmap_widget = (FacemapWidget *)widget;
+	return BLI_findlink(&fmap_widget->ob->fmaps, fmap_widget->facemap);
 }
 
 /** \} */ // Facemap Widget API

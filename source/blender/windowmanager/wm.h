@@ -84,6 +84,9 @@ typedef struct wmWidget {
 
 	int (*get_cursor)(struct wmWidget *widget);
 
+	/* called when widget selection state changes */
+	void (*select)(struct bContext *C, struct wmWidget *widget, const int action);
+
 	int flag; /* flags set by drawing and interaction, such as highlighting */
 
 	unsigned char highlighted_part;
