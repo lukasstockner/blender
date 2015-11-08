@@ -822,6 +822,21 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Child", "Child of this pose bone");
 	
+	prop = RNA_def_property(srna, "facemap_object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "fmap_object");
+	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Face Map Object", "Object from which a face map can be chosen to"
+	                         "manipulate this bone");
+	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
+	RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+	
+	prop = RNA_def_property(srna, "facemap", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "fmap");
+	RNA_def_property_struct_type(prop, "FaceMap");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Face Map", "Use a face map of the custom object to manipulate this bone");
+	
 	/* Transformation settings */
 	prop = RNA_def_property(srna, "location", PROP_FLOAT, PROP_TRANSLATION);
 	RNA_def_property_float_sdna(prop, NULL, "loc");

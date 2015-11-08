@@ -902,10 +902,24 @@ static void WIDGETGROUP_shapekey_draw(const struct bContext *C, struct wmWidgetG
 }
 #endif
 
+/* draw facemaps depending on the selected bone in pose mode */
+#define USE_FACEMAP_FROM_BONE
+
 static int WIDGETGROUP_armature_facemap_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	Object *ob = CTX_data_active_object(C);
 
+#ifdef USE_FACEMAP_FROM_BONE
+	if (ob && BKE_object_pose_context_check(ob)) {
+		bPoseChannel *pchan;
+		for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+			if (pchan->fmap) {
+				BLI_assert(pchan->fmap_object);
+				return true;
+			}
+		}
+	}
+#else
 	if (ob && ob->type == OB_MESH && ob->fmaps.first) {
 		ModifierData *md;
 		VirtualModifierData virtualModifierData;
@@ -914,13 +928,17 @@ static int WIDGETGROUP_armature_facemap_poll(const struct bContext *C, struct wm
 	
 		/* exception for shape keys because we can edit those */
 		for (; md; md = md->next) {
-			if (modifier_isEnabled(CTX_data_scene(C), md, eModifierMode_Realtime) && md->type == eModifierType_Armature) {
+			if (modifier_isEnabled(CTX_data_scene(C), md, eModifierMode_Realtime) &&
+			    md->type == eModifierType_Armature)
+			{
 				ArmatureModifierData *amd = (ArmatureModifierData *) md;
 				if (amd->object && (amd->deformflag & ARM_DEF_FACEMAPS))
 					return true;
-				}
 			}
+		}
 	}
+#endif
+
 	return false;
 }
 
@@ -928,15 +946,39 @@ static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct
 {
 	Object *ob = CTX_data_active_object(C);
 	wmWidget *widget;
-	Object *armature;
 	PointerRNA famapptr;
 	PropertyRNA *prop;
+
+	const float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+
+
+#ifdef USE_FACEMAP_FROM_BONE
+	bPoseChannel *pchan;
+
+	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+		if (pchan->fmap) {
+			Object *fmap_ob = pchan->fmap_object;
+			bFaceMap *fmap = pchan->fmap;
+			PointerRNA *opptr;
+
+			widget = WIDGET_facemap_new(wgroup, fmap->name, 0, fmap_ob, BLI_findindex(&fmap_ob->fmaps, fmap));
+
+			RNA_pointer_create(&fmap_ob->id, &RNA_FaceMap, fmap, &famapptr);
+			WM_widget_set_property(widget, FACEMAP_SLOT_FACEMAP, &famapptr, "name");
+			WM_widget_set_colors(widget, color_shape, color_shape);
+			WM_widget_set_flag(widget, WM_WIDGET_DRAW_HOVER, true);
+			opptr = WM_widget_set_operator(widget, "TRANSFORM_OT_translate");
+			if ((prop = RNA_struct_find_property(opptr, "release_confirm"))) {
+				RNA_property_boolean_set(opptr, prop, true);
+			}
+		}
+	}
+#else
+	Object *armature;
 	ModifierData *md;
 	VirtualModifierData virtualModifierData;
 	int index = 0;
 	bFaceMap *fmap = ob->fmaps.first;
-
-	const float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
 
 
 	md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
@@ -969,6 +1011,7 @@ static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct
 			}
 		}
 	}
+#endif
 }
 
 

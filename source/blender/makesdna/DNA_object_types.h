@@ -69,7 +69,7 @@ typedef struct bDeformGroup {
 /* Face Maps*/
 typedef struct bFaceMap {
 	struct bFaceMap *next, *prev;
-	char name[64];	/* MAX_VGROUP_NAME */
+	char name[64];  /* MAX_VGROUP_NAME */
 } bFaceMap;
 
 

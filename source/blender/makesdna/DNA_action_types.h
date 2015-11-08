@@ -205,6 +205,9 @@ typedef struct bPoseChannel {
 	struct bPoseChannel *parent;    /* set on read file or rebuild pose */
 	struct bPoseChannel *child;     /* set on read file or rebuild pose, the 'ik' child, for b-bones */
 
+	struct Object *fmap_object;     /* object from which facemap can be chosen */
+	struct bFaceMap *fmap;          /* facemap from fmap_object, used to manipulate bone */
+
 	struct ListBase iktree;         /* "IK trees" - only while evaluating pose */
 	struct ListBase siktree;        /* Spline-IK "trees" - only while evaluating pose */
 
