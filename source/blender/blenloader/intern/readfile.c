@@ -3215,7 +3215,9 @@ static void lib_link_pose(FileData *fd, Main *bmain, Object *ob, bPose *pose)
 		
 		/* hurms... loop in a loop, but yah... later... (ton) */
 		pchan->bone = BKE_armature_find_bone_name(arm, pchan->name);
-		
+
+		pchan->fmap_object = newlibadr_us(fd, arm->id.lib, pchan->fmap_object);
+
 		pchan->custom = newlibadr_us(fd, arm->id.lib, pchan->custom);
 		if (pchan->bone == NULL)
 			rebuild= 1;
@@ -4904,6 +4906,7 @@ static void direct_link_pose(FileData *fd, bPose *pose)
 		pchan->bone = NULL;
 		pchan->parent = newdataadr(fd, pchan->parent);
 		pchan->child = newdataadr(fd, pchan->child);
+		pchan->fmap = newdataadr(fd, pchan->fmap);
 		pchan->custom_tx = newdataadr(fd, pchan->custom_tx);
 		
 		direct_link_constraints(fd, &pchan->constraints);

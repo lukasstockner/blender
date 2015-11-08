@@ -913,8 +913,7 @@ static int WIDGETGROUP_armature_facemap_poll(const struct bContext *C, struct wm
 	if (ob && BKE_object_pose_context_check(ob)) {
 		bPoseChannel *pchan;
 		for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-			if (pchan->fmap) {
-				BLI_assert(pchan->fmap_object);
+			if (pchan->fmap_object && pchan->fmap) {
 				return true;
 			}
 		}
