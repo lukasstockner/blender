@@ -1488,6 +1488,7 @@ static void write_pose(WriteData *wd, bPose *pose)
 			IDP_WriteProperty(chan->prop, wd);
 		
 		write_constraints(wd, &chan->constraints);
+		writestruct(wd, DATA, "bFaceMap", 1, chan->fmap);
 		
 		write_motionpath(wd, chan->mpath);
 		
