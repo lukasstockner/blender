@@ -122,6 +122,7 @@ static bool group_object_add_internal(Group *group, Object *ob)
 	BLI_addtail(&group->gobject, go);
 	
 	go->ob = ob;
+	id_us_ensure_real(&go->ob->id);
 	
 	return true;
 }

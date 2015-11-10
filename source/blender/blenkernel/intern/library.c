@@ -184,15 +184,31 @@ void id_us_plus(ID *id)
 void id_us_min(ID *id)
 {
 	if (id) {
-		if (id->us < 2 && (id->flag & LIB_FAKEUSER)) {
-			id->us = 1;
-		}
-		else if (id->us <= 0) {
-			printf("ID user decrement error: %s\n", id->name);
+		const int limit = (id->flag & LIB_FAKEUSER) ? 1 : 0;
+		if (id->us <= limit) {
+			printf("ID user decrement error: %s (from '%s')\n", id->name, id->lib ? id->lib->filepath : "[Main]");
+			BLI_assert(0);
+			id->us = limit;
 		}
 		else {
 			id->us--;
 		}
+	}
+}
+
+void id_fake_user_set(ID *id)
+{
+	if (id && !(id->flag & LIB_FAKEUSER)) {
+		id->flag |= LIB_FAKEUSER;
+		id_us_plus(id);
+	}
+}
+
+void id_fake_user_clear(ID *id)
+{
+	if (id && (id->flag & LIB_FAKEUSER)) {
+		id->flag &= ~LIB_FAKEUSER;
+		id_us_min(id);
 	}
 }
 
@@ -1900,10 +1916,7 @@ void id_clear_lib_data(Main *bmain, ID *id)
 
 	BKE_id_lib_local_paths(bmain, id->lib, id);
 
-	if (id->flag & LIB_FAKEUSER) {
-		id->us--;
-		id->flag &= ~LIB_FAKEUSER;
-	}
+	id_fake_user_clear(id);
 
 	id->lib = NULL;
 	id->flag = LIB_LOCAL;

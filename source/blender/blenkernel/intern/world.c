@@ -212,8 +212,8 @@ void BKE_world_make_local(World *wrld)
 			if (sce->world == wrld) {
 				if (sce->id.lib == NULL) {
 					sce->world = wrld_new;
-					wrld_new->id.us++;
-					wrld->id.us--;
+					id_us_plus(&wrld_new->id);
+					id_us_min(&wrld->id);
 				}
 			}
 		}

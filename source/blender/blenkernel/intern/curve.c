@@ -271,8 +271,8 @@ void BKE_curve_make_local(Curve *cu)
 			if (ob->data == cu) {
 				if (ob->id.lib == NULL) {
 					ob->data = cu_new;
-					cu_new->id.us++;
-					cu->id.us--;
+					id_us_plus(&cu_new->id);
+					id_us_min(&cu->id);
 				}
 			}
 		}

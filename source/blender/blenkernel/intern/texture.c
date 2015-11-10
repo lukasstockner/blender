@@ -1024,8 +1024,8 @@ void BKE_texture_make_local(Tex *tex)
 				if (ma->mtex[a] && ma->mtex[a]->tex == tex) {
 					if (ma->id.lib == NULL) {
 						ma->mtex[a]->tex = tex_new;
-						tex_new->id.us++;
-						tex->id.us--;
+						id_us_plus(&tex_new->id);
+						id_us_min(&tex->id);
 					}
 				}
 			}
@@ -1037,8 +1037,8 @@ void BKE_texture_make_local(Tex *tex)
 				if (la->mtex[a] && la->mtex[a]->tex == tex) {
 					if (la->id.lib == NULL) {
 						la->mtex[a]->tex = tex_new;
-						tex_new->id.us++;
-						tex->id.us--;
+						id_us_plus(&tex_new->id);
+						id_us_min(&tex->id);
 					}
 				}
 			}
@@ -1050,8 +1050,8 @@ void BKE_texture_make_local(Tex *tex)
 				if (wrld->mtex[a] && wrld->mtex[a]->tex == tex) {
 					if (wrld->id.lib == NULL) {
 						wrld->mtex[a]->tex = tex_new;
-						tex_new->id.us++;
-						tex->id.us--;
+						id_us_plus(&tex_new->id);
+						id_us_min(&tex->id);
 					}
 				}
 			}
@@ -1062,15 +1062,15 @@ void BKE_texture_make_local(Tex *tex)
 			if (br->mtex.tex == tex) {
 				if (br->id.lib == NULL) {
 					br->mtex.tex = tex_new;
-					tex_new->id.us++;
-					tex->id.us--;
+					id_us_plus(&tex_new->id);
+					id_us_min(&tex->id);
 				}
 			}
 			if (br->mask_mtex.tex == tex) {
 				if (br->id.lib == NULL) {
 					br->mask_mtex.tex = tex_new;
-					tex_new->id.us++;
-					tex->id.us--;
+					id_us_plus(&tex_new->id);
+					id_us_min(&tex->id);
 				}
 			}
 			br = br->id.next;
@@ -1081,8 +1081,8 @@ void BKE_texture_make_local(Tex *tex)
 				if (pa->mtex[a] && pa->mtex[a]->tex == tex) {
 					if (pa->id.lib == NULL) {
 						pa->mtex[a]->tex = tex_new;
-						tex_new->id.us++;
-						tex->id.us--;
+						id_us_plus(&tex_new->id);
+						id_us_min(&tex->id);
 					}
 				}
 			}
@@ -1094,8 +1094,8 @@ void BKE_texture_make_local(Tex *tex)
 				if (ls->mtex[a] && ls->mtex[a]->tex == tex) {
 					if (ls->id.lib == NULL) {
 						ls->mtex[a]->tex = tex_new;
-						tex_new->id.us++;
-						tex->id.us--;
+						id_us_plus(&tex_new->id);
+						id_us_min(&tex->id);
 					}
 				}
 			}

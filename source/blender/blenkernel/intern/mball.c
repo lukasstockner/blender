@@ -172,8 +172,8 @@ void BKE_mball_make_local(MetaBall *mb)
 			if (ob->data == mb) {
 				if (ob->id.lib == NULL) {
 					ob->data = mb_new;
-					mb_new->id.us++;
-					mb->id.us--;
+					id_us_plus(&mb_new->id);
+					id_us_min(&mb->id);
 				}
 			}
 		}

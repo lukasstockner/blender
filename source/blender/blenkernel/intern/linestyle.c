@@ -385,7 +385,7 @@ LineStyleModifier *BKE_linestyle_color_modifier_copy(FreestyleLineStyle *linesty
 			LineStyleColorModifier_DistanceFromObject *p = (LineStyleColorModifier_DistanceFromObject *)m;
 			LineStyleColorModifier_DistanceFromObject *q = (LineStyleColorModifier_DistanceFromObject *)new_m;
 			if (p->target)
-				p->target->id.us++;
+				id_us_plus(&p->target->id);
 			q->target = p->target;
 			q->color_ramp = MEM_dupallocN(p->color_ramp);
 			q->range_min = p->range_min;
@@ -623,7 +623,7 @@ LineStyleModifier *BKE_linestyle_alpha_modifier_copy(FreestyleLineStyle *linesty
 			LineStyleAlphaModifier_DistanceFromObject *p = (LineStyleAlphaModifier_DistanceFromObject *)m;
 			LineStyleAlphaModifier_DistanceFromObject *q = (LineStyleAlphaModifier_DistanceFromObject *)new_m;
 			if (p->target)
-				p->target->id.us++;
+				id_us_plus(&p->target->id);
 			q->target = p->target;
 			q->curve = curvemapping_copy(p->curve);
 			q->flags = p->flags;
@@ -898,7 +898,7 @@ LineStyleModifier *BKE_linestyle_thickness_modifier_copy(FreestyleLineStyle *lin
 			LineStyleThicknessModifier_DistanceFromObject *p = (LineStyleThicknessModifier_DistanceFromObject *)m;
 			LineStyleThicknessModifier_DistanceFromObject *q = (LineStyleThicknessModifier_DistanceFromObject *)new_m;
 			if (p->target)
-				p->target->id.us++;
+				id_us_plus(&p->target->id);
 			q->target = p->target;
 			q->curve = curvemapping_copy(p->curve);
 			q->flags = p->flags;

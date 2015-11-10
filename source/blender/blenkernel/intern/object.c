@@ -40,6 +40,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_group_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lamp_types.h"
@@ -1248,8 +1249,8 @@ void BKE_object_make_local(Object *ob)
 					while (base) {
 						if (base->object == ob) {
 							base->object = ob_new;
-							ob_new->id.us++;
-							ob->id.us--;
+							id_us_plus(&ob_new->id);
+							id_us_min(&ob->id);
 						}
 						base = base->next;
 					}

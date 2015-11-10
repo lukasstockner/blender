@@ -175,7 +175,7 @@ static void unlink_material_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeEl
 	if (LIKELY(matar != NULL)) {
 		for (a = 0; a < totcol; a++) {
 			if (a == te->index && matar[a]) {
-				matar[a]->id.us--;
+				id_us_min(&matar[a]->id);
 				matar[a] = NULL;
 			}
 		}
@@ -211,7 +211,7 @@ static void unlink_texture_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeEle
 	for (a = 0; a < MAX_MTEX; a++) {
 		if (a == te->index && mtex[a]) {
 			if (mtex[a]->tex) {
-				mtex[a]->tex->id.us--;
+				id_us_min(&mtex[a]->tex->id);
 				mtex[a]->tex = NULL;
 			}
 		}
@@ -426,10 +426,7 @@ static void id_fake_user_set_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeE
 {
 	ID *id = tselem->id;
 	
-	if ((id) && ((id->flag & LIB_FAKEUSER) == 0)) {
-		id->flag |= LIB_FAKEUSER;
-		id_us_plus(id);
-	}
+	id_fake_user_set(id);
 }
 
 static void id_fake_user_clear_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeElement *UNUSED(te),
@@ -437,10 +434,7 @@ static void id_fake_user_clear_cb(bContext *UNUSED(C), Scene *UNUSED(scene), Tre
 {
 	ID *id = tselem->id;
 	
-	if ((id) && (id->flag & LIB_FAKEUSER)) {
-		id->flag &= ~LIB_FAKEUSER;
-		id_us_min(id);
-	}
+	id_fake_user_clear(id);
 }
 
 static void id_select_linked_cb(bContext *C, Scene *UNUSED(scene), TreeElement *UNUSED(te),
