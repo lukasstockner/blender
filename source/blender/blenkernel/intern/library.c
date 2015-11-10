@@ -1074,9 +1074,8 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 		else {
 			*id_p = new_id;
 			if (cb_flag & IDWALK_USER) {
-				old_id->us--;
-				if (new_id)
-					new_id->us++;
+				id_us_min(old_id);
+				id_us_plus(new_id); /* XXX Check, do we really want to handle LIB_INDIRECT/LIB_EXTERN here? */
 			}
 			else if (cb_flag & IDWALK_USER_ONE) {
 				id_us_ensure_real(new_id);
@@ -1203,7 +1202,7 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 
 			if (base) {
 				BKE_scene_base_unlink(sce, base);
-				base->object->id.us--;
+				id_us_min(&base->object->id);
 				MEM_freeN(base);
 			}
 		}

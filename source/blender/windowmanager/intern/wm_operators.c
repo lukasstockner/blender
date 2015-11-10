@@ -3123,10 +3123,8 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 					BKE_libblock_remap_locked(bmain, old_id, new_id, false);
 
 					if (old_id->flag & LIB_FAKEUSER) {
-						old_id->flag &= ~LIB_FAKEUSER;
-						old_id->us--;
-						new_id->flag |= LIB_FAKEUSER;
-						new_id->us++;
+						id_fake_user_clear(old_id);
+						id_fake_user_set(new_id);
 					}
 
 					printf("after remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
@@ -3259,10 +3257,8 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 					BKE_libblock_remap_locked(bmain, old_id, new_id, true);
 
 					if (old_id->flag & LIB_FAKEUSER) {
-						old_id->flag &= ~LIB_FAKEUSER;
-						old_id->us--;
-						new_id->flag |= LIB_FAKEUSER;
-						new_id->us++;
+						id_fake_user_clear(old_id);
+						id_fake_user_set(new_id);
 					}
 
 					printf("after remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
@@ -3289,7 +3285,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 
 			if (num_ids == 0) {
 				/* Nothing uses old lib anymore, we can get rid of it. */
-				lib->id.us--;
+				id_us_min(&lib->id);
 				if (lib->id.us == 0) {
 					BKE_libblock_free(bmain, (ID *)lib);
 				}
