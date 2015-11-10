@@ -160,6 +160,10 @@ void id_lib_extern(ID *id)
 }
 
 /* ensure we have a real user */
+/* Note: Now that we have flags, we could get rid of the 'fake_user' special case, flags are enough to ensure
+ *       we always have a real user.
+ *       However, ID_REAL_USERS is used in several places outside of core library.c, so think we can wait later
+ *       to make this change... */
 void id_us_ensure_real(ID *id)
 {
 	if (id) {
@@ -1080,7 +1084,7 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 				id_remap_data->skipped_refcounted++;
 			}
 			else if (cb_flag & IDWALK_USER_ONE) {
-				/* We cannot affect old_id->us directly, flag it as such for final handling... */
+				/* No need to count number of times this happens, just a flag is enough. */
 				id_remap_data->flag |= ID_REMAP_IS_USER_ONE_SKIPPED;
 			}
 		}
@@ -1203,25 +1207,6 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 
 	printf("%s: %s (%p) replaced by %s (%p)\n", __func__, old_id->name, old_id, new_id ? new_id->name : "", new_id);
 
-	/* Some pre-processing.
-	 * This is a bit ugly, but cannot see a way to avoid it...
-	 */
-	if ((GS(old_id->name) == ID_OB) && (new_id == NULL)) {
-		Object *old_ob = (Object *)old_id;
-		Scene *sce;
-		Base *base;
-
-		for (sce = bmain->scene.first; sce; sce = sce->id.next) {
-			base = BKE_scene_base_find(sce, old_ob);
-
-			if (base) {
-				BKE_scene_base_unlink(sce, base);
-				id_us_min(&base->object->id);
-				MEM_freeN(base);
-			}
-		}
-	}
-
 	libblock_remap_data(bmain, NULL, old_id, new_id, skip_indirect_usage, &id_remap_data);
 
 	if (free_notifier_reference_cb) {
@@ -1262,6 +1247,20 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 	if (GS(old_id->name) == ID_OB) {
 		Object *old_ob = (Object *)old_id;
 		Object *new_ob = (Object *)new_id;
+
+		if (new_ob == NULL) {
+			Scene *sce;
+			Base *base;
+
+			for (sce = bmain->scene.first; sce; sce = sce->id.next) {
+				base = BKE_scene_base_find(sce, old_ob);
+
+				if (base) {
+					BKE_scene_base_unlink(sce, base);
+					MEM_freeN(base);
+				}
+			}
+		}
 
 		if (old_ob->flag & OB_FROMGROUP) {
 			/* Note that for Scene's BaseObject->flag, either we:
