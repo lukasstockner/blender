@@ -822,32 +822,27 @@ static int node_context(const bContext *C, const char *member, bContextDataResul
 	return 0;
 }
 
-static bool node_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
+static void node_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	SpaceNode *snode = (SpaceNode *)slink;
 
 	if (GS(old_id->name) == ID_SCE) {
 		if (snode->id == old_id) {
-			if (new_id == NULL) {
-				/* nasty DNA logic for SpaceNode:
-				 * ideally should be handled by editor code, but would be bad level call
-				 */
-				bNodeTreePath *path, *path_next;
-				for (path = snode->treepath.first; path; path = path_next) {
-					path_next = path->next;
-					MEM_freeN(path);
-				}
-				BLI_listbase_clear(&snode->treepath);
+			/* nasty DNA logic for SpaceNode:
+			 * ideally should be handled by editor code, but would be bad level call
+			 */
+			bNodeTreePath *path, *path_next;
+			for (path = snode->treepath.first; path; path = path_next) {
+				path_next = path->next;
+				MEM_freeN(path);
+			}
+			BLI_listbase_clear(&snode->treepath);
 
-				snode->id = NULL;
-				snode->from = NULL;
-				snode->nodetree = NULL;
-				snode->edittree = NULL;
-			}
-			else {
-				/* TODO_REMAP ????????????? */
-				printf("WARNING TODO! remapping scene ID in node editor has to be written!\n");
-			}
+			/* XXX Untested in case new_id != NULL... */
+			snode->id = new_id;
+			snode->from = NULL;
+			snode->nodetree = NULL;
+			snode->edittree = NULL;
 		}
 	}
 	else if (GS(old_id->name) == ID_OB) {
@@ -864,8 +859,6 @@ static bool node_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID 
 		id_us_min(old_id);
 		id_us_plus(new_id);
 	}
-
-	return false;  /* no 'user_one' ID usage here. */
 }
 
 /* only called once, from space/spacetypes.c */

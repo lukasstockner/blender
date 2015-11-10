@@ -1400,7 +1400,7 @@ static int view3d_context(const bContext *C, const char *member, bContextDataRes
 	return -1; /* found but not available */
 }
 
-static bool view3d_id_remap(ScrArea *sa, SpaceLink *slink, ID *old_id, ID *new_id)
+static void view3d_id_remap(ScrArea *sa, SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	View3D *v3d;
 	ARegion *ar;
@@ -1455,8 +1455,6 @@ static bool view3d_id_remap(ScrArea *sa, SpaceLink *slink, ID *old_id, ID *new_i
 			rv3d = rv3d->localvd;
 		}
 	}
-
-	return false;  /* no 'user_one' ID usage here. */
 }
 
 /* only called once, from space/spacetypes.c */

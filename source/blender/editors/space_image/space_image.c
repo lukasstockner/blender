@@ -981,15 +981,13 @@ static void image_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa),
 	}
 }
 
-static bool image_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
+static void image_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	SpaceImage *simg = (SpaceImage *)slink;
-	bool is_user_one = false;
 
 	if ((ID *)simg->image == old_id) {
 		simg->image = (Image *)new_id;
 		id_us_ensure_real(new_id);
-		is_user_one = true;
 	}
 
 	if ((ID *)simg->gpd == old_id) {
@@ -997,8 +995,6 @@ static bool image_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID
 		id_us_min(old_id);
 		id_us_plus(new_id);
 	}
-
-	return is_user_one;
 }
 
 /**************************** spacetype *****************************/

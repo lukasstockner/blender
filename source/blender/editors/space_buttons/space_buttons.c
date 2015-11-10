@@ -391,7 +391,7 @@ static void buttons_area_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *
 		ED_area_tag_redraw(sa);
 }
 
-static bool buttons_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
+static void buttons_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
 {
 	SpaceButs *sbuts = (SpaceButs *)slink;
 
@@ -431,8 +431,6 @@ static bool buttons_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, 
 	}
 
 	/* TODO_REMAP: sbuts->texuser ? */
-
-	return false;  /* no 'user_one' ID usage here. */
 }
 
 /* only called once, from space/spacetypes.c */
