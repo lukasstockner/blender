@@ -1507,12 +1507,8 @@ void BKE_libblock_free_us(Main *bmain, void *idv)      /* test users */
 {
 	ID *id = idv;
 	
-	id->us--;
+	id_us_min(id);
 
-	if (id->us < 0) {
-		printf("ERROR block %s (from %s lib): %d users\n", id->name, id->lib ?  id->lib->name : "<MAIN>", id->us);
-		id->us = 0;
-	}
 	if (id->us == 0) {
 		BKE_libblock_unlink(bmain, id);
 		
