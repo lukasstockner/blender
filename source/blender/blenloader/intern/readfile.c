@@ -7927,6 +7927,8 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 	
 	/* clear first 8 bits */
 	id->flag = (id->flag & 0xFF00) | flag | LIB_NEED_LINK;
+	/* clear first 16 bits */
+	id->flag2 = (id->flag2 & 0xFFFF0000);
 	id->lib = main->curlib;
 	id->us = (id->flag & LIB_FAKEUSER) ? 1 : 0;
 	id->icon_id = 0;

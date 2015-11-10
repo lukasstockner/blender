@@ -164,12 +164,14 @@ void id_us_ensure_real(ID *id)
 {
 	if (id) {
 		const int limit = ID_FAKE_USERS(id);
+		id->flag2 |= LIB_EXTRAUSER;
 		if (id->us <= limit) {
-			if (id->us < limit) {
+			if (id->us < limit || ((id->us == limit) && (id->flag2 & LIB_EXTRAUSER_SET))) {
 				printf("ID user count error: %s (from '%s')\n", id->name, id->lib ? id->lib->filepath : "[Main]");
 				BLI_assert(0);
 			}
 			id->us = limit + 1;
+			id->flag2 |= LIB_EXTRAUSER_SET;
 		}
 	}
 }
@@ -190,7 +192,13 @@ void id_us_plus(ID *id)
 void id_us_min(ID *id)
 {
 	if (id) {
-		const int limit = ID_FAKE_USERS(id);
+        const int limit = ID_FAKE_USERS(id);
+
+		if ((id->us == limit) && (id->flag2 & LIB_EXTRAUSER) && !(id->flag2 & LIB_EXTRAUSER_SET)) {
+			/* We need an extra user here, but never actually incremented user count for it so far, do it now. */
+			id_us_ensure_real(id);
+		}
+
 		if (id->us <= limit) {
 			printf("ID user decrement error: %s (from '%s')\n", id->name, id->lib ? id->lib->filepath : "[Main]");
 			BLI_assert(0);
@@ -1028,8 +1036,7 @@ enum {
 
 	/* Set by callback. */
 	ID_REMAP_IS_LINKED_DIRECT     = 1 << 16,  /* new_id is directly linked in current .blend. */
-	ID_REMAP_IS_USER_ONE          = 1 << 17,  /* old_id was used by some nasty 'user_one' stuff (like image editor). */
-	ID_REMAP_IS_USER_ONE_SKIPPED  = 1 << 18,  /* there was some skipped 'user_one' usages of old_id. */
+	ID_REMAP_IS_USER_ONE_SKIPPED  = 1 << 17,  /* there was some skipped 'user_one' usages of old_id. */
 };
 
 static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_flag)
@@ -1081,12 +1088,14 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 			*id_p = new_id;
 			if (cb_flag & IDWALK_USER) {
 				id_us_min(old_id);
-				id_us_plus(new_id); /* XXX Check, do we really want to handle LIB_INDIRECT/LIB_EXTERN here? */
+				/* We do not want to handle LIB_INDIRECT/LIB_EXTERN here. */
+				if (new_id)
+					new_id->us++;
 			}
 			else if (cb_flag & IDWALK_USER_ONE) {
 				id_us_ensure_real(new_id);
-				/* We cannot affect old_id->us directly, flag it as such for final handling... */
-				id_remap_data->flag |= ID_REMAP_IS_USER_ONE;
+				/* We cannot affect old_id->us directly, LIB_EXTRAUSER(_SET) are assumed to be set as needed,
+				 * that extra user is processed in final handling... */
 			}
 			if (!is_indirect) {
 				id_remap_data->flag |= ID_REMAP_IS_LINKED_DIRECT;
@@ -1117,7 +1126,7 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
  * \param r_id_remap_data if non-NULL, the IDRemap struct to use (uselful to retrieve info about remapping process).
  * \return true is there was some 'user_one' users of \a old_id (needed to handle correctly #old_id->us count).
  */
-static bool libblock_remap_data(
+static void libblock_remap_data(
         Main *bmain, ID *id, ID *old_id, ID *new_id, const bool skip_indirect_usage, IDRemap *r_id_remap_data)
 {
 	IDRemap id_remap_data;
@@ -1163,9 +1172,11 @@ static bool libblock_remap_data(
 		}
 	}
 
+	/* XXX We may not want to always 'transfer' fakeuser from old to new id... Think for now it's desired behavior
+	 *     though, we can always add an option (flag) to control this later if needed. */
 	if (old_id && (old_id->flag & LIB_FAKEUSER)) {
-		r_id_remap_data->skipped_direct++;
-		r_id_remap_data->skipped_refcounted++;
+		id_fake_user_clear(old_id);
+		id_fake_user_set(new_id);
 	}
 
 	if (new_id && (new_id->flag & LIB_INDIRECT) && (r_id_remap_data->flag & ID_REMAP_IS_LINKED_DIRECT)) {
@@ -1176,8 +1187,6 @@ static bool libblock_remap_data(
 	printf("%s: %d occurences skipped (%d direct and %d indirect ones)\n", __func__,
 	       r_id_remap_data->skipped_direct + r_id_remap_data->skipped_indirect,
 	       r_id_remap_data->skipped_direct, r_id_remap_data->skipped_indirect);
-
-	return (r_id_remap_data->flag & ID_REMAP_IS_USER_ONE) != 0;
 }
 
 /** Replace all references in .blend file to \a old_id by \a new_id (if \a new_id is NULL, it unlinks \a old_id). */
@@ -1187,7 +1196,6 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 	ID *old_id = old_idv;
 	ID *new_id = new_idv;
 	int skipped_direct, skipped_refcounted;
-	bool is_user_one;
 
 	BLI_assert(old_id != NULL);
 	BLI_assert((new_id == NULL) || GS(old_id->name) == GS(new_id->name));
@@ -1214,7 +1222,7 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 		}
 	}
 
-	is_user_one = libblock_remap_data(bmain, NULL, old_id, new_id, skip_indirect_usage, &id_remap_data);
+	libblock_remap_data(bmain, NULL, old_id, new_id, skip_indirect_usage, &id_remap_data);
 
 	if (free_notifier_reference_cb) {
 		free_notifier_reference_cb(old_id);
@@ -1223,20 +1231,22 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 	/* We assume editors do not hold references to their IDs... This is false in some cases
 	 * (Image is especially tricky here), editors' code is to handle refcount (id->us) itself then. */
 	if (remap_editor_id_reference_cb) {
-		is_user_one = is_user_one || remap_editor_id_reference_cb(old_id, new_id);
+		remap_editor_id_reference_cb(old_id, new_id);
 	}
 
 	skipped_direct = id_remap_data.skipped_direct;
 	skipped_refcounted = id_remap_data.skipped_refcounted;
 
-	BLI_assert(old_id->us - skipped_refcounted >= 0);
-
-	/* If old_id was used by some ugly 'user_one' stuff (like Image or Clip editors...), we have the right to
-	 * decrease once more its user count... unless we had to skip some 'user_one' cases. I hate that stuff!!! */
-	if (is_user_one && !(id_remap_data.flag & ID_REMAP_IS_USER_ONE_SKIPPED) && (old_id->us - skipped_refcounted > 0)) {
-		BLI_assert(old_id->us - skipped_refcounted == 1);
+	/* If old_id was used by some ugly 'user_one' stuff (like Image or Clip editors...), and user count has actually
+	 * been incremented for that, we have to decrease once more its user count... unless we had to skip
+	 * some 'user_one' cases. */
+	if ((old_id->flag2 & LIB_EXTRAUSER_SET) && !(id_remap_data.flag & ID_REMAP_IS_USER_ONE_SKIPPED)) {
 		id_us_min(old_id);
+		old_id->flag2 &= ~LIB_EXTRAUSER_SET;
 	}
+
+	BLI_assert(old_id->us - skipped_refcounted >= 0);
+	UNUSED_VARS_NDEBUG(skipped_refcounted);
 
 	if (skipped_direct == 0) {
 		/* old_id is assumed to not be used directly anymore... */
