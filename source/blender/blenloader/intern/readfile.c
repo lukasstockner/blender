@@ -7930,7 +7930,7 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 	/* clear first 16 bits */
 	id->flag2 = (id->flag2 & 0xFFFF0000);
 	id->lib = main->curlib;
-	id->us = (id->flag & LIB_FAKEUSER) ? 1 : 0;
+	id->us = ID_FAKE_USERS(id);
 	id->icon_id = 0;
 	id->flag &= ~(LIB_ID_RECALC | LIB_ID_RECALC_DATA | LIB_DOIT | LIB_MISSING);
 	
@@ -9617,7 +9617,7 @@ static ID *create_placeholder(Main *mainvar, const short idcode, const char *idn
 	BKE_libblock_init_empty(ph_id);
 	ph_id->lib = mainvar->curlib;
 	ph_id->flag = flag | LIB_MISSING;
-	ph_id->us = (flag & LIB_FAKEUSER) ? 1 : 0;
+	ph_id->us = ID_FAKE_USERS(ph_id);
 	ph_id->icon_id = 0;
 
 	BLI_addtail(lb, ph_id);

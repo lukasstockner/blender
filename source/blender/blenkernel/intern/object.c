@@ -388,6 +388,8 @@ void BKE_object_free(Object *ob)
 {
 	BKE_animdata_free((ID *)ob);
 
+	BKE_object_free_modifiers(ob);
+
 	MEM_SAFE_FREE(ob->mat);
 	MEM_SAFE_FREE(ob->matbits);
 	MEM_SAFE_FREE(ob->iuser);
@@ -403,9 +405,6 @@ void BKE_object_free(Object *ob)
 		ob->mpath = NULL;
 	}
 	BKE_bproperty_free_list(&ob->prop);
-	BKE_object_free_modifiers(ob);
-
-	BKE_object_free_derived_caches(ob);
 
 	free_sensors(&ob->sensors);
 	free_controllers(&ob->controllers);
