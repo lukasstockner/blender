@@ -1169,7 +1169,7 @@ static void libblock_remap_data(
 				/* Note that we cannot skip indirect usages of old_id here (if requested), we still need to check it for
 				 * the user count handling...
 				 * XXX No more true (except for debug usage of those skipping counters). */
-				printf("\tchecking id %s (%p, %p)\n", id->name, id, id->lib);
+//				printf("\tchecking id %s (%p, %p)\n", id->name, id, id->lib);
 				r_id_remap_data->id = id;
 				BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)r_id_remap_data, IDWALK_NOP);
 			}
