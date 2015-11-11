@@ -1078,8 +1078,9 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 		const bool is_never_null = ((cb_flag & IDWALK_NEVER_NULL) && (new_id == NULL));
 		const bool skip_never_null = (id_remap_data->flag & ID_REMAP_SKIP_NEVER_NULL_USAGE) != 0;
 
+		if (GS(id->name) == ID_TXT)
 		printf("\t\tIn %s (%p): remapping %s (%p) to %s (%p)\n",
-		       id->name, id, old_id->name, old_id, new_id ? new_id->name : "", new_id);
+		       id->name, id, old_id->name, old_id, new_id ? new_id->name : "<NONE>", new_id);
 
 		/* Special hack in case it's Object->data and we are in edit mode (skipped_direct too). */
 		if ((is_never_null && skip_never_null) ||
@@ -1163,11 +1164,12 @@ static void libblock_remap_data(
 	r_id_remap_data->skipped_indirect = 0;
 	r_id_remap_data->skipped_refcounted = 0;
 
+	if (id && GS(id->name) == ID_TXT)
 	printf("%s: %s (%p) replaced by %s (%p)\n", __func__,
 	       old_id ? old_id->name : "", old_id, new_id ? new_id->name : "", new_id);
 
 	if (id) {
-		printf("\tchecking id %s (%p, %p)\n", id->name, id, id->lib);
+//		printf("\tchecking id %s (%p, %p)\n", id->name, id, id->lib);
 		r_id_remap_data->id = id;
 		BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)r_id_remap_data, IDWALK_NOP);
 	}
@@ -1203,9 +1205,9 @@ static void libblock_remap_data(
 		new_id->flag |= LIB_EXTERN;
 	}
 
-	printf("%s: %d occurences skipped (%d direct and %d indirect ones)\n", __func__,
-	       r_id_remap_data->skipped_direct + r_id_remap_data->skipped_indirect,
-	       r_id_remap_data->skipped_direct, r_id_remap_data->skipped_indirect);
+//	printf("%s: %d occurences skipped (%d direct and %d indirect ones)\n", __func__,
+//	       r_id_remap_data->skipped_direct + r_id_remap_data->skipped_indirect,
+//	       r_id_remap_data->skipped_direct, r_id_remap_data->skipped_indirect);
 }
 
 /** Replace all references in .blend file to \a old_id by \a new_id (if \a new_id is NULL, it unlinks \a old_id). */
@@ -1221,7 +1223,7 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 	BLI_assert((new_id == NULL) || GS(old_id->name) == GS(new_id->name));
 	BLI_assert(old_id != new_id);
 
-	printf("%s: %s (%p) replaced by %s (%p)\n", __func__, old_id->name, old_id, new_id ? new_id->name : "", new_id);
+//	printf("%s: %s (%p) replaced by %s (%p)\n", __func__, old_id->name, old_id, new_id ? new_id->name : "", new_id);
 
 	libblock_remap_data(bmain, NULL, old_id, new_id, remap_flags, &id_remap_data);
 

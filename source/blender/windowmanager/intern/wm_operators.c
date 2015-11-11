@@ -3072,7 +3072,12 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 			lba_idx = set_listbasepointers(bmain, lbarray);
 			while (lba_idx--) {
 				ID *id = lbarray[lba_idx]->first;
-				const int idcode = id ? GS(id->name) : 0;
+				const short idcode = id ? GS(id->name) : 0;
+
+				if (!id || !BKE_idcode_is_linkable(idcode)) {
+					/* No need to reload non-linkable datatypes, those will get relinked with their 'users ID'. */
+					continue;
+				}
 
 				for (; id; id = id->next) {
 					if (id->lib == lib) {
@@ -3122,11 +3127,6 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 					/* Note that here, we also want to replace indirect usages. */
 					BKE_libblock_remap_locked(bmain, old_id, new_id, false);
 
-					if (old_id->flag & LIB_FAKEUSER) {
-						id_fake_user_clear(old_id);
-						id_fake_user_set(new_id);
-					}
-
 					printf("after remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
 
 					/* In some cases, new_id might become direct link, remove parent of library in this case. */
@@ -3155,7 +3155,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 
 					BKE_reportf(op->reports, RPT_WARNING,
 					            "Lib Reload: Replacing all references to old datablock '%s' by reloaded one failed, "
-					            "old (%d remaining users) one had to be kept and was renamed to '%s'",
+					            "old one (%d remaining users) had to be kept and was renamed to '%s'",
 					            new_id->name, old_id->us, old_id->name);
 				}
 			}
@@ -3166,7 +3166,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 				WMLinkAppendDataItem *item = itemlink->link;
 				ID *old_id = item->customdata;
 
-				printf("%p\n", old_id);
+//				printf("%p\n", old_id);
 
 				if (old_id->us == 0) {
 					BKE_libblock_free(bmain, old_id);
@@ -3294,8 +3294,8 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 			wm_link_append_data_free(lapp_data);
 		}
 
-		/* Some datablocks can get reloaded/replaced 'silently' because they are not likable (shape keys e.g.),
-		 * wo we need another loop here to clear old ones if possible. */
+		/* Some datablocks can get reloaded/replaced 'silently' because they are not linkable (shape keys e.g.),
+		 * so we need another loop here to clear old ones if possible. */
 		lba_idx = set_listbasepointers(bmain, lbarray);
 		while (lba_idx--) {
 			ID *id = lbarray[lba_idx]->first;
