@@ -561,8 +561,7 @@ static void text_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID 
 
 	if ((ID *)stext->text == old_id) {
 		stext->text = (Text *)new_id;
-		id_us_min(old_id);
-		id_us_plus(new_id);
+		id_us_ensure_real(new_id);
 	}
 }
 
