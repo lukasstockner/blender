@@ -66,7 +66,7 @@ void BKE_libblock_remap(
 
 void BKE_libblock_unlink(struct Main *bmain, void *idv) ATTR_NONNULL();
 
-void BKE_libblock_relink_ex(void *idv, void *old_idv, void *new_idv) ATTR_NONNULL(1);
+void BKE_libblock_relink_ex(void *idv, void *old_idv, void *new_idv, const bool us_min_never_null) ATTR_NONNULL(1);
 
 void BKE_id_lib_local_paths(struct Main *bmain, struct Library *lib, struct ID *id);
 void id_lib_extern(struct ID *id);

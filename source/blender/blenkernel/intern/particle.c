@@ -564,10 +564,7 @@ void psys_free(Object *ob, ParticleSystem *psys)
 		if (!nr)
 			ob->transflag &= ~OB_DUPLIPARTS;
 
-		if (psys->part) {
-			id_us_min(&psys->part->id);
-			psys->part = NULL;
-		}
+		psys->part = NULL;
 
 		BKE_ptcache_free_list(&psys->ptcaches);
 		psys->pointcache = NULL;
