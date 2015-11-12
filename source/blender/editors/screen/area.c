@@ -2381,7 +2381,8 @@ void ED_region_draw_backdrop_view3d(const bContext *C, struct Object *camera, co
 	BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
 	ibuf = ED_view3d_draw_offscreen_imbuf_simple(scene, camera, width, height, IB_rect,
 	                                             OB_SOLID, false, false, false,
-	                                             R_ADDSKY, 0, NULL, NULL, err_out);
+	                                             R_ADDSKY, 0, (scene->r.scemode & R_FULL_SAMPLE),
+	                                             NULL, NULL, NULL, err_out);
 
 	if (ibuf == NULL)
 		return;
