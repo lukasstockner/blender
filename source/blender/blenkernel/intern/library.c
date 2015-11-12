@@ -1078,7 +1078,7 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 		const bool is_never_null = ((cb_flag & IDWALK_NEVER_NULL) && (new_id == NULL));
 		const bool skip_never_null = (id_remap_data->flag & ID_REMAP_SKIP_NEVER_NULL_USAGE) != 0;
 
-		if (GS(id->name) == ID_TXT)
+		if (GS(id->name) == ID_AC)
 		printf("\t\tIn %s (%p): remapping %s (%p) to %s (%p)\n",
 		       id->name, id, old_id->name, old_id, new_id ? new_id->name : "<NONE>", new_id);
 
@@ -1164,7 +1164,7 @@ static void libblock_remap_data(
 	r_id_remap_data->skipped_indirect = 0;
 	r_id_remap_data->skipped_refcounted = 0;
 
-	if (id && GS(id->name) == ID_TXT)
+	if (id && GS(id->name) == ID_AC)
 	printf("%s: %s (%p) replaced by %s (%p)\n", __func__,
 	       old_id ? old_id->name : "", old_id, new_id ? new_id->name : "", new_id);
 

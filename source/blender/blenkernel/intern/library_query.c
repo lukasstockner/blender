@@ -157,11 +157,22 @@ static void library_foreach_actuatorsObjectLooper(
 	FOREACH_CALLBACK_INVOKE_ID_PP(data->self_id, id_pointer, data->flag, data->callback, data->user_data, cd_flag);
 }
 
+static void library_foreach_nla_strip(LibraryForeachIDData *data, NlaStrip *strip)
+{
+	NlaStrip *substrip;
+
+	FOREACH_CALLBACK_INVOKE(data->self_id, strip->act, data->flag, data->callback, data->user_data, IDWALK_USER);
+
+	for (substrip = strip->strips.first; substrip; substrip = substrip->next) {
+		library_foreach_nla_strip(data, substrip);
+	}
+}
+
 static void library_foreach_animationData(LibraryForeachIDData *data, AnimData *adt)
 {
-	/* XXX We do not cover adt->action & co here, why?
-	 * TODO check whether this can be added or not? */
 	FCurve *fcu;
+	NlaTrack *nla_track;
+	NlaStrip *nla_strip;
 
 	for (fcu = adt->drivers.first; fcu; fcu = fcu->next) {
 		ChannelDriver *driver = fcu->driver;
@@ -171,9 +182,19 @@ static void library_foreach_animationData(LibraryForeachIDData *data, AnimData *
 			/* only used targets */
 			DRIVER_TARGETS_USED_LOOPER(dvar)
 			{
-				FOREACH_CALLBACK_INVOKE_ID(data->self_id, dtar->id, data->flag, data->callback, data->user_data, IDWALK_NOP);
+				FOREACH_CALLBACK_INVOKE_ID(data->self_id, dtar->id,
+				                           data->flag, data->callback, data->user_data, IDWALK_NOP);
 			}
 			DRIVER_TARGETS_LOOPER_END
+		}
+	}
+
+	FOREACH_CALLBACK_INVOKE(data->self_id, adt->action, data->flag, data->callback, data->user_data, IDWALK_USER);
+	FOREACH_CALLBACK_INVOKE(data->self_id, adt->tmpact, data->flag, data->callback, data->user_data, IDWALK_USER);
+
+	for (nla_track = adt->nla_tracks.first; nla_track; nla_track = nla_track->next) {
+		for (nla_strip = nla_track->strips.first; nla_strip; nla_strip = nla_strip->next) {
+			library_foreach_nla_strip(data, nla_strip);
 		}
 	}
 }
