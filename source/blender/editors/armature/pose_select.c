@@ -352,6 +352,7 @@ static int pose_de_select_all_exec(bContext *C, wmOperator *op)
 {
 	int action = RNA_enum_get(op->ptr, "action");
 	
+	const ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = ED_object_context(C);
 	bArmature *arm = ob->data;
@@ -367,6 +368,9 @@ static int pose_de_select_all_exec(bContext *C, wmOperator *op)
 		pose_do_bone_select(pchan, action);
 	}
 	CTX_DATA_END;
+
+	/* handle widget selection */
+	WM_widgetmap_select_all(C, (wmWidgetMap *)ar->widgetmaps.first, action);
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, NULL);
 	

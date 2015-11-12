@@ -500,7 +500,10 @@ float       WM_event_tablet_data(const struct wmEvent *event, int *pen_flip, flo
 bool        WM_event_is_tablet(const struct wmEvent *event);
 
 
-/* *************** Widget API ******************** */
+/* *************** Widget API ********************
+ *
+ * TODO getting a bit crowded here - maybe move into own .h file?
+ */
 
 struct wmWidget *WM_widget_new(void (*draw)(const struct bContext *, struct wmWidget *),
                                void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
@@ -546,6 +549,8 @@ wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, const char *wgroupna
 
 struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, const int spaceid, const int regionid,
                                               const bool is_3d, const bool create);
+bool WM_widgetmap_select_all(struct bContext *C, struct wmWidgetMap *wmap, const int action);
+
 struct wmWidgetGroupType *WM_widgetgrouptype_new(
         int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
         void (*create)(const struct bContext *, struct wmWidgetGroup *),

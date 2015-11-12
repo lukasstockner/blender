@@ -1074,6 +1074,34 @@ void wm_widgetmap_set_selected_widget(bContext *C, wmWidgetMap *wmap, wmWidget *
 	}
 }
 
+/**
+ * Select/Deselect all selectable widgets in \a wmap
+ *
+ * \return if selection has changed.
+ *
+ * TODO currently only one selected widget supported
+ */
+bool WM_widgetmap_select_all(bContext *C, wmWidgetMap *wmap, const int action)
+{
+	bool changed = false;
+
+	switch (action) {
+		case SEL_SELECT:
+			printf("Selecting multiple widgets is not supported yet!\n");
+			break;
+		case SEL_DESELECT:
+			if (wmap->selected_widget) {
+				changed = true;
+			}
+			wm_widgetmap_set_selected_widget(C, wmap, NULL);
+			break;
+		default:
+			BLI_assert(0);
+	}
+
+	return changed;
+}
+
 void wm_widgetmap_handler_context(bContext *C, wmEventHandler *handler)
 {
 	bScreen *screen = CTX_wm_screen(C);
