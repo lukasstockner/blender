@@ -1600,6 +1600,8 @@ wmWidget *WIDGET_facemap_new(
 {
 	FacemapWidget *fmap_widget = MEM_callocN(sizeof(FacemapWidget), "CageWidget");
 
+	BLI_assert(facemap > -1);
+
 	fmap_widget->widget.draw = widget_facemap_draw;
 //	fmap_widget->widget.invoke = widget_facemap_invoke;
 //	fmap_widget->widget.bind_to_prop = NULL;
