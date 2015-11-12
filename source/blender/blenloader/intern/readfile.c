@@ -120,6 +120,7 @@
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
 #include "BKE_effect.h"
+#include "BKE_facemap.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h" // for G
 #include "BKE_group.h"
@@ -3217,6 +3218,8 @@ static void lib_link_pose(FileData *fd, Main *bmain, Object *ob, bPose *pose)
 		pchan->bone = BKE_armature_find_bone_name(arm, pchan->name);
 
 		pchan->fmap_object = newlibadr_us(fd, arm->id.lib, pchan->fmap_object);
+		/* fix fmap pointer now that we've got updated fmap_object */
+		pchan->fmap = fmap_find_name(pchan->fmap_object, pchan->fmap->name);
 
 		pchan->custom = newlibadr_us(fd, arm->id.lib, pchan->custom);
 		if (pchan->bone == NULL)
