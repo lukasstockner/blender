@@ -2651,7 +2651,7 @@ static int graph_widget_backdrop_transform_modal(bContext *C, wmOperator *op, co
 			SpaceIpo *sipo = CTX_wm_space_graph(C);
 
 			/* only end modal if we're not dragging a widget */
-			if (!wmap->active_widget && event->val == KM_PRESS) {
+			if (!wmap->wmap_context.active_widget && event->val == KM_PRESS) {
 				copy_v2_v2(sipo->backdrop_offset, data->init_offset);
 				sipo->backdrop_zoom = data->init_zoom;
 

@@ -378,7 +378,7 @@ static int sequencer_overdrop_transform_modal(bContext *C, wmOperator *op, const
 			SpaceSeq *sseq = CTX_wm_space_seq(C);
 
 			/* only end modal if we're not dragging a widget */
-			if (!wmap->active_widget && event->val == KM_PRESS) {
+			if (!wmap->wmap_context.active_widget && event->val == KM_PRESS) {
 				copy_v2_v2(sseq->overdrop_offset, data->init_offset);
 				sseq->overdrop_zoom = data->init_zoom;
 
@@ -531,7 +531,7 @@ static int sequencer_image_transform_widget_modal(bContext *C, wmOperator *op, c
 
 			/* no offset needed in this case */
 			offset[0] = offset[1] = 0;
-			WM_widget_set_offset(wmap->active_widget, offset);
+			WM_widget_set_offset(wmap->wmap_context.active_widget, offset);
 			break;
 		}
 

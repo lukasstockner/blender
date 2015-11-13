@@ -2092,9 +2092,9 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 					}
 				}
 				/* handle user configurable widgetmap keymap */
-				else if (widget && wmap->activegroup) {
+				else if (widget && wmap->wmap_context.activegroup) {
 					/* get user customized keymap from default one */
-					const wmKeyMap *keymap = WM_keymap_active(wm, wmap->activegroup->type->keymap);
+					const wmKeyMap *keymap = WM_keymap_active(wm, wmap->wmap_context.activegroup->type->keymap);
 					wmKeyMapItem *kmi;
 
 					if (!keymap->poll || keymap->poll(C)) {

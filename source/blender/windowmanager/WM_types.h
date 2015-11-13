@@ -719,18 +719,25 @@ typedef struct wmWidgetGroupType {
 typedef struct wmWidgetMap {
 	struct wmWidgetMap *next, *prev;
 
-	struct wmWidgetMapType *type;
+	wmWidgetMapType *type;
 	ListBase widgetgroups;
 
-	/* highlighted widget for this map. We redraw the widgetmap when this changes  */
-	struct wmWidget *highlighted_widget;
-	/* active widget for this map. User has clicked currently this widget and it gets all input */
-	struct wmWidget *active_widget;
-	/* selected widget for this map. */
-	struct wmWidget *selected_widget;
+	/**
+	 * \brief Widget map runtime context
+	 *
+	 * Contains information about this widget map. Currently
+	 * highlighted widget, currently selected widget, ...
+	 */
+	struct {
+		/* we redraw the widgetmap when this changes */
+		wmWidget *highlighted_widget;
+		/* user has clicked this widget and it gets all input */
+		wmWidget *active_widget;
+		wmWidget *selected_widget;
 
-	/* active group - set while widget is highlighted/active */
-	struct wmWidgetGroup *activegroup;
+		/* set while widget is highlighted/active */
+		wmWidgetGroup *activegroup;
+	} wmap_context;
 } wmWidgetMap;
 
 /* *************** migrated stuff, clean later? ************** */

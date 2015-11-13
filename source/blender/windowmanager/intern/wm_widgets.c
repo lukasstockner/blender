@@ -249,7 +249,7 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 	if (!wmap)
 		return;
 
-	widget = wmap->active_widget;
+	widget = wmap->wmap_context.active_widget;
 
 	if (widget) {
 		widget_calculate_scale(widget, C);
@@ -265,7 +265,7 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 				for (widget = wgroup->widgets.first; widget;) {
 					wmWidget *widget_next = widget->next;
 
-					if (widget == wmap->selected_widget) {
+					if (widget == wmap->wmap_context.selected_widget) {
 						/* skip */
 					}
 					/* do not delete the highlighted widget, instead keep it to compare with the new one */
@@ -288,7 +288,7 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 					for (widget = wgroup->widgets.first; widget; widget = widget->next) {
 						if (widgets_compare(widget, highlighted)) {
 							widget->flag |= WM_WIDGET_HIGHLIGHT;
-							wmap->highlighted_widget = widget;
+							wmap->wmap_context.highlighted_widget = widget;
 							widget->highlighted_part = highlighted->highlighted_part;
 							wm_widget_delete(&wgroup->widgets, highlighted);
 							highlighted = NULL;
@@ -301,7 +301,7 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 				if (highlighted) {
 					MEM_freeN(highlighted);
 					highlighted = NULL;
-					wmap->highlighted_widget = NULL;
+					wmap->wmap_context.highlighted_widget = NULL;
 				}
 
 				for (widget = wgroup->widgets.first; widget; widget = widget->next) {
@@ -343,7 +343,7 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 		glPopMatrix();
 	}
 
-	widget = wmap->active_widget;
+	widget = wmap->wmap_context.active_widget;
 
 	if (widget && in_scene == ((widget->flag & WM_WIDGET_SCENE_DEPTH) != 0)) {
 		if (widget->flag & WM_WIDGET_DRAW_ACTIVE) {
@@ -370,7 +370,7 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 	}
 
 	/* draw selected widgets last */
-	if ((widget = wmap->selected_widget) && in_scene == ((widget->flag & WM_WIDGET_SCENE_DEPTH) != 0)) {
+	if ((widget = wmap->wmap_context.selected_widget) && in_scene == ((widget->flag & WM_WIDGET_SCENE_DEPTH) != 0)) {
 		if (widgetgroup_poll_check(C, widget->wgroup)) {
 			/* notice that we don't update the widgetgroup, widget is now on
 			 * its own, it should have all relevant data to update itself */
@@ -439,8 +439,8 @@ static void widget_unique_idname_set(wmWidgetGroup *wgroup, wmWidget *widget, co
 static wmWidget *widget_find_active_in_region(const ARegion *ar, wmWidgetMap **r_wmap)
 {
 	for (*r_wmap = ar->widgetmaps.first; *r_wmap; *r_wmap = (*r_wmap)->next) {
-		if ((*r_wmap)->active_widget) {
-			return (*r_wmap)->active_widget;
+		if ((*r_wmap)->wmap_context.active_widget) {
+			return (*r_wmap)->wmap_context.active_widget;
 		}
 	}
 
@@ -588,7 +588,7 @@ static int widget_set_active_invoke(bContext *C, wmOperator *op, const wmEvent *
 			((wmEvent *)event)->type = EVT_WIDGET_RELEASED;
 		}
 		else {
-			wmWidget *widget = wmap->highlighted_widget;
+			wmWidget *widget = wmap->wmap_context.highlighted_widget;
 			if (widget) {
 				wm_widgetmap_set_active_widget(wmap, C, event, widget);
 				break;
@@ -624,7 +624,7 @@ static int widget_set_select_invoke(bContext *C, wmOperator *UNUSED(op), const w
 	wmWidgetMap *wmap;
 
 	for (wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
-		wmWidget *widget = wmap->highlighted_widget;
+		wmWidget *widget = wmap->wmap_context.highlighted_widget;
 		if (widget) {
 			if (widget->flag & WM_WIDGET_SELECTABLE) {
 				wm_widgetmap_set_selected_widget(C, wmap, widget);
@@ -924,7 +924,7 @@ wmWidget *wm_widget_find_highlighted(wmWidgetMap *wmap, bContext *C, const wmEve
 bool WM_widgetmap_cursor_set(const wmWidgetMap *wmap, wmWindow *win)
 {
 	for (; wmap; wmap = wmap->next) {
-		wmWidget *widget = wmap->highlighted_widget;
+		wmWidget *widget = wmap->wmap_context.highlighted_widget;
 		if (widget && widget->get_cursor) {
 			WM_cursor_set(win, widget->get_cursor(widget));
 			return true;
@@ -936,18 +936,18 @@ bool WM_widgetmap_cursor_set(const wmWidgetMap *wmap, wmWindow *win)
 
 void wm_widgetmap_set_highlighted_widget(wmWidgetMap *wmap, bContext *C, wmWidget *widget, unsigned char part)
 {
-	if ((widget != wmap->highlighted_widget) || (widget && part != widget->highlighted_part)) {
-		if (wmap->highlighted_widget) {
-			wmap->highlighted_widget->flag &= ~WM_WIDGET_HIGHLIGHT;
-			wmap->highlighted_widget->highlighted_part = 0;
+	if ((widget != wmap->wmap_context.highlighted_widget) || (widget && part != widget->highlighted_part)) {
+		if (wmap->wmap_context.highlighted_widget) {
+			wmap->wmap_context.highlighted_widget->flag &= ~WM_WIDGET_HIGHLIGHT;
+			wmap->wmap_context.highlighted_widget->highlighted_part = 0;
 		}
 
-		wmap->highlighted_widget = widget;
+		wmap->wmap_context.highlighted_widget = widget;
 
 		if (widget) {
 			widget->flag |= WM_WIDGET_HIGHLIGHT;
 			widget->highlighted_part = part;
-			wmap->activegroup = widget->wgroup;
+			wmap->wmap_context.activegroup = widget->wgroup;
 
 			if (C && widget->get_cursor) {
 				wmWindow *win = CTX_wm_window(C);
@@ -955,7 +955,7 @@ void wm_widgetmap_set_highlighted_widget(wmWidgetMap *wmap, bContext *C, wmWidge
 			}
 		}
 		else {
-			wmap->activegroup = NULL;
+			wmap->wmap_context.activegroup = NULL;
 			if (C) {
 				wmWindow *win = CTX_wm_window(C);
 				WM_cursor_set(win, CURSOR_STD);
@@ -972,7 +972,7 @@ void wm_widgetmap_set_highlighted_widget(wmWidgetMap *wmap, bContext *C, wmWidge
 
 wmWidget *wm_widgetmap_get_highlighted_widget(wmWidgetMap *wmap)
 {
-	return wmap->highlighted_widget;
+	return wmap->wmap_context.highlighted_widget;
 }
 
 void wm_widgetmap_set_active_widget(
@@ -991,12 +991,12 @@ void wm_widgetmap_set_active_widget(
 					widget->flag |= WM_WIDGET_ACTIVE;
 					widget->invoke(C, event, widget);
 				}
-				wmap->active_widget = widget;
+				wmap->wmap_context.active_widget = widget;
 
 				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr);
 
 				/* we failed to hook the widget to the operator handler or operator was cancelled, return */
-				if (!wmap->active_widget) {
+				if (!wmap->wmap_context.active_widget) {
 					widget->flag &= ~WM_WIDGET_ACTIVE;
 					/* first activate the widget itself */
 					if (widget->interaction_data) {
@@ -1008,7 +1008,7 @@ void wm_widgetmap_set_active_widget(
 			}
 			else {
 				printf("Widget error: operator not found");
-				wmap->active_widget = NULL;
+				wmap->wmap_context.active_widget = NULL;
 				return;
 			}
 		}
@@ -1016,12 +1016,12 @@ void wm_widgetmap_set_active_widget(
 			if (widget->invoke && widget->handler) {
 				widget->flag |= WM_WIDGET_ACTIVE;
 				widget->invoke(C, event, widget);
-				wmap->active_widget = widget;
+				wmap->wmap_context.active_widget = widget;
 			}
 		}
 	}
 	else {
-		widget = wmap->active_widget;
+		widget = wmap->wmap_context.active_widget;
 
 		/* deactivate, widget but first take care of some stuff */
 		if (widget) {
@@ -1032,7 +1032,7 @@ void wm_widgetmap_set_active_widget(
 				widget->interaction_data = NULL;
 			}
 		}
-		wmap->active_widget = NULL;
+		wmap->wmap_context.active_widget = NULL;
 
 		if (C) {
 			ARegion *ar = CTX_wm_region(C);
@@ -1044,7 +1044,7 @@ void wm_widgetmap_set_active_widget(
 
 wmWidget *wm_widgetmap_get_selected_widget(wmWidgetMap *wmap)
 {
-	return wmap->selected_widget;
+	return wmap->wmap_context.selected_widget;
 }
 
 void wm_widgetmap_set_selected_widget(bContext *C, wmWidgetMap *wmap, wmWidget *widget)
@@ -1052,17 +1052,17 @@ void wm_widgetmap_set_selected_widget(bContext *C, wmWidgetMap *wmap, wmWidget *
 	const int action = SEL_SELECT; /* TODO currently SEL_SELECT only */
 
 	if (widget) {
-		wmap->selected_widget = widget;
+		wmap->wmap_context.selected_widget = widget;
 		widget->flag |= WM_WIDGET_SELECTED;
 		if (widget->select) {
 			widget->select(C, widget, action);
 		}
-		wm_widgetmap_set_highlighted_widget(wmap, C, NULL, wmap->highlighted_widget->highlighted_part);
+		wm_widgetmap_set_highlighted_widget(wmap, C, NULL, wmap->wmap_context.highlighted_widget->highlighted_part);
 	}
 	else {
-		widget = wmap->selected_widget;
+		widget = wmap->wmap_context.selected_widget;
 		if (widget) {
-			wmap->selected_widget = NULL;
+			wmap->wmap_context.selected_widget = NULL;
 			widget->flag &= ~WM_WIDGET_SELECTED;
 		}
 	}
@@ -1090,7 +1090,7 @@ bool WM_widgetmap_select_all(bContext *C, wmWidgetMap *wmap, const int action)
 			printf("Selecting multiple widgets is not supported yet!\n");
 			break;
 		case SEL_DESELECT:
-			if (wmap->selected_widget) {
+			if (wmap->wmap_context.selected_widget) {
 				changed = true;
 			}
 			wm_widgetmap_set_selected_widget(C, wmap, NULL);
@@ -1173,7 +1173,7 @@ void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler 
 
 wmWidget *wm_widgetmap_get_active_widget(wmWidgetMap *wmap)
 {
-	return wmap->active_widget;
+	return wmap->wmap_context.active_widget;
 }
 
 
