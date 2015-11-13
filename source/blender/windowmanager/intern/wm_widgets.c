@@ -628,6 +628,7 @@ static int widget_set_select_invoke(bContext *C, wmOperator *UNUSED(op), const w
 		if (widget) {
 			if (widget->flag & WM_WIDGET_SELECTABLE) {
 				wm_widgetmap_set_selected_widget(C, wmap, widget);
+				return OPERATOR_FINISHED;
 			}
 			break;
 		}
@@ -637,7 +638,7 @@ static int widget_set_select_invoke(bContext *C, wmOperator *UNUSED(op), const w
 		}
 	}
 
-	return OPERATOR_FINISHED;
+	return OPERATOR_PASS_THROUGH;
 }
 
 void WIDGETGROUP_OT_widget_set_select(wmOperatorType *ot)
