@@ -74,6 +74,8 @@ static int gpencil_select_poll(bContext *C)
 		if (gpd->layers.first)
 			return true;
 	}
+	
+	return false;
 }
 
 /* ********************************************** */
