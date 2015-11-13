@@ -1366,7 +1366,7 @@ static bool widget_rect_transform_get_property(wmWidget *widget, const int slot,
 
 static int widget_rect_transform_invoke(bContext *UNUSED(C), const wmEvent *event, wmWidget *widget)
 {
-	RectTransformWidget *cage = (RectTransformWidget *) widget;
+	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	RectTransformInteraction *data = MEM_callocN(sizeof (RectTransformInteraction), "cage_interaction");
 
 	copy_v2_v2(data->orig_offset, widget->offset);
@@ -1475,7 +1475,7 @@ static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWi
 
 static void widget_rect_transform_bind_to_prop(wmWidget *widget, const int slot)
 {
-	RectTransformWidget *cage = (RectTransformWidget *) widget;
+	RectTransformWidget *cage = (RectTransformWidget *)widget;
 
 	if (slot == RECT_TRANSFORM_SLOT_OFFSET)
 		widget_rect_transform_get_property(widget, RECT_TRANSFORM_SLOT_OFFSET, widget->offset);
@@ -1485,7 +1485,7 @@ static void widget_rect_transform_bind_to_prop(wmWidget *widget, const int slot)
 
 static void widget_rect_transform_cancel(bContext *C, wmWidget *widget)
 {
-	RectTransformWidget *cage = (RectTransformWidget *) widget;
+	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	RectTransformInteraction *data = widget->interaction_data;
 
 	/* reset properties */
@@ -1598,7 +1598,7 @@ wmWidget *WIDGET_facemap_new(
         wmWidgetGroup *wgroup, const char *name, const int style,
         Object *ob, const int facemap)
 {
-	FacemapWidget *fmap_widget = MEM_callocN(sizeof(FacemapWidget), "CageWidget");
+	FacemapWidget *fmap_widget = MEM_callocN(sizeof(FacemapWidget), name);
 
 	BLI_assert(facemap > -1);
 
