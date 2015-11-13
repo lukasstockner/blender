@@ -1619,7 +1619,7 @@ static void cdDM_buffer_copy_facemap(DerivedMesh *dm, unsigned int *varray)
 
 		facemap_offset[*facemap_iter] += numtri;
 
-		for (; numtri > 0; numtri--) {
+		for (; numtri > 0; numtri--, ltri_iter++) {
 			varray[fmap_offset++] = gdo->vert_points[mloop[ltri_iter->tri[0]].v].point_index;
 			varray[fmap_offset++] = gdo->vert_points[mloop[ltri_iter->tri[1]].v].point_index;
 			varray[fmap_offset++] = gdo->vert_points[mloop[ltri_iter->tri[2]].v].point_index;
