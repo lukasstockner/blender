@@ -3218,8 +3218,10 @@ static void lib_link_pose(FileData *fd, Main *bmain, Object *ob, bPose *pose)
 		pchan->bone = BKE_armature_find_bone_name(arm, pchan->name);
 
 		pchan->fmap_object = newlibadr_us(fd, arm->id.lib, pchan->fmap_object);
-		/* fix fmap pointer now that we've got updated fmap_object */
-		pchan->fmap = fmap_find_name(pchan->fmap_object, pchan->fmap->name);
+		if (pchan->fmap_object) {
+			/* fix fmap pointer now that we've got updated fmap_object */
+			pchan->fmap = fmap_find_name(pchan->fmap_object, pchan->fmap->name);
+		}
 
 		pchan->custom = newlibadr_us(fd, arm->id.lib, pchan->custom);
 		if (pchan->bone == NULL)
