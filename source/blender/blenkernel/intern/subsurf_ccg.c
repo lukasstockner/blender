@@ -2102,6 +2102,73 @@ static void ccgDM_buffer_copy_triangles(
 	MEM_freeN(fc);
 }
 
+static void ccgDM_buffer_copy_facemaps(DerivedMesh *dm, unsigned int *varray)
+{
+	GPUDrawObject *gdo = dm->drawObject;
+	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
+	CCGSubSurf *ss = ccgdm->ss;
+	CCGKey key;
+	int *facemap = DM_get_poly_data_layer(dm, CD_FACEMAP);
+	int gridSize = ccgSubSurf_getGridSize(ss);
+	int gridFaces = gridSize - 1;
+	int i, totface = ccgSubSurf_getNumFaces(ss);
+	int offset = 0;
+	int totloops = 0;
+	int *facemap_offset;
+
+	CCG_key_top_level(&key, ss);
+
+	gdo->totfacemaps = 0;
+
+	/* pretty crappy to iterate so many times but it's only being done on creation */
+	for (i = 0; i < totface; i++) {
+		gdo->totfacemaps = max_ii(facemap[ccgdm->faceMap[i].startFace], gdo->totfacemaps);
+	}
+	/* account for 0 - n -1 range */
+	gdo->totfacemaps++;
+
+	gdo->facemap_start = MEM_callocN(gdo->totfacemaps * sizeof(*gdo->facemap_start), "GDO_facemap_start");
+	gdo->facemap_count = MEM_callocN(gdo->totfacemaps * sizeof(*gdo->facemap_count), "GDO_facemap_count");
+	facemap_offset = MEM_callocN(gdo->totfacemaps * sizeof(*facemap_offset), "facemap_offset");
+
+	for (i = 0; i < totface; i++) {
+		CCGFace *f = ccgdm->faceMap[i].face;
+		int numVerts = ccgSubSurf_getFaceNumVerts(f);
+		gdo->facemap_count[facemap[ccgdm->faceMap[i].startFace]] += gridFaces * gridFaces * numVerts * 2;
+	}
+
+	for (i = 0; i < gdo->totfacemaps; i++) {
+		gdo->facemap_start[i] = offset;
+		offset += gdo->facemap_count[i];
+	}
+
+	for (i = 0; i < totface; i++) {
+		CCGFace *f = ccgdm->faceMap[i].face;
+		int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
+		int facemap_index = facemap[ccgdm->faceMap[i].startFace];
+		int fmap_offset = (gdo->facemap_start[facemap_index] + facemap_offset[facemap_index]) * 3;
+
+		facemap_offset[facemap_index] += gridFaces * gridFaces * numVerts * 2;
+
+		for (S = 0; S < numVerts; S++) {
+			for (y = 0; y < gridFaces; y++) {
+				for (x = 0; x < gridFaces; x++) {
+					varray[fmap_offset++] = totloops + 3;
+					varray[fmap_offset++] = totloops + 2;
+					varray[fmap_offset++] = totloops + 1;
+
+					varray[fmap_offset++] = totloops + 3;
+					varray[fmap_offset++] = totloops + 1;
+					varray[fmap_offset++] = totloops;
+
+					totloops += 4;
+				}
+			}
+		}
+	}
+
+	MEM_freeN(facemap_offset);
+}
 
 /* Only used by non-editmesh types */
 static void ccgDM_buffer_copy_vertex(
@@ -2528,6 +2595,9 @@ static void ccgDM_copy_gpu_data(
 			break;
 		case GPU_BUFFER_TRIANGLES:
 			ccgDM_buffer_copy_triangles(dm, (unsigned int *)varray_p, mat_orig_to_new);
+			break;
+		case GPU_BUFFER_FACEMAP:
+			ccgDM_buffer_copy_facemaps(dm, (unsigned int *)varray_p);
 			break;
 		default:
 			break;
