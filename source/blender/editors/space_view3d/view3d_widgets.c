@@ -287,8 +287,6 @@ void WIDGETGROUP_armature_facemaps_create(const bContext *C, wmWidgetGroup *wgro
 	wmWidget *widget;
 	PointerRNA famapptr;
 	PropertyRNA *prop;
-	const float col[4] = {0.8f, 0.8f, 0.45f, 0.2f};
-	const float col_hi[4] = {0.8f, 0.8f, 0.45f, 0.4f};
 
 
 #ifdef USE_FACEMAP_FROM_BONE
@@ -296,9 +294,18 @@ void WIDGETGROUP_armature_facemaps_create(const bContext *C, wmWidgetGroup *wgro
 
 	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		if (pchan->fmap && (pchan->bone->layer & arm->layer)) {
+			ThemeWireColor *bcol = ED_pchan_get_colorset(arm, ob->pose, pchan);
 			Object *fmap_ob = pchan->fmap_object;
 			bFaceMap *fmap = pchan->fmap;
 			PointerRNA *opptr;
+			float col[4] = {0.8f, 0.8f, 0.45f, 0.2f};
+			float col_hi[4] = {0.8f, 0.8f, 0.45f, 0.4f};
+
+			/* get custom bone group color */
+			if (bcol) {
+				rgba_uchar_to_float(col, (unsigned char *)bcol->solid);
+				rgba_uchar_to_float(col_hi, (unsigned char *)bcol->active);
+			}
 
 			widget = WIDGET_facemap_new(wgroup, fmap->name, 0, fmap_ob, BLI_findindex(&fmap_ob->fmaps, fmap));
 

@@ -30,6 +30,8 @@
 #ifndef __ED_ARMATURE_H__
 #define __ED_ARMATURE_H__
 
+#include "BLI_compiler_attrs.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -38,6 +40,7 @@ struct bArmature;
 struct Base;
 struct bContext;
 struct Bone;
+struct bPose;
 struct bPoseChannel;
 struct IDProperty;
 struct ListBase;
@@ -209,7 +212,13 @@ int BDR_drawSketchNames(struct ViewContext *vc);
 void mesh_deform_bind(struct Scene *scene,
                       struct MeshDeformModifierData *mmd,
                       float *vertexcos, int totvert, float cagemat[4][4]);
-	
+
+/* pose_utils.c */
+struct ThemeWireColor *ED_pchan_get_colorset(
+        struct bArmature *arm,
+        struct bPose *pose, struct bPoseChannel *pchan)
+        ATTR_WARN_UNUSED_RESULT;
+
 #ifdef __cplusplus
 }
 #endif

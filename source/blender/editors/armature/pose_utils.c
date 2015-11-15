@@ -46,6 +46,8 @@
 
 #include "RNA_access.h"
 
+#include "UI_resources.h"
+
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -57,7 +59,7 @@
 /* *********************************************** */
 /* Contents of this File:
  *
- * This file contains methods shared between Pose Slide and Pose Lib;
+ * This file mainly contains methods shared between Pose Slide and Pose Lib;
  * primarily the functions in question concern Animato <-> Pose 
  * convenience functions, such as applying/getting pose values
  * and/or inserting keyframes for these.
@@ -268,3 +270,36 @@ LinkData *poseAnim_mapping_getNextFCurve(ListBase *fcuLinks, LinkData *prev, con
 }
 
 /* *********************************************** */  
+
+/**
+ * Get color set to draw \a pchan in.
+ */
+ThemeWireColor *ED_pchan_get_colorset(bArmature *arm, bPose *pose, bPoseChannel *pchan)
+{
+	bActionGroup *grp = NULL;
+	short color_index = 0;
+
+	/* only try to set custom color if enabled for armature */
+	if (arm->flag & ARM_COL_CUSTOM) {
+		/* currently, a bone can only use a custom color set if it's group (if it has one),
+		 * has been set to use one */
+		if (pchan->agrp_index) {
+			grp = (bActionGroup *)BLI_findlink(&pose->agroups, (pchan->agrp_index - 1));
+			if (grp)
+				color_index = grp->customCol;
+		}
+	}
+
+	/* bcolor is a pointer to the color set to use. If NULL, then the default
+	 * color set (based on the theme colors for 3d-view) is used. */
+	if (color_index > 0) {
+		bTheme *btheme = UI_GetTheme();
+		return &btheme->tarm[(color_index - 1)];
+	}
+	else if (color_index == -1) {
+		/* use the group's own custom color set */
+		return (grp) ? &grp->cs : NULL;
+	}
+
+	return NULL;
+}

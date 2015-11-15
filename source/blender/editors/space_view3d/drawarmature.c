@@ -89,40 +89,14 @@ static void set_pchan_colorset(Object *ob, bPoseChannel *pchan)
 {
 	bPose *pose = (ob) ? ob->pose : NULL;
 	bArmature *arm = (ob) ? ob->data : NULL;
-	bActionGroup *grp = NULL;
-	short color_index = 0;
-	
+
 	/* sanity check */
 	if (ELEM(NULL, ob, arm, pose, pchan)) {
 		bcolor = NULL;
 		return;
 	}
-	
-	/* only try to set custom color if enabled for armature */
-	if (arm->flag & ARM_COL_CUSTOM) {
-		/* currently, a bone can only use a custom color set if it's group (if it has one),
-		 * has been set to use one
-		 */
-		if (pchan->agrp_index) {
-			grp = (bActionGroup *)BLI_findlink(&pose->agroups, (pchan->agrp_index - 1));
-			if (grp)
-				color_index = grp->customCol;
-		}
-	}
-	
-	/* bcolor is a pointer to the color set to use. If NULL, then the default
-	 * color set (based on the theme colors for 3d-view) is used. 
-	 */
-	if (color_index > 0) {
-		bTheme *btheme = UI_GetTheme();
-		bcolor = &btheme->tarm[(color_index - 1)];
-	}
-	else if (color_index == -1) {
-		/* use the group's own custom color set */
-		bcolor = (grp) ? &grp->cs : NULL;
-	}
-	else 
-		bcolor = NULL;
+
+	bcolor = ED_pchan_get_colorset(arm, pose, pchan);
 }
 
 /* This function is for brightening/darkening a given color (like UI_ThemeColorShade()) */
