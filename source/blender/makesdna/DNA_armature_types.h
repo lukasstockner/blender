@@ -205,8 +205,8 @@ typedef enum eBone_Flag {
 	BONE_TRANSFORM_CHILD        = (1 << 20),  /* Indicates that a parent is also being transformed */
 	BONE_UNSELECTABLE           = (1 << 21),  /* bone cannot be selected */
 	BONE_NO_LOCAL_LOCATION      = (1 << 22),  /* bone location is in armature space */
-	BONE_RELATIVE_PARENTING     = (1 << 23)   /* object child will use relative transform (like deform) */
-	
+	BONE_RELATIVE_PARENTING     = (1 << 23),  /* object child will use relative transform (like deform) */
+	BONE_DRAW_FMAP_ONLY         = (1 << 24),  /* don't draw bone itself in pose mode, only its facemap */
 } eBone_Flag;
 
 #define MAXBONENAME 64

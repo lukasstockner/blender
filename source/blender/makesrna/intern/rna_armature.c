@@ -662,6 +662,12 @@ static void rna_def_bone(BlenderRNA *brna)
 	                         "Bone is not visible when it is not in Edit Mode (i.e. in Object or Pose Modes)");
 	RNA_def_property_update(prop, 0, "rna_Armature_redraw_data");
 
+	prop = RNA_def_property(srna, "fmap_only", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BONE_DRAW_FMAP_ONLY);
+	RNA_def_property_ui_text(prop, "Face Map Only", "Draw only the facemap of the bone in Pose Mode "
+	                         "(Face Map needs to be assigned)");
+	RNA_def_property_update(prop, 0, "rna_Armature_redraw_data");
+
 	prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BONE_SELECTED);
 	RNA_def_property_ui_text(prop, "Select", "");
