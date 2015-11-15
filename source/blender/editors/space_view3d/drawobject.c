@@ -8702,11 +8702,15 @@ static void draw_object_mesh_instance(Scene *scene, View3D *v3d, RegionView3D *r
 void ED_draw_object_facemap(Scene *scene, struct Object *ob, int facemap)
 {
 	DerivedMesh *dm = NULL;
-	
+
+	/* happens on undo */
+	if (ob->type != OB_MESH || !ob->data)
+		return;
+
 	dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
 	if (!dm || !CustomData_has_layer(&dm->polyData, CD_FACEMAP))
 		return;
-	
+
 	DM_update_materials(dm, ob);
 
 	glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
