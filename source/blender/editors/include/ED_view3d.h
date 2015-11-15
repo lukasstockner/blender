@@ -325,7 +325,7 @@ int ED_view3d_scene_layer_set(int lay, const int *values, int *active);
 
 void *ED_view3d_mats_rv3d_backup(struct RegionView3D *rv3d);
 void  ED_view3d_mats_rv3d_restore(struct RegionView3D *rv3d, void *rv3dmat_pt);
-void ED_draw_object_facemap(struct Scene *scene, struct Object *ob, int facemap);
+void ED_draw_object_facemap(struct Scene *scene, struct Object *ob, float col[4], int facemap);
 
 bool ED_view3d_context_activate(struct bContext *C);
 void ED_view3d_draw_offscreen_init(struct Scene *scene, struct View3D *v3d);

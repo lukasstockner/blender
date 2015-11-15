@@ -1563,11 +1563,13 @@ typedef struct FacemapWidget {
 static void widget_facemap_draw(const bContext *C, wmWidget *widget)
 {
 	FacemapWidget *fmap_widget = (FacemapWidget *)widget;
+	float *col = (widget->flag & WM_WIDGET_SELECTED) ? widget->col_hi : widget->col;
+
 	glPushMatrix();
 	glMultMatrixf(fmap_widget->ob->obmat);
 	glTranslate3fv(widget->offset);
 	glEnable(GL_MULTISAMPLE_ARB);
-	ED_draw_object_facemap(CTX_data_scene(C), fmap_widget->ob, fmap_widget->facemap);
+	ED_draw_object_facemap(CTX_data_scene(C), fmap_widget->ob, col, fmap_widget->facemap);
 	glDisable(GL_MULTISAMPLE_ARB);
 	glPopMatrix();
 }

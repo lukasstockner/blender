@@ -287,8 +287,8 @@ void WIDGETGROUP_armature_facemaps_create(const bContext *C, wmWidgetGroup *wgro
 	wmWidget *widget;
 	PointerRNA famapptr;
 	PropertyRNA *prop;
-
-	const float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
+	const float col[4] = {0.8f, 0.8f, 0.45f, 0.2f};
+	const float col_hi[4] = {0.8f, 0.8f, 0.45f, 0.4f};
 
 
 #ifdef USE_FACEMAP_FROM_BONE
@@ -304,7 +304,7 @@ void WIDGETGROUP_armature_facemaps_create(const bContext *C, wmWidgetGroup *wgro
 
 			RNA_pointer_create(&fmap_ob->id, &RNA_FaceMap, fmap, &famapptr);
 			WM_widget_set_operator(widget, "TRANSFORM_OT_translate");
-			WM_widget_set_colors(widget, color_shape, color_shape);
+			WM_widget_set_colors(widget, col, col_hi);
 			WM_widget_set_flag(widget, WM_WIDGET_DRAW_HOVER, true);
 			WM_widget_set_func_select(widget, WIDGET_armature_facemaps_select);
 			opptr = WM_widget_set_operator(widget, "TRANSFORM_OT_translate");

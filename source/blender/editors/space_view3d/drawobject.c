@@ -8699,7 +8699,7 @@ static void draw_object_mesh_instance(Scene *scene, View3D *v3d, RegionView3D *r
 	if (dm) dm->release(dm);
 }
 
-void ED_draw_object_facemap(Scene *scene, struct Object *ob, int facemap)
+void ED_draw_object_facemap(Scene *scene, struct Object *ob, float col[4], int facemap)
 {
 	DerivedMesh *dm = NULL;
 
@@ -8719,11 +8719,11 @@ void ED_draw_object_facemap(Scene *scene, struct Object *ob, int facemap)
 	glPolygonOffset(1.0, 1.0);
 
 	dm->totfmaps = BLI_listbase_count(&ob->fmaps);
-	
+
 	GPU_facemap_setup(dm);
 
-	glColor4f(0.7, 1.0, 1.0, 0.5);
-	
+	glColor4fv(col);
+
 	glPushAttrib(GL_ENABLE_BIT);
 	glEnable(GL_BLEND);
 	glDisable(GL_LIGHTING);
