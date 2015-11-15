@@ -269,6 +269,8 @@ static void WIDGET_armature_facemaps_select(bContext *C, wmWidget *widget, const
 		case SEL_SELECT:
 			for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 				if (pchan->fmap == WIDGET_facemap_get_fmap(widget)) {
+					/* deselect all first */
+					ED_pose_de_selectall(ob, SEL_DESELECT, false);
 					ED_pose_bone_select(ob, pchan, true);
 				}
 			}
