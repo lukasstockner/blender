@@ -1055,6 +1055,11 @@ void wm_widgetmap_set_selected_widget(bContext *C, wmWidgetMap *wmap, wmWidget *
 {
 	const int action = SEL_SELECT; /* TODO currently SEL_SELECT only */
 
+	/* unset select flag of old selection first */
+	if (wmap->wmap_context.selected_widget) {
+		wmap->wmap_context.selected_widget->flag &= ~WM_WIDGET_SELECTED;
+	}
+
 	if (widget) {
 		wmap->wmap_context.selected_widget = widget;
 		widget->flag |= WM_WIDGET_SELECTED;
@@ -1063,12 +1068,8 @@ void wm_widgetmap_set_selected_widget(bContext *C, wmWidgetMap *wmap, wmWidget *
 		}
 		wm_widgetmap_set_highlighted_widget(wmap, C, NULL, wmap->wmap_context.highlighted_widget->highlighted_part);
 	}
-	else {
-		widget = wmap->wmap_context.selected_widget;
-		if (widget) {
-			wmap->wmap_context.selected_widget = NULL;
-			widget->flag &= ~WM_WIDGET_SELECTED;
-		}
+	else if (wmap->wmap_context.selected_widget) {
+		wmap->wmap_context.selected_widget = NULL;
 	}
 
 	/* tag the region for redraw */
