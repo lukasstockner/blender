@@ -669,7 +669,9 @@ static int widget_tweak_invoke(bContext *C, wmOperator *UNUSED(op), const wmEven
 	}
 
 	/* handle widget */
-	widget->handler(C, event, widget);
+	if (widget->handler) {
+		widget->handler(C, event, widget);
+	}
 
 	/* ugly hack - send widget update event */
 	((wmEvent *)event)->type = EVT_WIDGET_UPDATE;
