@@ -249,9 +249,9 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 	if (!wmap)
 		return;
 
-	widget = wmap->wmap_context.active_widget;
-
-	if (widget) {
+	if ((widget = wmap->wmap_context.selected_widget) ||
+	    (widget = wmap->wmap_context.active_widget))
+	{
 		widget_calculate_scale(widget, C);
 	}
 	else if (wmap->widgetgroups.first) {
@@ -360,6 +360,7 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 				for (widget = wgroup->widgets.first; widget; widget = widget->next) {
 					if ((widget->flag & WM_WIDGET_HIDDEN) == 0 &&
 					    (!(widget->flag & WM_WIDGET_DRAW_HOVER) || (widget->flag & WM_WIDGET_HIGHLIGHT)) &&
+					    ((widget->flag & WM_WIDGET_SELECTED) == 0) && /* selected is drawn later */
 					    ((widget->flag & WM_WIDGET_SCENE_DEPTH) != 0) == in_scene)
 					{
 						widget->draw(C, widget);
