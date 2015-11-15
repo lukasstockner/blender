@@ -270,6 +270,14 @@ ARegion *view3d_has_tools_region(ScrArea *sa);
 
 extern const char *view3d_context_dir[]; /* doc access */
 
+/* view3d_widgets.c */
+int  WIDGETGROUP_camera_poll(const struct bContext *C, struct wmWidgetGroupType *wgrouptype);
+void WIDGETGROUP_camera_create(const struct bContext *C, struct wmWidgetGroup *wgroup);
+int  WIDGETGROUP_forcefield_poll(const struct bContext *C, struct wmWidgetGroupType *wgrouptype);
+void WIDGETGROUP_forcefield_create(const struct bContext *C, struct wmWidgetGroup *wgroup);
+int  WIDGETGROUP_armature_facemaps_poll(const struct bContext *C, struct wmWidgetGroupType *wgrouptype);
+void WIDGETGROUP_armature_facemaps_create(const struct bContext *C, struct wmWidgetGroup *wgroup);
+
 /* draw_volume.c */
 void draw_smoke_volume(struct SmokeDomainSettings *sds, struct Object *ob,
                        struct GPUTexture *tex, const float min[3], const float max[3],
