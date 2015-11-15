@@ -963,6 +963,7 @@ static void WIDGET_armature_facemap_select(bContext *C, wmWidget *widget, const 
 static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	Object *ob = CTX_data_active_object(C);
+	bArmature *arm = (bArmature *)ob->data;
 	wmWidget *widget;
 	PointerRNA famapptr;
 	PropertyRNA *prop;
@@ -974,7 +975,7 @@ static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct
 	bPoseChannel *pchan;
 
 	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-		if (pchan->fmap) {
+		if (pchan->fmap && (pchan->bone->layer & arm->layer)) {
 			Object *fmap_ob = pchan->fmap_object;
 			bFaceMap *fmap = pchan->fmap;
 			PointerRNA *opptr;
