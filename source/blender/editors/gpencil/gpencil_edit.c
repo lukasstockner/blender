@@ -960,4 +960,189 @@ void GPENCIL_OT_dissolve(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO | OPTYPE_REGISTER;
 }
 
+/* ****************** Snapping - Strokes <-> Cursor ************************ */
+
+/* Poll callback for snap operators */
+/* NOTE: For now, we only allow these in the 3D view, as other editors do not
+ *       define a cursor or gridstep which can be used
+ */
+static int gp_snap_poll(bContext *C)
+{
+	bGPdata *gpd = CTX_data_gpencil_data(C);
+	ScrArea *sa = CTX_wm_area(C);
+	
+	return (gpd != NULL) && ((sa != NULL) && (sa->spacetype == SPACE_VIEW3D));
+}
+
+/* --------------------------------- */
+
+static int gp_snap_to_grid(bContext *C, wmOperator *op)
+{
+	RegionView3D *rv3d = CTX_wm_region_data(C);
+	float gridf = rv3d->gridview;
+	
+	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
+	{
+		bGPDspoint *pt;
+		int i;
+		
+		// TOOD: if entire stroke is selected, offset entire stroke by same amount?
+		
+		for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+			/* only if point is selected.. */
+			if (pt->flag & GP_SPOINT_SELECT) {
+				pt->x = gridf * floorf(0.5f + pt->x / gridf);
+				pt->y = gridf * floorf(0.5f + pt->y / gridf);
+				pt->z = gridf * floorf(0.5f + pt->z / gridf);
+			}
+		}
+	}
+	CTX_DATA_END;
+	
+	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_snap_to_grid(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Snap Selection to Grid";
+	ot->idname = "GPENCIL_OT_snap_to_grid";
+	ot->description = "Snap selected points to the nearest grid points";
+	
+	/* callbacks */
+	ot->exec = gp_snap_to_grid;
+	ot->poll = gp_snap_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/* ------------------------------- */
+
+static int gp_snap_to_cursor(bContext *C, wmOperator *op)
+{
+	Scene *scene = CTX_data_scene(C);
+	View3D *v3d = CTX_wm_view3d(C);
+	
+	const bool use_offset = RNA_boolean_get(op->ptr, "use_offset");
+	const float *cursor_global = ED_view3d_cursor3d_get(scene, v3d);
+	
+	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
+	{
+		bGPDspoint *pt;
+		int i;
+		
+		/* only continue if this stroke is selected (editable doesn't guarantee this)... */
+		if ((gps->flag & GP_STROKE_SELECT) == 0)
+			continue;
+		
+		if (use_offset) {
+			float offset[3];
+			
+			/* compute offset from first point of stroke to cursor */
+			/* TODO: Allow using midpoint instead? */
+			sub_v3_v3v3(offset, cursor_global, &gps->points->x);
+			
+			/* apply offset to all points in the stroke */
+			for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+				add_v3_v3(&pt->x, offset);
+			}
+		}
+		else {
+			/* affect each selected point */
+			for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+				if (pt->flag & GP_SPOINT_SELECT) {
+					copy_v3_v3(&pt->x, cursor_global);
+				}
+			}
+		}
+	}
+	CTX_DATA_END;
+	
+	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_snap_to_cursor(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Snap Selection to Cursor";
+	ot->idname = "GPENCIL_OT_snap_to_cursor";
+	ot->description = "Snap selected points/strokes to the cursor";
+	
+	/* callbacks */
+	ot->exec = gp_snap_to_cursor;
+	ot->poll = gp_snap_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	/* props */
+	ot->prop = RNA_def_boolean(ot->srna, "use_offset", true, "With Offset",
+	                           "Offset the entire stroke instead of selected points only");
+}
+
+/* ------------------------------- */
+
+static int gp_snap_cursor_to_sel(bContext *C, wmOperator *op)
+{
+	Scene *scene = CTX_data_scene(C);
+	View3D *v3d = CTX_wm_view3d(C);
+	
+	float *cursor = ED_view3d_cursor3d_get(scene, v3d);
+	float centroid[3] = {0.0f};
+	float min[3] = {0.0f};
+	float max[3] = {0.0f};
+	size_t count = 0;
+	
+	/* calculate midpoints from selected points */
+	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
+	{
+		bGPDspoint *pt;
+		int i;
+		
+		/* only continue if this stroke is selected (editable doesn't guarantee this)... */
+		if ((gps->flag & GP_STROKE_SELECT) == 0)
+			continue;
+		
+		for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+			if (pt->flag & GP_SPOINT_SELECT) {
+				add_v3_v3(centroid, &pt->x);
+				minmax_v3v3_v3(min, max, &pt->x);
+				count++;
+			}
+		}
+	}
+	CTX_DATA_END;
+	
+	if (v3d->around == V3D_CENTROID) {
+		mul_v3_fl(centroid, 1.0f / (float)count);
+		copy_v3_v3(cursor, centroid);
+	}
+	else {
+		mid_v3_v3v3(cursor, min, max);
+	}
+
+	
+	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_snap_cursor_to_selected(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Snap Cursor to Selected Points";
+	ot->idname = "GPENCIL_OT_snap_cursor_to_selected";
+	ot->description = "Snap cursor to center of selected points";
+	
+	/* callbacks */
+	ot->exec = gp_snap_cursor_to_sel;
+	ot->poll = gp_snap_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+
 /* ************************************************ */

@@ -2882,13 +2882,17 @@ class VIEW3D_MT_edit_gpencil(Menu):
         layout.separator()
 
         layout.menu("VIEW3D_MT_edit_gpencil_transform")
+        layout.operator("transform.mirror", text="Mirror")
+        layout.menu("GPENCIL_MT_snap")
+
+        layout.separator()
+
         layout.menu("VIEW3D_MT_object_animation")   # NOTE: provides keyingset access...
 
         layout.separator()
 
         layout.menu("VIEW3D_MT_edit_gpencil_delete")
         layout.operator("gpencil.duplicate_move", text="Duplicate")
-        layout.operator("transform.mirror", text="Mirror")
 
         layout.separator()
 

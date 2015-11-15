@@ -390,6 +390,26 @@ class GPENCIL_PIE_sculpt(Menu):
 ###############################
 
 
+class GPENCIL_MT_snap(Menu):
+    bl_label = "Snap"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("gpencil.snap_to_grid", text="Selection to Grid")
+        layout.operator("gpencil.snap_to_cursor", text="Selection to Cursor").use_offset = False
+        layout.operator("gpencil.snap_to_cursor", text="Selection to Cursor (Offset)").use_offset = True
+
+        layout.separator()
+
+        layout.operator("gpencil.snap_cursor_to_selected", text="Cursor to Selected")
+        layout.operator("view3d.snap_cursor_to_center", text="Cursor to Center")
+        layout.operator("view3d.snap_cursor_to_grid", text="Cursor to Grid")
+
+
+###############################
+
+
 class GPENCIL_UL_layer(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         # assert(isinstance(item, bpy.types.GPencilLayer)

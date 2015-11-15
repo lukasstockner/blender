@@ -165,6 +165,12 @@ void GPENCIL_OT_paste(struct wmOperatorType *ot);
 void GPENCIL_OT_move_to_layer(struct wmOperatorType *ot);
 void GPENCIL_OT_layer_change(struct wmOperatorType *ot);
 
+void GPENCIL_OT_snap_to_grid(struct wmOperatorType *ot);
+void GPENCIL_OT_snap_to_cursor(struct wmOperatorType *ot);
+void GPENCIL_OT_snap_cursor_to_selected(struct wmOperatorType *ot);
+void GPENCIL_OT_snap_cursor_to_center(struct wmOperatorType *ot);
+
+
 /* stroke sculpting -- */
 
 void GPENCIL_OT_brush_paint(struct wmOperatorType *ot);

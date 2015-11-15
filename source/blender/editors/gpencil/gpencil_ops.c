@@ -201,6 +201,9 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "GPENCIL_OT_copy", CKEY, KM_PRESS, KM_OSKEY, 0);
 	WM_keymap_add_item(keymap, "GPENCIL_OT_paste", VKEY, KM_PRESS, KM_OSKEY, 0);
 #endif
+
+	/* snap */
+	WM_keymap_add_menu(keymap, "GPENCIL_MT_snap", SKEY, KM_PRESS, KM_SHIFT, 0);
 	
 	/* Show/Hide */
 	/* NOTE: These are available only in EditMode now, since they clash with general-purpose hotkeys */
@@ -308,6 +311,10 @@ void ED_operatortypes_gpencil(void)
 	
 	WM_operatortype_append(GPENCIL_OT_move_to_layer);
 	WM_operatortype_append(GPENCIL_OT_layer_change);
+	
+	WM_operatortype_append(GPENCIL_OT_snap_to_grid);
+	WM_operatortype_append(GPENCIL_OT_snap_to_cursor);
+	WM_operatortype_append(GPENCIL_OT_snap_cursor_to_selected);
 	
 	WM_operatortype_append(GPENCIL_OT_brush_paint);
 	
