@@ -982,7 +982,6 @@ static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct
 			widget = WIDGET_facemap_new(wgroup, fmap->name, 0, fmap_ob, BLI_findindex(&fmap_ob->fmaps, fmap));
 
 			RNA_pointer_create(&fmap_ob->id, &RNA_FaceMap, fmap, &famapptr);
-			WM_widget_set_property(widget, FACEMAP_SLOT_FACEMAP, &famapptr, "name");
 			WM_widget_set_operator(widget, "TRANSFORM_OT_translate");
 			WM_widget_set_colors(widget, color_shape, color_shape);
 			WM_widget_set_flag(widget, WM_WIDGET_DRAW_HOVER, true);
@@ -1022,7 +1021,6 @@ static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct
 			widget = WIDGET_facemap_new(wgroup, fmap->name, 0, ob, index);
 
 			RNA_pointer_create(&ob->id, &RNA_FaceMap, fmap, &famapptr);
-			WM_widget_set_property(widget, FACEMAP_SLOT_FACEMAP, &famapptr, "name");
 			WM_widget_set_colors(widget, color_shape, color_shape);
 			WM_widget_set_flag(widget, WM_WIDGET_DRAW_HOVER, true);
 			opptr = WM_widget_set_operator(widget, "TRANSFORM_OT_translate");
