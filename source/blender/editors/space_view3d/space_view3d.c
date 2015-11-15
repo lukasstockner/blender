@@ -906,7 +906,7 @@ static void WIDGETGROUP_shapekey_draw(const struct bContext *C, struct wmWidgetG
 /* draw facemaps depending on the selected bone in pose mode */
 #define USE_FACEMAP_FROM_BONE
 
-static int WIDGETGROUP_armature_facemap_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
+static int WIDGETGROUP_armature_facemaps_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	Object *ob = CTX_data_active_object(C);
 
@@ -942,7 +942,7 @@ static int WIDGETGROUP_armature_facemap_poll(const struct bContext *C, struct wm
 	return false;
 }
 
-static void WIDGET_armature_facemap_select(bContext *C, wmWidget *widget, const int action)
+static void WIDGET_armature_facemaps_select(bContext *C, wmWidget *widget, const int action)
 {
 	Object *ob = CTX_data_active_object(C);
 	bPoseChannel *pchan;
@@ -960,7 +960,7 @@ static void WIDGET_armature_facemap_select(bContext *C, wmWidget *widget, const 
 	}
 }
 
-static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
+static void WIDGETGROUP_armature_facemaps_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	Object *ob = CTX_data_active_object(C);
 	bArmature *arm = (bArmature *)ob->data;
@@ -986,7 +986,7 @@ static void WIDGETGROUP_armature_facemap_create(const struct bContext *C, struct
 			WM_widget_set_operator(widget, "TRANSFORM_OT_translate");
 			WM_widget_set_colors(widget, color_shape, color_shape);
 			WM_widget_set_flag(widget, WM_WIDGET_DRAW_HOVER, true);
-			WM_widget_set_func_select(widget, WIDGET_armature_facemap_select);
+			WM_widget_set_func_select(widget, WIDGET_armature_facemaps_select);
 			opptr = WM_widget_set_operator(widget, "TRANSFORM_OT_translate");
 			if ((prop = RNA_struct_find_property(opptr, "release_confirm"))) {
 				RNA_property_boolean_set(opptr, prop, true);
@@ -1038,8 +1038,8 @@ static void view3d_widgets(void)
 {
 	WM_widgetmaptype_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true, true);
 
-	WM_widgetgrouptype_new(WIDGETGROUP_armature_facemap_poll,
-	                       WIDGETGROUP_armature_facemap_create,
+	WM_widgetgrouptype_new(WIDGETGROUP_armature_facemaps_poll,
+	                       WIDGETGROUP_armature_facemaps_create,
 	                       WM_widgetgroup_keymap_common,
 	                       NULL, "View3D", "Face Map Widgets", SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 	WM_widgetgrouptype_new(WIDGETGROUP_lamp_poll,
