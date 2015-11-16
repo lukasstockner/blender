@@ -1627,7 +1627,7 @@ static void bone_matrix_translate_y(float mat[4][4], float y)
 
 BLI_INLINE bool pchan_is_draw_fmap_only(const Scene *scene, const bPoseChannel *pchan)
 {
-	return ((scene->basact->object->mode & OB_MODE_POSE) &&
+	return ((scene->basact && scene->basact->object->mode & OB_MODE_POSE) &&
 	        (pchan->fmap != NULL) &&
 	        (pchan->bone->flag & BONE_DRAW_FMAP_ONLY));
 }
