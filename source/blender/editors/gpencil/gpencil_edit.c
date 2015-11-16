@@ -1092,9 +1092,10 @@ static int gp_snap_cursor_to_sel(bContext *C, wmOperator *op)
 	
 	float *cursor = ED_view3d_cursor3d_get(scene, v3d);
 	float centroid[3] = {0.0f};
-	float min[3] = {0.0f};
-	float max[3] = {0.0f};
+	float min[3], max[3];
 	size_t count = 0;
+	
+	INIT_MINMAX(min, max);
 	
 	/* calculate midpoints from selected points */
 	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
