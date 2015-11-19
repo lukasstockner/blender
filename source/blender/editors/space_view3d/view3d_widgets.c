@@ -303,8 +303,8 @@ void WIDGETGROUP_armature_facemaps_create(const bContext *C, wmWidgetGroup *wgro
 
 			/* get custom bone group color */
 			if (bcol) {
-				rgba_uchar_to_float(col, (unsigned char *)bcol->solid);
-				rgba_uchar_to_float(col_hi, (unsigned char *)bcol->active);
+				rgb_uchar_to_float(col, (unsigned char *)bcol->solid);
+				rgb_uchar_to_float(col_hi, (unsigned char *)bcol->active);
 			}
 
 			widget = WIDGET_facemap_new(wgroup, fmap->name, 0, fmap_ob, BLI_findindex(&fmap_ob->fmaps, fmap));
