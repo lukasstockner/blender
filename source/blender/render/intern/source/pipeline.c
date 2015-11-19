@@ -2658,7 +2658,7 @@ static void do_render_seq(Render *re)
 
 		if (ibuf_arr[view_id]) {
 			/* copy ibuf into combined pixel rect */
-			render_result_rect_from_ibuf(rr, &re->r, ibuf_arr[view_id], view_id);
+			RE_render_result_rect_from_ibuf(rr, &re->r, ibuf_arr[view_id], view_id);
 
 			if (ibuf_arr[view_id]->metadata && (re->r.stamp & R_STAMP_STRIPMETA)) {
 				/* ensure render stamp info first */
@@ -3340,7 +3340,7 @@ bool RE_WriteRenderViewsImage(ReportList *reports, RenderResult *rr, Scene *scen
 
 bool RE_WriteRenderViewsMovie(
         ReportList *reports, RenderResult *rr, Scene *scene, RenderData *rd, bMovieHandle *mh,
-        const size_t width, const size_t height, void **movie_ctx_arr, const int totvideos, bool preview)
+        void **movie_ctx_arr, const int totvideos, bool preview)
 {
 	bool is_mono;
 	bool ok = true;
@@ -3356,14 +3356,6 @@ bool RE_WriteRenderViewsMovie(
 			bool do_free = false;
 			const char *suffix = BKE_scene_multiview_view_id_suffix_get(&scene->r, view_id);
 			ImBuf *ibuf = render_result_rect_to_ibuf(rr, &scene->r, view_id);
-
-			/* note; the way it gets 32 bits rects is weak... */
-			if (ibuf->rect == NULL) {
-				ibuf->rect = MEM_mapallocN(sizeof(int) * rr->rectx * rr->recty, "temp 32 bits rect");
-				ibuf->mall |= IB_rect;
-				render_result_rect_get_pixels(rr, ibuf->rect, width, height, &scene->view_settings, &scene->display_settings, view_id);
-				do_free = true;
-			}
 
 			IMB_colormanagement_imbuf_for_write(ibuf, true, false, &scene->view_settings,
 			                                    &scene->display_settings, &scene->r.im_format);
@@ -3393,14 +3385,6 @@ bool RE_WriteRenderViewsMovie(
 		for (i = 0; i < 2; i++) {
 			int view_id = BLI_findstringindex(&rr->views, names[i], offsetof(RenderView, name));
 			ibuf_arr[i] = render_result_rect_to_ibuf(rr, &scene->r, view_id);
-
-			/* note; the way it gets 32 bits rects is weak... */
-			if (ibuf_arr[i]->rect == NULL) {
-				ibuf_arr[i]->rect = MEM_mapallocN(sizeof(int) * width * height, "temp 32 bits rect");
-				ibuf_arr[i]->mall |= IB_rect;
-				render_result_rect_get_pixels(rr, ibuf_arr[i]->rect, width, height, &scene->view_settings, &scene->display_settings, view_id);
-				do_free[i] = true;
-			}
 
 			IMB_colormanagement_imbuf_for_write(ibuf_arr[i], true, false, &scene->view_settings,
 			                                    &scene->display_settings, &scene->r.im_format);
@@ -3437,7 +3421,7 @@ static int do_write_image_or_movie(Render *re, Main *bmain, Scene *scene, bMovie
 
 	/* write movie or image */
 	if (BKE_imtype_is_movie(scene->r.im_format.imtype)) {
-		RE_WriteRenderViewsMovie(re->reports, &rres, scene, &re->r, mh, re->rectx, re->recty, re->movie_ctx_arr, totvideos, false);
+		RE_WriteRenderViewsMovie(re->reports, &rres, scene, &re->r, mh, re->movie_ctx_arr, totvideos, false);
 	}
 	else {
 		if (name_override)
@@ -3979,13 +3963,10 @@ bool RE_layers_have_name(struct RenderResult *rr)
 	switch (BLI_listbase_count_ex(&rr->layers, 2)) {
 		case 0:
 			return false;
-			break;
 		case 1:
 			return (((RenderLayer *)rr->layers.first)->name[0] != '\0');
-			break;
 		default:
 			return true;
-			break;
 	}
 	return false;
 }
