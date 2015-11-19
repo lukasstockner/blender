@@ -8699,7 +8699,7 @@ static void draw_object_mesh_instance(Scene *scene, View3D *v3d, RegionView3D *r
 	if (dm) dm->release(dm);
 }
 
-void ED_draw_object_facemap(Scene *scene, struct Object *ob, float col[4], int facemap)
+void ED_draw_object_facemap(Scene *scene, Object *ob, const float col[4], const int facemap)
 {
 	DerivedMesh *dm = NULL;
 
@@ -8727,6 +8727,10 @@ void ED_draw_object_facemap(Scene *scene, struct Object *ob, float col[4], int f
 	glPushAttrib(GL_ENABLE_BIT);
 	glEnable(GL_BLEND);
 	glDisable(GL_LIGHTING);
+
+	/* always draw using backface culling */
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 
 	if (dm->drawObject->facemapindices) {
 		if (dm->drawObject->facemapindices->use_vbo)

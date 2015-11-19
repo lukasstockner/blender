@@ -1563,7 +1563,7 @@ typedef struct FacemapWidget {
 static void widget_facemap_draw(const bContext *C, wmWidget *widget)
 {
 	FacemapWidget *fmap_widget = (FacemapWidget *)widget;
-	float *col = (widget->flag & WM_WIDGET_SELECTED) ? widget->col_hi : widget->col;
+	const float *col = (widget->flag & WM_WIDGET_SELECTED) ? widget->col_hi : widget->col;
 
 	glPushMatrix();
 	glMultMatrixf(fmap_widget->ob->obmat);
