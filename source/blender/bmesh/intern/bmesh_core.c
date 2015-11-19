@@ -629,15 +629,17 @@ int bmesh_elem_check(void *element, const char htype)
 					err |= (1 << 18);
 				if (!l_iter->v)
 					err |= (1 << 19);
-				if (!BM_vert_in_edge(l_iter->e, l_iter->v) || !BM_vert_in_edge(l_iter->e, l_iter->next->v)) {
-					err |= (1 << 20);
+				if (l_iter->e && l_iter->v) {
+					if (!BM_vert_in_edge(l_iter->e, l_iter->v) || !BM_vert_in_edge(l_iter->e, l_iter->next->v)) {
+						err |= (1 << 20);
+					}
+
+					if (!bmesh_radial_validate(bmesh_radial_length(l_iter), l_iter))
+						err |= (1 << 21);
+
+					if (!bmesh_disk_count(l_iter->v) || !bmesh_disk_count(l_iter->next->v))
+						err |= (1 << 22);
 				}
-
-				if (!bmesh_radial_validate(bmesh_radial_length(l_iter), l_iter))
-					err |= (1 << 21);
-
-				if (!bmesh_disk_count(l_iter->v) || !bmesh_disk_count(l_iter->next->v))
-					err |= (1 << 22);
 
 				len++;
 			} while ((l_iter = l_iter->next) != l_first);
@@ -1708,14 +1710,15 @@ BMVert *bmesh_semv(BMesh *bm, BMVert *tv, BMEdge *e, BMEdge **r_e)
  */
 BMEdge *bmesh_jekv(
         BMesh *bm, BMEdge *e_kill, BMVert *v_kill,
-        const bool do_del, const bool check_edge_double)
+        const bool do_del, const bool check_edge_double,
+        const bool kill_degenerate_faces)
 {
 	BMEdge *e_old;
 	BMVert *v_old, *tv;
 	BMLoop *l_kill;
-	int radlen = 0, i;
 	bool halt = false;
 #ifndef NDEBUG
+	int radlen, i;
 	bool edok;
 #endif
 
@@ -1757,11 +1760,17 @@ BMEdge *bmesh_jekv(
 			/* remove e_kill from tv's disk cycle */
 			bmesh_disk_edge_remove(e_kill, tv);
 
+#ifndef NDEBUG
 			/* deal with radial cycle of e_kill */
 			radlen = bmesh_radial_length(e_kill->l);
+#endif
 			if (e_kill->l) {
-				/* first step, fix the neighboring loops of all loops in e_kill's radial cycle */
-				for (i = 0, l_kill = e_kill->l; i < radlen; i++, l_kill = l_kill->radial_next) {
+				BLI_SMALLSTACK_DECLARE(faces_degenerate, BMFace *);
+				BMLoop *l_kill_next;
+
+				/* fix the neighboring loops of all loops in e_kill's radial cycle */
+				l_kill = e_kill->l;
+				do {
 					/* relink loops and fix vertex pointer */
 					if (l_kill->next->v == v_kill) {
 						l_kill->next->v = tv;
@@ -1772,34 +1781,31 @@ BMEdge *bmesh_jekv(
 					if (BM_FACE_FIRST_LOOP(l_kill->f) == l_kill) {
 						BM_FACE_FIRST_LOOP(l_kill->f) = l_kill->next;
 					}
-					l_kill->next = NULL;
-					l_kill->prev = NULL;
 
 					/* fix len attribute of face */
 					l_kill->f->len--;
-				}
-				/* second step, remove all the hanging loops attached to e_kill */
-				radlen = bmesh_radial_length(e_kill->l);
-
-				if (LIKELY(radlen)) {
-					BMLoop **loops = BLI_array_alloca(loops, radlen);
-
-					l_kill = e_kill->l;
-
-					/* this should be wrapped into a bme_free_radial function to be used by bmesh_KF as well... */
-					for (i = 0; i < radlen; i++) {
-						loops[i] = l_kill;
-						l_kill = l_kill->radial_next;
+					if (kill_degenerate_faces) {
+						if (l_kill->f->len < 3) {
+							BLI_SMALLSTACK_PUSH(faces_degenerate, l_kill->f);
+						}
 					}
-					for (i = 0; i < radlen; i++) {
-						bm_kill_only_loop(bm, loops[i]);
-					}
-				}
+					l_kill_next = l_kill->radial_next;
+
+					bm_kill_only_loop(bm, l_kill);
+
+				} while ((l_kill = l_kill_next) != e_kill->l);
+				/* `e_kill->l` is invalid but the edge is freed next. */
 #ifndef NDEBUG
 				/* Validate radial cycle of e_old */
 				edok = bmesh_radial_validate(radlen, e_old->l);
 				BMESH_ASSERT(edok != false);
 #endif
+				if (kill_degenerate_faces) {
+					BMFace *f_kill;
+					while ((f_kill = BLI_SMALLSTACK_POP(faces_degenerate))) {
+						BM_face_kill(bm, f_kill);
+					}
+				}
 			}
 			/* deallocate edge */
 			bm_kill_only_edge(bm, e_kill);
@@ -1849,6 +1855,104 @@ BMEdge *bmesh_jekv(
 		}
 	}
 	return NULL;
+}
+
+/**
+ * \brief Join Vert Kill Edge (JVKE)
+ *
+ * Collapse an edge, merging surrounding data.
+ *
+ * Unlike #BM_vert_collapse_edge & #bmesh_jekv which only handle 2 valence verts,
+ * this can handle any number of connected edges/faces.
+ *
+ * <pre>
+ * Before: -> After:
+ * +-+-+-+    +-+-+-+
+ * | | | |    | \ / |
+ * +-+-+-+    +--+--+
+ * | | | |    | / \ |
+ * +-+-+-+    +-+-+-+
+ * </pre>
+ */
+BMVert *bmesh_jvke(
+        BMesh *bm, BMEdge *e_kill, BMVert *v_kill,
+        const bool do_del, const bool check_edge_double,
+        const bool kill_degenerate_faces)
+{
+	BLI_SMALLSTACK_DECLARE(faces_degenerate, BMFace *);
+	BMVert *v_target = BM_edge_other_vert(e_kill, v_kill);
+
+	BLI_assert(BM_vert_in_edge(e_kill, v_kill));
+
+	if (e_kill->l) {
+		BMLoop *l_kill, *l_first, *l_kill_next;
+		l_kill = l_first = e_kill->l;
+		do {
+			/* relink loops and fix vertex pointer */
+			if (l_kill->next->v == v_kill) {
+				l_kill->next->v = v_target;
+			}
+
+			l_kill->next->prev = l_kill->prev;
+			l_kill->prev->next = l_kill->next;
+			if (BM_FACE_FIRST_LOOP(l_kill->f) == l_kill) {
+				BM_FACE_FIRST_LOOP(l_kill->f) = l_kill->next;
+			}
+
+			/* fix len attribute of face */
+			l_kill->f->len--;
+			if (kill_degenerate_faces) {
+				if (l_kill->f->len < 3) {
+					BLI_SMALLSTACK_PUSH(faces_degenerate, l_kill->f);
+				}
+			}
+			l_kill_next = l_kill->radial_next;
+
+			bm_kill_only_loop(bm, l_kill);
+
+		} while ((l_kill = l_kill_next) != l_first);
+
+		e_kill->l = NULL;
+	}
+
+	BM_edge_kill(bm, e_kill);
+	BM_CHECK_ELEMENT(v_kill);
+	BM_CHECK_ELEMENT(v_target);
+
+	if (v_target->e && v_kill->e) {
+		/* inline BM_vert_splice(bm, v_target, v_kill); */
+		BMEdge *e;
+		while ((e = v_kill->e)) {
+			BMEdge *e_target;
+
+			if (check_edge_double) {
+				e_target = BM_edge_exists(v_target, BM_edge_other_vert(e, v_kill));
+			}
+
+			bmesh_edge_vert_swap(e, v_target, v_kill);
+			BLI_assert(e->v1 != e->v2);
+
+			if (check_edge_double) {
+				if (e_target) {
+					BM_edge_splice(bm, e_target, e);
+				}
+			}
+		}
+	}
+
+	if (kill_degenerate_faces) {
+		BMFace *f_kill;
+		while ((f_kill = BLI_SMALLSTACK_POP(faces_degenerate))) {
+			BM_face_kill(bm, f_kill);
+		}
+	}
+
+	if (do_del) {
+		BLI_assert(v_kill->e == NULL);
+		bm_kill_only_vert(bm, v_kill);
+	}
+
+	return v_target;
 }
 
 /**
