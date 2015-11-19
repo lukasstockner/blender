@@ -211,8 +211,6 @@ static void widget_arrow_get_final_pos(wmWidget *widget, float r_pos[3])
 
 static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 {
-	glEnable(GL_MULTISAMPLE_ARB);
-
 	if (arrow->style & WIDGET_ARROW_STYLE_CROSS) {
 		glPushAttrib(GL_ENABLE_BIT);
 		glDisable(GL_LIGHTING);
@@ -301,8 +299,6 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 		glPopMatrix();
 #endif
 	}
-
-	glDisable(GL_MULTISAMPLE_ARB);
 }
 
 static void arrow_draw_intern(ArrowWidget *arrow, const bool select, const bool highlight)
@@ -752,15 +748,11 @@ typedef struct DialWidget {
 static void dial_draw_geom(const DialWidget *dial, const bool select)
 {
 #ifdef WIDGET_USE_CUSTOM_DIAS
-	glEnable(GL_MULTISAMPLE_ARB);
-
 	widget_draw_intern(&dial_draw_info, select);
 #else
 	GLUquadricObj *qobj = gluNewQuadric();
 	const float width = 1.0f;
 	const int resol = 32;
-
-	glEnable(GL_MULTISAMPLE_ARB);
 
 	glLineWidth(dial->widget.line_width);
 	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
@@ -769,8 +761,6 @@ static void dial_draw_geom(const DialWidget *dial, const bool select)
 
 	UNUSED_VARS(select);
 #endif
-
-	glDisable(GL_MULTISAMPLE_ARB);
 }
 
 static void dial_draw_intern(DialWidget *dial, const bool select, const bool highlight, const float scale)
@@ -926,8 +916,6 @@ static void widget_plane_draw_geom(const float col_inner[4], const float col_out
 		{-1,  1, 0},
 	};
 
-	glEnable(GL_MULTISAMPLE_ARB);
-
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(3, GL_FLOAT, 0, vec);
 	glColor4fv(col_inner);
@@ -935,8 +923,6 @@ static void widget_plane_draw_geom(const float col_inner[4], const float col_out
 	glColor4fv(col_outer);
 	glDrawArrays(GL_LINE_LOOP, 0, ARRAY_SIZE(vec));
 	glDisableClientState(GL_VERTEX_ARRAY);
-
-	glDisable(GL_MULTISAMPLE_ARB);
 }
 
 static void widget_plane_draw_intern(PlaneWidget *plane, const bool UNUSED(select), const bool highlight)
@@ -1568,9 +1554,7 @@ static void widget_facemap_draw(const bContext *C, wmWidget *widget)
 	glPushMatrix();
 	glMultMatrixf(fmap_widget->ob->obmat);
 	glTranslate3fv(widget->offset);
-	glEnable(GL_MULTISAMPLE_ARB);
 	ED_draw_object_facemap(CTX_data_scene(C), fmap_widget->ob, col, fmap_widget->facemap);
-	glDisable(GL_MULTISAMPLE_ARB);
 	glPopMatrix();
 }
 

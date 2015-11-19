@@ -320,18 +320,23 @@ BLI_INLINE bool widgetgroup_poll_check(const bContext *C, const wmWidgetGroup *w
 void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_scene)
 {
 	wmWidget *widget;
-	bool use_lighting;
+	const bool draw_multisample = (U.ogl_multisamples != USER_MULTISAMPLE_NONE);
+	const bool use_lighting = (U.tw_flag & V3D_SHADED_WIDGETS) != 0;
 
 	if (!wmap)
 		return;
 
-	use_lighting = (U.tw_flag & V3D_SHADED_WIDGETS) != 0;
+	/* enable multisampling */
+	if (draw_multisample) {
+		glEnable(GL_MULTISAMPLE_ARB);
+	}
 
 	if (use_lighting) {
 		const float lightpos[4] = {0.0, 0.0, 1.0, 0.0};
 		const float diffuse[4] = {1.0, 1.0, 1.0, 0.0};
 
 		glPushAttrib(GL_LIGHTING_BIT | GL_ENABLE_BIT);
+
 		glEnable(GL_LIGHTING);
 		glEnable(GL_LIGHT0);
 		glEnable(GL_COLOR_MATERIAL);
@@ -379,6 +384,8 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 		}
 	}
 
+	if (draw_multisample)
+		glDisable(GL_MULTISAMPLE_ARB);
 	if (use_lighting)
 		glPopAttrib();
 }
