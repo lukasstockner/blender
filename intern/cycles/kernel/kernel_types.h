@@ -37,8 +37,9 @@ CCL_NAMESPACE_BEGIN
 #define OBJECT_SIZE 		11
 #define OBJECT_VECTOR_SIZE	6
 #define LIGHT_SIZE			5
-#define FILTER_TABLE_SIZE	256
+#define FILTER_TABLE_SIZE	1024
 #define RAMP_TABLE_SIZE		256
+#define SHUTTER_TABLE_SIZE		256
 #define PARTICLE_SIZE 		5
 #define TIME_INVALID		FLT_MAX
 
@@ -813,6 +814,9 @@ typedef struct KernelCamera {
 	 * Used for camera zoom motion blur,
 	 */
 	PerspectiveMotionTransform perspective_motion;
+
+	int shutter_table_offset;
+	int pad;
 } KernelCamera;
 
 typedef struct KernelFilm {

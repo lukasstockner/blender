@@ -68,7 +68,7 @@ static EnumPropertyItem opensubdiv_compute_type_items[] = {
 	{USER_OPENSUBDIV_COMPUTE_OPENMP, "OPENMP", 0, "OpenMP", ""},
 	{USER_OPENSUBDIV_COMPUTE_OPENCL, "OPENCL", 0, "OpenCL", ""},
 	{USER_OPENSUBDIV_COMPUTE_CUDA, "CUDA", 0, "CUDA", ""},
-	{USER_OPENSUBDIV_COMPUTE_GLSL_TRANSFORM_FEEDBACK, "GLSL_TRANSFORM_FEEDBACL", 0, "GLSL Transform Feedback", ""},
+	{USER_OPENSUBDIV_COMPUTE_GLSL_TRANSFORM_FEEDBACK, "GLSL_TRANSFORM_FEEDBACK", 0, "GLSL Transform Feedback", ""},
 	{USER_OPENSUBDIV_COMPUTE_GLSL_COMPUTE, "GLSL_COMPUTE", 0, "GLSL Compute", ""},
 	{ 0, NULL, 0, NULL, NULL}
 };
@@ -4550,7 +4550,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "show_hidden_files_datablocks", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_HIDE_DOT);
-	RNA_def_property_ui_text(prop, "Hide Dot Files/Datablocks", "Hide files/datablocks that start with a dot (.*)");
+	RNA_def_property_ui_text(prop, "Hide Dot Files/Datablocks", "Hide files/data-blocks that start with a dot (.*)");
 	
 	prop = RNA_def_property(srna, "use_filter_files", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_FILTERFILEEXTS);
@@ -4685,7 +4685,7 @@ static void rna_def_userdef_addon_collection(BlenderRNA *brna, PropertyRNA *cpro
 	RNA_def_function_flag(func, FUNC_NO_SELF);
 	RNA_def_function_ui_description(func, "Add a new add-on");
 	/* return type */
-	parm = RNA_def_pointer(func, "addon", "Addon", "", "Addon datablock");
+	parm = RNA_def_pointer(func, "addon", "Addon", "", "Add-on data");
 	RNA_def_function_return(func, parm);
 
 	func = RNA_def_function(srna, "remove", "rna_userdef_addon_remove");

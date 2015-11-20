@@ -117,6 +117,30 @@ ShaderOutput *ShaderNode::add_output(const char *name, ShaderSocketType type)
 	return output;
 }
 
+ShaderInput *ShaderNode::get_input(const char *name)
+{
+	foreach(ShaderInput *input, inputs) {
+		if(strcmp(input->name, name) == 0)
+			return input;
+	}
+
+	/* Should never happen. */
+	assert(!"No Shader Input!");
+	return NULL;
+}
+
+ShaderOutput *ShaderNode::get_output(const char *name)
+{
+	foreach(ShaderOutput *output, outputs) {
+		if(strcmp(output->name, name) == 0)
+			return output;
+	}
+
+	/* Should never happen. */
+	assert(!"No Shader Output!");
+	return NULL;
+}
+
 void ShaderNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
 	foreach(ShaderInput *input, inputs) {
@@ -330,7 +354,13 @@ void ShaderGraph::copy_nodes(set<ShaderNode*>& nodes, map<ShaderNode*, ShaderNod
 		}
 	}
 }
+/* Graph simplification */
+/* ******************** */
 
+/* Step 1: Remove unused nodes.
+ * Remove nodes which are not needed in the graph, such as proxies,
+ * mix nodes with a factor of 0 or 1, emission shaders without contribution...
+ */
 void ShaderGraph::remove_unneeded_nodes()
 {
 	vector<bool> removed(num_node_ids, false);
@@ -526,6 +556,14 @@ void ShaderGraph::remove_unneeded_nodes()
 	}
 }
 
+/* Step 3: Simplification.*/
+void ShaderGraph::simplify_nodes()
+{
+	foreach(ShaderNode *node, nodes) {
+		node->optimize();
+	}
+}
+
 void ShaderGraph::break_cycles(ShaderNode *node, vector<bool>& visited, vector<bool>& on_stack)
 {
 	visited[node->id] = true;
@@ -552,8 +590,24 @@ void ShaderGraph::break_cycles(ShaderNode *node, vector<bool>& visited, vector<b
 
 void ShaderGraph::clean()
 {
-	/* remove proxy and unnecessary nodes */
+	/* Graph simplification:
+	 *  1: Remove unnecesarry nodes
+	 *  2: Constant folding
+	 *  3: Simplification
+	 *  4: De-duplication
+	 */
+
+	/* 1: Remove proxy and unnecessary nodes. */
 	remove_unneeded_nodes();
+
+	/* 2: Constant folding. */
+	/* TODO(dingto): Implement */
+
+	/* 3: Simplification. */
+	simplify_nodes();
+
+	/* 4: De-duplication. */
+	/* TODO(dingto): Implement */
 
 	/* we do two things here: find cycles and break them, and remove unused
 	 * nodes that don't feed into the output. how cycles are broken is
