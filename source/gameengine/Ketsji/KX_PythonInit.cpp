@@ -1492,19 +1492,27 @@ static PyObject *RASOffScreen_height_get(PyRASOffScreen *self, void *UNUSED(type
 	return PyLong_FromLong(self->ofs->GetHeight());
 }
 
+PyDoc_STRVAR(RASOffScreen_color_doc, "Offscreen buffer texture object (if target is RAS_OFS_RENDER_TEXTURE).\n\n:type: GLuint");
+static PyObject *RASOffScreen_color_get(PyRASOffScreen *self, void *UNUSED(type))
+{
+	return PyLong_FromLong(self->ofs->GetColor());
+}
+
 static PyGetSetDef RASOffScreen_getseters[] = {
 	{(char *)"width", (getter)RASOffScreen_width_get, (setter)NULL, RASOffScreen_width_doc, NULL},
 	{(char *)"height", (getter)RASOffScreen_height_get, (setter)NULL, RASOffScreen_height_doc, NULL},
+    {(char *)"color", (getter)RASOffScreen_color_get, (setter)NULL, RASOffScreen_color_doc, NULL},
 	{NULL, NULL, NULL, NULL, NULL}  /* Sentinel */
 };
 
 static int PyRASOffScreen__tp_init(PyRASOffScreen *self, PyObject *args, PyObject *kwargs)
 {
-	int width, height, samples;
-	const char *keywords[] = {"width", "height", "samples", NULL};
+	int width, height, samples, target;
+	const char *keywords[] = {"width", "height", "samples", "target", NULL};
 
 	samples = 0;
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "ii|i:RASOffscreen", (char **)keywords, &width, &height, &samples)) {
+	target = RAS_IOffScreen::RAS_OFS_RENDER_BUFFER;
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "ii|ii:RASOffscreen", (char **)keywords, &width, &height, &samples, &target)) {
 		return -1;
 	}
 
@@ -1523,12 +1531,17 @@ static int PyRASOffScreen__tp_init(PyRASOffScreen *self, PyObject *args, PyObjec
 		return -1;
 	}
 
+	if (target != RAS_IOffScreen::RAS_OFS_RENDER_BUFFER && target != RAS_IOffScreen::RAS_OFS_RENDER_TEXTURE)
+	{
+		PyErr_SetString(PyExc_ValueError, "invalid 'target' given, can only be RAS_OFS_RENDER_BUFFER or RAS_OFS_RENDER_TEXTURE");
+		return -1;
+	}
 	if (!gp_Rasterizer)
 	{
 		PyErr_SetString(PyExc_SystemError, "no rasterizer");
 		return -1;
 	}
-	self->ofs = gp_Rasterizer->CreateOffScreen(width, height, samples);
+	self->ofs = gp_Rasterizer->CreateOffScreen(width, height, samples, target);
 	if (!self->ofs) {
 		PyErr_SetString(PyExc_SystemError, "creation failed");
 		return -1;
@@ -1592,9 +1605,10 @@ static PyObject *gPyOffScreenCreate(PyObject *UNUSED(self), PyObject *args)
 	int width;
 	int height;
 	int samples;
+	int target;
 
 	samples = 0;
-	if (!PyArg_ParseTuple(args, "ii|i:offscreen_create", &width, &height, &samples))
+	if (!PyArg_ParseTuple(args, "ii|ii:offScreenCreate", &width, &height, &samples, &target))
 		return NULL;
 
 	return PyObject_CallObject((PyObject *) &PyRASOffScreen_Type, args);
@@ -2484,6 +2498,11 @@ PyMODINIT_FUNC initRasterizerPythonBinding()
 	/* stereoscopy */
 	KX_MACRO_addTypesToDict(d, LEFT_EYE, RAS_IRasterizer::RAS_STEREO_LEFTEYE);
 	KX_MACRO_addTypesToDict(d, RIGHT_EYE, RAS_IRasterizer::RAS_STEREO_RIGHTEYE);
+
+	/* offscreen render */
+	KX_MACRO_addTypesToDict(d, RAS_OFS_RENDER_BUFFER, RAS_IOffScreen::RAS_OFS_RENDER_BUFFER);
+	KX_MACRO_addTypesToDict(d, RAS_OFS_RENDER_TEXTURE, RAS_IOffScreen::RAS_OFS_RENDER_TEXTURE);
+
 
 	// XXXX Add constants here
 

@@ -39,7 +39,6 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
-#include <iostream>
 
 /* needed for intel drivers (works w/ mesa-swrast & nvidia) */
 #define USE_GLXEW_INIT_WORKAROUND
