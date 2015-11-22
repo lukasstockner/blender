@@ -280,9 +280,8 @@ void WIDGETGROUP_armature_facemaps_create(const struct bContext *C, struct wmWid
 
 /* draw_volume.c */
 void draw_smoke_volume(struct SmokeDomainSettings *sds, struct Object *ob,
-                       struct GPUTexture *tex, const float min[3], const float max[3],
-                       const int res[3], float dx, float base_scale, const float viewnormal[3],
-                       struct GPUTexture *tex_shadow, struct GPUTexture *tex_flame);
+                       const float min[3], const float max[3],
+                       const int res[3], const float viewnormal[3]);
 
 //#define SMOKE_DEBUG_VELOCITY
 //#define SMOKE_DEBUG_HEAT
