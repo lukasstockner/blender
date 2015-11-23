@@ -954,7 +954,7 @@ static void gpsculpt_brush_header_set(bContext *C, tGP_BrushEditData *gso)
 	const char *brush_name = NULL;
 	char str[256] = "";
 	
-	RNA_enum_name(gpencil_sculpt_brush_items, gso->brush_type, &brush_name);
+	RNA_enum_name(rna_enum_gpencil_sculpt_brush_items, gso->brush_type, &brush_name);
 	
 	BLI_snprintf(str, sizeof(str),
 	             IFACE_("GPencil Sculpt: %s Stroke  | LMB to paint | RMB/Escape to Exit"
