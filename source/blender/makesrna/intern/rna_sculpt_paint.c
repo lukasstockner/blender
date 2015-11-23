@@ -60,7 +60,7 @@ static EnumPropertyItem particle_edit_hair_brush_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem gpencil_sculpt_brush_items[] = {
+EnumPropertyItem rna_enum_gpencil_sculpt_brush_items[] = {
 	{GP_EDITBRUSH_TYPE_SMOOTH, "SMOOTH", 0, "Smooth", "Smooth stroke points"},
 	{GP_EDITBRUSH_TYPE_THICKNESS, "THICKNESS", 0, "Thickness", "Adjust thickness of strokes"},
 	{GP_EDITBRUSH_TYPE_GRAB, "GRAB", 0, "Grab", "Translate the set of points initially within the brush circle"},
@@ -74,7 +74,7 @@ EnumPropertyItem gpencil_sculpt_brush_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem symmetrize_direction_items[] = {
+EnumPropertyItem rna_enum_symmetrize_direction_items[] = {
 	{BMO_SYMMETRIZE_NEGATIVE_X, "NEGATIVE_X", 0, "-X to +X", ""},
 	{BMO_SYMMETRIZE_POSITIVE_X, "POSITIVE_X", 0, "+X to -X", ""},
 
@@ -600,7 +600,7 @@ static void rna_def_sculpt(BlenderRNA  *brna)
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Sculpt_update");
 
 	prop = RNA_def_property(srna, "symmetrize_direction", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, symmetrize_direction_items);
+	RNA_def_property_enum_items(prop, rna_enum_symmetrize_direction_items);
 	RNA_def_property_ui_text(prop, "Direction", "Source and destination for symmetrize operator");
 
 	prop = RNA_def_property(srna, "detail_refine_method", PROP_ENUM, PROP_NONE);
@@ -996,7 +996,7 @@ static void rna_def_gpencil_sculpt(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "tool", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "brushtype");
-	RNA_def_property_enum_items(prop, gpencil_sculpt_brush_items);
+	RNA_def_property_enum_items(prop, rna_enum_gpencil_sculpt_brush_items);
 	RNA_def_property_ui_text(prop, "Tool", "");
 	
 	prop = RNA_def_property(srna, "brush", PROP_POINTER, PROP_NONE);
