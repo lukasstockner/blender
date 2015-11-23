@@ -1476,7 +1476,7 @@ void OUTLINER_OT_id_remap(wmOperatorType *ot)
 
 	ot->flag = 0;
 
-	RNA_def_enum(ot->srna, "id_type", id_type_items, ID_OB, "ID Type", "");
+	RNA_def_enum(ot->srna, "id_type", rna_enum_id_type_items, ID_OB, "ID Type", "");
 
 	ot->prop = RNA_def_enum(ot->srna, "new_id", DummyRNA_NULL_items, 0,
 	                        "New ID", "New ID to remap all selected IDs' users to");
