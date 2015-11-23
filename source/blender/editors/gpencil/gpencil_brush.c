@@ -1192,6 +1192,7 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso, bGPDstroke *gps, GP
 	int pc1[2] = {0};
 	int pc2[2] = {0};
 	int i;
+	bool include_last = false;
 	bool changed = false;
 	
 	if (gps->totpoints == 1) {
@@ -1218,8 +1219,10 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso, bGPDstroke *gps, GP
 			
 			/* Skip if neither one is selected (and we are only allowed to edit/consider selected points) */
 			if (gso->settings->flag & GP_BRUSHEDIT_FLAG_SELECT_MASK) {
-				if (!(pt1->flag & GP_SPOINT_SELECT) && !(pt2->flag & GP_SPOINT_SELECT))
+				if (!(pt1->flag & GP_SPOINT_SELECT) && !(pt2->flag & GP_SPOINT_SELECT)) {
+					include_last = false;
 					continue;
+				}
 			}
 			
 			gp_point_to_xy(gsc, gps, pt1, &pc1[0], &pc1[1]);
@@ -1250,9 +1253,21 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso, bGPDstroke *gps, GP
 					 */
 					if (i + 1 == gps->totpoints - 1) {
 						ok |= apply(gso, gps, i + 1, radius, pc2);
+						include_last = false;
+					}
+					else {
+						include_last = true;
 					}
 					
 					changed |= ok;
+				}
+				else if (include_last) {
+					/* This case is for cases where for whatever reason the second vert doesn't get included
+					 * because the whole edge isn't in bounds, but it would've qualified since it did with the
+					 * previous step (but wasn't added then, to avoid double-ups) 
+					 */
+					changed |= apply(gso, gps, i, radius, pc1);
+					include_last = false;
 				}
 			}
 		}
