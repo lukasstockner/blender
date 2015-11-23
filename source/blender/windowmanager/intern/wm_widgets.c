@@ -41,6 +41,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_ghash.h"
 #include "BLI_string.h"
 #include "BLI_math.h"
 #include "BLI_path_util.h"
@@ -171,6 +172,31 @@ wmWidgetGroupType *WM_widgetgrouptype_new(
 	return wgrouptype;
 }
 
+/**
+ * Creates an idname hash table for all (visible) widgets with \a flag in \a wmap
+ */
+static GHash *wm_widgetgroup_widget_hash_new(
+        const bContext *C, wmWidgetMap *wmap,
+        const int flag, const bool visible_only)
+{
+	GHash *hash = BLI_ghash_str_new(__func__);
+
+	/* collect widgets */
+	for (wmWidgetGroup *wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
+		if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type)) {
+			for (wmWidget *widget = wgroup->widgets.first; widget; widget = widget->next) {
+				if ((!visible_only || (widget->flag & WM_WIDGET_HIDDEN) == 0) &&
+				    (flag == 0 || widget->flag & flag))
+				{
+					BLI_ghash_insert(hash, widget->idname, widget);
+				}
+			}
+		}
+	}
+
+	return hash;
+}
+
 wmWidget *WM_widget_new(void (*draw)(const bContext *C, wmWidget *customdata),
                         void (*render_3d_intersection)(const bContext *C, wmWidget *customdata, int selectionbase),
                         int  (*intersect)(bContext *C, const wmEvent *event, wmWidget *widget),
@@ -188,8 +214,10 @@ wmWidget *WM_widget_new(void (*draw)(const bContext *C, wmWidget *customdata),
 	return widget;
 }
 
-
-static void wm_widget_delete(ListBase *widgetlist, wmWidget *widget)
+/**
+ * Free widget data, not widget itself.
+ */
+static void wm_widget_data_free(wmWidget *widget)
 {
 	if (widget->opptr.data) {
 		WM_operator_properties_free(&widget->opptr);
@@ -197,7 +225,11 @@ static void wm_widget_delete(ListBase *widgetlist, wmWidget *widget)
 
 	MEM_freeN(widget->props);
 	MEM_freeN(widget->ptr);
+}
 
+static void wm_widget_delete(ListBase *widgetlist, wmWidget *widget)
+{
+	wm_widget_data_free(widget);
 	BLI_freelinkN(widgetlist, widget);
 }
 
@@ -242,6 +274,13 @@ BLI_INLINE bool widgets_compare(const wmWidget *a, const wmWidget *b)
 	return STREQ(a->idname, b->idname);
 }
 
+static void widget_highlight_update(wmWidgetMap *wmap, const wmWidget *old_, wmWidget *new_)
+{
+	new_->flag |= WM_WIDGET_HIGHLIGHT;
+	wmap->wmap_context.highlighted_widget = new_;
+	new_->highlighted_part = old_->highlighted_part;
+}
+
 void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 {
 	wmWidget *widget;
@@ -249,12 +288,11 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 	if (!wmap)
 		return;
 
-	if ((widget = wmap->wmap_context.selected_widget) ||
-	    (widget = wmap->wmap_context.active_widget))
-	{
+	if ((widget = wmap->wmap_context.active_widget)) {
 		widget_calculate_scale(widget, C);
 	}
 	else if (wmap->widgetgroups.first) {
+		GHash *hash = BLI_ghash_str_new(__func__);
 		wmWidgetGroup *wgroup;
 
 		for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
@@ -265,10 +303,12 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 				for (widget = wgroup->widgets.first; widget;) {
 					wmWidget *widget_next = widget->next;
 
-					if (widget == wmap->wmap_context.selected_widget) {
-						/* skip */
+					/* do not delete selected and highlighted widgets,
+					 * keep them to compare with new ones */
+					if (widget->flag & WM_WIDGET_SELECTED) {
+						BLI_remlink(&wgroup->widgets, widget);
+						widget->next = widget->prev = NULL;
 					}
-					/* do not delete the highlighted widget, instead keep it to compare with the new one */
 					else if (widget->flag & WM_WIDGET_HIGHLIGHT) {
 						highlighted = widget;
 						BLI_remlink(&wgroup->widgets, widget);
@@ -287,9 +327,7 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 				if (highlighted) {
 					for (widget = wgroup->widgets.first; widget; widget = widget->next) {
 						if (widgets_compare(widget, highlighted)) {
-							widget->flag |= WM_WIDGET_HIGHLIGHT;
-							wmap->wmap_context.highlighted_widget = widget;
-							widget->highlighted_part = highlighted->highlighted_part;
+							widget_highlight_update(wmap, highlighted, widget);
 							wm_widget_delete(&wgroup->widgets, highlighted);
 							highlighted = NULL;
 							break;
@@ -306,9 +344,36 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 
 				for (widget = wgroup->widgets.first; widget; widget = widget->next) {
 					widget_calculate_scale(widget, C);
+					/* insert newly created widget into hash table */
+					BLI_ghash_insert(hash, widget->idname, widget);
 				}
 			}
 		}
+
+		if (wmap->wmap_context.selected_widgets) {
+			for (int i = 0; i < wmap->wmap_context.tot_selected; i++) {
+				wmWidget *sel_old = wmap->wmap_context.selected_widgets[i];
+				wmWidget *sel_new = BLI_ghash_lookup(hash, sel_old->idname);
+
+				/* fails if wgtype->poll state changed */
+				if (!sel_new)
+					continue;
+
+				BLI_assert(widgets_compare(sel_old, sel_new));
+
+				/* widget was selected and highlighted */
+				if (sel_old->flag & WM_WIDGET_HIGHLIGHT) {
+					widget_highlight_update(wmap, sel_old, sel_new);
+				}
+				wm_widget_data_free(sel_old);
+				/* XXX freeing sel_old leads to crashes, hrmpf */
+
+				sel_new->flag |= WM_WIDGET_SELECTED;
+				wmap->wmap_context.selected_widgets[i] = sel_new;
+			}
+		}
+
+		BLI_ghash_free(hash, NULL, NULL);
 	}
 }
 
@@ -348,9 +413,14 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 		glPopMatrix();
 	}
 
+
+#define WIDGET_DRAW_POLL(widget_) \
+	(in_scene == ((widget_->flag & WM_WIDGET_SCENE_DEPTH) != 0)) && \
+	((widget_->flag & WM_WIDGET_HIDDEN) == 0)
+
 	widget = wmap->wmap_context.active_widget;
 
-	if (widget && in_scene == ((widget->flag & WM_WIDGET_SCENE_DEPTH) != 0)) {
+	if (widget && WIDGET_DRAW_POLL(widget)) {
 		if (widget->flag & WM_WIDGET_DRAW_ACTIVE) {
 			/* notice that we don't update the widgetgroup, widget is now on
 			 * its own, it should have all relevant data to update itself */
@@ -363,10 +433,9 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 		for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
 			if (widgetgroup_poll_check(C, wgroup)) {
 				for (widget = wgroup->widgets.first; widget; widget = widget->next) {
-					if ((widget->flag & WM_WIDGET_HIDDEN) == 0 &&
-					    (!(widget->flag & WM_WIDGET_DRAW_HOVER) || (widget->flag & WM_WIDGET_HIGHLIGHT)) &&
+					if ((WIDGET_DRAW_POLL(widget)) &&
 					    ((widget->flag & WM_WIDGET_SELECTED) == 0) && /* selected is drawn later */
-					    ((widget->flag & WM_WIDGET_SCENE_DEPTH) != 0) == in_scene)
+					    ((widget->flag & WM_WIDGET_DRAW_HOVER) == 0 || (widget->flag & WM_WIDGET_HIGHLIGHT)))
 					{
 						widget->draw(C, widget);
 					}
@@ -376,11 +445,14 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 	}
 
 	/* draw selected widgets last */
-	if ((widget = wmap->wmap_context.selected_widget) && in_scene == ((widget->flag & WM_WIDGET_SCENE_DEPTH) != 0)) {
-		if (widgetgroup_poll_check(C, widget->wgroup)) {
-			/* notice that we don't update the widgetgroup, widget is now on
-			 * its own, it should have all relevant data to update itself */
-			widget->draw(C, widget);
+	if (wmap->wmap_context.selected_widgets) {
+		for (int i = 0; i < wmap->wmap_context.tot_selected; i++) {
+			widget = wmap->wmap_context.selected_widgets[i];
+			if (widgetgroup_poll_check(C, widget->wgroup) && WIDGET_DRAW_POLL(widget)) {
+				/* notice that we don't update the widgetgroup, widget is now on
+				 * its own, it should have all relevant data to update itself */
+				widget->draw(C, widget);
+			}
 		}
 	}
 
@@ -635,7 +707,7 @@ static int widget_set_select_invoke(bContext *C, wmOperator *UNUSED(op), const w
 		wmWidget *widget = wmap->wmap_context.highlighted_widget;
 		if (widget) {
 			if (widget->flag & WM_WIDGET_SELECTABLE) {
-				wm_widgetmap_set_selected_widget(C, wmap, widget);
+				wm_widgetmap_select_widget(C, wmap, widget);
 				return OPERATOR_FINISHED;
 			}
 			break;
@@ -1045,73 +1117,118 @@ void wm_widgetmap_set_active_widget(
 		}
 		wmap->wmap_context.active_widget = NULL;
 
-		if (C) {
-			ARegion *ar = CTX_wm_region(C);
-			ED_region_tag_redraw(ar);
-			WM_event_add_mousemove(C);
-		}
-	}
-}
-
-wmWidget *wm_widgetmap_get_selected_widget(wmWidgetMap *wmap)
-{
-	return wmap->wmap_context.selected_widget;
-}
-
-void wm_widgetmap_set_selected_widget(bContext *C, wmWidgetMap *wmap, wmWidget *widget)
-{
-	const int action = SEL_SELECT; /* TODO currently SEL_SELECT only */
-
-	/* unset select flag of old selection first */
-	if (wmap->wmap_context.selected_widget) {
-		wmap->wmap_context.selected_widget->flag &= ~WM_WIDGET_SELECTED;
-	}
-
-	if (widget) {
-		wmap->wmap_context.selected_widget = widget;
-		widget->flag |= WM_WIDGET_SELECTED;
-		if (widget->select) {
-			widget->select(C, widget, action);
-		}
-		wm_widgetmap_set_highlighted_widget(wmap, C, NULL, wmap->wmap_context.highlighted_widget->highlighted_part);
-	}
-	else if (wmap->wmap_context.selected_widget) {
-		wmap->wmap_context.selected_widget = NULL;
-	}
-
-	/* tag the region for redraw */
-	if (C) {
-		ARegion *ar = CTX_wm_region(C);
-		ED_region_tag_redraw(ar);
+		ED_region_tag_redraw(CTX_wm_region(C));
+		WM_event_add_mousemove(C);
 	}
 }
 
 /**
- * Select/Deselect all selectable widgets in \a wmap
- *
+ * Deselect all selected widgets in \a wmap.
+ * \return if selection has changed.
+ */
+static bool wm_widgetmap_deselect_all(wmWidgetMap *wmap, wmWidget ***sel)
+{
+	if (*sel == NULL || wmap->wmap_context.tot_selected == 0)
+		return false;
+
+	for (int i = 0; i < wmap->wmap_context.tot_selected; i++) {
+		(*sel)[i]->flag &= ~WM_WIDGET_SELECTED;
+		(*sel)[i] = NULL;
+	}
+	MEM_SAFE_FREE(*sel);
+	wmap->wmap_context.tot_selected = 0;
+
+	/* always return true, we already checked
+	 * if there's anything to deselect */
+	return true;
+}
+
+/**
+ * Select all selectable widgets in \a wmap.
+ * \return if selection has changed.
+ */
+static bool wm_widgetmap_select_all_intern(bContext *C, wmWidgetMap *wmap, wmWidget ***sel, const int action)
+{
+	/* GHash is used here to avoid having to loop over all widgets twice (once to
+	 * get tot_sel for allocating, once for actually selecting). Instead we collect
+	 * selectable widgets in hash table and use this to get tot_sel and do selection */
+
+	GHash *hash = wm_widgetgroup_widget_hash_new(C, wmap, WM_WIDGET_SELECTABLE, true);
+	GHashIterator gh_iter;
+	int i, *tot_sel = &wmap->wmap_context.tot_selected;
+	bool changed = false;
+
+	*tot_sel = BLI_ghash_size(hash);
+	*sel = MEM_reallocN(*sel, sizeof(**sel) * (*tot_sel));
+
+	GHASH_ITER_INDEX (gh_iter, hash, i) {
+		wmWidget *widget_iter = BLI_ghashIterator_getValue(&gh_iter);
+
+		if ((widget_iter->flag & WM_WIDGET_SELECTED) == 0) {
+			changed = true;
+		}
+		widget_iter->flag |= WM_WIDGET_SELECTED;
+		if (widget_iter->select) {
+			widget_iter->select(C, widget_iter, action);
+		}
+		(*sel)[i] = widget_iter;
+		BLI_assert(i < (*tot_sel));
+	}
+	/* highlight first widget */
+	wm_widgetmap_set_highlighted_widget(wmap, C, (*sel)[0], (*sel)[0]->highlighted_part);
+
+	BLI_ghash_free(hash, NULL, NULL);
+	return changed;
+}
+
+/**
+ * Select/Deselect all selectable widgets in \a wmap.
  * \return if selection has changed.
  *
- * TODO currently only one selected widget supported
+ * TODO select all by type
  */
 bool WM_widgetmap_select_all(bContext *C, wmWidgetMap *wmap, const int action)
 {
+	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
 	bool changed = false;
 
 	switch (action) {
 		case SEL_SELECT:
-			printf("Selecting multiple widgets is not supported yet!\n");
+			changed = wm_widgetmap_select_all_intern(C, wmap, sel, action);
 			break;
 		case SEL_DESELECT:
-			if (wmap->wmap_context.selected_widget) {
-				changed = true;
-			}
-			wm_widgetmap_set_selected_widget(C, wmap, NULL);
+			changed = wm_widgetmap_deselect_all(wmap, sel);
 			break;
 		default:
 			BLI_assert(0);
 	}
 
 	return changed;
+}
+
+void wm_widgetmap_select_widget(bContext *C, wmWidgetMap *wmap, wmWidget *widget)
+{
+	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
+
+	if (!widget || (wmap->wmap_context.tot_selected == 1 && widgets_compare((*sel)[0], widget)))
+		return;
+
+	/* deselect all first */
+	wm_widgetmap_deselect_all(wmap, sel);
+	BLI_assert(*sel == NULL);
+
+	/* allocate for single pointer */
+	*sel = MEM_reallocN(*sel, sizeof(**sel));
+	(*sel)[0] = widget;
+	wmap->wmap_context.tot_selected = 1;
+
+	widget->flag |= WM_WIDGET_SELECTED;
+	if (widget->select) {
+		widget->select(C, widget, SEL_SELECT);
+	}
+	wm_widgetmap_set_highlighted_widget(wmap, C, widget, widget->highlighted_part);
+
+	ED_region_tag_redraw(CTX_wm_region(C));
 }
 
 void wm_widgetmap_handler_context(bContext *C, wmEventHandler *handler)
@@ -1226,6 +1343,9 @@ void WM_widgetmap_delete(wmWidgetMap *wmap)
 		}
 	}
 	BLI_freelistN(&wmap->widgetgroups);
+
+	/* XXX shouldn't widgets in wmap_context.selected_widgets be freed here? */
+	MEM_SAFE_FREE(wmap->wmap_context.selected_widgets);
 
 	MEM_freeN(wmap);
 }

@@ -114,8 +114,7 @@ wmWidget *wm_widgetmap_get_highlighted_widget(wmWidgetMap *wmap);
 void      wm_widgetmap_set_active_widget(wmWidgetMap *wmap, bContext *C, const wmEvent *event, wmWidget *widget);
 wmWidget *wm_widgetmap_get_active_widget(wmWidgetMap *wmap);
 
-void      wm_widgetmap_set_selected_widget(bContext *C, wmWidgetMap *wmap, wmWidget *widget);
-wmWidget *wm_widgetmap_get_selected_widget(wmWidgetMap *wmap);
+void      wm_widgetmap_select_widget(bContext *C, wmWidgetMap *wmap, wmWidget *widget);
 
 #endif /* __WM_EVENT_SYSTEM_H__ */
 

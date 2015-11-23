@@ -726,14 +726,17 @@ typedef struct wmWidgetMap {
 	 * \brief Widget map runtime context
 	 *
 	 * Contains information about this widget map. Currently
-	 * highlighted widget, currently selected widget, ...
+	 * highlighted widget, currently selected widgets, ...
 	 */
 	struct {
 		/* we redraw the widgetmap when this changes */
 		wmWidget *highlighted_widget;
 		/* user has clicked this widget and it gets all input */
 		wmWidget *active_widget;
-		wmWidget *selected_widget;
+		/* array for all selected widgets
+		 * TODO  check on using BLI_array */
+		wmWidget **selected_widgets;
+		int tot_selected;
 
 		/* set while widget is highlighted/active */
 		wmWidgetGroup *activegroup;
