@@ -277,7 +277,9 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 		return;
 
 	if (widget) {
-		widget_calculate_scale(widget, C);
+		if ((widget->flag & WM_WIDGET_HIDDEN) == 0) {
+			widget_calculate_scale(widget, C);
+		}
 	}
 	else if (wmap->widgetgroups.first) {
 		GHash *hash = BLI_ghash_str_new(__func__);
@@ -330,6 +332,8 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 				}
 
 				for (widget = wgroup->widgets.first; widget; widget = widget->next) {
+					if (widget->flag & WM_WIDGET_HIDDEN)
+						continue;
 					widget_calculate_scale(widget, C);
 					/* insert newly created widget into hash table */
 					BLI_ghash_insert(hash, widget->idname, widget);
