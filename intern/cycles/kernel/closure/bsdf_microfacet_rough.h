@@ -83,10 +83,12 @@ ccl_device_inline bool mf_sample_height(const float3 w, float &h, float &C1, flo
 	return true;
 }
 
-ccl_device float3 mf_eval(const float3 wi, const float3 wo, const float3 color, const float alpha, const float eta, float &pdf, bool swapped)
+ccl_device float3 mf_eval(const float3 wi, const float3 wo, const float3 color, const float alpha, const float eta, float &pdf, const uint seed, bool swapped)
 {
 	if(wi.z < 1e-5f || wo.z < 1e-5f)
 		return make_float3(0.0f, 0.0f, 0.0f);
+
+	uint rng = lcg_init(seed);
 
 	float3 wr = -wi;
 	float lambda_r = mf_lambda(wr, alpha);
@@ -101,7 +103,7 @@ ccl_device float3 mf_eval(const float3 wi, const float3 wo, const float3 color, 
 	float3 multiScatter = make_float3(0.0f, 0.0f, 0.0f);
 	float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
 	for(int order = 0; order < 3; order++) {
-		if(!mf_sample_height(wr, hr, C1_r, G1_r, lambda_r, rands[3*order]))
+		if(!mf_sample_height(wr, hr, C1_r, G1_r, lambda_r, lcg_step_float(&rng)))
 			break;
 		if(order > 0) {
 			float3 energy = mf_eval_phase(wr, lambda_r, wo, alpha, eta) * throughput;
@@ -109,7 +111,7 @@ ccl_device float3 mf_eval(const float3 wi, const float3 wo, const float3 color, 
 			multiScatter += energy; /* TODO(lukas): NaN check */
 		}
 		if(order+1 < 3) {
-			wr = mf_sample_phase(-wr, alpha, eta, throughput, make_float2(rands[3*order+1], rands[3*order+2]));
+			wr = mf_sample_phase(-wr, alpha, eta, throughput, make_float2(lcg_step_float(&rng), lcg_step_float(&rng)));
 			lambda_r = mf_lambda(wr, alpha);
 			throughput *= color;
 
@@ -123,8 +125,10 @@ ccl_device float3 mf_eval(const float3 wi, const float3 wo, const float3 color, 
 	return singleScatter + multiScatter;
 }
 
-ccl_device float3 mf_sample(const float3 wi, float3 &wo, const float3 color, const float alpha, const float eta, float &pdf, bool swapped)
+ccl_device float3 mf_sample(const float3 wi, float3 &wo, const float3 color, const float alpha, const float eta, float &pdf, const uint seed, bool swapped)
 {
+	uint rng = lcg_init(seed);
+
 	float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
 	float3 wr = -wi;
 	float lambda_r = mf_lambda(wr, alpha);
@@ -134,9 +138,9 @@ ccl_device float3 mf_sample(const float3 wi, float3 &wo, const float3 color, con
 
 	int order;
 	for(order = 0; order < 3; order++) {
-		if(!mf_sample_height(wr, hr, C1_r, G1_r, lambda_r, rands[3*order]))
+		if(!mf_sample_height(wr, hr, C1_r, G1_r, lambda_r, lcg_step_float(&rng)))
 			break;
-		wr = mf_sample_phase(-wr, alpha, eta, throughput, make_float2(rands[3*order+1], rands[3*order+2]));
+		wr = mf_sample_phase(-wr, alpha, eta, throughput, make_float2(lcg_step_float(&rng), lcg_step_float(&rng)));
 		lambda_r = mf_lambda(wr, alpha);
 		throughput *= color;
 
@@ -165,6 +169,11 @@ ccl_device int bsdf_microfacet_rough_setup(ShaderClosure *sc)
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
 }
 
+ccl_device_inline uint hash_float3(const float3 hash)
+{
+	return __float_as_uint(hash.x) ^ __float_as_uint(hash.y) ^ __float_as_uint(hash.z);
+}
+
 ccl_device float3 bsdf_microfacet_rough_eval_transmit(const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf) {
 	*pdf = 0.0f;
 	return make_float3(0.0f, 0.0f, 0.0f);
@@ -176,11 +185,12 @@ ccl_device float3 bsdf_microfacet_rough_eval_reflect(const ShaderClosure *sc, co
 	make_orthonormals(Z, &X, &Y);
 	float3 localI = make_float3(dot(omega_in, X), dot(omega_in, Y), dot(omega_in, Z));
 	float3 localO = make_float3(dot(I, X), dot(I, Y), dot(I, Z));
+	uint seed = hash_float3(I) ^ hash_float3(omega_in) ^ hash_float3(make_float3(sc->data0, sc->data1, sc->data2)) ^ ((uint) sc) ^ ((uint) pdf);
 	if(localI.z < localO.z) {
-		return mf_eval(localI, localO, make_float3(sc->data2, sc->data2, sc->data2), sc->data0, sc->data1, *pdf, false);
+		return mf_eval(localI, localO, make_float3(sc->data2, sc->data2, sc->data2), sc->data0, sc->data1, *pdf, seed, false);
 	}
 	else {
-		return mf_eval(localO, localI, make_float3(sc->data2, sc->data2, sc->data2), sc->data0, sc->data1, *pdf, true) * localO.z / localI.z;
+		return mf_eval(localO, localI, make_float3(sc->data2, sc->data2, sc->data2), sc->data0, sc->data1, *pdf, seed, true) * localO.z / localI.z;
 	}
 }
 
@@ -191,7 +201,7 @@ ccl_device int bsdf_microfacet_rough_sample(KernelGlobals *kg, const ShaderClosu
 	make_orthonormals(Z, &X, &Y);
 	float3 localI = make_float3(dot(I, X), dot(I, Y), dot(I, Z));
 	float3 localO;
-	*eval = mf_sample(I, localO, make_float3(sc->data2, sc->data2, sc->data2), sc->data0, sc->data1, *pdf);
+	*eval = mf_sample(I, localO, make_float3(sc->data2, sc->data2, sc->data2), sc->data0, sc->data1, __float_as_uint(randu), *pdf);
 	*omega_in = X*localO.x + Y*localO.y + Z*localO.z;
 	return LABEL_REFLECT|LABEL_GLOSSY;
 }
