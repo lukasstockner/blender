@@ -448,7 +448,7 @@ EnumPropertyItem rna_enum_wm_report_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem wm_widget_type_items[] = {
+EnumPropertyItem rna_enum_wm_widget_type_items[] = {
 	{WT_TRANSLATE, "TRANSLATE", ICON_MAN_TRANS, "Translate", "Add a widget for moving objects"},
 	{WT_ROTATE,    "ROTATE",    ICON_MAN_ROT,   "Rotate",    "Add a widget for rotating objects"},
 	{WT_SCALE,     "SCALE",     ICON_MAN_SCALE, "Scale",     "Add a widget for scaling objects"},

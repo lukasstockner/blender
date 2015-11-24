@@ -2133,7 +2133,7 @@ void OBJECT_OT_widget_add(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	prop = RNA_def_enum(ot->srna, "type", wm_widget_type_items, 0, "Type", "Select the type of widget to add");
+	prop = RNA_def_enum(ot->srna, "type", rna_enum_wm_widget_type_items, 0, "Type", "Select the type of widget to add");
 	ot->prop = prop;
 }
 

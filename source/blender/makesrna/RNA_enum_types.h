@@ -140,7 +140,7 @@ extern EnumPropertyItem rna_enum_keymap_propvalue_items[];
 extern EnumPropertyItem rna_enum_operator_context_items[];
 
 extern EnumPropertyItem rna_enum_wm_report_items[];
-extern EnumPropertyItem wm_widget_type_items[];
+extern EnumPropertyItem rna_enum_wm_widget_type_items[];
 
 extern EnumPropertyItem rna_enum_transform_mode_types[];
 
