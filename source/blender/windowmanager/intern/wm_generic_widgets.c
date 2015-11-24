@@ -388,7 +388,6 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 	float offset[4];
 	float m_diff[2];
 	float dir_2d[2], dir2d_final[2];
-	float fac, zfac;
 	float facdir = 1.0f;
 	bool use_vertical = false;
 
@@ -406,8 +405,6 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 		copy_v3_v3(viewvec, rv3d->viewinv[2]);
 	}
 	normalize_v3(viewvec);
-
-	zfac = ED_view3d_calc_zfac(rv3d, orig_origin, NULL);
 
 	/* first determine if view vector is really close to the direction. If it is, we use
 	 * vertical movement to determine offset, just like transform system does */
@@ -436,6 +433,7 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 	/* project the displacement on the screen space arrow direction */
 	project_v2_v2v2(dir2d_final, m_diff, dir_2d);
 
+	float zfac = ED_view3d_calc_zfac(rv3d, orig_origin, NULL);
 	ED_view3d_win_to_delta(ar, dir2d_final, offset, zfac);
 
 	add_v3_v3v3(orig_origin, offset, data->orig_origin);
@@ -450,6 +448,7 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 
 	normalize_v3(viewvec);
 	if (!use_vertical) {
+		int fac;
 		/* now find a plane parallel to the view vector so we can intersect with the arrow direction */
 		cross_v3_v3v3(tangent, viewvec, offset);
 		cross_v3_v3v3(plane, tangent, viewvec);
@@ -464,8 +463,6 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 
 	/* set the property for the operator and call its modal function */
 	if (widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE]) {
-		PointerRNA ptr = widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE];
-		PropertyRNA *prop = widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE];
 		float max = arrow->min + arrow->range;
 		float value;
 
@@ -485,6 +482,9 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 		if (arrow->flag & ARROW_CUSTOM_RANGE_SET) {
 			CLAMP(value, arrow->min, max);
 		}
+
+		PointerRNA ptr = widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE];
+		PropertyRNA *prop = widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE];
 
 		RNA_property_float_set(&ptr, prop, value);
 		RNA_property_update(C, &ptr, prop);
@@ -518,7 +518,7 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 
 static int widget_arrow_invoke(bContext *UNUSED(C), const wmEvent *event, wmWidget *widget)
 {
-	ArrowWidget *arrow = (ArrowWidget *) widget;
+	ArrowWidget *arrow = (ArrowWidget *)widget;
 	ArrowInteraction *data = MEM_callocN(sizeof(ArrowInteraction), "arrow_interaction");
 	PointerRNA ptr = widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE];
 	PropertyRNA *prop = widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE];
@@ -551,12 +551,13 @@ static void widget_arrow_bind_to_prop(wmWidget *widget, const int UNUSED(slot))
 		float float_prop = RNA_property_float_get(&ptr, prop);
 
 		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
-			float min, max, step, precision;
+			float min, max;
 
 			if (arrow->flag & ARROW_CUSTOM_RANGE_SET) {
 				max = arrow->min + arrow->range;
 			}
 			else {
+				float step, precision;
 				RNA_property_float_ui_range(&ptr, prop, &min, &max, &step, &precision);
 				arrow->range = max - min;
 				arrow->min = min;
@@ -599,8 +600,6 @@ static void widget_arrow_cancel(bContext *C, wmWidget *widget)
 
 wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int style)
 {
-	ArrowWidget *arrow = MEM_callocN(sizeof(ArrowWidget), name);
-	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	int real_style = style;
 
 #ifdef WIDGET_USE_CUSTOM_ARROWS
@@ -627,6 +626,9 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 		real_style |= WIDGET_ARROW_STYLE_CONSTRAINED;
 	}
 
+
+	ArrowWidget *arrow = MEM_callocN(sizeof(ArrowWidget), name);
+	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
 
 	arrow->widget.draw = widget_arrow_draw;
 	arrow->widget.get_final_position = widget_arrow_get_final_pos;
@@ -792,12 +794,13 @@ static void dial_draw_intern(DialWidget *dial, const bool select, const bool hig
 static void widget_dial_render_3d_intersect(const bContext *C, wmWidget *widget, int selectionbase)
 {
 	DialWidget *dial = (DialWidget *)widget;
-	ARegion *ar = CTX_wm_region(C);
-	RegionView3D *rv3d = ar->regiondata;
 
 	/* enable clipping if needed */
 	if (dial->style == WIDGET_DIAL_STYLE_RING_CLIPPED) {
+		ARegion *ar = CTX_wm_region(C);
+		RegionView3D *rv3d = ar->regiondata;
 		double plane[4];
+
 		copy_v3db_v3fl(plane, rv3d->viewinv[2]);
 		plane[3] = -dot_v3v3(rv3d->viewinv[2], widget->origin);
 		glClipPlane(GL_CLIP_PLANE0, plane);
@@ -815,12 +818,13 @@ static void widget_dial_render_3d_intersect(const bContext *C, wmWidget *widget,
 static void widget_dial_draw(const bContext *C, wmWidget *widget)
 {
 	DialWidget *dial = (DialWidget *)widget;
-	ARegion *ar = CTX_wm_region(C);
-	RegionView3D *rv3d = ar->regiondata;
 
 	/* enable clipping if needed */
 	if (dial->style == WIDGET_DIAL_STYLE_RING_CLIPPED) {
 		double plane[4];
+		ARegion *ar = CTX_wm_region(C);
+		RegionView3D *rv3d = ar->regiondata;
+
 		copy_v3db_v3fl(plane, rv3d->viewinv[2]);
 		plane[3] = -dot_v3v3(rv3d->viewinv[2], widget->origin);
 		glClipPlane(GL_CLIP_PLANE0, plane);
@@ -927,7 +931,6 @@ static void widget_plane_draw_geom(const float col_inner[4], const float col_out
 
 static void widget_plane_draw_intern(PlaneWidget *plane, const bool UNUSED(select), const bool highlight)
 {
-	const float up[3] = {0.0f, 0.0f, 1.0f};
 	float col_inner[4], col_outer[4];
 	float rot[3][3];
 	float mat[4][4];
@@ -938,6 +941,7 @@ static void widget_plane_draw_intern(PlaneWidget *plane, const bool UNUSED(selec
 		cross_v3_v3v3(rot[0], plane->up, plane->direction);
 	}
 	else {
+		const float up[3] = {0.0f, 0.0f, 1.0f};
 		rotation_between_vecs_to_mat3(rot, up, plane->direction);
 	}
 
@@ -1091,7 +1095,6 @@ static void rect_transform_draw_interaction(
         const float w, const float h, const float line_width)
 {
 	float verts[4][2];
-	unsigned short elems[4] = {0, 1, 3, 2};
 
 	switch (highlighted) {
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT:
@@ -1151,8 +1154,6 @@ static void rect_transform_draw_interaction(
 	glColor3fv(col);
 	glDrawArrays(GL_LINE_STRIP, 0, 3);
 	glLineWidth(1.0);
-
-	UNUSED_VARS(elems);
 }
 
 static void widget_rect_transform_draw(const bContext *UNUSED(C), wmWidget *widget)
@@ -1161,9 +1162,9 @@ static void widget_rect_transform_draw(const bContext *UNUSED(C), wmWidget *widg
 	rctf r;
 	float w = cage->w;
 	float h = cage->h;
-	float half_w = w / 2.0f;
-	float half_h = h / 2.0f;
 	float aspx = 1.0f, aspy = 1.0f;
+	const float half_w = w / 2.0f;
+	const float half_h = h / 2.0f;
 
 	r.xmin = -half_w;
 	r.ymin = -half_h;
@@ -1223,14 +1224,10 @@ static int widget_rect_transform_intersect(bContext *UNUSED(C), const wmEvent *e
 {
 	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	const float mouse[2] = {event->mval[0], event->mval[1]};
+	//float matrot[2][2];
 	float point_local[2];
 	float w = cage->w;
 	float h = cage->h;
-	float half_w = w / 2.0f;
-	float half_h = h / 2.0f;
-	//float matrot[2][2];
-	bool isect;
-	rctf r;
 	float aspx = 1.0f, aspy = 1.0f;
 
 	/* rotate mouse in relation to the center and relocate it */
@@ -1253,6 +1250,12 @@ static int widget_rect_transform_intersect(bContext *UNUSED(C), const wmEvent *e
 	w = min_ff(aspx * w / WIDGET_RESIZER_WIDTH, WIDGET_RESIZER_WIDTH / cage->scale[0]);
 	h = min_ff(aspy * h / WIDGET_RESIZER_WIDTH, WIDGET_RESIZER_WIDTH / 
 	           ((cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) ? cage->scale[0] : cage->scale[1]));
+
+
+	float half_w = w / 2.0f;
+	float half_h = h / 2.0f;
+	bool isect;
+	rctf r;
 
 	r.xmin = -half_w + w;
 	r.ymin = -half_h + h;
@@ -1370,13 +1373,12 @@ static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWi
 {
 	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	RectTransformInteraction *data = widget->interaction_data;
-	ARegion *ar = CTX_wm_region(C);
-	float valuex, valuey;
 	/* needed here as well in case clamping occurs */
 	const float orig_ofx = widget->offset[0], orig_ofy = widget->offset[1];
 
-	valuex = (event->mval[0] - data->orig_mouse[0]);
-	valuey = (event->mval[1] - data->orig_mouse[1]);
+	const float valuex = (event->mval[0] - data->orig_mouse[0]);
+	const float valuey = (event->mval[1] - data->orig_mouse[1]);
+
 
 	if (widget->highlighted_part == WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE) {
 		widget->offset[0] = data->orig_offset[0] + valuex;
@@ -1454,7 +1456,7 @@ static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWi
 	}
 
 	/* tag the region for redraw */
-	ED_region_tag_redraw(ar);
+	ED_region_tag_redraw(CTX_wm_region(C));
 
 	return OPERATOR_PASS_THROUGH;
 }

@@ -88,31 +88,21 @@ void WIDGETGROUP_camera_create(const bContext *C, wmWidgetGroup *wgroup)
 	/* focal length
 	 * - logic/calculations are similar to BKE_camera_view_frame_ex, better keep in sync */
 	if (focallen_widget) {
-		const Scene *scene = CTX_data_scene(C);
 		const bool is_ortho = (ca->type == CAM_ORTHO);
-		const float scale_fac = ca->drawsize;
-		const float half_sensor = 0.5f * ((ca->sensor_fit == CAMERA_SENSOR_FIT_VERT) ? ca->sensor_y : ca->sensor_x);
-		const float scale[3] = {1.0f / len_v3(ob->obmat[0]), 1.0f / len_v3(ob->obmat[1]), 1.0f / len_v3(ob->obmat[2])};
-		const float drawsize = is_ortho ? (0.5f * ca->ortho_scale) :
-		                                  (scale_fac / ((scale[0] + scale[1] + scale[2]) / 3.0f));
-		const float aspx = (float)scene->r.xsch * scene->r.xasp;
-		const float aspy = (float)scene->r.ysch * scene->r.yasp;
-		const int sensor_fit = BKE_camera_sensor_fit(ca->sensor_fit, aspx, aspy);
 		const char *propname = is_ortho ? "ortho_scale" : "lens";
-		const bool fit_hor = (sensor_fit == CAMERA_SENSOR_FIT_HOR);
 
-		const float color[4] = {1.0f, 1.0, 0.27f, 0.5f};
-		const float color_hi[4] = {1.0f, 1.0, 0.27f, 1.0f};
-
-		PropertyRNA *prop;
 		float offset[3], asp[2];
 		float min, max, range;
-		float step, precision; /* dummys, unused */
+		float step, precision;
 
 
 		/* get aspect */
-		asp[0] = fit_hor ? 1.0 : aspx / aspy;
-		asp[1] = fit_hor ? aspy / aspx : 1.0f;
+		const Scene *scene = CTX_data_scene(C);
+		const float aspx = (float)scene->r.xsch * scene->r.xasp;
+		const float aspy = (float)scene->r.ysch * scene->r.yasp;
+		const int sensor_fit = BKE_camera_sensor_fit(ca->sensor_fit, aspx, aspy);
+		asp[0] = (sensor_fit == CAMERA_SENSOR_FIT_HOR) ? 1.0 : aspx / aspy;
+		asp[1] = (sensor_fit == CAMERA_SENSOR_FIT_HOR) ? aspy / aspx : 1.0f;
 
 		/* account for lens shifting */
 		offset[0] = ((ob->size[0] > 0.0f) ? -2.0f : 2.0f) * ca->shiftx;
@@ -120,12 +110,20 @@ void WIDGETGROUP_camera_create(const bContext *C, wmWidgetGroup *wgroup)
 		offset[2] = 0.0f;
 
 		/* get property range */
-		prop = RNA_struct_find_property(&cameraptr, propname);
+		PropertyRNA *prop = RNA_struct_find_property(&cameraptr, propname);
 		RNA_property_float_ui_range(&cameraptr, prop, &min, &max, &step, &precision);
 		range = max - min;
 
 
 		/* *** actual widget stuff *** */
+
+		const float scale[3] = {1.0f / len_v3(ob->obmat[0]), 1.0f / len_v3(ob->obmat[1]), 1.0f / len_v3(ob->obmat[2])};
+		const float scale_fac = ca->drawsize;
+		const float drawsize = is_ortho ? (0.5f * ca->ortho_scale) :
+		                                  (scale_fac / ((scale[0] + scale[1] + scale[2]) / 3.0f));
+		const float half_sensor = 0.5f * ((ca->sensor_fit == CAMERA_SENSOR_FIT_VERT) ? ca->sensor_y : ca->sensor_x);
+		const float color[4] = {1.0f, 1.0, 0.27f, 0.5f};
+		const float color_hi[4] = {1.0f, 1.0, 0.27f, 1.0f};
 
 		widget = WIDGET_arrow_new(wgroup, propname, (WIDGET_ARROW_STYLE_CONE | WIDGET_ARROW_STYLE_CONSTRAINED));
 
@@ -147,7 +145,7 @@ int WIDGETGROUP_forcefield_poll(const bContext *C, wmWidgetGroupType *UNUSED(wgr
 {
 	Object *ob = CTX_data_active_object(C);
 
-	return ob && ob->pd && ob->pd->forcefield;
+	return (ob && ob->pd && ob->pd->forcefield);
 }
 
 void WIDGETGROUP_forcefield_create(const bContext *C, wmWidgetGroup *wgroup)
@@ -230,8 +228,7 @@ int WIDGETGROUP_armature_facemaps_poll(const bContext *C, wmWidgetGroupType *UNU
 
 #ifdef USE_FACEMAP_FROM_BONE
 	if (ob && BKE_object_pose_context_check(ob)) {
-		bPoseChannel *pchan;
-		for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+		for (bPoseChannel *pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 			if (pchan->fmap_object && pchan->fmap) {
 				return true;
 			}
@@ -263,11 +260,10 @@ int WIDGETGROUP_armature_facemaps_poll(const bContext *C, wmWidgetGroupType *UNU
 static void WIDGET_armature_facemaps_select(bContext *C, wmWidget *widget, const int action)
 {
 	Object *ob = CTX_data_active_object(C);
-	bPoseChannel *pchan;
 
 	switch (action) {
 		case SEL_SELECT:
-			for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+			for (bPoseChannel *pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 				if (pchan->fmap == WIDGET_facemap_get_fmap(widget)) {
 					/* deselect all first */
 					ED_pose_de_selectall(ob, SEL_DESELECT, false);
@@ -284,10 +280,6 @@ void WIDGETGROUP_armature_facemaps_create(const bContext *C, wmWidgetGroup *wgro
 {
 	Object *ob = CTX_data_active_object(C);
 	bArmature *arm = (bArmature *)ob->data;
-	wmWidget *widget;
-	PointerRNA famapptr;
-	PropertyRNA *prop;
-
 
 #ifdef USE_FACEMAP_FROM_BONE
 	bPoseChannel *pchan;
@@ -297,7 +289,6 @@ void WIDGETGROUP_armature_facemaps_create(const bContext *C, wmWidgetGroup *wgro
 			ThemeWireColor *bcol = ED_pchan_get_colorset(arm, ob->pose, pchan);
 			Object *fmap_ob = pchan->fmap_object;
 			bFaceMap *fmap = pchan->fmap;
-			PointerRNA *opptr;
 			float col[4] = {0.8f, 0.8f, 0.45f, 0.2f};
 			float col_hi[4] = {0.8f, 0.8f, 0.45f, 0.4f};
 
@@ -307,17 +298,14 @@ void WIDGETGROUP_armature_facemaps_create(const bContext *C, wmWidgetGroup *wgro
 				rgb_uchar_to_float(col_hi, (unsigned char *)bcol->active);
 			}
 
-			widget = WIDGET_facemap_new(wgroup, fmap->name, 0, fmap_ob, BLI_findindex(&fmap_ob->fmaps, fmap));
+			wmWidget *widget = WIDGET_facemap_new(wgroup, fmap->name, 0, fmap_ob, BLI_findindex(&fmap_ob->fmaps, fmap));
 
-			RNA_pointer_create(&fmap_ob->id, &RNA_FaceMap, fmap, &famapptr);
 			WM_widget_set_operator(widget, "TRANSFORM_OT_translate");
 			WM_widget_set_colors(widget, col, col_hi);
 			WM_widget_set_flag(widget, WM_WIDGET_DRAW_HOVER, true);
 			WM_widget_set_func_select(widget, WIDGET_armature_facemaps_select);
-			opptr = WM_widget_set_operator(widget, "TRANSFORM_OT_translate");
-			if ((prop = RNA_struct_find_property(opptr, "release_confirm"))) {
-				RNA_property_boolean_set(opptr, prop, true);
-			}
+			PointerRNA *opptr = WM_widget_set_operator(widget, "TRANSFORM_OT_translate");
+			RNA_boolean_set(opptr, "release_confirm", true);
 		}
 	}
 #else
