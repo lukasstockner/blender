@@ -393,7 +393,7 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 
 	/* enable multisampling */
 	if (draw_multisample) {
-		glEnable(GL_MULTISAMPLE_ARB);
+		glEnable(GL_MULTISAMPLE);
 	}
 
 	if (use_lighting) {
@@ -457,7 +457,7 @@ void WM_widgets_draw(const bContext *C, const wmWidgetMap *wmap, const bool in_s
 	}
 
 	if (draw_multisample)
-		glDisable(GL_MULTISAMPLE_ARB);
+		glDisable(GL_MULTISAMPLE);
 	if (use_lighting)
 		glPopAttrib();
 }
