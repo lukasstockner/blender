@@ -3121,6 +3121,7 @@ static EnumPropertyItem node_glass_items[] = {
 	{SHD_GLOSSY_SHARP,             "SHARP",             0, "Sharp",    ""},
 	{SHD_GLOSSY_BECKMANN,          "BECKMANN",          0, "Beckmann", ""},
 	{SHD_GLOSSY_GGX,               "GGX",               0, "GGX",      ""},
+	{SHD_GLOSSY_ROUGH,             "ROUGH",             0, "Rough",    ""},
 	{0, NULL, 0, NULL, NULL}
 };
 

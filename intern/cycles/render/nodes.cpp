@@ -1934,6 +1934,7 @@ static ShaderEnum glass_distribution_init()
 	enm.insert("Sharp", CLOSURE_BSDF_SHARP_GLASS_ID);
 	enm.insert("Beckmann", CLOSURE_BSDF_MICROFACET_BECKMANN_GLASS_ID);
 	enm.insert("GGX", CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID);
+	enm.insert("Rough", CLOSURE_BSDF_MICROFACET_ROUGH_ID);
 
 	return enm;
 }

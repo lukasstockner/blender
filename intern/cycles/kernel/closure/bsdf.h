@@ -20,6 +20,7 @@
 #include "../closure/bsdf_phong_ramp.h"
 #include "../closure/bsdf_diffuse_ramp.h"
 #include "../closure/bsdf_microfacet.h"
+#include "../closure/bsdf_microfacet_rough.h"
 #include "../closure/bsdf_reflection.h"
 #include "../closure/bsdf_refraction.h"
 #include "../closure/bsdf_transparent.h"

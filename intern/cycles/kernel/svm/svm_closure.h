@@ -212,6 +212,25 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 
 			break;
 		}
+		case CLOSURE_BSDF_MICROFACET_ROUGH_ID: {
+#ifdef __CAUSTICS_TRICKS__
+			if(!kernel_data.integrator.caustics_reflective && (path_flag & PATH_RAY_DIFFUSE))
+				break;
+#endif
+			ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
+
+			if(sc) {
+				sc->N = N;
+				sc->data0 = param1;
+				sc->data1 = param2;
+				sc->data2 = 1.0f;
+
+				/* setup bsdf */
+				ccl_fetch(sd, flag) |= bsdf_microfacet_rough_setup(sc);
+			}
+
+			break;
+		}
 		case CLOSURE_BSDF_REFRACTION_ID:
 		case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
 		case CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID: {
