@@ -85,6 +85,10 @@ ccl_device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const Shader
 			label = bsdf_microfacet_ggx_sample(kg, sc, ccl_fetch(sd, Ng), ccl_fetch(sd, I), ccl_fetch(sd, dI).dx, ccl_fetch(sd, dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
+		case CLOSURE_BSDF_MICROFACET_ROUGH_ID:
+			label = bsdf_microfacet_rough_sample(kg, sc, ccl_fetch(sd, Ng), ccl_fetch(sd, I), ccl_fetch(sd, dI).dx, ccl_fetch(sd, dI).dy, randu, randv,
+			        eval, omega_in,  &domega_in->dx, &domega_in->dy, pdf);
+			break;
 		case CLOSURE_BSDF_MICROFACET_BECKMANN_ID:
 		case CLOSURE_BSDF_MICROFACET_BECKMANN_ANISO_ID:
 		case CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID:
@@ -172,6 +176,9 @@ ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const Shade
 			case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
 				eval = bsdf_microfacet_ggx_eval_reflect(sc, ccl_fetch(sd, I), omega_in, pdf);
 				break;
+			case CLOSURE_BSDF_MICROFACET_ROUGH_ID:
+				eval = bsdf_microfacet_rough_eval_reflect(sc, ccl_fetch(sd, I), omega_in, pdf);
+				break;
 			case CLOSURE_BSDF_MICROFACET_BECKMANN_ID:
 			case CLOSURE_BSDF_MICROFACET_BECKMANN_ANISO_ID:
 			case CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID:
@@ -233,6 +240,9 @@ ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const Shade
 			case CLOSURE_BSDF_MICROFACET_GGX_ANISO_ID:
 			case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
 				eval = bsdf_microfacet_ggx_eval_transmit(sc, ccl_fetch(sd, I), omega_in, pdf);
+				break;
+			case CLOSURE_BSDF_MICROFACET_ROUGH_ID:
+				eval = bsdf_microfacet_rough_eval_transmit(sc, ccl_fetch(sd, I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_MICROFACET_BECKMANN_ID:
 			case CLOSURE_BSDF_MICROFACET_BECKMANN_ANISO_ID:
