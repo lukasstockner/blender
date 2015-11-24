@@ -88,7 +88,7 @@ static EnumPropertyItem audio_device_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem navigation_mode_items[] = {
+EnumPropertyItem rna_enum_navigation_mode_items[] = {
 	{VIEW_NAVIGATION_WALK, "WALK", 0, "Walk", "Interactively walk or free navigate around the scene"},
 	{VIEW_NAVIGATION_FLY, "FLY", 0, "Fly", "Use fly dynamics to navigate the scene"},
 	{0, NULL, 0, NULL, NULL}
@@ -352,11 +352,6 @@ static void rna_UserDef_viewport_lights_update(Main *bmain, Scene *scene, Pointe
 
 	WM_main_add_notifier(NC_SPACE | ND_SPACE_VIEW3D | NS_VIEW3D_GPU, NULL);
 	rna_userdef_update(bmain, scene, ptr);
-}
-
-static int rna_Scene_GPU_selection_supported(UserDef *UNUSED(U))
-{
-	return GPU_select_query_check_support();
 }
 
 static void rna_userdef_autosave_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -3679,14 +3674,14 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 	                         "and also Color is based on the transform axis");
 	
 	prop = RNA_def_property(srna, "keyframe_new_interpolation_type", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, beztriple_interpolation_mode_items);
+	RNA_def_property_enum_items(prop, rna_enum_beztriple_interpolation_mode_items);
 	RNA_def_property_enum_sdna(prop, NULL, "ipo_new");
 	RNA_def_property_ui_text(prop, "New Interpolation Type",
 	                         "Interpolation mode used for first keyframe on newly added F-Curves "
 	                         "(subsequent keyframes take interpolation from preceding keyframe)");
 
 	prop = RNA_def_property(srna, "keyframe_new_handle_type", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, keyframe_handle_type_items);
+	RNA_def_property_enum_items(prop, rna_enum_keyframe_handle_type_items);
 	RNA_def_property_enum_sdna(prop, NULL, "keyhandles_new");
 	RNA_def_property_ui_text(prop, "New Handles Type", "Handle type for handles of new keyframes");
 	
@@ -4184,11 +4179,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Text Anti-aliasing", "Draw user interface text anti-aliased");
 	RNA_def_property_update(prop, 0, "rna_userdef_text_update");
 
-	func = RNA_def_function(srna, "is_occlusion_query_supported", "rna_Scene_GPU_selection_supported");
-	parm = RNA_def_boolean(func, "is_supported", 0, "Occlusion Query Support",
-	                       "Check if GPU supports Occlusion Queries");
-	RNA_def_function_return(func, parm);
-
 	prop = RNA_def_property(srna, "select_method", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "gpu_select_method");
 	RNA_def_property_enum_items(prop, gpu_select_method_items);
@@ -4319,7 +4309,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 	/* View Navigation */
 	prop = RNA_def_property(srna, "navigation_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "navigation_mode");
-	RNA_def_property_enum_items(prop, navigation_mode_items);
+	RNA_def_property_enum_items(prop, rna_enum_navigation_mode_items);
 	RNA_def_property_ui_text(prop, "View Navigation", "Which method to use for viewport navigation");
 
 	prop = RNA_def_property(srna, "walk_navigation", PROP_POINTER, PROP_NONE);

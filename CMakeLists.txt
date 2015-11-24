@@ -2602,6 +2602,11 @@ if(CMAKE_COMPILER_IS_GNUCC)
 		ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_REDUNDANT_DECLS -Wredundant-decls)
 	endif()
 
+	# versions before gcc4.8 include global name-space.
+	if(NOT "${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "4.8")
+		ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_SHADOW -Wshadow)
+	endif()
+
 	# disable because it gives warnings for printf() & friends.
 	# ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_DOUBLE_PROMOTION -Wdouble-promotion -Wno-error=double-promotion)
 
@@ -2768,9 +2773,8 @@ if(WITH_CPP11)
 	endif()
 endif()
 
-if(MSVC)
-	# Visual Studio has all standards it supports available by default
-else()
+# Visual Studio has all standards it supports available by default
+if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang" OR CMAKE_C_COMPILER_ID MATCHES "Intel")
 	# Use C99 + GNU extensions, works with GCC, Clang, ICC
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 endif()
