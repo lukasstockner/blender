@@ -1940,7 +1940,7 @@ elseif(APPLE)
 
 	if(WITH_PYTHON)
 		# we use precompiled libraries for py 3.4 and up by default
-		set(PYTHON_VERSION 3.4)
+		set(PYTHON_VERSION 3.5)
 		if(NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
 			# normally cached but not since we include them with blender
 			set(PYTHON_INCLUDE_DIR "${LIBDIR}/python/include/python${PYTHON_VERSION}m")
@@ -2774,7 +2774,7 @@ if(WITH_CPP11)
 endif()
 
 # Visual Studio has all standards it supports available by default
-if(CMAKE_COMPILER_IS_GNUCC)
+if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang" OR CMAKE_C_COMPILER_ID MATCHES "Intel")
 	# Use C99 + GNU extensions, works with GCC, Clang, ICC
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 endif()
