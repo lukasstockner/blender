@@ -360,8 +360,8 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_view_restore(C);
 	
 	/* finally draw any widgets here */
-	WM_widgets_update(C, ar->widgetmaps.first);
-	WM_widgets_draw(C, ar->widgetmaps.first, false, true);
+	WM_widgetmap_widgets_update(C, ar->widgetmaps.first);
+	WM_widgetmap_widgets_draw(C, ar->widgetmaps.first, false, true);
 	
 	/* scrollers */
 	// FIXME: args for scrollers depend on the type of data being shown...

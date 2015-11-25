@@ -169,11 +169,15 @@ wmWidgetGroupType *WM_widgetgrouptype_new(
 }
 
 /**
- * Creates an idname hash table for all (visible) widgets with \a flag in \a wmap
+ * Creates and returns idname hash table for (visible) widgets in \a wmap
+ *
+ * \param poll  Polling function for excluding widgets.
+ * \param data  Custom data passed to \a poll
  */
-static GHash *wm_widgetgroup_widget_hash_new(
+static GHash *wm_widgetmap_widget_hash_new(
         const bContext *C, wmWidgetMap *wmap,
-        const int flag, const bool visible_only)
+        bool (*poll)(const wmWidget *, void *),
+        void *data, const bool include_hidden)
 {
 	GHash *hash = BLI_ghash_str_new(__func__);
 
@@ -181,8 +185,8 @@ static GHash *wm_widgetgroup_widget_hash_new(
 	for (wmWidgetGroup *wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
 		if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type)) {
 			for (wmWidget *widget = wgroup->widgets.first; widget; widget = widget->next) {
-				if ((!visible_only || (widget->flag & WM_WIDGET_HIDDEN) == 0) &&
-				    (flag == 0 || widget->flag & flag))
+				if ((include_hidden || (widget->flag & WM_WIDGET_HIDDEN) == 0) &&
+				    (!poll || poll(widget, data)))
 				{
 					BLI_ghash_insert(hash, widget->idname, widget);
 				}
@@ -269,7 +273,7 @@ void wm_widgets_keymap(wmKeyConfig *keyconf)
 	}
 }
 
-BLI_INLINE bool widgets_compare(const wmWidget *a, const wmWidget *b)
+BLI_INLINE bool widget_compare(const wmWidget *a, const wmWidget *b)
 {
 	return STREQ(a->idname, b->idname);
 }
@@ -281,7 +285,7 @@ static void widget_highlight_update(wmWidgetMap *wmap, const wmWidget *old_, wmW
 	new_->highlighted_part = old_->highlighted_part;
 }
 
-void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
+void WM_widgetmap_widgets_update(const bContext *C, wmWidgetMap *wmap)
 {
 	wmWidget *widget = wmap->wmap_context.active_widget;
 
@@ -345,7 +349,7 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 		if (highlighted) {
 			wmWidget *highlighted_new = BLI_ghash_lookup(draw_widgets, highlighted->idname);
 			if (highlighted_new) {
-				BLI_assert(widgets_compare(highlighted, highlighted_new));
+				BLI_assert(widget_compare(highlighted, highlighted_new));
 				widget_highlight_update(wmap, highlighted, highlighted_new);
 				wm_widget_delete(NULL, highlighted);
 			}
@@ -365,7 +369,7 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 				if (!sel_new)
 					continue;
 
-				BLI_assert(widgets_compare(sel_old, sel_new));
+				BLI_assert(widget_compare(sel_old, sel_new));
 
 				/* widget was selected and highlighted */
 				if (sel_old->flag & WM_WIDGET_HIGHLIGHT) {
@@ -381,11 +385,6 @@ void WM_widgets_update(const bContext *C, wmWidgetMap *wmap)
 	}
 }
 
-BLI_INLINE bool widgetgroup_poll_check(const bContext *C, const wmWidgetGroup *wgroup)
-{
-	return (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type));
-}
-
 /**
  * Draw all visible widgets in \a wmap.
  * Uses global draw_widgets hash table.
@@ -393,7 +392,7 @@ BLI_INLINE bool widgetgroup_poll_check(const bContext *C, const wmWidgetGroup *w
  * \param in_scene  draw depth-culled widgets (wmWidget->flag WM_WIDGET_SCENE_DEPTH) - TODO
  * \param free_drawwidgets  free global draw_widgets hash table (always enable for last draw call in region!).
  */
-void WM_widgets_draw(
+void WM_widgetmap_widgets_draw(
         const bContext *C, const wmWidgetMap *wmap,
         const bool in_scene, const bool free_drawwidgets)
 {
@@ -438,7 +437,7 @@ void WM_widgets_draw(
 	else if (wmap->widgetgroups.first) {
 		GHashIterator gh_iter;
 
-		GHASH_ITER (gh_iter, draw_widgets) {
+		GHASH_ITER (gh_iter, draw_widgets) { /* draw_widgets excludes hidden widgets */
 			widget = BLI_ghashIterator_getValue(&gh_iter);
 			if ((in_scene == (widget->flag & WM_WIDGET_SCENE_DEPTH)) &&
 			    ((widget->flag & WM_WIDGET_SELECTED) == 0) && /* selected are drawn later */
@@ -1140,6 +1139,11 @@ static bool wm_widgetmap_deselect_all(wmWidgetMap *wmap, wmWidget ***sel)
 	return true;
 }
 
+BLI_INLINE bool widget_selectable_poll(const wmWidget *widget, void *UNUSED(data))
+{
+	return (widget->flag & WM_WIDGET_SELECTABLE);
+}
+
 /**
  * Select all selectable widgets in \a wmap.
  * \return if selection has changed.
@@ -1150,7 +1154,7 @@ static bool wm_widgetmap_select_all_intern(bContext *C, wmWidgetMap *wmap, wmWid
 	 * get tot_sel for allocating, once for actually selecting). Instead we collect
 	 * selectable widgets in hash table and use this to get tot_sel and do selection */
 
-	GHash *hash = wm_widgetgroup_widget_hash_new(C, wmap, WM_WIDGET_SELECTABLE, true);
+	GHash *hash = wm_widgetmap_widget_hash_new(C, wmap, widget_selectable_poll, NULL, true);
 	GHashIterator gh_iter;
 	int i, *tot_sel = &wmap->wmap_context.tot_selected;
 	bool changed = false;
@@ -1207,7 +1211,7 @@ void wm_widgetmap_select_widget(bContext *C, wmWidgetMap *wmap, wmWidget *widget
 {
 	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
 
-	if (!widget || (wmap->wmap_context.tot_selected == 1 && widgets_compare((*sel)[0], widget)))
+	if (!widget || (wmap->wmap_context.tot_selected == 1 && widget_compare((*sel)[0], widget)))
 		return;
 
 	/* deselect all first */
