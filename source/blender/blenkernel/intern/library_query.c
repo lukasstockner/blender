@@ -29,6 +29,7 @@
 
 #include <stdlib.h>
 
+#include "MEM_guardedalloc.h"
 
 #include "DNA_actuator_types.h"
 #include "DNA_anim_types.h"
@@ -61,12 +62,14 @@
 #include "DNA_world_types.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 
 #include "BKE_animsys.h"
 #include "BKE_constraint.h"
 #include "BKE_fcurve.h"
 #include "BKE_library.h"
 #include "BKE_library_query.h"
+#include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_particle.h"
 #include "BKE_rigidbody.h"
@@ -706,3 +709,125 @@ void BKE_library_update_ID_link_user(ID *id_dst, ID *id_src, const int cd_flag)
 		id_us_ensure_real(id_dst);
 	}
 }
+
+/* ***** ID users iterator. ***** */
+typedef struct IDUsersIter {
+	ID *id;
+
+	ListBase *lb_array[MAX_LIBARRAY];
+	int lb_idx;
+
+	ID *curr_id;
+	int count;  /* Set by callback. */
+} IDUsersIter;
+
+static bool foreach_libblock_id_users_callback(void *user_data, ID **id_p, int UNUSED(cb_flag))
+{
+	IDUsersIter *iter = user_data;
+
+	if (*id_p && (*id_p == iter->id)) {
+		iter->count++;
+	}
+
+	return true;
+}
+
+/**
+ * Return the number of times given \a id_user uses/references \a id_used.
+ *
+ * \note This only checks for pointer references of an ID, shallow usages (like e.g. by RNA paths, as done
+ *       for FCurves) are not detected at all.
+ *
+ * \param id_user the ID which is supposed to use (reference) \a id_used.
+ * \param id_used the ID which is supposed to be used (referenced) by \a id_user.
+ * \return the number of direct usages/references of \a id_used by \a id_user.
+ */
+int BKE_library_ID_use_ID(ID *id_user, ID *id_used)
+{
+	IDUsersIter iter;
+
+	/* We do not care about iter.lb_array/lb_idx here... */
+	iter.id = id_used;
+	iter.curr_id = id_user;
+	iter.count = 0;
+
+	BKE_library_foreach_ID_link(iter.curr_id, foreach_libblock_id_users_callback, (void *)&iter, IDWALK_NOP);
+
+	return iter.count;
+}
+
+/**
+ * Initialize an id user iterator.
+ *
+ * \param bmain the Main database in which to search for \a id users.
+ * \param id the datablock to find users of.
+ * \return an opaque pointer to the initialized iterator.
+ */
+IDUsersIter *BKE_library_ID_users_iter_init(Main *bmain, ID *id)
+{
+	IDUsersIter *iter = MEM_mallocN(sizeof(*iter), __func__);
+
+	iter->id = id;
+	iter->lb_idx = set_listbasepointers(bmain, iter->lb_array);
+	iter->curr_id = NULL;
+	iter->count = 0;
+
+	return iter;
+}
+
+/**
+ * @brief BKE_library_ID_users_iter_next
+ *
+ * \param iter the iterator pointer (as returned by \a BKE_library_ID_users_iter_init).
+ * \param r_count if non-null, will be set to the number of usages detected for returned ID.
+ * \return a pointer to the next ID using the searched datablock, or NULL if none found anymore.
+ */
+ID *BKE_library_ID_users_iter_next(IDUsersIter *iter, int *r_count)
+{
+	ID *ret = NULL;
+
+	if (iter == NULL) {
+		if (r_count) {
+			*r_count = 0;
+		}
+		return ret;
+	}
+
+	iter->count = 0;
+	while (ret == NULL) {
+		while (iter->curr_id == NULL) {
+			if (iter->lb_idx-- == 0) {
+				break;
+			}
+			iter->curr_id = iter->lb_array[iter->lb_idx]->first;
+		}
+		if (iter->curr_id == NULL) {
+			break;
+		}
+
+		iter->count = 0;
+		BKE_library_foreach_ID_link(iter->curr_id, foreach_libblock_id_users_callback, (void *)iter, IDWALK_NOP);
+
+		if (iter->count > 0) {
+			ret = iter->curr_id;
+		}
+
+		iter->curr_id = iter->curr_id->next;
+	}
+
+	if (r_count) {
+		*r_count = iter->count;
+	}
+	return ret;
+}
+
+/**
+ * Finalize (clean up) an IDUsers iterator.
+ *
+ * @param iter the address of the iterator pointer to finalize.
+ */
+void BKE_library_ID_users_iter_end(IDUsersIter **iter)
+{
+	MEM_SAFE_FREE(*iter);
+}
+
