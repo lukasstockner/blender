@@ -1077,9 +1077,9 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 		const bool is_never_null = ((cb_flag & IDWALK_NEVER_NULL) && (new_id == NULL));
 		const bool skip_never_null = (id_remap_data->flag & ID_REMAP_SKIP_NEVER_NULL_USAGE) != 0;
 
-		if (GS(id->name) == ID_AC)
-		printf("\t\tIn %s (%p): remapping %s (%p) to %s (%p)\n",
-		       id->name, id, old_id->name, old_id, new_id ? new_id->name : "<NONE>", new_id);
+//		if (GS(old_id->name) == ID_AC)
+//			printf("\t\tIn %s (%p): remapping %s (%p) to %s (%p)\n",
+//			       id->name, id, old_id->name, old_id, new_id ? new_id->name : "<NONE>", new_id);
 
 		/* Special hack in case it's Object->data and we are in edit mode (skipped_direct too). */
 		if ((is_never_null && skip_never_null) ||
@@ -1163,9 +1163,9 @@ static void libblock_remap_data(
 	r_id_remap_data->skipped_indirect = 0;
 	r_id_remap_data->skipped_refcounted = 0;
 
-	if (id && GS(id->name) == ID_AC)
-	printf("%s: %s (%p) replaced by %s (%p)\n", __func__,
-	       old_id ? old_id->name : "", old_id, new_id ? new_id->name : "", new_id);
+//	if (old_id && GS(old_id->name) == ID_AC)
+//		printf("%s: %s (%p) replaced by %s (%p)\n", __func__,
+//			   old_id ? old_id->name : "", old_id, new_id ? new_id->name : "", new_id);
 
 	if (id) {
 //		printf("\tchecking id %s (%p, %p)\n", id->name, id, id->lib);
@@ -1179,15 +1179,17 @@ static void libblock_remap_data(
 		 * objects actually using given old_id... sounds rather unlikely currently, though, so this will do for now. */
 
 		while (i--) {
-			ID *id = lb_array[i]->first;
+			ID *id_curr = lb_array[i]->first;
 
-			for (; id; id = id->next) {
+			for (; id_curr; id_curr = id_curr->next) {
 				/* Note that we cannot skip indirect usages of old_id here (if requested), we still need to check it for
 				 * the user count handling...
 				 * XXX No more true (except for debug usage of those skipping counters). */
-//				printf("\tchecking id %s (%p, %p)\n", id->name, id, id->lib);
-				r_id_remap_data->id = id;
-				BKE_library_foreach_ID_link(id, foreach_libblock_remap_callback, (void *)r_id_remap_data, IDWALK_NOP);
+//				if (GS(old_id->name) == ID_AC && STRCASEEQ(id_curr->name, "OBfranck_blenrig"))
+//					printf("\tchecking id %s (%p, %p)\n", id_curr->name, id_curr, id_curr->lib);
+				r_id_remap_data->id = id_curr;
+				BKE_library_foreach_ID_link(
+				            id_curr, foreach_libblock_remap_callback, (void *)r_id_remap_data, IDWALK_NOP);
 			}
 		}
 	}
@@ -1222,7 +1224,10 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 	BLI_assert((new_id == NULL) || GS(old_id->name) == GS(new_id->name));
 	BLI_assert(old_id != new_id);
 
-//	printf("%s: %s (%p) replaced by %s (%p)\n", __func__, old_id->name, old_id, new_id ? new_id->name : "", new_id);
+//	if (GS(old_id->name) == ID_AC) {
+//		printf("%s: START %s (%p, %d) replaced by %s (%p, %d)\n",
+//		       __func__, old_id->name, old_id, old_id->us, new_id ? new_id->name : "", new_id, new_id ? new_id->us : 0);
+//	}
 
 	libblock_remap_data(bmain, NULL, old_id, new_id, remap_flags, &id_remap_data);
 
@@ -1298,6 +1303,11 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 			}
 		}
 	}
+
+//	if (GS(old_id->name) == ID_AC) {
+//		printf("%s: END   %s (%p, %d) replaced by %s (%p, %d)\n",
+//		       __func__, old_id->name, old_id, old_id->us, new_id ? new_id->name : "", new_id, new_id ? new_id->us : 0);
+//	}
 
 	/* Full rebuild of DAG! */
 	DAG_relations_tag_update(bmain);
