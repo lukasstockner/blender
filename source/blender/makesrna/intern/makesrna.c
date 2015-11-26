@@ -466,7 +466,7 @@ static const char *rna_parameter_type_name(PropertyRNA *parm)
 		}
 		case PROP_COLLECTION:
 		{
-			return "ListBase";
+			return "CollectionListBase";
 		}
 		default:
 			return "<error, no type specified>";
@@ -3852,8 +3852,6 @@ static void rna_generate_header_cpp(BlenderRNA *UNUSED(brna), FILE *f)
 	fprintf(f, "#include \"RNA_blender.h\"\n");
 	fprintf(f, "#include \"RNA_types.h\"\n");
 	fprintf(f, "#include \"RNA_access.h\"\n");
-
-	fprintf(f, "#include \"DNA_listBase.h\"\n");
 
 	fprintf(f, "%s", cpp_classes);
 

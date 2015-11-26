@@ -341,7 +341,7 @@ static void rna_ID_user_remap(ID *id, Main *bmain, ID *new_id)
 	}
 }
 
-static ListBase rna_ID_used_by_ids(ID *id, Main *bmain)
+static CollectionListBase rna_ID_used_by_ids(ID *id, Main *bmain)
 {
 	ListBase ret = {0};
 	struct IDUsersIter *iter = BKE_library_ID_users_iter_init(bmain, id);
@@ -359,7 +359,8 @@ static ListBase rna_ID_used_by_ids(ID *id, Main *bmain)
 
 	BKE_library_ID_users_iter_end(&iter);
 
-	return ret;
+	/* CollectionListBase is a mere RNA redefinition of ListBase. */
+	return *(CollectionListBase *)&ret;
 }
 
 static AnimData * rna_ID_animation_data_create(ID *id, Main *bmain)
