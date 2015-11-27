@@ -177,7 +177,7 @@ bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *nam
 void wm_widgets_keymap(wmKeyConfig *keyconf);
 
 void WIDGETGROUP_OT_widget_set_active(wmOperatorType *ot);
-void WIDGETGROUP_OT_widget_set_select(wmOperatorType *ot);
+void WIDGETGROUP_OT_widget_select(wmOperatorType *ot);
 void WIDGETGROUP_OT_widget_tweak(wmOperatorType *ot);
 void WIDGETGROUP_OT_widget_tweak_cancel(wmOperatorType *ot);
 

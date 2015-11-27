@@ -702,18 +702,193 @@ void WIDGETGROUP_OT_widget_set_active(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "deactivate", 0, "Deactivate", "Deactivate currently active widget");
 }
 
-static int widget_set_select_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *UNUSED(event))
+/**
+ * Deselect all selected widgets in \a wmap.
+ * \return if selection has changed.
+ */
+static bool wm_widgetmap_deselect_all(wmWidgetMap *wmap, wmWidget ***sel)
+{
+	if (*sel == NULL || wmap->wmap_context.tot_selected == 0)
+		return false;
+
+	for (int i = 0; i < wmap->wmap_context.tot_selected; i++) {
+		(*sel)[i]->flag &= ~WM_WIDGET_SELECTED;
+		(*sel)[i] = NULL;
+	}
+	MEM_SAFE_FREE(*sel);
+	wmap->wmap_context.tot_selected = 0;
+
+	/* always return true, we already checked
+	 * if there's anything to deselect */
+	return true;
+}
+
+BLI_INLINE bool widget_selectable_poll(const wmWidget *widget, void *UNUSED(data))
+{
+	return (widget->flag & WM_WIDGET_SELECTABLE);
+}
+
+/**
+ * Select all selectable widgets in \a wmap.
+ * \return if selection has changed.
+ */
+static bool wm_widgetmap_select_all_intern(bContext *C, wmWidgetMap *wmap, wmWidget ***sel, const int action)
+{
+	/* GHash is used here to avoid having to loop over all widgets twice (once to
+	 * get tot_sel for allocating, once for actually selecting). Instead we collect
+	 * selectable widgets in hash table and use this to get tot_sel and do selection */
+
+	GHash *hash = wm_widgetmap_widget_hash_new(C, wmap, widget_selectable_poll, NULL, true);
+	GHashIterator gh_iter;
+	int i, *tot_sel = &wmap->wmap_context.tot_selected;
+	bool changed = false;
+
+	*tot_sel = BLI_ghash_size(hash);
+	*sel = MEM_reallocN(*sel, sizeof(**sel) * (*tot_sel));
+
+	GHASH_ITER_INDEX (gh_iter, hash, i) {
+		wmWidget *widget_iter = BLI_ghashIterator_getValue(&gh_iter);
+
+		if ((widget_iter->flag & WM_WIDGET_SELECTED) == 0) {
+			changed = true;
+		}
+		widget_iter->flag |= WM_WIDGET_SELECTED;
+		if (widget_iter->select) {
+			widget_iter->select(C, widget_iter, action);
+		}
+		(*sel)[i] = widget_iter;
+		BLI_assert(i < (*tot_sel));
+	}
+	/* highlight first widget */
+	wm_widgetmap_set_highlighted_widget(wmap, C, (*sel)[0], (*sel)[0]->highlighted_part);
+
+	BLI_ghash_free(hash, NULL, NULL);
+	return changed;
+}
+
+/**
+ * Select/Deselect all selectable widgets in \a wmap.
+ * \return if selection has changed.
+ *
+ * TODO select all by type
+ */
+bool WM_widgetmap_select_all(bContext *C, wmWidgetMap *wmap, const int action)
+{
+	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
+	bool changed = false;
+
+	switch (action) {
+		case SEL_SELECT:
+			changed = wm_widgetmap_select_all_intern(C, wmap, sel, action);
+			break;
+		case SEL_DESELECT:
+			changed = wm_widgetmap_deselect_all(wmap, sel);
+			break;
+		default:
+			BLI_assert(0);
+	}
+
+	return changed;
+}
+
+/**
+ * Remove \a widget from selection
+ * Re-allocates memory for selected widgets so better not call for selecting multiple ones.
+ */
+static void wm_widget_deselect(const bContext *C, wmWidgetMap *wmap, wmWidget *widget)
+{
+	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
+	int *tot_selected = &wmap->wmap_context.tot_selected;
+
+	/* caller should check! */
+	BLI_assert(widget->flag & WM_WIDGET_SELECTED);
+
+	/* remove widget from selected_widgets array */
+	for (int i = 0; i < (*tot_selected); i++) {
+		if (widget_compare((*sel)[i], widget)) {
+			for (int j = i; j < ((*tot_selected) - 1); j++) {
+				(*sel)[j] = (*sel)[j + 1];
+			}
+		}
+	}
+
+	/* update array data */
+	if ((*tot_selected) <= 1) {
+		MEM_SAFE_FREE(*sel);
+		*tot_selected = 0;
+	}
+	else {
+		*sel = MEM_reallocN(*sel, sizeof(**sel) * (*tot_selected));
+		(*tot_selected)--;
+	}
+
+	widget->flag &= ~WM_WIDGET_SELECTED;
+
+	ED_region_tag_redraw(CTX_wm_region(C));
+}
+
+/**
+ * Add \a widget to selection
+ * Reallocate memory for selected widgets so better not call for selecting multiple ones.
+ */
+void wm_widget_select(bContext *C, wmWidgetMap *wmap, wmWidget *widget)
+{
+	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
+	int *tot_selected = &wmap->wmap_context.tot_selected;
+
+	if (!widget || (widget->flag & WM_WIDGET_SELECTED))
+		return;
+
+	(*tot_selected)++;
+
+	*sel = MEM_reallocN(*sel, sizeof(**sel) * (*tot_selected));
+	(*sel)[(*tot_selected) - 1] = widget;
+
+	widget->flag |= WM_WIDGET_SELECTED;
+	if (widget->select) {
+		widget->select(C, widget, SEL_SELECT);
+	}
+	wm_widgetmap_set_highlighted_widget(wmap, C, widget, widget->highlighted_part);
+
+	ED_region_tag_redraw(CTX_wm_region(C));
+}
+
+static int widget_select_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	ARegion *ar = CTX_wm_region(C);
 
+	bool extend = RNA_boolean_get(op->ptr, "extend");
+	bool deselect = RNA_boolean_get(op->ptr, "deselect");
+	bool toggle = RNA_boolean_get(op->ptr, "toggle");
+
+
 	for (wmWidgetMap *wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
-		wmWidget *widget = wmap->wmap_context.highlighted_widget;
-		if (widget) {
-			if (widget->flag & WM_WIDGET_SELECTABLE) {
-				wm_widgetmap_select_widget(C, wmap, widget);
-				return OPERATOR_FINISHED;
+		wmWidget ***sel = &wmap->wmap_context.selected_widgets;
+		wmWidget *highlighted = wmap->wmap_context.highlighted_widget;
+
+		/* deselect all first */
+		if (extend == false && deselect == false && toggle == false) {
+			wm_widgetmap_deselect_all(wmap, sel);
+			BLI_assert(*sel == NULL && wmap->wmap_context.tot_selected == 0);
+		}
+
+		if (highlighted) {
+			const bool is_selected = (highlighted->flag & WM_WIDGET_SELECTED);
+
+			if (toggle) {
+				/* toggle: deselect if already selected, else select */
+				deselect = is_selected;
 			}
-			break;
+
+			if (deselect) {
+				if (is_selected)
+					wm_widget_deselect(C, wmap, highlighted);
+			}
+			else {
+				wm_widget_select(C, wmap, highlighted);
+			}
+
+			return OPERATOR_FINISHED;
 		}
 		else {
 			BLI_assert(0);
@@ -724,20 +899,19 @@ static int widget_set_select_invoke(bContext *C, wmOperator *UNUSED(op), const w
 	return OPERATOR_PASS_THROUGH;
 }
 
-void WIDGETGROUP_OT_widget_set_select(wmOperatorType *ot)
+void WIDGETGROUP_OT_widget_select(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Widget Select";
 	ot->description = "Select the currently highlighted widget";
-	ot->idname = "WIDGETGROUP_OT_widget_set_select";
+	ot->idname = "WIDGETGROUP_OT_widget_select";
 
 	/* api callbacks */
-	ot->invoke = widget_set_select_invoke;
+	ot->invoke = widget_select_invoke;
 
 	ot->flag = OPTYPE_UNDO;
 
-	/* TODO - more fancy selections are not implemented yet */
-//	RNA_def_boolean(ot->srna, "deactivate", 0, "Deactivate", "Deactivate currently active widget");
+	WM_operator_properties_mouse_select(ot);
 }
 
 static int widget_tweak_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
@@ -1118,120 +1292,6 @@ void wm_widgetmap_set_active_widget(
 	}
 }
 
-/**
- * Deselect all selected widgets in \a wmap.
- * \return if selection has changed.
- */
-static bool wm_widgetmap_deselect_all(wmWidgetMap *wmap, wmWidget ***sel)
-{
-	if (*sel == NULL || wmap->wmap_context.tot_selected == 0)
-		return false;
-
-	for (int i = 0; i < wmap->wmap_context.tot_selected; i++) {
-		(*sel)[i]->flag &= ~WM_WIDGET_SELECTED;
-		(*sel)[i] = NULL;
-	}
-	MEM_SAFE_FREE(*sel);
-	wmap->wmap_context.tot_selected = 0;
-
-	/* always return true, we already checked
-	 * if there's anything to deselect */
-	return true;
-}
-
-BLI_INLINE bool widget_selectable_poll(const wmWidget *widget, void *UNUSED(data))
-{
-	return (widget->flag & WM_WIDGET_SELECTABLE);
-}
-
-/**
- * Select all selectable widgets in \a wmap.
- * \return if selection has changed.
- */
-static bool wm_widgetmap_select_all_intern(bContext *C, wmWidgetMap *wmap, wmWidget ***sel, const int action)
-{
-	/* GHash is used here to avoid having to loop over all widgets twice (once to
-	 * get tot_sel for allocating, once for actually selecting). Instead we collect
-	 * selectable widgets in hash table and use this to get tot_sel and do selection */
-
-	GHash *hash = wm_widgetmap_widget_hash_new(C, wmap, widget_selectable_poll, NULL, true);
-	GHashIterator gh_iter;
-	int i, *tot_sel = &wmap->wmap_context.tot_selected;
-	bool changed = false;
-
-	*tot_sel = BLI_ghash_size(hash);
-	*sel = MEM_reallocN(*sel, sizeof(**sel) * (*tot_sel));
-
-	GHASH_ITER_INDEX (gh_iter, hash, i) {
-		wmWidget *widget_iter = BLI_ghashIterator_getValue(&gh_iter);
-
-		if ((widget_iter->flag & WM_WIDGET_SELECTED) == 0) {
-			changed = true;
-		}
-		widget_iter->flag |= WM_WIDGET_SELECTED;
-		if (widget_iter->select) {
-			widget_iter->select(C, widget_iter, action);
-		}
-		(*sel)[i] = widget_iter;
-		BLI_assert(i < (*tot_sel));
-	}
-	/* highlight first widget */
-	wm_widgetmap_set_highlighted_widget(wmap, C, (*sel)[0], (*sel)[0]->highlighted_part);
-
-	BLI_ghash_free(hash, NULL, NULL);
-	return changed;
-}
-
-/**
- * Select/Deselect all selectable widgets in \a wmap.
- * \return if selection has changed.
- *
- * TODO select all by type
- */
-bool WM_widgetmap_select_all(bContext *C, wmWidgetMap *wmap, const int action)
-{
-	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
-	bool changed = false;
-
-	switch (action) {
-		case SEL_SELECT:
-			changed = wm_widgetmap_select_all_intern(C, wmap, sel, action);
-			break;
-		case SEL_DESELECT:
-			changed = wm_widgetmap_deselect_all(wmap, sel);
-			break;
-		default:
-			BLI_assert(0);
-	}
-
-	return changed;
-}
-
-void wm_widgetmap_select_widget(bContext *C, wmWidgetMap *wmap, wmWidget *widget)
-{
-	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
-
-	if (!widget || (wmap->wmap_context.tot_selected == 1 && widget_compare((*sel)[0], widget)))
-		return;
-
-	/* deselect all first */
-	wm_widgetmap_deselect_all(wmap, sel);
-	BLI_assert(*sel == NULL);
-
-	/* allocate for single pointer */
-	*sel = MEM_reallocN(*sel, sizeof(**sel));
-	(*sel)[0] = widget;
-	wmap->wmap_context.tot_selected = 1;
-
-	widget->flag |= WM_WIDGET_SELECTED;
-	if (widget->select) {
-		widget->select(C, widget, SEL_SELECT);
-	}
-	wm_widgetmap_set_highlighted_widget(wmap, C, widget, widget->highlighted_part);
-
-	ED_region_tag_redraw(CTX_wm_region(C));
-}
-
 void wm_widgetmap_handler_context(bContext *C, wmEventHandler *handler)
 {
 	bScreen *screen = CTX_wm_screen(C);
@@ -1393,7 +1453,14 @@ wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, const char *wgroupna
 	WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_tweak_cancel", RIGHTMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_tweak_cancel", ESCKEY, KM_PRESS, 0, 0);
 
-	WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_set_select", SELECTMOUSE, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_select", SELECTMOUSE, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "extend", false);
+	RNA_boolean_set(kmi->ptr, "deselect", false);
+	RNA_boolean_set(kmi->ptr, "toggle", false);
+	kmi = WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_select", SELECTMOUSE, KM_PRESS, KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "extend", false);
+	RNA_boolean_set(kmi->ptr, "deselect", false);
+	RNA_boolean_set(kmi->ptr, "toggle", true);
 
 	return km;
 }

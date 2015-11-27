@@ -5331,7 +5331,7 @@ void wm_operatortype_init(void)
 
 	/* widgets */
 	WM_operatortype_append(WIDGETGROUP_OT_widget_set_active);
-	WM_operatortype_append(WIDGETGROUP_OT_widget_set_select);
+	WM_operatortype_append(WIDGETGROUP_OT_widget_select);
 	WM_operatortype_append(WIDGETGROUP_OT_widget_tweak);
 	WM_operatortype_append(WIDGETGROUP_OT_widget_tweak_cancel);
 }
