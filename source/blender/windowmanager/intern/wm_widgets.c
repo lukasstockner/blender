@@ -492,7 +492,7 @@ void WM_modal_handler_attach_widgetgroup(
 	/* now instantiate the widgetmap */
 	wgrouptype->op = op;
 
-	if (handler->op_region && handler->op_region->widgetmaps.first) {
+	if (handler->op_region && !BLI_listbase_is_empty(&handler->op_region->widgetmaps)) {
 		for (wmWidgetMap *wmap = handler->op_region->widgetmaps.first; wmap; wmap = wmap->next) {
 			wmWidgetMapType *wmaptype = wmap->type;
 
@@ -505,6 +505,11 @@ void WM_modal_handler_attach_widgetgroup(
 	WM_event_add_mousemove(C);
 }
 
+/**
+ * Assign an idname that is unique in \a wgroup to \a widget.
+ *
+ * \param rawname  Name used as basis to define final unique idname.
+ */
 static void widget_unique_idname_set(wmWidgetGroup *wgroup, wmWidget *widget, const char *rawname)
 {
 	if (wgroup->type->idname[0]) {
@@ -519,22 +524,7 @@ static void widget_unique_idname_set(wmWidgetGroup *wgroup, wmWidget *widget, co
 }
 
 /**
- * Search for an active widget in region \a ar
- */
-static wmWidget *widget_find_active_in_region(const ARegion *ar, wmWidgetMap **r_wmap)
-{
-	for (*r_wmap = ar->widgetmaps.first; *r_wmap; *r_wmap = (*r_wmap)->next) {
-		if ((*r_wmap)->wmap_context.active_widget) {
-			return (*r_wmap)->wmap_context.active_widget;
-		}
-	}
-
-	*r_wmap = NULL;
-	return NULL;
-}
-
-/**
- * Register \a widget
+ * Register \a widget.
  *
  * \param name  name used to create a unique idname for \a widget in \a wgroup
  */
@@ -564,6 +554,13 @@ bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *nam
 	BLI_addtail(&wgroup->widgets, widget);
 	return true;
 }
+
+
+/** \name Widget Creation API
+ *
+ * API for defining data on widget creation.
+ *
+ * \{ */
 
 void WM_widget_set_property(wmWidget *widget, const int slot, PointerRNA *ptr, const char *propname)
 {
@@ -600,9 +597,9 @@ PointerRNA *WM_widget_set_operator(wmWidget *widget, const char *opname)
 }
 
 /**
- * \brief Set widget select callback
+ * \brief Set widget select callback.
  *
- * Callback is called when widget gets selected/deselected
+ * Callback is called when widget gets selected/deselected.
  */
 void WM_widget_set_func_select(wmWidget *widget, void (*select)(bContext *, wmWidget *, const int action))
 {
@@ -641,10 +638,10 @@ void WM_widget_set_line_width(wmWidget *widget, const float line_width)
 }
 
 /**
- * Set widget rgba colors
+ * Set widget rgba colors.
  *
- * \param col  Normal state color
- * \param col_hi  Highlighted state color
+ * \param col  Normal state color.
+ * \param col_hi  Highlighted state color.
  */
 void WM_widget_set_colors(wmWidget *widget, const float col[4], const float col_hi[4])
 {
@@ -652,8 +649,10 @@ void WM_widget_set_colors(wmWidget *widget, const float col[4], const float col_
 	copy_v4_v4(widget->col_hi, col_hi);
 }
 
+/** \} */ // Widget Creation API
 
-/** \name Widget operators
+
+/** \name Widget operators.
  *
  * Basic operators for widget interaction with user configurable keymaps.
  *
@@ -792,7 +791,7 @@ bool WM_widgetmap_select_all(bContext *C, wmWidgetMap *wmap, const int action)
 }
 
 /**
- * Remove \a widget from selection
+ * Remove \a widget from selection.
  * Re-allocates memory for selected widgets so better not call for selecting multiple ones.
  */
 static void wm_widget_deselect(const bContext *C, wmWidgetMap *wmap, wmWidget *widget)
@@ -828,7 +827,7 @@ static void wm_widget_deselect(const bContext *C, wmWidgetMap *wmap, wmWidget *w
 }
 
 /**
- * Add \a widget to selection
+ * Add \a widget to selection.
  * Reallocate memory for selected widgets so better not call for selecting multiple ones.
  */
 void wm_widget_select(bContext *C, wmWidgetMap *wmap, wmWidget *widget)
@@ -912,6 +911,21 @@ void WIDGETGROUP_OT_widget_select(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO;
 
 	WM_operator_properties_mouse_select(ot);
+}
+
+/**
+ * Search for an active widget in region \a ar.
+ */
+static wmWidget *widget_find_active_in_region(const ARegion *ar, wmWidgetMap **r_wmap)
+{
+	for (*r_wmap = ar->widgetmaps.first; *r_wmap; *r_wmap = (*r_wmap)->next) {
+		if ((*r_wmap)->wmap_context.active_widget) {
+			return (*r_wmap)->wmap_context.active_widget;
+		}
+	}
+
+	*r_wmap = NULL;
+	return NULL;
 }
 
 static int widget_tweak_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
