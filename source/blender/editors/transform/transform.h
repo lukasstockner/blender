@@ -461,8 +461,7 @@ typedef struct TransInfo {
 #define T_CAMERA		(1 << 4)
 		 // trans on points, having no rotation/scale
 #define T_POINTS		(1 << 6)
-		// for manipulator exceptions, like scaling using center point, drawing help lines
-#define T_USES_MANIPULATOR	(1 << 7)
+/* empty slot - (1 << 7) */
 
 	/* restrictions flags */
 #define T_ALL_RESTRICTIONS	((1 << 8)|(1 << 9)|(1 << 10))
