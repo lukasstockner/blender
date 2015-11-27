@@ -787,6 +787,9 @@ bool WM_widgetmap_select_all(bContext *C, wmWidgetMap *wmap, const int action)
 			BLI_assert(0);
 	}
 
+	if (changed)
+		WM_event_add_mousemove(C);
+
 	return changed;
 }
 
@@ -808,6 +811,7 @@ static void wm_widget_deselect(const bContext *C, wmWidgetMap *wmap, wmWidget *w
 			for (int j = i; j < ((*tot_selected) - 1); j++) {
 				(*sel)[j] = (*sel)[j + 1];
 			}
+			break;
 		}
 	}
 
