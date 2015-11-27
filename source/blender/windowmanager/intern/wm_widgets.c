@@ -652,7 +652,7 @@ void WM_widget_set_colors(wmWidget *widget, const float col[4], const float col_
 /** \} */ // Widget Creation API
 
 
-/** \name Widget operators.
+/** \name Widget operators
  *
  * Basic operators for widget interaction with user configurable keymaps.
  *
@@ -792,7 +792,7 @@ bool WM_widgetmap_select_all(bContext *C, wmWidgetMap *wmap, const int action)
 
 /**
  * Remove \a widget from selection.
- * Re-allocates memory for selected widgets so better not call for selecting multiple ones.
+ * Reallocates memory for selected widgets so better not call for selecting multiple ones.
  */
 static void wm_widget_deselect(const bContext *C, wmWidgetMap *wmap, wmWidget *widget)
 {
@@ -828,7 +828,7 @@ static void wm_widget_deselect(const bContext *C, wmWidgetMap *wmap, wmWidget *w
 
 /**
  * Add \a widget to selection.
- * Reallocate memory for selected widgets so better not call for selecting multiple ones.
+ * Reallocates memory for selected widgets so better not call for selecting multiple ones.
  */
 void wm_widget_select(bContext *C, wmWidgetMap *wmap, wmWidget *widget)
 {
