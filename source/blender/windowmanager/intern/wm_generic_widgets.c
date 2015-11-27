@@ -448,7 +448,7 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 
 	normalize_v3(viewvec);
 	if (!use_vertical) {
-		int fac;
+		float fac;
 		/* now find a plane parallel to the view vector so we can intersect with the arrow direction */
 		cross_v3_v3v3(tangent, viewvec, offset);
 		cross_v3_v3v3(plane, tangent, viewvec);
