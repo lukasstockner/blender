@@ -302,7 +302,7 @@ void WM_widgetmap_widgets_update(const bContext *C, wmWidgetMap *wmap)
 			BLI_ghash_reinsert(draw_widgets, widget->idname, widget, NULL, NULL);
 		}
 	}
-	else if (wmap->widgetgroups.first) {
+	else if (!BLI_listbase_is_empty(&wmap->widgetgroups)) {
 		wmWidget *highlighted = NULL;
 
 		for (wmWidgetGroup *wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
@@ -434,7 +434,7 @@ void WM_widgetmap_widgets_draw(
 			widget->draw(C, widget);
 		}
 	}
-	else if (wmap->widgetgroups.first) {
+	else if (!BLI_listbase_is_empty(&wmap->widgetgroups)) {
 		GHashIterator gh_iter;
 
 		GHASH_ITER (gh_iter, draw_widgets) { /* draw_widgets excludes hidden widgets */
