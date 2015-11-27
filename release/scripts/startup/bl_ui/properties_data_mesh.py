@@ -243,9 +243,8 @@ class DATA_PT_face_maps(MeshButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        engine = context.scene.render.engine
         obj = context.object
-        return (obj and obj.type == 'MESH' and (engine in cls.COMPAT_ENGINES))
+        return (obj and obj.type == 'MESH')
 
     def draw(self, context):
         layout = self.layout
