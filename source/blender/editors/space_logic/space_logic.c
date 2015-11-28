@@ -116,8 +116,8 @@ static SpaceLink *logic_new(const bContext *C)
 	ar->regiontype= RGN_TYPE_UI;
 	ar->alignment= RGN_ALIGN_RIGHT;
 	
-	/* main area */
-	ar= MEM_callocN(sizeof(ARegion), "main area for logic");
+	/* main region */
+	ar= MEM_callocN(sizeof(ARegion), "main region for logic");
 	
 	BLI_addtail(&slogic->regionbase, ar);
 	ar->regiontype= RGN_TYPE_WINDOW;
@@ -233,7 +233,7 @@ static int logic_context(const bContext *UNUSED(C), const char *UNUSED(member), 
 
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void logic_main_area_init(wmWindowManager *wm, ARegion *ar)
+static void logic_main_region_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
 	
@@ -244,7 +244,7 @@ static void logic_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 }
 
-static void logic_main_area_draw(const bContext *C, ARegion *ar)
+static void logic_main_region_draw(const bContext *C, ARegion *ar)
 {
 	/* draw entirely, view changes should be handled here */
 //	SpaceLogic *slogic= CTX_wm_space_logic(C);
@@ -273,7 +273,7 @@ static void logic_main_area_draw(const bContext *C, ARegion *ar)
 /* *********************** buttons region ************************ */
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void logic_buttons_area_init(wmWindowManager *wm, ARegion *ar)
+static void logic_buttons_region_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
 
@@ -283,7 +283,7 @@ static void logic_buttons_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 }
 
-static void logic_buttons_area_draw(const bContext *C, ARegion *ar)
+static void logic_buttons_region_draw(const bContext *C, ARegion *ar)
 {
 	ED_region_panels(C, ar, NULL, -1, true);
 }
@@ -291,12 +291,12 @@ static void logic_buttons_area_draw(const bContext *C, ARegion *ar)
 /************************* header region **************************/
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void logic_header_area_init(wmWindowManager *UNUSED(wm), ARegion *ar)
+static void logic_header_region_init(wmWindowManager *UNUSED(wm), ARegion *ar)
 {
 	ED_region_header_init(ar);
 }
 
-static void logic_header_area_draw(const bContext *C, ARegion *ar)
+static void logic_header_region_draw(const bContext *C, ARegion *ar)
 {
 	ED_region_header(C, ar);
 }
@@ -337,8 +337,8 @@ void ED_spacetype_logic(void)
 	art = MEM_callocN(sizeof(ARegionType), "spacetype logic region");
 	art->regionid = RGN_TYPE_WINDOW;
 	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES | ED_KEYMAP_VIEW2D;
-	art->init = logic_main_area_init;
-	art->draw = logic_main_area_draw;
+	art->init = logic_main_region_init;
+	art->draw = logic_main_region_draw;
 	art->listener = logic_listener;
 
 	BLI_addhead(&st->regiontypes, art);
@@ -349,8 +349,8 @@ void ED_spacetype_logic(void)
 	art->prefsizex= 220; // XXX
 	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
 	art->listener = logic_listener;
-	art->init = logic_buttons_area_init;
-	art->draw = logic_buttons_area_draw;
+	art->init = logic_buttons_region_init;
+	art->draw = logic_buttons_region_draw;
 	BLI_addhead(&st->regiontypes, art);
 
 	/* regions: header */
@@ -358,8 +358,8 @@ void ED_spacetype_logic(void)
 	art->regionid = RGN_TYPE_HEADER;
 	art->prefsizey = HEADERY;
 	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
-	art->init = logic_header_area_init;
-	art->draw = logic_header_area_draw;
+	art->init = logic_header_region_init;
+	art->draw = logic_header_region_draw;
 	
 	BLI_addhead(&st->regiontypes, art);
 	
