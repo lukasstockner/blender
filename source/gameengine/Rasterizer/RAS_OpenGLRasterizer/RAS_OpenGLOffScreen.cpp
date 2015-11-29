@@ -120,6 +120,10 @@ bool RAS_OpenGLOffScreen::Create(int width, int height, int samples, RAS_OFS_REN
 			glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, GL_DEPTH_COMPONENT, width, height, true);
 			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, m_colortx);
 			glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, GL_RGBA8, width, height, true);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 		}
 		else
@@ -190,6 +194,10 @@ bool RAS_OpenGLOffScreen::Create(int width, int height, int samples, RAS_OFS_REN
 			m_color = m_blittex = blit_tex;
 			glBindTexture(GL_TEXTURE_2D, m_blittex);
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 			glBindTexture(GL_TEXTURE_2D, 0);
 			glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER_EXT, m_blitfbo);
 			glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, m_blittex, 0);
@@ -311,6 +319,7 @@ void RAS_OpenGLOffScreen::Bind(RAS_OFS_BIND_MODE mode)
 		{
 			glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, m_fbo);
 			glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
+			glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
 			glViewport(0, 0, m_width, m_height);
 			glDisable(GL_SCISSOR_TEST);
 		}
@@ -331,6 +340,13 @@ void RAS_OpenGLOffScreen::Unbind()
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
 	glEnable(GL_SCISSOR_TEST);
 	glReadBuffer(GL_BACK);
+	glDrawBuffer(GL_BACK);
+	if (m_color)
+	{
+		glBindTexture(GL_TEXTURE_2D, m_color);
+		glGenerateMipmap(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
 	m_bound = false;
 }
 
