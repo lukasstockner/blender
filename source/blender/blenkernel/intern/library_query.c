@@ -254,7 +254,8 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 				BKE_library_foreach_ID_link((ID *)scene->nodetree, callback, user_data, flag);
 			}
 			if (scene->basact) {
-				CALLBACK_INVOKE(scene->basact->object, IDWALK_NOP);
+				/* Eeeek... baseact is also in scene->base list, any good reason to call this twice? */
+				CALLBACK_INVOKE(scene->basact->object, IDWALK_USER);
 			}
 			CALLBACK_INVOKE(scene->obedit, IDWALK_NOP);
 

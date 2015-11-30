@@ -3123,7 +3123,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 				/* Since we asked for placeholders in case of missing IDs, we expect to always get a valid one. */
 				BLI_assert(new_id);
 				if (new_id) {
-//					printf("before remap, old_id users: %d (%p), new_id users: %d (%p)\n", old_id->us, old_id->lib, new_id->us, new_id->lib);
+//					printf("before remap, old_id users: %d (%p), new_id users: %d (%p)\n", old_id->us, old_id, new_id->us, new_id);
 					/* Note that here, we also want to replace indirect usages. */
 					BKE_libblock_remap_locked(bmain, old_id, new_id, false);
 
@@ -3253,7 +3253,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 
 				BLI_assert(old_id);
 				if (new_id) {
-					printf("before remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
+//					printf("before remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
 					BKE_libblock_remap_locked(bmain, old_id, new_id, true);
 
 					if (old_id->flag & LIB_FAKEUSER) {
@@ -3261,7 +3261,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 						id_fake_user_set(new_id);
 					}
 
-					printf("after remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
+//					printf("after remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
 
 					/* In some cases, new_id might become direct link, remove parent of library in this case. */
 					if (new_id->lib->parent && (new_id->flag & LIB_INDIRECT) == 0) {
