@@ -232,7 +232,7 @@ static void unlink_group_cb(
 	}
 	else {
 		Main *bmain = CTX_data_main(C);
-		BKE_libblock_unlink(bmain, group);
+		BKE_libblock_unlink(bmain, group, false);
 		BKE_libblock_free(bmain, group);
 	}
 }
@@ -1380,7 +1380,7 @@ static void remap_action_cb(bContext *C, Scene *UNUSED(scene), TreeElement *UNUS
 	ID *new_id = user_data;
 
 	if (tselem->id && (tselem->id != new_id) && (GS(tselem->id->name) == GS(new_id->name))) {
-		BKE_libblock_remap(CTX_data_main(C), tselem->id, new_id, true);
+		BKE_libblock_remap(CTX_data_main(C), tselem->id, new_id, true, false);
 	}
 }
 

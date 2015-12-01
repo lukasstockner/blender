@@ -298,7 +298,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			CALLBACK_INVOKE(scene->gpd, IDWALK_USER);
 
 			for (base = scene->base.first; base; base = base->next) {
-				CALLBACK_INVOKE(base->object, IDWALK_USER);
+				CALLBACK_INVOKE(base->object, IDWALK_USER | IDWALK_NEVER_NULL);
 			}
 
 			if (toolsett) {

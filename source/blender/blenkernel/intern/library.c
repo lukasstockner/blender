@@ -1044,6 +1044,9 @@ enum {
 	 * will still be decremented. This is mandatory for 'delete ID' case, but in all other situation this would lead
 	 * to invalid user counts! */
 	ID_REMAP_SKIP_NEVER_NULL_USAGE  = 1 << 1,
+	/* This tells the callback func to flag with LIB_DOIT all IDs using target one with a 'never NULL' pointer
+	 * (like e.g. Object->data). */
+	ID_REMAP_FLAG_NEVER_NULL_USAGE  = 1 << 2,
 };
 
 /* IDRemp->status */
@@ -1070,12 +1073,16 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 		 *       on the other hand since they get reset to lib data on file open/reload it is indirect too...
 		 *       Edit Mode is also a 'skip direct' case. */
 		const bool is_obj = (GS(id->name) == ID_OB);
-		const bool is_proxy = (is_obj && (((Object *)id)->proxy || ((Object *)id)->proxy_group));
+		const bool is_proxy = false; //(is_obj && (((Object *)id)->proxy || ((Object *)id)->proxy_group));
 		const bool is_obj_editmode = (is_obj && BKE_object_is_in_editmode((Object *)id));
 		const bool is_indirect = (id->lib != NULL);
 		const bool skip_indirect = (id_remap_data->flag & ID_REMAP_SKIP_INDIRECT_USAGE) != 0;
 		const bool is_never_null = ((cb_flag & IDWALK_NEVER_NULL) && (new_id == NULL));
 		const bool skip_never_null = (id_remap_data->flag & ID_REMAP_SKIP_NEVER_NULL_USAGE) != 0;
+
+		if ((id_remap_data->flag & ID_REMAP_FLAG_NEVER_NULL_USAGE) && (cb_flag & IDWALK_NEVER_NULL)) {
+			id->flag |= LIB_DOIT;
+		}
 
 //		if (GS(old_id->name) == ID_AC)
 //			printf("\t\tIn %s (%p): remapping %s (%p) to %s (%p)\n",
@@ -1211,18 +1218,49 @@ static void libblock_remap_data(
 //	       r_id_remap_data->skipped_direct, r_id_remap_data->skipped_indirect);
 }
 
-/** Replace all references in .blend file to \a old_id by \a new_id (if \a new_id is NULL, it unlinks \a old_id). */
-void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const bool skip_indirect_usage)
+/**
+ * Replace all references in given Main to \a old_id by \a new_id (if \a new_id is NULL, it unlinks \a old_id).
+ *
+ * \param skip_indirect_usage If \a true, indirect usages (like e.g. by other linked datablocks) are not remapped.
+ * \param do_flag_never_null If \a true, 'NEVER_NULL' ID users are flagged with LIB_DOIT (caller is expected
+ *                           to ensure that flag is correctly unset first).
+ */
+void BKE_libblock_remap_locked(
+        Main *bmain, void *old_idv, void *new_idv, const bool skip_indirect_usage, const bool do_flag_never_null)
 {
 	IDRemap id_remap_data;
 	ID *old_id = old_idv;
 	ID *new_id = new_idv;
-	int remap_flags = skip_indirect_usage ? ID_REMAP_SKIP_INDIRECT_USAGE : 0;
+	int remap_flags = ((skip_indirect_usage ? ID_REMAP_SKIP_INDIRECT_USAGE : 0) |
+	                   (do_flag_never_null ? ID_REMAP_FLAG_NEVER_NULL_USAGE : 0));
 	int skipped_direct, skipped_refcounted;
 
 	BLI_assert(old_id != NULL);
 	BLI_assert((new_id == NULL) || GS(old_id->name) == GS(new_id->name));
 	BLI_assert(old_id != new_id);
+
+	/* Some pre-process updates.
+	 * This is a bit ugly, but cannot see a way to avoid it. Maybe we should do a per-ID callback for this instead?
+	 */
+	if (GS(old_id->name) == ID_OB) {
+		Object *old_ob = (Object *)old_id;
+		Object *new_ob = (Object *)new_id;
+
+		if (new_ob == NULL) {
+			Scene *sce;
+			Base *base;
+
+			for (sce = bmain->scene.first; sce; sce = sce->id.next) {
+				base = BKE_scene_base_find(sce, old_ob);
+
+				if (base) {
+					id_us_min((ID *)base->object);
+					BKE_scene_base_unlink(sce, base);
+					MEM_freeN(base);
+				}
+			}
+		}
+	}
 
 //	if (GS(old_id->name) == ID_AC) {
 //		printf("%s: START %s (%p, %d) replaced by %s (%p, %d)\n",
@@ -1270,20 +1308,6 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 		Object *old_ob = (Object *)old_id;
 		Object *new_ob = (Object *)new_id;
 
-		if (new_ob == NULL) {
-			Scene *sce;
-			Base *base;
-
-			for (sce = bmain->scene.first; sce; sce = sce->id.next) {
-				base = BKE_scene_base_find(sce, old_ob);
-
-				if (base) {
-					BKE_scene_base_unlink(sce, base);
-					MEM_freeN(base);
-				}
-			}
-		}
-
 		if (old_ob->flag & OB_FROMGROUP) {
 			/* Note that for Scene's BaseObject->flag, either we:
 			 *     - unlinked old_ob (i.e. new_ob is NULL), in which case scenes' bases have been removed already.
@@ -1313,21 +1337,22 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
 	DAG_relations_tag_update(bmain);
 }
 
-void BKE_libblock_remap(Main *bmain, void *old_idv, void *new_idv, const bool skip_indirect_usage)
+void BKE_libblock_remap(
+        Main *bmain, void *old_idv, void *new_idv, const bool skip_indirect_usage, const bool do_flag_never_null)
 {
 	BKE_main_lock(bmain);
 
-	BKE_libblock_remap_locked(bmain, old_idv, new_idv, skip_indirect_usage);
+	BKE_libblock_remap_locked(bmain, old_idv, new_idv, skip_indirect_usage, do_flag_never_null);
 
 	BKE_main_unlock(bmain);
 }
 
 /** Unlink given \a id from given \a bmain (does not touch to indirect, i.e. library, usages of the ID). */
-void BKE_libblock_unlink(Main *bmain, void *idv)
+void BKE_libblock_unlink(Main *bmain, void *idv, const bool do_flag_never_null)
 {
 	BKE_main_lock(bmain);
 
-	BKE_libblock_remap_locked(bmain, idv, NULL, true);
+	BKE_libblock_remap_locked(bmain, idv, NULL, true, do_flag_never_null);
 
 	BKE_main_unlock(bmain);
 }
@@ -1335,7 +1360,7 @@ void BKE_libblock_unlink(Main *bmain, void *idv)
 /** Similar to libblock_remap, but only affects IDs used by given \a idv ID.
  *
  * \param old_id Unlike BKE_libblock_remap, can be NULL, in which case all ID usages by given \a idv will be cleared.
- * \param us_min_never_null If true and new_id is NULL, 'NEVER_NULL' ID usages keep their old id, but this one still
+ * \param us_min_never_null If \a true and new_id is NULL, 'NEVER_NULL' ID usages keep their old id, but this one still
  *        gets its user count decremented (needed when given \a idv is going to be deleted right after being unlinked).
  */
 /* Should be able to replace all _relink() funcs (constraints, rigidbody, etc.) ? */
@@ -1346,7 +1371,8 @@ void BKE_libblock_unlink(Main *bmain, void *idv)
  *     BKE_id_remap maybe?
  *     ... sigh
  */
-void BKE_libblock_relink_ex(void *idv, void *old_idv, void *new_idv, const bool us_min_never_null)
+void BKE_libblock_relink_ex(
+        void *idv, void *old_idv, void *new_idv, const bool us_min_never_null)
 {
 	ID *id = idv;
 	ID *old_id = old_idv;
@@ -1401,36 +1427,12 @@ void BKE_libblock_free_data(Main *bmain, ID *id)
 	BKE_animdata_main_cb(bmain, animdata_dtar_clear_cb, (void *)id);
 }
 
-typedef struct IDRecursiveDelete {
-	ID *id_used;
-	ID *id_user;
-	bool changed;
-} IDRecursiveDelete;
-
-static bool foreach_libblock_recursive_delete_callback(void *user_data, ID **id_p, int cb_flag)
-{
-	IDRecursiveDelete *id_recursive_delete = user_data;
-	ID *id_used = id_recursive_delete->id_used;
-	ID *id_user = id_recursive_delete->id_user;
-
-	if ((*id_p == id_used) && (cb_flag & IDWALK_NEVER_NULL)) {
-		id_user->flag |= LIB_DOIT;
-		id_recursive_delete->changed = true;
-		return false;  /* No need to keep going on! */
-	}
-
-	return true;
-}
-
 /**
  * used in headerbuttons.c image.c mesh.c screen.c sound.c and library.c
  *
  * \param do_id_user if \a true, try to release other ID's 'references' hold by \a idv.
- * \param use_recursive_delete if \a true and \a do_id_user is true, also delete users of this ID when mandatory
- *                             (this applies e.g. in case you delete a Mesh, you also have to
- *                             delete all objects using it).
  */
-void BKE_libblock_free_ex(Main *bmain, void *idv, const bool do_id_user, const bool use_recursive_delete)
+void BKE_libblock_free_ex(Main *bmain, void *idv, const bool do_id_user)
 {
 	ID *id = idv;
 	short type = GS(id->name);
@@ -1443,53 +1445,8 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, const bool do_id_user, const b
 #endif
 
 	if (do_id_user) {
-		if (use_recursive_delete) {
-			/* We check all IDs using current one in a 'never NULL' fashion, and also delete them...
-			 * Note that we do not do real recusive calls here, would be dangerous, we just loop until all additional
-			 * data to delete has been found (should be two loops at most). */
-			IDRecursiveDelete id_recursive_delete;
-			ListBase *lbarray[MAX_LIBARRAY];
-			int base_count, a;
-
-			BKE_main_id_tag_all(bmain, false);
-
-			base_count = set_listbasepointers(bmain, lbarray);
-
-			id_recursive_delete.id_used = id;
-			id_recursive_delete.changed = true;
-
-			while (id_recursive_delete.changed) {
-				id_recursive_delete.changed = false;
-
-				for (a = base_count; a--; ) {
-					ListBase *lb_rec = lbarray[a];
-					ID *id_user;
-
-					for (id_user = lb_rec->first; id_user; id_user = id_user->next) {
-						id_recursive_delete.id_user = id_user;
-						BKE_library_foreach_ID_link(id_user, foreach_libblock_recursive_delete_callback,
-						                            &id_recursive_delete, IDWALK_NOP);
-					}
-				}
-			}
-
-			/* And we delete tagged users of id. */
-			for (a = base_count; a--; ) {
-				ListBase *lb_rec = lbarray[a];
-				ID *id_user, *id_user_next;
-
-				for (id_user = lb_rec->first; id_user; id_user = id_user_next) {
-					id_user_next = id_user->next;
-					if (id_user->flag & LIB_DOIT) {
-						BKE_libblock_free_ex(bmain, id_user, true, true);
-					}
-				}
-			}
-		}
 		BKE_libblock_relink_ex(id, NULL, NULL, true);
 	}
-
-	BLI_assert(id->us == 0);
 
 	switch (type) {
 		case ID_SCE:
@@ -1615,7 +1572,7 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, const bool do_id_user, const b
 
 void BKE_libblock_free(Main *bmain, void *idv)
 {
-	BKE_libblock_free_ex(bmain, idv, true, false);
+	BKE_libblock_free_ex(bmain, idv, true);
 }
 
 void BKE_libblock_free_us(Main *bmain, void *idv)      /* test users */
@@ -1625,9 +1582,54 @@ void BKE_libblock_free_us(Main *bmain, void *idv)      /* test users */
 	id_us_min(id);
 
 	if (id->us == 0) {
-		BKE_libblock_unlink(bmain, id);
+		BKE_libblock_unlink(bmain, id, false);
 		
 		BKE_libblock_free(bmain, id);
+	}
+}
+
+void BKE_libblock_delete(Main *bmain, void *idv)
+{
+	ListBase *lbarray[MAX_LIBARRAY];
+	int base_count, i;
+
+	base_count = set_listbasepointers(bmain, lbarray);
+	BKE_main_id_tag_all(bmain, false);
+
+	/* First tag all datablocks directly from target lib.
+     * Note that we go forward here, since we want to check dependencies before users (e.g. meshes before objetcs).
+     * Avoids to have to loop twice. */
+	for (i = 0; i < base_count; i++) {
+		ListBase *lb = lbarray[i];
+		ID *id;
+
+		for (id = lb->first; id; id = id->next) {
+			/* Note: in case we delete a library, we also delete all its datablocks! */
+			if ((id == (ID *)idv) || (id->lib == (Library *)idv) || (id->flag & LIB_DOIT)) {
+				id->flag |= LIB_DOIT;
+				/* Will tag 'never NULL' users of this ID too. */
+				BKE_libblock_unlink(bmain, id, true);
+			}
+		}
+	}
+
+	/* In usual reversed order, such that all usage of a given ID, even 'never NULL' ones, have been already cleared
+	 * when we reach it (e.g. Objects being processed before meshes, they'll have already released their 'reference'
+	 * over meshes when we come to freeing obdata). */
+	for (i = base_count; i--; ) {
+		ListBase *lb = lbarray[i];
+		ID *id, *id_next;
+
+		for (id = lb->first; id; id = id_next) {
+			id_next = id->next;
+			if (id->flag & LIB_DOIT) {
+				if (id->us != 0) {
+					printf("%s: deleting %s (%d)\n", __func__, id->name, id->us);
+					BLI_assert(id->us == 0);
+				}
+				BKE_libblock_free(bmain, id);
+			}
+		}
 	}
 }
 
@@ -1655,7 +1657,7 @@ void BKE_main_free(Main *mainvar)
 		
 		while ( (id = lb->first) ) {
 #if 1
-			BKE_libblock_free_ex(mainvar, id, false, false);
+			BKE_libblock_free_ex(mainvar, id, false);
 #else
 			/* errors freeing ID's can be hard to track down,
 			 * enable this so valgrind will give the line number in its error log */

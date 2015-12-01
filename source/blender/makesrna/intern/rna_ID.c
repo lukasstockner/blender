@@ -337,7 +337,7 @@ static void rna_ID_user_clear(ID *id)
 static void rna_ID_user_remap(ID *id, Main *bmain, ID *new_id)
 {
 	if (GS(id->name) == GS(new_id->name)) {
-		BKE_libblock_remap(bmain, id, new_id, true);  /* Now, do not allow remapping data in linked data from here... */
+		BKE_libblock_remap(bmain, id, new_id, true, false);  /* Now, do not allow remapping data in linked data from here... */
 	}
 }
 

@@ -60,11 +60,11 @@ void  BKE_libblock_relink(struct ID *id);
 
 /* Note: Requiring new_id to be non-null, this *may* not be the case ultimately, but makes things simpler for now. */
 void BKE_libblock_remap_locked(
-        struct Main *bmain, void *old_id, void *new_id, const bool skip_indirect_usage) ATTR_NONNULL(1, 2);
+        struct Main *bmain, void *old_idv, void *new_idv, const bool skip_indirect_usage, const bool do_flag_never_null) ATTR_NONNULL(1, 2);
 void BKE_libblock_remap(
-        struct Main *bmain, void *old_idv, void *new_idv, const bool skip_indirect_usage) ATTR_NONNULL(1, 2);
+        struct Main *bmain, void *old_idv, void *new_idv, const bool skip_indirect_usage, const bool do_flag_never_null) ATTR_NONNULL(1, 2);
 
-void BKE_libblock_unlink(struct Main *bmain, void *idv) ATTR_NONNULL();
+void BKE_libblock_unlink(struct Main *bmain, void *idv, const bool do_flag_never_null) ATTR_NONNULL();
 
 void BKE_libblock_relink_ex(void *idv, void *old_idv, void *new_idv, const bool us_min_never_null) ATTR_NONNULL(1);
 
@@ -91,10 +91,11 @@ struct ListBase *which_libbase(struct Main *mainlib, short type);
 int set_listbasepointers(struct Main *main, struct ListBase *lb[MAX_LIBARRAY]);
 
 void BKE_libblock_free(struct Main *bmain, void *idv);
-void BKE_libblock_free_ex(struct Main *bmain, void *idv, const bool do_id_user, const bool use_recursive_delete);
+void BKE_libblock_free_ex(struct Main *bmain, void *idv, const bool do_id_user);
 void BKE_libblock_free_us(struct Main *bmain, void *idv);
 void BKE_libblock_free_data(struct Main *bmain, struct ID *id);
 
+void BKE_libblock_delete(struct Main *bmain, void *idv) ATTR_NONNULL();
 
 /* Main API */
 struct Main *BKE_main_new(void);

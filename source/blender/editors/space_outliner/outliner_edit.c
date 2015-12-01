@@ -305,26 +305,13 @@ static void lib_delete(bContext *C, TreeElement *te, TreeStoreElem *tselem)
 {
 	Main *bmain = CTX_data_main(C);
 	Library *lib = (Library *)tselem->id;
-	ListBase *lbarray[MAX_LIBARRAY];
-	int a;
 
 	BLI_assert(te->idcode == ID_LI && lib != NULL && lib->parent == NULL);
 	UNUSED_VARS_NDEBUG(te);
 
-	a = set_listbasepointers(bmain, lbarray);
+	BKE_libblock_delete(bmain, lib);
 
-	/* First tag all datablocks directly from target lib. */
-	while (a--) {
-		ListBase *lb = lbarray[a];
-		ID *id, *id_next;
-
-		for (id = lb->first; id; id = id_next) {
-			id_next = id->next;
-			if (ELEM(lib, id->lib, (Library *)id)) {
-				BKE_libblock_free_ex(bmain, id, true, true);
-			}
-		}
-	}
+	WM_event_add_notifier(C, NC_WINDOW, NULL);
 }
 
 void lib_delete_cb(
