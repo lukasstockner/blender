@@ -1401,11 +1401,36 @@ void BKE_libblock_free_data(Main *bmain, ID *id)
 	BKE_animdata_main_cb(bmain, animdata_dtar_clear_cb, (void *)id);
 }
 
+typedef struct IDRecursiveDelete {
+	ID *id_used;
+	ID *id_user;
+	bool changed;
+} IDRecursiveDelete;
+
+static bool foreach_libblock_recursive_delete_callback(void *user_data, ID **id_p, int cb_flag)
+{
+	IDRecursiveDelete *id_recursive_delete = user_data;
+	ID *id_used = id_recursive_delete->id_used;
+	ID *id_user = id_recursive_delete->id_user;
+
+	if ((*id_p == id_used) && (cb_flag & IDWALK_NEVER_NULL)) {
+		id_user->flag |= LIB_DOIT;
+		id_recursive_delete->changed = true;
+		return false;  /* No need to keep going on! */
+	}
+
+	return true;
+}
+
 /**
  * used in headerbuttons.c image.c mesh.c screen.c sound.c and library.c
  *
- * \param do_id_user if \a true, try to release other ID's 'references' hold by \a idv. */
-void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
+ * \param do_id_user if \a true, try to release other ID's 'references' hold by \a idv.
+ * \param use_recursive_delete if \a true and \a do_id_user is true, also delete users of this ID when mandatory
+ *                             (this applies e.g. in case you delete a Mesh, you also have to
+ *                             delete all objects using it).
+ */
+void BKE_libblock_free_ex(Main *bmain, void *idv, const bool do_id_user, const bool use_recursive_delete)
 {
 	ID *id = idv;
 	short type = GS(id->name);
@@ -1418,8 +1443,53 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 #endif
 
 	if (do_id_user) {
+		if (use_recursive_delete) {
+			/* We check all IDs using current one in a 'never NULL' fashion, and also delete them...
+			 * Note that we do not do real recusive calls here, would be dangerous, we just loop until all additional
+			 * data to delete has been found (should be two loops at most). */
+			IDRecursiveDelete id_recursive_delete;
+			ListBase *lbarray[MAX_LIBARRAY];
+			int base_count, a;
+
+			BKE_main_id_tag_all(bmain, false);
+
+			base_count = set_listbasepointers(bmain, lbarray);
+
+			id_recursive_delete.id_used = id;
+			id_recursive_delete.changed = true;
+
+			while (id_recursive_delete.changed) {
+				id_recursive_delete.changed = false;
+
+				for (a = base_count; a--; ) {
+					ListBase *lb_rec = lbarray[a];
+					ID *id_user;
+
+					for (id_user = lb_rec->first; id_user; id_user = id_user->next) {
+						id_recursive_delete.id_user = id_user;
+						BKE_library_foreach_ID_link(id_user, foreach_libblock_recursive_delete_callback,
+						                            &id_recursive_delete, IDWALK_NOP);
+					}
+				}
+			}
+
+			/* And we delete tagged users of id. */
+			for (a = base_count; a--; ) {
+				ListBase *lb_rec = lbarray[a];
+				ID *id_user, *id_user_next;
+
+				for (id_user = lb_rec->first; id_user; id_user = id_user_next) {
+					id_user_next = id_user->next;
+					if (id_user->flag & LIB_DOIT) {
+						BKE_libblock_free_ex(bmain, id_user, true, true);
+					}
+				}
+			}
+		}
 		BKE_libblock_relink_ex(id, NULL, NULL, true);
 	}
+
+	BLI_assert(id->us == 0);
 
 	switch (type) {
 		case ID_SCE:
@@ -1545,7 +1615,7 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 
 void BKE_libblock_free(Main *bmain, void *idv)
 {
-	BKE_libblock_free_ex(bmain, idv, true);
+	BKE_libblock_free_ex(bmain, idv, true, false);
 }
 
 void BKE_libblock_free_us(Main *bmain, void *idv)      /* test users */
@@ -1585,7 +1655,7 @@ void BKE_main_free(Main *mainvar)
 		
 		while ( (id = lb->first) ) {
 #if 1
-			BKE_libblock_free_ex(mainvar, id, false);
+			BKE_libblock_free_ex(mainvar, id, false, false);
 #else
 			/* errors freeing ID's can be hard to track down,
 			 * enable this so valgrind will give the line number in its error log */

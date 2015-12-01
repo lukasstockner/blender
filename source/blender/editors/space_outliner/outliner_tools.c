@@ -1276,12 +1276,14 @@ typedef enum eOutlinerLibOpTypes {
 	OL_LIB_INVALID = 0,
 
 	OL_LIB_RENAME,
+	OL_LIB_DELETE,
 	OL_LIB_RELOCATE,
 	OL_LIB_RELOAD,
 } eOutlinerLibOpTypes;
 
 static EnumPropertyItem outliner_lib_op_type_items[] = {
 	{OL_LIB_RENAME, "RENAME", 0, "Rename", ""},
+    {OL_LIB_DELETE, "DELETE", 0, "Delete", "Delete this library and all its item from Blender (needs a save/reload)"},
     {OL_LIB_RELOCATE, "RELOCATE", 0, "Relocate", "Select a new path for this library, and reload all its data"},
     {OL_LIB_RELOAD, "RELOAD", 0, "Reload", "Reload all data from this library"},
 	{0, NULL, 0, NULL, NULL}
@@ -1311,6 +1313,17 @@ static int outliner_lib_operation_exec(bContext *C, wmOperator *op)
 
 			WM_event_add_notifier(C, NC_ID | NA_EDITED, NULL);
 			ED_undo_push(C, "Rename");
+			break;
+		}
+		case OL_LIB_DELETE:
+		{
+			/* delete */
+			outliner_do_libdata_operation(C, scene, soops, &soops->tree, lib_delete_cb, NULL);
+
+			WM_event_add_notifier(C, NC_ID | NA_EDITED, NULL);
+			/* Note: no undo possible here really, not 100% sure why... Probably because of library optimisations
+			 *       in undo/redo process? */
+			/* ED_undo_push(C, "Rename"); */
 			break;
 		}
 		case OL_LIB_RELOCATE:

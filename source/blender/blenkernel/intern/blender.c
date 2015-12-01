@@ -565,9 +565,9 @@ bool BKE_read_file_from_memfile(
 	if (bfd) {
 		/* remove the unused screens and wm */
 		while (bfd->main->wm.first)
-			BKE_libblock_free_ex(bfd->main, bfd->main->wm.first, true);
+			BKE_libblock_free_ex(bfd->main, bfd->main->wm.first, true, false);
 		while (bfd->main->screen.first)
-			BKE_libblock_free_ex(bfd->main, bfd->main->screen.first, true);
+			BKE_libblock_free_ex(bfd->main, bfd->main->screen.first, true, false);
 		
 		setup_app_data(C, bfd, "<memory1>");
 	}

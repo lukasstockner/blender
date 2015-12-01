@@ -182,6 +182,10 @@ void item_lib_reload_cb(
         struct bContext *C, struct Scene *scene, struct TreeElement *te,
         struct TreeStoreElem *tsep, struct TreeStoreElem *tselem, void *user_data);
 
+void lib_delete_cb(
+        struct bContext *C, struct Scene *scene, struct TreeElement *te,
+        struct TreeStoreElem *tsep, struct TreeStoreElem *tselem, void *user_data);
+
 TreeElement *outliner_dropzone_find(const struct SpaceOops *soops, const float fmval[2], const bool children);
 /* ...................................................... */
 
@@ -190,6 +194,8 @@ void OUTLINER_OT_item_openclose(struct wmOperatorType *ot);
 void OUTLINER_OT_item_rename(struct wmOperatorType *ot);
 void OUTLINER_OT_lib_relocate(struct wmOperatorType *ot);
 void OUTLINER_OT_lib_reload(struct wmOperatorType *ot);
+
+void OUTLINER_OT_lib_delete(struct wmOperatorType *ot);
 
 void OUTLINER_OT_show_one_level(struct wmOperatorType *ot);
 void OUTLINER_OT_show_active(struct wmOperatorType *ot);

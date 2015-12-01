@@ -91,7 +91,7 @@ struct ListBase *which_libbase(struct Main *mainlib, short type);
 int set_listbasepointers(struct Main *main, struct ListBase *lb[MAX_LIBARRAY]);
 
 void BKE_libblock_free(struct Main *bmain, void *idv);
-void BKE_libblock_free_ex(struct Main *bmain, void *idv, bool do_id_user);
+void BKE_libblock_free_ex(struct Main *bmain, void *idv, const bool do_id_user, const bool use_recursive_delete);
 void BKE_libblock_free_us(struct Main *bmain, void *idv);
 void BKE_libblock_free_data(struct Main *bmain, struct ID *id);
 
