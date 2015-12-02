@@ -1318,14 +1318,14 @@ static bool gpsculpt_brush_apply_standard(bContext *C, tGP_BrushEditData *gso)
 			case GP_EDITBRUSH_TYPE_SMOOTH: /* Smooth strokes */
 			{
 				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_smooth_apply);
+				break;
 			}
-			break;
 			
 			case GP_EDITBRUSH_TYPE_THICKNESS: /* Adjust stroke thickness */
 			{
 				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_thickness_apply);
+				break;
 			}
-			break;
 			
 			case GP_EDITBRUSH_TYPE_GRAB: /* Grab points */
 			{
@@ -1342,32 +1342,32 @@ static bool gpsculpt_brush_apply_standard(bContext *C, tGP_BrushEditData *gso)
 					gp_brush_grab_apply_cached(gso, gps);
 					changed |= true;
 				}
+				break;
 			}
-			break;
 			
 			case GP_EDITBRUSH_TYPE_PUSH: /* Push points */
 			{
 				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_push_apply);
+				break;
 			}
-			break;
 			
 			case GP_EDITBRUSH_TYPE_PINCH: /* Pinch points */
 			{
 				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_pinch_apply);
+				break;
 			}
-			break;
 			
 			case GP_EDITBRUSH_TYPE_TWIST: /* Twist points around midpoint */
 			{
 				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_twist_apply);
+				break;
 			}
-			break;
 			
 			case GP_EDITBRUSH_TYPE_RANDOMISE: /* Apply jitter */
 			{
 				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_randomise_apply);
+				break;
 			}
-			break;
 			
 			default:
 				printf("ERROR: Unknown type of GPencil Sculpt brush - %d\n", gso->brush_type);
@@ -1469,7 +1469,7 @@ static void gpsculpt_brush_apply_event(bContext *C, wmOperator *op, const wmEven
 		 */
 		if (tablet && (pressure >= 0.99f)) {
 			pressure = 1.0f;
-		}		
+		}
 		RNA_float_set(&itemptr, "pressure", pressure);
 	}
 	else {
@@ -1607,7 +1607,6 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 				break;
 				
 			/* Abort painting if any of the usual things are tried */
-			// XXX: should this be "emergency stop" instead? (i.e. operator_cancelled)
 			case MIDDLEMOUSE:
 			case RIGHTMOUSE:
 			case ESCKEY:
@@ -1631,7 +1630,6 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 				break;
 				
 			/* Exit modal operator, based on the "standard" ops */
-			// XXX: should this be "emergency stop" instead? (i.e. operator_cancelled)
 			case RIGHTMOUSE:
 			case ESCKEY:
 				gpsculpt_brush_exit(C, op);
