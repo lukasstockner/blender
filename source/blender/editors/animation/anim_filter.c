@@ -1505,13 +1505,15 @@ static size_t animdata_filter_shapekey(bAnimContext *ac, ListBase *anim_data, Ke
 }
 
 /* Helper for Grease Pencil - layers within a datablock */
-static size_t animdata_filter_gpencil_data(ListBase *anim_data, bGPdata *gpd, int filter_mode)
+static size_t animdata_filter_gpencil_layers_data(ListBase *anim_data, bDopeSheet *ads, bGPdata *gpd, int filter_mode)
 {
 	bGPDlayer *gpl;
 	size_t items = 0;
 	
 	/* loop over layers as the conditions are acceptable */
 	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+		// TODO: name filter...
+		
 		/* only if selected */
 		if (ANIMCHANNEL_SELOK(SEL_GPL(gpl)) ) {
 			/* only if editable */
@@ -1528,53 +1530,65 @@ static size_t animdata_filter_gpencil_data(ListBase *anim_data, bGPdata *gpd, in
 	return items;
 }
 
+/* Helper for Grease Pencil - Grease Pencil datablock - GP Frames */
+static size_t animdata_filter_gpencil_data(ListBase *anim_data, bDopeSheet *ads, bGPdata *gpd, int filter_mode)
+{
+	size_t items = 0;
+	
+	/* When asked from "AnimData" blocks (i.e. the top-level containers for normal animation),
+	 * for convenience, this will return GP Datablocks instead. This may cause issues down
+	 * the track, but for now, this will do...
+	 */
+	if (filter_mode & ANIMFILTER_ANIMDATA) {
+		/* just add GPD as a channel - this will add everything needed */
+		ANIMCHANNEL_NEW_CHANNEL(gpd, ANIMTYPE_GPDATABLOCK, NULL);
+	}
+	else {
+		ListBase tmp_data = {NULL, NULL};
+		size_t tmp_items = 0;
+		
+		/* add gpencil animation channels */
+		BEGIN_ANIMFILTER_SUBCHANNELS(EXPANDED_GPD(gpd))
+		{
+			tmp_items += animdata_filter_gpencil_layers_data(&tmp_data, ads, gpd, filter_mode);
+		}
+		END_ANIMFILTER_SUBCHANNELS;
+		
+		/* did we find anything? */
+		if (tmp_items) {
+			/* include data-expand widget first */
+			if (filter_mode & ANIMFILTER_LIST_CHANNELS) {
+				/* add gpd as channel too (if for drawing, and it has layers) */
+				ANIMCHANNEL_NEW_CHANNEL(gpd, ANIMTYPE_GPDATABLOCK, NULL);
+			}
+			
+			/* now add the list of collected channels */
+			BLI_movelisttolist(anim_data, &tmp_data);
+			BLI_assert(BLI_listbase_is_empty(&tmp_data));
+			items += tmp_items;
+		}
+	}
+	
+	return items;
+}
+
 /* Grab all Grease Pencil datablocks in file */
 // TODO: should this be amalgamated with the dopesheet filtering code?
-static size_t animdata_filter_gpencil(ListBase *anim_data, void *UNUSED(data), int filter_mode)
+static size_t animdata_filter_gpencil(bAnimContext *ac, ListBase *anim_data, void *UNUSED(data), int filter_mode)
 {
+	bDopeSheet *ads = ac->ads;
 	bGPdata *gpd;
 	size_t items = 0;
 	
 	/* for now, grab grease pencil datablocks directly from main */
 	// XXX: this is not good...
 	for (gpd = G.main->gpencil.first; gpd; gpd = gpd->id.next) {
-		ListBase tmp_data = {NULL, NULL};
-		size_t tmp_items = 0;
-		
 		/* only show if gpd is used by something... */
 		if (ID_REAL_USERS(gpd) < 1)
 			continue;
 		
-		/* When asked from "AnimData" blocks (i.e. the top-level containers for normal animation),
-		 * for convenience, this will return GP Datablocks instead. This may cause issues down
-		 * the track, but for now, this will do...
-		 */
-		if (filter_mode & ANIMFILTER_ANIMDATA) {
-			/* just add GPD as a channel - this will add everything needed */
-			ANIMCHANNEL_NEW_CHANNEL(gpd, ANIMTYPE_GPDATABLOCK, NULL);
-		}
-		else {
-			/* add gpencil animation channels */
-			BEGIN_ANIMFILTER_SUBCHANNELS(EXPANDED_GPD(gpd))
-			{
-				tmp_items += animdata_filter_gpencil_data(&tmp_data, gpd, filter_mode);
-			}
-			END_ANIMFILTER_SUBCHANNELS;
-			
-			/* did we find anything? */
-			if (tmp_items) {
-				/* include data-expand widget first */
-				if (filter_mode & ANIMFILTER_LIST_CHANNELS) {
-					/* add gpd as channel too (if for drawing, and it has layers) */
-					ANIMCHANNEL_NEW_CHANNEL(gpd, ANIMTYPE_GPDATABLOCK, NULL);
-				}
-				
-				/* now add the list of collected channels */
-				BLI_movelisttolist(anim_data, &tmp_data);
-				BLI_assert(BLI_listbase_is_empty(&tmp_data));
-				items += tmp_items;
-			}
-		}
+		/* add GP frames from this datablock */
+		items += animdata_filter_gpencil_data(anim_data, ads, gpd, filter_mode);
 	}
 	
 	/* return the number of items added to the list */
@@ -2880,7 +2894,7 @@ size_t ANIM_animdata_filter(bAnimContext *ac, ListBase *anim_data, eAnimFilter_F
 			case ANIMCONT_GPENCIL:
 			{
 				if (animdata_filter_dopesheet_summary(ac, anim_data, filter_mode, &items))
-					items = animdata_filter_gpencil(anim_data, data, filter_mode);
+					items = animdata_filter_gpencil(ac, anim_data, data, filter_mode);
 				break;
 			}
 			case ANIMCONT_MASK:
