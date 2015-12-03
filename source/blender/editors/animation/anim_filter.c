@@ -1582,18 +1582,73 @@ static size_t animdata_filter_gpencil_data(ListBase *anim_data, bDopeSheet *ads,
 static size_t animdata_filter_gpencil(bAnimContext *ac, ListBase *anim_data, void *UNUSED(data), int filter_mode)
 {
 	bDopeSheet *ads = ac->ads;
-	bGPdata *gpd;
 	size_t items = 0;
 	
-	/* for now, grab grease pencil datablocks directly from main */
-	// XXX: this is not good...
-	for (gpd = G.main->gpencil.first; gpd; gpd = gpd->id.next) {
-		/* only show if gpd is used by something... */
-		if (ID_REAL_USERS(gpd) < 1)
-			continue;
+	if (ads->filterflag & ADS_FILTER_GP_3DONLY) {
+		Scene *scene = (Scene *)ads->source;
+		Base *base;
 		
-		/* add GP frames from this datablock */
-		items += animdata_filter_gpencil_data(anim_data, ads, gpd, filter_mode);
+		/* Active scene's GPencil block first - No parent item needed... */
+		if (scene->gpd) {
+			items += animdata_filter_gpencil_data(anim_data, ads, scene->gpd, filter_mode);
+		}
+		
+		/* Objects in the scene */
+		for (base = scene->base.first; base; base = base->next) {
+			/* Only consider this object if it has got some GP data (saving on all the other tests) */
+			if (base->object && base->object->gpd) {
+				Object *ob = base->object;
+				
+				/* firstly, check if object can be included, by the following factors:
+				 *	- if only visible, must check for layer and also viewport visibility
+				 *		--> while tools may demand only visible, user setting takes priority
+				 *			as user option controls whether sets of channels get included while
+				 *			tool-flag takes into account collapsed/open channels too
+				 *	- if only selected, must check if object is selected 
+				 *	- there must be animation data to edit (this is done recursively as we 
+				 *	  try to add the channels)
+				 */
+				if ((filter_mode & ANIMFILTER_DATA_VISIBLE) && !(ads->filterflag & ADS_FILTER_INCL_HIDDEN)) {
+					/* layer visibility - we check both object and base, since these may not be in sync yet */
+					if ((scene->lay & (ob->lay | base->lay)) == 0) continue;
+					
+					/* outliner restrict-flag */
+					if (ob->restrictflag & OB_RESTRICT_VIEW) continue;
+				}
+				
+				/* check selection and object type filters */
+				if ( (ads->filterflag & ADS_FILTER_ONLYSEL) && !((base->flag & SELECT) /*|| (base == scene->basact)*/) ) {
+					/* only selected should be shown */
+					continue;
+				}
+				
+				/* check if object belongs to the filtering group if option to filter 
+				 * objects by the grouped status is on
+				 *	- used to ease the process of doing multiple-character choreographies
+				 */
+				if (ads->filterflag & ADS_FILTER_ONLYOBGROUP) {
+					if (BKE_group_object_exists(ads->filter_grp, ob) == 0)
+						continue;
+				}
+				
+				/* finally, include this object's grease pencil datablock */
+				/* XXX: Should we store these under expanders per item? */
+				items += animdata_filter_gpencil_data(anim_data, ads, ob->gpd, filter_mode);
+			}
+		}
+	}
+	else {
+		bGPdata *gpd;
+		
+		/* Grab all Grease Pencil datablocks directly from main, but only those that seem to be useful somewhere */
+		for (gpd = G.main->gpencil.first; gpd; gpd = gpd->id.next) {
+			/* only show if gpd is used by something... */
+			if (ID_REAL_USERS(gpd) < 1)
+				continue;
+			
+			/* add GP frames from this datablock */
+			items += animdata_filter_gpencil_data(anim_data, ads, gpd, filter_mode);
+		}
 	}
 	
 	/* return the number of items added to the list */

@@ -140,6 +140,14 @@ class DOPESHEET_HT_header(Header):
             dopesheet_filter(layout, context, genericFiltersOnly=True)
         elif st.mode == 'GPENCIL':
             row = layout.row(align=True)
+            row.prop(st.dopesheet, "show_gpencil_3d_only", text="Active Only")
+
+            if st.dopesheet.show_gpencil_3d_only:
+                row = layout.row(align=True)
+                row.prop(st.dopesheet, "show_only_selected", text="")
+                row.prop(st.dopesheet, "show_hidden", text="")
+
+            row = layout.row(align=True)
             row.prop(st.dopesheet, "use_filter_text", text="")
             if st.dopesheet.use_filter_text:
                 row.prop(st.dopesheet, "filter_text", text="")
