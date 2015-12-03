@@ -2521,6 +2521,11 @@ static void rna_def_userdef_theme_space_seq(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Meta Strip", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
+	prop = RNA_def_property(srna, "text_strip", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Text Strip", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
 	prop = RNA_def_property(srna, "frame_current", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_float_sdna(prop, NULL, "cframe");
 	RNA_def_property_array(prop, 3);
@@ -3797,9 +3802,7 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 
 static void rna_def_userdef_system(BlenderRNA *brna)
 {
-	FunctionRNA *func;
 	PropertyRNA *prop;
-	PropertyRNA *parm;
 	StructRNA *srna;
 
 	static EnumPropertyItem gl_texture_clamp_items[] = {
@@ -3965,6 +3968,11 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "font_path_ui", PROP_STRING, PROP_FILEPATH);
 	RNA_def_property_string_sdna(prop, NULL, "font_path_ui");
 	RNA_def_property_ui_text(prop, "Interface Font", "Path to interface font");
+	RNA_def_property_update(prop, NC_WINDOW, "rna_userdef_language_update");
+
+	prop = RNA_def_property(srna, "font_path_ui_mono", PROP_STRING, PROP_FILEPATH);
+	RNA_def_property_string_sdna(prop, NULL, "font_path_ui_mono");
+	RNA_def_property_ui_text(prop, "Monospace Font", "Path to interface monospace Font");
 	RNA_def_property_update(prop, NC_WINDOW, "rna_userdef_language_update");
 
 	prop = RNA_def_property(srna, "scrollback", PROP_INT, PROP_UNSIGNED);

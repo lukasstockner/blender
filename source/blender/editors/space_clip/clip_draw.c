@@ -1064,7 +1064,7 @@ static void draw_plane_marker_image(Scene *scene,
 		}
 
 		if (display_buffer) {
-			GLuint texid, last_texid;
+			GLuint texid;
 			float frame_corners[4][2] = {{0.0f, 0.0f},
 			                             {1.0f, 0.0f},
 			                             {1.0f, 1.0f},
@@ -1084,10 +1084,8 @@ static void draw_plane_marker_image(Scene *scene,
 				glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA);
 			}
 
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 			glColor4f(1.0, 1.0, 1.0, plane_track->image_opacity);
 
-			last_texid = glaGetOneInteger(GL_TEXTURE_2D);
 			glEnable(GL_TEXTURE_2D);
 			glGenTextures(1, (GLuint *)&texid);
 
@@ -1111,7 +1109,7 @@ static void draw_plane_marker_image(Scene *scene,
 
 			glPopMatrix();
 
-			glBindTexture(GL_TEXTURE_2D, last_texid);
+			glBindTexture(GL_TEXTURE_2D, 0);
 			glDisable(GL_TEXTURE_2D);
 
 			if (transparent) {
