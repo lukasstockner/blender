@@ -196,9 +196,15 @@ typedef struct ArrowInteraction {
 	float orig_offset;
 	float orig_scale;
 
-	/* direction vector, projected in screen space */
-	float proj_direction[2];
+	/* offset of last handling step */
+	float prev_offset;
+	/* Total offset added by precision tweaking.
+	 * Needed to allow toggling precision on/off without causing jumps */
+	float precision_offset;
 } ArrowInteraction;
+
+/* factor for precision tweaking */
+#define ARROW_PRECISION_FAC 0.05f
 
 
 static void widget_arrow_get_final_pos(wmWidget *widget, float r_pos[3])
@@ -376,12 +382,13 @@ static void widget_arrow_draw(const bContext *UNUSED(C), wmWidget *widget)
  */
 #define USE_ABS_HANDLE_RANGE
 
-static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *widget)
+static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *widget, const int flag)
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
 	ArrowInteraction *data = widget->interaction_data;
 	ARegion *ar = CTX_wm_region(C);
 	RegionView3D *rv3d = ar->regiondata;
+	const bool use_precision = (flag & WM_WIDGET_TWEAK_PRECISE);
 
 	float orig_origin[4];
 	float viewvec[3], tangent[3], plane[3];
@@ -461,12 +468,22 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 		facdir = (m_diff[1] < 0.0) ? -1.0 : 1.0;
 	}
 
+
+	const float ofs_new = facdir * len_v3(offset);
+
 	/* set the property for the operator and call its modal function */
 	if (widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE]) {
 		float max = arrow->min + arrow->range;
 		float value;
 
-		value = data->orig_offset + facdir * len_v3(offset);
+		if (use_precision) {
+			/* add delta offset of this step to total precision_offset */
+			data->precision_offset += ofs_new - data->prev_offset;
+		}
+		data->prev_offset = ofs_new;
+
+		value = data->orig_offset + ofs_new - data->precision_offset * (1.0f - ARROW_PRECISION_FAC);
+
 		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
 				value = max - (value * arrow->range / arrow->range_fac);
@@ -482,6 +499,7 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 		if (arrow->flag & ARROW_CUSTOM_RANGE_SET) {
 			CLAMP(value, arrow->min, max);
 		}
+
 
 		PointerRNA ptr = widget->ptr[ARROW_SLOT_OFFSET_WORLD_SPACE];
 		PropertyRNA *prop = widget->props[ARROW_SLOT_OFFSET_WORLD_SPACE];
@@ -506,11 +524,12 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 			arrow->offset = value;
 	}
 	else {
-		arrow->offset = facdir * len_v3(offset);
+		arrow->offset = ofs_new;
 	}
 
 	/* tag the region for redraw */
 	ED_region_tag_redraw(ar);
+	WM_event_add_mousemove(C);
 
 	return OPERATOR_PASS_THROUGH;
 }
@@ -1369,7 +1388,7 @@ static int widget_rect_transform_invoke(bContext *UNUSED(C), const wmEvent *even
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWidget *widget)
+static int widget_rect_transform_handler(bContext *C, const wmEvent *event, wmWidget *widget, const int UNUSED(flag))
 {
 	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	RectTransformInteraction *data = widget->interaction_data;

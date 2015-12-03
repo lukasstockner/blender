@@ -67,7 +67,7 @@ typedef struct wmWidget {
 	void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *widget, int selectionbase);
 
 	/* handler used by the widget. Usually handles interaction tied to a widget type */
-	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
+	int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, const int flag);
 
 	/* widget-specific handler to update widget attributes when a property is bound */
 	void (*bind_to_prop)(struct wmWidget *widget, int slot);
@@ -176,10 +176,8 @@ bool wm_widgetmap_is_3d(const wmWidgetMap *wmap);
 bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *name);
 void wm_widgets_keymap(wmKeyConfig *keyconf);
 
-void WIDGETGROUP_OT_widget_set_active(wmOperatorType *ot);
 void WIDGETGROUP_OT_widget_select(wmOperatorType *ot);
 void WIDGETGROUP_OT_widget_tweak(wmOperatorType *ot);
-void WIDGETGROUP_OT_widget_tweak_cancel(wmOperatorType *ot);
 
 
 /* hack to store circle select size - campbell, must replace with nice operator memory */

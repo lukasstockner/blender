@@ -508,7 +508,7 @@ bool        WM_event_is_tablet(const struct wmEvent *event);
 struct wmWidget *WM_widget_new(void (*draw)(const struct bContext *, struct wmWidget *),
                                void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
                                int  (*intersect)(struct bContext *, const struct wmEvent *, struct wmWidget *),
-                               int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *));
+                               int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, const int));
 
 void  WM_widgetmap_widgets_update(const struct bContext *C, struct wmWidgetMap *wmap);
 void  WM_widgetmap_widgets_draw(const struct bContext *C, const struct wmWidgetMap *wmap,
@@ -532,6 +532,16 @@ enum widgetflags {
 	WM_WIDGET_SCENE_DEPTH = (1 << 6), /* widget is depth culled with scene objects*/
 	WM_WIDGET_HIDDEN      = (1 << 7),
 	WM_WIDGET_SELECTABLE  = (1 << 8),
+};
+
+/**
+ * \brief Widget tweak flag.
+ * Bitflag passed to widget while tweaking.
+ */
+enum {
+	/* drag with extra precision (shift)
+	 * NOTE: Widgets are responsible for handling this (widget->handler callback)! */
+	WM_WIDGET_TWEAK_PRECISE = (1 << 0),
 };
 
 void WM_widget_set_property(struct wmWidget *, int slot, struct PointerRNA *ptr, const char *propname);
