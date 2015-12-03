@@ -160,7 +160,7 @@ static void rna_Main_scenes_remove(Main *bmain, bContext *C, ReportList *reports
 
 		}
 
-		BKE_libblock_remap(bmain, scene, scene_new, true, false);
+		BKE_libblock_remap(bmain, scene, scene_new, true, false, false);
 		BKE_libblock_free(bmain, scene);
 		RNA_POINTER_INVALIDATE(scene_ptr);
 	}

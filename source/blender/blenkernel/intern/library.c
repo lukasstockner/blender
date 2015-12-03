@@ -203,7 +203,8 @@ void id_us_min(ID *id)
 		}
 
 		if (id->us <= limit) {
-			printf("ID user decrement error: %s (from '%s')\n", id->name, id->lib ? id->lib->filepath : "[Main]");
+			printf("ID user decrement error: %s (from '%s'): %d <= %d\n",
+			       id->name, id->lib ? id->lib->filepath : "[Main]", id->us, limit);
 			BLI_assert(0);
 			id->us = limit;
 		}
@@ -1226,13 +1227,15 @@ static void libblock_remap_data(
  *                           to ensure that flag is correctly unset first).
  */
 void BKE_libblock_remap_locked(
-        Main *bmain, void *old_idv, void *new_idv, const bool skip_indirect_usage, const bool do_flag_never_null)
+        Main *bmain, void *old_idv, void *new_idv,
+        const bool skip_indirect_usage, const bool us_min_never_null, const bool do_flag_never_null)
 {
 	IDRemap id_remap_data;
 	ID *old_id = old_idv;
 	ID *new_id = new_idv;
 	int remap_flags = ((skip_indirect_usage ? ID_REMAP_SKIP_INDIRECT_USAGE : 0) |
-	                   (do_flag_never_null ? ID_REMAP_FLAG_NEVER_NULL_USAGE : 0));
+	                   (do_flag_never_null ? ID_REMAP_FLAG_NEVER_NULL_USAGE : 0) |
+	                   (us_min_never_null ? 0 : ID_REMAP_SKIP_NEVER_NULL_USAGE));
 	int skipped_direct, skipped_refcounted;
 
 	BLI_assert(old_id != NULL);
@@ -1327,6 +1330,10 @@ void BKE_libblock_remap_locked(
 			}
 		}
 	}
+	else if (GS(old_id->name) == ID_LI) {
+		/* Libraries have one user, though they are not technically used by anyone... */
+		id_us_min(old_id);
+	}
 
 //	if (GS(old_id->name) == ID_AC) {
 //		printf("%s: END   %s (%p, %d) replaced by %s (%p, %d)\n",
@@ -1338,11 +1345,12 @@ void BKE_libblock_remap_locked(
 }
 
 void BKE_libblock_remap(
-        Main *bmain, void *old_idv, void *new_idv, const bool skip_indirect_usage, const bool do_flag_never_null)
+        Main *bmain, void *old_idv, void *new_idv,
+        const bool skip_indirect_usage, const bool us_min_never_null, const bool do_flag_never_null)
 {
 	BKE_main_lock(bmain);
 
-	BKE_libblock_remap_locked(bmain, old_idv, new_idv, skip_indirect_usage, do_flag_never_null);
+	BKE_libblock_remap_locked(bmain, old_idv, new_idv, skip_indirect_usage, us_min_never_null, do_flag_never_null);
 
 	BKE_main_unlock(bmain);
 }
@@ -1352,7 +1360,7 @@ void BKE_libblock_unlink(Main *bmain, void *idv, const bool do_flag_never_null)
 {
 	BKE_main_lock(bmain);
 
-	BKE_libblock_remap_locked(bmain, idv, NULL, true, do_flag_never_null);
+	BKE_libblock_remap_locked(bmain, idv, NULL, true, false, do_flag_never_null);
 
 	BKE_main_unlock(bmain);
 }

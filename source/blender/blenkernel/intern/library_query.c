@@ -238,6 +238,12 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 	FOREACH_CALLBACK_INVOKE(id, check_id_super, flag, callback, user_data, cb_flag)
 
 	switch (GS(id->name)) {
+		case ID_LI:
+		{
+			Library *lib = (Library *) id;
+			CALLBACK_INVOKE(lib->parent, IDWALK_NOP);
+			break;
+		}
 		case ID_SCE:
 		{
 			Scene *scene = (Scene *) id;
