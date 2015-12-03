@@ -211,6 +211,30 @@ static void rna_GPencilLayer_info_set(PointerRNA *ptr, const char *value)
 	BLI_uniquename(&gpd->layers, gpl, DATA_("GP_Layer"), '.', offsetof(bGPDlayer, info), sizeof(gpl->info));
 }
 
+static void rna_GPencil_use_onion_skinning_set(PointerRNA *ptr, const int value)
+{
+	bGPdata *gpd = ptr->id.data;
+	bGPDlayer *gpl;
+	
+	/* set new value */
+	if (value) {
+		/* enable on active layer (it's the one that's most likely to be of interest right now) */
+		gpl = gpencil_layer_getactive(gpd);
+		if (gpl) {
+			gpl->flag |= GP_LAYER_ONIONSKIN;
+		}
+		
+		gpd->flag |= GP_DATA_SHOW_ONIONSKINS;
+	}
+	else {
+		/* disable on all layers - allowa quickly turning them all off, without having to check */
+		for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+			gpl->flag &= ~GP_LAYER_ONIONSKIN;
+		}
+		
+		gpd->flag &= ~GP_DATA_SHOW_ONIONSKINS;
+	}
+}
 
 static bGPDstroke *rna_GPencil_stroke_point_find_stroke(const bGPdata *gpd, const bGPDspoint *pt, bGPDlayer **r_gpl, bGPDframe **r_gpf)
 {
@@ -898,6 +922,13 @@ static void rna_def_gpencil_data(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_DATA_STROKE_EDITMODE);
 	RNA_def_property_ui_text(prop, "Stroke Edit Mode", "Edit Grease Pencil strokes instead of viewport data");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, "rna_GPencil_editmode_update");
+	
+	prop = RNA_def_property(srna, "use_onion_skinning", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_DATA_SHOW_ONIONSKINS);
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_GPencil_use_onion_skinning_set");
+	RNA_def_property_ui_text(prop, "Onion Skins", 
+	                         "Show ghosts of the frames before and after the current frame, toggle to enable on active layer or disable all");
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, NULL);
 	
 	/* API Functions */
 	func = RNA_def_function(srna, "clear", "rna_GPencil_clear");

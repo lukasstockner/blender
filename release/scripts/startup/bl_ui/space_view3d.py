@@ -124,9 +124,7 @@ class VIEW3D_HT_header(Header):
             row.operator("gpencil.copy", text="", icon='COPYDOWN')
             row.operator("gpencil.paste", text="", icon='PASTEDOWN')
 
-            if context.active_gpencil_layer:
-                gpl = context.active_gpencil_layer
-                layout.prop(gpl, "use_onion_skinning", text="Onion Skins", icon='PARTICLE_PATH') # XXX: icon
+            layout.prop(context.gpencil_data, "use_onion_skinning", text="Onion Skins", icon='PARTICLE_PATH') # XXX: icon
 
 
 class VIEW3D_MT_editor_menus(Menu):
