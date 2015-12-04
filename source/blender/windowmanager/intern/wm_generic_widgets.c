@@ -388,7 +388,6 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 	ArrowInteraction *data = widget->interaction_data;
 	ARegion *ar = CTX_wm_region(C);
 	RegionView3D *rv3d = ar->regiondata;
-	const bool use_precision = (flag & WM_WIDGET_TWEAK_PRECISE);
 
 	float orig_origin[4];
 	float viewvec[3], tangent[3], plane[3];
@@ -476,7 +475,7 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 		float max = arrow->min + arrow->range;
 		float value;
 
-		if (use_precision) {
+		if (flag & WM_WIDGET_TWEAK_PRECISE) {
 			/* add delta offset of this step to total precision_offset */
 			data->precision_offset += ofs_new - data->prev_offset;
 		}

@@ -37,6 +37,7 @@
 #include "DNA_camera_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
+#include "DNA_lamp_types.h"
 
 #include "ED_armature.h"
 #include "ED_screen.h"
@@ -48,6 +49,42 @@
 
 #include "view3d_intern.h"  /* own include */
 
+
+int WIDGETGROUP_lamp_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
+{
+	Object *ob = CTX_data_active_object(C);
+
+	if (ob && ob->type == OB_LAMP) {
+		Lamp *la = ob->data;
+		return (la->type == LA_SPOT);
+	}
+	return false;
+}
+
+void WIDGETGROUP_lamp_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
+{
+	Object *ob = CTX_data_active_object(C);
+	Lamp *la = ob->data;
+	wmWidget *widget;
+	PointerRNA ptr;
+	float dir[3];
+	const char *propname = "spot_size";
+
+	const float color[4] = {0.5f, 0.5f, 1.0f, 1.0f};
+	const float color_hi[4] = {0.8f, 0.8f, 0.45f, 1.0f};
+
+
+	negate_v3_v3(dir, ob->obmat[2]);
+
+	widget = WIDGET_arrow_new(wgroup, propname, WIDGET_ARROW_STYLE_INVERTED);
+
+	RNA_pointer_create(&la->id, &RNA_Lamp, la, &ptr);
+	WIDGET_arrow_set_range_fac(widget, 4.0f);
+	WIDGET_arrow_set_direction(widget, dir);
+	WM_widget_set_origin(widget, ob->obmat[3]);
+	WM_widget_set_colors(widget, color, color_hi);
+	WM_widget_set_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &ptr, propname);
+}
 
 int WIDGETGROUP_camera_poll(const bContext *C, wmWidgetGroupType *UNUSED(wgrouptype))
 {
@@ -177,47 +214,6 @@ void WIDGETGROUP_forcefield_create(const bContext *C, wmWidgetGroup *wgroup)
 		WM_widget_set_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &ptr, "strength");
 	}
 }
-
-#if 0
-int WIDGETGROUP_shapekey_poll(const bContext *C, wmWidgetGroupType *UNUSED(wgrouptype))
-{
-	Object *ob = CTX_data_active_object(C);
-
-	if (ob && ob->type == OB_MESH) {
-		Key *key = BKE_key_from_object(ob);
-		KeyBlock *kb;
-
-		if (key == NULL)
-			return false;
-
-		kb = BLI_findlink(&key->block, ob->shapenr - 1);
-
-		if (kb)
-			return true;
-	}
-	return false;
-}
-
-void WIDGETGROUP_shapekey_draw(const bContext *C, wmWidgetGroup *wgroup)
-{
-	float color_shape[4] = {1.0f, 0.3f, 0.0f, 1.0f};
-	Object *ob = CTX_data_active_object(C);
-	Key *key = BKE_key_from_object(ob);
-	KeyBlock *kb = BLI_findlink(&key->block, ob->shapenr - 1);
-	wmWidget *widget;
-	PointerRNA shapeptr;
-	float dir[3];
-
-	widget = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
-	WM_widget_set_3d_scale(widget, false);
-	WIDGET_arrow_set_color(widget, color_shape);
-	RNA_pointer_create(&key->id, &RNA_ShapeKey, kb, &shapeptr);
-	WM_widget_set_origin(widget, ob->obmat[3]);
-	WM_widget_set_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &shapeptr, "value");
-	negate_v3_v3(dir, ob->obmat[2]);
-	WIDGET_arrow_set_direction(widget, dir);
-}
-#endif
 
 /* draw facemaps depending on the selected bone in pose mode */
 #define USE_FACEMAP_FROM_BONE

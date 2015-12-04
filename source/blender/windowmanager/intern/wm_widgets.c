@@ -915,24 +915,19 @@ static int widget_tweak_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
 	}
 
-	if ((event->type == wtweak->init_event) && (event->val == KM_RELEASE)) {
+	if (event->type == wtweak->init_event && event->val == KM_RELEASE) {
 		widget_tweak_finish(C, op);
 		return OPERATOR_FINISHED;
 	}
 
 
-/* Ugly hack to send widget events */
-#define SEND_WIDGET_EVENT(type_) ((wmEvent *)event)->type = type_
-
 	if (event->type == EVT_MODAL_MAP) {
 		switch (event->val) {
 			case TWEAK_MODAL_CANCEL:
 				widget_tweak_cancel(C, op);
-				SEND_WIDGET_EVENT(EVT_WIDGET_RELEASED);
 				return OPERATOR_CANCELLED;
 			case TWEAK_MODAL_CONFIRM:
 				widget_tweak_finish(C, op);
-				SEND_WIDGET_EVENT(EVT_WIDGET_RELEASED);
 				return OPERATOR_FINISHED;
 			case TWEAK_MODAL_PRECISION_ON:
 				wtweak->flag |= WM_WIDGET_TWEAK_PRECISE;
@@ -948,7 +943,8 @@ static int widget_tweak_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		widget->handler(C, event, widget, wtweak->flag);
 	}
 
-	SEND_WIDGET_EVENT(EVT_WIDGET_UPDATE);
+	/* Ugly hack to send widget events */
+	((wmEvent *)event)->type = EVT_WIDGET_UPDATE;
 
 	/* always return PASS_THROUGH so modal handlers
 	 * with widgets attached can update */
@@ -994,7 +990,6 @@ static int widget_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
 	op->customdata = wtweak;
 
-	/* add modal handler */
 	WM_event_add_modal_handler(C, op);
 
 	return OPERATOR_RUNNING_MODAL;

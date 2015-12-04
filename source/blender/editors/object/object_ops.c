@@ -259,8 +259,6 @@ void ED_operatortypes_object(void)
 
 	WM_operatortype_append(TRANSFORM_OT_vertex_random);
 
-	WM_operatortype_append(LAMP_OT_lamp_position);
-
 	WM_operatortype_append(OBJECT_OT_data_transfer);
 	WM_operatortype_append(OBJECT_OT_datalayout_transfer);
 

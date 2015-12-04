@@ -2073,13 +2073,11 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 				ARegion *region = CTX_wm_region(C);
 				wmWidgetMap *wmap = handler->widgetmap;
 				wmWidget *widget = wm_widgetmap_get_highlighted_widget(wmap);
-				short event_processed = 0;
 				unsigned char part;
 
 				wm_widgetmap_handler_context(C, handler);
 				wm_region_mouse_co(C, event);
 
-#ifndef USE_OLD_WIDGETMAP_HANDLING
 				/* handle widget highlighting */
 				if (event->type == MOUSEMOVE && !wm_widgetmap_get_active_widget(wmap)) {
 					if (wm_widgetmap_is_3d(wmap)) {
@@ -2118,87 +2116,11 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 					}
 				}
 
-				UNUSED_VARS(event_processed);
-#else
-				widget = wm_widgetmap_get_active_widget(wmap);
-
-				/* handle the widget first, before passing the event down */
-				switch (event->type) {
-					case MOUSEMOVE:
-						if (widget) {
-							widget->handler(C, event, widget);
-							event_processed = EVT_WIDGET_UPDATE;
-							action |= WM_HANDLER_BREAK;
-						}
-						else if (wm_widgetmap_is_3d(wmap)) {
-							widget = wm_widget_find_highlighted_3D(wmap, C, event, &part);
-							wm_widgetmap_set_highlighted_widget(wmap, C, widget, part);
-						}
-						else {
-							widget = wm_widget_find_highlighted(wmap, C, event, &part);
-							wm_widgetmap_set_highlighted_widget(wmap, C, widget, part);
-						}
-						break;
-					case LEFTMOUSE:
-						if (widget) {
-							if (event->val == KM_RELEASE) {
-								wm_widgetmap_set_active_widget(wmap, C, event, NULL, false);
-								wm_widgetmap_set_selected_widget(C, wmap, NULL);
-								event_processed = EVT_WIDGET_RELEASED;
-								action |= WM_HANDLER_BREAK;
-							}
-							else {
-								action |= WM_HANDLER_BREAK;
-							}
-						}
-						else if (event->val == KM_PRESS) {
-							widget = wm_widgetmap_get_highlighted_widget(wmap);
-
-							if (widget) {
-								wm_widgetmap_set_active_widget(wmap, C, event, widget, handler->op == NULL);
-								action |= WM_HANDLER_BREAK;
-							}
-						}
-						break;
-					case RIGHTMOUSE:
-					case ESCKEY:
-					{
-						wmWidget *highlight = wm_widgetmap_get_highlighted_widget(wmap);
-						if (event->type == RIGHTMOUSE && highlight) {
-							if (highlight->flag & WM_WIDGET_SELECTABLE) {
-								if (event->val == KM_RELEASE) {
-									wm_widgetmap_set_selected_widget(C, wmap, highlight);
-									action |= WM_HANDLER_BREAK;
-								}
-							}
-						}
-						else if (widget) {
-							if (widget->cancel) {
-								widget->cancel(C, widget);
-							}
-							wm_widgetmap_set_active_widget(wmap, C, event, NULL, false);
-							event_processed = EVT_WIDGET_RELEASED;
-							action |= WM_HANDLER_BREAK;
-						}
-						else {
-							wm_widgetmap_set_selected_widget(C, wmap, NULL);
-						}
-						break;
-					}
-				}
-#endif
-
 				/* restore the area */
 				CTX_wm_area_set(C, area);
 				CTX_wm_region_set(C, region);
 
 				if (handler->op) {
-#ifdef USE_OLD_WIDGETMAP_HANDLING
-					/* if event was processed by an active widget pass the modified event to the operator */
-					if (event_processed) {
-						event->type = event_processed;
-					}
-#endif
 					action |= wm_handler_operator_call(C, handlers, handler, event, NULL);
 				}
 			}

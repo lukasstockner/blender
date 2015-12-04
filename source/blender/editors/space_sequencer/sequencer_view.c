@@ -341,7 +341,6 @@ static int sequencer_overdrop_transform_modal(bContext *C, wmOperator *op, const
 	
 	switch (event->type) {
 		case EVT_WIDGET_UPDATE:
-		case EVT_WIDGET_RELEASED:
 		{
 			SpaceSeq *sseq = CTX_wm_space_seq(C);
 			RNA_float_get_array(op->ptr, "offset", sseq->overdrop_offset);

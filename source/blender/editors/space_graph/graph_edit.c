@@ -2614,7 +2614,6 @@ static int graph_widget_backdrop_transform_modal(bContext *C, wmOperator *op, co
 
 	switch (event->type) {
 		case EVT_WIDGET_UPDATE:
-		case EVT_WIDGET_RELEASED:
 		{
 			SpaceIpo *sipo = CTX_wm_space_graph(C);
 			RNA_float_get_array(op->ptr, "offset", sipo->backdrop_offset);

@@ -49,7 +49,6 @@ set(SRC
 	object_fmap.c
 	object_group.c
 	object_hook.c
-	object_lamp.c
 	object_lattice.c
 	object_lod.c
 	object_modifier.c
