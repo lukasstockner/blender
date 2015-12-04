@@ -1155,12 +1155,7 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 	}
 	MAN_ITER_AXES_END;
 
-	/* restore */
-
-	glLoadMatrixf(rv3d->viewmat);
-
-	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
-
+	MEM_freeN(man);
 }
 
 void WIDGETGROUP_object_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
