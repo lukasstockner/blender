@@ -1246,6 +1246,8 @@ static int widget_rect_transform_intersect(bContext *UNUSED(C), const wmEvent *e
 	float point_local[2];
 	float w = cage->w;
 	float h = cage->h;
+	float half_w = w / 2.0f;
+	float half_h = h / 2.0f;
 	float aspx = 1.0f, aspy = 1.0f;
 
 	/* rotate mouse in relation to the center and relocate it */
@@ -1270,9 +1272,6 @@ static int widget_rect_transform_intersect(bContext *UNUSED(C), const wmEvent *e
 	           ((cage->style & WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM) ? cage->scale[0] : cage->scale[1]));
 
 
-	float half_w = w / 2.0f;
-	float half_h = h / 2.0f;
-	bool isect;
 	rctf r;
 
 	r.xmin = -half_w + w;
@@ -1280,7 +1279,7 @@ static int widget_rect_transform_intersect(bContext *UNUSED(C), const wmEvent *e
 	r.xmax = half_w - w;
 	r.ymax = half_h - h;
 
-	isect = BLI_rctf_isect_pt_v(&r, point_local);
+	bool isect = BLI_rctf_isect_pt_v(&r, point_local);
 
 	if (isect)
 		return WIDGET_RECT_TRANSFORM_INTERSECT_TRANSLATE;
