@@ -2139,9 +2139,12 @@ static void ccgDM_buffer_copy_facemaps(DerivedMesh *dm, unsigned int *varray)
 	facemap_offset = MEM_callocN(gdo->totfacemaps * sizeof(*facemap_offset), "facemap_offset");
 
 	for (i = 0; i < totface; i++) {
-		CCGFace *f = ccgdm->faceMap[i].face;
-		int numVerts = ccgSubSurf_getFaceNumVerts(f);
-		gdo->facemap_count[facemap[ccgdm->faceMap[i].startFace]] += gridFaces * gridFaces * numVerts * 2;
+		int facemap_index = facemap[ccgdm->faceMap[i].startFace];
+		if (facemap_index != -1) {
+			CCGFace *f = ccgdm->faceMap[i].face;
+			int numVerts = ccgSubSurf_getFaceNumVerts(f);
+			gdo->facemap_count[facemap_index] += gridFaces * gridFaces * numVerts * 2;
+		}
 	}
 
 	for (i = 0; i < gdo->totfacemaps; i++) {
@@ -2150,25 +2153,27 @@ static void ccgDM_buffer_copy_facemaps(DerivedMesh *dm, unsigned int *varray)
 	}
 
 	for (i = 0; i < totface; i++) {
-		CCGFace *f = ccgdm->faceMap[i].face;
-		int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
 		int facemap_index = facemap[ccgdm->faceMap[i].startFace];
-		int fmap_offset = (gdo->facemap_start[facemap_index] + facemap_offset[facemap_index]) * 3;
+		if (facemap_index != -1) {
+			CCGFace *f = ccgdm->faceMap[i].face;
+			int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
+			int fmap_offset = (gdo->facemap_start[facemap_index] + facemap_offset[facemap_index]) * 3;
 
-		facemap_offset[facemap_index] += gridFaces * gridFaces * numVerts * 2;
+			facemap_offset[facemap_index] += gridFaces * gridFaces * numVerts * 2;
 
-		for (S = 0; S < numVerts; S++) {
-			for (y = 0; y < gridFaces; y++) {
-				for (x = 0; x < gridFaces; x++) {
-					varray[fmap_offset++] = totloops + 3;
-					varray[fmap_offset++] = totloops + 2;
-					varray[fmap_offset++] = totloops + 1;
+			for (S = 0; S < numVerts; S++) {
+				for (y = 0; y < gridFaces; y++) {
+					for (x = 0; x < gridFaces; x++) {
+						varray[fmap_offset++] = totloops + 3;
+						varray[fmap_offset++] = totloops + 2;
+						varray[fmap_offset++] = totloops + 1;
 
-					varray[fmap_offset++] = totloops + 3;
-					varray[fmap_offset++] = totloops + 1;
-					varray[fmap_offset++] = totloops;
+						varray[fmap_offset++] = totloops + 3;
+						varray[fmap_offset++] = totloops + 1;
+						varray[fmap_offset++] = totloops;
 
-					totloops += 4;
+						totloops += 4;
+					}
 				}
 			}
 		}
