@@ -169,6 +169,9 @@ bool ImageRender::Render()
 		return false;
 	}
 
+	if (!m_scene->IsShadowDone())
+		m_engine->RenderShadowBuffers(m_scene);
+
 	if (m_mirror)
 	{
 		// mirror mode, compute camera frustrum, position and orientation

@@ -209,7 +209,6 @@ private:
 	void					RenderFrame(KX_Scene* scene, KX_Camera* cam);
 	void					PostRenderScene(KX_Scene* scene);
 	void					RenderDebugProperties();
-	void					RenderShadowBuffers(KX_Scene *scene);
 
 public:
 	KX_KetsjiEngine(class KX_ISystem* system);
@@ -249,6 +248,7 @@ public:
 	///returns true if an update happened to indicate -> Render
 	bool			NextFrame();
 	void			Render();
+	void			RenderShadowBuffers(KX_Scene *scene);
 	
 	void			StartEngine(bool clearIpo);
 	void			StopEngine();
