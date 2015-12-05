@@ -1293,7 +1293,10 @@ typedef struct ToolSettings {
 	char gpencil_flags;		/* flags/options for how the tool works */
 	char gpencil_src;		/* for main 3D view Grease Pencil, where data comes from */
 
-	char pad[4];
+	char gpencil_v3d_align; /* stroke placement settings: 3D View */
+	char gpencil_v2d_align; /*                          : General 2D Editor */
+	char gpencil_seq_align; /*                          : Sequencer Preview */
+	char gpencil_ima_align; /*                          : Image Editor */
 	
 	/* Grease Pencil Sculpt */
 	struct GP_BrushEdit_Settings gp_sculpt;
@@ -1997,6 +2000,22 @@ typedef enum eGPencil_Source_3D {
 	GP_TOOL_SOURCE_SCENE    = 0,
 	GP_TOOL_SOURCE_OBJECT   = 1
 } eGPencil_Source_3d;
+
+/* toolsettings->gpencil_*_align - Stroke Placement mode flags */
+typedef enum eGPencil_Placement_Flags {
+	/* New strokes are added in viewport/data space (i.e. not screen space) */
+	GP_PROJECT_VIEWSPACE    = (1 << 0),
+	
+	/* Viewport space, but relative to render canvas (Sequencer Preview Only) */
+	GP_PROJECT_CANVAS       = (1 << 1),
+	
+	/* Project into the screen's Z values */
+	GP_PROJECT_DEPTH_VIEW	= (1 << 2),
+	GP_PROJECT_DEPTH_STROKE = (1 << 3),
+	
+	/* "Use Endpoints" */
+	GP_PROJECT_DEPTH_STROKE_ENDPOINTS = (1 << 4),
+} eGPencil_Placement_Flags;
 
 /* toolsettings->particle flag */
 #define PE_KEEP_LENGTHS			1

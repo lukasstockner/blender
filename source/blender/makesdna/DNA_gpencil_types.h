@@ -190,6 +190,7 @@ typedef enum eGPdata_Flag {
 	/* is the block overriding all clicks? */
 	/* GP_DATA_EDITPAINT = (1 << 3), */
 	
+/* ------------------------------------------------ DEPRECATED */
 	/* new strokes are added in viewport space */
 	GP_DATA_VIEWALIGN	= (1 << 4),
 	
@@ -198,6 +199,7 @@ typedef enum eGPdata_Flag {
 	GP_DATA_DEPTH_STROKE = (1 << 6),
 
 	GP_DATA_DEPTH_STROKE_ENDPOINTS = (1 << 7),
+/* ------------------------------------------------ DEPRECATED */
 	
 	/* Stroke Editing Mode - Toggle to enable alternative keymap for easier editing of stroke points */
 	GP_DATA_STROKE_EDITMODE	= (1 << 8),

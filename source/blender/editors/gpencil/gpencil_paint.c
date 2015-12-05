@@ -95,6 +95,8 @@ typedef struct tGPsdata {
 	bGPDlayer *gpl;     /* layer we're working on */
 	bGPDframe *gpf;     /* frame we're working on */
 	
+	char *align_flag;   /* projection-mode flags (toolsettings) */
+	
 	short status;       /* current status of painting */
 	short paintmode;    /* mode for painting */
 	
@@ -204,7 +206,7 @@ static int gpencil_draw_poll(bContext *C)
 static bool gpencil_project_check(tGPsdata *p)
 {
 	bGPdata *gpd = p->gpd;
-	return ((gpd->sbuffer_sflag & GP_STROKE_3DSPACE) && (p->gpd->flag & (GP_DATA_DEPTH_VIEW | GP_DATA_DEPTH_STROKE)));
+	return ((gpd->sbuffer_sflag & GP_STROKE_3DSPACE) && (*p->align_flag & (GP_PROJECT_DEPTH_VIEW | GP_PROJECT_DEPTH_STROKE)));
 }
 
 /* ******************************************* */
@@ -1001,6 +1003,7 @@ static bool gp_session_initdata(bContext *C, tGPsdata *p)
 	bGPdata **gpd_ptr = NULL;
 	ScrArea *curarea = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
+	ToolSettings *ts = CTX_data_tool_settings(C);
 	
 	/* make sure the active view (at the starting time) is a 3d-view */
 	if (curarea == NULL) {
@@ -1030,6 +1033,7 @@ static bool gp_session_initdata(bContext *C, tGPsdata *p)
 			/* CAUTION: If this is the "toolbar", then this will change on the first stroke */
 			p->sa = curarea;
 			p->ar = ar;
+			p->align_flag = &ts->gpencil_v3d_align;
 			
 			if (ar->regiondata == NULL) {
 				p->status = GP_STATUS_ERROR;
@@ -1047,6 +1051,7 @@ static bool gp_session_initdata(bContext *C, tGPsdata *p)
 			p->sa = curarea;
 			p->ar = ar;
 			p->v2d = &ar->v2d;
+			p->align_flag = &ts->gpencil_v2d_align;
 			break;
 		}
 		case SPACE_SEQ:
@@ -1057,6 +1062,7 @@ static bool gp_session_initdata(bContext *C, tGPsdata *p)
 			p->sa = curarea;
 			p->ar = ar;
 			p->v2d = &ar->v2d;
+			p->align_flag = &ts->gpencil_seq_align;
 			
 			/* check that gpencil data is allowed to be drawn */
 			if (sseq->mainb == SEQ_DRAW_SEQUENCE) {
@@ -1075,6 +1081,7 @@ static bool gp_session_initdata(bContext *C, tGPsdata *p)
 			p->sa = curarea;
 			p->ar = ar;
 			p->v2d = &ar->v2d;
+			p->align_flag = &ts->gpencil_ima_align;
 			break;
 		}
 		case SPACE_CLIP:
@@ -1091,6 +1098,7 @@ static bool gp_session_initdata(bContext *C, tGPsdata *p)
 			p->sa = curarea;
 			p->ar = ar;
 			p->v2d = &ar->v2d;
+			p->align_flag = &ts->gpencil_v2d_align;
 			
 			invert_m4_m4(p->imat, sc->unistabmat);
 			
@@ -1196,6 +1204,7 @@ static void gp_session_cleanup(tGPsdata *p)
 /* init new stroke */
 static void gp_paint_initstroke(tGPsdata *p, short paintmode)
 {
+	
 	/* get active layer (or add a new one if non-existent) */
 	p->gpl = gpencil_layer_getactive(p->gpd);
 	if (p->gpl == NULL) {
@@ -1251,7 +1260,7 @@ static void gp_paint_initstroke(tGPsdata *p, short paintmode)
 	
 	/* when drawing in the camera view, in 2D space, set the subrect */
 	p->subrect = NULL;
-	if (!(p->gpd->flag & GP_DATA_VIEWALIGN)) {
+	if ((*p->align_flag & GP_PROJECT_VIEWSPACE) == 0) {
 		if (p->sa->spacetype == SPACE_VIEW3D) {
 			View3D *v3d = p->sa->spacedata.first;
 			RegionView3D *rv3d = p->ar->regiondata;
@@ -1279,7 +1288,7 @@ static void gp_paint_initstroke(tGPsdata *p, short paintmode)
 	
 	
 	/* check if points will need to be made in view-aligned space */
-	if (p->gpd->flag & GP_DATA_VIEWALIGN) {
+	if (*p->align_flag & GP_PROJECT_VIEWSPACE) {
 		switch (p->sa->spacetype) {
 			case SPACE_VIEW3D:
 			{
@@ -1308,7 +1317,7 @@ static void gp_paint_initstroke(tGPsdata *p, short paintmode)
 				if (ELEM(NULL, sima, sima->image)) {
 					/* make strokes be drawn in screen space */
 					p->gpd->sbuffer_sflag &= ~GP_STROKE_2DSPACE;
-					p->gpd->flag &= ~GP_DATA_VIEWALIGN;
+					*(p->align_flag) &= ~GP_PROJECT_VIEWSPACE;
 				}
 				else {
 					p->gpd->sbuffer_sflag |= GP_STROKE_2DSPACE;

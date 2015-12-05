@@ -38,6 +38,7 @@
 #include "DNA_camera_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_sdna_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
@@ -982,6 +983,33 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				brush = &gset->brush[GP_EDITBRUSH_TYPE_CLONE];
 				brush->size = 50;
 				brush->strength = 1.0f;
+			}
+			
+			if (!DNA_struct_elem_find(fd->filesdna, "ToolSettings", "char", "gpencil_v3d_align")) {
+#if 0 /* XXX: Cannot do this, as we get random crashes... */
+				if (scene->gpd) {
+					bGPdata *gpd = scene->gpd;
+					
+					/* Copy over the settings stored in the GP datablock linked to the scene, for minimal disruption */
+					ts->gpencil_v3d_align = 0;
+					
+					if (gpd->flag & GP_DATA_VIEWALIGN)    ts->gpencil_v3d_align |= GP_PROJECT_VIEWSPACE;
+					if (gpd->flag & GP_DATA_DEPTH_VIEW)   ts->gpencil_v3d_align |= GP_PROJECT_DEPTH_VIEW;
+					if (gpd->flag & GP_DATA_DEPTH_STROKE) ts->gpencil_v3d_align |= GP_PROJECT_DEPTH_STROKE;
+					
+					if (gpd->flag & GP_DATA_DEPTH_STROKE_ENDPOINTS)
+						ts->gpencil_v3d_align |= GP_PROJECT_DEPTH_STROKE_ENDPOINTS;
+				}
+				else {
+					/* Default to cursor for all standard 3D views */
+					ts->gpencil_v3d_align = GP_PROJECT_VIEWSPACE;
+				}
+#endif
+				
+				ts->gpencil_v3d_align = GP_PROJECT_VIEWSPACE;
+				ts->gpencil_v2d_align = GP_PROJECT_VIEWSPACE;
+				ts->gpencil_seq_align = GP_PROJECT_VIEWSPACE;
+				ts->gpencil_ima_align = GP_PROJECT_VIEWSPACE;
 			}
 		}
 	}

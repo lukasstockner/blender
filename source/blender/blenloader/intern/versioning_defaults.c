@@ -131,6 +131,11 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 				brush->strength = 0.5f;
 				brush->flag = GP_EDITBRUSH_FLAG_USE_FALLOFF;
 			}
+			
+			ts->gpencil_v3d_align = GP_PROJECT_VIEWSPACE;
+			ts->gpencil_v2d_align = GP_PROJECT_VIEWSPACE;
+			ts->gpencil_seq_align = GP_PROJECT_VIEWSPACE;
+			ts->gpencil_ima_align = GP_PROJECT_VIEWSPACE;
 		}
 
 		scene->gm.lodflag |= SCE_LOD_USE_HYST;

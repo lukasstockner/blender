@@ -22,23 +22,34 @@
 from bpy.types import Menu, UIList
 
 
-def gpencil_stroke_placement_settings(context, layout, gpd):
+def gpencil_stroke_placement_settings(context, layout):
+    if context.space_data.type == 'VIEW_3D':
+        propname = "gpencil_stroke_placement_view3d"
+    elif context.space_data.type == 'SEQUENCE_EDITOR':
+        propname = "gpencil_stroke_placement_sequencer_preview"
+    elif context.space_data.type == 'IMAGE_EDITOR':
+        propname = "gpencil_stroke_placement_image_edit"
+    else:
+        propname = "gpencil_stroke_placement_view2d"
+
+    ts = context.tool_settings
+
     col = layout.column(align=True)
 
     col.label(text="Stroke Placement:")
 
     row = col.row(align=True)
-    row.prop_enum(gpd, "draw_mode", 'VIEW')
-    row.prop_enum(gpd, "draw_mode", 'CURSOR')
+    row.prop_enum(ts, propname, 'VIEW')
+    row.prop_enum(ts, propname, 'CURSOR')
 
     if context.space_data.type == 'VIEW_3D':
         row = col.row(align=True)
-        row.prop_enum(gpd, "draw_mode", 'SURFACE')
-        row.prop_enum(gpd, "draw_mode", 'STROKE')
+        row.prop_enum(ts, propname, 'SURFACE')
+        row.prop_enum(ts, propname, 'STROKE')
 
         row = col.row(align=False)
-        row.active = gpd.draw_mode in {'SURFACE', 'STROKE'}
-        row.prop(gpd, "use_stroke_endpoints")
+        row.active = getattr(ts, propname) in {'SURFACE', 'STROKE'}
+        row.prop(ts, "use_gpencil_stroke_endpoints")
 
 
 class GreasePencilDrawingToolsPanel:
@@ -74,12 +85,14 @@ class GreasePencilDrawingToolsPanel:
                 row.prop(context.tool_settings, "grease_pencil_source", expand=True)
             elif context.space_data.type == 'CLIP_EDITOR':
                 row.prop(context.space_data, "grease_pencil_source", expand=True)
+        
+        col.separator()
+
+        gpencil_stroke_placement_settings(context, col)
 
         gpd = context.gpencil_data
-        if gpd:
-            col.separator()
-            gpencil_stroke_placement_settings(context, col, gpd)
 
+        if gpd:
             layout.separator()
             layout.separator()
 

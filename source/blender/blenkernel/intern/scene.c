@@ -791,6 +791,12 @@ void BKE_scene_init(Scene *sce)
 		gp_brush->strength = 0.5f;
 		gp_brush->flag = GP_EDITBRUSH_FLAG_USE_FALLOFF;
 	}
+	
+	/* GP Stroke Placement */
+	sce->toolsettings->gpencil_v3d_align = GP_PROJECT_VIEWSPACE;
+	sce->toolsettings->gpencil_v2d_align = GP_PROJECT_VIEWSPACE;
+	sce->toolsettings->gpencil_seq_align = GP_PROJECT_VIEWSPACE;
+	sce->toolsettings->gpencil_ima_align = GP_PROJECT_VIEWSPACE;
 }
 
 Scene *BKE_scene_add(Main *bmain, const char *name)
