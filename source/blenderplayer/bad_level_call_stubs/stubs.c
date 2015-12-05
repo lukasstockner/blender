@@ -319,7 +319,7 @@ struct wmWidgetGroupType *WM_widgetgrouptype_new(
         void (*create)(const struct bContext *, struct wmWidgetGroup *),
         wmKeyMap *(*keymap_init)(wmKeyConfig *, const char *),
         const struct Main *bmain, const char *mapidname, const char *name,
-        const short spaceid, const short regionid, const bool is_3d);
+        const short spaceid, const short regionid, const bool is_3d) RET_NULL
 void WM_widgetgrouptype_unregister(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgroup) RET_NONE
 
 void WM_ndof_deadzone_set(float deadzone) RET_NONE
