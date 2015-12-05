@@ -314,9 +314,12 @@ void WM_cursor_warp(struct wmWindow *win, int x, int y) RET_NONE
 
 void WM_widgetmap_delete(struct wmWidgetMap *wmap) RET_NONE
 struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, int spaceid, int regionid, bool is_3d, bool create) RET_NULL
-struct wmWidgetGroupType *WM_widgetgrouptype_new(int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
-                                                 void (*draw)(const struct bContext *, struct wmWidgetGroup *), 
-                                                 struct Main *bmain, const char *mapidname, short spaceid, short regionid, bool is_3d) RET_NULL
+struct wmWidgetGroupType *WM_widgetgrouptype_new(
+        int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
+        void (*create)(const struct bContext *, struct wmWidgetGroup *),
+        wmKeyMap *(*keymap_init)(wmKeyConfig *, const char *),
+        const struct Main *bmain, const char *mapidname, const char *name,
+        const short spaceid, const short regionid, const bool is_3d);
 void WM_widgetgrouptype_unregister(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgroup) RET_NONE
 
 void WM_ndof_deadzone_set(float deadzone) RET_NONE
