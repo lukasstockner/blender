@@ -212,6 +212,45 @@ bGPdata *ED_gpencil_data_get_active_v3d(Scene *scene, View3D *v3d)
 }
 
 /* ******************************************************** */
+/* Keyframe Indicator Checks */
+
+/* Check whether there's an active GP keyframe on the current frame */
+bool ED_gpencil_has_keyframe_v3d(Scene *scene, Object *ob, int cfra)
+{
+	/* just check both for now... */
+	// XXX: this could get confusing (e.g. if only on the object, but other places don't show this)
+	if (scene->gpd) {
+		bGPDlayer *gpl = gpencil_layer_getactive(scene->gpd);
+		if (gpl) {
+			if (gpl->actframe) {
+				// XXX: assumes that frame has been fetched already
+				return (gpl->actframe->framenum == cfra);
+			}
+			else {
+				/* XXX: disabled as could be too much of a penalty */
+				/* return BKE_gpencil_layer_find_frame(gpl, cfra); */
+			}
+		}
+	}
+	
+	if (ob && ob->gpd) {
+		bGPDlayer *gpl = gpencil_layer_getactive(ob->gpd);
+		if (gpl) {
+			if (gpl->actframe) {
+				// XXX: assumes that frame has been fetched already
+				return (gpl->actframe->framenum == cfra);
+			}
+			else {
+				/* XXX: disabled as could be too much of a penalty */
+				/* return BKE_gpencil_layer_find_frame(gpl, cfra); */
+			}
+		}
+	}
+	
+	return false;
+}
+
+/* ******************************************************** */
 /* Poll Callbacks */
 
 /* poll callback for adding data/layers - special */

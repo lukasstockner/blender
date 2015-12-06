@@ -941,6 +941,8 @@ static void draw_selected_name(Scene *scene, Object *ob, rcti *rect)
 		/* color depends on whether there is a keyframe */
 		if (id_frame_has_keyframe((ID *)ob, /* BKE_scene_frame_get(scene) */ (float)cfra, ANIMFILTER_KEYS_LOCAL))
 			UI_ThemeColor(TH_VERTEX_SELECT);
+		else if (ED_gpencil_has_keyframe_v3d(scene, ob, cfra))
+			UI_ThemeColor(TH_CFRAME); // XXX
 		else
 			UI_ThemeColor(TH_TEXT_HI);
 	}
