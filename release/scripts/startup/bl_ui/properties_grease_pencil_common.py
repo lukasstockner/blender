@@ -615,4 +615,4 @@ class GreasePencilToolsPanel:
         layout.separator()
         layout.separator()
 
-        gpencil_stroke_placement_settings(context, layout, gpd)
+        gpencil_stroke_placement_settings(context, layout)
