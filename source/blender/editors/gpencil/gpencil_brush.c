@@ -1130,47 +1130,8 @@ static void gpsculpt_brush_init_stroke(tGP_BrushEditData *gso)
 			 *   spent too much time editing the wrong frame...
 			 */
 			// XXX: should this be allowed when framelock is enabled?
-			// XXX: the logic below should be deduplicated, as the transform conversion code also does it
 			if (gpf->framenum != cfra) {
-				bGPDframe *new_frame = gpencil_frame_duplicate(gpf);
-				bGPDframe *gf;
-				bool found = false;
-				
-				/* Find frame to insert it before */
-				for (gf = gpl->frames.first; gf; gf = gf->next) {
-					if (gf->framenum > cfra) {
-						/* Add it here */
-						BLI_insertlinkbefore(&gpl->frames, gf, new_frame);
-						
-						found = true;
-						break;
-					}
-					else if (gf->framenum == cfra) {
-						/* This only happens when we're editing with framelock on...
-						 * - Delete the new frame and don't do anything else here...
-						 */
-						//printf("GP Sculpt init stroke - Copy aborted for frame %d -> %d\n", gpf->framenum, gf->framenum);
-						free_gpencil_strokes(new_frame);
-						MEM_freeN(new_frame);
-						new_frame = NULL;
-						
-						found = true;
-						break;
-					}
-				}
-				
-				if (found == false) {
-					/* Add new frame to the end */
-					BLI_addtail(&gpl->frames, new_frame);
-				}
-				
-				/* Edit the new frame instead, if it did get created + added */
-				if (new_frame) {
-					// TODO: tag this one as being "newly created" so that we can remove it if the edit is cancelled
-					new_frame->framenum = cfra;
-					
-					gpl->actframe = gpf = new_frame;
-				}
+				gpencil_frame_addcopy(gpl, cfra);
 			}
 		}
 	}

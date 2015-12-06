@@ -132,7 +132,7 @@ bGPDframe *gpencil_frame_addnew(bGPDlayer *gpl, int cframe)
 	bGPDframe *gpf = NULL, *gf = NULL;
 	short state = 0;
 	
-	/* error checking (neg frame only if they are not allowed in Blender!) */
+	/* error checking */
 	if (gpl == NULL)
 		return NULL;
 		
@@ -176,6 +176,61 @@ bGPDframe *gpencil_frame_addnew(bGPDlayer *gpl, int cframe)
 	
 	/* return frame */
 	return gpf;
+}
+
+/* add a copy of the active gp-frame to the given layer */
+bGPDframe *gpencil_frame_addcopy(bGPDlayer *gpl, int cframe)
+{
+	bGPDframe *new_frame, *gpf;
+	bool found = false;
+	
+	/* Error checking/handling */
+	if (gpl == NULL) {
+		/* no layer */
+		return NULL;
+	}
+	else if (gpl->actframe == NULL) {
+		/* no active frame, so just create a new one from scratch */
+		return gpencil_frame_addnew(gpl, cframe);
+	}
+	
+	/* Create a copy of the frame */
+	new_frame = gpencil_frame_duplicate(gpl->actframe);
+	
+	/* Find frame to insert it before */
+	for (gpf = gpl->frames.first; gpf; gpf = gpf->next) {
+		if (gpf->framenum > cframe) {
+			/* Add it here */
+			BLI_insertlinkbefore(&gpl->frames, gpf, new_frame);
+			
+			found = true;
+			break;
+		}
+		else if (gpf->framenum == cframe) {
+			/* This only happens when we're editing with framelock on...
+			 * - Delete the new frame and don't do anything else here...
+			 */
+			free_gpencil_strokes(new_frame);
+			MEM_freeN(new_frame);
+			new_frame = NULL;
+			
+			found = true;
+			break;
+		}
+	}
+	
+	if (found == false) {
+		/* Add new frame to the end */
+		BLI_addtail(&gpl->frames, new_frame);
+	}
+	
+	/* Ensure that frame is set up correctly, and return it */
+	if (new_frame) {
+		new_frame->framenum = cframe;
+		gpl->actframe = new_frame;
+	}
+	
+	return new_frame;
 }
 
 /* add a new gp-layer and make it the active layer */

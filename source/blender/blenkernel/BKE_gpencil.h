@@ -47,6 +47,7 @@ void BKE_gpencil_free(struct bGPdata *gpd);
 void gpencil_stroke_sync_selection(struct bGPDstroke *gps);
 
 struct bGPDframe *gpencil_frame_addnew(struct bGPDlayer *gpl, int cframe);
+struct bGPDframe *gpencil_frame_addcopy(struct bGPDlayer *gpl, int cframe);
 struct bGPDlayer *gpencil_layer_addnew(struct bGPdata *gpd, const char *name, int setactive);
 struct bGPdata *gpencil_data_addnew(const char name[]);
 
