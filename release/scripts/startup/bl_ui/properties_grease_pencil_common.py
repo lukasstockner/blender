@@ -74,8 +74,12 @@ class GreasePencilDrawingToolsPanel:
         row.operator("gpencil.draw", text="Line").mode = 'DRAW_STRAIGHT'
         row.operator("gpencil.draw", text="Poly").mode = 'DRAW_POLY'
 
-        col.prop(context.tool_settings, "use_gpencil_additive_drawing", text="Additive Drawing")
-        col.prop(context.tool_settings, "use_gpencil_continuous_drawing", text="Continuous Drawing")
+        sub = col.column(align=True)
+        sub.prop(context.tool_settings, "use_gpencil_additive_drawing", text="Additive Drawing")
+        sub.prop(context.tool_settings, "use_gpencil_continuous_drawing", text="Continuous Drawing")
+
+        col.separator()
+        col.separator()
 
         if context.space_data.type in {'VIEW_3D', 'CLIP_EDITOR'}:
             col.separator()
@@ -86,6 +90,7 @@ class GreasePencilDrawingToolsPanel:
             elif context.space_data.type == 'CLIP_EDITOR':
                 row.prop(context.space_data, "grease_pencil_source", expand=True)
         
+        col.separator()
         col.separator()
 
         gpencil_stroke_placement_settings(context, col)
