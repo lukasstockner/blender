@@ -1204,6 +1204,8 @@ static void gp_session_cleanup(tGPsdata *p)
 /* init new stroke */
 static void gp_paint_initstroke(tGPsdata *p, short paintmode)
 {
+	ToolSettings *ts = p->scene->toolsettings;
+	eGP_GetFrame_Mode add_frame_mode;
 	
 	/* get active layer (or add a new one if non-existent) */
 	p->gpl = gpencil_layer_getactive(p->gpd);
@@ -1221,15 +1223,22 @@ static void gp_paint_initstroke(tGPsdata *p, short paintmode)
 	}
 	
 	/* get active frame (add a new one if not matching frame) */
-	p->gpf = gpencil_layer_getframe(p->gpl, p->scene->r.cfra, 1);
+	if ((paintmode == GP_PAINTMODE_ERASER) || (ts->gpencil_flags & GP_TOOL_FLAG_RETAIN_LAST))
+		add_frame_mode = GP_GETFRAME_ADD_COPY;
+	else
+		add_frame_mode = GP_GETFRAME_ADD_NEW;
+		
+	p->gpf = gpencil_layer_getframe(p->gpl, p->scene->r.cfra, add_frame_mode);
+	
 	if (p->gpf == NULL) {
 		p->status = GP_STATUS_ERROR;
 		if (G.debug & G_DEBUG)
 			printf("Error: No frame created (gpencil_paint_init)\n");
 		return;
 	}
-	else
+	else {
 		p->gpf->flag |= GP_FRAME_PAINT;
+	}
 	
 	/* set 'eraser' for this stroke if using eraser */
 	p->paintmode = paintmode;

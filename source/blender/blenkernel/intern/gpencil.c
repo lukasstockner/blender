@@ -449,7 +449,7 @@ bGPDframe *BKE_gpencil_layer_find_frame(bGPDlayer *gpl, int cframe)
  *	- this sets the layer's actframe var (if allowed to)
  *	- extension beyond range (if first gp-frame is after all frame in interest and cannot add)
  */
-bGPDframe *gpencil_layer_getframe(bGPDlayer *gpl, int cframe, short addnew)
+bGPDframe *gpencil_layer_getframe(bGPDlayer *gpl, int cframe, eGP_GetFrame_Mode addnew)
 {
 	bGPDframe *gpf = NULL;
 	short found = 0;
@@ -487,6 +487,8 @@ bGPDframe *gpencil_layer_getframe(bGPDlayer *gpl, int cframe, short addnew)
 			if (addnew) {
 				if ((found) && (gpf->framenum == cframe))
 					gpl->actframe = gpf;
+				else if (addnew == GP_GETFRAME_ADD_COPY)
+					gpl->actframe = gpencil_frame_addcopy(gpl, cframe);
 				else
 					gpl->actframe = gpencil_frame_addnew(gpl, cframe);
 			}
@@ -507,6 +509,8 @@ bGPDframe *gpencil_layer_getframe(bGPDlayer *gpl, int cframe, short addnew)
 			if (addnew) {
 				if ((found) && (gpf->framenum == cframe))
 					gpl->actframe = gpf;
+				else if (addnew == GP_GETFRAME_ADD_COPY)
+					gpl->actframe = gpencil_frame_addcopy(gpl, cframe);
 				else
 					gpl->actframe = gpencil_frame_addnew(gpl, cframe);
 			}
