@@ -979,7 +979,7 @@ static void emDM_drawMappedFaces(
 	const int lasttri = tottri - 1; /* compare agasint this a lot */
 	DMDrawOption draw_option;
 	int i, flush;
-	const int skip_normals = !glIsEnabled(GL_LIGHTING); /* could be passed as an arg */
+	const int skip_normals = !(flag & DM_DRAW_NEED_NORMALS);
 	const float (*lnors)[3] = dm->getLoopDataArray(dm, CD_NORMAL);
 	MLoopCol *lcol[3] = {NULL} /* , dummylcol = {0} */;
 	unsigned char(*color_vert_array)[4] = em->derivedVertColor;
@@ -1002,7 +1002,8 @@ static void emDM_drawMappedFaces(
 	}
 	if (has_vcol_preview || has_fcol_preview) {
 		flag |= DM_DRAW_ALWAYS_SMOOTH;
-		glDisable(GL_LIGHTING);  /* grr */
+		/* weak, this logic should really be moved higher up */
+		setMaterial = NULL;
 	}
 
 	GPU_vertex_setup(dm);
@@ -1013,7 +1014,7 @@ static void emDM_drawMappedFaces(
 			unsigned int *fi_map;
 			unsigned int start_element = 0;
 
-			findex_buffer = GPU_buffer_alloc(dm->drawObject->tot_loop_verts * sizeof(int), false);
+			findex_buffer = GPU_buffer_alloc(dm->drawObject->tot_loop_verts * sizeof(int));
 			fi_map = GPU_buffer_lock(findex_buffer, GPU_BINDING_ARRAY);
 
 			if (fi_map) {
@@ -1036,7 +1037,7 @@ static void emDM_drawMappedFaces(
 			}
 		}
 	}
-	else {
+	else if (!skip_normals){
 		/* no need to setup normals when selecting */
 		GPU_normal_setup(dm);
 	}
@@ -1525,7 +1526,7 @@ static void emdm_pass_attrib_vertex_glsl(const DMVertexAttribs *attribs, const B
 		if (attribs->orco.gl_texco)
 			glTexCoord3fv(orco);
 		else
-			glVertexAttrib3fvARB(attribs->orco.gl_index, orco);
+			glVertexAttrib3fv(attribs->orco.gl_index, orco);
 	}
 	for (i = 0; i < attribs->tottface; i++) {
 		const float *uv;
@@ -1541,7 +1542,7 @@ static void emdm_pass_attrib_vertex_glsl(const DMVertexAttribs *attribs, const B
 		if (attribs->tface[i].gl_texco)
 			glTexCoord2fv(uv);
 		else
-			glVertexAttrib2fvARB(attribs->tface[i].gl_index, uv);
+			glVertexAttrib2fv(attribs->tface[i].gl_index, uv);
 	}
 	for (i = 0; i < attribs->totmcol; i++) {
 		GLubyte col[4];
@@ -1552,7 +1553,7 @@ static void emdm_pass_attrib_vertex_glsl(const DMVertexAttribs *attribs, const B
 		else {
 			col[0] = 0; col[1] = 0; col[2] = 0; col[3] = 0;
 		}
-		glVertexAttrib4ubvARB(attribs->mcol[i].gl_index, col);
+		glVertexAttrib4ubv(attribs->mcol[i].gl_index, col);
 	}
 	if (attribs->tottang) {
 		const float *tang;
@@ -1562,7 +1563,7 @@ static void emdm_pass_attrib_vertex_glsl(const DMVertexAttribs *attribs, const B
 		else {
 			tang = zero;
 		}
-		glVertexAttrib4fvARB(attribs->tang.gl_index, tang);
+		glVertexAttrib4fv(attribs->tang.gl_index, tang);
 	}
 }
 

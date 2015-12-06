@@ -2186,6 +2186,32 @@ static void ui_but_drop(bContext *C, const wmEvent *event, uiBut *but, uiHandleB
 
 /* ******************* copy and paste ********************  */
 
+static void ui_but_copy_data_path(uiBut *but, const bool full_path)
+{
+	char *id_path;
+
+	if (but->rnapoin.id.data == NULL) {
+		return;
+	}
+
+	if (full_path) {
+		if (but->rnaprop) {
+			id_path = RNA_path_full_property_py_ex(&but->rnapoin, but->rnaprop, but->rnaindex, true);
+		}
+		else {
+			id_path = RNA_path_full_struct_py(&but->rnapoin);
+		}
+	}
+	else {
+		id_path = RNA_path_from_ID_to_property(&but->rnapoin, but->rnaprop);
+	}
+
+	if (id_path) {
+		WM_clipboard_text_set(id_path, false);
+		MEM_freeN(id_path);
+	}
+}
+
 /* c = copy, v = paste */
 static void ui_but_copy_paste(bContext *C, uiBut *but, uiHandleButtonData *data, char mode)
 {
@@ -2641,7 +2667,7 @@ static void ui_textedit_set_cursor_select(uiBut *but, uiHandleButtonData *data, 
 /**
  * This is used for both utf8 and ascii
  *
- * For unicode buttons, \a buf is treated as unicde.
+ * For unicode buttons, \a buf is treated as unicode.
  */
 static bool ui_textedit_insert_buf(
         uiBut *but, uiHandleButtonData *data,
@@ -6375,10 +6401,10 @@ static uiBlock *menu_change_shortcut(bContext *C, ARegion *ar, void *arg)
 	uiLayout *layout;
 	uiStyle *style = UI_style_get_dpi();
 	IDProperty *prop = (but->opptr) ? but->opptr->data : NULL;
-	int kmi_id = WM_key_event_operator_id(C, but->optype->idname, but->opcontext, prop, true, &km);
 
-	kmi = WM_keymap_item_find_id(km, kmi_id);
-	
+	kmi = WM_key_event_operator(C, but->optype->idname, but->opcontext, prop, true, &km);
+	BLI_assert(kmi != NULL);
+
 	RNA_pointer_create(&wm->id, &RNA_KeyMapItem, kmi, &ptr);
 	
 	block = UI_block_begin(C, ar, "_popup", UI_EMBOSS);
@@ -6482,9 +6508,10 @@ static void remove_shortcut_func(bContext *C, void *arg1, void *UNUSED(arg2))
 	wmKeyMap *km;
 	wmKeyMapItem *kmi;
 	IDProperty *prop = (but->opptr) ? but->opptr->data : NULL;
-	int kmi_id = WM_key_event_operator_id(C, but->optype->idname, but->opcontext, prop, true, &km);
-	
-	kmi = WM_keymap_item_find_id(km, kmi_id);
+
+	kmi = WM_key_event_operator(C, but->optype->idname, but->opcontext, prop, true, &km);
+	BLI_assert(kmi != NULL);
+
 	WM_keymap_remove_item(km, kmi);
 	
 	but_shortcut_name_func(C, but, 0);
@@ -6727,12 +6754,8 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		IDProperty *prop = (but->opptr) ? but->opptr->data : NULL;
 		int w = uiLayoutGetWidth(layout);
 		wmKeyMap *km;
-		wmKeyMapItem *kmi = NULL;
 		/* We want to know if this op has a shortcut, be it hotkey or not. */
-		int kmi_id = WM_key_event_operator_id(C, but->optype->idname, but->opcontext, prop, false, &km);
-
-		if (kmi_id)
-			kmi = WM_keymap_item_find_id(km, kmi_id);
+		wmKeyMapItem *kmi = WM_key_event_operator(C, but->optype->idname, but->opcontext, prop, false, &km);
 
 		/* We do have a shortcut, but only keyboard ones are editbale that way... */
 		if (kmi) {
@@ -6838,6 +6861,12 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 					but = labelbut;
 					data = but->active;
 				}
+			}
+
+			/* special case, copy-data-path */
+			if ((event->type == CKEY) && event->shift) {
+				ui_but_copy_data_path(but, event->alt != 0);
+				return WM_UI_HANDLER_BREAK;
 			}
 
 			ui_but_copy_paste(C, but, data, (event->type == CKEY) ? 'c' : 'v');
@@ -8223,7 +8252,6 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 
 			case MOUSEMOVE:
 				if (ELEM(but->type, UI_BTYPE_LINK, UI_BTYPE_INLINK)) {
-					ARegion *ar = data->region;
 					but->flag |= UI_SELECT;
 					ui_do_button(C, block, but, event);
 					ED_region_tag_redraw(ar);
@@ -9376,7 +9404,6 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 {
 	ARegion *ar;
 	uiBlock *block;
-	uiBut *but;
 	float event_xy[2];
 	double duration;
 	bool is_click_style;
@@ -9420,7 +9447,6 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
 			/* handle animation */
 			if (!(block->pie_data.flags & UI_PIE_ANIMATION_FINISHED)) {
-				uiBut *but;
 				double final_time = 0.01 * U.pie_animation_timeout;
 				float fac = duration / final_time;
 				float pie_radius = U.pie_menu_radius * UI_DPI_FAC;
@@ -9430,7 +9456,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 					block->pie_data.flags |= UI_PIE_ANIMATION_FINISHED;
 				}
 
-				for (but = block->buttons.first; but; but = but->next) {
+				for (uiBut *but = block->buttons.first; but; but = but->next) {
 					if (but->pie_dir != UI_RADIAL_NONE) {
 						float vec[2];
 						float center[2];
@@ -9585,7 +9611,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 				if ((event->val  == KM_PRESS || event->val == KM_DBL_CLICK) &&
 				    !IS_EVENT_MOD(event, shift, ctrl, oskey))
 				{
-					for (but = block->buttons.first; but; but = but->next) {
+					for (uiBut *but = block->buttons.first; but; but = but->next) {
 						if (but->menu_key == event->type) {
 							ui_but_pie_button_activate(C, but, menu);
 						}
@@ -9607,7 +9633,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			CASE_NUM_TO_DIR(8, UI_RADIAL_N);
 			CASE_NUM_TO_DIR(9, UI_RADIAL_NE);
 			{
-				but = ui_block_pie_dir_activate(block, event, num_dir);
+				uiBut *but = ui_block_pie_dir_activate(block, event, num_dir);
 				retval = ui_but_pie_button_activate(C, but, menu);
 				break;
 			}

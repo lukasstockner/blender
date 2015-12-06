@@ -1401,7 +1401,7 @@ void CLIP_OT_mode_set(wmOperatorType *ot)
 	ot->poll = ED_space_clip_poll;
 
 	/* properties */
-	RNA_def_enum(ot->srna, "mode", clip_editor_mode_items, SC_MODE_TRACKING, "Mode", "");
+	RNA_def_enum(ot->srna, "mode", rna_enum_clip_editor_mode_items, SC_MODE_TRACKING, "Mode", "");
 }
 
 /********************** NDOF operator *********************/
@@ -1534,7 +1534,7 @@ static int clip_set_2d_cursor_exec(bContext *C, wmOperator *op)
 	bool show_cursor = false;
 
 	show_cursor |= sclip->mode == SC_MODE_MASKEDIT;
-	show_cursor |= sclip->around == V3D_CURSOR;
+	show_cursor |= sclip->around == V3D_AROUND_CURSOR;
 
 	if (!show_cursor) {
 		return OPERATOR_CANCELLED;

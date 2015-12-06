@@ -1046,6 +1046,10 @@ static bool ui_but_event_property_operator_string(const bContext *C, uiBut *but,
 						/* dopesheet filtering options... */
 						data_path = BLI_sprintfN("space_data.dopesheet.%s", RNA_property_identifier(but->rnaprop));
 					}
+					else if (RNA_struct_is_a(but->rnapoin.type, &RNA_FileSelectParams)) {
+						/* Filebrowser options... */
+						data_path = BLI_sprintfN("space_data.params.%s", RNA_property_identifier(but->rnaprop));
+					}
 				}
 			}
 			else if (GS(id->name) == ID_SCE) {
@@ -1344,9 +1348,9 @@ void UI_block_draw(const bContext *C, uiBlock *block)
 		UI_block_end(C, block);
 
 	/* disable AA, makes widgets too blurry */
-	multisample_enabled = glIsEnabled(GL_MULTISAMPLE_ARB);
+	multisample_enabled = glIsEnabled(GL_MULTISAMPLE);
 	if (multisample_enabled)
-		glDisable(GL_MULTISAMPLE_ARB);
+		glDisable(GL_MULTISAMPLE);
 
 	/* we set this only once */
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1396,7 +1400,7 @@ void UI_block_draw(const bContext *C, uiBlock *block)
 	glPopMatrix();
 
 	if (multisample_enabled)
-		glEnable(GL_MULTISAMPLE_ARB);
+		glEnable(GL_MULTISAMPLE);
 	
 	ui_draw_links(block);
 }
@@ -1804,7 +1808,8 @@ bool ui_but_supports_cycling(const uiBut *but)
 {
 	return ((ELEM(but->type, UI_BTYPE_ROW, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER, UI_BTYPE_LISTBOX)) ||
 	        (but->type == UI_BTYPE_MENU && ui_but_menu_step_poll(but)) ||
-	        (but->type == UI_BTYPE_COLOR && but->a1 != -1));
+	        (but->type == UI_BTYPE_COLOR && but->a1 != -1) ||
+	        (but->menu_step_func != NULL));
 }
 
 double ui_but_value_get(uiBut *but)
@@ -2826,10 +2831,11 @@ void ui_but_update(uiBut *but)
 				/* only needed for menus in popup blocks that don't recreate buttons on redraw */
 				if (but->block->flag & UI_BLOCK_LOOP) {
 					if (but->rnaprop && (RNA_property_type(but->rnaprop) == PROP_ENUM)) {
-						int value = RNA_property_enum_get(&but->rnapoin, but->rnaprop);
+						int value_enum = RNA_property_enum_get(&but->rnapoin, but->rnaprop);
 						const char *buf;
-						if (RNA_property_enum_name_gettexted(but->block->evil_C,
-						                                     &but->rnapoin, but->rnaprop, value, &buf))
+						if (RNA_property_enum_name_gettexted(
+						        but->block->evil_C,
+						        &but->rnapoin, but->rnaprop, value_enum, &buf))
 						{
 							size_t slen = strlen(buf);
 							ui_but_string_free_internal(but);
@@ -4128,6 +4134,11 @@ void UI_but_func_complete_set(uiBut *but, uiButCompleteFunc func, void *arg)
 {
 	but->autocomplete_func = func;
 	but->autofunc_arg = arg;
+}
+
+void UI_but_func_menu_step_set(uiBut *but, uiMenuStepFunc func)
+{
+	but->menu_step_func = func;
 }
 
 void UI_but_func_tooltip_set(uiBut *but, uiButToolTipFunc func, void *argN)

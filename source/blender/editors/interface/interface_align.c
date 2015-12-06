@@ -33,6 +33,7 @@
 
 #include "BLI_alloca.h"
 #include "BLI_math.h"
+#include "BLI_rect.h"
 
 #include "UI_interface.h"
 
@@ -109,7 +110,9 @@ enum {
 
 bool ui_but_can_align(const uiBut *but)
 {
-	return !ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_CHECKBOX, UI_BTYPE_CHECKBOX_N, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE);
+	return (
+	    !ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_CHECKBOX, UI_BTYPE_CHECKBOX_N, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE) &&
+	    (BLI_rctf_size_x(&but->rect) > 0.0f) && (BLI_rctf_size_y(&but->rect) > 0.0f));
 }
 
 /**
@@ -122,8 +125,8 @@ static void block_align_proximity_compute(ButAlign *butal, ButAlign *butal_other
 {
 	/* That's the biggest gap between two borders to consider them 'alignable'. */
 	const float max_delta = MAX_DELTA;
-	float delta;
-	int side;
+	float delta, delta_side_opp;
+	int side, side_opp;
 
 	const bool butal_can_align = ui_but_can_align(butal->but);
 	const bool butal_other_can_align = ui_but_can_align(butal_other->but);
@@ -142,22 +145,35 @@ static void block_align_proximity_compute(ButAlign *butal, ButAlign *butal_other
 		return;
 	}
 
-	for (side = 0; side < TOTSIDES; side++) {
+	for (side = 0; side < RIGHT; side++) {
 		/* We are only interested in buttons which share a same line (LEFT/RIGHT sides) or column (TOP/DOWN sides). */
 		if (buts_share[IS_COLUMN(side)]) {
-			const int side_opp = OPPOSITE(side);
+			side_opp = OPPOSITE(side);
 
+			/* We check both opposite sides at once, because with very small buttons, delta could be below max_delta for
+			 * the wrong side (that is, in horizontal case, the total width of two buttons can be below max_delta). */
 			/* We rely on exact zero value here as an 'already processed' flag, so ensure we never actually
 			 * set a zero value at this stage. FLT_MIN is zero-enough for UI position computing. ;) */
 			delta = max_ff(fabsf(*butal->borders[side] - *butal_other->borders[side_opp]), FLT_MIN);
+			delta_side_opp = max_ff(fabsf(*butal->borders[side_opp] - *butal_other->borders[side]), FLT_MIN);
+			if (delta_side_opp < delta) {
+				SWAP(int, side, side_opp);
+				delta = delta_side_opp;
+			}
+
 			if (delta < max_delta) {
 				/* We are only interested in neighbors that are at least as close as already found ones. */
 				if (delta <= butal->dists[side]) {
-					if (delta <= butal->dists[side]) {
-						/* We found a closer neighbor.
+					{
+						/* We found an as close or closer neighbor.
 						 * If both buttons are alignable, we set them as each other neighbors.
 						 * Else, we have an unalignable one, we need to reset the others matching neighbor to NULL
-						 * if its 'proximity distance' is really lower with current one. */
+						 * if its 'proximity distance' is really lower with current one.
+						 *
+						 * NOTE: We cannot only execute that piece of code in case we found a **closer** neighbor,
+						 *       due to the limited way we represent neighbors (buttons only know **one** neighbor
+						 *       on each side, when they can actually have several ones), it would prevent
+						 *       some buttons to be properly 'neighborly-initialized'. */
 						if (butal_can_align && butal_other_can_align) {
 							butal->neighbors[side] = butal_other;
 							butal_other->neighbors[side_opp] = butal;
@@ -170,6 +186,7 @@ static void block_align_proximity_compute(ButAlign *butal, ButAlign *butal_other
 						}
 						butal->dists[side] = butal_other->dists[side_opp] = delta;
 					}
+
 					if (butal_can_align && butal_other_can_align) {
 						const int side_s1 = SIDE1(side);
 						const int side_s2 = SIDE2(side);

@@ -2384,7 +2384,7 @@ static void do_merge_fullsample(Render *re, bNodeTree *ntree)
 
 	/* garbage collection */
 	while (rectfs->first) {
-		RenderView *rv = rectfs->first;
+		rv = rectfs->first;
 		BLI_remlink(rectfs, rv);
 		MEM_freeN(rv);
 	}
@@ -2658,7 +2658,7 @@ static void do_render_seq(Render *re)
 
 		if (ibuf_arr[view_id]) {
 			/* copy ibuf into combined pixel rect */
-			render_result_rect_from_ibuf(rr, &re->r, ibuf_arr[view_id], view_id);
+			RE_render_result_rect_from_ibuf(rr, &re->r, ibuf_arr[view_id], view_id);
 
 			if (ibuf_arr[view_id]->metadata && (re->r.stamp & R_STAMP_STRIPMETA)) {
 				/* ensure render stamp info first */
@@ -2832,6 +2832,8 @@ static bool check_valid_camera_multiview(Scene *scene, Object *camera, ReportLis
 
 static int check_valid_camera(Scene *scene, Object *camera_override, ReportList *reports)
 {
+	const char *err_msg = "No camera found in scene \"%s\"";
+
 	if (camera_override == NULL && scene->camera == NULL)
 		scene->camera = BKE_scene_camera_find(scene);
 
@@ -2843,14 +2845,17 @@ static int check_valid_camera(Scene *scene, Object *camera_override, ReportList 
 			Sequence *seq = scene->ed->seqbase.first;
 
 			while (seq) {
-				if (seq->type == SEQ_TYPE_SCENE && seq->scene) {
+				if ((seq->type == SEQ_TYPE_SCENE) &&
+				    ((seq->flag & SEQ_SCENE_STRIPS) == 0) &&
+				    (seq->scene != NULL))
+				{
 					if (!seq->scene_camera) {
 						if (!seq->scene->camera && !BKE_scene_camera_find(seq->scene)) {
 							/* camera could be unneeded due to composite nodes */
 							Object *override = (seq->scene == scene) ? camera_override : NULL;
 
 							if (!check_valid_compositing_camera(seq->scene, override)) {
-								BKE_reportf(reports, RPT_ERROR, "No camera found in scene \"%s\"", seq->scene->id.name+2);
+								BKE_reportf(reports, RPT_ERROR, err_msg, seq->scene->id.name + 2);
 								return false;
 							}
 						}
@@ -2864,7 +2869,7 @@ static int check_valid_camera(Scene *scene, Object *camera_override, ReportList 
 		}
 	}
 	else if (!check_valid_compositing_camera(scene, camera_override)) {
-		BKE_report(reports, RPT_ERROR, "No camera found in scene");
+		BKE_reportf(reports, RPT_ERROR, err_msg, scene->id.name + 2);
 		return false;
 	}
 
@@ -3340,7 +3345,7 @@ bool RE_WriteRenderViewsImage(ReportList *reports, RenderResult *rr, Scene *scen
 
 bool RE_WriteRenderViewsMovie(
         ReportList *reports, RenderResult *rr, Scene *scene, RenderData *rd, bMovieHandle *mh,
-        const size_t width, const size_t height, void **movie_ctx_arr, const int totvideos, bool preview)
+        void **movie_ctx_arr, const int totvideos, bool preview)
 {
 	bool is_mono;
 	bool ok = true;
@@ -3353,29 +3358,14 @@ bool RE_WriteRenderViewsMovie(
 	if (is_mono || (scene->r.im_format.views_format == R_IMF_VIEWS_INDIVIDUAL)) {
 		int view_id;
 		for (view_id = 0; view_id < totvideos; view_id++) {
-			bool do_free = false;
 			const char *suffix = BKE_scene_multiview_view_id_suffix_get(&scene->r, view_id);
 			ImBuf *ibuf = render_result_rect_to_ibuf(rr, &scene->r, view_id);
-
-			/* note; the way it gets 32 bits rects is weak... */
-			if (ibuf->rect == NULL) {
-				ibuf->rect = MEM_mapallocN(sizeof(int) * rr->rectx * rr->recty, "temp 32 bits rect");
-				ibuf->mall |= IB_rect;
-				render_result_rect_get_pixels(rr, ibuf->rect, width, height, &scene->view_settings, &scene->display_settings, view_id);
-				do_free = true;
-			}
 
 			IMB_colormanagement_imbuf_for_write(ibuf, true, false, &scene->view_settings,
 			                                    &scene->display_settings, &scene->r.im_format);
 
 			ok &= mh->append_movie(movie_ctx_arr[view_id], rd, preview ? scene->r.psfra : scene->r.sfra, scene->r.cfra,
 			                       (int *) ibuf->rect, ibuf->x, ibuf->y, suffix, reports);
-
-			if (do_free) {
-				MEM_freeN(ibuf->rect);
-				ibuf->rect = NULL;
-				ibuf->mall &= ~IB_rect;
-			}
 
 			/* imbuf knows which rects are not part of ibuf */
 			IMB_freeImBuf(ibuf);
@@ -3385,7 +3375,6 @@ bool RE_WriteRenderViewsMovie(
 	else { /* R_IMF_VIEWS_STEREO_3D */
 		const char *names[2] = {STEREO_LEFT_NAME, STEREO_RIGHT_NAME};
 		ImBuf *ibuf_arr[3] = {NULL};
-		bool do_free[2] = {false, false};
 		int i;
 
 		BLI_assert((totvideos == 1) && (scene->r.im_format.views_format == R_IMF_VIEWS_STEREO_3D));
@@ -3393,14 +3382,6 @@ bool RE_WriteRenderViewsMovie(
 		for (i = 0; i < 2; i++) {
 			int view_id = BLI_findstringindex(&rr->views, names[i], offsetof(RenderView, name));
 			ibuf_arr[i] = render_result_rect_to_ibuf(rr, &scene->r, view_id);
-
-			/* note; the way it gets 32 bits rects is weak... */
-			if (ibuf_arr[i]->rect == NULL) {
-				ibuf_arr[i]->rect = MEM_mapallocN(sizeof(int) * width * height, "temp 32 bits rect");
-				ibuf_arr[i]->mall |= IB_rect;
-				render_result_rect_get_pixels(rr, ibuf_arr[i]->rect, width, height, &scene->view_settings, &scene->display_settings, view_id);
-				do_free[i] = true;
-			}
 
 			IMB_colormanagement_imbuf_for_write(ibuf_arr[i], true, false, &scene->view_settings,
 			                                    &scene->display_settings, &scene->r.im_format);
@@ -3412,12 +3393,6 @@ bool RE_WriteRenderViewsMovie(
 		                      ibuf_arr[2]->x, ibuf_arr[2]->y, "", reports);
 
 		for (i = 0; i < 2; i++) {
-			if (do_free[i]) {
-				MEM_freeN(ibuf_arr[i]->rect);
-				ibuf_arr[i]->rect = NULL;
-				ibuf_arr[i]->mall &= ~IB_rect;
-			}
-
 			/* imbuf knows which rects are not part of ibuf */
 			IMB_freeImBuf(ibuf_arr[i]);
 		}
@@ -3437,7 +3412,7 @@ static int do_write_image_or_movie(Render *re, Main *bmain, Scene *scene, bMovie
 
 	/* write movie or image */
 	if (BKE_imtype_is_movie(scene->r.im_format.imtype)) {
-		RE_WriteRenderViewsMovie(re->reports, &rres, scene, &re->r, mh, re->rectx, re->recty, re->movie_ctx_arr, totvideos, false);
+		RE_WriteRenderViewsMovie(re->reports, &rres, scene, &re->r, mh, re->movie_ctx_arr, totvideos, false);
 	}
 	else {
 		if (name_override)
@@ -3979,13 +3954,10 @@ bool RE_layers_have_name(struct RenderResult *rr)
 	switch (BLI_listbase_count_ex(&rr->layers, 2)) {
 		case 0:
 			return false;
-			break;
 		case 1:
 			return (((RenderLayer *)rr->layers.first)->name[0] != '\0');
-			break;
 		default:
 			return true;
-			break;
 	}
 	return false;
 }
