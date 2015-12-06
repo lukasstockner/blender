@@ -48,8 +48,8 @@ public:
 		RAS_OFS_BIND_READ,
 	};
 	enum RAS_OFS_RENDER_TARGET {
-		RAS_OFS_RENDER_BUFFER = 0,		// use texture as render target
-		RAS_OFS_RENDER_TEXTURE,			// use render buffer as render target
+		RAS_OFS_RENDER_BUFFER = 0,		// use render buffer as render target
+		RAS_OFS_RENDER_TEXTURE,			// use texture as render target
 	};
 
 	int	    m_width;
@@ -64,6 +64,7 @@ public:
 	virtual void Bind(RAS_OFS_BIND_MODE mode) = 0;
 	virtual void Blit() = 0;
 	virtual void Unbind() = 0;
+	virtual void MipMap() = 0;
 
 	virtual int GetWidth() { return m_width; }
 	virtual int GetHeight() { return m_height; }

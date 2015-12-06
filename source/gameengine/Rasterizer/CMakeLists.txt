@@ -64,6 +64,7 @@ set(SRC
 	RAS_IRasterizer.h
 	RAS_ILightObject.h
 	RAS_IOffScreen.h
+	RAS_ISync.h
 	RAS_MaterialBucket.h
 	RAS_MeshObject.h
 	RAS_ObjectColor.h

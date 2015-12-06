@@ -25,35 +25,20 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "RAS_IOffScreen.h"
-#include "GPU_extensions.h"
+#include "RAS_ISync.h"
 
-class RAS_ICanvas;
+struct __GLsync;
 
-class RAS_OpenGLOffScreen : public RAS_IOffScreen
+class RAS_OpenGLSync : public RAS_ISync
 {
-	RAS_ICanvas *m_canvas;
-	// these are GL objects
-	unsigned int m_depthrb;
-	unsigned int m_colorrb;
-	unsigned int m_depthtx;
-	unsigned int m_colortx;
-	unsigned int m_fbo;
-	unsigned int m_blitfbo;
-	unsigned int m_blitrbo;
-	unsigned int m_blittex;
-	RAS_OFS_RENDER_TARGET m_target;
-	bool m_bound;
-
+private:
+	struct __GLsync *m_sync;
 
 public:
-	RAS_OpenGLOffScreen(RAS_ICanvas *canvas);
-	~RAS_OpenGLOffScreen();
+	RAS_OpenGLSync();
+	~RAS_OpenGLSync();
 
-	bool Create(int width, int height, int samples, RAS_OFS_RENDER_TARGET target);
-	void Destroy();
-	void Bind(RAS_OFS_BIND_MODE mode);
-	void Blit();
-	void Unbind();
-	void MipMap();
+	virtual bool Create(RAS_SYNC_TYPE type);
+	virtual void Destroy();
+	virtual void Wait();
 };

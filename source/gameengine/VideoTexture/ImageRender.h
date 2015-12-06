@@ -40,6 +40,7 @@
 #include "RAS_ICanvas.h"
 #include "RAS_IRasterizer.h"
 #include "RAS_IOffScreen.h"
+#include "RAS_ISync.h"
 
 #include "ImageViewport.h"
 
@@ -64,10 +65,14 @@ public:
 	float getClip (void) { return m_clip; }
 	/// set whole buffer use
 	void setClip (float clip) { m_clip = clip; }
+	/// render status
+	bool isDone() { return m_done; }
 	/// render frame (public so that it is accessible from python)
 	bool Render();
 	/// in case fbo is used, method to unbind
 	void Unbind();
+	/// wait for render to complete
+	void WaitSync();
 
 protected:
 	/// true if ready to render
@@ -82,6 +87,8 @@ protected:
 	bool m_owncamera;
 	/// if offscreen render
 	PyRASOffScreen *m_offscreen;
+	/// object to synchronize render even if no buffer transfer
+	RAS_ISync *m_sync;
 	/// for mirror operation
 	KX_GameObject * m_observer;
 	KX_GameObject * m_mirror;
@@ -98,6 +105,7 @@ protected:
 	RAS_IRasterizer* m_rasterizer;
 	/// engine
 	KX_KetsjiEngine* m_engine;
+	///
 
 	/// background color
 	float  m_background[4];

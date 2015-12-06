@@ -44,6 +44,7 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
 #include "RAS_IOffScreen.h"
+#include "RAS_ISync.h"
 #include "BLI_math.h"
 
 #include "ImageRender.h"
@@ -73,6 +74,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, PyRASOffScreen * 
     m_camera(camera),
     m_owncamera(false),
     m_offscreen(offscreen),
+    m_sync(NULL),
     m_observer(NULL),
     m_mirror(NULL),
     m_clip(100.f),
@@ -97,6 +99,8 @@ ImageRender::~ImageRender (void)
 {
 	if (m_owncamera)
 		m_camera->Release();
+	if (m_sync)
+		delete m_sync;
 	Py_XDECREF(m_offscreen);
 }
 
@@ -145,15 +149,14 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	{
 		m_offscreen->ofs->Bind(RAS_IOffScreen::RAS_OFS_BIND_READ);
 	}
-
+	// wait until all render operations are completed
+	WaitSync();
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
 	if (m_offscreen)
 	{
 		m_offscreen->ofs->Unbind();
 	}
-	// so that next time we render again
-	m_done = false;
 }
 
 bool ImageRender::Render()
@@ -356,6 +359,14 @@ bool ImageRender::Render()
 	// In case multisample is active, blit the FBO
 	if (m_offscreen)
 		m_offscreen->ofs->Blit();
+	// end of all render operations, let's create a sync object just in case
+	if (m_sync)
+	{
+		// a sync from a previous render, should not happen
+		delete m_sync;
+		m_sync = NULL;
+	}
+	m_sync = m_rasterizer->CreateSync(RAS_ISync::RAS_SYNC_TYPE_FENCE);
 	// remember that we have done render
 	m_done = true;
 	// the image is not available at this stage
@@ -369,6 +380,24 @@ void ImageRender::Unbind()
 	{
 		m_offscreen->ofs->Unbind();
 	}
+}
+
+void ImageRender::WaitSync()
+{
+	if (m_sync)
+	{
+		m_sync->Wait();
+		// done with it, deleted it
+		delete m_sync;
+		m_sync = NULL;
+	}
+	if (m_offscreen)
+	{
+		// this is needed to finalize the image if the target is a texture
+		m_offscreen->ofs->MipMap();
+	}
+	// all rendered operation done and complete, invalidate render for next time
+	m_done = false;
 }
 
 // cast Image pointer to ImageRender
@@ -432,6 +461,43 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	return 0;
 }
 
+static PyObject *ImageRender_refresh(PyImage *self, PyObject *args)
+{
+	ImageRender *imageRender = getImageRender(self);
+
+	if (!imageRender)
+	{
+		PyErr_SetString(PyExc_TypeError, "Incomplete ImageRender() object");
+		return NULL;
+	}
+	if (PyArg_ParseTuple(args, ""))
+	{
+		// refresh called with no argument.
+		// For other image objects it simply invalidates the image buffer
+		// For ImageRender it triggers a render+sync
+		// Note that this only makes sense when doing offscreen render on texture
+		if (!imageRender->isDone())
+		{
+			if (!imageRender->Render())
+			{
+				Py_RETURN_FALSE;
+			}
+			// as we are not trying to read the pixels, just unbind
+			imageRender->Unbind();
+		}
+		// wait until all render operations are completed
+		// this will also finalize the texture
+		imageRender->WaitSync();
+		Py_RETURN_TRUE;
+	}
+	else
+	{
+		// fallback on standard processing
+		PyErr_Clear();
+		return Image_refresh(self, args);
+	}
+}
+
 // refresh image
 static PyObject *ImageRender_render(PyImage *self)
 {
@@ -446,6 +512,7 @@ static PyObject *ImageRender_render(PyImage *self)
 	{
 		Py_RETURN_FALSE;
 	}
+	// we are not reading the pixels now, unbind
 	imageRender->Unbind();
 	Py_RETURN_TRUE;
 }
@@ -488,7 +555,7 @@ static int setBackground(PyImage *self, PyObject *value, void *closure)
 // methods structure
 static PyMethodDef imageRenderMethods[] =
 { // methods from ImageBase class
-	{"refresh", (PyCFunction)Image_refresh, METH_VARARGS, "Refresh image - invalidate its current content after optionally transferring its content to a target buffer"},
+	{"refresh", (PyCFunction)ImageRender_refresh, METH_VARARGS, "Refresh image - invalidate its current content after optionally transferring its content to a target buffer"},
 	{"render", (PyCFunction)ImageRender_render, METH_NOARGS, "Render scene - run before refresh() to performs asynchronous render"},
 	{NULL}
 };

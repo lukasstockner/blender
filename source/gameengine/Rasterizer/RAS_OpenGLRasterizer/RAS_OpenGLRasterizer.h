@@ -184,6 +184,7 @@ public:
 	virtual void SetFocalLength(const float focallength);
 	virtual float GetFocalLength();
 	virtual RAS_IOffScreen *CreateOffScreen(int width, int height, int samples, int target);
+	virtual RAS_ISync *CreateSync(int type);
 	virtual void SwapBuffers();
 
 	virtual void IndexPrimitives(class RAS_MeshSlot &ms);

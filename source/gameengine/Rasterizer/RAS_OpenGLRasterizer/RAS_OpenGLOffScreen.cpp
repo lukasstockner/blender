@@ -315,13 +315,18 @@ void RAS_OpenGLOffScreen::Bind(RAS_OFS_BIND_MODE mode)
 {
 	if (m_fbo)
 	{
-		if (mode == RAS_OFS_BIND_RENDER || !m_blitfbo)
+		if (mode == RAS_OFS_BIND_RENDER)
 		{
 			glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, m_fbo);
 			glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
 			glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
 			glViewport(0, 0, m_width, m_height);
 			glDisable(GL_SCISSOR_TEST);
+		}
+		else if (!m_blitfbo)
+		{
+			glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, m_fbo);
+			glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
 		}
 		else
 		{
@@ -341,13 +346,17 @@ void RAS_OpenGLOffScreen::Unbind()
 	glEnable(GL_SCISSOR_TEST);
 	glReadBuffer(GL_BACK);
 	glDrawBuffer(GL_BACK);
+	m_bound = false;
+}
+
+void RAS_OpenGLOffScreen::MipMap()
+{
 	if (m_color)
 	{
 		glBindTexture(GL_TEXTURE_2D, m_color);
 		glGenerateMipmap(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
-	m_bound = false;
 }
 
 void RAS_OpenGLOffScreen::Blit()

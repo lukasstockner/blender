@@ -155,6 +155,7 @@ void ImageViewport::calcViewport (unsigned int texId, double ts, unsigned int fo
 		// just copy current viewport to texture
 		glBindTexture(GL_TEXTURE_2D, texId);
 		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_upLeft[0], m_upLeft[1], (GLsizei)m_capSize[0], (GLsizei)m_capSize[1]);
+		glBindTexture(GL_TEXTURE_2D, 0);
 		// image is not available
 		m_avail = false;
 	}

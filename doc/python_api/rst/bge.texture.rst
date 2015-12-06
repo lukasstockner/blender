@@ -627,15 +627,6 @@ Image classes
       
       :type: :class:`~bgl.Buffer` or None
 
-   .. method:: refresh(buffer=None, format="RGBA")
-
-      Refresh video - render and copy the image to an external buffer (optional) then invalidate its current content.
-
-      :arg buffer: An optional object that implements the buffer protocol. If specified, the image is copied to the buffer, which must be big enough or an exception is thrown. The transfer to the buffer is optimal if no processing of the image is needed. This is the case if flip=False, alpha=True, scale=False, whole=True, depth=False, zbuff=False and no filter is set.
-      :type buffer: any buffer type
-      :arg format: An optional image format specifier for the image that will be copied to the buffer. Only valid values are "RGBA" or "BGRA"
-      :type format: str
-
    .. attribute:: scale
 
       Fast scale of image (near neighbour).
@@ -672,6 +663,25 @@ Image classes
       Use depth component of render as grey scale color -  suitable for texture source.
       
       :type: bool
+
+   .. method:: render()
+
+      Render the scene but do not extract the pixels yet. The function returns as soon as the render commands have been send to the GPU. The render will proceed asynchronously in the GPU while the host can perform other tasks. To complete the render, you can either call :func:`refresh` directly of refresh the texture of which this object is the source. This method is useful to implement asynchronous render for optimal performance: call render() on frame n and refresh() on frame n+1 to give as much as time as possible to the GPU to render the frame while the game engine can perform other tasks.
+
+      :return: True if the render was initiated, False if the render cannot be performed (e.g. the camera is active)
+      :rtype: bool
+
+   .. method:: refresh()
+   .. method:: refresh(buffer, format="RGBA")
+
+      Refresh video - render and optionally copy the image to an external buffer then invalidate its current content. The render may have been started earlier with the :func:`render` method, in which case this function simply waits for the render operations to complete. When called without argument, the pixels are not extracted but the render is guaranteed to be completed when the function returns. This only makes sense with offscreen render on texture target (see :func:`~bge.render.offScreenCreate`).
+
+      :arg buffer: An object that implements the buffer protocol. If specified, the image is copied to the buffer, which must be big enough or an exception is thrown. The transfer to the buffer is optimal if no processing of the image is needed. This is the case if flip=False, alpha=True, scale=False, whole=True, depth=False, zbuff=False and no filter is set.
+      :type buffer: any buffer type of sufficient size
+      :arg format: An optional image format specifier for the image that will be copied to the buffer. Only valid values are "RGBA" or "BGRA"
+      :type format: str
+      :return: True if the render is complete, False if the render cannot be performed (e.g. the camera is active)
+      :rtype: bool
 
 .. class:: ImageViewport
 

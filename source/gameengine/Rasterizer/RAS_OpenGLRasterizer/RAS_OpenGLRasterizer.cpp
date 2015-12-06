@@ -47,6 +47,7 @@
 
 #include "RAS_OpenGLLight.h"
 #include "RAS_OpenGLOffScreen.h"
+#include "RAS_OpenGLSync.h"
 
 #include "RAS_StorageIM.h"
 #include "RAS_StorageVA.h"
@@ -621,6 +622,20 @@ RAS_IOffScreen *RAS_OpenGLRasterizer::CreateOffScreen(int width, int height, int
 		return NULL;
 	}
 	return ofs;
+}
+
+RAS_ISync *RAS_OpenGLRasterizer::CreateSync(int type)
+{
+	RAS_ISync *sync;
+
+	sync = new RAS_OpenGLSync();
+
+	if (!sync->Create((RAS_ISync::RAS_SYNC_TYPE)type))
+	{
+		delete sync;
+		return NULL;
+	}
+	return sync;
 }
 
 void RAS_OpenGLRasterizer::SwapBuffers()

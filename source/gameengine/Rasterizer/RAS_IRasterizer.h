@@ -56,6 +56,7 @@ class RAS_MeshSlot;
 class RAS_ILightObject;
 class SCA_IScene;
 class RAS_IOffScreen;
+class RAS_ISync;
 
 typedef vector<unsigned short> KX_IndexArray;
 typedef vector<RAS_TexVert> KX_VertexArray;
@@ -263,6 +264,12 @@ public:
 	 * For the time being, it is only used in VideoTexture for custom render.
 	 */
 	virtual RAS_IOffScreen *CreateOffScreen(int width, int height, int samples, int target) = 0;
+
+	/**
+	 * Create a sync object
+	 * For use with offscreen render
+	 */
+	virtual RAS_ISync *CreateSync(int type) = 0;
 
 	/**
 	 * SwapBuffers swaps the back buffer with the front buffer.
