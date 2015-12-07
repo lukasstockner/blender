@@ -1322,7 +1322,7 @@ void ED_gpencil_draw_view3d(wmWindowManager *wm, Scene *scene, View3D *v3d, AReg
 	gp_draw_data_all(scene, gpd, offsx, offsy, winx, winy, CFRA, dflag, v3d->spacetype);
 	
 	/* draw status text (if in screen/pixel-space) */
-	if (only3d == false) {
+	if ((only3d == false) && !(dflag & GP_DRAWDATA_NOSTATUS)) {
 		gp_draw_status_text(gpd, ar);
 	}
 }
