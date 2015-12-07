@@ -1086,9 +1086,10 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 		 *       on the other hand since they get reset to lib data on file open/reload it is indirect too...
 		 *       Edit Mode is also a 'skip direct' case. */
 		const bool is_obj = (GS(id->name) == ID_OB);
-		const bool is_proxy = false; //(is_obj && (((Object *)id)->proxy || ((Object *)id)->proxy_group));
+		const bool is_proxy = (is_obj && (((Object *)id)->proxy || ((Object *)id)->proxy_group));
 		const bool is_obj_editmode = (is_obj && BKE_object_is_in_editmode((Object *)id));
-		const bool is_indirect = (id->lib != NULL);
+		/* Note that indirect data from same file as processed ID is **not** considered indirect! */
+		const bool is_indirect = ((id->lib != NULL) && (id->lib != old_id->lib));
 		const bool skip_indirect = (id_remap_data->flag & ID_REMAP_SKIP_INDIRECT_USAGE) != 0;
 		const bool is_never_null = ((cb_flag & IDWALK_NEVER_NULL) && (new_id == NULL));
 		const bool skip_never_null = (id_remap_data->flag & ID_REMAP_SKIP_NEVER_NULL_USAGE) != 0;
@@ -1097,9 +1098,11 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 			id->flag |= LIB_DOIT;
 		}
 
-//		if (GS(old_id->name) == ID_AC)
+//		if (GS(old_id->name) == ID_TXT) {
+//			printf("\t\t %s (from %s) (%d)\n", old_id->name, old_id->lib ? old_id->lib->filepath : "<MAIN>", old_id->us);
 //			printf("\t\tIn %s (%p): remapping %s (%p) to %s (%p)\n",
 //			       id->name, id, old_id->name, old_id, new_id ? new_id->name : "<NONE>", new_id);
+//		}
 
 		/* Special hack in case it's Object->data and we are in edit mode (skipped_direct too). */
 		if ((is_never_null && skip_never_null) ||
@@ -1343,10 +1346,6 @@ void BKE_libblock_remap_locked(
 				new_ob->flag |= OB_FROMGROUP;
 			}
 		}
-	}
-	else if (GS(old_id->name) == ID_LI) {
-		/* Libraries have one user, though they are not technically used by anyone... */
-		id_us_min(old_id);
 	}
 
 //	if (GS(old_id->name) == ID_AC) {
