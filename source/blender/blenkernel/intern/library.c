@@ -182,6 +182,18 @@ void id_us_ensure_real(ID *id)
 	}
 }
 
+static void id_us_clear_real(ID *id)
+{
+	if (id && (id->flag2 & LIB_EXTRAUSER)) {
+		if (id->flag2 & LIB_EXTRAUSER_SET) {
+			const int limit = ID_FAKE_USERS(id);
+			id->us--;
+			BLI_assert(id->us >= limit);
+		}
+		id->flag2 &= ~(LIB_EXTRAUSER | LIB_EXTRAUSER_SET);
+	}
+}
+
 void id_us_plus(ID *id)
 {
 	if (id) {
@@ -1208,6 +1220,8 @@ static void libblock_remap_data(
 		id_fake_user_clear(old_id);
 		id_fake_user_set(new_id);
 	}
+
+	id_us_clear_real(old_id);
 
 	if (new_id && (new_id->flag & LIB_INDIRECT) && (r_id_remap_data->status & ID_REMAP_IS_LINKED_DIRECT)) {
 		new_id->flag &= ~LIB_INDIRECT;
