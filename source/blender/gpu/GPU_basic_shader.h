@@ -25,12 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPU_simple_shader.h
+/** \file GPU_basic_shader.h
  *  \ingroup gpu
  */
 
-#ifndef __GPU_SIMPLE_SHADER_H__
-#define __GPU_SIMPLE_SHADER_H__
+#ifndef __GPU_BASIC_SHADER_H__
+#define __GPU_BASIC_SHADER_H__
 
 #include "BLI_utildefines.h"
 
@@ -40,8 +40,8 @@ extern "C" {
 
 /* Fixed Function Shader */
 
-typedef enum GPUSimpleShaderOption {
-	GPU_SHADER_OVERRIDE_DIFFUSE = (1<<0),   /* replace diffuse with glcolor */
+typedef enum GPUBasicShaderOption {
+	GPU_SHADER_USE_COLOR =        (1<<0),   /* use glColor, for lighting it replaces diffuse */
 	GPU_SHADER_LIGHTING =         (1<<1),   /* use lighting */
 	GPU_SHADER_TWO_SIDED =        (1<<2),   /* flip normals towards viewer */
 	GPU_SHADER_TEXTURE_2D =       (1<<3),   /* use 2D texture to replace diffuse color */
@@ -49,37 +49,44 @@ typedef enum GPUSimpleShaderOption {
 	GPU_SHADER_SOLID_LIGHTING =   (1<<4),   /* use faster lighting (set automatically) */
 	GPU_SHADER_OPTIONS_NUM = 5,
 	GPU_SHADER_OPTION_COMBINATIONS = (1<<GPU_SHADER_OPTIONS_NUM)
-} GPUSimpleShaderOption;
+} GPUBasicShaderOption;
 
-void GPU_simple_shaders_init(void);
-void GPU_simple_shaders_exit(void);
+void GPU_basic_shaders_init(void);
+void GPU_basic_shaders_exit(void);
 
-void GPU_simple_shader_bind(int options);
-void GPU_simple_shader_unbind(void);
+void GPU_basic_shader_bind(int options);
+int GPU_basic_shader_bound_options(void);
 
-void GPU_simple_shader_colors(const float diffuse[3], const float specular[3],
+void GPU_basic_shader_colors(const float diffuse[3], const float specular[3],
 	int shininess, float alpha);
-
-bool GPU_simple_shader_need_normals(void);
 
 /* Fixed Function Lighting */
 
+typedef enum GPULightType {
+	GPU_LIGHT_POINT,
+	GPU_LIGHT_SPOT,
+	GPU_LIGHT_SUN
+} GPULightType;
+
 typedef struct GPULightData {
-	float position[4];
-	float diffuse[4];
-	float specular[4];
+	GPULightType type;
+
+	float position[3];
+	float direction[3];
+
+	float diffuse[3];
+	float specular[3];
 
 	float constant_attenuation;
 	float linear_attenuation;
 	float quadratic_attenuation;
 
-	float spot_direction[3];
 	float spot_cutoff;
 	float spot_exponent;
 } GPULightData;
 
-void GPU_simple_shader_light_set(int light_num, GPULightData *light);
-void GPU_simple_shader_light_set_viewer(bool local);
+void GPU_basic_shader_light_set(int light_num, GPULightData *light);
+void GPU_basic_shader_light_set_viewer(bool local);
 
 #ifdef __cplusplus
 }

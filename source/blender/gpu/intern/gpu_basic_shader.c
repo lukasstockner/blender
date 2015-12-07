@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/intern/gpu_simple_shader.c
+/** \file blender/gpu/intern/gpu_basic_shader.c
  *  \ingroup gpu
  *
  * GLSL shaders to replace fixed function OpenGL materials and lighting. These
@@ -48,17 +48,17 @@
 #include "BLI_utildefines.h"
 
 #include "GPU_extensions.h"
-#include "GPU_simple_shader.h"
+#include "GPU_basic_shader.h"
 
 /* State */
 
-// #define NUM_OPENGL_LIGHTS 8
+static const bool USE_GLSL = false;
 
 static struct {
 	GPUShader *cached_shaders[GPU_SHADER_OPTION_COMBINATIONS];
 	bool failed_shaders[GPU_SHADER_OPTION_COMBINATIONS];
 
-	bool need_normals;
+	int bound_options;
 
 	int lights_enabled;
 	int lights_directional;
@@ -66,12 +66,12 @@ static struct {
 
 /* Init / exit */
 
-void GPU_simple_shaders_init(void)
+void GPU_basic_shaders_init(void)
 {
 	memset(&GPU_MATERIAL_STATE, 0, sizeof(GPU_MATERIAL_STATE));
 }
 
-void GPU_simple_shaders_exit(void)
+void GPU_basic_shaders_exit(void)
 {
 	int i;
 	
@@ -104,7 +104,7 @@ static int detect_options()
 	if (glIsEnabled(GL_TEXTURE_2D))
 		options |= GPU_SHADER_TEXTURE_2D;
 	if (glIsEnabled(GL_COLOR_MATERIAL))
-		options |= GPU_SHADER_OVERRIDE_DIFFUSE;
+		options |= GPU_SHADER_USE_COLOR;
 
 	if (glIsEnabled(GL_LIGHTING))
 		options |= GPU_SHADER_LIGHTING;
@@ -117,11 +117,11 @@ static int detect_options()
 }
 #endif
 
-static GPUShader *gpu_simple_shader(int options)
+static GPUShader *gpu_basic_shader(int options)
 {
 	/* glsl code */
-	extern char datatoc_gpu_shader_simple_vert_glsl[];
-	extern char datatoc_gpu_shader_simple_frag_glsl[];
+	extern char datatoc_gpu_shader_basic_vert_glsl[];
+	extern char datatoc_gpu_shader_basic_frag_glsl[];
 	GPUShader *shader;
 
 	/* detect if we can do faster lighting for solid draw mode */
@@ -136,7 +136,7 @@ static GPUShader *gpu_simple_shader(int options)
 		/* create shader if it doesn't exist yet */
 		char defines[64*GPU_SHADER_OPTIONS_NUM] = "";
 
-		if (options & GPU_SHADER_OVERRIDE_DIFFUSE)
+		if (options & GPU_SHADER_USE_COLOR)
 			strcat(defines, "#define USE_COLOR\n");
 		if (options & GPU_SHADER_TWO_SIDED)
 			strcat(defines, "#define USE_TWO_SIDED\n");
@@ -149,8 +149,8 @@ static GPUShader *gpu_simple_shader(int options)
 			strcat(defines, "#define USE_SCENE_LIGHTING\n");
 
 		shader = GPU_shader_create(
-			datatoc_gpu_shader_simple_vert_glsl,
-			datatoc_gpu_shader_simple_frag_glsl,
+			datatoc_gpu_shader_basic_vert_glsl,
+			datatoc_gpu_shader_basic_frag_glsl,
 			NULL,
 			NULL,
 			defines, 0, 0, 0);
@@ -171,60 +171,74 @@ static GPUShader *gpu_simple_shader(int options)
 
 /* Bind / unbind */
 
-void GPU_simple_shader_bind(int options)
+void GPU_basic_shader_bind(int options)
 {
-	if (GPU_glsl_support()) {
-		GPUShader *shader = gpu_simple_shader(options);
+	if (USE_GLSL) {
+		if (options) {
+			GPUShader *shader = gpu_basic_shader(options);
 
-		if (shader)
-			GPU_shader_bind(shader);
+			if (shader)
+				GPU_shader_bind(shader);
+		}
+		else {
+			GPU_shader_unbind();
+		}
 	}
 	else {
-		// XXX where does this fit, depends on ortho/persp?
+		int bound_options = GPU_MATERIAL_STATE.bound_options;
 
-		if (options & GPU_SHADER_LIGHTING)
+		if (options & GPU_SHADER_LIGHTING) {
 			glEnable(GL_LIGHTING);
 
-		if (options & GPU_SHADER_TWO_SIDED)
-			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
+			if (options & GPU_SHADER_USE_COLOR)
+				glEnable(GL_COLOR_MATERIAL);
+			else
+				glDisable(GL_COLOR_MATERIAL);
 
-		if (options & GPU_SHADER_OVERRIDE_DIFFUSE) {
-			glEnable(GL_COLOR_MATERIAL);
-			glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+			if (options & GPU_SHADER_TWO_SIDED)
+				glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
+			else
+				glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+		}
+		else if (bound_options & GPU_SHADER_LIGHTING) {
+			glDisable(GL_LIGHTING);
+			glDisable(GL_COLOR_MATERIAL);
+			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 		}
 
 		if (options & GPU_SHADER_TEXTURE_2D)
 			glEnable(GL_TEXTURE_2D);
+		else if (bound_options & GPU_SHADER_TEXTURE_2D)
+			glDisable(GL_TEXTURE_2D);
 	}
 
-	/* temporary hack, should be solved outside of this file */
-	GPU_MATERIAL_STATE.need_normals = (options & GPU_SHADER_LIGHTING);
+	GPU_MATERIAL_STATE.bound_options = options;
 }
 
-void GPU_simple_shader_unbind(void)
+int GPU_basic_shader_bound_options(void)
 {
-	if (GPU_glsl_support()) {
-		GPU_shader_unbind();
-	}
-	else {
-		glDisable(GL_LIGHTING);
-		glDisable(GL_COLOR_MATERIAL);
-		glDisable(GL_TEXTURE_2D);
-		glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
-	}
+	/* ideally this should disappear, anything that uses this is making fragile
+	 * assumptions that the basic shader is bound and not another shader */
+	return GPU_MATERIAL_STATE.bound_options;
 }
 
 /* Material Colors */
 
-void GPU_simple_shader_colors(const float diffuse[3], const float specular[3],
+void GPU_basic_shader_colors(const float diffuse[3], const float specular[3],
 	int shininess, float alpha)
 {
 	float gl_diffuse[4], gl_specular[4];
 
-	copy_v3_v3(gl_diffuse, diffuse);
+	if (diffuse)
+		copy_v3_v3(gl_diffuse, diffuse);
+	else
+		zero_v3(gl_diffuse);
 	gl_diffuse[3] = alpha;
 
-	copy_v3_v3(gl_specular, specular);
+	if (specular)
+		copy_v3_v3(gl_specular, specular);
+	else
+		zero_v3(gl_specular);
 	gl_specular[3] = 1.0f;
 
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, gl_diffuse);
@@ -232,49 +246,81 @@ void GPU_simple_shader_colors(const float diffuse[3], const float specular[3],
 	glMateriali(GL_FRONT_AND_BACK, GL_SHININESS, CLAMPIS(shininess, 1, 128));
 }
 
-bool GPU_simple_shader_need_normals(void)
-{
-	return GPU_MATERIAL_STATE.need_normals;
-}
-
-void GPU_simple_shader_light_set(int light_num, GPULightData *light)
+void GPU_basic_shader_light_set(int light_num, GPULightData *light)
 {
 	int light_bit = (1 << light_num);
+
+	/* note that light position is affected by the current modelview matrix! */
 
 	GPU_MATERIAL_STATE.lights_enabled &= ~light_bit;
 	GPU_MATERIAL_STATE.lights_directional &= ~light_bit;
 
 	if (light) {
+		float position[4], diffuse[4], specular[4];
+
 		glEnable(GL_LIGHT0+light_num);
 
-		glLightfv(GL_LIGHT0+light_num, GL_POSITION, light->position); 
-		glLightfv(GL_LIGHT0+light_num, GL_DIFFUSE, light->diffuse);
-		glLightfv(GL_LIGHT0+light_num, GL_SPECULAR, light->specular);
+		/* position */
+		if (light->type == GPU_LIGHT_SUN) {
+			copy_v3_v3(position, light->direction);
+			position[3] = 0.0f;
+		}
+		else {
+			copy_v3_v3(position, light->position);
+			position[3] = 1.0f;
+		}
+		glLightfv(GL_LIGHT0+light_num, GL_POSITION, position);
 
-		glLightf(GL_LIGHT0+light_num, GL_CONSTANT_ATTENUATION, light->constant_attenuation);
-		glLightf(GL_LIGHT0+light_num, GL_LINEAR_ATTENUATION, light->linear_attenuation);
-		glLightf(GL_LIGHT0+light_num, GL_QUADRATIC_ATTENUATION, light->quadratic_attenuation);
+		/* energy */
+		copy_v3_v3(diffuse, light->diffuse);
+		copy_v3_v3(specular, light->specular);
+		diffuse[3] = 1.0f;
+		specular[3] = 1.0f;
+		glLightfv(GL_LIGHT0+light_num, GL_DIFFUSE, diffuse);
+		glLightfv(GL_LIGHT0+light_num, GL_SPECULAR, specular);
 
-		glLightfv(GL_LIGHT0+light_num, GL_SPOT_DIRECTION, light->spot_direction);
-		glLightf(GL_LIGHT0+light_num, GL_SPOT_CUTOFF, light->spot_cutoff);
-		glLightf(GL_LIGHT0+light_num, GL_SPOT_EXPONENT, light->spot_exponent);
+		/* attenuation */
+		if (light->type == GPU_LIGHT_SUN) {
+			glLightf(GL_LIGHT0+light_num, GL_CONSTANT_ATTENUATION, 1.0f);
+			glLightf(GL_LIGHT0+light_num, GL_LINEAR_ATTENUATION, 0.0f);
+			glLightf(GL_LIGHT0+light_num, GL_QUADRATIC_ATTENUATION, 0.0f);
+		}
+		else {
+			glLightf(GL_LIGHT0+light_num, GL_CONSTANT_ATTENUATION, light->constant_attenuation);
+			glLightf(GL_LIGHT0+light_num, GL_LINEAR_ATTENUATION, light->linear_attenuation);
+			glLightf(GL_LIGHT0+light_num, GL_QUADRATIC_ATTENUATION, light->quadratic_attenuation);
+		}
+
+		/* spot */
+		glLightfv(GL_LIGHT0+light_num, GL_SPOT_DIRECTION, light->direction);
+		if (light->type == GPU_LIGHT_SPOT) {
+			glLightf(GL_LIGHT0+light_num, GL_SPOT_CUTOFF, light->spot_cutoff);
+			glLightf(GL_LIGHT0+light_num, GL_SPOT_EXPONENT, light->spot_exponent);
+		}
+		else {
+			glLightf(GL_LIGHT0+light_num, GL_SPOT_CUTOFF, 180.0f);
+			glLightf(GL_LIGHT0+light_num, GL_SPOT_EXPONENT, 0.0f);
+		}
 
 		GPU_MATERIAL_STATE.lights_enabled |= light_bit;
-		if (light->position[3] == 0.0f)
+		if (position[3] == 0.0f)
 			GPU_MATERIAL_STATE.lights_directional |= light_bit;
 	}
 	else {
-		const float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+		if (USE_GLSL) {
+			/* glsl shader needs these zero to skip them */
+			const float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
-		glLightfv(GL_LIGHT0+light_num, GL_POSITION, zero); 
-		glLightfv(GL_LIGHT0+light_num, GL_DIFFUSE, zero); 
-		glLightfv(GL_LIGHT0+light_num, GL_SPECULAR, zero);
+			glLightfv(GL_LIGHT0+light_num, GL_POSITION, zero);
+			glLightfv(GL_LIGHT0+light_num, GL_DIFFUSE, zero);
+			glLightfv(GL_LIGHT0+light_num, GL_SPECULAR, zero);
+		}
 
 		glDisable(GL_LIGHT0+light_num);
 	}
 }
 
-void GPU_simple_shader_light_set_viewer(bool local)
+void GPU_basic_shader_light_set_viewer(bool local)
 {
 	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, (local)? GL_TRUE: GL_FALSE);
 }

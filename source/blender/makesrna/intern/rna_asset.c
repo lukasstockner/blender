@@ -886,7 +886,7 @@ static void rna_def_asset_entry(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "blender_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "blentype");
-	RNA_def_property_enum_items(prop, id_type_items);
+	RNA_def_property_enum_items(prop, rna_enum_id_type_items);
 
 	prop = RNA_def_property(srna, "variants", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_type(prop, "AssetVariant");

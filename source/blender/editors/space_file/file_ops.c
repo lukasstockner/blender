@@ -1190,7 +1190,7 @@ void FILE_OT_cancel(struct wmOperatorType *ot)
 }
 
 
-static void file_sfile_to_operator(
+void file_sfile_to_operator_ex(
         wmOperator *op, SpaceFile *sfile, char filepath[FILE_MAX_LIBEXTRA], const bool is_fake)
 {
 	PropertyRNA *prop, *prop_files, *prop_dirs;
@@ -1325,7 +1325,14 @@ static void file_sfile_to_operator(
 	MEM_freeN(selection);
 }
 
-static void file_operator_to_sfile(SpaceFile *sfile, wmOperator *op)
+void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile)
+{
+	char filepath[FILE_MAX];
+
+	file_sfile_to_operator_ex(op, sfile, filepath, false);
+}
+
+void file_operator_to_sfile(SpaceFile *sfile, wmOperator *op)
 {
 	PropertyRNA *prop;
 
@@ -1351,6 +1358,28 @@ static void file_operator_to_sfile(SpaceFile *sfile, wmOperator *op)
 	/* XXX, files and dirs updates missing, not really so important though */
 }
 
+/**
+ * Use to set the file selector path from some arbitrary source.
+ */
+void file_sfile_filepath_set(SpaceFile *sfile, const char *filepath)
+{
+	BLI_assert(BLI_exists(filepath));
+
+	if (BLI_is_dir(filepath)) {
+		BLI_strncpy(sfile->params->dir, filepath, sizeof(sfile->params->dir));
+		sfile->params->file[0] = '\0';
+	}
+	else {
+		if ((sfile->params->flag & FILE_DIRSEL_ONLY) == 0) {
+			BLI_split_dirfile(filepath, sfile->params->dir, sfile->params->file,
+			                  sizeof(sfile->params->dir), sizeof(sfile->params->file));
+		}
+		else {
+			BLI_split_dir_part(filepath, sfile->params->dir, sizeof(sfile->params->dir));
+		}
+	}
+}
+
 void file_draw_check(bContext *C)
 {
 	SpaceFile *sfile = CTX_wm_space_file(C);
@@ -1358,7 +1387,7 @@ void file_draw_check(bContext *C)
 	if (op) { /* fail on reload */
 		if (op->type->check) {
 			char filepath[FILE_MAX_LIBEXTRA];
-			file_sfile_to_operator(op, sfile, filepath, true);
+			file_sfile_to_operator_ex(op, sfile, filepath, true);
 			
 			/* redraw */
 			if (op->type->check(C, op)) {
@@ -1441,7 +1470,7 @@ int file_exec(bContext *C, wmOperator *exec_op)
 		
 		sfile->op = NULL;
 
-		file_sfile_to_operator(op, sfile, filepath, false);
+		file_sfile_to_operator_ex(op, sfile, filepath, false);
 
 		if (BLI_exists(sfile->params->dir)) {
 			fsmenu_insert_entry(ED_fsmenu_get(), FS_CATEGORY_RECENT, sfile->params->dir, NULL,
@@ -1717,6 +1746,45 @@ void FILE_OT_smoothscroll(wmOperatorType *ot)
 	ot->poll = ED_operator_file_active;
 }
 
+
+static int filepath_drop_exec(bContext *C, wmOperator *op)
+{
+	SpaceFile *sfile = CTX_wm_space_file(C);
+
+	if (sfile) {
+		char filepath[FILE_MAX];
+
+		RNA_string_get(op->ptr, "filepath", filepath);
+		if (!BLI_exists(filepath)) {
+			BKE_report(op->reports, RPT_ERROR, "File does not exist");
+			return OPERATOR_CANCELLED;
+		}
+
+		file_sfile_filepath_set(sfile, filepath);
+
+		if (sfile->op) {
+			file_sfile_to_operator(sfile->op, sfile);
+			file_draw_check(C);
+		}
+
+		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+		return OPERATOR_FINISHED;
+	}
+
+	return OPERATOR_CANCELLED;
+}
+
+void FILE_OT_filepath_drop(wmOperatorType *ot)
+{
+	ot->name = "File Selector Drop";
+	ot->description = "";
+	ot->idname = "FILE_OT_filepath_drop";
+
+	ot->exec = filepath_drop_exec;
+	ot->poll = WM_operator_winactive;
+
+	RNA_def_string_file_path(ot->srna, "filepath", "Path", FILE_MAX, "", "");
+}
 
 /* create a new, non-existing folder name, returns 1 if successful, 0 if name couldn't be created.
  * The actual name is returned in 'name', 'folder' contains the complete path, including the new folder name.
