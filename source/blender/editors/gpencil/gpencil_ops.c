@@ -330,6 +330,9 @@ void ED_operatortypes_gpencil(void)
 	
 	WM_operatortype_append(GPENCIL_OT_hide);
 	WM_operatortype_append(GPENCIL_OT_reveal);
+	WM_operatortype_append(GPENCIL_OT_lock_all);
+	WM_operatortype_append(GPENCIL_OT_unlock_all);
+	WM_operatortype_append(GPENCIL_OT_layer_isolate);
 	
 	WM_operatortype_append(GPENCIL_OT_active_frame_delete);
 	

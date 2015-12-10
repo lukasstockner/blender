@@ -451,6 +451,25 @@ class GPENCIL_UL_layer(UIList):
             layout.label(text="", icon_value=icon)
 
 
+class GPENCIL_MT_layer_specials(Menu):
+    bl_label = "Layer"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("gpencil.layer_duplicate", icon='COPY_ID')  # XXX: needs a dedicated icon
+
+        layout.separator()
+
+        layout.operator("gpencil.reveal", icon='RESTRICT_VIEW_OFF', text="Show All")
+        layout.operator("gpencil.hide", icon='RESTRICT_VIEW_ON', text="Hide Others").unselected = True
+
+        layout.separator()
+
+        layout.operator("gpencil.lock_all", icon='LOCKED', text="Lock All")
+        layout.operator("gpencil.unlock_all", icon='UNLOCKED', text="UnLock All")
+
+
 class GreasePencilDataPanel:
     # subclass must set
     # bl_space_type = 'IMAGE_EDITOR'
@@ -502,7 +521,7 @@ class GreasePencilDataPanel:
 
         gpl = context.active_gpencil_layer
         if gpl:
-            sub.operator("gpencil.layer_duplicate", icon='COPY_ID', text="")  # XXX: needs a dedicated icon
+            sub.menu("GPENCIL_MT_layer_specials", icon='DOWNARROW_HLT', text="")
 
             if len(gpd.layers) > 1:
                 col.separator()
@@ -510,6 +529,12 @@ class GreasePencilDataPanel:
                 sub = col.column(align=True)
                 sub.operator("gpencil.layer_move", icon='TRIA_UP', text="").type = 'UP'
                 sub.operator("gpencil.layer_move", icon='TRIA_DOWN', text="").type = 'DOWN'
+
+                col.separator()
+
+                sub = col.column(align=True)
+                sub.operator("gpencil.layer_isolate", icon='SOLO_OFF', text="").affect_visibility = False
+                sub.operator("gpencil.layer_isolate", icon='RESTRICT_VIEW_OFF', text="").affect_visibility = True
 
         if gpl:
             self.draw_layer(layout, gpl)
