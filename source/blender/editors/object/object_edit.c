@@ -2093,7 +2093,10 @@ static int WIDGETGROUP_object_manipulator_poll(const struct bContext *C, struct 
 	Object *ob = ED_object_active_context((bContext *)C);
 
 	if (ED_operator_object_active((bContext *)C)) {
-		if (STREQ(wgrouptype->idname, ob->id.name)) {
+		char *idname = NULL;
+		WM_widgetgrouptype_idname_get(wgrouptype, idname);
+
+		if (STREQ(idname, ob->id.name)) {
 			return true;
 		}
 	}
@@ -2103,14 +2106,16 @@ static int WIDGETGROUP_object_manipulator_poll(const struct bContext *C, struct 
 static int object_widget_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = ED_object_active_context((bContext *)C);
-	wmWidgetGroupType *wgrouptype = WM_widgetgrouptype_new(WIDGETGROUP_object_manipulator_poll,
-	                                                       WIDGETGROUP_object_manipulator_create,
-	                                                       WM_widgetgroup_keymap_common,
-	                                                       CTX_data_main(C), "View3D", "Object Widgets",
-	                                                       SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
+	struct wmWidgetGroupType *wgrouptype = WM_widgetgrouptype_new(WIDGETGROUP_object_manipulator_poll,
+	                                                              WIDGETGROUP_object_manipulator_create,
+	                                                              WM_widgetgroup_keymap_common,
+	                                                              CTX_data_main(C), "View3D", "Object Widgets",
+	                                                              SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 
 	/* assign the objects id name to the widget */
-	strcpy(wgrouptype->idname, ob->id.name);
+	char *idname = NULL;
+	WM_widgetgrouptype_idname_get(wgrouptype, idname);
+	strcpy(idname, ob->id.name);
 
 	return OPERATOR_FINISHED;
 }

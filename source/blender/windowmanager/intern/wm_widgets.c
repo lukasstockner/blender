@@ -105,69 +105,6 @@ static ListBase widgetmaptypes = {NULL, NULL};
 static GHash *draw_widgets = NULL;
 
 
-wmWidgetGroupType *WM_widgetgrouptype_new(
-        int (*poll)(const bContext *C, wmWidgetGroupType *),
-        void (*create)(const bContext *, wmWidgetGroup *),
-        wmKeyMap *(*keymap_init)(wmKeyConfig *, const char *),
-        const Main *bmain, const char *mapidname, const char *name,
-        const short spaceid, const short regionid, const bool is_3d)
-{
-	wmWidgetMapType *wmaptype = WM_widgetmaptype_find(mapidname, spaceid, regionid, is_3d, false);
-
-	if (!wmaptype) {
-		fprintf(stderr, "widgetgrouptype creation: widgetmap type does not exist");
-		return NULL;
-	}
-
-	wmWidgetGroupType *wgrouptype = MEM_callocN(sizeof(wmWidgetGroupType), "widgetgroup");
-
-	wgrouptype->poll = poll;
-	wgrouptype->create = create;
-	wgrouptype->keymap_init = keymap_init;
-	wgrouptype->spaceid = spaceid;
-	wgrouptype->regionid = regionid;
-	wgrouptype->is_3d = is_3d;
-	BLI_strncpy(wgrouptype->name, name, MAX_NAME);
-	BLI_strncpy(wgrouptype->mapidname, mapidname, MAX_NAME);
-
-	/* add the type for future created areas of the same type  */
-	BLI_addtail(&wmaptype->widgetgrouptypes, wgrouptype);
-
-	/* Main is missing on startup when we create new areas.
-	 * So this is only called for widgets initialized on runtime */
-	if (!bmain)
-		return wgrouptype;
-
-
-	/* init keymap - on startup there's an extra call to init keymaps for 'permanent' widget-groups */
-	wm_widgetgrouptype_keymap_init(wgrouptype, ((wmWindowManager *)bmain->wm.first)->defaultconf);
-
-	/* now create a widget for all existing areas */
-	for (bScreen *sc = bmain->screen.first; sc; sc = sc->id.next) {
-		for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
-			for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-				ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
-				for (ARegion *ar = lb->first; ar; ar = ar->next) {
-					for (wmWidgetMap *wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
-						if (wmap->type == wmaptype) {
-							wmWidgetGroup *wgroup = MEM_callocN(sizeof(wmWidgetGroup), "widgetgroup");
-
-							wgroup->type = wgrouptype;
-
-							/* just add here, drawing will occur on next update */
-							BLI_addtail(&wmap->widgetgroups, wgroup);
-							wm_widgetmap_set_highlighted_widget(wmap, NULL, NULL, 0);
-							ED_region_tag_redraw(ar);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return wgrouptype;
-}
-
 /**
  * Creates and returns idname hash table for (visible) widgets in \a wmap
  *
@@ -264,7 +201,7 @@ static void widget_calculate_scale(wmWidget *widget, const bContext *C)
 void wm_widgets_keymap(wmKeyConfig *keyconf)
 {
 	wmWidgetMapType *wmaptype;
-	wmWidgetGroupType *wgrouptype;
+	wmWidgetGroupTypeC *wgrouptype;
 
 	for (wmaptype = widgetmaptypes.first; wmaptype; wmaptype = wmaptype->next) {
 		for (wgrouptype = wmaptype->widgetgrouptypes.first; wgrouptype; wgrouptype = wgrouptype->next) {
@@ -482,7 +419,7 @@ void WM_event_add_area_widgetmap_handlers(ARegion *ar)
 }
 
 void WM_modal_handler_attach_widgetgroup(
-        bContext *C, wmEventHandler *handler, wmWidgetGroupType *wgrouptype, wmOperator *op)
+        bContext *C, wmEventHandler *handler, wmWidgetGroupTypeC *wgrouptype, wmOperator *op)
 {
 	/* maybe overly careful, but widgetgrouptype could come from a failed creation */
 	if (!wgrouptype) {
@@ -1011,33 +948,6 @@ void WIDGETGROUP_OT_widget_tweak(wmOperatorType *ot)
 /** \} */ // Widget operators
 
 
-wmWidgetMapType *WM_widgetmaptype_find(
-        const char *idname, const int spaceid, const int regionid, const bool is_3d, const bool create)
-{
-	wmWidgetMapType *wmaptype;
-
-	for (wmaptype = widgetmaptypes.first; wmaptype; wmaptype = wmaptype->next) {
-		if (wmaptype->spaceid == spaceid &&
-		    wmaptype->regionid == regionid &&
-		    wmaptype->is_3d == is_3d &&
-		    STREQ(wmaptype->idname, idname))
-		{
-			return wmaptype;
-		}
-	}
-
-	if (!create) return NULL;
-
-	wmaptype = MEM_callocN(sizeof(wmWidgetMapType), "widgettype list");
-	wmaptype->spaceid = spaceid;
-	wmaptype->regionid = regionid;
-	wmaptype->is_3d = is_3d;
-	BLI_strncpy(wmaptype->idname, idname, 64);
-	BLI_addhead(&widgetmaptypes, wmaptype);
-
-	return wmaptype;
-}
-
 void WM_widgetmaptypes_free(void)
 {
 	for (wmWidgetMapType *wmaptype = widgetmaptypes.first; wmaptype; wmaptype = wmaptype->next) {
@@ -1046,6 +956,7 @@ void WM_widgetmaptypes_free(void)
 	BLI_freelistN(&widgetmaptypes);
 
 	fix_linking_widget_lib();
+	fix_linking_widgets();
 }
 
 bool wm_widgetmap_is_3d(const wmWidgetMap *wmap)
@@ -1391,26 +1302,6 @@ wmWidget *wm_widgetmap_get_active_widget(wmWidgetMap *wmap)
 	return wmap->wmap_context.active_widget;
 }
 
-
-wmWidgetMap *WM_widgetmap_from_type(const char *idname, const int spaceid, const int regionid, const bool is_3d)
-{
-	wmWidgetMapType *wmaptype = WM_widgetmaptype_find(idname, spaceid, regionid, is_3d, true);
-	wmWidgetMap *wmap;
-
-	wmap = MEM_callocN(sizeof(wmWidgetMap), "WidgetMap");
-	wmap->type = wmaptype;
-
-	/* create all widgetgroups for this widgetmap. We may create an empty one
-	 * too in anticipation of widgets from operators etc */
-	for (wmWidgetGroupType *wgrouptype = wmaptype->widgetgrouptypes.first; wgrouptype; wgrouptype = wgrouptype->next) {
-		wmWidgetGroup *wgroup = MEM_callocN(sizeof(wmWidgetGroup), "widgetgroup");
-		wgroup->type = wgrouptype;
-		BLI_addtail(&wmap->widgetgroups, wgroup);
-	}
-
-	return wmap;
-}
-
 void WM_widgetmap_delete(wmWidgetMap *wmap)
 {
 	if (!wmap)
@@ -1528,12 +1419,12 @@ wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, const char *wgroupna
 	return km;
 }
 
-void wm_widgetgrouptype_keymap_init(wmWidgetGroupType *wgrouptype, wmKeyConfig *keyconf)
+void wm_widgetgrouptype_keymap_init(wmWidgetGroupTypeC *wgrouptype, wmKeyConfig *keyconf)
 {
 	wgrouptype->keymap = wgrouptype->keymap_init(keyconf, wgrouptype->name);
 }
 
-void WM_widgetgrouptype_unregister(bContext *C, Main *bmain, wmWidgetGroupType *wgrouptype)
+void WM_widgetgrouptype_unregister(bContext *C, Main *bmain, wmWidgetGroupTypeC *wgrouptype)
 {
 	for (bScreen *sc = bmain->screen.first; sc; sc = sc->id.next) {
 		for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {

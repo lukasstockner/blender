@@ -86,7 +86,7 @@ void WIDGETGROUP_lamp_create(const struct bContext *C, struct wmWidgetGroup *wgr
 	WM_widget_set_property(widget, ARROW_SLOT_OFFSET_WORLD_SPACE, &ptr, propname);
 }
 
-int WIDGETGROUP_camera_poll(const bContext *C, wmWidgetGroupType *UNUSED(wgrouptype))
+int WIDGETGROUP_camera_poll(const bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	Object *ob = CTX_data_active_object(C);
 
@@ -178,7 +178,7 @@ void WIDGETGROUP_camera_create(const bContext *C, wmWidgetGroup *wgroup)
 	}
 }
 
-int WIDGETGROUP_forcefield_poll(const bContext *C, wmWidgetGroupType *UNUSED(wgrouptype))
+int WIDGETGROUP_forcefield_poll(const bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	Object *ob = CTX_data_active_object(C);
 
@@ -218,7 +218,7 @@ void WIDGETGROUP_forcefield_create(const bContext *C, wmWidgetGroup *wgroup)
 /* draw facemaps depending on the selected bone in pose mode */
 #define USE_FACEMAP_FROM_BONE
 
-int WIDGETGROUP_armature_facemaps_poll(const bContext *C, wmWidgetGroupType *UNUSED(wgrouptype))
+int WIDGETGROUP_armature_facemaps_poll(const bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	Object *ob = CTX_data_active_object(C);
 

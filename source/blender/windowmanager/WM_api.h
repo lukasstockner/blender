@@ -43,6 +43,8 @@
 #include "WM_keymap.h"
 #include "BLI_compiler_attrs.h"
 
+#include "intern/widgets/wm_widgets_c_api.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -59,7 +61,7 @@ struct wmOperator;
 struct wmWidget;
 struct wmWidgetGroup;
 struct wmWidgetMap;
-struct wmWidgetGroupType;
+struct wmWidgetGroupTypeC;
 struct wmWidgetMapType;
 struct rcti;
 struct PointerRNA;
@@ -515,7 +517,7 @@ void  WM_widgetmap_widgets_draw(const struct bContext *C, const struct wmWidgetM
                       const bool in_scene, const bool free_drawwidgets);
 void  WM_event_add_area_widgetmap_handlers(struct ARegion *ar);
 void  WM_modal_handler_attach_widgetgroup(struct bContext *C, struct wmEventHandler *handler,
-                                          struct wmWidgetGroupType *wgrouptype, struct wmOperator *op);
+                                          struct wmWidgetGroupTypeC *wgrouptype, struct wmOperator *op);
 void  WM_widgetgroup_customdata_set(struct wmWidgetGroup *wgroup, void *data);
 void *WM_widgetgroup_customdata(const struct wmWidgetGroup *wgroup);
 
@@ -558,20 +560,11 @@ void WM_widget_set_colors(struct wmWidget *widget, const float col[4], const flo
 
 wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, const char *wgroupname);
 
-struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, const int spaceid, const int regionid,
-                                              const bool is_3d, const bool create);
 bool WM_widgetmap_select_all(struct bContext *C, struct wmWidgetMap *wmap, const int action);
 
-struct wmWidgetGroupType *WM_widgetgrouptype_new(
-        int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
-        void (*create)(const struct bContext *, struct wmWidgetGroup *),
-        wmKeyMap *(*keymap_init)(wmKeyConfig *, const char *),
-        const struct Main *bmain, const char *mapidname, const char *name,
-        const short spaceid, const short regionid, const bool is_3d);
-void WM_widgetgrouptype_unregister(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgroup);
+void WM_widgetgrouptype_unregister(struct bContext *C, struct Main *bmain, struct wmWidgetGroupTypeC *wgroup);
 
 /* creates a widgetmap with all registered widgets for that type */
-struct wmWidgetMap *WM_widgetmap_from_type(const char *idname, const int spaceid, const int regionid, const bool is_3d);
 void WM_widgetmap_delete(struct wmWidgetMap *wmap);
 bool WM_widgetmap_cursor_set(const struct wmWidgetMap *wmap, struct wmWindow *win);
 

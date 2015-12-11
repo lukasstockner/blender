@@ -15,47 +15,22 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
+ * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
  *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Julian Eisel, Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file DNA_widget_types.h
- *  \ingroup DNA
+/** \file blender/windowmanager/intern/widgets/wm_widget.cpp
+ *  \ingroup wm
  */
 
-#ifndef __DNA_WM_WIDGET_TYPES_H__
-#define __DNA_WM_WIDGET_TYPES_H__
+#include "wm_widget.h"
 
-#include "DNA_vec_types.h"
+wmWidget::wmWidget()
+{
+	
+}
 
-struct bContext;
-struct wmEvent;
-
-typedef enum WidgetType {
-	WT_TRANSLATE = 0,
-	WT_ROTATE    = 1,
-	WT_SCALE     = 2,
-	WT_CUSTOM    = 3,
-} WidgetType;
-
-struct wmWidgetGroup {
-	struct wmWidgetGroup *next, *prev;
-
-	struct wmWidgetGroupTypeC *type;
-	struct wmWidgetGroupType *type_cxx;
-	ListBase widgets;
-
-	void *py_instance;            /* python stores the class instance here */
-	struct ReportList *reports;   /* errors and warnings storage */
-
-	int flag;
-	int pad;
-};
-
-#endif

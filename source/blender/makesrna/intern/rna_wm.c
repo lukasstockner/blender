@@ -44,6 +44,9 @@
 
 #include "WM_types.h"
 
+/* TODO  Widget Python API is disabled since it's broken anyway */
+//#define USE_WM_WIDGET_API
+
 #ifdef RNA_RUNTIME
 static EnumPropertyItem event_keymouse_value_items[] = {
 	{KM_ANY, "ANY", 0, "Any", ""},
@@ -1421,11 +1424,12 @@ static void rna_Operator_bl_description_set(PointerRNA *ptr, const char *value)
 		assert(!"setting the bl_description on a non-builtin operator");
 }
 
+#ifdef USE_WM_WIDGET_API
 #ifdef WITH_PYTHON
 static void rna_WidgetGroup_unregister(struct Main *bmain, StructRNA *type)
 {
 	//const char *idname;
-	wmWidgetGroupType *wgrouptype = RNA_struct_blender_type_get(type);
+	struct wmWidgetGroupType *wgrouptype = RNA_struct_blender_type_get(type);
 	//wmWindowManager *wm;
 	//wmWidgetMapType *wmap = NULL;
 
@@ -1443,7 +1447,7 @@ static void rna_WidgetGroup_unregister(struct Main *bmain, StructRNA *type)
 	RNA_struct_free(&BLENDER_RNA, type);
 }
 
-static int widgetgroup_poll(const bContext *C, wmWidgetGroupType *wgrouptype)
+static int widgetgroup_poll(const bContext *C, struct wmWidgetGroupType *wgrouptype)
 {
 
 	extern FunctionRNA rna_WidgetGroup_poll_func;
@@ -1508,7 +1512,7 @@ static void operator_cancel(bContext *C, wmWidgetGroup *op)
 }
 #endif
 
-void widgetgroup_wrapper(wmWidgetGroupType *ot, void *userdata);
+void widgetgroup_wrapper(struct wmWidgetGroupType *ot, void *userdata);
 
 static char _widgetgroup_idname[OP_MAX_TYPENAME];
 //static char _widgetgroup_name[OP_MAX_TYPENAME];
@@ -1517,14 +1521,13 @@ static char _widgetgroup_idname[OP_MAX_TYPENAME];
 static StructRNA *rna_WidgetGroup_register(Main *bmain, ReportList *reports, void *data, const char *identifier,
                                         StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
-
-	wmWidgetGroupType *wgrouptype, dummywgt = {NULL};
+	struct wmWidgetGroupType *wgrouptype, dummywgt = {NULL};
 	wmWidgetGroup dummywg = {NULL};
 	PointerRNA wgptr;
 	int have_function[2];
 
 	/* setup dummy widgetgroup & widgetgroup type to store static properties in */
-	dummywg.type = &dummywgt;
+	dummywg.type_cxx = &dummywgt;
 	RNA_pointer_create(NULL, &RNA_WidgetGroup, &dummywg, &wgptr);
 
 	/* clear in case they are left unset */
@@ -1540,7 +1543,7 @@ static StructRNA *rna_WidgetGroup_register(Main *bmain, ReportList *reports, voi
 		return NULL;
 	}
 	
-	/* check if the area supports widgets */
+	/* check if the region supports widgets */
 	if (!WM_widgetmaptype_find(dummywgt.mapidname ,dummywgt.spaceid, dummywgt.regionid, dummywgt.is_3d, false)) {
 		BKE_reportf(reports, RPT_ERROR, "Area type does not support widgets");
 		return NULL;
@@ -1594,6 +1597,7 @@ static StructRNA *rna_WidgetGroup_refine(PointerRNA *wgroup_ptr)
 }
 
 #endif
+#endif /* USE_WM_WIDGET_API */
 
 static void rna_KeyMapItem_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
@@ -1862,10 +1866,12 @@ static void rna_def_widgetgroup(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "WidgetGroup", NULL);
 	RNA_def_struct_ui_text(srna, "WidgetGroup", "Storage of an operator being executed, or registered after execution");
 	RNA_def_struct_sdna(srna, "wmWidgetGroup");
+#ifdef USE_WM_WIDGET_API
 	RNA_def_struct_refine_func(srna, "rna_WidgetGroup_refine");
 #ifdef WITH_PYTHON
 	RNA_def_struct_register_funcs(srna, "rna_WidgetGroup_register", "rna_WidgetGroup_unregister", "rna_WidgetGroup_instance");
 #endif
+#endif /* USE_WM_WIDGET_API */
 	RNA_def_struct_translation_context(srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
 
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);

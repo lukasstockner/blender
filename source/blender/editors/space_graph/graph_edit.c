@@ -2525,7 +2525,7 @@ typedef struct BackDropTransformData {
 	float init_offset[2];
 	float init_zoom;
 	short event_type;
-	wmWidgetGroupType *cagetype;
+	struct wmWidgetGroupType *cagetype;
 } BackDropTransformData;
 
 static int graph_widget_backdrop_transform_poll(bContext *C)
@@ -2566,13 +2566,13 @@ static int graph_widget_backdrop_transform_invoke(bContext *C, wmOperator *op, c
 	ScrArea *sa = CTX_wm_area(C);
 	SpaceIpo *sipo = CTX_wm_space_graph(C);
 	/* no poll, lives always for the duration of the operator */
-	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_backdrop_create,
-	                                                     WM_widgetgroup_keymap_common, CTX_data_main(C),
-	                                                     "Graph_Canvas", "Backdrop Transform Widgets",
-	                                                     SPACE_IPO, RGN_TYPE_WINDOW, false);
+	struct wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_backdrop_create,
+	                                                            WM_widgetgroup_keymap_common, CTX_data_main(C),
+	                                                            "Graph_Canvas", "Backdrop Transform Widgets",
+	                                                            SPACE_IPO, RGN_TYPE_WINDOW, false);
 	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
 	BackDropTransformData *data = MEM_mallocN(sizeof(BackDropTransformData), "overdrop transform data");
-	WM_modal_handler_attach_widgetgroup(C, handler, cagetype, op);
+	WM_widgetgrouptype_attach_to_handler(C, cagetype, handler, op);
 
 	RNA_float_set_array(op->ptr, "offset", sipo->backdrop_offset);
 	RNA_float_set(op->ptr, "scale", sipo->backdrop_zoom);

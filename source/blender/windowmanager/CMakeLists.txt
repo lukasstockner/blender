@@ -84,6 +84,20 @@ set(SRC
 	wm_subwindow.h
 	wm_window.h
 	3d_widgets/ui_widget_library.h
+
+	intern/widgets/wm_widget.cpp
+	intern/widgets/wm_widgetgroup.cpp
+	intern/widgets/wm_widgetgrouptype.cpp
+	intern/widgets/wm_widgetmap.cpp
+	intern/widgets/wm_widgetmaptype.cpp
+	intern/widgets/wm_widgets_c_api.cpp
+
+	intern/widgets/wm_widget.h
+	intern/widgets/wm_widgetgroup.h
+	intern/widgets/wm_widgetgrouptype.h
+	intern/widgets/wm_widgetmap.h
+	intern/widgets/wm_widgetmaptype.h
+	intern/widgets/wm_widgets_c_api.h
 )
 
 if(WITH_AUDASPACE)
