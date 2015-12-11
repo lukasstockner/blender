@@ -884,10 +884,12 @@ static bool gp_stroke_eraser_is_occluded(tGPsdata *p, const bGPDspoint *pt, cons
 /* TODO: this could really do with some optimization (KD-Tree/BVH?) */
 static void gp_stroke_eraser_dostroke(tGPsdata *p,
                                       const int mval[2], const int mvalo[2],
-                                      short rad, const rcti *rect, bGPDframe *gpf, bGPDstroke *gps)
+                                      const int radius, const rcti *rect,
+                                      bGPDframe *gpf, bGPDstroke *gps)
 {
 	bGPDspoint *pt1, *pt2;
-	int x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+	int pc1[2] = {0};
+	int pc2[2] = {0};
 	int i;
 	
 	if (gps->totpoints == 0) {
@@ -897,12 +899,12 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p,
 		BLI_freelinkN(&gpf->strokes, gps);
 	}
 	else if (gps->totpoints == 1) {
-		gp_point_to_xy(&p->gsc, gps, gps->points, &x0, &y0);
+		gp_point_to_xy(&p->gsc, gps, gps->points, &pc1[0], &pc1[1]);
 		
 		/* do boundbox check first */
-		if ((!ELEM(V2D_IS_CLIPPED, x0, y0)) && BLI_rcti_isect_pt(rect, x0, y0)) {
+		if ((!ELEM(V2D_IS_CLIPPED, pc1[0], pc1[1])) && BLI_rcti_isect_pt(rect, pc1[0], pc1[1])) {
 			/* only check if point is inside */
-			if (((x0 - mval[0]) * (x0 - mval[0]) + (y0 - mval[1]) * (y0 - mval[1])) <= rad * rad) {
+			if (len_v2v2_int(mval, pc1) <= radius) {
 				/* free stroke */
 				MEM_freeN(gps->points);
 				BLI_freelinkN(&gpf->strokes, gps);
@@ -918,20 +920,20 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p,
 			pt1 = gps->points + i;
 			pt2 = gps->points + i + 1;
 			
-			gp_point_to_xy(&p->gsc, gps, pt1, &x0, &y0);
-			gp_point_to_xy(&p->gsc, gps, pt2, &x1, &y1);
+			gp_point_to_xy(&p->gsc, gps, pt1, &pc1[0], &pc1[1]);
+			gp_point_to_xy(&p->gsc, gps, pt2, &pc2[0], &pc2[1]);
 			
 			/* check that point segment of the boundbox of the eraser stroke */
-			if (((!ELEM(V2D_IS_CLIPPED, x0, y0)) && BLI_rcti_isect_pt(rect, x0, y0)) ||
-			    ((!ELEM(V2D_IS_CLIPPED, x1, y1)) && BLI_rcti_isect_pt(rect, x1, y1)))
+			if (((!ELEM(V2D_IS_CLIPPED, pc1[0], pc1[1])) && BLI_rcti_isect_pt(rect, pc1[0], pc1[1])) ||
+			    ((!ELEM(V2D_IS_CLIPPED, pc2[0], pc2[1])) && BLI_rcti_isect_pt(rect, pc2[0], pc2[1])))
 			{
 				/* check if point segment of stroke had anything to do with
 				 * eraser region  (either within stroke painted, or on its lines)
 				 *  - this assumes that linewidth is irrelevant
 				 */
-				if (gp_stroke_inside_circle(mval, mvalo, rad, x0, y0, x1, y1)) {
-					if ((gp_stroke_eraser_is_occluded(p, pt1, x0, y0) == false) ||
-					    (gp_stroke_eraser_is_occluded(p, pt2, x1, y1) == false))
+				if (gp_stroke_inside_circle(mval, mvalo, radius, pc1[0], pc1[1], pc2[0], pc2[1])) {
+					if ((gp_stroke_eraser_is_occluded(p, pt1, pc1[0], pc1[1]) == false) ||
+					    (gp_stroke_eraser_is_occluded(p, pt2, pc2[0], pc2[1]) == false))
 					{
 						/* if function returns true, break this loop (as no more point to check) */
 						if (gp_stroke_eraser_splitdel(gpf, gps, i))
