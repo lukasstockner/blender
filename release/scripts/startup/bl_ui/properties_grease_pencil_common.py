@@ -205,11 +205,17 @@ class GreasePencilStrokeSculptPanel:
         row.prop(brush, "strength", slider=True)
         row.prop(brush, "use_pressure_strength", text="")
         col.prop(brush, "use_falloff")
-		
-        if settings.tool == 'SMOOTH':
-            col.prop(brush, "affect_pressure")
 
+        layout.separator()
+
+        if settings.tool in {'THICKNESS', 'PINCH', 'TWIST'}:
+            layout.row().prop(brush, "direction", expand=True)
+
+        layout.separator()
         layout.prop(settings, "use_select_mask")
+
+        if settings.tool == 'SMOOTH':
+            layout.prop(brush, "affect_pressure")
 
 
 ###############################

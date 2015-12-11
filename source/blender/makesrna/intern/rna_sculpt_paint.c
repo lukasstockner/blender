@@ -985,6 +985,11 @@ static void rna_def_particle_edit(BlenderRNA *brna)
 
 static void rna_def_gpencil_sculpt(BlenderRNA *brna)
 {
+	static EnumPropertyItem prop_direction_items[]= {
+		{0, "ADD", 0, "Add", "Add effect of brush"},
+		{GP_EDITBRUSH_FLAG_INVERT, "SUBTRACT", 0, "Subtract", "Subtract effect of brush"},
+		{0, NULL, 0, NULL, NULL}};
+	
 	StructRNA *srna;
 	PropertyRNA *prop;
 	
@@ -1038,6 +1043,11 @@ static void rna_def_gpencil_sculpt(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "affect_pressure", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_EDITBRUSH_FLAG_SMOOTH_PRESSURE);
 	RNA_def_property_ui_text(prop, "Affect Pressure", "Affect pressure values as well when smoothing strokes");
+	
+	prop = RNA_def_property(srna, "direction", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
+	RNA_def_property_enum_items(prop, prop_direction_items);
+	RNA_def_property_ui_text(prop, "Direction", "");
 }
 
 void RNA_def_sculpt_paint(BlenderRNA *brna)
