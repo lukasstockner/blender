@@ -55,9 +55,7 @@ public:
 	        const short spaceid, const short regionid, const bool is_3d);
 
 	void attach_to_handler(bContext *C, struct wmEventHandler *handler, struct wmOperator *op);
-	wmWidgetMapType *find_widgetmaptype();
 	size_t get_idname(char *r_idname);
-	ExtensionRNA *get_extensionrna();
 
 private:
 	char idname[64]; /* MAX_NAME */

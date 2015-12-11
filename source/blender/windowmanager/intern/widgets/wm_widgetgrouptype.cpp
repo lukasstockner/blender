@@ -122,19 +122,9 @@ void wmWidgetGroupType::attach_to_handler(bContext *C, wmEventHandler *handler, 
 	WM_event_add_mousemove(C);
 }
 
-wmWidgetMapType *wmWidgetGroupType::find_widgetmaptype()
-{
-	return WM_widgetmaptype_find(this->mapidname, this->spaceid, this->regionid, this->is_3d, false);
-}
-
 size_t wmWidgetGroupType::get_idname(char *r_idname)
 {
 	strcpy(r_idname, this->idname);
 	return sizeof(this->idname);
-}
-
-ExtensionRNA *wmWidgetGroupType::get_extensionrna()
-{
-	return &this->ext;
 }
 
