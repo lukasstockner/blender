@@ -943,7 +943,7 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p,
 /* erase strokes which fall under the eraser strokes */
 static void gp_stroke_doeraser(tGPsdata *p)
 {
-	bGPDframe *gpf = p->gpf;
+	bGPDlayer *gpl;
 	bGPDstroke *gps, *gpn;
 	rcti rect;
 	
@@ -962,15 +962,31 @@ static void gp_stroke_doeraser(tGPsdata *p)
 		}
 	}
 	
-	/* loop over strokes, checking segments for intersections */
-	for (gps = gpf->strokes.first; gps; gps = gpn) {
-		gpn = gps->next;
+	/* loop over all layers too, since while it's easy to restrict editing to
+	 * only a subset of layers, it is harder to perform the same erase operation
+	 * on multiple layers...
+	 */
+	for (gpl = p->gpd->layers.first; gpl; gpl = gpl->next) {
+		bGPDframe *gpf = gpl->actframe;
 		
-		/* Not all strokes in the datablock may be valid in the current editor/context
-		 * (e.g. 2D space strokes in the 3D view, if the same datablock is shared)
-		 */
-		if (ED_gpencil_stroke_can_use_direct(p->sa, gps)) {
-			gp_stroke_eraser_dostroke(p, p->mval, p->mvalo, p->radius, &rect, gpf, gps);
+		/* only affect layer if it's editable (and visible) */
+		if (gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED)) {
+			continue;
+		}
+		else if (gpf == NULL) {
+			continue;
+		}
+		
+		/* loop over strokes, checking segments for intersections */
+		for (gps = gpf->strokes.first; gps; gps = gpn) {
+			gpn = gps->next;
+			
+			/* Not all strokes in the datablock may be valid in the current editor/context
+			 * (e.g. 2D space strokes in the 3D view, if the same datablock is shared)
+			 */
+			if (ED_gpencil_stroke_can_use_direct(p->sa, gps)) {
+				gp_stroke_eraser_dostroke(p, p->mval, p->mvalo, p->radius, &rect, gpf, gps);
+			}
 		}
 	}
 }
@@ -1216,8 +1232,7 @@ static void gp_session_cleanup(tGPsdata *p)
 /* init new stroke */
 static void gp_paint_initstroke(tGPsdata *p, short paintmode)
 {
-	ToolSettings *ts = p->scene->toolsettings;
-	eGP_GetFrame_Mode add_frame_mode;
+	Scene *scene = p->scene;
 	
 	/* get active layer (or add a new one if non-existent) */
 	p->gpl = gpencil_layer_getactive(p->gpd);
@@ -1235,21 +1250,60 @@ static void gp_paint_initstroke(tGPsdata *p, short paintmode)
 	}
 	
 	/* get active frame (add a new one if not matching frame) */
-	if ((paintmode == GP_PAINTMODE_ERASER) || (ts->gpencil_flags & GP_TOOL_FLAG_RETAIN_LAST))
-		add_frame_mode = GP_GETFRAME_ADD_COPY;
-	else
-		add_frame_mode = GP_GETFRAME_ADD_NEW;
+	if (paintmode == GP_PAINTMODE_ERASER) {
+		/* Eraser mode:
+		 * 1) Add new frames to all frames that we might touch,
+		 * 2) Ensure that p->gpf refers to the frame used for the active layer
+		 *    (to avoid problems with other tools which expect it to exist)
+		 */
+		bGPDlayer *gpl;
+		for (gpl = p->gpd->layers.first; gpl; gpl = gpl->next) {
+			/* Skip if layer not editable */
+			if (gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED))
+				continue;
+			
+			/* Add a new frame if needed (and based off the active frame,
+			 * as we need some existing strokes to erase)
+			 */
+			gpl->actframe = gpencil_layer_getframe(gpl, CFRA, GP_GETFRAME_ADD_COPY);
+			
+			/* XXX: we omit GP_FRAME_PAINT here for now,
+			 * as it is only really useful for doing
+			 * paintbuffer drawing
+			 */
+		}
 		
-	p->gpf = gpencil_layer_getframe(p->gpl, p->scene->r.cfra, add_frame_mode);
-	
-	if (p->gpf == NULL) {
-		p->status = GP_STATUS_ERROR;
-		if (G.debug & G_DEBUG)
-			printf("Error: No frame created (gpencil_paint_init)\n");
-		return;
+		/* Ensure this gets set... */
+		p->gpf = p->gpl->actframe;
+		
+		if (p->gpf == NULL) {
+			p->status = GP_STATUS_ERROR;
+			//if (G.debug & G_DEBUG)
+				printf("Error: No frame created (gpencil_paint_init)\n");
+			return;
+		}
 	}
 	else {
-		p->gpf->flag |= GP_FRAME_PAINT;
+		/* Drawing Modes - Add a new frame if needed on the active layer */
+		ToolSettings *ts = p->scene->toolsettings;
+		short add_frame_mode;
+		
+		if (ts->gpencil_flags & GP_TOOL_FLAG_RETAIN_LAST)
+			add_frame_mode = GP_GETFRAME_ADD_COPY;
+		else
+			add_frame_mode = GP_GETFRAME_ADD_NEW;
+			
+		p->gpf = gpencil_layer_getframe(p->gpl, CFRA, add_frame_mode);
+		
+		if (p->gpf == NULL) {
+			p->status = GP_STATUS_ERROR;
+			if (G.debug & G_DEBUG)
+				printf("Error: No frame created (gpencil_paint_init)\n");
+			return;
+		}
+		else {
+			p->gpf->flag |= GP_FRAME_PAINT;
+		}
 	}
 	
 	/* set 'eraser' for this stroke if using eraser */
