@@ -77,7 +77,33 @@
 /* ******************************************* */
 /* 'Globals' and Defines */
 
-/* Temporary 'Stroke' Operation data */
+/* values for tGPsdata->status */
+typedef enum eGPencil_PaintStatus {
+	GP_STATUS_IDLING = 0,   /* stroke isn't in progress yet */
+	GP_STATUS_PAINTING,     /* a stroke is in progress */
+	GP_STATUS_ERROR,        /* something wasn't correctly set up */
+	GP_STATUS_DONE          /* painting done */
+} eGPencil_PaintStatus;
+
+/* Return flags for adding points to stroke buffer */
+typedef enum eGP_StrokeAdd_Result {
+	GP_STROKEADD_INVALID    = -2,       /* error occurred - insufficient info to do so */
+	GP_STROKEADD_OVERFLOW   = -1,       /* error occurred - cannot fit any more points */
+	GP_STROKEADD_NORMAL,                /* point was successfully added */
+	GP_STROKEADD_FULL                   /* cannot add any more points to buffer */
+} eGP_StrokeAdd_Result;
+
+/* Runtime flags */
+typedef enum eGPencil_PaintFlags {
+	GP_PAINTFLAG_FIRSTRUN       = (1 << 0),    /* operator just started */
+	GP_PAINTFLAG_STROKEADDED    = (1 << 1),
+	GP_PAINTFLAG_V3D_ERASER_DEPTH = (1 << 2)
+} eGPencil_PaintFlags;
+
+
+/* Temporary 'Stroke' Operation data
+ *   "p" = op->customdata
+ */
 typedef struct tGPsdata {
 	Scene *scene;       /* current scene from context */
 	
@@ -95,19 +121,19 @@ typedef struct tGPsdata {
 	bGPDlayer *gpl;     /* layer we're working on */
 	bGPDframe *gpf;     /* frame we're working on */
 	
-	char *align_flag;   /* projection-mode flags (toolsettings) */
+	char *align_flag;   /* projection-mode flags (toolsettings - eGPencil_Placement_Flags) */
 	
-	short status;       /* current status of painting */
-	short paintmode;    /* mode for painting */
+	eGPencil_PaintStatus status;     /* current status of painting */
+	eGPencil_PaintModes  paintmode;  /* mode for painting */
+	eGPencil_PaintFlags  flags;      /* flags that can get set during runtime (eGPencil_PaintFlags) */
+	
+	short radius;       /* radius of influence for eraser */
 	
 	int mval[2];        /* current mouse-position */
 	int mvalo[2];       /* previous recorded mouse-position */
 	
 	float pressure;     /* current stylus pressure */
 	float opressure;    /* previous stylus pressure */
-	
-	short radius;       /* radius of influence for eraser */
-	short flags;        /* flags that can get set during runtime */
 	
 	/* These need to be doubles, as (at least under unix) they are in seconds since epoch,
 	 * float (and its 7 digits precision) is definitively not enough here!
@@ -125,29 +151,6 @@ typedef struct tGPsdata {
 	
 	void *erasercursor; /* radial cursor data for drawing eraser */
 } tGPsdata;
-
-/* values for tGPsdata->status */
-enum {
-	GP_STATUS_IDLING = 0,   /* stroke isn't in progress yet */
-	GP_STATUS_PAINTING,     /* a stroke is in progress */
-	GP_STATUS_ERROR,        /* something wasn't correctly set up */
-	GP_STATUS_DONE          /* painting done */
-};
-
-/* Return flags for adding points to stroke buffer */
-enum {
-	GP_STROKEADD_INVALID    = -2,       /* error occurred - insufficient info to do so */
-	GP_STROKEADD_OVERFLOW   = -1,       /* error occurred - cannot fit any more points */
-	GP_STROKEADD_NORMAL,                /* point was successfully added */
-	GP_STROKEADD_FULL                   /* cannot add any more points to buffer */
-};
-
-/* Runtime flags */
-enum {
-	GP_PAINTFLAG_FIRSTRUN       = (1 << 0),    /* operator just started */
-	GP_PAINTFLAG_STROKEADDED    = (1 << 1),
-	GP_PAINTFLAG_V3D_ERASER_DEPTH = (1 << 2)
-};
 
 /* ------ */
 
@@ -739,7 +742,7 @@ static void gp_stroke_newfrombuffer(tGPsdata *p)
 /* --- 'Eraser' for 'Paint' Tool ------ */
 
 /* eraser tool - remove segment from stroke/split stroke (after lasso inside) */
-static short gp_stroke_eraser_splitdel(bGPDframe *gpf, bGPDstroke *gps, int i)
+static bool gp_stroke_eraser_splitdel(bGPDframe *gpf, bGPDstroke *gps, int i)
 {
 	bGPDspoint *pt_tmp = gps->points;
 	bGPDstroke *gsn = NULL;
@@ -751,7 +754,7 @@ static short gp_stroke_eraser_splitdel(bGPDframe *gpf, bGPDstroke *gps, int i)
 		BLI_freelinkN(&gpf->strokes, gps);
 
 		/* nothing left in stroke, so stop */
-		return 1;
+		return true;
 	}
 	
 	/* if last segment, just remove segment from the stroke */
@@ -765,7 +768,7 @@ static short gp_stroke_eraser_splitdel(bGPDframe *gpf, bGPDstroke *gps, int i)
 		MEM_freeN(pt_tmp);
 		
 		/* nothing left in stroke, so stop */
-		return 1;
+		return true;
 	}
 	
 	/* if first segment, just remove segment from the stroke */
@@ -798,7 +801,7 @@ static short gp_stroke_eraser_splitdel(bGPDframe *gpf, bGPDstroke *gps, int i)
 		MEM_freeN(pt_tmp);
 		
 		/* no break here, as there might still be stuff to remove in this stroke */
-		return 0;
+		return false;
 	}
 	
 	/* segment occurs in 'middle' of stroke, so split */
@@ -840,7 +843,7 @@ static short gp_stroke_eraser_splitdel(bGPDframe *gpf, bGPDstroke *gps, int i)
 		MEM_freeN(pt_tmp);
 		
 		/* nothing left in stroke, so stop */
-		return 1;
+		return true;
 	}
 }
 
@@ -1230,7 +1233,7 @@ static void gp_session_cleanup(tGPsdata *p)
 }
 
 /* init new stroke */
-static void gp_paint_initstroke(tGPsdata *p, short paintmode)
+static void gp_paint_initstroke(tGPsdata *p, eGPencil_PaintModes paintmode)
 {
 	Scene *scene = p->scene;
 	
@@ -1562,7 +1565,7 @@ static void gpencil_draw_cancel(bContext *C, wmOperator *op)
 static int gpencil_draw_init(bContext *C, wmOperator *op)
 {
 	tGPsdata *p;
-	int paintmode = RNA_enum_get(op->ptr, "mode");
+	eGPencil_PaintModes paintmode = RNA_enum_get(op->ptr, "mode");
 	
 	/* check context */
 	p = op->customdata = gp_session_initpaint(C);
