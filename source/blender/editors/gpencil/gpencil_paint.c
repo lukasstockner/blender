@@ -965,7 +965,13 @@ static void gp_stroke_doeraser(tGPsdata *p)
 	/* loop over strokes, checking segments for intersections */
 	for (gps = gpf->strokes.first; gps; gps = gpn) {
 		gpn = gps->next;
-		gp_stroke_eraser_dostroke(p, p->mval, p->mvalo, p->radius, &rect, gpf, gps);
+		
+		/* Not all strokes in the datablock may be valid in the current editor/context
+		 * (e.g. 2D space strokes in the 3D view, if the same datablock is shared)
+		 */
+		if (ED_gpencil_stroke_can_use_direct(p->sa, gps)) {
+			gp_stroke_eraser_dostroke(p, p->mval, p->mvalo, p->radius, &rect, gpf, gps);
+		}
 	}
 }
 
