@@ -1181,6 +1181,12 @@ static tGPsdata *gp_session_initpaint(bContext *C)
 	
 	gp_session_initdata(C, p);
 	
+	/* radius for eraser circle is defined in userprefs now */
+	/* NOTE: we do this here, so that if we exit immediately,
+	 *       erase size won't get lost
+	 */
+	p->radius = U.gp_eraser;
+	
 	/* return context data for running paint operator */
 	return p;
 }
@@ -1518,9 +1524,6 @@ static int gpencil_draw_init(bContext *C, wmOperator *op)
 		gpencil_draw_exit(C, op);
 		return 0;
 	}
-	
-	/* radius for eraser circle is defined in userprefs now */
-	p->radius = U.gp_eraser;
 	
 	/* everything is now setup ok */
 	return 1;
