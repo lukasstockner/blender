@@ -65,6 +65,31 @@ static void rna_GPencil_editmode_update(Main *UNUSED(bmain), Scene *scene, Point
 	WM_main_add_notifier(NC_SCENE | ND_MODE, NULL);
 }
 
+static void rna_GPencil_onion_skinning_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	bGPdata *gpd = (bGPdata *)ptr->id.data;
+	bGPDlayer *gpl;
+	bool enabled = false;
+	
+	/* Ensure that the datablock's onionskinning toggle flag
+	 * stays in sync with the status of the actual layers
+	 */
+	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+		if (gpl->flag & GP_LAYER_ONIONSKIN) {
+			enabled = true;
+		}
+	}
+	
+	if (enabled)
+		gpd->flag |= GP_DATA_SHOW_ONIONSKINS;
+	else
+		gpd->flag &= ~GP_DATA_SHOW_ONIONSKINS;
+	
+	
+	/* Now do standard updates... */
+	rna_GPencil_update(bmain, scene, ptr);
+}
+
 static char *rna_GPencilLayer_path(PointerRNA *ptr)
 {
 	bGPDlayer *gpl = (bGPDlayer *)ptr->data;
@@ -735,7 +760,7 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_onion_skinning", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_LAYER_ONIONSKIN);
 	RNA_def_property_ui_text(prop, "Onion Skinning", "Ghost frames on either side of frame");
-	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_onion_skinning_update");
 	
 	prop = RNA_def_property(srna, "ghost_before_range", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "gstep");
