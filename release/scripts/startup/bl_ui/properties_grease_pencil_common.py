@@ -67,12 +67,12 @@ class GreasePencilDrawingToolsPanel:
 
         col.label(text="Draw:")
         row = col.row(align=True)
-        row.operator("gpencil.draw", text="Draw").mode = 'DRAW'
-        row.operator("gpencil.draw", text="Erase").mode = 'ERASER'
+        row.operator("gpencil.draw", icon='GREASEPENCIL', text="Draw").mode = 'DRAW'
+        row.operator("gpencil.draw", icon='FORCE_CURVE', text="Erase").mode = 'ERASER'  # XXX: Needs a dedicated icon
 
         row = col.row(align=True)
-        row.operator("gpencil.draw", text="Line").mode = 'DRAW_STRAIGHT'
-        row.operator("gpencil.draw", text="Poly").mode = 'DRAW_POLY'
+        row.operator("gpencil.draw", icon='LINE_DATA', text="Line").mode = 'DRAW_STRAIGHT'
+        row.operator("gpencil.draw", icon='MESH_DATA', text="Poly").mode = 'DRAW_POLY'
 
         sub = col.column(align=True)
         sub.prop(context.tool_settings, "use_gpencil_additive_drawing", text="Additive Drawing")
