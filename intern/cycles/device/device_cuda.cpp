@@ -304,8 +304,9 @@ public:
 		}
 #endif
 
-		if(getenv("CYCLES_CUDA_EXTRA_CFLAGS")) {
-			command += string(" ") + getenv("CYCLES_CUDA_EXTRA_CFLAGS");
+		const char* extra_cflags = getenv("CYCLES_CUDA_EXTRA_CFLAGS");
+		if(extra_cflags) {
+			command += string(" ") + string(extra_cflags);
 		}
 
 #ifdef WITH_CYCLES_DEBUG
@@ -829,7 +830,7 @@ public:
 			if(mem.data_type == TYPE_HALF)
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F_ARB, pmem.w, pmem.h, 0, GL_RGBA, GL_HALF_FLOAT, NULL);
 			else
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pmem.w, pmem.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, pmem.w, pmem.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 			glBindTexture(GL_TEXTURE_2D, 0);

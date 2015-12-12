@@ -57,8 +57,8 @@
 
 #include "GPU_buffers.h"
 #include "GPU_draw.h"
-#include "GPU_extensions.h"
 #include "GPU_glew.h"
+#include "GPU_shader.h"
 
 #include "WM_api.h"
 
@@ -445,7 +445,7 @@ static void cdDM_drawFacesSolid(
 
 	if (cddm->pbvh) {
 		if (cddm->pbvh_draw && BKE_pbvh_has_faces(cddm->pbvh)) {
-			float (*face_nors)[3] = CustomData_get_layer(&dm->faceData, CD_NORMAL);
+			float (*face_nors)[3] = CustomData_get_layer(&dm->polyData, CD_NORMAL);
 
 			BKE_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors,
 			              setMaterial, false, false);
@@ -898,8 +898,7 @@ static void cdDM_drawMappedFacesGLSL(
 
 	glShadeModel(GL_SMOOTH);
 
-	if (setDrawOptions != NULL)
-	{
+	if (setDrawOptions != NULL) {
 		DMVertexAttribs attribs;
 		DEBUG_VBO("Using legacy code. cdDM_drawMappedFacesGLSL\n");
 		memset(&attribs, 0, sizeof(attribs));

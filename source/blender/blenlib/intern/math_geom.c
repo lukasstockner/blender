@@ -1495,6 +1495,51 @@ bool isect_ray_tri_threshold_v3(
 }
 #endif
 
+
+bool isect_ray_seg_v2(
+        const float p1[3], const float d[3],
+        const float v0[3], const float v1[3],
+        float *r_lambda, float *r_u)
+{
+	float v0_local[2], v1_local[2];
+	sub_v2_v2v2(v0_local, v0, p1);
+	sub_v2_v2v2(v1_local, v1, p1);
+
+	float s10[2];
+	float det;
+
+	sub_v2_v2v2(s10, v1_local, v0_local);
+
+	det = cross_v2v2(d, s10);
+	if (det != 0.0f) {
+		const float v = cross_v2v2(v0_local, v1_local);
+		float p[2] = {(d[0] * v) / det, (d[1] * v) / det};
+
+		const float t = (dot_v2v2(p, d) / dot_v2v2(d, d));
+		if ((t >= 0.0f) == 0) {
+			return false;
+		}
+
+		float h[2];
+		sub_v2_v2v2(h, v1_local, p);
+		const float u = (dot_v2v2(s10, h) / dot_v2v2(s10, s10));
+		if ((u >= 0.0f && u <= 1.0f) == 0) {
+			return false;
+		}
+
+		if (r_lambda) {
+			*r_lambda = t;
+		}
+		if (r_u) {
+			*r_u = u;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * Check if a point is behind all planes.
  */
@@ -2355,7 +2400,9 @@ static bool point_in_slice(const float p[3], const float v1[3], const float l1[3
 
 	sub_v3_v3v3(rp, p, v1);
 	h = dot_v3v3(q, rp) / dot_v3v3(q, q);
-	return (h < 0.0f || h > 1.0f) ? false : true;
+	/* note: when 'h' is nan/-nan, this check returns false
+	 * without explicit check - covering the degenerate case */
+	return (h >= 0.0f && h <= 1.0f);
 }
 
 #if 0
@@ -2399,22 +2446,15 @@ bool isect_point_tri_v3(const float p[3], const float v1[3], const float v2[3], 
                         float r_vi[3])
 {
 	if (isect_point_tri_prism_v3(p, v1, v2, v3)) {
-		float no[3], n1[3], n2[3];
+		float plane[4];
+		float no[3];
 
 		/* Could use normal_tri_v3, but doesn't have to be unit-length */
-		sub_v3_v3v3(n1, v1, v2);
-		sub_v3_v3v3(n2, v2, v3);
-		cross_v3_v3v3(no, n1, n2);
+		cross_tri_v3(no, v1, v2, v3);
+		BLI_assert(len_squared_v3(no) != 0.0f);
 
-		if (LIKELY(len_squared_v3(no) != 0.0f)) {
-			float plane[4];
-			plane_from_point_normal_v3(plane, v1, no);
-			closest_to_plane_v3(r_vi, plane, p);
-		}
-		else {
-			/* degenerate */
-			copy_v3_v3(r_vi, p);
-		}
+		plane_from_point_normal_v3(plane, v1, no);
+		closest_to_plane_v3(r_vi, plane, p);
 
 		return true;
 	}

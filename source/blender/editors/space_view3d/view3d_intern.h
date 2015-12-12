@@ -180,7 +180,7 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 void draw_sim_debug_data(Scene *scene, View3D *v3d, ARegion *ar);
 
 /* view3d_draw.c */
-void view3d_main_area_draw(const struct bContext *C, struct ARegion *ar);
+void view3d_main_region_draw(const struct bContext *C, struct ARegion *ar);
 void ED_view3d_draw_depth(Scene *scene, struct ARegion *ar, View3D *v3d, bool alphaoverride);
 void ED_view3d_draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d);
 void ED_view3d_after_add(ListBase *lb, Base *base, const short dflag);
@@ -274,7 +274,7 @@ extern const char *view3d_context_dir[]; /* doc access */
 /* draw_volume.c */
 void draw_smoke_volume(struct SmokeDomainSettings *sds, struct Object *ob,
                        const float min[3], const float max[3],
-                       const int res[3], const float viewnormal[3]);
+                       const float viewnormal[3]);
 
 //#define SMOKE_DEBUG_VELOCITY
 //#define SMOKE_DEBUG_HEAT

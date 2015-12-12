@@ -622,6 +622,7 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
 	/* Add library datablock itself to 'main' Main, since libraries are **never** linked data.
 	 * Fixes bug where you could end with all ID_LI datablocks having the same name... */
 	lib = BKE_libblock_alloc(mainlist->first, ID_LI, "Lib");
+	lib->id.us = ID_FAKE_USERS(lib);  /* Important, consistency with main ID reading code from read_libblock(). */
 	BLI_strncpy(lib->name, filepath, sizeof(lib->name));
 	BLI_strncpy(lib->filepath, name1, sizeof(lib->filepath));
 	
@@ -1344,7 +1345,7 @@ bool BLO_library_path_explode(const char *path, char *r_dir, char **r_group, cha
 	while ((slash = (char *)BLI_last_slash(r_dir))) {
 		char tc = *slash;
 		*slash = '\0';
-		if (BLO_has_bfile_extension(r_dir)) {
+		if (BLO_has_bfile_extension(r_dir) && BLI_is_file(r_dir)) {
 			break;
 		}
 

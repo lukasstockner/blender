@@ -244,6 +244,11 @@ bool isect_ray_tri_watertight_v3_simple(
         const float v0[3], const float v1[3], const float v2[3],
         float *r_lambda, float r_uv[2]);
 
+bool isect_ray_seg_v2(
+        const float p1[3], const float d[3],
+        const float v0[3], const float v1[3],
+        float *r_lambda, float *r_u);
+
 /* point in polygon */
 bool isect_point_poly_v2(const float pt[2], const float verts[][2], const unsigned int nr, const bool use_holes);
 bool isect_point_poly_v2_int(const int pt[2], const int verts[][2], const unsigned int nr, const bool use_holes);
@@ -417,7 +422,8 @@ void  axis_dominant_v3_to_m3(float r_mat[3][3], const float normal[3]);
 
 MINLINE void  axis_dominant_v3(int *r_axis_a, int *r_axis_b, const float axis[3]);
 MINLINE float axis_dominant_v3_max(int *r_axis_a, int *r_axis_b, const float axis[3]) ATTR_WARN_UNUSED_RESULT;
-MINLINE int axis_dominant_v3_single(const float vec[3]);
+MINLINE int   axis_dominant_v3_single(const float vec[3]);
+MINLINE int   axis_dominant_v3_ortho_single(const float vec[3]);
 
 MINLINE int max_axis_v3(const float vec[3]);
 MINLINE int min_axis_v3(const float vec[3]);
