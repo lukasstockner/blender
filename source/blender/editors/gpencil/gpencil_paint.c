@@ -1582,6 +1582,10 @@ static void gpencil_draw_status_indicators(tGPsdata *p)
 					ED_area_headerprint(p->sa, IFACE_("Grease Pencil Freehand Session: Hold and drag LMB to draw | "
 					                                  "ESC/Enter to end"));
 					break;
+				case GP_PAINTMODE_DRAW_POLY:
+					ED_area_headerprint(p->sa, IFACE_("Grease Pencil Poly Session: LMB click to place next stroke vertex | "
+					                                  "ESC/Enter to end"));
+					break;
 				
 				default: /* unhandled future cases */
 					ED_area_headerprint(p->sa, IFACE_("Grease Pencil Session: ESC/Enter to end"));
