@@ -1623,6 +1623,9 @@ void BIF_draw_manipulator(const bContext *C)
 			case V3D_AROUND_CENTER_BOUNDS:
 			case V3D_AROUND_ACTIVE:
 			{
+				bGPdata *gpd = CTX_data_gpencil_data(C);
+ 				Object *ob = OBACT;
+				
 				if (((v3d->around == V3D_AROUND_ACTIVE) && (scene->obedit == NULL)) &&
 				    ((gpd == NULL) || !(gpd->flag & GP_DATA_STROKE_EDITMODE)) &&
 				    (!(ob->mode & OB_MODE_POSE)))

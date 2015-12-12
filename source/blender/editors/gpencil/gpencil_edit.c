@@ -1117,7 +1117,7 @@ static int gp_snap_cursor_to_sel(bContext *C, wmOperator *op)
 	}
 	CTX_DATA_END;
 	
-	if (v3d->around == V3D_CENTROID) {
+	if (v3d->around == V3D_AROUND_CENTER_MEAN) {
 		mul_v3_fl(centroid, 1.0f / (float)count);
 		copy_v3_v3(cursor, centroid);
 	}
