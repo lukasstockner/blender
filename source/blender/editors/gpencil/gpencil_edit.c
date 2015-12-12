@@ -837,19 +837,41 @@ void gp_stroke_delete_tagged_points(bGPDframe *gpf, bGPDstroke *gps, bGPDstroke 
 		/* there are islands, so create a series of new strokes, adding them before the "next" stroke */
 		int idx;
 		
-		/* create each new stroke... */
+		/* Create each new stroke... */
 		for (idx = 0; idx < num_islands; idx++) {
 			tGPDeleteIsland *island = &islands[idx];
 			bGPDstroke *new_stroke  = MEM_dupallocN(gps);
 			
-			/* compute new buffer size (+ 1 needed as the endpoint index is "inclusive") */
+			/* Compute new buffer size (+ 1 needed as the endpoint index is "inclusive") */
 			new_stroke->totpoints = island->end_idx - island->start_idx + 1;
 			new_stroke->points    = MEM_callocN(sizeof(bGPDspoint) * new_stroke->totpoints, "gp delete stroke fragment");
 			
-			/* copy over the relevant points */
+			/* Copy over the relevant points */
 			memcpy(new_stroke->points, gps->points + island->start_idx, sizeof(bGPDspoint) * new_stroke->totpoints);
 			
-			/* add new stroke to the frame */
+			
+			/* Each island corresponds to a new stroke. We must adjust the 
+			 * timings of these new strokes:
+			 *
+			 * Each point's timing data is a delta from stroke's inittime, so as we erase some points from
+			 * the start of the stroke, we have to offset this inittime and all remaing points' delta values.
+			 * This way we get a new stroke with exactly the same timing as if user had started drawing from
+			 * the first non-removed point...
+			 */
+			{
+				bGPDspoint *pts;
+				float delta = gps->points[island->start_idx].time;
+				int j;
+				
+				new_stroke->inittime += (double)delta;
+				
+				pts = new_stroke->points;
+				for (j = 0; j < new_stroke->totpoints; j++, pts++) {
+					pts->time -= delta;
+				}
+			}
+			
+			/* Add new stroke to the frame */
 			if (next_stroke) {
 				BLI_insertlinkbefore(&gpf->strokes, next_stroke, new_stroke);
 			}
