@@ -51,7 +51,10 @@ typedef struct bGPDspoint {
 /* bGPDspoint->flag */
 typedef enum eGPDspoint_Flag {
 	/* stroke point is selected (for editing) */
-	GP_SPOINT_SELECT	= (1 << 0)
+	GP_SPOINT_SELECT	= (1 << 0),
+	
+	/* stroke point is tagged (for some editing operation) */
+	GP_SPOINT_TAG       = (1 << 1),
 } eGPSPoint_Flag;
 
 /* Grease-Pencil Annotations - 'Stroke'

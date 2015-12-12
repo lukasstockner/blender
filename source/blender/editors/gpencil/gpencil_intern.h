@@ -122,6 +122,10 @@ int gp_active_layer_poll(struct bContext *C);
 
 extern ListBase gp_strokes_copypastebuf;
 
+/* Stroke Editing ------------------------------------ */
+
+void gp_stroke_delete_tagged_points(bGPDframe *gpf, bGPDstroke *gps, bGPDstroke *next_stroke, int tag_flags);
+
 /* Layers Enums -------------------------------------- */
 
 struct EnumPropertyItem *ED_gpencil_layers_enum_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);

@@ -741,6 +741,7 @@ static void gp_stroke_newfrombuffer(tGPsdata *p)
 
 /* --- 'Eraser' for 'Paint' Tool ------ */
 
+#if 0
 /* eraser tool - remove segment from stroke/split stroke (after lasso inside) */
 static bool gp_stroke_eraser_splitdel(bGPDframe *gpf, bGPDstroke *gps, int i)
 {
@@ -846,6 +847,7 @@ static bool gp_stroke_eraser_splitdel(bGPDframe *gpf, bGPDstroke *gps, int i)
 		return true;
 	}
 }
+#endif
 
 /* which which point is infront (result should only be used for comparison) */
 static float view3d_point_depth(const RegionView3D *rv3d, const float co[3])
@@ -858,6 +860,7 @@ static float view3d_point_depth(const RegionView3D *rv3d, const float co[3])
 	}
 }
 
+/* only erase stroke points that are visible */
 static bool gp_stroke_eraser_is_occluded(tGPsdata *p, const bGPDspoint *pt, const int x, const int y)
 {
 	if ((p->sa->spacetype == SPACE_VIEW3D) &&
@@ -879,13 +882,29 @@ static bool gp_stroke_eraser_is_occluded(tGPsdata *p, const bGPDspoint *pt, cons
 	return false;
 }
 
+/* apply a falloff effect to brush strength, based on distance */
+static float gp_stroke_eraser_calc_influence(tGPsdata *p, const int mval[2], const int radius, const int co[2])
+{
+	/* Linear Falloff... */
+	float distance = (float)len_v2v2_int(mval, co);
+	float fac;
+	
+	CLAMP(distance, 0.0f, (float)radius);
+	fac = 1.0f - (distance / (float)radius);
+	
+	/* Control this further using pen pressure */
+	fac *= p->pressure;
+	
+	/* Return influence factor computed here */
+	return fac;
+}
 
 /* eraser tool - evaluation per stroke */
 /* TODO: this could really do with some optimization (KD-Tree/BVH?) */
 static void gp_stroke_eraser_dostroke(tGPsdata *p,
+                                      bGPDlayer *gpl, bGPDframe *gpf, bGPDstroke *gps,
                                       const int mval[2], const int mvalo[2],
-                                      const int radius, const rcti *rect,
-                                      bGPDframe *gpf, bGPDstroke *gps)
+                                      const int radius, const rcti *rect)
 {
 	bGPDspoint *pt1, *pt2;
 	int pc1[2] = {0};
@@ -906,14 +925,40 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p,
 			/* only check if point is inside */
 			if (len_v2v2_int(mval, pc1) <= radius) {
 				/* free stroke */
+				// XXX: pressure sensitive eraser should apply here too?
 				MEM_freeN(gps->points);
 				BLI_freelinkN(&gpf->strokes, gps);
 			}
 		}
 	}
 	else {
-		/* loop over the points in the stroke, checking for intersections
-		 *  - an intersection will require the stroke to be split
+		/* Pressure threshold at which stroke should be culled: Calculated as pressure value
+		 * below which we would have invisible strokes
+		 */
+		const float cull_thresh = (gpl->thickness) ?  1.0f / ((float)gpl->thickness)  : 1.0f;
+		
+		/* Amount to decrease the pressure of each point with each stroke */
+		// TODO: Fetch from toolsettings, or compute based on thickness instead?
+		const float strength = 0.1f;
+		
+		/* Perform culling? */
+		bool do_cull = false;
+		
+		
+		/* Clear Tags
+		 *
+		 * Note: It's better this way, as we are sure that
+		 * we don't miss anything, though things will be
+		 * slightly slower as a result
+		 */
+		for (i = 0; i < gps->totpoints; i++) {
+			bGPDspoint *pt = &gps->points[i];
+			pt->flag &= ~GP_SPOINT_TAG;
+		}
+		
+		/* First Pass: Loop over the points in the stroke
+		 *   1) Thin out parts of the stroke under the brush
+		 *   2) Tag "too thin" parts for removal (in second pass)
 		 */
 		for (i = 0; (i + 1) < gps->totpoints; i++) {
 			/* get points to work with */
@@ -923,11 +968,11 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p,
 			gp_point_to_xy(&p->gsc, gps, pt1, &pc1[0], &pc1[1]);
 			gp_point_to_xy(&p->gsc, gps, pt2, &pc2[0], &pc2[1]);
 			
-			/* check that point segment of the boundbox of the eraser stroke */
+			/* Check that point segment of the boundbox of the eraser stroke */
 			if (((!ELEM(V2D_IS_CLIPPED, pc1[0], pc1[1])) && BLI_rcti_isect_pt(rect, pc1[0], pc1[1])) ||
 			    ((!ELEM(V2D_IS_CLIPPED, pc2[0], pc2[1])) && BLI_rcti_isect_pt(rect, pc2[0], pc2[1])))
 			{
-				/* check if point segment of stroke had anything to do with
+				/* Check if point segment of stroke had anything to do with
 				 * eraser region  (either within stroke painted, or on its lines)
 				 *  - this assumes that linewidth is irrelevant
 				 */
@@ -935,12 +980,31 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p,
 					if ((gp_stroke_eraser_is_occluded(p, pt1, pc1[0], pc1[1]) == false) ||
 					    (gp_stroke_eraser_is_occluded(p, pt2, pc2[0], pc2[1]) == false))
 					{
-						/* if function returns true, break this loop (as no more point to check) */
-						if (gp_stroke_eraser_splitdel(gpf, gps, i))
-							break;
+						/* Point is affected: */
+						/* 1) Adjust thickness
+						 *  - Influence of eraser falls off with distance from the middle of the eraser
+						 *  - Second point gets less influence, as it might get hit again in the next segment
+						 */
+						pt1->pressure -= gp_stroke_eraser_calc_influence(p, mval, radius, pc1) * strength;
+						pt2->pressure -= gp_stroke_eraser_calc_influence(p, mval, radius, pc2) * strength / 2.0f;
+						
+						/* 2) Tag any point with overly low influence for removal in the next pass */
+						if (pt1->pressure < cull_thresh) {
+							pt1->flag |= GP_SPOINT_TAG;
+							do_cull = true;
+						}
+						if (pt2->pressure < cull_thresh) {
+							pt2->flag |= GP_SPOINT_TAG;
+							do_cull = true;
+						}
 					}
 				}
 			}
+		}
+		
+		/* Second Pass: Remove any points that are tagged */
+		if (do_cull) {
+			gp_stroke_delete_tagged_points(gpf, gps, gps->next, GP_SPOINT_TAG);
 		}
 	}
 }
@@ -990,7 +1054,7 @@ static void gp_stroke_doeraser(tGPsdata *p)
 			 * (e.g. 2D space strokes in the 3D view, if the same datablock is shared)
 			 */
 			if (ED_gpencil_stroke_can_use_direct(p->sa, gps)) {
-				gp_stroke_eraser_dostroke(p, p->mval, p->mvalo, p->radius, &rect, gpf, gps);
+				gp_stroke_eraser_dostroke(p, gpl, gpf, gps, p->mval, p->mvalo, p->radius, &rect);
 			}
 		}
 	}
