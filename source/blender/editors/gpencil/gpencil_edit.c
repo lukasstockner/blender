@@ -645,6 +645,7 @@ typedef enum eGP_DeleteMode {
 	GP_DELETEOP_FRAME           = 2,
 } eGP_DeleteMode;
 
+/* ----------------------------------- */
 
 /* Delete selected strokes */
 static int gp_delete_selected_strokes(bContext *C)
@@ -687,6 +688,8 @@ static int gp_delete_selected_strokes(bContext *C)
 		return OPERATOR_CANCELLED;
 	}
 }
+
+/* ----------------------------------- */
 
 /* Delete selected points but keep the stroke */
 static int gp_dissolve_selected_points(bContext *C)
@@ -769,6 +772,102 @@ static int gp_dissolve_selected_points(bContext *C)
 	}
 }
 
+/* ----------------------------------- */
+
+/* Temp data for storing information about an "island" of points
+ * that should be kept when splitting up a stroke. Used in:
+ * gp_stroke_delete_tagged_points()
+ */
+typedef struct tGPDeleteIsland {
+	int start_idx;
+	int end_idx;
+} tGPDeleteIsland;
+
+
+/* Split the given stroke into several new strokes, partitioning
+ * it based on whether the stroke points have a particular flag
+ * is set (e.g. "GP_SPOINT_SELECT" in most cases, but not always)
+ *
+ * The algorithm used here is as follows:
+ * 1) We firstly identify the number of "islands" of non-tagged points
+ *    which will all end up being in new strokes.
+ *    - In the most extreme case (i.e. every other vert is a 1-vert island),
+ *      we have at most n / 2 islands
+ *    - Once we start having larger islands than that, the number required
+ *      becomes much less
+ * 2) Each island gets converted to a new stroke
+ */
+void gp_stroke_delete_tagged_points(bGPDframe *gpf, bGPDstroke *gps, bGPDstroke *next_stroke, int tag_flags)
+{
+	tGPDeleteIsland *islands = MEM_callocN(sizeof(tGPDeleteIsland) * (gps->totpoints + 1) / 2, "gp_point_islands");
+	bool in_island  = false;
+	int num_islands = 0;
+	
+	bGPDspoint *pt;
+	int i;
+	
+	/* First Pass: Identify start/end of islands */
+	for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+		if (pt->flag & tag_flags) {
+			/* selected - stop accumulating to island */
+			in_island = false;
+		}
+		else {
+			/* unselected - start of a new island? */
+			int idx;
+			
+			if (in_island) {
+				/* extend existing island */
+				idx = num_islands - 1;
+				islands[idx].end_idx = i;
+			}
+			else {
+				/* start of new island */
+				in_island = true;
+				num_islands++;
+				
+				idx = num_islands - 1;
+				islands[idx].start_idx = islands[idx].end_idx = i;
+			}
+		}
+	}
+	
+	/* Watch out for special case where No islands = All points selected = Delete Stroke only */
+	if (num_islands) {
+		/* there are islands, so create a series of new strokes, adding them before the "next" stroke */
+		int idx;
+		
+		/* create each new stroke... */
+		for (idx = 0; idx < num_islands; idx++) {
+			tGPDeleteIsland *island = &islands[idx];
+			bGPDstroke *new_stroke  = MEM_dupallocN(gps);
+			
+			/* compute new buffer size (+ 1 needed as the endpoint index is "inclusive") */
+			new_stroke->totpoints = island->end_idx - island->start_idx + 1;
+			new_stroke->points    = MEM_callocN(sizeof(bGPDspoint) * new_stroke->totpoints, "gp delete stroke fragment");
+			
+			/* copy over the relevant points */
+			memcpy(new_stroke->points, gps->points + island->start_idx, sizeof(bGPDspoint) * new_stroke->totpoints);
+			
+			/* add new stroke to the frame */
+			if (next_stroke) {
+				BLI_insertlinkbefore(&gpf->strokes, next_stroke, new_stroke);
+			}
+			else {
+				BLI_addtail(&gpf->strokes, new_stroke);
+			}
+		}
+	}
+	
+	/* free islands */
+	MEM_freeN(islands);
+	
+	/* Delete the old stroke */
+	MEM_freeN(gps->points);
+	BLI_freelinkN(&gpf->strokes, gps);
+}
+
+
 /* Split selected strokes into segments, splitting on selected points */
 static int gp_delete_selected_points(bContext *C)
 {
@@ -792,89 +891,11 @@ static int gp_delete_selected_points(bContext *C)
 			
 			
 			if (gps->flag & GP_STROKE_SELECT) {
-				bGPDspoint *pt;
-				int i;
+				/* deselect old stroke, since it will be used as template for the new strokes */
+				gps->flag &= ~GP_STROKE_SELECT;
 				
-				/* The algorithm used here is as follows:
-				 * 1) We firstly identify the number of "islands" of non-selected points
-				 *    which will all end up being in new strokes.
-				 *    - In the most extreme case (i.e. every other vert is a 1-vert island),
-				 *      we have at most n / 2 islands
-				 *    - Once we start having larger islands than that, the number required
-				 *      becomes much less
-				 * 2) Each island gets converted to a new stroke
-				 */
-				typedef struct tGPDeleteIsland {
-					int start_idx;
-					int end_idx;
-				} tGPDeleteIsland;
-				
-				tGPDeleteIsland *islands = MEM_callocN(sizeof(tGPDeleteIsland) * (gps->totpoints + 1) / 2, "gp_point_islands");
-				bool in_island  = false;
-				int num_islands = 0;
-				
-				/* First Pass: Identify start/end of islands */
-				for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-					if (pt->flag & GP_SPOINT_SELECT) {
-						/* selected - stop accumulating to island */
-						in_island = false;
-					}
-					else {
-						/* unselected - start of a new island? */
-						int idx;
-						
-						if (in_island) {
-							/* extend existing island */
-							idx = num_islands - 1;
-							islands[idx].end_idx = i;
-						}
-						else {
-							/* start of new island */
-							in_island = true;
-							num_islands++;
-							
-							idx = num_islands - 1;
-							islands[idx].start_idx = islands[idx].end_idx = i;
-						}
-					}
-				}
-				
-				/* Watch out for special case where No islands = All points selected = Delete Stroke only */
-				if (num_islands) {
-					/* there are islands, so create a series of new strokes, adding them before the "next" stroke */
-					int idx;
-					
-					/* deselect old stroke, since it will be used as template for the new strokes */
-					gps->flag &= ~GP_STROKE_SELECT;
-					
-					/* create each new stroke... */
-					for (idx = 0; idx < num_islands; idx++) {
-						tGPDeleteIsland *island = &islands[idx];
-						bGPDstroke *new_stroke  = MEM_dupallocN(gps);
-						
-						/* compute new buffer size (+ 1 needed as the endpoint index is "inclusive") */
-						new_stroke->totpoints = island->end_idx - island->start_idx + 1;
-						new_stroke->points    = MEM_callocN(sizeof(bGPDspoint) * new_stroke->totpoints, "gp delete stroke fragment");
-						
-						/* copy over the relevant points */
-						memcpy(new_stroke->points, gps->points + island->start_idx, sizeof(bGPDspoint) * new_stroke->totpoints);
-						
-						/* add new stroke to the frame */
-						if (gpsn) {
-							BLI_insertlinkbefore(&gpf->strokes, gpsn, new_stroke);
-						}
-						else {
-							BLI_addtail(&gpf->strokes, new_stroke);
-						}
-					}
-				}
-				
-				/* free islands */
-				MEM_freeN(islands);
-				
-				/* Delete the old stroke */
-				MEM_freeN(gps->points);
-				BLI_freelinkN(&gpf->strokes, gps);
+				/* delete unwanted points by splitting stroke into several smaller ones */
+				gp_stroke_delete_tagged_points(gpf, gps, gpsn, GP_SPOINT_SELECT);
 				
 				changed = true;
 			}
@@ -891,6 +912,7 @@ static int gp_delete_selected_points(bContext *C)
 	}
 }
 
+/* ----------------------------------- */
 
 static int gp_delete_exec(bContext *C, wmOperator *op)
 {
