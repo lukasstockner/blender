@@ -166,7 +166,6 @@ static GP_EditBrush_Data *gpsculpt_get_brush(Scene *scene)
 /* Brush Operations ------------------------------- */
 
 /* Invert behaviour of brush? */
-// XXX: Maybe this should work the way that pose sculpt did it instead?
 static bool gp_brush_invert_check(tGP_BrushEditData *gso)
 {
 	/* The basic setting is the brush's setting (from the panel) */
@@ -317,10 +316,11 @@ static bool gp_brush_thickness_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 		pt->pressure += inf;
 	}
 	
-	/* pressure must stay within [0.0, 1.0] */
-	// XXX: volumetric strokes can circumvent this!
-	//CLAMP(pt->pressure, 0.0f, 1.0f);
-	
+	/* Pressure should stay within [0.0, 1.0]
+	 * However, it is nice for volumetric strokes to be able to exceed
+	 * the upper end of this range. Therefore, we don't actually clamp
+	 * down on the upper end.
+	 */
 	if (pt->pressure < 0.0f)
 		pt->pressure = 0.0f;
 	
@@ -362,7 +362,6 @@ static void gp_brush_grab_stroke_init(tGP_BrushEditData *gso, bGPDstroke *gps)
 		 * - Since we reuse these between different strokes, we don't
 		 *   want the previous invocation's data polluting the arrays
 		 */
-		// XXX: if we're lazy, we could just leave these as-is...
 		data = BLI_ghash_lookup(gso->stroke_customdata, gps);
 		BLI_assert(data != NULL);
 		
@@ -463,7 +462,6 @@ static void gp_brush_grab_stroke_free(void *ptr)
 	MEM_freeN(data->weights);
 	
 	/* ... and this item itself, since it was also allocated */
-	// XXX?
 	MEM_freeN(data);
 }
 
@@ -585,8 +583,6 @@ static bool gp_brush_twist_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 	inf = gp_brush_influence_calc(gso, radius, co);
 	angle = DEG2RADF(1.0f) * inf;
 	
-	//angle = DEG2RAD(1.0f);
-	
 	if (gp_brush_invert_check(gso)) {
 		/* invert angle that we rotate by */
 		angle *= -1;
@@ -604,11 +600,13 @@ static bool gp_brush_twist_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 	nco[0] = rco[0] + (float)gso->mval[0];
 	nco[1] = rco[1] + (float)gso->mval[1];
 	
+#if 0
 	printf("C: %d %d | P: %d %d -> t: %f %f -> r: %f %f x %f -> %f %f\n",
 			gso->mval[0], gso->mval[1], co[0], co[1],
 			tco[0], tco[1],
 			rco[0], rco[1], angle,
 			nco[0], nco[1]);
+#endif
 	
 	/* convert to dataspace */
 	if (gps->flag & GP_STROKE_3DSPACE) {
@@ -1117,7 +1115,7 @@ static void gpsculpt_brush_init_stroke(tGP_BrushEditData *gso)
 	if ((gpd == NULL) || (cfra == gso->cfra))
 		return;
 	
-	/* go through each layer, and ensure that */
+	/* go through each layer, and ensure that we've got a valid frame to use */
 	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
 		/* only editable and visible layers are considered */
 		if ((gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED)) == 0 &&
@@ -1165,7 +1163,6 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso, bGPDstroke *gps, GP
 			if (len_v2v2_int(gso->mval, pc1) <= radius) {
 				/* apply operation to this point */
 				changed = apply(gso, gps, 0, radius, pc1);
-				// XXX: Should we report "success" even if technically nothing happened?
 			}
 		}
 	}
@@ -1209,7 +1206,7 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso, bGPDstroke *gps, GP
 					 * otherwise. 
 					 * 
 					 * NOTE: There is a small risk here that the second point wasn't really
-					 *       actually in-range, but rather, that it only got in because
+					 *       actually in-range. In that case, it only got in because
 					 *       the line linking the points was!
 					 */
 					if (i + 1 == gps->totpoints - 1) {
@@ -1223,7 +1220,7 @@ static bool gpsculpt_brush_do_stroke(tGP_BrushEditData *gso, bGPDstroke *gps, GP
 					changed |= ok;
 				}
 				else if (include_last) {
-					/* This case is for cases where for whatever reason the second vert doesn't get included
+					/* This case is for cases where for whatever reason the second vert (1st here) doesn't get included
 					 * because the whole edge isn't in bounds, but it would've qualified since it did with the
 					 * previous step (but wasn't added then, to avoid double-ups) 
 					 */
@@ -1341,7 +1338,6 @@ static bool gpsculpt_brush_apply_standard(bContext *C, tGP_BrushEditData *gso)
 }
 
 /* Calculate settings for applying brush */
-// TODO: Add in "substeps" stuff for finer application of brush effects
 static void gpsculpt_brush_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 {
 	tGP_BrushEditData *gso = op->customdata;
