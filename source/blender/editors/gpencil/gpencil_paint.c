@@ -827,7 +827,7 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p,
 		/* Pressure threshold at which stroke should be culled: Calculated as pressure value
 		 * below which we would have invisible strokes
 		 */
-		const float cull_thresh = (gpl->thickness) ?  1.0f / ((float)gpl->thickness)  : 0.01f;
+		const float cull_thresh = (gpl->thickness) ?  1.0f / ((float)gpl->thickness)  : 1.0f;
 		
 		/* Amount to decrease the pressure of each point with each stroke */
 		// TODO: Fetch from toolsettings, or compute based on thickness instead?
