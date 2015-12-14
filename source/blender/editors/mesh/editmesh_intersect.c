@@ -27,10 +27,13 @@
 #include "DNA_object_types.h"
 
 #include "BLI_math.h"
-#include "BLI_array.h"
+#include "BLI_memarena.h"
+#include "BLI_stack.h"
+#include "BLI_buffer.h"
+#include "BLI_kdopbvh.h"
 #include "BLI_linklist_stack.h"
 
-
+#include "BKE_editmesh_bvh.h"
 #include "BKE_context.h"
 #include "BKE_report.h"
 #include "BKE_editmesh.h"
@@ -50,8 +53,8 @@
 #include "tools/bmesh_intersect.h"
 
 
-/* -------------------------------------------------------------------- */
-/* Cut intersections into geometry */
+/* detect isolated holes and fill them */
+#define USE_NET_ISLAND_CONNECT
 
 /**
  * Compare selected with its self.
@@ -75,6 +78,23 @@ static int bm_face_isect_pair(BMFace *f, void *UNUSED(user_data))
 		return -1;
 	}
 	else if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
+/**
+ * A flipped version of #bm_face_isect_pair
+ * use for boolean 'difference', which depends on order.
+ */
+static int bm_face_isect_pair_swap(BMFace *f, void *UNUSED(user_data))
+{
+	if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+		return -1;
+	}
+	else if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
 		return 0;
 	}
 	else {
@@ -82,17 +102,39 @@ static int bm_face_isect_pair(BMFace *f, void *UNUSED(user_data))
 	}
 }
 
+/**
+ * Use for intersect and boolean.
+ */
+static void edbm_intersect_select(BMEditMesh *em)
+{
+	BM_mesh_elem_hflag_disable_all(em->bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
+
+	if (em->bm->selectmode & (SCE_SELECT_VERTEX | SCE_SELECT_EDGE)) {
+		BMIter iter;
+		BMEdge *e;
+
+		BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
+			if (BM_elem_flag_test(e, BM_ELEM_TAG)) {
+				BM_edge_select_set(em->bm, e, true);
+			}
+		}
+	}
+
+	EDBM_mesh_normals_update(em);
+	EDBM_update_generic(em, true, true);
+
+}
+
+/* -------------------------------------------------------------------- */
+/* Cut intersections into geometry */
+
+/** \name Simple Intersect (self-intersect)
+ * \{
+ */
+
 enum {
 	ISECT_SEL           = 0,
 	ISECT_SEL_UNSEL     = 1,
-};
-
-static EnumPropertyItem isect_mode_items[] = {
-	{ISECT_SEL, "SELECT", 0, "Self Intersect",
-	 "Self intersect selected faces"},
-	{ISECT_SEL_UNSEL, "SELECT_UNSELECT", 0, "Selected/Unselected",
-	 "Intersect selected with unselected faces"},
-	{0, NULL, 0, NULL, NULL}
 };
 
 static int edbm_intersect_exec(bContext *C, wmOperator *op)
@@ -123,26 +165,13 @@ static int edbm_intersect_exec(bContext *C, wmOperator *op)
 	        bm,
 	        em->looptris, em->tottri,
 	        test_fn, NULL,
-	        use_self, use_separate,
+	        use_self, use_separate, true, true,
+	        -1,
 	        eps);
 
 
 	if (has_isect) {
-		BM_mesh_elem_hflag_disable_all(em->bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
-
-		if (em->bm->selectmode & (SCE_SELECT_VERTEX | SCE_SELECT_EDGE)) {
-			BMIter iter;
-			BMEdge *e;
-
-			BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
-				if (BM_elem_flag_test(e, BM_ELEM_TAG)) {
-					BM_edge_select_set(bm, e, true);
-				}
-			}
-		}
-
-		EDBM_mesh_normals_update(em);
-		EDBM_update_generic(em, true, true);
+		edbm_intersect_select(em);
 	}
 	else {
 		BKE_report(op->reports, RPT_WARNING, "No intersections found");
@@ -153,6 +182,14 @@ static int edbm_intersect_exec(bContext *C, wmOperator *op)
 
 void MESH_OT_intersect(struct wmOperatorType *ot)
 {
+	static EnumPropertyItem isect_mode_items[] = {
+		{ISECT_SEL, "SELECT", 0, "Self Intersect",
+		 "Self intersect selected faces"},
+		{ISECT_SEL_UNSEL, "SELECT_UNSELECT", 0, "Selected/Unselected",
+		 "Intersect selected with unselected faces"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	/* identifiers */
 	ot->name = "Intersect";
 	ot->description = "Cut an intersection into faces";
@@ -171,19 +208,92 @@ void MESH_OT_intersect(struct wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+/** \} */
+
+
+/* -------------------------------------------------------------------- */
+/* Boolean (a kind of intersect) */
+
+/** \name Boolean Intersect
+ *
+ * \note internally this is nearly exactly the same as 'MESH_OT_intersect',
+ * however from a user perspective they are quite different, so expose as different tools.
+ *
+ * \{
+ */
+
+static int edbm_intersect_boolean_exec(bContext *C, wmOperator *op)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	BMesh *bm = em->bm;
+	const int boolean_operation = RNA_enum_get(op->ptr, "operation");
+	bool use_swap = RNA_boolean_get(op->ptr, "use_swap");
+	const float eps = RNA_float_get(op->ptr, "threshold");
+	int (*test_fn)(BMFace *, void *);
+	bool has_isect;
+
+	test_fn = use_swap ? bm_face_isect_pair_swap : bm_face_isect_pair;
+
+	has_isect = BM_mesh_intersect(
+	        bm,
+	        em->looptris, em->tottri,
+	        test_fn, NULL,
+	        false, false, true, true,
+	        boolean_operation,
+	        eps);
+
+
+	if (has_isect) {
+		edbm_intersect_select(em);
+	}
+	else {
+		BKE_report(op->reports, RPT_WARNING, "No intersections found");
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+void MESH_OT_intersect_boolean(struct wmOperatorType *ot)
+{
+	static EnumPropertyItem isect_boolean_operation_items[] = {
+		{BMESH_ISECT_BOOLEAN_ISECT, "INTERSECT", 0, "Intersect", ""},
+		{BMESH_ISECT_BOOLEAN_UNION, "UNION", 0, "Union", ""},
+		{BMESH_ISECT_BOOLEAN_DIFFERENCE, "DIFFERENCE", 0, "Difference", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	/* identifiers */
+	ot->name = "Boolean Intersect";
+	ot->description = "Cut solid geometry from selected to unselected";
+	ot->idname = "MESH_OT_intersect_boolean";
+
+	/* api callbacks */
+	ot->exec = edbm_intersect_boolean_exec;
+	ot->poll = ED_operator_editmesh;
+
+	/* props */
+	RNA_def_enum(ot->srna, "operation", isect_boolean_operation_items, BMESH_ISECT_BOOLEAN_DIFFERENCE, "Boolean", "");
+	RNA_def_boolean(ot->srna, "use_swap", false, "Swap", "Use with difference intersection to swap which side is kept");
+	RNA_def_float_distance(ot->srna, "threshold", 0.000001f, 0.0, 0.01, "Merge threshold", "", 0.0, 0.001);
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /* Face Split by Edges */
 
-
 /** \name Face/Edge Split
  * \{ */
 
-static void bm_face_split_by_edges(BMesh *bm, BMFace *f, const char hflag)
+static void bm_face_split_by_edges(
+        BMesh *bm, BMFace *f, const char hflag,
+        /* reusable memory buffer */
+        BLI_Buffer *edge_net_temp_buf)
 {
-	BMEdge **edge_net = NULL;
-	BLI_array_declare(edge_net);
-
 	const int f_index = BM_elem_index_get(f);
 
 	BMLoop *l_iter;
@@ -198,6 +308,7 @@ static void bm_face_split_by_edges(BMesh *bm, BMFace *f, const char hflag)
 	BLI_SMALLSTACK_DECLARE(vert_stack, BMVert *);
 	BLI_SMALLSTACK_DECLARE(vert_stack_next, BMVert *);
 
+	BLI_assert(edge_net_temp_buf->count == 0);
 
 	/* collect all edges */
 	l_iter = l_first = BM_FACE_FIRST_LOOP(f);
@@ -213,7 +324,7 @@ static void bm_face_split_by_edges(BMesh *bm, BMFace *f, const char hflag)
 				v->e = e;
 
 				BLI_SMALLSTACK_PUSH(vert_stack, v);
-				BLI_array_append(edge_net, e);
+				BLI_buffer_append(edge_net_temp_buf, BMEdge *, e);
 			}
 		}
 	} while ((l_iter = l_iter->next) != l_first);
@@ -234,7 +345,7 @@ static void bm_face_split_by_edges(BMesh *bm, BMFace *f, const char hflag)
 				v_next = BM_edge_other_vert(e_next, v);
 				BM_elem_index_set(e_next, f_index);
 				BLI_SMALLSTACK_PUSH(vert_stack_next, v_next);
-				BLI_array_append(edge_net, e_next);
+				BLI_buffer_append(edge_net_temp_buf, BMEdge *, e_next);
 			}
 		}
 
@@ -243,8 +354,11 @@ static void bm_face_split_by_edges(BMesh *bm, BMFace *f, const char hflag)
 		}
 	}
 
-	BM_face_split_edgenet(bm, f, edge_net, BLI_array_count(edge_net), &face_arr, &face_arr_len);
-	BLI_array_free(edge_net);
+	BM_face_split_edgenet(
+	        bm, f, edge_net_temp_buf->data, edge_net_temp_buf->count,
+	        &face_arr, &face_arr_len);
+
+	BLI_buffer_empty(edge_net_temp_buf);
 
 	if (face_arr_len) {
 		int i;
@@ -258,6 +372,72 @@ static void bm_face_split_by_edges(BMesh *bm, BMFace *f, const char hflag)
 		MEM_freeN(face_arr);
 	}
 }
+
+#ifdef USE_NET_ISLAND_CONNECT
+
+struct LinkBase {
+	LinkNode    *list;
+	unsigned int list_len;
+};
+
+static void ghash_insert_face_edge_link(
+        GHash *gh, BMFace *f_key, BMEdge *e_val,
+        MemArena *mem_arena)
+{
+	void           **ls_base_p;
+	struct LinkBase *ls_base;
+	LinkNode *ls;
+
+	if (!BLI_ghash_ensure_p(gh, f_key, &ls_base_p)) {
+		ls_base = *ls_base_p = BLI_memarena_alloc(mem_arena, sizeof(*ls_base));
+		ls_base->list     = NULL;
+		ls_base->list_len = 0;
+	}
+	else {
+		ls_base = *ls_base_p;
+	}
+
+	ls = BLI_memarena_alloc(mem_arena, sizeof(*ls));
+	ls->next = ls_base->list;
+	ls->link = e_val;
+	ls_base->list = ls;
+	ls_base->list_len += 1;
+}
+
+static void bm_face_split_by_edges_island_connect(
+        BMesh *bm, BMFace *f,
+        LinkNode *e_link, const int e_link_len,
+        MemArena *mem_arena_edgenet)
+{
+	BMEdge **edge_arr = BLI_memarena_alloc(mem_arena_edgenet, sizeof(BMEdge **) * e_link_len);
+	int edge_arr_len = 0;
+
+	while (e_link) {
+		edge_arr[edge_arr_len++] = e_link->link;
+		e_link = e_link->next;
+	}
+
+	{
+		unsigned int edge_arr_holes_len;
+		BMEdge **edge_arr_holes;
+		if (BM_face_split_edgenet_connect_islands(
+		        bm, f,
+		        edge_arr, e_link_len,
+		        mem_arena_edgenet,
+		        &edge_arr_holes, &edge_arr_holes_len))
+		{
+			edge_arr_len = edge_arr_holes_len;
+			edge_arr = edge_arr_holes;  /* owned by the arena */
+		}
+	}
+
+	BM_face_split_edgenet(
+	        bm, f, edge_arr, edge_arr_len,
+	        NULL, NULL);
+}
+
+#endif  /* USE_NET_ISLAND_CONNECT */
+
 
 static int edbm_face_split_by_edges_exec(bContext *C, wmOperator *UNUSED(op))
 {
@@ -367,15 +547,86 @@ static int edbm_face_split_by_edges_exec(bContext *C, wmOperator *UNUSED(op))
 
 	bm->elem_index_dirty |= BM_EDGE;
 
+	{
+		BLI_buffer_declare_static(BMEdge **, edge_net_temp_buf, 0, 128);
 
-	BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-		if (BM_elem_flag_test(f, hflag)) {
-			bm_face_split_by_edges(bm, f, hflag);
+		BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+			if (BM_elem_flag_test(f, hflag)) {
+				bm_face_split_by_edges(bm, f, hflag, &edge_net_temp_buf);
+			}
+		}
+		BLI_buffer_free(&edge_net_temp_buf);
+	}
+
+#ifdef USE_NET_ISLAND_CONNECT
+	/* before overwriting edge index values, collect edges left untouched */
+	BLI_Stack *edges_loose = BLI_stack_new(sizeof(BMEdge * ), __func__);
+	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+		if (BM_elem_index_get(e) == -1 && BM_edge_is_wire(e)) {
+			BLI_stack_push(edges_loose, &e);
 		}
 	}
+#endif
 
 	EDBM_mesh_normals_update(em);
 	EDBM_update_generic(em, true, true);
+
+
+#ifdef USE_NET_ISLAND_CONNECT
+	/* we may have remaining isolated regions remaining,
+	 * these will need to have connecting edges created */
+	if (!BLI_stack_is_empty(edges_loose)) {
+		GHash *face_edge_map = BLI_ghash_ptr_new(__func__);
+
+		MemArena *mem_arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
+
+		{
+			BMBVHTree *bmbvh = BKE_bmbvh_new(bm, em->looptris, em->tottri, BMBVH_RESPECT_SELECT, NULL, NULL);
+
+			while (!BLI_stack_is_empty(edges_loose)) {
+				BLI_stack_pop(edges_loose, &e);
+				float e_center[3];
+				mid_v3_v3v3(e_center, e->v1->co, e->v2->co);
+
+				f = BKE_bmbvh_find_face_closest(bmbvh, e_center, FLT_MAX);
+				if (f) {
+					ghash_insert_face_edge_link(face_edge_map, f, e, mem_arena);
+				}
+			}
+
+			BKE_bmbvh_free(bmbvh);
+		}
+
+		{
+			MemArena *mem_arena_edgenet = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
+
+			GHashIterator gh_iter;
+
+			GHASH_ITER(gh_iter, face_edge_map) {
+				f = BLI_ghashIterator_getKey(&gh_iter);
+				struct LinkBase *e_ls_base = BLI_ghashIterator_getValue(&gh_iter);
+
+				bm_face_split_by_edges_island_connect(
+				        bm, f,
+				        e_ls_base->list, e_ls_base->list_len,
+				        mem_arena_edgenet);
+
+				BLI_memarena_clear(mem_arena_edgenet);
+			}
+
+			BLI_memarena_free(mem_arena_edgenet);
+		}
+
+		BLI_memarena_free(mem_arena);
+
+		BLI_ghash_free(face_edge_map, NULL, NULL);
+
+		EDBM_mesh_normals_update(em);
+		EDBM_update_generic(em, true, true);
+	}
+
+	BLI_stack_free(edges_loose);
+#endif  /* USE_NET_ISLAND_CONNECT */
 
 	return OPERATOR_FINISHED;
 }
