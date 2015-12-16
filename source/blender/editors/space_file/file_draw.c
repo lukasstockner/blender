@@ -511,7 +511,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	const bool update_stat_strings = small_size != SMALL_SIZE_CHECK(layout->curr_size);
 	const float thumb_icon_aspect = sqrtf(64.0f / (float)(params->thumbnail_size));
 
-	numfiles = filelist_files_ensure(files);
+	numfiles = filelist_files_ensure(files, params);
 	
 	if (params->display != FILE_IMGDISPLAY) {
 

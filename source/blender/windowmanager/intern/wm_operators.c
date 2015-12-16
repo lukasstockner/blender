@@ -50,6 +50,7 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_mesh_types.h" /* only for USE_BMESH_SAVE_AS_COMPAT */
@@ -71,7 +72,13 @@
 
 #include "BLO_readfile.h"
 
+#include "RNA_access.h"
+#include "RNA_define.h"
+#include "RNA_types.h"
+#include "RNA_enum_types.h"
+
 #include "BKE_appdir.h"
+#include "BKE_asset.h"
 #include "BKE_autoexec.h"
 #include "BKE_blender.h"
 #include "BKE_brush.h"
@@ -107,10 +114,6 @@
 
 #include "GPU_basic_shader.h"
 #include "GPU_material.h"
-
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
@@ -1226,7 +1229,8 @@ void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, 
 	if (flag & WM_FILESEL_FILEPATH)
 		RNA_def_string_file_path(ot->srna, "filepath", NULL, FILE_MAX, "File Path", "Path to file");
 
-	if (flag & WM_FILESEL_DIRECTORY)
+	/* Enforce directory in file cases, needed with asset engines. */
+	if (flag & (WM_FILESEL_DIRECTORY | WM_FILESEL_FILEPATH | WM_FILESEL_FILENAME | WM_FILESEL_FILES))
 		RNA_def_string_dir_path(ot->srna, "directory", NULL, FILE_MAX, "Directory", "Directory of the file");
 
 	if (flag & WM_FILESEL_FILENAME)
@@ -1234,6 +1238,23 @@ void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, 
 
 	if (flag & WM_FILESEL_FILES)
 		RNA_def_collection_runtime(ot->srna, "files", &RNA_OperatorFileListElement, "Files", "");
+
+	if (flag & (WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILENAME | WM_FILESEL_FILES)) {
+		prop = RNA_def_string(ot->srna, "asset_engine", NULL, BKE_ST_MAXNAME, "Asset Engine",
+		                      "Identifier of relevant asset engine (if any)");
+		RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+		if (flag & (WM_FILESEL_FILEPATH | WM_FILESEL_FILENAME)) {
+			prop = RNA_def_int_vector(ot->srna, "asset_uuid", 4, NULL, INT_MIN, INT_MAX,
+			                          "Asset UUID", "Identifier of this item in current asset engine", INT_MIN, INT_MAX);
+			RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+			prop = RNA_def_int_vector(ot->srna, "variant_uuid", 4, NULL, INT_MIN, INT_MAX,
+			                          "Variant UUID", "Identifier of this item's variant in current asset engine", INT_MIN, INT_MAX);
+			RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+			prop = RNA_def_int_vector(ot->srna, "revision_uuid", 4, NULL, INT_MIN, INT_MAX,
+			                          "Revision UUID", "Identifier of this item's revision in current asset engine", INT_MIN, INT_MAX);
+			RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+		}
+	}
 
 	if (action == FILE_SAVE) {
 		/* note, this is only used to check if we should highlight the filename area red when the
@@ -2639,6 +2660,7 @@ static short wm_link_append_flag(wmOperator *op)
 }
 
 typedef struct WMLinkAppendDataItem {
+	AssetUUID uuid;
 	char *name;
 	BLI_bitmap *libraries;  /* All libs (from WMLinkAppendData.libraries) to try to load this ID from. */
 	short idcode;
@@ -2687,11 +2709,12 @@ static void wm_link_append_data_library_add(WMLinkAppendData *lapp_data, const c
 }
 
 static WMLinkAppendDataItem *wm_link_append_data_item_add(
-        WMLinkAppendData *lapp_data, const char *idname, const short idcode, void *customdata)
+        WMLinkAppendData *lapp_data, const char *idname, const short idcode, const AssetUUID *uuid, void *customdata)
 {
 	WMLinkAppendDataItem *item = BLI_memarena_alloc(lapp_data->memarena, sizeof(*item));
 	size_t len = strlen(idname) + 1;
 
+	item->uuid = *uuid;
 	item->name = BLI_memarena_alloc(lapp_data->memarena, len);
 	BLI_strncpy(item->name, idname, len);
 	item->idcode = idcode;
@@ -2707,7 +2730,7 @@ static WMLinkAppendDataItem *wm_link_append_data_item_add(
 }
 
 static void wm_link_do(
-        WMLinkAppendData *lapp_data, ReportList *reports, Main *bmain, Scene *scene, View3D *v3d)
+        WMLinkAppendData *lapp_data, ReportList *reports, Main *bmain, AssetEngineType *aet, Scene *scene, View3D *v3d)
 {
 	Main *mainl;
 	BlendHandle *bh;
@@ -2754,7 +2777,9 @@ static void wm_link_do(
 				continue;
 			}
 
-			new_id = BLO_library_link_named_part_ex(mainl, &bh, item->idcode, item->name, flag, scene, v3d);
+			new_id = BLO_library_link_named_part_asset(
+			             mainl, &bh, aet, item->idcode, item->name, &item->uuid, flag, scene, v3d);
+
 			if (new_id) {
 				/* If the link is sucessful, clear item's libs 'todo' flags.
 				 * This avoids trying to link same item with other libraries to come. */
@@ -2779,10 +2804,19 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	int totfiles = 0;
 	short flag;
 
+	char asset_engine[BKE_ST_MAXNAME];
+	AssetEngineType *aet = NULL;
+	AssetUUID uuid = {0};
+
 	RNA_string_get(op->ptr, "filename", relname);
 	RNA_string_get(op->ptr, "directory", root);
 
 	BLI_join_dirfile(path, sizeof(path), root, relname);
+
+	RNA_string_get(op->ptr, "asset_engine", asset_engine);
+	if (asset_engine[0] != '\0') {
+		aet = BKE_asset_engines_find(asset_engine);
+	}
 
 	/* test if we have a valid data */
 	if (!BLO_library_path_explode(path, libname, &group, &name)) {
@@ -2878,7 +2912,13 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 
 				lib_idx = GET_INT_FROM_POINTER(BLI_ghash_lookup(libraries, libname));
 
-				item = wm_link_append_data_item_add(lapp_data, name, BKE_idcode_from_name(group), NULL);
+				if (aet) {
+					RNA_int_get_array(&itemptr, "asset_uuid", uuid.uuid_asset);
+					RNA_int_get_array(&itemptr, "variant_uuid", uuid.uuid_variant);
+					RNA_int_get_array(&itemptr, "revision_uuid", uuid.uuid_revision);
+				}
+
+				item = wm_link_append_data_item_add(lapp_data, name, BKE_idcode_from_name(group), &uuid, NULL);
 				BLI_BITMAP_ENABLE(item->libraries, lib_idx);
 			}
 		}
@@ -2890,14 +2930,14 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		WMLinkAppendDataItem *item;
 
 		wm_link_append_data_library_add(lapp_data, libname);
-		item = wm_link_append_data_item_add(lapp_data, name, BKE_idcode_from_name(group), NULL);
+		item = wm_link_append_data_item_add(lapp_data, name, BKE_idcode_from_name(group), &uuid, NULL);
 		BLI_BITMAP_ENABLE(item->libraries, 0);
 	}
 
 	/* XXX We'd need re-entrant locking on Main for this to work... */
 	/* BKE_main_lock(bmain); */
 
-	wm_link_do(lapp_data, op->reports, bmain, scene, CTX_wm_view3d(C));
+	wm_link_do(lapp_data, op->reports, bmain, aet, scene, CTX_wm_view3d(C));
 
 	/* BKE_main_unlock(bmain); */
 
@@ -2936,6 +2976,10 @@ static void wm_link_append_properties_common(wmOperatorType *ot, bool is_link)
 
 	/* better not save _any_ settings for this operator */
 	/* properties */
+	prop = RNA_def_string(ot->srna, "asset_engine", NULL, sizeof(((AssetEngineType *)NULL)->idname),
+	                      "Asset Engine", "Asset engine identifier used to append/link the data");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
+
 	prop = RNA_def_boolean(ot->srna, "link", is_link,
 	                       "Link", "Link the objects or datablocks rather than appending");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);

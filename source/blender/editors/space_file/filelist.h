@@ -37,24 +37,23 @@
 extern "C" {
 #endif
 
+#include "BKE_asset.h"
+
+struct AssetEngineType;
+struct AssetEngine;
 struct BlendHandle;
 struct FileList;
 struct FileSelection;
 struct wmWindowManager;
 
 struct FileDirEntry;
+struct FileDirEntryArr;
 
 typedef enum FileSelType {
 	FILE_SEL_REMOVE = 0,
 	FILE_SEL_ADD    = 1,
 	FILE_SEL_TOGGLE = 2
 } FileSelType;
-
-typedef enum FileCheckType {
-	CHECK_DIRS = 1,
-	CHECK_FILES = 2,
-	CHECK_ALL = 3
-} FileCheckType;
 
 struct ListBase *   folderlist_new(void);
 void                folderlist_free(struct ListBase *folderlist);
@@ -66,12 +65,10 @@ int                 folderlist_clear_next(struct SpaceFile *sfile);
 
 
 void                filelist_setsorting(struct FileList *filelist, const short sort);
-void                filelist_sort(struct FileList *filelist);
-
 void                filelist_setfilter_options(struct FileList *filelist, const bool hide_dot, const bool hide_parent,
                                                const unsigned int filter, const unsigned int filter_id,
                                                const char *filter_glob, const char *filter_search);
-void                filelist_filter(struct FileList *filelist);
+void                filelist_sort_filter(struct FileList *filelist, struct FileSelectParams *params);
 
 void                filelist_init_icons(void);
 void                filelist_free_icons(void);
@@ -85,12 +82,14 @@ void                filelist_clear(struct FileList *filelist);
 void                filelist_clear_ex(struct FileList *filelist, const bool do_cache, const bool do_selection);
 void                filelist_free(struct FileList *filelist);
 
+void                filelist_assetengine_set(struct FileList *filelist, struct AssetEngineType *aet);
+
 const char *        filelist_dir(struct FileList *filelist);
 void                filelist_setdir(struct FileList *filelist, char *r_dir);
 
-int                 filelist_files_ensure(struct FileList *filelist);
+int                 filelist_files_ensure(struct FileList *filelist, struct FileSelectParams *params);
 int                 filelist_empty(struct FileList *filelist);
-FileDirEntry *      filelist_file(struct FileList *filelist, int index);
+struct FileDirEntry *filelist_file(struct FileList *filelist, int index);
 int                 filelist_file_findpath(struct FileList *filelist, const char *file);
 FileDirEntry *      filelist_entry_find_uuid(struct FileList *filelist, const int uuid[4]);
 void                filelist_file_cache_slidingwindow_set(struct FileList *filelist, size_t window_size);
@@ -105,12 +104,16 @@ void                filelist_entry_select_index_set(struct FileList *filelist, c
 void                filelist_entries_select_index_range_set(struct FileList *filelist, FileSelection *sel, FileSelType select, unsigned int flag, FileCheckType check);
 unsigned int        filelist_entry_select_get(struct FileList *filelist, struct FileDirEntry *entry, FileCheckType check);
 unsigned int        filelist_entry_select_index_get(struct FileList *filelist, const int index, FileCheckType check);
+struct FileDirEntryArr *filelist_selection_get(
+        struct FileList *filelist, FileCheckType check, const char *name, AssetUUIDList **r_uuids, const bool use_ae);
 
 void                filelist_setrecursion(struct FileList *filelist, const int recursion_level);
 
 struct BlendHandle *filelist_lib(struct FileList *filelist);
 bool                filelist_islibrary(struct FileList *filelist, char *dir, char **group);
 void                filelist_freelib(struct FileList *filelist);
+
+struct AssetEngine *filelist_assetengine_get(struct FileList *filelist);
 
 void                filelist_readjob_start(struct FileList *filelist, const struct bContext *C);
 void                filelist_readjob_stop(struct wmWindowManager *wm, struct ScrArea *sa);

@@ -32,6 +32,7 @@ class FILEBROWSER_HT_header(Header):
         layout.template_header()
 
         row = layout.row()
+        row.prop(st, "asset_engine_type", text="")
         row.separator()
 
         row = layout.row(align=True)
@@ -41,55 +42,60 @@ class FILEBROWSER_HT_header(Header):
         row.operator("file.refresh", text="", icon='FILE_REFRESH')
 
         layout.separator()
-        layout.operator_context = 'EXEC_DEFAULT'
-        layout.operator("file.directory_new", icon='NEWFOLDER', text="")
-        layout.separator()
+        if st.asset_engine:
+            draw_header = getattr(st.asset_engine, "draw_header", None)
+            if draw_header:
+                draw_header(layout, context)
+        else:
+            layout.operator_context = 'EXEC_DEFAULT'
+            layout.operator("file.directory_new", icon='NEWFOLDER', text="")
+            layout.separator()
 
-        layout.operator_context = 'INVOKE_DEFAULT'
-        params = st.params
+            layout.operator_context = 'INVOKE_DEFAULT'
+            params = st.params
 
-        # can be None when save/reload with a file selector open
-        if params:
-            is_lib_browser = params.use_library_browsing
+            # can be None when save/reload with a file selector open
+            if params:
+                is_lib_browser = params.use_library_browsing
 
-            layout.prop(params, "recursion_level", text="")
+                layout.prop(params, "recursion_level", text="")
 
-            layout.prop(params, "display_type", expand=True, text="")
+                layout.prop(params, "display_type", expand=True, text="")
 
-            layout.prop(params, "display_size", text="")
+                layout.prop(params, "display_size", text="")
 
-            layout.prop(params, "sort_method", expand=True, text="")
+                layout.prop(params, "sort_method", expand=True, text="")
 
-            layout.prop(params, "show_hidden", text="", icon='FILE_HIDDEN')
-            layout.prop(params, "use_filter", text="", icon='FILTER')
+                layout.prop(params, "show_hidden", text="", icon='FILE_HIDDEN')
+                layout.prop(params, "use_filter", text="", icon='FILTER')
 
-            row = layout.row(align=True)
-            row.active = params.use_filter
+                row = layout.row(align=True)
+                row.active = params.use_filter
 
-            row.prop(params, "use_filter_folder", text="")
+                row.prop(params, "use_filter_folder", text="")
 
-            if params.filter_glob:
-                # if st.active_operator and hasattr(st.active_operator, "filter_glob"):
-                #     row.prop(params, "filter_glob", text="")
-                row.label(params.filter_glob)
-            else:
-                row.prop(params, "use_filter_blender", text="")
-                row.prop(params, "use_filter_backup", text="")
-                row.prop(params, "use_filter_image", text="")
-                row.prop(params, "use_filter_movie", text="")
-                row.prop(params, "use_filter_script", text="")
-                row.prop(params, "use_filter_font", text="")
-                row.prop(params, "use_filter_sound", text="")
-                row.prop(params, "use_filter_text", text="")
+                if params.filter_glob:
+                    # if st.active_operator and hasattr(st.active_operator, "filter_glob"):
+                    #     row.prop(params, "filter_glob", text="")
+                    row.label(params.filter_glob)
+                else:
+                    row.prop(params, "use_filter_blender", text="")
+                    row.prop(params, "use_filter_backup", text="")
+                    row.prop(params, "use_filter_image", text="")
+                    row.prop(params, "use_filter_movie", text="")
+                    row.prop(params, "use_filter_script", text="")
+                    row.prop(params, "use_filter_font", text="")
+                    row.prop(params, "use_filter_sound", text="")
+                    row.prop(params, "use_filter_text", text="")
 
-            if is_lib_browser:
-                row.prop(params, "use_filter_blendid", text="")
-                if params.use_filter_blendid:
-                    row.separator()
-                    row.prop(params, "filter_id_category", text="")
+                if is_lib_browser:
+                    row.prop(params, "use_filter_blendid", text="")
+                    if params.use_filter_blendid:
+                        row.separator()
+                        row.prop(params, "filter_id_category", text="")
 
-            row.separator()
-            row.prop(params, "filter_search", text="", icon='VIEWZOOM')
+                row.separator()
+                row.prop(params, "filter_search", text="", icon='VIEWZOOM')
 
         layout.template_running_jobs()
 

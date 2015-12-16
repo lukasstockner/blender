@@ -106,6 +106,26 @@ enum {
 
 /* add any future new id property types here.*/
 
+/* About Unique identifier.
+ * Each engine is free to use it as it likes - it will be the only thing passed to it by blender to identify
+ * asset/variant/version (concatenating the three into a single 48 bytes one).
+ * Assumed to be 128bits, handled as four integers due to lack of real bytes proptype in RNA :|.
+ */
+#define ASSET_UUID_LENGTH     16
+
+/* Used to communicate with asset engines outside of 'import' context. */
+typedef struct AssetUUID {
+	int uuid_asset[4];
+	int uuid_variant[4];
+	int uuid_revision[4];
+} AssetUUID;
+
+typedef struct AssetUUIDList {
+	AssetUUID *uuids;
+	int nbr_uuids;
+	int asset_engine_version;
+} AssetUUIDList;
+
 /* watch it: Sequence has identical beginning. */
 /**
  * ID is the first thing included in all serializable types. It
@@ -130,6 +150,8 @@ typedef struct ID {
 	int us;
 	int icon_id, pad2;
 	IDProperty *properties;
+
+	AssetUUID *uuid;
 } ID;
 
 /**
@@ -140,7 +162,8 @@ typedef struct Library {
 	ID id;
 	ID *idblock;
 	struct FileData *filedata;
-	char name[1024];  /* path name used for reading, can be relative and edited in the outliner */
+	/* path name used for reading, can be relative and edited in the outliner. */
+	char name[1024];
 
 	/* absolute filepath, this is only for convenience, 'name' is the real path used on file read but in
 	 * some cases its useful to access the absolute one.
@@ -151,6 +174,12 @@ typedef struct Library {
 	struct Library *parent;	/* set for indirectly linked libs, used in the outliner and while reading */
 	
 	struct PackedFile *packedfile;
+
+	char asset_engine[64];  /* MAX_ST_NAME */
+	int asset_engine_version;
+	int pad_i1;
+	/* 'Path' to asset engine's root of the reprository, can be an url, whatever... */
+	char asset_engine_root[1024];
 } Library;
 
 enum eIconSizes {

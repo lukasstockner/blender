@@ -109,10 +109,13 @@
 #include "BLI_threads.h"
 #include "BLI_mempool.h"
 
+#include "RNA_types.h"
+
 #include "BLT_translation.h"
 
 #include "BKE_action.h"
 #include "BKE_armature.h"
+#include "BKE_asset.h"
 #include "BKE_brush.h"
 #include "BKE_cloth.h"
 #include "BKE_constraint.h"
@@ -9686,7 +9689,8 @@ void BLO_library_link_all(Main *mainl, BlendHandle *bh)
 }
 
 static ID *link_named_part_ex(
-        Main *mainl, FileData *fd, const short idcode, const char *name, const short flag,
+        Main *mainl, FileData *fd, const AssetEngineType *aet,
+        const short idcode, const char *name, const AssetUUID *uuid, const int flag,
 		Scene *scene, View3D *v3d)
 {
 	ID *id = link_named_part(mainl, fd, idcode, name);
@@ -9762,7 +9766,31 @@ ID *BLO_library_link_named_part_ex(
         Scene *scene, View3D *v3d)
 {
 	FileData *fd = (FileData*)(*bh);
-	return link_named_part_ex(mainl, fd, idcode, name, flag, scene, v3d);
+	return link_named_part_ex(mainl, fd, NULL, idcode, name, NULL, flag, scene, v3d);
+}
+
+/**
+ * Link a named datablock from an external blend file, using given asset engine & asset UUID.
+ * Optionally instantiate the object/group in the scene when the flags are set.
+ *
+ * \param mainl The main database to link from (not the active one).
+ * \param bh The blender file handle.
+ * \param aet The asset engine type (NULL when no asset engine is used).
+ * \param idcode The kind of datablock to link.
+ * \param name The name of the datablock (without the 2 char ID prefix).
+ * \param uuid The asset engine's UUID of this datablock (NULL when no asset engine is used).
+ * \param flag Options for linking, used for instantiating.
+ * \param scene The scene in which to instantiate objects/groups (if NULL, no instantiation is done).
+ * \param v3d The active View3D (only to define active layers for instantiated objects & groups, can be NULL).
+ * \return the linked ID when found.
+ */
+struct ID *BLO_library_link_named_part_asset(
+        Main *mainl, BlendHandle **bh, const AssetEngineType *aet,
+        const short idcode, const char *name, const AssetUUID *uuid, const short flag,
+        Scene *scene, View3D *v3d)
+{
+	FileData *fd = (FileData*)(*bh);
+	return link_named_part_ex(mainl, fd, aet, idcode, name, uuid, flag, scene, v3d);
 }
 
 static void link_id_part(ReportList *reports, FileData *fd, Main *mainvar, ID *id, ID **r_id)

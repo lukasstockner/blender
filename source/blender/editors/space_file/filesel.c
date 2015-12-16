@@ -495,7 +495,7 @@ void ED_fileselect_init_layout(struct SpaceFile *sfile, ARegion *ar)
 		return;
 	}
 
-	numfiles = filelist_files_ensure(sfile->files);
+	numfiles = filelist_files_ensure(sfile->files, params);
 	textheight = (int)file_font_pointsize();
 	layout = sfile->layout;
 	layout->textheight = textheight;
@@ -605,7 +605,7 @@ int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matche
 	
 	int i;
 	FileDirEntry *file;
-	int n = filelist_files_ensure(sfile->files);
+	int n = filelist_files_ensure(sfile->files, ED_fileselect_get_params(sfile));
 
 	/* select any file that matches the pattern, this includes exact match 
 	 * if the user selects a single file by entering the filename
@@ -681,7 +681,7 @@ int autocomplete_file(struct bContext *C, char *str, void *UNUSED(arg_v))
 	/* search if str matches the beginning of name */
 	if (str[0] && sfile->files) {
 		AutoComplete *autocpl = UI_autocomplete_begin(str, FILE_MAX);
-		int nentries = filelist_files_ensure(sfile->files);
+		int nentries = filelist_files_ensure(sfile->files, ED_fileselect_get_params(sfile));
 		int i;
 
 		for (i = 0; i < nentries; ++i) {

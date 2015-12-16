@@ -1632,6 +1632,7 @@ void id_clear_lib_data(Main *bmain, ID *id)
 	id_fake_user_clear(id);
 
 	id->lib = NULL;
+	MEM_SAFE_FREE(id->uuid);  /* Local ID have no more use for asset-related data. */
 	id->flag = LIB_LOCAL;
 	new_id(which_libbase(bmain, GS(id->name)), id, NULL);
 
@@ -1642,6 +1643,7 @@ void id_clear_lib_data(Main *bmain, ID *id)
 
 	if (ntree) {
 		ntree->id.lib = NULL;
+		MEM_SAFE_FREE(ntree->id.uuid);
 	}
 
 	if (GS(id->name) == ID_OB) {

@@ -39,13 +39,14 @@
 #include "BLI_utildefines.h"
 #include "BLI_fileops_types.h"
 
+#include "RNA_access.h"
+#include "RNA_types.h"
 
 #include "BKE_appdir.h"
+#include "BKE_asset.h"
 #include "BKE_context.h"
 #include "BKE_screen.h"
 #include "BKE_global.h"
-
-#include "RNA_access.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -74,6 +75,8 @@ static SpaceLink *file_new(const bContext *UNUSED(C))
 
 	sfile = MEM_callocN(sizeof(SpaceFile), "initfile");
 	sfile->spacetype = SPACE_FILE;
+
+	BKE_asset_engines_get_default(sfile->asset_engine, sizeof(sfile->asset_engine));
 
 	/* header */
 	ar = MEM_callocN(sizeof(ARegion), "header for file");
@@ -165,6 +168,12 @@ static void file_init(wmWindowManager *UNUSED(wm), ScrArea *sa)
 	 */
 	fsmenu_refresh_bookmarks_status(ED_fsmenu_get());
 
+	if (!BKE_asset_engines_find(sfile->asset_engine)) {
+		BKE_asset_engines_get_default(sfile->asset_engine, sizeof(sfile->asset_engine));
+		ED_area_tag_refresh(sa);
+		ED_area_tag_redraw(sa);
+	}
+
 	if (sfile->layout) sfile->layout->dirty = true;
 }
 
@@ -184,7 +193,7 @@ static SpaceLink *file_duplicate(SpaceLink *sl)
 {
 	SpaceFile *sfileo = (SpaceFile *)sl;
 	SpaceFile *sfilen = MEM_dupallocN(sl);
-	
+
 	/* clear or remove stuff from old */
 	sfilen->op = NULL; /* file window doesn't own operators */
 
@@ -212,6 +221,11 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	FileSelectParams *params = ED_fileselect_get_params(sfile);
 	struct FSMenu *fsmenu = ED_fsmenu_get();
+	AssetEngineType *aet = NULL;
+
+	if (!STREQ(sfile->asset_engine, AE_FAKE_ENGINE_ID)) {
+		aet = BKE_asset_engines_find(sfile->asset_engine);
+	}
 
 	if (!sfile->folders_prev) {
 		sfile->folders_prev = folderlist_new();
@@ -220,6 +234,7 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 		sfile->files = filelist_new(params->type);
 		params->highlight_file = -1; /* added this so it opens nicer (ton) */
 	}
+	filelist_assetengine_set(sfile->files, aet);
 	filelist_setdir(sfile->files, params->dir);
 	filelist_setrecursion(sfile->files, params->recursion_level);
 	filelist_setsorting(sfile->files, params->sort);
@@ -247,8 +262,7 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 		}
 	}
 
-	filelist_sort(sfile->files);
-	filelist_filter(sfile->files);
+	filelist_sort_filter(sfile->files, params);
 
 	if (params->display == FILE_IMGDISPLAY) {
 		filelist_cache_previews_set(sfile->files, true);

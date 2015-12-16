@@ -43,6 +43,7 @@
 
 struct ARegion;
 struct ARegionType;
+struct AssetEngine;
 struct BMEditMesh;
 struct Base;
 struct BoundBox;
@@ -371,6 +372,8 @@ void ED_space_image_set_mask(struct bContext *C, struct SpaceImage *sima, struct
 void ED_area_tag_redraw_regiontype(struct ScrArea *sa, int regiontype) RET_NONE
 void ED_render_engine_changed(struct Main *bmain) RET_NONE
 
+struct AssetEngine *ED_filelist_assetengine_get(struct SpaceFile *sfile) RET_NULL
+
 void ED_file_read_bookmarks(void) RET_NONE
 void ED_file_change_dir(struct bContext *C, const bool checkdir) RET_NONE
 void ED_preview_kill_jobs(struct wmWindowManager *wm, struct Main *bmain) RET_NONE
@@ -603,6 +606,9 @@ void uiTemplateComponentMenu(struct uiLayout *layout, struct PointerRNA *ptr, co
 void uiTemplateNodeSocket(struct uiLayout *layout, struct bContext *C, float *color) RET_NONE
 void uiTemplatePalette(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, int color) RET_NONE
 void uiTemplateImageStereo3d(struct uiLayout *layout, struct PointerRNA *stereo3d_format_ptr) RET_NONE
+
+/* rna asset */
+void BPY_DECREF_RNA_INVALIDATE(void *pyob_ptr) RET_NONE
 
 /* rna render */
 struct RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, int h, const char *layername, const char *viewname) RET_NULL
