@@ -150,7 +150,7 @@ static void node_remove_linked(bNodeTree *ntree, bNode *rem_node)
 
 		if (node->flag & NODE_TEST) {
 			if (node->id)
-				node->id->us--;
+				id_us_min(node->id);
 			nodeFreeNode(ntree, node);
 		}
 	}
@@ -524,7 +524,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
 	bNodeSocket *sock = arg->sock;
 	bNodeTreeType *ntreetype = arg->ntree->typeinfo;
 
-	UI_block_flag_enable(block, UI_BLOCK_NO_FLIP);
+	UI_block_flag_enable(block, UI_BLOCK_NO_FLIP | UI_BLOCK_IS_FLIP);
 	UI_block_layout_set_current(block, layout);
 	split = uiLayoutSplit(layout, 0.0f, false);
 
