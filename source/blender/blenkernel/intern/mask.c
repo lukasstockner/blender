@@ -1019,59 +1019,6 @@ void BKE_mask_free(Mask *mask)
 	BKE_mask_layer_free_list(&mask->masklayers);
 }
 
-void BKE_mask_unlink(Main *bmain, Mask *mask)
-{
-	bScreen *scr;
-	ScrArea *area;
-	SpaceLink *sl;
-	Scene *scene;
-
-	for (scr = bmain->screen.first; scr; scr = scr->id.next) {
-		for (area = scr->areabase.first; area; area = area->next) {
-			for (sl = area->spacedata.first; sl; sl = sl->next) {
-				switch (sl->spacetype) {
-					case SPACE_CLIP:
-					{
-						SpaceClip *sc = (SpaceClip *)sl;
-
-						if (sc->mask_info.mask == mask) {
-							sc->mask_info.mask = NULL;
-						}
-						break;
-					}
-					case SPACE_IMAGE:
-					{
-						SpaceImage *sima = (SpaceImage *)sl;
-
-						if (sima->mask_info.mask == mask) {
-							sima->mask_info.mask = NULL;
-						}
-						break;
-					}
-				}
-			}
-		}
-	}
-
-	for (scene = bmain->scene.first; scene; scene = scene->id.next) {
-		if (scene->ed) {
-			Sequence *seq;
-
-			SEQ_BEGIN (scene->ed, seq)
-			{
-				if (seq->mask == mask) {
-					seq->mask = NULL;
-				}
-			}
-			SEQ_END
-		}
-	}
-
-	FOREACH_NODETREE(bmain, ntree, id) {
-		BKE_node_tree_unlink_id((ID *)mask, ntree);
-	} FOREACH_NODETREE_END
-}
-
 void BKE_mask_coord_from_frame(float r_co[2], const float co[2], const float frame_size[2])
 {
 	if (frame_size[0] == frame_size[1]) {
