@@ -59,7 +59,7 @@
 
 void BKE_camera_init(Camera *cam)
 {
-	BLI_assert(MEMCMP_NULL_STRUCT_OFS(cam, id));
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(cam, id));
 
 	cam->lens = 35.0f;
 	cam->sensor_x = DEFAULT_SENSOR_WIDTH;

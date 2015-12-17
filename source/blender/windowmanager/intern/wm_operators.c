@@ -2714,7 +2714,7 @@ static void wm_link_do(
 	BlendHandle *bh;
 	Library *lib;
 
-	const short flag = lapp_data->flag;
+	const int flag = lapp_data->flag;
 
 	LinkNode *liblink, *itemlink;
 	int lib_idx, item_idx;

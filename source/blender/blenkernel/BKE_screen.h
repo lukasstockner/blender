@@ -311,7 +311,7 @@ float BKE_screen_view3d_zoom_to_fac(float camzoom);
 float BKE_screen_view3d_zoom_from_fac(float zoomfac);
 
 /* screen */
-void BKE_screen_free(struct bScreen *sc);
+void BKE_screen_free(struct bScreen *sc); 
 unsigned int BKE_screen_visible_layers(struct bScreen *screen, struct Scene *scene);
 
 #endif

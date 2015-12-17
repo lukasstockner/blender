@@ -1413,7 +1413,7 @@ void BKE_movieclip_build_proxy_frame_for_ibuf(MovieClip *clip, ImBuf *ibuf, stru
 	}
 }
 
-/** Free (or release) any data used by this lamp (does not free the lamp itself). */
+/** Free (or release) any data used by this movie clip (does not free the clip itself). */
 void BKE_movieclip_free(MovieClip *clip)
 {
 	/* Also frees animdata. */

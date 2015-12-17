@@ -9694,7 +9694,7 @@ void BLO_library_link_all(Main *mainl, BlendHandle *bh)
 }
 
 static ID *link_named_part_ex(
-        Main *mainl, FileData *fd, const int idcode, const char *name, const short flag,
+        Main *mainl, FileData *fd, const short idcode, const char *name, const short flag,
 		Scene *scene, View3D *v3d, const bool use_placeholders, const bool force_indirect)
 {
 	ID *id = link_named_part(mainl, fd, idcode, name, use_placeholders, force_indirect);
@@ -9767,8 +9767,10 @@ ID *BLO_library_link_named_part(Main *mainl, BlendHandle **bh, const short idcod
  * \return the linked ID when found.
  */
 ID *BLO_library_link_named_part_ex(
-        Main *mainl, BlendHandle **bh, const int idcode, const char *name, const short flag,
-        Scene *scene, View3D *v3d, const bool use_placeholders, const bool force_indirect)
+        Main *mainl, BlendHandle **bh,
+        const short idcode, const char *name, const short flag,
+        Scene *scene, View3D *v3d,
+        const bool use_placeholders, const bool force_indirect)
 {
 	FileData *fd = (FileData*)(*bh);
 	return link_named_part_ex(mainl, fd, idcode, name, flag, scene, v3d, use_placeholders, force_indirect);
