@@ -1523,7 +1523,6 @@ static void clip_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID 
 	}
 }
 
-
 /* only called once, from space/spacetypes.c */
 void ED_spacetype_clip(void)
 {

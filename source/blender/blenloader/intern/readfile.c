@@ -9773,7 +9773,8 @@ ID *BLO_library_link_named_part(Main *mainl, BlendHandle **bh, const short idcod
  */
 ID *BLO_library_link_named_part_ex(
         Main *mainl, BlendHandle **bh, const short idcode, const char *name, const short flag,
-        Scene *scene, View3D *v3d, const bool use_placeholders, const bool force_indirect)
+        Scene *scene, View3D *v3d,
+        const bool use_placeholders, const bool force_indirect)
 {
 	FileData *fd = (FileData*)(*bh);
 	return link_named_part_ex(mainl, fd, NULL, idcode, name, NULL, flag, scene, v3d, use_placeholders, force_indirect);
@@ -9797,7 +9798,8 @@ ID *BLO_library_link_named_part_ex(
 struct ID *BLO_library_link_named_part_asset(
         Main *mainl, BlendHandle **bh, const AssetEngineType *aet,
         const short idcode, const char *name, const AssetUUID *uuid, const short flag,
-        Scene *scene, View3D *v3d, const bool use_placeholders, const bool force_indirect)
+        Scene *scene, View3D *v3d,
+        const bool use_placeholders, const bool force_indirect)
 {
 	FileData *fd = (FileData*)(*bh);
 	return link_named_part_ex(mainl, fd, aet, idcode, name, uuid, flag, scene, v3d, use_placeholders, force_indirect);

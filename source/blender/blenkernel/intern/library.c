@@ -189,6 +189,7 @@ static void id_us_clear_real(ID *id)
 			const int limit = ID_FAKE_USERS(id);
 			id->us--;
 			BLI_assert(id->us >= limit);
+			UNUSED_VARS_NDEBUG(limit);
 		}
 		id->flag2 &= ~(LIB_EXTRAUSER | LIB_EXTRAUSER_SET);
 	}
@@ -1048,21 +1049,9 @@ typedef struct IDRemap {
 	int skipped_refcounted;  /* Number of skipped usecases that refcount the datablock. */
 } IDRemap;
 
-/* IDRemp->flag */
-enum {
-	/* Do not remap indirect usages of IDs (that is, when user is some linked data). */
-	ID_REMAP_SKIP_INDIRECT_USAGE    = 1 << 0,
-	/* This flag should always be set, *except for 'unlink' scenarios* (only relevant when new_id == NULL).
-	 * Basically, when unset, NEVER_NULL ID usages will keep pointing to old_id, but (if needed) old_id user count
-	 * will still be decremented. This is mandatory for 'delete ID' case, but in all other situation this would lead
-	 * to invalid user counts! */
-	ID_REMAP_SKIP_NEVER_NULL_USAGE  = 1 << 1,
-	/* This tells the callback func to flag with LIB_DOIT all IDs using target one with a 'never NULL' pointer
-	 * (like e.g. Object->data). */
-	ID_REMAP_FLAG_NEVER_NULL_USAGE  = 1 << 2,
-};
+/* IDRemap->flag enums defined in BKE_library.h */
 
-/* IDRemp->status */
+/* IDRemap->status */
 enum {
 	/* *** Set by callback. *** */
 	ID_REMAP_IS_LINKED_DIRECT       = 1 << 0,  /* new_id is directly linked in current .blend. */
@@ -1245,14 +1234,11 @@ static void libblock_remap_data(
  */
 void BKE_libblock_remap_locked(
         Main *bmain, void *old_idv, void *new_idv,
-        const bool skip_indirect_usage, const bool us_min_never_null, const bool do_flag_never_null)
+        const short remap_flags)
 {
 	IDRemap id_remap_data;
 	ID *old_id = old_idv;
 	ID *new_id = new_idv;
-	int remap_flags = ((skip_indirect_usage ? ID_REMAP_SKIP_INDIRECT_USAGE : 0) |
-	                   (do_flag_never_null ? ID_REMAP_FLAG_NEVER_NULL_USAGE : 0) |
-	                   (us_min_never_null ? 0 : ID_REMAP_SKIP_NEVER_NULL_USAGE));
 	int skipped_direct, skipped_refcounted;
 
 	BLI_assert(old_id != NULL);
@@ -1357,23 +1343,29 @@ void BKE_libblock_remap_locked(
 	DAG_relations_tag_update(bmain);
 }
 
-void BKE_libblock_remap(
-        Main *bmain, void *old_idv, void *new_idv,
-        const bool skip_indirect_usage, const bool us_min_never_null, const bool do_flag_never_null)
+void BKE_libblock_remap(Main *bmain, void *old_idv, void *new_idv, const short remap_flags)
 {
 	BKE_main_lock(bmain);
 
-	BKE_libblock_remap_locked(bmain, old_idv, new_idv, skip_indirect_usage, us_min_never_null, do_flag_never_null);
+	BKE_libblock_remap_locked(bmain, old_idv, new_idv, remap_flags);
 
 	BKE_main_unlock(bmain);
 }
 
-/** Unlink given \a id from given \a bmain (does not touch to indirect, i.e. library, usages of the ID). */
+/**
+ * Unlink given \a id from given \a bmain (does not touch to indirect, i.e. library, usages of the ID).
+ *
+ * \param do_flag_never_null If true, all IDs using \a idv in a 'non-NULL' way are flagged by \a LIB_DOIT flag
+ *                           (quite obviously, 'non-NULL' usages can never be unlinked by this function...).
+ */
 void BKE_libblock_unlink(Main *bmain, void *idv, const bool do_flag_never_null)
 {
+	const short remap_flags = ID_REMAP_SKIP_INDIRECT_USAGE | ID_REMAP_SKIP_INDIRECT_USAGE |
+	                          (do_flag_never_null ? ID_REMAP_FLAG_NEVER_NULL_USAGE : 0);
+
 	BKE_main_lock(bmain);
 
-	BKE_libblock_remap_locked(bmain, idv, NULL, true, false, do_flag_never_null);
+	BKE_libblock_remap_locked(bmain, idv, NULL, remap_flags);
 
 	BKE_main_unlock(bmain);
 }

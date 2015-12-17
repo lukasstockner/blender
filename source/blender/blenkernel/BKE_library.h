@@ -58,13 +58,27 @@ void *BKE_libblock_copy(struct ID *id) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 void  BKE_libblock_copy_data(struct ID *id, const struct ID *id_from, const bool do_action);
 void  BKE_libblock_relink(struct ID *id);
 
+/* Also IDRemap->flag. */
+enum {
+	/* Do not remap indirect usages of IDs (that is, when user is some linked data). */
+	ID_REMAP_SKIP_INDIRECT_USAGE    = 1 << 0,
+	/* This flag should always be set, *except for 'unlink' scenarios* (only relevant when new_id == NULL).
+	 * Basically, when unset, NEVER_NULL ID usages will keep pointing to old_id, but (if needed) old_id user count
+	 * will still be decremented. This is mandatory for 'delete ID' case, but in all other situation this would lead
+	 * to invalid user counts! */
+	ID_REMAP_SKIP_NEVER_NULL_USAGE  = 1 << 1,
+	/* This tells the callback func to flag with LIB_DOIT all IDs using target one with a 'never NULL' pointer
+	 * (like e.g. Object->data). */
+	ID_REMAP_FLAG_NEVER_NULL_USAGE  = 1 << 2,
+};
+
 /* Note: Requiring new_id to be non-null, this *may* not be the case ultimately, but makes things simpler for now. */
 void BKE_libblock_remap_locked(
         struct Main *bmain, void *old_idv, void *new_idv,
-        const bool skip_indirect_usage, const bool us_min_never_null, const bool do_flag_never_null) ATTR_NONNULL(1, 2);
+        const short remap_flags) ATTR_NONNULL(1, 2);
 void BKE_libblock_remap(
         struct Main *bmain, void *old_idv, void *new_idv,
-        const bool skip_indirect_usage, const bool us_min_never_null, const bool do_flag_never_null) ATTR_NONNULL(1, 2);
+        const short remap_flags) ATTR_NONNULL(1, 2);
 
 void BKE_libblock_unlink(struct Main *bmain, void *idv, const bool do_flag_never_null) ATTR_NONNULL();
 

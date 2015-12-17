@@ -831,12 +831,7 @@ static void node_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID 
 			/* nasty DNA logic for SpaceNode:
 			 * ideally should be handled by editor code, but would be bad level call
 			 */
-			bNodeTreePath *path, *path_next;
-			for (path = snode->treepath.first; path; path = path_next) {
-				path_next = path->next;
-				MEM_freeN(path);
-			}
-			BLI_listbase_clear(&snode->treepath);
+			BLI_freelistN(&snode->treepath);
 
 			/* XXX Untested in case new_id != NULL... */
 			snode->id = new_id;
