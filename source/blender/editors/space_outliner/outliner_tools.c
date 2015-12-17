@@ -1388,7 +1388,8 @@ static void remap_action_cb(bContext *C, Scene *UNUSED(scene), TreeElement *UNUS
 	ID *new_id = user_data;
 
 	if (tselem->id && (tselem->id != new_id) && (GS(tselem->id->name) == GS(new_id->name))) {
-		BKE_libblock_remap(CTX_data_main(C), tselem->id, new_id, true, false, false);
+		BKE_libblock_remap(CTX_data_main(C), tselem->id, new_id,
+		                   ID_REMAP_SKIP_INDIRECT_USAGE | ID_REMAP_SKIP_NEVER_NULL_USAGE);
 	}
 }
 

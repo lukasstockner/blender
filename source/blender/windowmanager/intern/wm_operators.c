@@ -3126,7 +3126,7 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 				if (new_id) {
 //					printf("before remap, old_id users: %d (%p), new_id users: %d (%p)\n", old_id->us, old_id, new_id->us, new_id);
 					/* Note that here, we also want to replace indirect usages. */
-					BKE_libblock_remap_locked(bmain, old_id, new_id, false, false, false);
+					BKE_libblock_remap_locked(bmain, old_id, new_id, ID_REMAP_SKIP_NEVER_NULL_USAGE);
 
 //					printf("after remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
 
@@ -3255,7 +3255,8 @@ static int wm_lib_relocate_exec_do(bContext *C, wmOperator *op, const bool reloa
 				BLI_assert(old_id);
 				if (new_id) {
 //					printf("before remap, old_id users: %d, new_id users: %d\n", old_id->us, new_id->us);
-					BKE_libblock_remap_locked(bmain, old_id, new_id, true, false, false);
+					BKE_libblock_remap_locked(bmain, old_id, new_id,
+					                          ID_REMAP_SKIP_INDIRECT_USAGE | ID_REMAP_SKIP_NEVER_NULL_USAGE);
 
 					if (old_id->flag & LIB_FAKEUSER) {
 						id_fake_user_clear(old_id);
