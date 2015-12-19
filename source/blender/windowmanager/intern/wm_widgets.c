@@ -1424,35 +1424,3 @@ void wm_widgetgrouptype_keymap_init(wmWidgetGroupTypeC *wgrouptype, wmKeyConfig 
 	wgrouptype->keymap = wgrouptype->keymap_init(keyconf, wgrouptype->name);
 }
 
-void WM_widgetgrouptype_unregister(bContext *C, Main *bmain, wmWidgetGroupTypeC *wgrouptype)
-{
-	for (bScreen *sc = bmain->screen.first; sc; sc = sc->id.next) {
-		for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
-			for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
-				ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
-				for (ARegion *ar = lb->first; ar; ar = ar->next) {
-					for (wmWidgetMap *wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
-						wmWidgetGroup *wgroup, *wgroup_next;
-
-						for (wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup_next) {
-							wgroup_next = wgroup->next;
-							if (wgroup->type == wgrouptype) {
-								wm_widgetgroup_free(C, wmap, wgroup);
-								ED_region_tag_redraw(ar);
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	wmWidgetMapType *wmaptype = WM_widgetmaptype_find(wgrouptype->mapidname, wgrouptype->spaceid,
-	                                                  wgrouptype->regionid, wgrouptype->is_3d, false);
-
-	BLI_remlink(&wmaptype->widgetgrouptypes, wgrouptype);
-	wgrouptype->prev = wgrouptype->next = NULL;
-
-	MEM_freeN(wgrouptype);
-}
-

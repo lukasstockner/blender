@@ -57,6 +57,7 @@ struct wmWidgetGroupType *WM_widgetgrouptype_new(
         struct wmKeyMap *(*keymap_init)(struct wmKeyConfig *, const char *),
         const struct Main *bmain, const char *mapidname, const char *name,
         const short spaceid, const short regionid, const bool is_3d);
+void WM_widgetgrouptype_unregister(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgrouptype);
 void WM_widgetgrouptype_attach_to_handler(
         struct bContext *C, struct wmWidgetGroupType *wgrouptype,
         struct wmEventHandler *handler, struct wmOperator *op);

@@ -29,8 +29,10 @@
 
 #include "wm_widget.h"
 
+#if 0
 wmWidget::wmWidget()
 {
 	
 }
+#endif
 

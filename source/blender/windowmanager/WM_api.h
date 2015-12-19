@@ -562,8 +562,6 @@ wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, const char *wgroupna
 
 bool WM_widgetmap_select_all(struct bContext *C, struct wmWidgetMap *wmap, const int action);
 
-void WM_widgetgrouptype_unregister(struct bContext *C, struct Main *bmain, struct wmWidgetGroupTypeC *wgroup);
-
 /* creates a widgetmap with all registered widgets for that type */
 void WM_widgetmap_delete(struct wmWidgetMap *wmap);
 bool WM_widgetmap_cursor_set(const struct wmWidgetMap *wmap, struct wmWindow *win);

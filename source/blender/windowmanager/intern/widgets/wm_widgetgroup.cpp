@@ -27,6 +27,23 @@
  *  \ingroup wm
  */
 
+#include "BKE_report.h"
+
+#include "BLI_listbase.h"
+
+#include "DNA_defs.h"
+#include "DNA_widget_types.h"
+#include "DNA_windowmanager_types.h"
+
+#include "MEM_guardedalloc.h"
+
+#include "RNA_types.h"
+#include "BPY_extern.h"
+
+#include "wm.h" // tmp
+
+#include "wm_widget.h"
+#include "wm_widgetmap.h"
 #include "wm_widgetgroup.h" // own_include
 
 #if 0
@@ -35,4 +52,35 @@ wmWidgetGroup::wmWidgetGroup()
 	
 }
 #endif
+
+void widgetgroup_free(bContext *UNUSED(C), wmWidgetMap *wmap, wmWidgetGroup *wgroup)
+{
+	for (wmWidget *widget = (wmWidget *)wgroup->widgets.first; widget;) {
+		wmWidget *widget_next = widget->next;
+		if (widget->flag & WM_WIDGET_HIGHLIGHT) {
+//			wm_widgetmap_set_highlighted_widget(wmap, C, NULL, 0);
+		}
+		if (widget->flag & WM_WIDGET_ACTIVE) {
+//			wm_widgetmap_set_active_widget(wmap, C, NULL, NULL);
+		}
+//		wm_widget_delete(&wgroup->widgets, widget);
+		widget = widget_next;
+	}
+
+#ifdef WITH_PYTHON
+	if (wgroup->py_instance) {
+		/* do this first in case there are any __del__ functions or
+		 * similar that use properties */
+		BPY_DECREF_RNA_INVALIDATE(wgroup->py_instance);
+	}
+#endif
+
+	if (wgroup->reports && (wgroup->reports->flag & RPT_FREE)) {
+		BKE_reports_clear(wgroup->reports);
+		MEM_freeN(wgroup->reports);
+	}
+
+	BLI_remlink(&wmap->widgetgroups, wgroup);
+	MEM_freeN(wgroup);
+}
 

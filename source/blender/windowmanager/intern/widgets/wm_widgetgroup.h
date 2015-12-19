@@ -43,4 +43,6 @@ public:
 };
 #endif
 
+void widgetgroup_free(bContext *C, struct wmWidgetMap *wmap, wmWidgetGroup *wgroup);
+
 #endif // __WM_WIDGETGROUP_H__

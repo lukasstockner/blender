@@ -72,6 +72,11 @@ wmWidgetGroupType *WM_widgetgrouptype_new(
 	return wgrouptype;
 }
 
+void WM_widgetgrouptype_unregister(bContext *C, Main *bmain, wmWidgetGroupType *wgrouptype)
+{
+	wgrouptype->unregister(C, bmain);
+}
+
 void WM_widgetgrouptype_attach_to_handler(
         bContext *C, wmWidgetGroupType *wgrouptype,
         wmEventHandler *handler, wmOperator *op)

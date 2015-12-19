@@ -46,6 +46,7 @@
 
 #include "wm_widgetmap.h"
 #include "wm_widgetmaptype.h"
+#include "wm_widgetgroup.h"
 #include "wm_widgetgrouptype.h" // own include
 
 
@@ -102,6 +103,39 @@ void wmWidgetGroupType::init(
 			}
 		}
 	}
+}
+
+void wmWidgetGroupType::unregister(bContext *C, Main *bmain)
+{
+	for (bScreen *sc = (bScreen *)bmain->screen.first; sc; sc = (bScreen *)sc->id.next) {
+		for (ScrArea *sa = (ScrArea *)sc->areabase.first; sa; sa = sa->next) {
+			for (SpaceLink *sl = (SpaceLink *)sa->spacedata.first; sl; sl = sl->next) {
+				ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
+				for (ARegion *ar = (ARegion *)lb->first; ar; ar = ar->next) {
+					for (wmWidgetMap *wmap = (wmWidgetMap *)ar->widgetmaps.first; wmap; wmap = wmap->next) {
+						wmWidgetGroup *wgroup, *wgroup_next;
+
+						for (wgroup = (wmWidgetGroup *)wmap->widgetgroups.first; wgroup; wgroup = wgroup_next) {
+							wgroup_next = wgroup->next;
+							if (wgroup->type_cxx == this) {
+								widgetgroup_free(C, wmap, wgroup);
+//								ED_region_tag_redraw(ar);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	wmWidgetMapType *wmaptype = WM_widgetmaptype_find(mapidname, spaceid,
+	                                                  regionid, is_3d, false);
+
+	BLI_remlink(&wmaptype->widgetgrouptypes, this);
+	prev = next = NULL;
+
+	// yay, suicide
+	delete this;
 }
 
 void wmWidgetGroupType::attach_to_handler(bContext *C, wmEventHandler *handler, wmOperator *op)

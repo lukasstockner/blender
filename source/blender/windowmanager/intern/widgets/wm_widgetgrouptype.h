@@ -53,6 +53,7 @@ public:
 	        wmKeyMap *(*keymap_init)(wmKeyConfig *, const char *),
 	        const Main *bmain, const char *mapidname, const char *name,
 	        const short spaceid, const short regionid, const bool is_3d);
+	void unregister(bContext *C, Main *bmain);
 
 	void attach_to_handler(bContext *C, struct wmEventHandler *handler, struct wmOperator *op);
 	size_t get_idname(char *r_idname);
