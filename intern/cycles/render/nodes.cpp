@@ -1891,7 +1891,7 @@ void GlossyBsdfNode::simplify_settings(Scene *scene)
 		/* Fallback to Sharp closure for Roughness close to 0.
 		 * Note: Keep the epsilon in sync with kernel!
 		 */
-		ShaderInput *roughness_input = get_input("Roughness");
+		ShaderInput *roughness_input = input("Roughness");
 		if(!roughness_input->link && roughness_input->value.x <= 1e-4f) {
 			distribution = ustring("Sharp");
 		}
@@ -1905,7 +1905,7 @@ void GlossyBsdfNode::simplify_settings(Scene *scene)
 
 bool GlossyBsdfNode::has_integrator_dependency()
 {
-	ShaderInput *roughness_input = get_input("Roughness");
+	ShaderInput *roughness_input = input("Roughness");
 	return !roughness_input->link && roughness_input->value.x <= 1e-4f;
 }
 
@@ -1960,7 +1960,7 @@ void GlassBsdfNode::simplify_settings(Scene *scene)
 		/* Fallback to Sharp closure for Roughness close to 0.
 		 * Note: Keep the epsilon in sync with kernel!
 		 */
-		ShaderInput *roughness_input = get_input("Roughness");
+		ShaderInput *roughness_input = input("Roughness");
 		if(!roughness_input->link && roughness_input->value.x <= 1e-4f) {
 			distribution = ustring("Sharp");
 		}
@@ -1974,7 +1974,7 @@ void GlassBsdfNode::simplify_settings(Scene *scene)
 
 bool GlassBsdfNode::has_integrator_dependency()
 {
-	ShaderInput *roughness_input = get_input("Roughness");
+	ShaderInput *roughness_input = input("Roughness");
 	return !roughness_input->link && roughness_input->value.x <= 1e-4f;
 }
 
@@ -2029,7 +2029,7 @@ void RefractionBsdfNode::simplify_settings(Scene *scene)
 		/* Fallback to Sharp closure for Roughness close to 0.
 		 * Note: Keep the epsilon in sync with kernel!
 		 */
-		ShaderInput *roughness_input = get_input("Roughness");
+		ShaderInput *roughness_input = input("Roughness");
 		if(!roughness_input->link && roughness_input->value.x <= 1e-4f) {
 			distribution = ustring("Sharp");
 		}
@@ -2043,7 +2043,7 @@ void RefractionBsdfNode::simplify_settings(Scene *scene)
 
 bool RefractionBsdfNode::has_integrator_dependency()
 {
-	ShaderInput *roughness_input = get_input("Roughness");
+	ShaderInput *roughness_input = input("Roughness");
 	return !roughness_input->link && roughness_input->value.x <= 1e-4f;
 }
 
@@ -3177,6 +3177,13 @@ ValueNode::ValueNode()
 	add_output("Value", SHADER_SOCKET_FLOAT);
 }
 
+bool ValueNode::constant_fold(ShaderOutput * /*socket*/,
+                              float3 *optimized_value)
+{
+	*optimized_value = make_float3(value, value, value);
+	return true;
+}
+
 void ValueNode::compile(SVMCompiler& compiler)
 {
 	ShaderOutput *val_out = output("Value");
@@ -3199,6 +3206,13 @@ ColorNode::ColorNode()
 	value = make_float3(0.0f, 0.0f, 0.0f);
 
 	add_output("Color", SHADER_SOCKET_COLOR);
+}
+
+bool ColorNode::constant_fold(ShaderOutput * /*socket*/,
+                              float3 *optimized_value)
+{
+	*optimized_value = value;
+	return true;
 }
 
 void ColorNode::compile(SVMCompiler& compiler)
@@ -4316,6 +4330,9 @@ RGBCurvesNode::RGBCurvesNode()
 	add_input("Fac", SHADER_SOCKET_FLOAT);
 	add_input("Color", SHADER_SOCKET_COLOR);
 	add_output("Color", SHADER_SOCKET_COLOR);
+
+	min_x = 0.0f;
+	max_x = 1.0f;
 }
 
 void RGBCurvesNode::compile(SVMCompiler& compiler)
@@ -4328,7 +4345,12 @@ void RGBCurvesNode::compile(SVMCompiler& compiler)
 	compiler.stack_assign(color_in);
 	compiler.stack_assign(color_out);
 
-	compiler.add_node(NODE_RGB_CURVES, fac_in->stack_offset, color_in->stack_offset, color_out->stack_offset);
+	compiler.add_node(NODE_RGB_CURVES,
+	                  compiler.encode_uchar4(fac_in->stack_offset,
+	                                         color_in->stack_offset,
+	                                         color_out->stack_offset),
+	                  __float_as_int(min_x),
+	                  __float_as_int(max_x));
 	compiler.add_array(curves, RAMP_TABLE_SIZE);
 }
 
@@ -4343,6 +4365,8 @@ void RGBCurvesNode::compile(OSLCompiler& compiler)
 	}
 
 	compiler.parameter_color_array("ramp", ramp, RAMP_TABLE_SIZE);
+	compiler.parameter("min_x", min_x);
+	compiler.parameter("max_x", max_x);
 	compiler.add(this, "node_rgb_curves");
 }
 

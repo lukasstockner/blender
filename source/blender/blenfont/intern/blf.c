@@ -55,6 +55,8 @@
 
 #include "IMB_colormanagement.h"
 
+#include "GPU_basic_shader.h"
+
 #include "blf_internal_types.h"
 #include "blf_internal.h"
 
@@ -382,7 +384,7 @@ void BLF_aspect(int fontid, float x, float y, float z)
 	}
 }
 
-void BLF_matrix(int fontid, const double m[16])
+void BLF_matrix(int fontid, const float m[16])
 {
 	FontBLF *font = blf_get(fontid);
 
@@ -494,8 +496,9 @@ static void blf_draw_gl__start(FontBLF *font, GLint *mode)
 	 */
 
 	glEnable(GL_BLEND);
-	glEnable(GL_TEXTURE_2D);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	GPU_basic_shader_bind(GPU_SHADER_TEXTURE_2D | GPU_SHADER_USE_COLOR);
 
 	/* Save the current matrix mode. */
 	glGetIntegerv(GL_MATRIX_MODE, mode);
@@ -508,7 +511,7 @@ static void blf_draw_gl__start(FontBLF *font, GLint *mode)
 	glPushMatrix();
 
 	if (font->flags & BLF_MATRIX)
-		glMultMatrixd((GLdouble *)&font->m);
+		glMultMatrixf(font->m);
 
 	glTranslate3fv(font->pos);
 
@@ -536,8 +539,8 @@ static void blf_draw_gl__end(GLint mode)
 	if (mode != GL_MODELVIEW)
 		glMatrixMode(mode);
 
+	GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
 	glDisable(GL_BLEND);
-	glDisable(GL_TEXTURE_2D);
 }
 
 void BLF_draw_ex(
