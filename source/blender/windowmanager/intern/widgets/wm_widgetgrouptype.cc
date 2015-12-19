@@ -79,7 +79,7 @@ void wmWidgetGroupType::init(
 
 
 	/* init keymap - on startup there's an extra call to init keymaps for 'permanent' widget-groups */
-//	wm_widgetgrouptype_keymap_init(wgrouptype, ((wmWindowManager *)bmain->wm.first)->defaultconf);
+	keymap_init_do(((wmWindowManager *)bmain->wm.first)->defaultconf);
 
 	/* now create a widget for all existing areas */
 	for (bScreen *sc = (bScreen *)bmain->screen.first; sc; sc = (bScreen *)sc->id.next) {
@@ -136,6 +136,11 @@ void wmWidgetGroupType::unregister(bContext *C, Main *bmain)
 
 	// yay, suicide
 	delete this;
+}
+
+void wmWidgetGroupType::keymap_init_do(wmKeyConfig *keyconf)
+{
+	keymap = keymap_init(keyconf, name);
 }
 
 void wmWidgetGroupType::attach_to_handler(bContext *C, wmEventHandler *handler, wmOperator *op)

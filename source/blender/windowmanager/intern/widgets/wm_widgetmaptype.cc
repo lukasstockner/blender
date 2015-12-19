@@ -33,7 +33,8 @@
 
 #include "DNA_defs.h"
 
-#include "wm_widgets_c_api.h"
+#include "wm_widgets_c_api.h" // tmp
+#include "wm_widgetgrouptype.h"
 #include "wm_widgetmaptype.h" // own include
 
 
@@ -68,5 +69,20 @@ wmWidgetMapType *WM_widgetmaptype_find(
 	BLI_addhead(&widgetmaptypes, wmaptype);
 
 	return wmaptype;
+}
+
+void widgets_keymap(wmKeyConfig *keyconf)
+{
+	for (wmWidgetMapType *wmaptype = (wmWidgetMapType *)widgetmaptypes.first;
+	     wmaptype;
+	     wmaptype = wmaptype->next)
+	{
+		for (wmWidgetGroupType *wgrouptype = (wmWidgetGroupType *)wmaptype->widgetgrouptypes.first;
+		     wgrouptype;
+		     wgrouptype = wgrouptype->next)
+		{
+			wgrouptype->keymap_init_do(keyconf);
+		}
+	}
 }
 

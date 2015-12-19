@@ -35,6 +35,14 @@
 #include "wm_widgets_c_api.h" // own include
 
 
+/**
+ * Initialize keymaps for all existing widget-groups
+ */
+void wm_widgets_keymap(wmKeyConfig *keyconfig)
+{
+	widgets_keymap(keyconfig);
+}
+
 wmWidgetMap *WM_widgetmap_from_type(
         const char *idname, const int spaceid, const int regionid,
         const bool is_3d)

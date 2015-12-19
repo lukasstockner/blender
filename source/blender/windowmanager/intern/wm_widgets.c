@@ -195,21 +195,6 @@ static void widget_calculate_scale(wmWidget *widget, const bContext *C)
 	widget->scale = scale * widget->user_scale;
 }
 
-/**
- * Initialize keymaps for all existing widget-groups
- */
-void wm_widgets_keymap(wmKeyConfig *keyconf)
-{
-	wmWidgetMapType *wmaptype;
-	wmWidgetGroupTypeC *wgrouptype;
-
-	for (wmaptype = widgetmaptypes.first; wmaptype; wmaptype = wmaptype->next) {
-		for (wgrouptype = wmaptype->widgetgrouptypes.first; wgrouptype; wgrouptype = wgrouptype->next) {
-			wm_widgetgrouptype_keymap_init(wgrouptype, keyconf);
-		}
-	}
-}
-
 BLI_INLINE bool widget_compare(const wmWidget *a, const wmWidget *b)
 {
 	return STREQ(a->idname, b->idname);
@@ -1417,10 +1402,5 @@ wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, const char *wgroupna
 	RNA_boolean_set(kmi->ptr, "toggle", true);
 
 	return km;
-}
-
-void wm_widgetgrouptype_keymap_init(wmWidgetGroupTypeC *wgrouptype, wmKeyConfig *keyconf)
-{
-	wgrouptype->keymap = wgrouptype->keymap_init(keyconf, wgrouptype->name);
 }
 

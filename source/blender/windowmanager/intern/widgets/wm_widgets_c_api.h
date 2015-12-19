@@ -43,6 +43,8 @@ struct wmWidgetGroup;
 struct wmWidgetGroupType;
 
 
+void wm_widgets_keymap(struct wmKeyConfig *keyconfig);
+
 struct wmWidgetMapType *WM_widgetmaptype_find(
         const char *idname, const int spaceid, const int regionid,
         const bool is_3d, const bool create);

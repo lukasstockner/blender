@@ -104,8 +104,6 @@ void        wm_drags_draw(bContext *C, wmWindow *win, rcti *rect);
 void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler *handler);
 void wm_widgetmap_handler_context(bContext *C, wmEventHandler *handler);
 
-void wm_widgetgrouptype_keymap_init(wmWidgetGroupTypeC *wgrouptype, wmKeyConfig *keyconf);
-
 wmWidget *wm_widget_find_highlighted_3D(wmWidgetMap *wmap, bContext *C, const wmEvent *event, unsigned char *part);
 wmWidget *wm_widget_find_highlighted(wmWidgetMap *wmap, bContext *C, const wmEvent *event, unsigned char *part);
 void      wm_widgetmap_set_highlighted_widget(wmWidgetMap *wmap, bContext *C, wmWidget *widget, unsigned char part);

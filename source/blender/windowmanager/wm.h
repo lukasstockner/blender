@@ -174,7 +174,6 @@ void wm_open_init_use_scripts(wmOperator *op, bool use_prefs);
 /* wm_widgets.c */
 bool wm_widgetmap_is_3d(const wmWidgetMap *wmap);
 bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *name);
-void wm_widgets_keymap(wmKeyConfig *keyconf);
 
 void WIDGETGROUP_OT_widget_select(wmOperatorType *ot);
 void WIDGETGROUP_OT_widget_tweak(wmOperatorType *ot);

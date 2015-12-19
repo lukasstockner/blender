@@ -55,6 +55,7 @@ public:
 	        const short spaceid, const short regionid, const bool is_3d);
 	void unregister(bContext *C, Main *bmain);
 
+	void keymap_init_do(wmKeyConfig *keyconf);
 	void attach_to_handler(bContext *C, struct wmEventHandler *handler, struct wmOperator *op);
 	size_t get_idname(char *r_idname);
 
