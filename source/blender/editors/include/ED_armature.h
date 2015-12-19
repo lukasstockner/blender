@@ -45,6 +45,7 @@ struct bPoseChannel;
 struct IDProperty;
 struct ListBase;
 struct MeshDeformModifierData;
+struct DerivedMesh;
 struct Object;
 struct ReportList;
 struct Scene;
@@ -211,6 +212,7 @@ int BDR_drawSketchNames(struct ViewContext *vc);
 /* meshlaplacian.c */
 void mesh_deform_bind(struct Scene *scene,
                       struct MeshDeformModifierData *mmd,
+                      struct DerivedMesh *cagedm,
                       float *vertexcos, int totvert, float cagemat[4][4]);
 
 /* pose_utils.c */

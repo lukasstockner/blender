@@ -66,9 +66,9 @@
 #include "ED_transform.h"
 #include "ED_view3d.h"
 
-#include "GPU_extensions.h"
-#include "GPU_material.h"
 #include "GPU_compositing.h"
+#include "GPU_framebuffer.h"
+#include "GPU_material.h"
 
 #include "BIF_gl.h"
 

@@ -96,9 +96,10 @@ ShaderNode::~ShaderNode()
 
 ShaderInput *ShaderNode::input(const char *name)
 {
-	foreach(ShaderInput *socket, inputs)
+	foreach(ShaderInput *socket, inputs) {
 		if(strcmp(socket->name, name) == 0)
 			return socket;
+	}
 
 	return NULL;
 }
@@ -143,30 +144,6 @@ ShaderOutput *ShaderNode::add_output(const char *name, ShaderSocketType type)
 	ShaderOutput *output = new ShaderOutput(this, name, type);
 	outputs.push_back(output);
 	return output;
-}
-
-ShaderInput *ShaderNode::get_input(const char *name)
-{
-	foreach(ShaderInput *input, inputs) {
-		if(strcmp(input->name, name) == 0)
-			return input;
-	}
-
-	/* Should never happen. */
-	assert(!"No Shader Input!");
-	return NULL;
-}
-
-ShaderOutput *ShaderNode::get_output(const char *name)
-{
-	foreach(ShaderOutput *output, outputs) {
-		if(strcmp(output->name, name) == 0)
-			return output;
-	}
-
-	/* Should never happen. */
-	assert(!"No Shader Output!");
-	return NULL;
 }
 
 void ShaderNode::attributes(Shader *shader, AttributeRequestSet *attributes)
@@ -617,7 +594,7 @@ void ShaderGraph::constant_fold()
 			 */
 			foreach(ShaderInput *input, output->links) {
 				if(scheduled.find(input->parent) != scheduled.end()) {
-					/* Node might be not yet optimized but scheduled already
+					/* Node might not be optimized yet but scheduled already
 					 * by other dependencies. No need to re-schedule it.
 					 */
 					continue;

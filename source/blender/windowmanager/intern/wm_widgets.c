@@ -1403,7 +1403,7 @@ wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, const char *wgroupna
 	wmKeyMap *km = WM_keymap_find(config, wgroupname, 0, 0);
 	wmKeyMapItem *kmi;
 
-	WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_tweak", ACTIONMOUSE, KM_ANY, KM_ANY, 0);
+	WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_tweak", ACTIONMOUSE, KM_PRESS, KM_ANY, 0);
 
 	widgetgroup_tweak_modal_keymap(config, wgroupname);
 

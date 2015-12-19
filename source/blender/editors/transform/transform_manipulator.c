@@ -37,15 +37,16 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_view3d_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "BLI_listbase.h"
 
 #include "RNA_access.h"
 
@@ -549,12 +550,14 @@ static int calc_manipulator_stats(const bContext *C)
 {
 	const ScrArea *sa = CTX_wm_area(C);
 	const ARegion *ar = CTX_wm_region(C);
-	const View3D *v3d = sa->spacedata.first;
-	RegionView3D *rv3d = ar->regiondata;
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
-	Object *ob = OBACT;
+	View3D *v3d = sa->spacedata.first;
+	RegionView3D *rv3d = ar->regiondata;
 	Base *base;
+	Object *ob = OBACT;
+	bGPdata *gpd = CTX_data_gpencil_data(C);
+	const bool is_gp_edit = ((gpd) && (gpd->flag & GP_DATA_STROKE_EDITMODE));
 	int a, totsel = 0;
 
 	/* transform widget matrix */
@@ -565,11 +568,34 @@ static int calc_manipulator_stats(const bContext *C)
 	/* transform widget centroid/center */
 	INIT_MINMAX(scene->twmin, scene->twmax);
 	zero_v3(scene->twcent);
-
-	if (obedit) {
+	
+	if (is_gp_edit) {
+		CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
+		{
+			/* we're only interested in selected points here... */
+			if (gps->flag & GP_STROKE_SELECT) {
+				bGPDspoint *pt;
+				int i;
+				
+				/* Change selection status of all points, then make the stroke match */
+				for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+					if (pt->flag & GP_SPOINT_SELECT) {
+						calc_tw_center(scene, &pt->x);
+						totsel++;
+					}
+				}
+			}
+		}
+		CTX_DATA_END;
+		
+		/* selection center */
+		if (totsel) {
+			mul_v3_fl(scene->twcent, 1.0f / (float)totsel);   /* centroid! */
+		}
+	}
+	else if (obedit) {
 		ob = obedit;
-		if ((ob->lay & v3d->lay) == 0)
-			return 0;
+		if ((ob->lay & v3d->lay) == 0) return 0;
 
 		if (obedit->type == OB_MESH) {
 			BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -832,7 +858,7 @@ static int calc_manipulator_stats(const bContext *C)
 	}
 
 	/* global, local or normal orientation? */
-	if (ob && totsel) {
+	if (ob && totsel && !is_gp_edit) {
 		float mat[3][3];
 
 		switch (v3d->twmode) {
@@ -906,20 +932,27 @@ static void manipulator_drawflags_refresh(RegionView3D *rv3d)
 	}
 }
 
-static void manipulator_prepare_mat(Scene *scene, View3D *v3d, RegionView3D *rv3d)
+static void manipulator_prepare_mat(const bContext *C, View3D *v3d, RegionView3D *rv3d)
 {
+	Scene *scene = CTX_data_scene(C);
+
 	switch (v3d->around) {
 		case V3D_AROUND_CENTER_BOUNDS:
 		case V3D_AROUND_ACTIVE:
 		{
-			Object *ob = OBACT;
-			if ((v3d->around == V3D_AROUND_ACTIVE) && !scene->obedit && !(ob->mode & OB_MODE_POSE)) {
-				copy_v3_v3(rv3d->twmat[3], ob->obmat[3]);
-			}
-			else {
-				mid_v3_v3v3(rv3d->twmat[3], scene->twmin, scene->twmax);
-			}
-			break;
+				bGPdata *gpd = CTX_data_gpencil_data(C);
+				Object *ob = OBACT;
+
+				if (((v3d->around == V3D_AROUND_ACTIVE) && (scene->obedit == NULL)) &&
+				    ((gpd == NULL) || !(gpd->flag & GP_DATA_STROKE_EDITMODE)) &&
+				    (!(ob->mode & OB_MODE_POSE)))
+				{
+					copy_v3_v3(rv3d->twmat[3], ob->obmat[3]);
+				}
+				else {
+					mid_v3_v3v3(rv3d->twmat[3], scene->twmin, scene->twmax);
+				}
+				break;
 		}
 		case V3D_AROUND_LOCAL_ORIGINS:
 		case V3D_AROUND_CENTER_MEAN:
@@ -1017,7 +1050,7 @@ static int manipulator_handler(bContext *C, const wmEvent *UNUSED(event), wmWidg
 	RegionView3D *rv3d = ar->regiondata;
 
 	if (calc_manipulator_stats(C)) {
-		manipulator_prepare_mat(CTX_data_scene(C), v3d, rv3d);
+		manipulator_prepare_mat(C, v3d, rv3d);
 		WM_widget_set_origin(widget, rv3d->twmat[3]);
 	}
 
@@ -1043,7 +1076,7 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 		return;
 
 
-	manipulator_prepare_mat(CTX_data_scene(C), v3d, rv3d);
+	manipulator_prepare_mat(C, v3d, rv3d);
 	manipulator_drawflags_refresh(rv3d);
 
 	/* when looking through a selected camera, the manipulator can be at the
@@ -1177,3 +1210,4 @@ int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupT
 
 	return ((v3d->twflag & V3D_USE_MANIPULATOR) != 0);
 }
+
