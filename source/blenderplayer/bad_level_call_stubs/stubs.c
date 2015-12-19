@@ -129,7 +129,7 @@ struct wmOperator;
 struct wmOperatorType;
 struct wmWindow;
 struct wmWindowManager;
-struct wmWidgetMap;
+struct wmWidgetMapC;
 
 
 /* -------------------------------------------------------------------- */
@@ -312,7 +312,7 @@ void WM_cursor_modal_restore(struct wmWindow *win) RET_NONE
 void WM_cursor_time(struct wmWindow *win, int nr) RET_NONE
 void WM_cursor_warp(struct wmWindow *win, int x, int y) RET_NONE
 
-void WM_widgetmap_delete(struct wmWidgetMap *wmap) RET_NONE
+void WM_widgetmap_delete(struct wmWidgetMapC *wmap) RET_NONE
 struct wmWidgetMapType *WM_widgetmaptype_find(const char *idname, int spaceid, int regionid, bool is_3d, bool create) RET_NULL
 
 void WM_ndof_deadzone_set(float deadzone) RET_NONE

@@ -2713,7 +2713,7 @@ static int graph_widget_backdrop_transform_modal(bContext *C, wmOperator *op, co
 		case RIGHTMOUSE:
 		{
 			ARegion *ar = CTX_wm_region(C);
-			wmWidgetMap *wmap = ar->widgetmaps.first;
+			wmWidgetMapC *wmap = ar->widgetmaps.first;
 			SpaceIpo *sipo = CTX_wm_space_graph(C);
 
 			/* only end modal if we're not dragging a widget */

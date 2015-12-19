@@ -810,7 +810,7 @@ void ED_view3d_polygon_offset(const RegionView3D *rv3d, const float dist)
 /**
  * \param rect optional for picking (can be NULL).
  */
-void view3d_winmatrix_set(ARegion *ar, const View3D *v3d, const rctf *rect)
+void ED_view3d_winmatrix_set(ARegion *ar, const View3D *v3d, const rctf *rect)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	rctf viewplane;
@@ -1095,7 +1095,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 		BLI_rctf_rcti_copy(&rect, input);
 	}
 	
-	view3d_winmatrix_set(ar, v3d, &rect);
+	ED_view3d_winmatrix_set(ar, v3d, &rect);
 	mul_m4_m4m4(vc->rv3d->persmat, vc->rv3d->winmat, vc->rv3d->viewmat);
 	
 	if (v3d->drawtype > OB_WIRE) {
@@ -1125,7 +1125,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 	}
 
 	G.f &= ~G_PICKSEL;
-	view3d_winmatrix_set(ar, v3d, NULL);
+	ED_view3d_winmatrix_set(ar, v3d, NULL);
 	mul_m4_m4m4(vc->rv3d->persmat, vc->rv3d->winmat, vc->rv3d->viewmat);
 	
 	if (v3d->drawtype > OB_WIRE) {

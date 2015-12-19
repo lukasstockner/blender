@@ -53,12 +53,12 @@ wmWidgetGroup::wmWidgetGroup()
 }
 #endif
 
-void widgetgroup_free(bContext *UNUSED(C), wmWidgetMap *wmap, wmWidgetGroup *wgroup)
+void widgetgroup_free(bContext *C, wmWidgetMap *wmap, wmWidgetGroup *wgroup)
 {
 	for (wmWidget *widget = (wmWidget *)wgroup->widgets.first; widget;) {
 		wmWidget *widget_next = widget->next;
 		if (widget->flag & WM_WIDGET_HIGHLIGHT) {
-//			wm_widgetmap_set_highlighted_widget(wmap, C, NULL, 0);
+			wmap->set_highlighted_widget(C, NULL, 0);
 		}
 		if (widget->flag & WM_WIDGET_ACTIVE) {
 //			wm_widgetmap_set_active_widget(wmap, C, NULL, NULL);

@@ -34,7 +34,7 @@
 struct wmWindow;
 struct ReportList;
 struct wmEvent;
-struct wmWidgetMap;
+struct wmWidgetMapC;
 struct wmOperatorType;
 struct PointerRNA;
 struct PropertyRNA;
@@ -172,7 +172,6 @@ void wm_open_init_load_ui(wmOperator *op, bool use_prefs);
 void wm_open_init_use_scripts(wmOperator *op, bool use_prefs);
 
 /* wm_widgets.c */
-bool wm_widgetmap_is_3d(const wmWidgetMap *wmap);
 bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *name);
 
 void WIDGETGROUP_OT_widget_select(wmOperatorType *ot);

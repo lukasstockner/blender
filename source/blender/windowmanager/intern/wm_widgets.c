@@ -112,7 +112,7 @@ static GHash *draw_widgets = NULL;
  * \param data  Custom data passed to \a poll
  */
 static GHash *wm_widgetmap_widget_hash_new(
-        const bContext *C, wmWidgetMap *wmap,
+        const bContext *C, wmWidgetMapC *wmap,
         bool (*poll)(const wmWidget *, void *),
         void *data, const bool include_hidden)
 {
@@ -200,14 +200,14 @@ BLI_INLINE bool widget_compare(const wmWidget *a, const wmWidget *b)
 	return STREQ(a->idname, b->idname);
 }
 
-static void widget_highlight_update(wmWidgetMap *wmap, const wmWidget *old_, wmWidget *new_)
+static void widget_highlight_update(wmWidgetMapC *wmap, const wmWidget *old_, wmWidget *new_)
 {
 	new_->flag |= WM_WIDGET_HIGHLIGHT;
 	wmap->wmap_context.highlighted_widget = new_;
 	new_->highlighted_part = old_->highlighted_part;
 }
 
-void WM_widgetmap_widgets_update(const bContext *C, wmWidgetMap *wmap)
+void WM_widgetmap_widgets_update(const bContext *C, wmWidgetMapC *wmap)
 {
 	wmWidget *widget = wmap->wmap_context.active_widget;
 
@@ -315,7 +315,7 @@ void WM_widgetmap_widgets_update(const bContext *C, wmWidgetMap *wmap)
  * \param free_drawwidgets  free global draw_widgets hash table (always enable for last draw call in region!).
  */
 void WM_widgetmap_widgets_draw(
-        const bContext *C, const wmWidgetMap *wmap,
+        const bContext *C, const wmWidgetMapC *wmap,
         const bool in_scene, const bool free_drawwidgets)
 {
 	const bool draw_multisample = (U.ogl_multisamples != USER_MULTISAMPLE_NONE);
@@ -395,7 +395,7 @@ void WM_widgetmap_widgets_draw(
 
 void WM_event_add_area_widgetmap_handlers(ARegion *ar)
 {
-	for (wmWidgetMap *wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
+	for (wmWidgetMapC *wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
 		wmEventHandler *handler = MEM_callocN(sizeof(wmEventHandler), "widget handler");
 
 		handler->widgetmap = wmap;
@@ -415,7 +415,7 @@ void WM_modal_handler_attach_widgetgroup(
 	wgrouptype->op = op;
 
 	if (handler->op_region && !BLI_listbase_is_empty(&handler->op_region->widgetmaps)) {
-		for (wmWidgetMap *wmap = handler->op_region->widgetmaps.first; wmap; wmap = wmap->next) {
+		for (wmWidgetMapC *wmap = handler->op_region->widgetmaps.first; wmap; wmap = wmap->next) {
 			wmWidgetMapType *wmaptype = wmap->type;
 
 			if (wmaptype->spaceid == wgrouptype->spaceid && wmaptype->regionid == wgrouptype->regionid) {
@@ -584,7 +584,7 @@ void WM_widget_set_colors(wmWidget *widget, const float col[4], const float col_
  * Deselect all selected widgets in \a wmap.
  * \return if selection has changed.
  */
-static bool wm_widgetmap_deselect_all(wmWidgetMap *wmap, wmWidget ***sel)
+static bool wm_widgetmap_deselect_all(wmWidgetMapC *wmap, wmWidget ***sel)
 {
 	if (*sel == NULL || wmap->wmap_context.tot_selected == 0)
 		return false;
@@ -610,7 +610,7 @@ BLI_INLINE bool widget_selectable_poll(const wmWidget *widget, void *UNUSED(data
  * Select all selectable widgets in \a wmap.
  * \return if selection has changed.
  */
-static bool wm_widgetmap_select_all_intern(bContext *C, wmWidgetMap *wmap, wmWidget ***sel, const int action)
+static bool wm_widgetmap_select_all_intern(bContext *C, wmWidgetMapC *wmap, wmWidget ***sel, const int action)
 {
 	/* GHash is used here to avoid having to loop over all widgets twice (once to
 	 * get tot_sel for allocating, once for actually selecting). Instead we collect
@@ -638,7 +638,7 @@ static bool wm_widgetmap_select_all_intern(bContext *C, wmWidgetMap *wmap, wmWid
 		BLI_assert(i < (*tot_sel));
 	}
 	/* highlight first widget */
-	wm_widgetmap_set_highlighted_widget(wmap, C, (*sel)[0], (*sel)[0]->highlighted_part);
+	wm_widgetmap_set_highlighted_widget(C, wmap, (*sel)[0], (*sel)[0]->highlighted_part);
 
 	BLI_ghash_free(hash, NULL, NULL);
 	return changed;
@@ -650,7 +650,7 @@ static bool wm_widgetmap_select_all_intern(bContext *C, wmWidgetMap *wmap, wmWid
  *
  * TODO select all by type
  */
-bool WM_widgetmap_select_all(bContext *C, wmWidgetMap *wmap, const int action)
+bool WM_widgetmap_select_all(bContext *C, wmWidgetMapC *wmap, const int action)
 {
 	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
 	bool changed = false;
@@ -676,7 +676,7 @@ bool WM_widgetmap_select_all(bContext *C, wmWidgetMap *wmap, const int action)
  * Remove \a widget from selection.
  * Reallocates memory for selected widgets so better not call for selecting multiple ones.
  */
-static void wm_widget_deselect(const bContext *C, wmWidgetMap *wmap, wmWidget *widget)
+static void wm_widget_deselect(const bContext *C, wmWidgetMapC *wmap, wmWidget *widget)
 {
 	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
 	int *tot_selected = &wmap->wmap_context.tot_selected;
@@ -713,7 +713,7 @@ static void wm_widget_deselect(const bContext *C, wmWidgetMap *wmap, wmWidget *w
  * Add \a widget to selection.
  * Reallocates memory for selected widgets so better not call for selecting multiple ones.
  */
-void wm_widget_select(bContext *C, wmWidgetMap *wmap, wmWidget *widget)
+void wm_widget_select(bContext *C, wmWidgetMapC *wmap, wmWidget *widget)
 {
 	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
 	int *tot_selected = &wmap->wmap_context.tot_selected;
@@ -730,7 +730,7 @@ void wm_widget_select(bContext *C, wmWidgetMap *wmap, wmWidget *widget)
 	if (widget->select) {
 		widget->select(C, widget, SEL_SELECT);
 	}
-	wm_widgetmap_set_highlighted_widget(wmap, C, widget, widget->highlighted_part);
+	wm_widgetmap_set_highlighted_widget(C, wmap, widget, widget->highlighted_part);
 
 	ED_region_tag_redraw(CTX_wm_region(C));
 }
@@ -744,7 +744,7 @@ static int widget_select_invoke(bContext *C, wmOperator *op, const wmEvent *UNUS
 	bool toggle = RNA_boolean_get(op->ptr, "toggle");
 
 
-	for (wmWidgetMap *wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
+	for (wmWidgetMapC *wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
 		wmWidget ***sel = &wmap->wmap_context.selected_widgets;
 		wmWidget *highlighted = wmap->wmap_context.highlighted_widget;
 
@@ -797,7 +797,7 @@ void WIDGETGROUP_OT_widget_select(wmOperatorType *ot)
 }
 
 typedef struct WidgetTweakData {
-	wmWidgetMap *wmap;
+	wmWidgetMapC *wmap;
 	wmWidget *active;
 
 	int init_event; /* initial event type */
@@ -876,7 +876,7 @@ static int widget_tweak_modal(bContext *C, wmOperator *op, const wmEvent *event)
 static int widget_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ARegion *ar = CTX_wm_region(C);
-	wmWidgetMap *wmap;
+	wmWidgetMapC *wmap;
 	wmWidget *widget;
 
 	for (wmap = ar->widgetmaps.first; wmap; wmap = wmap->next)
@@ -944,162 +944,7 @@ void WM_widgetmaptypes_free(void)
 	fix_linking_widgets();
 }
 
-bool wm_widgetmap_is_3d(const wmWidgetMap *wmap)
-{
-	return wmap->type->is_3d;
-}
-
-static void widget_find_active_3D_loop(const bContext *C, ListBase *visible_widgets)
-{
-	int selectionbase = 0;
-	wmWidget *widget;
-
-	for (LinkData *link = visible_widgets->first; link; link = link->next) {
-		widget = link->data;
-		/* pass the selection id shifted by 8 bits. Last 8 bits are used for selected widget part id */
-		widget->render_3d_intersection(C, widget, selectionbase << 8);
-
-		selectionbase++;
-	}
-}
-
-static int wm_widget_find_highlighted_3D_intern(
-        ListBase *visible_widgets, const bContext *C, const wmEvent *event, const float hotspot)
-{
-	ScrArea *sa = CTX_wm_area(C);
-	ARegion *ar = CTX_wm_region(C);
-	View3D *v3d = sa->spacedata.first;
-	RegionView3D *rv3d = ar->regiondata;
-	rctf rect, selrect;
-	GLuint buffer[64];      // max 4 items per select, so large enuf
-	short hits;
-	const bool do_passes = GPU_select_query_check_active();
-
-	extern void view3d_winmatrix_set(ARegion *ar, View3D *v3d, rctf *rect);
-
-
-	rect.xmin = event->mval[0] - hotspot;
-	rect.xmax = event->mval[0] + hotspot;
-	rect.ymin = event->mval[1] - hotspot;
-	rect.ymax = event->mval[1] + hotspot;
-
-	selrect = rect;
-
-	view3d_winmatrix_set(ar, v3d, &rect);
-	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
-
-	if (do_passes)
-		GPU_select_begin(buffer, 64, &selrect, GPU_SELECT_NEAREST_FIRST_PASS, 0);
-	else
-		GPU_select_begin(buffer, 64, &selrect, GPU_SELECT_ALL, 0);
-	/* do the drawing */
-	widget_find_active_3D_loop(C, visible_widgets);
-
-	hits = GPU_select_end();
-
-	if (do_passes) {
-		GPU_select_begin(buffer, 64, &selrect, GPU_SELECT_NEAREST_SECOND_PASS, hits);
-		widget_find_active_3D_loop(C, visible_widgets);
-		GPU_select_end();
-	}
-
-	view3d_winmatrix_set(ar, v3d, NULL);
-	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
-
-	if (hits == 1) {
-		return buffer[3];
-	}
-	/* find the widget the value belongs to */
-	else if (hits > 1) {
-		GLuint val, dep, mindep = 0, minval = -1;
-		int a;
-
-		/* we compare the hits in buffer, but value centers highest */
-		/* we also store the rotation hits separate (because of arcs) and return hits on other widgets if there are */
-
-		for (a = 0; a < hits; a++) {
-			dep = buffer[4 * a + 1];
-			val = buffer[4 * a + 3];
-
-			if (minval == -1 || dep < mindep) {
-				mindep = dep;
-				minval = val;
-			}
-		}
-
-		return minval;
-	}
-
-	return -1;
-}
-
-static void wm_prepare_visible_widgets_3D(wmWidgetMap *wmap, ListBase *visible_widgets, bContext *C)
-{
-	wmWidget *widget;
-
-	for (wmWidgetGroup *wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
-		if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type)) {
-			for (widget = wgroup->widgets.first; widget; widget = widget->next) {
-				if (widget->render_3d_intersection && (widget->flag & WM_WIDGET_HIDDEN) == 0) {
-					BLI_addhead(visible_widgets, BLI_genericNodeN(widget));
-				}
-			}
-		}
-	}
-}
-
-wmWidget *wm_widget_find_highlighted_3D(wmWidgetMap *wmap, bContext *C, const wmEvent *event, unsigned char *part)
-{
-	wmWidget *result = NULL;
-	ListBase visible_widgets = {0};
-	const float hotspot = 14.0f;
-	int ret;
-
-	wm_prepare_visible_widgets_3D(wmap, &visible_widgets, C);
-
-	*part = 0;
-	/* set up view matrices */
-	view3d_operator_needs_opengl(C);
-
-	ret = wm_widget_find_highlighted_3D_intern(&visible_widgets, C, event, 0.5f * hotspot);
-
-	if (ret != -1) {
-		LinkData *link;
-		int retsec;
-		retsec = wm_widget_find_highlighted_3D_intern(&visible_widgets, C, event, 0.2f * hotspot);
-
-		if (retsec != -1)
-			ret = retsec;
-
-		link = BLI_findlink(&visible_widgets, ret >> 8);
-		*part = ret & 255;
-		result = link->data;
-	}
-
-	BLI_freelistN(&visible_widgets);
-
-	return result;
-}
-
-wmWidget *wm_widget_find_highlighted(wmWidgetMap *wmap, bContext *C, const wmEvent *event, unsigned char *part)
-{
-	wmWidget *widget;
-
-	for (wmWidgetGroup *wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
-		if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type)) {
-			for (widget = wgroup->widgets.first; widget; widget = widget->next) {
-				if (widget->intersect) {
-					if ((*part = widget->intersect(C, event, widget)))
-						return widget;
-				}
-			}
-		}
-	}
-
-	return NULL;
-}
-
-bool WM_widgetmap_cursor_set(const wmWidgetMap *wmap, wmWindow *win)
+bool WM_widgetmap_cursor_set(const wmWidgetMapC *wmap, wmWindow *win)
 {
 	for (; wmap; wmap = wmap->next) {
 		wmWidget *widget = wmap->wmap_context.highlighted_widget;
@@ -1112,49 +957,8 @@ bool WM_widgetmap_cursor_set(const wmWidgetMap *wmap, wmWindow *win)
 	return false;
 }
 
-void wm_widgetmap_set_highlighted_widget(wmWidgetMap *wmap, bContext *C, wmWidget *widget, unsigned char part)
-{
-	if ((widget != wmap->wmap_context.highlighted_widget) || (widget && part != widget->highlighted_part)) {
-		if (wmap->wmap_context.highlighted_widget) {
-			wmap->wmap_context.highlighted_widget->flag &= ~WM_WIDGET_HIGHLIGHT;
-			wmap->wmap_context.highlighted_widget->highlighted_part = 0;
-		}
-
-		wmap->wmap_context.highlighted_widget = widget;
-
-		if (widget) {
-			widget->flag |= WM_WIDGET_HIGHLIGHT;
-			widget->highlighted_part = part;
-			wmap->wmap_context.activegroup = widget->wgroup;
-
-			if (C && widget->get_cursor) {
-				wmWindow *win = CTX_wm_window(C);
-				WM_cursor_set(win, widget->get_cursor(widget));
-			}
-		}
-		else {
-			wmap->wmap_context.activegroup = NULL;
-			if (C) {
-				wmWindow *win = CTX_wm_window(C);
-				WM_cursor_set(win, CURSOR_STD);
-			}
-		}
-
-		/* tag the region for redraw */
-		if (C) {
-			ARegion *ar = CTX_wm_region(C);
-			ED_region_tag_redraw(ar);
-		}
-	}
-}
-
-wmWidget *wm_widgetmap_get_highlighted_widget(wmWidgetMap *wmap)
-{
-	return wmap->wmap_context.highlighted_widget;
-}
-
 void wm_widgetmap_set_active_widget(
-        wmWidgetMap *wmap, bContext *C,
+        wmWidgetMapC *wmap, bContext *C,
         const wmEvent *event, wmWidget *widget)
 {
 	if (widget) {
@@ -1255,7 +1059,7 @@ void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler 
 	if (!handler->op_region)
 		return;
 
-	for (wmWidgetMap *wmap = handler->op_region->widgetmaps.first; wmap; wmap = wmap->next) {
+	for (wmWidgetMapC *wmap = handler->op_region->widgetmaps.first; wmap; wmap = wmap->next) {
 		wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
 		ScrArea *area = CTX_wm_area(C);
 		ARegion *region = CTX_wm_region(C);
@@ -1282,12 +1086,12 @@ void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler 
 	}
 }
 
-wmWidget *wm_widgetmap_get_active_widget(wmWidgetMap *wmap)
+wmWidget *wm_widgetmap_get_active_widget(wmWidgetMapC *wmap)
 {
 	return wmap->wmap_context.active_widget;
 }
 
-void WM_widgetmap_delete(wmWidgetMap *wmap)
+void WM_widgetmap_delete(wmWidgetMapC *wmap)
 {
 	if (!wmap)
 		return;

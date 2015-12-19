@@ -295,7 +295,7 @@ void BKE_spacedata_id_unref(struct SpaceLink *sl, const struct ID *id)
 void BKE_area_region_free(SpaceType *st, ARegion *ar)
 {
 	uiList *uilst;
-	struct wmWidgetMap *wmap, *wmap_tmp;
+	struct wmWidgetMapC *wmap, *wmap_tmp;
 
 	if (st) {
 		ARegionType *art = BKE_regiontype_from_id(st, ar->regiontype);

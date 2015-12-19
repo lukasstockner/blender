@@ -27,7 +27,16 @@
  *  \ingroup wm
  */
 
-#include "wm_widget.h"
+#include "BKE_context.h"
+
+#include "DNA_defs.h"
+#include "DNA_listBase.h"
+#include "DNA_windowmanager_types.h"
+
+#include "wm_widgetgroup.h"
+#include "wm_widget.h" // own include
+
+#include "wm.h" // tmp
 
 #if 0
 wmWidget::wmWidget()
@@ -35,4 +44,18 @@ wmWidget::wmWidget()
 	
 }
 #endif
+
+void widget_find_active_3D_loop(const bContext *C, ListBase *visible_widgets)
+{
+	int selectionbase = 0;
+	wmWidget *widget;
+
+	for (LinkData *link = (LinkData *)visible_widgets->first; link; link = link->next) {
+		widget = (wmWidget *)link->data;
+		/* pass the selection id shifted by 8 bits. Last 8 bits are used for selected widget part id */
+		widget->render_3d_intersection(C, widget, selectionbase << 8);
+
+		selectionbase++;
+	}
+}
 

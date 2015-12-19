@@ -31,6 +31,10 @@
 #ifndef __ED_VIEW3D_H__
 #define __ED_VIEW3D_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ********* exports for space_view3d/ module ********** */
 struct ARegion;
 struct BMEdge;
@@ -239,6 +243,8 @@ bool ED_view3d_viewplane_get(
         const struct View3D *v3d, const struct RegionView3D *rv3d, int winxi, int winyi,
         struct rctf *r_viewplane, float *r_clipsta, float *r_clipend, float *r_pixsize);
 
+void ED_view3d_winmatrix_set(struct ARegion *ar, const struct View3D *v3d, const rctf *rect);
+
 void ED_view3d_polygon_offset(const struct RegionView3D *rv3d, const float dist);
 
 void ED_view3d_calc_camera_border(
@@ -421,5 +427,10 @@ void ED_view3d_shade_update(struct Main *bmain, struct Scene *scene, struct View
 
 #define V3D_IS_ZBUF(v3d) \
 	(((v3d)->flag & V3D_ZBUF_SELECT) && ((v3d)->drawtype > OB_WIRE))
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __ED_VIEW3D_H__ */

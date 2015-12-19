@@ -716,8 +716,8 @@ typedef struct wmWidgetGroupTypeC {
 	bool is_3d;
 } wmWidgetGroupTypeC;
 
-typedef struct wmWidgetMap {
-	struct wmWidgetMap *next, *prev;
+typedef struct wmWidgetMapC {
+	struct wmWidgetMapC *next, *prev;
 
 	wmWidgetMapType *type;
 	ListBase widgetgroups;
@@ -741,7 +741,7 @@ typedef struct wmWidgetMap {
 		/* set while widget is highlighted/active */
 		wmWidgetGroup *activegroup;
 	} wmap_context;
-} wmWidgetMap;
+} wmWidgetMapC;
 
 /* *************** migrated stuff, clean later? ************** */
 

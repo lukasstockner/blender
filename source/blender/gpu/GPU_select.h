@@ -30,6 +30,10 @@
 #ifndef __GPU_SELECT_H__
 #define __GPU_SELECT_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "DNA_vec_types.h"  /* rcft */
 #include "BLI_sys_types.h"
 
@@ -54,5 +58,10 @@ unsigned int GPU_select_end(void);
 
 /* has user activated? */
 bool GPU_select_query_check_active(void);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

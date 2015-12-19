@@ -370,7 +370,7 @@ static int pose_de_select_all_exec(bContext *C, wmOperator *op)
 	CTX_DATA_END;
 
 	/* handle widget selection */
-	WM_widgetmap_select_all(C, (wmWidgetMap *)ar->widgetmaps.first, action);
+	WM_widgetmap_select_all(C, (wmWidgetMapC *)ar->widgetmaps.first, action);
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, NULL);
 	

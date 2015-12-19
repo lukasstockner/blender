@@ -31,6 +31,10 @@
 #define __WM_WIDGET_H__
 
 
+// Workaround until we can remove widgetflags from WM_api.h. We could also
+// simply include it, but would like to avoid that for various reasons.
+#ifndef __WM_API_H__
+
 /* wmWidget->flag */
 enum widgetflags {
 	/* states */
@@ -46,6 +50,8 @@ enum widgetflags {
 	WM_WIDGET_SELECTABLE  = (1 << 8),
 };
 
+#endif // __WM_API_H__
+
 #if 0
 class wmWidget
 {
@@ -53,5 +59,7 @@ public:
 	wmWidget();
 };
 #endif
+
+void widget_find_active_3D_loop(const bContext *C, ListBase *visible_widgets);
 
 #endif // __WM_WIDGET_H__

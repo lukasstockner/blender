@@ -43,6 +43,7 @@ void wm_widgets_keymap(wmKeyConfig *keyconfig)
 	widgets_keymap(keyconfig);
 }
 
+
 wmWidgetMap *WM_widgetmap_from_type(
         const char *idname, const int spaceid, const int regionid,
         const bool is_3d)
@@ -51,6 +52,24 @@ wmWidgetMap *WM_widgetmap_from_type(
 	wmap->widgetmap_from_type(wmap, idname, spaceid, regionid, is_3d);
 	return wmap;
 }
+
+void wm_widgetmap_set_highlighted_widget(bContext *C, wmWidgetMap *wmap, wmWidget *widget, unsigned char part)
+{
+	wmap->set_highlighted_widget(C, widget, part);
+}
+wmWidget *wm_widgetmap_get_highlighted_widget(wmWidgetMap *wmap)
+{
+	return wmap->wmap_context.highlighted_widget;
+}
+
+
+wmWidget *wm_widgetmap_find_highlighted_widget(
+        wmWidgetMap *wmap, bContext *C, const wmEvent *event,
+        unsigned char *part)
+{
+	return wmap->find_highlighted_widget(C, event, part);
+}
+
 
 wmWidgetGroupType *WM_widgetgrouptype_new(
         int (*poll)(const bContext *, wmWidgetGroupType *),
@@ -99,6 +118,7 @@ size_t WM_widgetgrouptype_idname_get(wmWidgetGroupType *wgrouptype, char *r_idna
 {
 	return wgrouptype->get_idname(r_idname);
 }
+
 
 void fix_linking_widgets(void)
 {

@@ -60,7 +60,7 @@ struct wmOperatorType;
 struct wmOperator;
 struct wmWidget;
 struct wmWidgetGroup;
-struct wmWidgetMap;
+struct wmWidgetMapC;
 struct wmWidgetGroupTypeC;
 struct wmWidgetMapType;
 struct rcti;
@@ -512,8 +512,8 @@ struct wmWidget *WM_widget_new(void (*draw)(const struct bContext *, struct wmWi
                                int  (*intersect)(struct bContext *, const struct wmEvent *, struct wmWidget *),
                                int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, const int));
 
-void  WM_widgetmap_widgets_update(const struct bContext *C, struct wmWidgetMap *wmap);
-void  WM_widgetmap_widgets_draw(const struct bContext *C, const struct wmWidgetMap *wmap,
+void  WM_widgetmap_widgets_update(const struct bContext *C, struct wmWidgetMapC *wmap);
+void  WM_widgetmap_widgets_draw(const struct bContext *C, const struct wmWidgetMapC *wmap,
                       const bool in_scene, const bool free_drawwidgets);
 void  WM_event_add_area_widgetmap_handlers(struct ARegion *ar);
 void  WM_modal_handler_attach_widgetgroup(struct bContext *C, struct wmEventHandler *handler,
@@ -560,11 +560,11 @@ void WM_widget_set_colors(struct wmWidget *widget, const float col[4], const flo
 
 wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, const char *wgroupname);
 
-bool WM_widgetmap_select_all(struct bContext *C, struct wmWidgetMap *wmap, const int action);
+bool WM_widgetmap_select_all(struct bContext *C, struct wmWidgetMapC *wmap, const int action);
 
 /* creates a widgetmap with all registered widgets for that type */
-void WM_widgetmap_delete(struct wmWidgetMap *wmap);
-bool WM_widgetmap_cursor_set(const struct wmWidgetMap *wmap, struct wmWindow *win);
+void WM_widgetmap_delete(struct wmWidgetMapC *wmap);
+bool WM_widgetmap_cursor_set(const struct wmWidgetMapC *wmap, struct wmWindow *win);
 
 void WM_widgetmaptypes_free(void);
 

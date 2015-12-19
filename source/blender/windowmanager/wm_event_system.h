@@ -39,7 +39,7 @@
 
 struct ScrArea;
 struct ARegion;
-struct wmWidgetMap;
+struct wmWidgetMapC;
 struct wmWidget;
 
 /* wmKeyMap is in DNA_windowmanager.h, it's savable */
@@ -104,15 +104,10 @@ void        wm_drags_draw(bContext *C, wmWindow *win, rcti *rect);
 void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler *handler);
 void wm_widgetmap_handler_context(bContext *C, wmEventHandler *handler);
 
-wmWidget *wm_widget_find_highlighted_3D(wmWidgetMap *wmap, bContext *C, const wmEvent *event, unsigned char *part);
-wmWidget *wm_widget_find_highlighted(wmWidgetMap *wmap, bContext *C, const wmEvent *event, unsigned char *part);
-void      wm_widgetmap_set_highlighted_widget(wmWidgetMap *wmap, bContext *C, wmWidget *widget, unsigned char part);
-wmWidget *wm_widgetmap_get_highlighted_widget(wmWidgetMap *wmap);
+void      wm_widgetmap_set_active_widget(wmWidgetMapC *wmap, bContext *C, const wmEvent *event, wmWidget *widget);
+wmWidget *wm_widgetmap_get_active_widget(wmWidgetMapC *wmap);
 
-void      wm_widgetmap_set_active_widget(wmWidgetMap *wmap, bContext *C, const wmEvent *event, wmWidget *widget);
-wmWidget *wm_widgetmap_get_active_widget(wmWidgetMap *wmap);
-
-void      wm_widget_select(bContext *C, wmWidgetMap *wmap, wmWidget *widget);
+void      wm_widget_select(bContext *C, wmWidgetMapC *wmap, wmWidget *widget);
 
 #endif /* __WM_EVENT_SYSTEM_H__ */
 

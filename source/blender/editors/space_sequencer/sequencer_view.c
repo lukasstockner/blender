@@ -373,7 +373,7 @@ static int sequencer_overdrop_transform_modal(bContext *C, wmOperator *op, const
 		case RIGHTMOUSE:
 		{
 			ARegion *ar = CTX_wm_region(C);
-			wmWidgetMap *wmap = ar->widgetmaps.first;
+			wmWidgetMapC *wmap = ar->widgetmaps.first;
 			SpaceSeq *sseq = CTX_wm_space_seq(C);
 
 			/* only end modal if we're not dragging a widget */
@@ -513,7 +513,7 @@ static int sequencer_image_transform_widget_modal(bContext *C, wmOperator *op, c
 		{
 			ARegion *ar = CTX_wm_region(C);
 			Scene *scene = CTX_data_scene(C);
-			wmWidgetMap *wmap = ar->widgetmaps.first;
+			wmWidgetMapC *wmap = ar->widgetmaps.first;
 			float scale_fac = RNA_float_get(op->ptr, "scale");
 			float new_size[2];
 			float offset[2];

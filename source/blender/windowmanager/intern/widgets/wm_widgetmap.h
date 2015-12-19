@@ -50,6 +50,8 @@ public:
 	        wmWidgetMap *wmap, const char *idname,
 	        const int spaceid, const int regionid,
 	        const bool is_3d);
+	void set_highlighted_widget(struct bContext *C, wmWidget *widget, unsigned char part);
+	wmWidget *find_highlighted_widget(bContext *C, const struct wmEvent *event, unsigned char *part);
 
 	/**
 	 * \brief Widget map runtime context

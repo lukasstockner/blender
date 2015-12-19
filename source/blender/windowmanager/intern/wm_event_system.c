@@ -2087,7 +2087,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 			else if (handler->widgetmap) {
 				ScrArea *area = CTX_wm_area(C);
 				ARegion *region = CTX_wm_region(C);
-				wmWidgetMap *wmap = handler->widgetmap;
+				wmWidgetMapC *wmap = handler->widgetmap;
 				wmWidget *widget = wm_widgetmap_get_highlighted_widget(wmap);
 				unsigned char part;
 
@@ -2096,14 +2096,8 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 
 				/* handle widget highlighting */
 				if (event->type == MOUSEMOVE && !wm_widgetmap_get_active_widget(wmap)) {
-					if (wm_widgetmap_is_3d(wmap)) {
-						widget = wm_widget_find_highlighted_3D(wmap, C, event, &part);
-						wm_widgetmap_set_highlighted_widget(wmap, C, widget, part);
-					}
-					else {
-						widget = wm_widget_find_highlighted(wmap, C, event, &part);
-						wm_widgetmap_set_highlighted_widget(wmap, C, widget, part);
-					}
+					widget = wm_widgetmap_find_highlighted_widget(wmap, C, event, &part);
+					wm_widgetmap_set_highlighted_widget(C, wmap, widget, part);
 				}
 				/* handle user configurable widgetmap keymap */
 				else if (widget && wmap->wmap_context.activegroup) {

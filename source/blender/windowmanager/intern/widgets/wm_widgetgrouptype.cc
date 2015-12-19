@@ -95,7 +95,7 @@ void wmWidgetGroupType::init(
 
 							/* just add here, drawing will occur on next update */
 							BLI_addtail(&wmap->widgetgroups, wgroup);
-//							wm_widgetmap_set_highlighted_widget(wmap, NULL, NULL, 0);
+							wmap->set_highlighted_widget(NULL, NULL, 0);
 							ED_region_tag_redraw(ar);
 						}
 					}
