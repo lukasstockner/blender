@@ -31,6 +31,10 @@
 #ifndef __ED_SCREEN_H__
 #define __ED_SCREEN_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view2d_types.h"
@@ -202,6 +206,11 @@ void ED_region_cache_draw_cached_segments(const struct ARegion *ar, const int nu
 #define ED_KEYMAP_FRAMES    16
 #define ED_KEYMAP_GPENCIL   32
 #define ED_KEYMAP_HEADER    64
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __ED_SCREEN_H__ */
 
