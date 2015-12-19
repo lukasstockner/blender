@@ -85,12 +85,12 @@ set(SRC
 	wm_window.h
 	3d_widgets/ui_widget_library.h
 
-	intern/widgets/wm_widget.cpp
-	intern/widgets/wm_widgetgroup.cpp
-	intern/widgets/wm_widgetgrouptype.cpp
-	intern/widgets/wm_widgetmap.cpp
-	intern/widgets/wm_widgetmaptype.cpp
-	intern/widgets/wm_widgets_c_api.cpp
+	intern/widgets/wm_widget.cc
+	intern/widgets/wm_widgetgroup.cc
+	intern/widgets/wm_widgetgrouptype.cc
+	intern/widgets/wm_widgetmap.cc
+	intern/widgets/wm_widgetmaptype.cc
+	intern/widgets/wm_widgets_c_api.cc
 
 	intern/widgets/wm_widget.h
 	intern/widgets/wm_widgetgroup.h
