@@ -46,7 +46,7 @@ public:
 	wmWidgetMapType *type;
 	ListBase widgetgroups;
 
-	void widgetmap_from_type(
+	void find_from_type(
 	        wmWidgetMap *wmap, const char *idname,
 	        const int spaceid, const int regionid,
 	        const bool is_3d);

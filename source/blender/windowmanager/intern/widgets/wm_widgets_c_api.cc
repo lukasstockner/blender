@@ -49,7 +49,7 @@ wmWidgetMap *WM_widgetmap_from_type(
         const bool is_3d)
 {
 	wmWidgetMap *wmap = new wmWidgetMap;
-	wmap->widgetmap_from_type(wmap, idname, spaceid, regionid, is_3d);
+	wmap->find_from_type(wmap, idname, spaceid, regionid, is_3d);
 	return wmap;
 }
 

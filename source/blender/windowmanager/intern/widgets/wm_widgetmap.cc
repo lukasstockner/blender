@@ -57,7 +57,7 @@ wmWidgetMap::wmWidgetMap()
 	
 }
 
-void wmWidgetMap::widgetmap_from_type(
+void wmWidgetMap::find_from_type(
         wmWidgetMap *wmap, const char *idname,
         const int spaceid, const int regionid,
         const bool is_3d)
