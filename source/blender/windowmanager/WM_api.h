@@ -516,8 +516,6 @@ void  WM_widgetmap_widgets_draw(const struct bContext *C, const struct wmWidgetM
 void  WM_event_add_area_widgetmap_handlers(struct ARegion *ar);
 void  WM_modal_handler_attach_widgetgroup(struct bContext *C, struct wmEventHandler *handler,
                                           struct wmWidgetGroupType *wgrouptype, struct wmOperator *op);
-void  WM_widgetgroup_customdata_set(struct wmWidgetGroup *wgroup, void *data);
-void *WM_widgetgroup_customdata(const struct wmWidgetGroup *wgroup);
 
 /* wmWidget->flag */
 enum widgetflags {
