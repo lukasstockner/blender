@@ -144,15 +144,32 @@ public:
 			sysMemBuffersDesc.width = pDesc->width;
 			sysMemBuffersDesc.height = pDesc->height;
 			sysMemBuffersDesc.stride = pDesc->stride;
-			if (pDesc->format == GL_RED_INTEGER)
+			switch (pDesc->format) 
 			{
+			case GL_RED_INTEGER:
 				sysMemBuffersDesc.format = DVP_RED_INTEGER;
-				sysMemBuffersDesc.type = DVP_UNSIGNED_INT;
-			}
-			else
-			{
+				break;
+			default:
 				sysMemBuffersDesc.format = DVP_BGRA;
-				sysMemBuffersDesc.type = (pDesc->type == GL_UNSIGNED_INT_8_8_8_8) ? DVP_UNSIGNED_INT_8_8_8_8 : DVP_UNSIGNED_INT_8_8_8_8_REV;
+				break;
+			}
+			switch (pDesc->type)
+			{
+			case GL_UNSIGNED_BYTE:
+				sysMemBuffersDesc.type = DVP_UNSIGNED_BYTE;
+				break;
+			case GL_UNSIGNED_INT_2_10_10_10_REV:
+				sysMemBuffersDesc.type = DVP_UNSIGNED_INT_2_10_10_10_REV;
+				break;
+			case GL_UNSIGNED_INT_8_8_8_8:
+				sysMemBuffersDesc.type = DVP_UNSIGNED_INT_8_8_8_8;
+				break;
+			case GL_UNSIGNED_INT_10_10_10_2:
+				sysMemBuffersDesc.type = DVP_UNSIGNED_INT_10_10_10_2;
+				break;
+			default:
+				sysMemBuffersDesc.type = DVP_UNSIGNED_INT;
+				break;
 			}
 			sysMemBuffersDesc.size = pDesc->width * pDesc->height * 4;
 			sysMemBuffersDesc.bufAddr = mBuffer;
@@ -471,11 +488,11 @@ void PinnedMemoryAllocator::TransferBuffer(void* address, TextureDesc* texDesc, 
 	{
 		// first time we try to send data to the GPU, allocate a buffer for the texture
 		glBindTexture(GL_TEXTURE_2D, texId);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-		glTexImage2D(GL_TEXTURE_2D, 0, ((texDesc->format == GL_RED_INTEGER) ? GL_R32UI : GL_RGBA), texDesc->width, texDesc->height, 0, texDesc->format, texDesc->type, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, texDesc->internalFormat, texDesc->width, texDesc->height, 0, texDesc->format, texDesc->type, NULL);
 		glBindTexture(GL_TEXTURE_2D, 0);
 		mTexId = texId;
 	}
@@ -825,7 +842,7 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 	inputFlags = (mUse3D) ? bmdVideoInputDualStream3D : bmdVideoInputFlagDefault;
 	while (pDLDisplayModeIterator->Next(&pDLDisplayMode) == S_OK) 
 	{
-		if (   pDLDisplayMode->GetDisplayMode() == mDisplayMode 
+		if (   pDLDisplayMode->GetDisplayMode() == mDisplayMode
 			&& (pDLDisplayMode->GetFlags() & displayFlags) == displayFlags
 			&& mDLInput->DoesSupportVideoMode(mDisplayMode, mPixelFormat, inputFlags, &modeSupport, NULL) == S_OK
 			&& modeSupport == bmdDisplayModeSupported)
@@ -854,33 +871,44 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 		// 2 pixels per word
 		mTextureDesc.stride = mFrameWidth * 2;
 		mTextureDesc.width = mFrameWidth / 2;
-		mTextureDesc.format = GL_RED_INTEGER;
-		mTextureDesc.type = GL_UNSIGNED_INT;
+		mTextureDesc.internalFormat = GL_RGBA;
+		mTextureDesc.format = GL_BGRA;
+		mTextureDesc.type = GL_UNSIGNED_BYTE;
 		break;
 	case bmdFormat10BitYUV:
 		// 6 pixels in 4 words, rounded to 48 pixels
 		mTextureDesc.stride = ((mFrameWidth + 47) / 48) * 128;
 		mTextureDesc.width = ((mFrameWidth + 5) / 6) * 4;
-		mTextureDesc.format = GL_RED_INTEGER;
-		mTextureDesc.type = GL_UNSIGNED_INT;
+		mTextureDesc.internalFormat = GL_RGB10_A2;
+		mTextureDesc.format = GL_BGRA;
+		mTextureDesc.type = GL_UNSIGNED_INT_2_10_10_10_REV;
 		break;
 	case bmdFormat8BitARGB:
 		mTextureDesc.stride = mFrameWidth * 4;
 		mTextureDesc.width = mFrameWidth;
+		mTextureDesc.internalFormat = GL_RGBA;
 		mTextureDesc.format = GL_BGRA;
 		mTextureDesc.type = GL_UNSIGNED_INT_8_8_8_8;
 		break;
 	case bmdFormat8BitBGRA:
 		mTextureDesc.stride = mFrameWidth * 4;
 		mTextureDesc.width = mFrameWidth;
+		mTextureDesc.internalFormat = GL_RGBA;
 		mTextureDesc.format = GL_BGRA;
-		mTextureDesc.type = GL_UNSIGNED_INT_8_8_8_8_REV;
+		mTextureDesc.type = GL_UNSIGNED_BYTE;
 		break;
 	case bmdFormat10BitRGBXLE:
+		mTextureDesc.stride = ((mFrameWidth + 63) / 64) * 256;
+		mTextureDesc.width = mFrameWidth;
+		mTextureDesc.internalFormat = GL_RGB10_A2;
+		mTextureDesc.format = GL_RGBA;
+		mTextureDesc.type = GL_UNSIGNED_INT_10_10_10_2;
+		break;
 	case bmdFormat10BitRGBX:
 	case bmdFormat10BitRGB:
 		mTextureDesc.stride = ((mFrameWidth + 63) / 64) * 256;
 		mTextureDesc.width = mFrameWidth;
+		mTextureDesc.internalFormat = GL_R32UI;
 		mTextureDesc.format = GL_RED_INTEGER;
 		mTextureDesc.type = GL_UNSIGNED_INT;
 		break;
@@ -888,6 +916,7 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 	case bmdFormat12BitRGBLE:
 		mTextureDesc.stride = (mFrameWidth * 36) / 8;
 		mTextureDesc.width = (mFrameWidth / 8) * 9;
+		mTextureDesc.internalFormat = GL_R32UI;
 		mTextureDesc.format = GL_RED_INTEGER;
 		mTextureDesc.type = GL_UNSIGNED_INT;
 		break;

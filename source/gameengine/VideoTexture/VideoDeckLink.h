@@ -62,6 +62,7 @@ struct TextureDesc
 	u_int		height;
 	u_int		stride;
 	u_int		size;
+	GLenum		internalFormat;
 	GLenum		format;
 	GLenum		type;
 	TextureDesc()
@@ -70,6 +71,7 @@ struct TextureDesc
 		height = 0;
 		stride = 0;
 		size = 0;
+		internalFormat = 0;
 		format = 0;
 		type = 0;
 	}
