@@ -57,6 +57,7 @@ wmWidgetMap::wmWidgetMap(const char *idname, const int spaceid, const int region
 	wmWidgetMapType *wmaptype = WM_widgetmaptype_find(idname, spaceid, regionid, is_3d, true);
 
 	type = wmaptype;
+	widgetgroups.first = widgetgroups.last = NULL;
 
 	/* create all widgetgroups for this widgetmap. We may create an empty one
 	 * too in anticipation of widgets from operators etc */
