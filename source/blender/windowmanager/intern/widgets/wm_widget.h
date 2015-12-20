@@ -60,6 +60,7 @@ public:
 };
 #endif
 
+void widget_delete(ListBase *widgetlist, wmWidget *widget);
 void widget_find_active_3D_loop(const bContext *C, ListBase *visible_widgets);
 
 #endif // __WM_WIDGET_H__

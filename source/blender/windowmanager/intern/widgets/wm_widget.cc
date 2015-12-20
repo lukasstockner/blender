@@ -33,6 +33,10 @@
 #include "DNA_listBase.h"
 #include "DNA_windowmanager_types.h"
 
+#include "MEM_guardedalloc.h"
+
+#include "WM_api.h"
+
 #include "wm_widgetgroup.h"
 #include "wm_widget.h" // own include
 
@@ -44,6 +48,31 @@ wmWidget::wmWidget()
 	
 }
 #endif
+
+/**
+ * Free widget data, not widget itself.
+ */
+static void widget_data_free(wmWidget *widget)
+{
+	if (widget->opptr.data) {
+		WM_operator_properties_free(&widget->opptr);
+	}
+
+	MEM_freeN(widget->props);
+	MEM_freeN(widget->ptr);
+}
+
+/**
+ * Free and NULL \a widget.
+ * \a widgetlist is allowed to be NULL.
+ */
+void widget_delete(ListBase *widgetlist, wmWidget *widget)
+{
+	widget_data_free(widget);
+	if (widgetlist)
+		BLI_remlink(widgetlist, widget);
+	MEM_SAFE_FREE(widget);
+}
 
 void widget_find_active_3D_loop(const bContext *C, ListBase *visible_widgets)
 {

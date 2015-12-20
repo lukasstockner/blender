@@ -63,7 +63,7 @@ void widgetgroup_free(bContext *C, wmWidgetMap *wmap, wmWidgetGroup *wgroup)
 		if (widget->flag & WM_WIDGET_ACTIVE) {
 //			wm_widgetmap_set_active_widget(wmap, C, NULL, NULL);
 		}
-//		wm_widget_delete(&wgroup->widgets, widget);
+		widget_delete(&wgroup->widgets, widget);
 		widget = widget_next;
 	}
 
