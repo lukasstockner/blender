@@ -863,7 +863,7 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 	// for information, in case the application wants to know
 	m_size[0] = mFrameWidth;
 	m_size[1] = mTextureDesc.height;
-	m_frameRate = 1.0f+(float)frameTimescale / (float)frameDuration;
+    m_frameRate = (float)frameTimescale / (float)frameDuration;
 
 	switch (mPixelFormat)
 	{
