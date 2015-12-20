@@ -65,6 +65,7 @@ wmWidgetMapType *WM_widgetmaptype_find(
 	wmaptype->spaceid = spaceid;
 	wmaptype->regionid = regionid;
 	wmaptype->is_3d = is_3d;
+	wmaptype->widgetgrouptypes.first = wmaptype->widgetgrouptypes.last = NULL;
 	BLI_strncpy(wmaptype->idname, idname, MAX_NAME);
 	BLI_addhead(&widgetmaptypes, wmaptype);
 

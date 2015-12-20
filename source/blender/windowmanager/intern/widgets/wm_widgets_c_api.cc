@@ -90,20 +90,21 @@ wmWidgetGroupType *WM_widgetgrouptype_new(
 	wmWidgetMapType *wmaptype = WM_widgetmaptype_find(mapidname, spaceid, regionid, is_3d, false);
 
 	if (!wmaptype) {
-		fprintf(stderr, "widgetgrouptype creation: widgetmap type does not exist");
+		fprintf(stderr, "widgetgrouptype creation: widgetmap type does not exist\n");
 		return NULL;
 	}
 
 
 	wmWidgetGroupType *wgrouptype = new wmWidgetGroupType;
 
+
 	/* add the type for future created areas of the same type  */
 	BLI_addtail(&wmaptype->widgetgrouptypes, wgrouptype);
 
 	wgrouptype->init(wmaptype, wgrouptype,
-	                                    poll, create, keymap_init,
-	                                    bmain, mapidname, name,
-	                                    spaceid, regionid, is_3d);
+	                 poll, create, keymap_init,
+	                 bmain, mapidname, name,
+	                 spaceid, regionid, is_3d);
 
 	return wgrouptype;
 }
