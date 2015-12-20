@@ -53,6 +53,7 @@ struct wmWidgetMapType *WM_widgetmaptype_find(
 struct wmWidgetMap *WM_widgetmap_from_type(
         const char *idname, const int spaceid, const int regionid,
         const bool is_3d);
+/* highlighted widget */
 void wm_widgetmap_set_highlighted_widget(
         struct bContext *C, struct wmWidgetMap *wmap, struct wmWidget *widget,
         unsigned char part);
@@ -60,6 +61,10 @@ struct wmWidget *wm_widgetmap_get_highlighted_widget(struct wmWidgetMap *wmap);
 struct wmWidget *wm_widgetmap_find_highlighted_widget(
         struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event,
         unsigned char *part);
+/* active widget */
+void wm_widgetmap_set_active_widget(
+        struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
+struct wmWidget *wm_widgetmap_get_active_widget(struct wmWidgetMap *wmap);
 
 struct wmWidgetGroupType *WM_widgetgrouptype_new(
         int (*poll)(const struct bContext *, struct wmWidgetGroupType *),

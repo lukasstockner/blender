@@ -62,6 +62,15 @@ wmWidget *wm_widgetmap_get_highlighted_widget(wmWidgetMap *wmap)
 	return wmap->wmap_context.highlighted_widget;
 }
 
+void wm_widgetmap_set_active_widget(wmWidgetMap *wmap, bContext *C, const wmEvent *event, wmWidget *widget)
+{
+	wmap->set_active_widget(C, event, widget);
+}
+wmWidget *wm_widgetmap_get_active_widget(wmWidgetMap *wmap)
+{
+	return wmap->wmap_context.active_widget;
+}
+
 
 wmWidget *wm_widgetmap_find_highlighted_widget(
         wmWidgetMap *wmap, bContext *C, const wmEvent *event,

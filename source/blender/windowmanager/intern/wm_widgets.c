@@ -957,68 +957,6 @@ bool WM_widgetmap_cursor_set(const wmWidgetMapC *wmap, wmWindow *win)
 	return false;
 }
 
-void wm_widgetmap_set_active_widget(
-        wmWidgetMapC *wmap, bContext *C,
-        const wmEvent *event, wmWidget *widget)
-{
-	if (widget) {
-		if (widget->opname) {
-			wmOperatorType *ot = WM_operatortype_find(widget->opname, 0);
-
-			if (ot) {
-				/* first activate the widget itself */
-				if (widget->invoke && widget->handler) {
-					widget->flag |= WM_WIDGET_ACTIVE;
-					widget->invoke(C, event, widget);
-				}
-				wmap->wmap_context.active_widget = widget;
-
-				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr);
-
-				/* we failed to hook the widget to the operator handler or operator was cancelled, return */
-				if (!wmap->wmap_context.active_widget) {
-					widget->flag &= ~WM_WIDGET_ACTIVE;
-					/* first activate the widget itself */
-					if (widget->interaction_data) {
-						MEM_freeN(widget->interaction_data);
-						widget->interaction_data = NULL;
-					}
-				}
-				return;
-			}
-			else {
-				printf("Widget error: operator not found");
-				wmap->wmap_context.active_widget = NULL;
-				return;
-			}
-		}
-		else {
-			if (widget->invoke && widget->handler) {
-				widget->flag |= WM_WIDGET_ACTIVE;
-				widget->invoke(C, event, widget);
-				wmap->wmap_context.active_widget = widget;
-			}
-		}
-	}
-	else {
-		widget = wmap->wmap_context.active_widget;
-
-		/* deactivate, widget but first take care of some stuff */
-		if (widget) {
-			widget->flag &= ~WM_WIDGET_ACTIVE;
-			/* first activate the widget itself */
-			if (widget->interaction_data) {
-				MEM_freeN(widget->interaction_data);
-				widget->interaction_data = NULL;
-			}
-		}
-		wmap->wmap_context.active_widget = NULL;
-
-		ED_region_tag_redraw(CTX_wm_region(C));
-		WM_event_add_mousemove(C);
-	}
-}
-
 void wm_widgetmap_handler_context(bContext *C, wmEventHandler *handler)
 {
 	bScreen *screen = CTX_wm_screen(C);
@@ -1084,11 +1022,6 @@ void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler 
 		CTX_wm_area_set(C, area);
 		CTX_wm_region_set(C, region);
 	}
-}
-
-wmWidget *wm_widgetmap_get_active_widget(wmWidgetMapC *wmap)
-{
-	return wmap->wmap_context.active_widget;
 }
 
 void WM_widgetmap_delete(wmWidgetMapC *wmap)

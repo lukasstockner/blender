@@ -37,6 +37,8 @@
 #include "GPU_glew.h"
 #include "GPU_select.h"
 
+#include "MEM_guardedalloc.h"
+
 #include "WM_api.h"
 #include "wm_cursors.h"
 #include "WM_types.h"
@@ -258,6 +260,66 @@ void wmWidgetMap::set_highlighted_widget(bContext *C, wmWidget *widget, unsigned
 			ARegion *ar = CTX_wm_region(C);
 			ED_region_tag_redraw(ar);
 		}
+	}
+}
+
+void wmWidgetMap::set_active_widget(bContext *C, const wmEvent *event, wmWidget *widget)
+{
+	if (widget) {
+		if (widget->opname) {
+			wmOperatorType *ot = WM_operatortype_find(widget->opname, 0);
+
+			if (ot) {
+				/* first activate the widget itself */
+				if (widget->invoke && widget->handler) {
+					widget->flag |= WM_WIDGET_ACTIVE;
+					widget->invoke(C, event, widget);
+				}
+				wmap_context.active_widget = widget;
+
+				WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &widget->opptr);
+
+				/* we failed to hook the widget to the operator handler or operator was cancelled, return */
+				if (!wmap_context.active_widget) {
+					widget->flag &= ~WM_WIDGET_ACTIVE;
+					/* first activate the widget itself */
+					if (widget->interaction_data) {
+						MEM_freeN(widget->interaction_data);
+						widget->interaction_data = NULL;
+					}
+				}
+				return;
+			}
+			else {
+				printf("Widget error: operator not found\n");
+				wmap_context.active_widget = NULL;
+				return;
+			}
+		}
+		else {
+			if (widget->invoke && widget->handler) {
+				widget->flag |= WM_WIDGET_ACTIVE;
+				widget->invoke(C, event, widget);
+				wmap_context.active_widget = widget;
+			}
+		}
+	}
+	else {
+		widget = wmap_context.active_widget;
+
+		/* deactivate, widget but first take care of some stuff */
+		if (widget) {
+			widget->flag &= ~WM_WIDGET_ACTIVE;
+			/* first activate the widget itself */
+			if (widget->interaction_data) {
+				MEM_freeN(widget->interaction_data);
+				widget->interaction_data = NULL;
+			}
+		}
+		wmap_context.active_widget = NULL;
+
+		ED_region_tag_redraw(CTX_wm_region(C));
+		WM_event_add_mousemove(C);
 	}
 }
 
