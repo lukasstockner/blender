@@ -1672,7 +1672,7 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	UI_view2d_view_restore(C);
 	
 	/* finally draw any widgets here */
-	WM_widgetmap_widgets_update(C, ar->widgetmaps.first);
+	WM_widgetmap_widgets_update(ar->widgetmaps.first, C);
 	WM_widgetmap_widgets_draw(C, ar->widgetmaps.first, false, true);
 
 	/* scrollers */

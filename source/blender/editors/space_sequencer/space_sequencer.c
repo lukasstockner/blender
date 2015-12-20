@@ -605,7 +605,7 @@ static void sequencer_preview_region_draw(const bContext *C, ARegion *ar)
 		ED_scene_draw_fps(scene, &rect);
 	}
 
-	WM_widgetmap_widgets_update(C, ar->widgetmaps.first);
+	WM_widgetmap_widgets_update(ar->widgetmaps.first, C);
 	WM_widgetmap_widgets_draw(C, ar->widgetmaps.first, false, true);
 }
 
