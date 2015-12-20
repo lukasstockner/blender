@@ -54,17 +54,13 @@
 
 wmWidgetMap::wmWidgetMap()
 {
-	
 }
 
-void wmWidgetMap::find_from_type(
-        wmWidgetMap *wmap, const char *idname,
-        const int spaceid, const int regionid,
-        const bool is_3d)
+void wmWidgetMap::init(const char *idname, const int spaceid, const int regionid, const bool is_3d)
 {
 	wmWidgetMapType *wmaptype = WM_widgetmaptype_find(idname, spaceid, regionid, is_3d, true);
 
-	wmap->type = wmaptype;
+	type = wmaptype;
 
 	/* create all widgetgroups for this widgetmap. We may create an empty one
 	 * too in anticipation of widgets from operators etc */
@@ -74,7 +70,7 @@ void wmWidgetMap::find_from_type(
 	{
 		wmWidgetGroup *wgroup = new wmWidgetGroup;
 		wgroup->type_cxx = wgrouptype;
-		BLI_addtail(&wmap->widgetgroups, wgroup);
+		BLI_addtail(&widgetgroups, wgroup);
 	}
 }
 

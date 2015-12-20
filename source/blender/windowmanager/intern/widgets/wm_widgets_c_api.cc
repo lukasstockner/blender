@@ -44,12 +44,10 @@ void wm_widgets_keymap(wmKeyConfig *keyconfig)
 }
 
 
-wmWidgetMap *WM_widgetmap_from_type(
-        const char *idname, const int spaceid, const int regionid,
-        const bool is_3d)
+wmWidgetMap *WM_widgetmap_from_type(const char *idname, const int spaceid, const int regionid, const bool is_3d)
 {
 	wmWidgetMap *wmap = new wmWidgetMap;
-	wmap->find_from_type(wmap, idname, spaceid, regionid, is_3d);
+	wmap->init(idname, spaceid, regionid, is_3d);
 	return wmap;
 }
 
