@@ -50,27 +50,29 @@
 #include "wm_widgetgrouptype.h" // own include
 
 
-wmWidgetGroupType::wmWidgetGroupType()
-{
-	
-}
-
-void wmWidgetGroupType::init(
-        wmWidgetMapType *wmaptype, wmWidgetGroupType *wgrouptype,
+wmWidgetGroupType::wmWidgetGroupType(
+        wmWidgetMapType *wmaptype,
         int (*poll)(const bContext *, wmWidgetGroupType *),
         void (*create)(const bContext *, wmWidgetGroup *),
         wmKeyMap *(*keymap_init)(wmKeyConfig *, const char *),
-        const Main *bmain, const char *mapidname, const char *name,
-        const short spaceid, const short regionid, const bool is_3d)
+        const Main *bmain,
+        const char *mapidname_,
+        const char *name_,
+        const short spaceid,
+        const short regionid,
+        const bool is_3d)
+    : poll(poll),
+      create(create),
+      keymap_init(keymap_init),
+      spaceid(spaceid),
+      regionid(regionid),
+      is_3d(is_3d)
 {
-	wgrouptype->poll = poll;
-	wgrouptype->create = create;
-	wgrouptype->keymap_init = keymap_init;
-	wgrouptype->spaceid = spaceid;
-	wgrouptype->regionid = regionid;
-	wgrouptype->is_3d = is_3d;
-	BLI_strncpy(wgrouptype->name, name, MAX_NAME);
-	BLI_strncpy(wgrouptype->mapidname, mapidname, MAX_NAME);
+	BLI_strncpy(name, name_, MAX_NAME);
+	BLI_strncpy(mapidname, mapidname_, MAX_NAME);
+
+	/* add the type for future created areas of the same type  */
+	BLI_addtail(&wmaptype->widgetgrouptypes, this);
 
 	/* Main is missing on startup when we create new areas.
 	 * So this is only called for widgets initialized on runtime */
@@ -91,7 +93,7 @@ void wmWidgetGroupType::init(
 						if (wmap->type == wmaptype) {
 							wmWidgetGroup *wgroup = new wmWidgetGroup;
 
-							wgroup->type_cxx = wgrouptype;
+							wgroup->type_cxx = this;
 
 							/* just add here, drawing will occur on next update */
 							BLI_addtail(&wmap->widgetgroups, wgroup);
@@ -105,7 +107,7 @@ void wmWidgetGroupType::init(
 	}
 }
 
-void wmWidgetGroupType::unregister(bContext *C, Main *bmain)
+void wmWidgetGroupType::free(bContext *C, Main *bmain)
 {
 	for (bScreen *sc = (bScreen *)bmain->screen.first; sc; sc = (bScreen *)sc->id.next) {
 		for (ScrArea *sa = (ScrArea *)sc->areabase.first; sa; sa = sa->next) {

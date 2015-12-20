@@ -44,11 +44,9 @@ void wm_widgets_keymap(wmKeyConfig *keyconfig)
 }
 
 
-wmWidgetMap *WM_widgetmap_from_type(const char *idname, const int spaceid, const int regionid, const bool is_3d)
+wmWidgetMap *WM_widgetmap_new(const char *idname, const int spaceid, const int regionid, const bool is_3d)
 {
-	wmWidgetMap *wmap = new wmWidgetMap;
-	wmap->init(idname, spaceid, regionid, is_3d);
-	return wmap;
+	return new wmWidgetMap(idname, spaceid, regionid, is_3d);
 }
 
 void wm_widgetmap_set_highlighted_widget(bContext *C, wmWidgetMap *wmap, wmWidget *widget, unsigned char part)
@@ -78,6 +76,9 @@ wmWidget *wm_widgetmap_find_highlighted_widget(
 }
 
 
+/**
+ * Create and register a new widget-group-type
+ */
 wmWidgetGroupType *WM_widgetgrouptype_new(
         int (*poll)(const bContext *, wmWidgetGroupType *),
         void (*create)(const bContext *, wmWidgetGroup *),
@@ -92,24 +93,15 @@ wmWidgetGroupType *WM_widgetgrouptype_new(
 		return NULL;
 	}
 
-
-	wmWidgetGroupType *wgrouptype = new wmWidgetGroupType;
-
-
-	/* add the type for future created areas of the same type  */
-	BLI_addtail(&wmaptype->widgetgrouptypes, wgrouptype);
-
-	wgrouptype->init(wmaptype, wgrouptype,
-	                 poll, create, keymap_init,
-	                 bmain, mapidname, name,
-	                 spaceid, regionid, is_3d);
-
-	return wgrouptype;
+	return new wmWidgetGroupType(
+	            wmaptype, poll, create, keymap_init,
+	            bmain, mapidname, name, spaceid,
+	            regionid, is_3d);
 }
 
-void WM_widgetgrouptype_unregister(bContext *C, Main *bmain, wmWidgetGroupType *wgrouptype)
+void WM_widgetgrouptype_delete(bContext *C, Main *bmain, wmWidgetGroupType *wgrouptype)
 {
-	wgrouptype->unregister(C, bmain);
+	wgrouptype->free(C, bmain);
 }
 
 void WM_widgetgrouptype_attach_to_handler(

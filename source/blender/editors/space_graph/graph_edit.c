@@ -2661,7 +2661,7 @@ static void graph_widget_backdrop_transform_finish(bContext *C, BackDropTransfor
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ED_area_headerprint(sa, NULL);
-	WM_widgetgrouptype_unregister(C, CTX_data_main(C), data->cagetype);
+	WM_widgetgrouptype_delete(C, CTX_data_main(C), data->cagetype);
 	MEM_freeN(data);
 }
 

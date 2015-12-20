@@ -226,7 +226,7 @@ static void graph_main_region_init(wmWindowManager *wm, ARegion *ar)
 	
 	/* widgets */
 	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
-		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("Graph_Canvas", SPACE_IPO, RGN_TYPE_WINDOW, false));
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_new("Graph_Canvas", SPACE_IPO, RGN_TYPE_WINDOW, false));
 	}
 }
 

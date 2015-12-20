@@ -649,7 +649,7 @@ static void node_main_region_init(wmWindowManager *wm, ARegion *ar)
 
 	/* widgets stay in the background for now - quick patchjob to make sure nodes themselves work */
 	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
-		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false));
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_new("Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false));
 	}
 
 	WM_event_add_area_widgetmap_handlers(ar);

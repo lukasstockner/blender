@@ -501,7 +501,7 @@ static void view3d_main_region_init(wmWindowManager *wm, ARegion *ar)
 	wmKeyMap *keymap;
 
 	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
-		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true));
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_new("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true));
 	}
 
 	WM_event_add_area_widgetmap_handlers(ar);

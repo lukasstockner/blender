@@ -486,7 +486,7 @@ static void sequencer_main_region_init(wmWindowManager *wm, ARegion *ar)
 	
 	/* no modal keymap here, only operators use this currently */
 	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
-		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false));
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_new("Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false));
 	}
 }
 
@@ -566,7 +566,7 @@ static void sequencer_preview_region_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 
 	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
-		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("Seq_Canvas", SPACE_SEQ, RGN_TYPE_PREVIEW, false));
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_new("Seq_Canvas", SPACE_SEQ, RGN_TYPE_PREVIEW, false));
 	}
 }
 

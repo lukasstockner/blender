@@ -50,7 +50,7 @@ struct wmWidgetMapType *WM_widgetmaptype_find(
         const char *idname, const int spaceid, const int regionid,
         const bool is_3d, const bool create);
 
-struct wmWidgetMap *WM_widgetmap_from_type(
+struct wmWidgetMap *WM_widgetmap_new(
         const char *idname, const int spaceid, const int regionid,
         const bool is_3d);
 /* highlighted widget */
@@ -72,7 +72,7 @@ struct wmWidgetGroupType *WM_widgetgrouptype_new(
         struct wmKeyMap *(*keymap_init)(struct wmKeyConfig *, const char *),
         const struct Main *bmain, const char *mapidname, const char *name,
         const short spaceid, const short regionid, const bool is_3d);
-void WM_widgetgrouptype_unregister(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgrouptype);
+void WM_widgetgrouptype_delete(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgrouptype);
 void WM_widgetgrouptype_attach_to_handler(
         struct bContext *C, struct wmWidgetGroupType *wgrouptype,
         struct wmEventHandler *handler, struct wmOperator *op);

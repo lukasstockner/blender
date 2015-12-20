@@ -52,11 +52,7 @@
 #include "wm_widgetmap.h" // own include
 
 
-wmWidgetMap::wmWidgetMap()
-{
-}
-
-void wmWidgetMap::init(const char *idname, const int spaceid, const int regionid, const bool is_3d)
+wmWidgetMap::wmWidgetMap(const char *idname, const int spaceid, const int regionid, const bool is_3d)
 {
 	wmWidgetMapType *wmaptype = WM_widgetmaptype_find(idname, spaceid, regionid, is_3d, true);
 

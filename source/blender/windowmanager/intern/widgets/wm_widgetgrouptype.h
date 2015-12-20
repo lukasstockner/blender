@@ -43,17 +43,19 @@ struct wmWidgetMapType;
 class wmWidgetGroupType
 {
 public:
-	wmWidgetGroupType();
 	wmWidgetGroupType *next, *prev;
 
-	void init(
-	        wmWidgetMapType *wmaptype, wmWidgetGroupType *wgrouptype,
+	/**
+	 * \brief wmWidgetGroupType Constructor
+	 */
+	wmWidgetGroupType(
+	        wmWidgetMapType *wmaptype,
 	        int (*poll)(const bContext *, wmWidgetGroupType *),
 	        void (*create)(const bContext *, wmWidgetGroup *),
 	        wmKeyMap *(*keymap_init)(wmKeyConfig *, const char *),
 	        const Main *bmain, const char *mapidname, const char *name,
 	        const short spaceid, const short regionid, const bool is_3d);
-	void unregister(bContext *C, Main *bmain);
+	void free(bContext *C, Main *bmain);
 
 	void keymap_init_do(wmKeyConfig *keyconf);
 	void attach_to_handler(bContext *C, struct wmEventHandler *handler, struct wmOperator *op);
