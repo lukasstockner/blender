@@ -53,6 +53,11 @@ struct wmWidgetMapType *WM_widgetmaptype_find(
 struct wmWidgetMap *WM_widgetmap_new(
         const char *idname, const int spaceid, const int regionid,
         const bool is_3d);
+void WM_widgetmap_widgets_update(
+        struct wmWidgetMap *wmap, const struct bContext *C);
+void WM_widgetmap_widgets_draw(
+        const struct bContext *C, struct wmWidgetMap *wmap,
+        const bool in_scene, const bool free_draw_widgets);
 /* highlighted widget */
 void wm_widgetmap_set_highlighted_widget(
         struct bContext *C, struct wmWidgetMap *wmap, struct wmWidget *widget,

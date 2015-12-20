@@ -27,11 +27,16 @@
  *  \ingroup wm
  */
 
+#include <string.h>
+
 #include "BKE_context.h"
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
+#include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
+
+#include "ED_view3d.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -52,7 +57,7 @@ wmWidget::wmWidget()
 /**
  * Free widget data, not widget itself.
  */
-static void widget_data_free(wmWidget *widget)
+void widget_data_free(wmWidget *widget)
 {
 	if (widget->opptr.data) {
 		WM_operator_properties_free(&widget->opptr);
@@ -86,5 +91,31 @@ void widget_find_active_3D_loop(const bContext *C, ListBase *visible_widgets)
 
 		selectionbase++;
 	}
+}
+
+
+void widget_calculate_scale(wmWidget *widget, const bContext *C)
+{
+	const RegionView3D *rv3d = CTX_wm_region_view3d(C);
+	float scale = 1.0f;
+
+	if (rv3d && (U.tw_flag & V3D_3D_WIDGETS) == 0 && (widget->flag & WM_WIDGET_SCALE_3D)) {
+		if (widget->get_final_position) {
+			float position[3];
+
+			widget->get_final_position(widget, position);
+			scale = ED_view3d_pixel_size(rv3d, position) * (float)U.tw_size;
+		}
+		else {
+			scale = ED_view3d_pixel_size(rv3d, widget->origin) * (float)U.tw_size;
+		}
+	}
+
+	widget->scale = scale * widget->user_scale;
+}
+
+bool widget_compare(const wmWidget *a, const wmWidget *b)
+{
+	return STREQ(a->idname, b->idname);
 }
 

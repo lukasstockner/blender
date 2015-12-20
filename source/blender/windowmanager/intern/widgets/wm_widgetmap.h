@@ -32,6 +32,8 @@
 
 #include "BLI_listbase.h"
 
+struct bContext;
+struct wmEvent;
 struct wmWidget;
 struct wmWidgetGroup;
 struct wmWidgetMapType;
@@ -50,8 +52,11 @@ public:
 	wmWidgetMapType *type;
 	ListBase widgetgroups;
 
-	void set_highlighted_widget(struct bContext *C, wmWidget *widget, unsigned char part);
-	wmWidget *find_highlighted_widget(bContext *C, const struct wmEvent *event, unsigned char *part);
+	void update(const bContext *C);
+	void draw(const bContext *C, const bool in_scene, const bool free_draw_widgets);
+
+	void set_highlighted_widget(bContext *C, wmWidget *widget, unsigned char part);
+	wmWidget *find_highlighted_widget(bContext *C, const wmEvent *event, unsigned char *part);
 	void set_active_widget(bContext *C, const wmEvent *event, wmWidget *widget);
 
 	/**

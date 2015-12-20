@@ -512,9 +512,6 @@ struct wmWidget *WM_widget_new(void (*draw)(const struct bContext *, struct wmWi
                                int  (*intersect)(struct bContext *, const struct wmEvent *, struct wmWidget *),
                                int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, const int));
 
-void  WM_widgetmap_widgets_update(const struct bContext *C, struct wmWidgetMapC *wmap);
-void  WM_widgetmap_widgets_draw(const struct bContext *C, const struct wmWidgetMapC *wmap,
-                      const bool in_scene, const bool free_drawwidgets);
 void  WM_event_add_area_widgetmap_handlers(struct ARegion *ar);
 void  WM_modal_handler_attach_widgetgroup(struct bContext *C, struct wmEventHandler *handler,
                                           struct wmWidgetGroupTypeC *wgrouptype, struct wmOperator *op);

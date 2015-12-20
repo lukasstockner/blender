@@ -61,17 +61,14 @@ public:
 	void attach_to_handler(bContext *C, struct wmEventHandler *handler, struct wmOperator *op);
 	size_t get_idname(char *r_idname);
 
-	bool poll_check(const bContext *) ATTR_WARN_UNUSED_RESULT;
+	/* poll if widgetmap should be active */
+	int (*poll)(const bContext *, wmWidgetGroupType *) ATTR_WARN_UNUSED_RESULT;
+	/* update widgets, called right before drawing */
+	void (*create)(const bContext *, wmWidgetGroup *);
 
 private:
 	char idname[64]; /* MAX_NAME */
 	char name[64]; /* widget group name - displayed in UI (keymap editor) */
-
-	/* poll if widgetmap should be active */
-	int (*poll)(const bContext *, wmWidgetGroupType *) ATTR_WARN_UNUSED_RESULT;
-
-	/* update widgets, called right before drawing */
-	void (*create)(const bContext *, wmWidgetGroup *);
 
 	/* keymap init callback for this widgetgroup */
 	wmKeyMap *(*keymap_init)(wmKeyConfig *, const char *);

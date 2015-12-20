@@ -169,8 +169,3 @@ size_t wmWidgetGroupType::get_idname(char *r_idname)
 	return sizeof(this->idname);
 }
 
-bool wmWidgetGroupType::poll_check(const bContext *C)
-{
-	return (!poll || poll(C, this));
-}
-

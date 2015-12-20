@@ -49,6 +49,19 @@ wmWidgetMap *WM_widgetmap_new(const char *idname, const int spaceid, const int r
 	return new wmWidgetMap(idname, spaceid, regionid, is_3d);
 }
 
+void WM_widgetmap_widgets_update(wmWidgetMap *wmap, const bContext *C)
+{
+	BLI_assert(wmap != NULL);
+	wmap->update(C);
+}
+void WM_widgetmap_widgets_draw(
+        const bContext *C, wmWidgetMap *wmap,
+        const bool in_scene, const bool free_draw_widgets)
+{
+	BLI_assert(wmap != NULL);
+	wmap->draw(C, in_scene, free_draw_widgets);
+}
+
 void wm_widgetmap_set_highlighted_widget(bContext *C, wmWidgetMap *wmap, wmWidget *widget, unsigned char part)
 {
 	wmap->set_highlighted_widget(C, widget, part);
