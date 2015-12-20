@@ -59,6 +59,8 @@ public:
 	void attach_to_handler(bContext *C, struct wmEventHandler *handler, struct wmOperator *op);
 	size_t get_idname(char *r_idname);
 
+	bool poll_check(const bContext *) ATTR_WARN_UNUSED_RESULT;
+
 private:
 	char idname[64]; /* MAX_NAME */
 	char name[64]; /* widget group name - displayed in UI (keymap editor) */

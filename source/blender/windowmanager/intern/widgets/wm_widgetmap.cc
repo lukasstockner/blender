@@ -152,7 +152,7 @@ static void widgetmap_prepare_visible_widgets_3d(wmWidgetMap *wmap, ListBase *vi
 	wmWidget *widget;
 
 	for (wmWidgetGroup *wgroup = (wmWidgetGroup *)wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
-		if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type)) {
+		if (wgroup->type_cxx->poll_check(C)) {
 			for (widget = (wmWidget *)wgroup->widgets.first; widget; widget = widget->next) {
 				if (widget->render_3d_intersection && (widget->flag & WM_WIDGET_HIDDEN) == 0) {
 					BLI_addhead(visible_widgets, BLI_genericNodeN(widget));
@@ -204,7 +204,7 @@ static wmWidget *widgetmap_find_highlighted_widget(
 	wmWidget *widget;
 
 	for (wmWidgetGroup *wgroup = (wmWidgetGroup *)wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
-		if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type)) {
+		if (wgroup->type_cxx->poll_check(C)) {
 			for (widget = (wmWidget *)wgroup->widgets.first; widget; widget = widget->next) {
 				if (widget->intersect) {
 					if ((*part = widget->intersect(C, event, widget)))
