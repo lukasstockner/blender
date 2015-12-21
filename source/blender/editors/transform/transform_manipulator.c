@@ -1088,6 +1088,7 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 		}
 		MAN_ITER_AXES_END;
 
+		MEM_freeN(man);
 		return;
 	}
 
