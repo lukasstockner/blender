@@ -295,7 +295,6 @@ void BKE_spacedata_id_unref(struct SpaceLink *sl, const struct ID *id)
 void BKE_area_region_free(SpaceType *st, ARegion *ar)
 {
 	uiList *uilst;
-	struct wmWidgetMapC *wmap, *wmap_tmp;
 
 	if (st) {
 		ARegionType *art = BKE_regiontype_from_id(st, ar->regiontype);
@@ -341,11 +340,8 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 			MEM_freeN(uilst->properties);
 		}
 	}
-	
-	for (wmap = ar->widgetmaps.first; wmap; wmap = wmap_tmp) {
-		wmap_tmp = wmap->next;
-		WM_widgetmap_delete(wmap);
-	}
+
+	WM_widgetmaps_delete(&ar->widgetmaps);
 	BLI_listbase_clear(&ar->widgetmaps);
 	BLI_freelistN(&ar->ui_lists);
 	BLI_freelistN(&ar->ui_previews);

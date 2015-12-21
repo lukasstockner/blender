@@ -36,6 +36,9 @@
 extern "C" {
 #endif
 
+#include "BLI_compiler_attrs.h"
+
+struct ARegion;
 struct Main;
 struct bContext;
 struct wmEventHandler;
@@ -44,32 +47,42 @@ struct wmWidgetGroupType;
 struct wmWidget;
 
 
-void wm_widgets_keymap(struct wmKeyConfig *keyconfig);
-
 struct wmWidgetMapType *WM_widgetmaptype_find(
         const char *idname, const int spaceid, const int regionid,
         const bool is_3d, const bool create);
 
-struct wmWidgetMap *WM_widgetmap_new(
-        const char *idname, const int spaceid, const int regionid,
-        const bool is_3d);
-void WM_widgetmap_widgets_update(
-        struct wmWidgetMap *wmap, const struct bContext *C);
-void WM_widgetmap_widgets_draw(
-        const struct bContext *C, struct wmWidgetMap *wmap,
+struct wmWidgetMap *WM_widgetmap_new(const char *idname, const int spaceid, const int regionid, const bool is_3d);
+void WM_widgetmap_delete(struct wmWidgetMap *wmap);
+void WM_widgetmaps_delete(struct ListBase *widgetmaps);
+void WM_widgetmap_widgets_update(struct wmWidgetMap *wmap, const struct bContext *C);
+void WM_widgetmap_widgets_draw(const struct bContext *C, struct wmWidgetMap *wmap,
         const bool in_scene, const bool free_draw_widgets);
+void wm_widgetmap_handler_context(struct bContext *C, struct wmEventHandler *handler);
+void wm_widget_handler_modal_update(struct bContext *C, struct wmEvent *event, struct wmEventHandler *handler);
+void WM_widgetmaps_create_region_handlers(struct ARegion *ar);
+bool WM_widgetmap_cursor_set(struct wmWidgetMap *wmap, struct wmWindow *win);
+struct GHash *wm_widgetmap_widget_hash_new(
+        const struct bContext *C, struct wmWidgetMap *wmap,
+        bool (*poll)(const struct wmWidget *, void *),
+        void *data, const bool include_hidden) ATTR_WARN_UNUSED_RESULT;
 /* highlighted widget */
-void wm_widgetmap_set_highlighted_widget(
+void wm_widgetmap_highlighted_widget_set(
         struct bContext *C, struct wmWidgetMap *wmap, struct wmWidget *widget,
         unsigned char part);
-struct wmWidget *wm_widgetmap_get_highlighted_widget(struct wmWidgetMap *wmap);
-struct wmWidget *wm_widgetmap_find_highlighted_widget(
+struct wmWidget *wm_widgetmap_highlighted_widget_get(struct wmWidgetMap *wmap);
+struct wmWidget *wm_widgetmap_highlighted_widget_find(
         struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event,
         unsigned char *part);
 /* active widget */
-void wm_widgetmap_set_active_widget(
-        struct wmWidgetMap *wmap, struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
-struct wmWidget *wm_widgetmap_get_active_widget(struct wmWidgetMap *wmap);
+void wm_widgetmap_active_widget_set(
+        struct wmWidgetMap *wmap, struct bContext *C,
+        const struct wmEvent *event, struct wmWidget *widget);
+struct wmWidget *wm_widgetmap_active_widget_get(struct wmWidgetMap *wmap);
+/* active group */
+struct wmWidgetGroup *wm_widgetmap_active_group_get(struct wmWidgetMap *wmap);
+
+void wm_widgets_keymap(struct wmKeyConfig *keyconf);
+void WM_widgetmaptypes_free(void);
 
 struct wmWidgetGroupType *WM_widgetgrouptype_new(
         int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
@@ -81,7 +94,10 @@ void WM_widgetgrouptype_delete(struct bContext *C, struct Main *bmain, struct wm
 void WM_widgetgrouptype_attach_to_handler(
         struct bContext *C, struct wmWidgetGroupType *wgrouptype,
         struct wmEventHandler *handler, struct wmOperator *op);
-size_t WM_widgetgrouptype_idname_get(struct wmWidgetGroupType *wgrouptype, char *r_idname);
+void        WM_widgetgrouptype_idname_set(struct wmWidgetGroupType *wgrouptype, const char *idname);
+size_t      WM_widgetgrouptype_idname_get(struct wmWidgetGroupType *wgrouptype, char *r_idname);
+wmOperator *WM_widgetgrouptype_operator_get(struct wmWidgetGroupType *wgrouptype);
+wmKeyMap   *WM_widgetgrouptype_user_keymap_get(struct wmWidgetGroupType *wgrouptype);
 
 void fix_linking_widgets(void);
 

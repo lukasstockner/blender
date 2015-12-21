@@ -29,24 +29,21 @@
  * C-API for wmWidget types.
  */
 
+#include "DNA_windowmanager_types.h"
+
 #include "wm_widgetmap.h"
 #include "wm_widgetmaptype.h"
 #include "wm_widgetgrouptype.h"
 #include "wm_widgets_c_api.h" // own include
 
 
-/**
- * Initialize keymaps for all existing widget-groups
- */
-void wm_widgets_keymap(wmKeyConfig *keyconfig)
-{
-	widgets_keymap(keyconfig);
-}
-
-
 wmWidgetMap *WM_widgetmap_new(const char *idname, const int spaceid, const int regionid, const bool is_3d)
 {
 	return new wmWidgetMap(idname, spaceid, regionid, is_3d);
+}
+void WM_widgetmap_delete(wmWidgetMap *wmap)
+{
+	delete wmap;
 }
 
 void WM_widgetmap_widgets_update(wmWidgetMap *wmap, const bContext *C)
@@ -62,30 +59,48 @@ void WM_widgetmap_widgets_draw(
 	wmap->draw(C, in_scene, free_draw_widgets);
 }
 
-void wm_widgetmap_set_highlighted_widget(bContext *C, wmWidgetMap *wmap, wmWidget *widget, unsigned char part)
+bool WM_widgetmap_cursor_set(wmWidgetMap *wmap, wmWindow *win)
+{
+	return wmap->cursor_update(win);
+}
+
+GHash *wm_widgetmap_widget_hash_new(
+        const bContext *C, wmWidgetMap *wmap,
+        bool (*poll)(const wmWidget *, void *),
+        void *data, const bool include_hidden)
+{
+	return wmap->widget_hash_new(C, poll, data, include_hidden);
+}
+
+void wm_widgetmap_highlighted_widget_set(bContext *C, wmWidgetMap *wmap, wmWidget *widget, unsigned char part)
 {
 	wmap->set_highlighted_widget(C, widget, part);
 }
-wmWidget *wm_widgetmap_get_highlighted_widget(wmWidgetMap *wmap)
+wmWidget *wm_widgetmap_highlighted_widget_get(wmWidgetMap *wmap)
 {
 	return wmap->wmap_context.highlighted_widget;
 }
 
-void wm_widgetmap_set_active_widget(wmWidgetMap *wmap, bContext *C, const wmEvent *event, wmWidget *widget)
+void wm_widgetmap_active_widget_set(wmWidgetMap *wmap, bContext *C, const wmEvent *event, wmWidget *widget)
 {
 	wmap->set_active_widget(C, event, widget);
 }
-wmWidget *wm_widgetmap_get_active_widget(wmWidgetMap *wmap)
+wmWidget *wm_widgetmap_active_widget_get(wmWidgetMap *wmap)
 {
 	return wmap->wmap_context.active_widget;
 }
 
 
-wmWidget *wm_widgetmap_find_highlighted_widget(
+wmWidget *wm_widgetmap_highlighted_widget_find(
         wmWidgetMap *wmap, bContext *C, const wmEvent *event,
         unsigned char *part)
 {
 	return wmap->find_highlighted_widget(C, event, part);
+}
+
+wmWidgetGroup *wm_widgetmap_active_group_get(wmWidgetMap *wmap)
+{
+	return wmap->get_active_group();
 }
 
 
@@ -124,12 +139,26 @@ void WM_widgetgrouptype_attach_to_handler(
 	wgrouptype->attach_to_handler(C, handler, op);
 }
 
+void WM_widgetgrouptype_idname_set(wmWidgetGroupType *wgrouptype, const char *idname)
+{
+	return wgrouptype->set_idname(idname);
+}
 /**
  * \returns sizeof(wgrouptype->idname).
  */
 size_t WM_widgetgrouptype_idname_get(wmWidgetGroupType *wgrouptype, char *r_idname)
 {
 	return wgrouptype->get_idname(r_idname);
+}
+
+wmOperator *WM_widgetgrouptype_operator_get(wmWidgetGroupType *wgrouptype)
+{
+	return wgrouptype->get_operator();
+}
+
+wmKeyMap *WM_widgetgrouptype_user_keymap_get(wmWidgetGroupType *wgrouptype)
+{
+	return wgrouptype->get_keymap();
 }
 
 

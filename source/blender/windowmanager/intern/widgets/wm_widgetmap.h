@@ -37,6 +37,7 @@ struct wmEvent;
 struct wmWidget;
 struct wmWidgetGroup;
 struct wmWidgetMapType;
+struct wmWindow;
 
 
 class wmWidgetMap
@@ -48,6 +49,7 @@ public:
 	 * \brief wmWidgetMap Constructor
 	 */
 	wmWidgetMap(const char *idname, const int spaceid, const int regionid, const bool is_3d);
+	~wmWidgetMap();
 
 	wmWidgetMapType *type;
 	ListBase widgetgroups;
@@ -55,9 +57,18 @@ public:
 	void update(const bContext *C);
 	void draw(const bContext *C, const bool in_scene, const bool free_draw_widgets);
 
+	bool cursor_update(wmWindow *win);
+	struct GHash *widget_hash_new(
+	        const bContext *C,
+	        bool (*poll)(const wmWidget *, void *),
+	        void *data,
+	        const bool include_hidden);
+
 	void set_highlighted_widget(bContext *C, wmWidget *widget, unsigned char part);
 	wmWidget *find_highlighted_widget(bContext *C, const wmEvent *event, unsigned char *part);
 	void set_active_widget(bContext *C, const wmEvent *event, wmWidget *widget);
+
+	wmWidgetGroup *get_active_group();
 
 	/**
 	 * \brief Widget map runtime context
@@ -67,16 +78,16 @@ public:
 	 */
 	struct {
 		/* we redraw the widgetmap when this changes */
-		wmWidget *highlighted_widget;
+		wmWidget *highlighted_widget = NULL;
 		/* user has clicked this widget and it gets all input */
-		wmWidget *active_widget;
+		wmWidget *active_widget = NULL;
 		/* array for all selected widgets
 		 * TODO  check on using BLI_array */
-		wmWidget **selected_widgets;
+		wmWidget **selected_widgets = NULL;
 		int tot_selected;
 
 		/* set while widget is highlighted/active */
-		wmWidgetGroup *activegroup;
+		wmWidgetGroup *activegroup = NULL;
 	} wmap_context;
 };
 

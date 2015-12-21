@@ -2139,9 +2139,9 @@ static int WIDGETGROUP_object_manipulator_poll(const struct bContext *C, struct 
 	Object *ob = ED_object_active_context((bContext *)C);
 
 	if (ED_operator_object_active((bContext *)C)) {
-		char *idname = NULL;
-		WM_widgetgrouptype_idname_get(wgrouptype, idname);
+		char idname[MAX_NAME];
 
+		WM_widgetgrouptype_idname_get(wgrouptype, idname);
 		if (STREQ(idname, ob->id.name)) {
 			return true;
 		}
@@ -2159,9 +2159,7 @@ static int object_widget_add_exec(bContext *C, wmOperator *UNUSED(op))
 	                                                              SPACE_VIEW3D, RGN_TYPE_WINDOW, true);
 
 	/* assign the objects id name to the widget */
-	char *idname = NULL;
-	WM_widgetgrouptype_idname_get(wgrouptype, idname);
-	strcpy(idname, ob->id.name);
+	WM_widgetgrouptype_idname_set(wgrouptype, ob->id.name);
 
 	return OPERATOR_FINISHED;
 }

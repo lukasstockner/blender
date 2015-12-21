@@ -73,66 +73,6 @@
 #include "RNA_define.h"
 #include "BPY_extern.h"
 
-/**
- * This is a container for all widget types that can be instantiated in a region.
- * (similar to dropboxes).
- *
- * \note There is only ever one of these for every (area, region) combination.
- */
-typedef struct wmWidgetMapType {
-	wmWidgetMapType *next, *prev;
-	char idname[64];
-	short spaceid, regionid;
-	/**
-	 * Check if widgetmap does 3D drawing
-	 * (uses a different kind of interaction),
-	 * - 3d: use glSelect buffer.
-	 * - 2d: use simple cursor position intersection test. */
-	bool is_3d;
-	/* types of widgetgroups for this widgetmap type */
-	ListBase widgetgrouptypes;
-} wmWidgetMapType;
-
-
-/* store all widgetboxmaps here. Anyone who wants to register a widget for a certain
- * area type can query the widgetbox to do so */
-static ListBase widgetmaptypes = {NULL, NULL};
-
-/**
- * Hash table of all visible widgets to avoid unnecessary loops and wmWidgetGroupType->poll checks.
- * Collected in WM_widgets_update, freed in WM_widgets_draw.
- */
-static GHash *draw_widgets = NULL;
-
-
-/**
- * Creates and returns idname hash table for (visible) widgets in \a wmap
- *
- * \param poll  Polling function for excluding widgets.
- * \param data  Custom data passed to \a poll
- */
-static GHash *wm_widgetmap_widget_hash_new(
-        const bContext *C, wmWidgetMapC *wmap,
-        bool (*poll)(const wmWidget *, void *),
-        void *data, const bool include_hidden)
-{
-	GHash *hash = BLI_ghash_str_new(__func__);
-
-	/* collect widgets */
-	for (wmWidgetGroup *wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
-		if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type)) {
-			for (wmWidget *widget = wgroup->widgets.first; widget; widget = widget->next) {
-				if ((include_hidden || (widget->flag & WM_WIDGET_HIDDEN) == 0) &&
-				    (!poll || poll(widget, data)))
-				{
-					BLI_ghash_insert(hash, widget->idname, widget);
-				}
-			}
-		}
-	}
-
-	return hash;
-}
 
 wmWidget *WM_widget_new(void (*draw)(const bContext *C, wmWidget *customdata),
                         void (*render_3d_intersection)(const bContext *C, wmWidget *customdata, int selectionbase),
@@ -146,71 +86,14 @@ wmWidget *WM_widget_new(void (*draw)(const bContext *C, wmWidget *customdata),
 	widget->intersect = intersect;
 	widget->render_3d_intersection = render_3d_intersection;
 
+	fix_linking_widget_lib();
+
 	return widget;
-}
-
-/**
- * Free widget data, not widget itself.
- */
-static void wm_widget_data_free(wmWidget *widget)
-{
-	if (widget->opptr.data) {
-		WM_operator_properties_free(&widget->opptr);
-	}
-
-	MEM_freeN(widget->props);
-	MEM_freeN(widget->ptr);
-}
-
-/**
- * Free and NULL \a widget.
- * \a widgetlist is allowed to be NULL.
- */
-static void wm_widget_delete(ListBase *widgetlist, wmWidget *widget)
-{
-	wm_widget_data_free(widget);
-	if (widgetlist)
-		BLI_remlink(widgetlist, widget);
-	MEM_SAFE_FREE(widget);
 }
 
 BLI_INLINE bool widget_compare(const wmWidget *a, const wmWidget *b)
 {
 	return STREQ(a->idname, b->idname);
-}
-
-void WM_event_add_area_widgetmap_handlers(ARegion *ar)
-{
-	for (wmWidgetMapC *wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
-		wmEventHandler *handler = MEM_callocN(sizeof(wmEventHandler), "widget handler");
-
-		handler->widgetmap = wmap;
-		BLI_addtail(&ar->handlers, handler);
-	}
-}
-
-void WM_modal_handler_attach_widgetgroup(
-        bContext *C, wmEventHandler *handler, wmWidgetGroupTypeC *wgrouptype, wmOperator *op)
-{
-	/* maybe overly careful, but widgetgrouptype could come from a failed creation */
-	if (!wgrouptype) {
-		return;
-	}
-
-	/* now instantiate the widgetmap */
-	wgrouptype->op = op;
-
-	if (handler->op_region && !BLI_listbase_is_empty(&handler->op_region->widgetmaps)) {
-		for (wmWidgetMapC *wmap = handler->op_region->widgetmaps.first; wmap; wmap = wmap->next) {
-			wmWidgetMapType *wmaptype = wmap->type;
-
-			if (wmaptype->spaceid == wgrouptype->spaceid && wmaptype->regionid == wgrouptype->regionid) {
-				handler->widgetmap = wmap;
-			}
-		}
-	}
-	
-	WM_event_add_mousemove(C);
 }
 
 /**
@@ -220,8 +103,12 @@ void WM_modal_handler_attach_widgetgroup(
  */
 static void widget_unique_idname_set(wmWidgetGroup *wgroup, wmWidget *widget, const char *rawname)
 {
-	if (wgroup->type->idname[0]) {
-		BLI_snprintf(widget->idname, sizeof(widget->idname), "%s_%s", wgroup->type->idname, rawname);
+	char groupname[MAX_NAME];
+
+	WM_widgetgrouptype_idname_get(wgroup->type, groupname);
+
+	if (groupname[0]) {
+		BLI_snprintf(widget->idname, sizeof(widget->idname), "%s_%s", groupname, rawname);
 	}
 	else {
 		BLI_strncpy(widget->idname, rawname, sizeof(widget->idname));
@@ -256,6 +143,7 @@ bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *nam
 
 	widget->props = MEM_callocN(sizeof(PropertyRNA *) * widget->max_prop, "widget->props");
 	widget->ptr = MEM_callocN(sizeof(PointerRNA) * widget->max_prop, "widget->ptr");
+	widget->opptr = PointerRNA_NULL;
 
 	widget->wgroup = wgroup;
 
@@ -424,7 +312,7 @@ static bool wm_widgetmap_select_all_intern(bContext *C, wmWidgetMapC *wmap, wmWi
 		BLI_assert(i < (*tot_sel));
 	}
 	/* highlight first widget */
-	wm_widgetmap_set_highlighted_widget(C, wmap, (*sel)[0], (*sel)[0]->highlighted_part);
+	wm_widgetmap_highlighted_widget_set(C, wmap, (*sel)[0], (*sel)[0]->highlighted_part);
 
 	BLI_ghash_free(hash, NULL, NULL);
 	return changed;
@@ -516,7 +404,7 @@ void wm_widget_select(bContext *C, wmWidgetMapC *wmap, wmWidget *widget)
 	if (widget->select) {
 		widget->select(C, widget, SEL_SELECT);
 	}
-	wm_widgetmap_set_highlighted_widget(C, wmap, widget, widget->highlighted_part);
+	wm_widgetmap_highlighted_widget_set(C, wmap, widget, widget->highlighted_part);
 
 	ED_region_tag_redraw(CTX_wm_region(C));
 }
@@ -600,7 +488,7 @@ enum {
 static void widget_tweak_finish(bContext *C, wmOperator *op)
 {
 	WidgetTweakData *wtweak = op->customdata;
-	wm_widgetmap_set_active_widget(wtweak->wmap, C, NULL, NULL);
+	wm_widgetmap_active_widget_set(wtweak->wmap, C, NULL, NULL);
 	MEM_freeN(wtweak);
 }
 
@@ -677,7 +565,7 @@ static int widget_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
 
 	/* activate highlighted widget */
-	wm_widgetmap_set_active_widget(wmap, C, event, widget);
+	wm_widgetmap_active_widget_set(wmap, C, event, widget);
 
 	/* XXX temporary workaround for modal widget operator
 	 * conflicting with modal operator attached to widget */
@@ -718,117 +606,6 @@ void WIDGETGROUP_OT_widget_tweak(wmOperatorType *ot)
 
 /** \} */ // Widget operators
 
-
-void WM_widgetmaptypes_free(void)
-{
-	for (wmWidgetMapType *wmaptype = widgetmaptypes.first; wmaptype; wmaptype = wmaptype->next) {
-		BLI_freelistN(&wmaptype->widgetgrouptypes);
-	}
-	BLI_freelistN(&widgetmaptypes);
-
-	fix_linking_widget_lib();
-	fix_linking_widgets();
-}
-
-bool WM_widgetmap_cursor_set(const wmWidgetMapC *wmap, wmWindow *win)
-{
-	for (; wmap; wmap = wmap->next) {
-		wmWidget *widget = wmap->wmap_context.highlighted_widget;
-		if (widget && widget->get_cursor) {
-			WM_cursor_set(win, widget->get_cursor(widget));
-			return true;
-		}
-	}
-
-	return false;
-}
-
-void wm_widgetmap_handler_context(bContext *C, wmEventHandler *handler)
-{
-	bScreen *screen = CTX_wm_screen(C);
-
-	if (screen) {
-		if (handler->op_area == NULL) {
-			/* do nothing in this context */
-		}
-		else {
-			ScrArea *sa;
-
-			for (sa = screen->areabase.first; sa; sa = sa->next)
-				if (sa == handler->op_area)
-					break;
-			if (sa == NULL) {
-				/* when changing screen layouts with running modal handlers (like render display), this
-				 * is not an error to print */
-				if (handler->widgetmap == NULL)
-					printf("internal error: modal widgetmap handler has invalid area\n");
-			}
-			else {
-				ARegion *ar;
-				CTX_wm_area_set(C, sa);
-				for (ar = sa->regionbase.first; ar; ar = ar->next)
-					if (ar == handler->op_region)
-						break;
-				/* XXX no warning print here, after full-area and back regions are remade */
-				if (ar)
-					CTX_wm_region_set(C, ar);
-			}
-		}
-	}
-}
-
-void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler *handler)
-{
-	/* happens on render */
-	if (!handler->op_region)
-		return;
-
-	for (wmWidgetMapC *wmap = handler->op_region->widgetmaps.first; wmap; wmap = wmap->next) {
-		wmWidget *widget = wm_widgetmap_get_active_widget(wmap);
-		ScrArea *area = CTX_wm_area(C);
-		ARegion *region = CTX_wm_region(C);
-
-		if (!widget)
-			continue;
-
-		wm_widgetmap_handler_context(C, handler);
-
-		/* regular update for running operator */
-		if (handler->op) {
-			if (widget && widget->handler && widget->opname && STREQ(widget->opname, handler->op->idname)) {
-				widget->handler(C, event, widget, 0);
-			}
-		}
-		/* operator not running anymore */
-		else {
-			wm_widgetmap_set_active_widget(wmap, C, event, NULL);
-		}
-
-		/* restore the area */
-		CTX_wm_area_set(C, area);
-		CTX_wm_region_set(C, region);
-	}
-}
-
-void WM_widgetmap_delete(wmWidgetMapC *wmap)
-{
-	if (!wmap)
-		return;
-
-	for (wmWidgetGroup *wgroup = wmap->widgetgroups.first; wgroup; wgroup = wgroup->next) {
-		for (wmWidget *widget = wgroup->widgets.first; widget;) {
-			wmWidget *widget_next = widget->next;
-			wm_widget_delete(&wgroup->widgets, widget);
-			widget = widget_next;
-		}
-	}
-	BLI_freelistN(&wmap->widgetgroups);
-
-	/* XXX shouldn't widgets in wmap_context.selected_widgets be freed here? */
-	MEM_SAFE_FREE(wmap->wmap_context.selected_widgets);
-
-	MEM_freeN(wmap);
-}
 
 static wmKeyMap *widgetgroup_tweak_modal_keymap(wmKeyConfig *keyconf, const char *wgroupname)
 {

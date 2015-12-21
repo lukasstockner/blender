@@ -101,9 +101,6 @@ void        wm_drags_check_ops(bContext *C, wmEvent *event);
 void        wm_drags_draw(bContext *C, wmWindow *win, rcti *rect);
 
 /* wm_widgets.c */
-void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler *handler);
-void wm_widgetmap_handler_context(bContext *C, wmEventHandler *handler);
-
 void      wm_widget_select(bContext *C, wmWidgetMapC *wmap, wmWidget *widget);
 
 #endif /* __WM_EVENT_SYSTEM_H__ */

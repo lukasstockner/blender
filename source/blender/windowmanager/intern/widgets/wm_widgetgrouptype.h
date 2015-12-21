@@ -36,10 +36,14 @@
 
 struct wmKeyMap;
 struct wmKeyConfig;
+struct wmOperator;
 struct wmWidgetGroup;
 struct wmWidgetMapType;
 
 
+/**
+ * Factory class for a widgetgroup type, gets called every time a new area is spawned.
+ */
 class wmWidgetGroupType
 {
 public:
@@ -58,8 +62,12 @@ public:
 	void free(bContext *C, Main *bmain);
 
 	void keymap_init_do(wmKeyConfig *keyconf);
-	void attach_to_handler(bContext *C, struct wmEventHandler *handler, struct wmOperator *op);
-	size_t get_idname(char *r_idname);
+	void attach_to_handler(bContext *C, struct wmEventHandler *handler, struct wmOperator *op_);
+
+	void        set_idname(const char *idname_);
+	size_t      get_idname(char *r_idname);
+	wmOperator *get_operator();
+	wmKeyMap   *get_keymap();
 
 	/* poll if widgetmap should be active */
 	int (*poll)(const bContext *, wmWidgetGroupType *) ATTR_WARN_UNUSED_RESULT;
@@ -86,7 +94,7 @@ private:
 	int flag;
 
 	/* if type is spawned from operator this is set here */
-	void *op;
+	wmOperator *op;
 
 	/* same as widgetmaps, so registering/unregistering goes to the correct region */
 	short spaceid, regionid;

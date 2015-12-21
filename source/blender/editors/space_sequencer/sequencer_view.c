@@ -269,7 +269,7 @@ static int sequencer_overdrop_transform_poll(bContext *C)
 static void widgetgroup_overdrop_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	ARegion *ar = CTX_wm_region(C);
-	wmOperator *op = wgroup->type->op;
+	wmOperator *op = WM_widgetgrouptype_operator_get(wgroup->type);
 	Scene *sce = CTX_data_scene(C);
 	int sizex = (sce->r.size * sce->r.xsch) / 100;
 	int sizey = (sce->r.size * sce->r.ysch) / 100;
@@ -433,7 +433,7 @@ static void widgetgroup_image_transform_create(const struct bContext *C, struct 
 {
 	ARegion *ar = CTX_wm_region(C);
 	View2D *v2d = &ar->v2d;
-	wmOperator *op = wgroup->type->op;
+	wmOperator *op = WM_widgetgrouptype_operator_get(wgroup->type);
 	wmWidget *cage;
 	float origin[3];
 	float viewrect[2];

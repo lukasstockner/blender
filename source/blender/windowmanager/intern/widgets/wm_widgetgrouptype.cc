@@ -68,6 +68,7 @@ wmWidgetGroupType::wmWidgetGroupType(
       regionid(regionid),
       is_3d(is_3d)
 {
+	idname[0] = '\0';
 	BLI_strncpy(name, name_, MAX_NAME);
 	BLI_strncpy(mapidname, mapidname_, MAX_NAME);
 
@@ -93,7 +94,7 @@ wmWidgetGroupType::wmWidgetGroupType(
 						if (wmap->type == wmaptype) {
 							wmWidgetGroup *wgroup = new wmWidgetGroup;
 
-							wgroup->type_cxx = this;
+							wgroup->type = this;
 
 							/* just add here, drawing will occur on next update */
 							BLI_addtail(&wmap->widgetgroups, wgroup);
@@ -119,7 +120,7 @@ void wmWidgetGroupType::free(bContext *C, Main *bmain)
 
 						for (wgroup = (wmWidgetGroup *)wmap->widgetgroups.first; wgroup; wgroup = wgroup_next) {
 							wgroup_next = wgroup->next;
-							if (wgroup->type_cxx == this) {
+							if (wgroup->type == this) {
 								widgetgroup_free(C, wmap, wgroup);
 								ED_region_tag_redraw(ar);
 							}
@@ -145,16 +146,16 @@ void wmWidgetGroupType::keymap_init_do(wmKeyConfig *keyconf)
 	keymap = keymap_init(keyconf, name);
 }
 
-void wmWidgetGroupType::attach_to_handler(bContext *C, wmEventHandler *handler, wmOperator *op)
+void wmWidgetGroupType::attach_to_handler(bContext *C, wmEventHandler *handler, wmOperator *op_)
 {
 	/* now instantiate the widgetmap */
-	this->op = op;
+	op = op_;
 
 	if (handler->op_region && !BLI_listbase_is_empty(&handler->op_region->widgetmaps)) {
 		for (wmWidgetMap *wmap = (wmWidgetMap *)handler->op_region->widgetmaps.first; wmap; wmap = wmap->next) {
 			wmWidgetMapType *wmaptype = wmap->type;
 
-			if (wmaptype->spaceid == this->spaceid && wmaptype->regionid == this->regionid) {
+			if (wmaptype->spaceid == spaceid && wmaptype->regionid == regionid) {
 				handler->widgetmap = wmap;
 			}
 		}
@@ -163,9 +164,28 @@ void wmWidgetGroupType::attach_to_handler(bContext *C, wmEventHandler *handler, 
 	WM_event_add_mousemove(C);
 }
 
+void wmWidgetGroupType::set_idname(const char *idname_)
+{
+	strcpy(idname, idname_);
+}
+
 size_t wmWidgetGroupType::get_idname(char *r_idname)
 {
-	strcpy(r_idname, this->idname);
-	return sizeof(this->idname);
+	if (idname[0]) {
+		strcpy(r_idname, idname);
+		return sizeof(idname);
+	}
+
+	return 0;
+}
+
+wmOperator *wmWidgetGroupType::get_operator()
+{
+	return op;
+}
+
+wmKeyMap *wmWidgetGroupType::get_keymap()
+{
+	return keymap;
 }
 

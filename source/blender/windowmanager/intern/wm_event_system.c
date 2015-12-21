@@ -2087,22 +2087,23 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 			else if (handler->widgetmap) {
 				ScrArea *area = CTX_wm_area(C);
 				ARegion *region = CTX_wm_region(C);
-				wmWidgetMapC *wmap = handler->widgetmap;
-				wmWidget *widget = wm_widgetmap_get_highlighted_widget(wmap);
+				struct wmWidgetMap *wmap = handler->widgetmap;
+				wmWidgetGroup *wgroup = wm_widgetmap_active_group_get(wmap);
+				wmWidget *widget = wm_widgetmap_highlighted_widget_get(wmap);
 				unsigned char part;
 
 				wm_widgetmap_handler_context(C, handler);
 				wm_region_mouse_co(C, event);
 
 				/* handle widget highlighting */
-				if (event->type == MOUSEMOVE && !wm_widgetmap_get_active_widget(wmap)) {
-					widget = wm_widgetmap_find_highlighted_widget(wmap, C, event, &part);
-					wm_widgetmap_set_highlighted_widget(C, wmap, widget, part);
+				if (event->type == MOUSEMOVE && !wm_widgetmap_active_widget_get(wmap)) {
+					widget = wm_widgetmap_highlighted_widget_find(wmap, C, event, &part);
+					wm_widgetmap_highlighted_widget_set(C, wmap, widget, part);
 				}
 				/* handle user configurable widgetmap keymap */
-				else if (widget && wmap->wmap_context.activegroup) {
+				else if (widget && wgroup) {
 					/* get user customized keymap from default one */
-					const wmKeyMap *keymap = WM_keymap_active(wm, wmap->wmap_context.activegroup->type->keymap);
+					const wmKeyMap *keymap = WM_keymap_active(wm, WM_widgetgrouptype_user_keymap_get(wgroup->type));
 					wmKeyMapItem *kmi;
 
 					if (!keymap->poll || keymap->poll(C)) {

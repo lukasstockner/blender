@@ -44,6 +44,9 @@
 
 #include "BLI_strict_flags.h"
 
+const ListBase ListBase_NULL = {NULL, NULL};
+
+
 /* implementation */
 
 /**

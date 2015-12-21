@@ -55,7 +55,4 @@ typedef struct wmWidgetMapType {
 	ListBase widgetgrouptypes;
 } wmWidgetMapType;
 
-
-void widgets_keymap(struct wmKeyConfig *keyconf);
-
 #endif // __WM_WIDGETMAPTYPE_H__

@@ -92,6 +92,8 @@ BLI_INLINE void BLI_listbase_clear(struct ListBase *lb) { lb->first = lb->last =
 /* create a generic list node containing link to provided data */
 struct LinkData *BLI_genericNodeN(void *data);
 
+extern const ListBase ListBase_NULL;
+
 /**
  * Does a full loop on the list, with any value acting as first
  * (handy for cycling items)

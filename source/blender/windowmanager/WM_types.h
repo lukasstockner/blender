@@ -679,43 +679,6 @@ typedef struct wmWidget wmWidget;
 typedef struct wmWidgetGroup wmWidgetGroup;
 typedef struct wmWidgetMapType wmWidgetMapType;
 
-/* factory class for a widgetgroup type, gets called every time a new area is spawned */
-typedef struct wmWidgetGroupTypeC {
-	struct wmWidgetGroupTypeC *next, *prev;
-
-	char idname[64]; /* MAX_NAME */
-	char name[64]; /* widget group name - displayed in UI (keymap editor) */
-
-	/* poll if widgetmap should be active */
-	int (*poll)(const struct bContext *C, struct wmWidgetGroupTypeC *wgrouptype) ATTR_WARN_UNUSED_RESULT;
-
-	/* update widgets, called right before drawing */
-	void (*create)(const struct bContext *C, struct wmWidgetGroup *wgroup);
-
-	/* keymap init callback for this widgetgroup */
-	struct wmKeyMap *(*keymap_init)(struct wmKeyConfig *, const char *);
-
-	/* keymap created with callback from above */
-	struct wmKeyMap *keymap;
-
-	/* rna for properties */
-	struct StructRNA *srna;
-
-	/* RNA integration */
-	ExtensionRNA ext;
-
-	/* general flag */
-	int flag;
-	
-	/* if type is spawned from operator this is set here */
-	void *op;
-
-	/* same as widgetmaps, so registering/unregistering goes to the correct region */
-	short spaceid, regionid;
-	char mapidname[64];
-	bool is_3d;
-} wmWidgetGroupTypeC;
-
 typedef struct wmWidgetMapC {
 	struct wmWidgetMapC *next, *prev;
 

@@ -504,7 +504,7 @@ static void view3d_main_region_init(wmWindowManager *wm, ARegion *ar)
 		BLI_addhead(&ar->widgetmaps, WM_widgetmap_new("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW, true));
 	}
 
-	WM_event_add_area_widgetmap_handlers(ar);
+	WM_widgetmaps_create_region_handlers(ar);
 
 	/* object ops. */
 	

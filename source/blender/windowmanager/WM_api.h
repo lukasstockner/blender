@@ -61,7 +61,6 @@ struct wmOperator;
 struct wmWidget;
 struct wmWidgetGroup;
 struct wmWidgetMapC;
-struct wmWidgetGroupTypeC;
 struct wmWidgetMapType;
 struct rcti;
 struct PointerRNA;
@@ -512,10 +511,6 @@ struct wmWidget *WM_widget_new(void (*draw)(const struct bContext *, struct wmWi
                                int  (*intersect)(struct bContext *, const struct wmEvent *, struct wmWidget *),
                                int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, const int));
 
-void  WM_event_add_area_widgetmap_handlers(struct ARegion *ar);
-void  WM_modal_handler_attach_widgetgroup(struct bContext *C, struct wmEventHandler *handler,
-                                          struct wmWidgetGroupTypeC *wgrouptype, struct wmOperator *op);
-
 /* wmWidget->flag */
 enum widgetflags {
 	/* states */
@@ -556,12 +551,6 @@ void WM_widget_set_colors(struct wmWidget *widget, const float col[4], const flo
 wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, const char *wgroupname);
 
 bool WM_widgetmap_select_all(struct bContext *C, struct wmWidgetMapC *wmap, const int action);
-
-/* creates a widgetmap with all registered widgets for that type */
-void WM_widgetmap_delete(struct wmWidgetMapC *wmap);
-bool WM_widgetmap_cursor_set(const struct wmWidgetMapC *wmap, struct wmWindow *win);
-
-void WM_widgetmaptypes_free(void);
 
 /* wm_generic_widgets.c */
 

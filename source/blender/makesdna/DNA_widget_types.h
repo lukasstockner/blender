@@ -47,8 +47,7 @@ typedef enum WidgetType {
 struct wmWidgetGroup {
 	struct wmWidgetGroup *next, *prev;
 
-	struct wmWidgetGroupTypeC *type;
-	struct wmWidgetGroupType *type_cxx;
+	struct wmWidgetGroupType *type;
 	ListBase widgets;
 
 	void *py_instance;            /* python stores the class instance here */

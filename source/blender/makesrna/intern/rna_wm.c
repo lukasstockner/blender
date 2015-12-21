@@ -1533,7 +1533,7 @@ static StructRNA *rna_WidgetGroup_register(Main *bmain, ReportList *reports, voi
 	int have_function[2];
 
 	/* setup dummy widgetgroup & widgetgroup type to store static properties in */
-	dummywg.type_cxx = &dummywgt;
+	dummywg.type = &dummywgt;
 	RNA_pointer_create(NULL, &RNA_WidgetGroup, &dummywg, &wgptr);
 
 	/* clear in case they are left unset */
@@ -1891,6 +1891,8 @@ static void rna_def_widgetgroup(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Has Reports",
 	                         "WidgetGroup has a set of reports (warnings and errors) from last execution");
 
+#ifdef USE_WM_WIDGET_API
+
 	/* Registration */
 	prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "type->idname");
@@ -1917,6 +1919,8 @@ static void rna_def_widgetgroup(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
 	RNA_def_property_ui_text(prop, "Options",  "Options for this operator type");
 #endif
+
+#endif /* USE_WM_WIDGET_API */
 
 	prop = RNA_def_property(srna, "widgets", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "widgets", NULL);

@@ -2610,7 +2610,7 @@ static int graph_widget_backdrop_transform_poll(bContext *C)
 static void widgetgroup_backdrop_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	ARegion *ar = CTX_wm_region(C);
-	wmOperator *op = wgroup->type->op;
+	wmOperator *op = WM_widgetgrouptype_operator_get(wgroup->type);
 	Scene *scene = CTX_data_scene(C);
 	int width = (scene->r.size * scene->r.xsch) / 150.0f;
 	int height = (scene->r.size * scene->r.ysch) / 150.0f;

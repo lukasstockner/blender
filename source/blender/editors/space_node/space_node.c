@@ -652,7 +652,7 @@ static void node_main_region_init(wmWindowManager *wm, ARegion *ar)
 		BLI_addhead(&ar->widgetmaps, WM_widgetmap_new("Node_Canvas", SPACE_NODE, RGN_TYPE_WINDOW, false));
 	}
 
-	WM_event_add_area_widgetmap_handlers(ar);
+	WM_widgetmaps_create_region_handlers(ar);
 
 	/* own keymaps */
 	keymap = WM_keymap_find(wm->defaultconf, "Node Generic", SPACE_NODE, 0);

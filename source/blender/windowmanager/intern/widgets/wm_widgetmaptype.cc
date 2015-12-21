@@ -40,7 +40,7 @@
 
 /* store all widgetboxmaps here. Anyone who wants to register a widget for a certain
  * area type can query the widgetbox to do so */
-static ListBase widgetmaptypes = {NULL, NULL};
+static ListBase widgetmaptypes = ListBase_NULL;
 
 
 wmWidgetMapType *WM_widgetmaptype_find(
@@ -65,14 +65,17 @@ wmWidgetMapType *WM_widgetmaptype_find(
 	wmaptype->spaceid = spaceid;
 	wmaptype->regionid = regionid;
 	wmaptype->is_3d = is_3d;
-	wmaptype->widgetgrouptypes.first = wmaptype->widgetgrouptypes.last = NULL;
+	wmaptype->widgetgrouptypes = ListBase_NULL;
 	BLI_strncpy(wmaptype->idname, idname, MAX_NAME);
 	BLI_addhead(&widgetmaptypes, wmaptype);
 
 	return wmaptype;
 }
 
-void widgets_keymap(wmKeyConfig *keyconf)
+/**
+ * Initialize keymaps for all existing widget-groups
+ */
+void wm_widgets_keymap(wmKeyConfig *keyconf)
 {
 	for (wmWidgetMapType *wmaptype = (wmWidgetMapType *)widgetmaptypes.first;
 	     wmaptype;
@@ -84,6 +87,26 @@ void widgets_keymap(wmKeyConfig *keyconf)
 		{
 			wgrouptype->keymap_init_do(keyconf);
 		}
+	}
+}
+
+void WM_widgetmaptypes_free()
+{
+	wmWidgetMapType *wmaptype = (wmWidgetMapType *)widgetmaptypes.first;
+
+	while (wmaptype) {
+		wmWidgetMapType *wmaptype_next = wmaptype->next;
+		wmWidgetGroupType *wgrouptype = (wmWidgetGroupType *)wmaptype->widgetgrouptypes.first;
+
+		while (wgrouptype) {
+			wmWidgetGroupType *wgrouptype_next = wgrouptype->next;
+
+			delete wgrouptype;
+			wgrouptype = wgrouptype_next;
+		}
+
+		delete wmaptype;
+		wmaptype = wmaptype_next;
 	}
 }
 
