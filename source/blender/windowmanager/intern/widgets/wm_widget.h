@@ -60,7 +60,7 @@ public:
 };
 #endif
 
-void widget_delete(ListBase *widgetlist, wmWidget *widget);
+void widget_remove(ListBase *widgetlist, wmWidget *widget);
 void widget_data_free(wmWidget *widget);
 void widget_find_active_3D_loop(const bContext *C, ListBase *visible_widgets);
 void widget_calculate_scale(wmWidget *widget, const bContext *C);

@@ -71,7 +71,7 @@ void widget_data_free(wmWidget *widget)
  * Free and NULL \a widget.
  * \a widgetlist is allowed to be NULL.
  */
-void widget_delete(ListBase *widgetlist, wmWidget *widget)
+void widget_remove(ListBase *widgetlist, wmWidget *widget)
 {
 	widget_data_free(widget);
 	if (widgetlist)

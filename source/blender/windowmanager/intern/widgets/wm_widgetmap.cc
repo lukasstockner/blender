@@ -79,19 +79,22 @@ wmWidgetMap::wmWidgetMap(const char *idname, const int spaceid, const int region
 	}
 }
 
+/**
+ * \brief wmWidgetMap Destructor
+ *
+ * \warning As it currently is, this may only be called on exit/startup. If called on runtime,
+ *          bContext * should be passed to #widgetgroup_remove so cursor can be reset.
+ */
 wmWidgetMap::~wmWidgetMap()
 {
-	for (wmWidgetGroup *wgroup = (wmWidgetGroup *)widgetgroups.first; wgroup;) {
+	wmWidgetGroup *wgroup = (wmWidgetGroup *)widgetgroups.first;
+
+	while (wgroup) {
 		wmWidgetGroup *wgroup_next = wgroup->next;
 
-		for (wmWidget *widget = (wmWidget *)wgroup->widgets.first; widget;) {
-			wmWidget *widget_next = widget->next;
-			widget_delete(&wgroup->widgets, widget);
-			widget = widget_next;
-		}
-
-		/* XXX should actually share code with widgetgroup_free, but needs to be done carefully */
-		delete wgroup;
+		/* bContext * can be NULL since this destructor is only called
+		 * on exit and we don't need to change cursor state */
+		widgetgroup_remove(NULL, this, wgroup);
 		wgroup = wgroup_next;
 	}
 
@@ -99,15 +102,25 @@ wmWidgetMap::~wmWidgetMap()
 	MEM_SAFE_FREE(wmap_context.selected_widgets);
 }
 
-void WM_widgetmaps_delete(ListBase *widgetmaps)
+void wmWidgetMap::unregister(ListBase *widgetmaps)
+{
+	BLI_remlink(widgetmaps, this);
+}
+
+/**
+ * \brief Remove all widgetmaps of ListBase \a widgetmaps.
+ */
+void WM_widgetmaps_remove(ListBase *widgetmaps)
 {
 	wmWidgetMap *wmap = (wmWidgetMap *)widgetmaps->first;
 
 	while (wmap) {
 		wmWidgetMap *wmap_next = wmap->next;
-		WM_widgetmap_delete(wmap);
+		WM_widgetmap_remove(wmap, widgetmaps);
 		wmap = wmap_next;
 	}
+
+	BLI_assert(BLI_listbase_is_empty(widgetmaps));
 }
 
 static void widget_highlight_update(wmWidgetMap *wmap, const wmWidget *old_, wmWidget *new_)
@@ -152,7 +165,7 @@ void wmWidgetMap::update(const bContext *C)
 						widget->next = widget->prev = NULL;
 					}
 					else {
-						widget_delete(&wgroup->widgets, widget);
+						widget_remove(&wgroup->widgets, widget);
 					}
 					widget = widget_next;
 				}
@@ -180,7 +193,7 @@ void wmWidgetMap::update(const bContext *C)
 			if (highlighted_new) {
 				BLI_assert(widget_compare(highlighted, highlighted_new));
 				widget_highlight_update(this, highlighted, highlighted_new);
-				widget_delete(NULL, highlighted);
+				widget_remove(NULL, highlighted);
 			}
 			/* if we didn't find a highlighted widget, delete the old one here */
 			else {

@@ -41,8 +41,9 @@ wmWidgetMap *WM_widgetmap_new(const char *idname, const int spaceid, const int r
 {
 	return new wmWidgetMap(idname, spaceid, regionid, is_3d);
 }
-void WM_widgetmap_delete(wmWidgetMap *wmap)
+void WM_widgetmap_remove(wmWidgetMap *wmap, ListBase *widgetmaps)
 {
+	wmap->unregister(widgetmaps);
 	delete wmap;
 }
 
@@ -127,9 +128,10 @@ wmWidgetGroupType *WM_widgetgrouptype_new(
 	            regionid, is_3d);
 }
 
-void WM_widgetgrouptype_delete(bContext *C, Main *bmain, wmWidgetGroupType *wgrouptype)
+void WM_widgetgrouptype_remove(bContext *C, Main *bmain, wmWidgetGroupType *wgrouptype)
 {
-	wgrouptype->free(C, bmain);
+	wgrouptype->unregister(C, bmain);
+	delete wgrouptype;
 }
 
 void WM_widgetgrouptype_attach_to_handler(

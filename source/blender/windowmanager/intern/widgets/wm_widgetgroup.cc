@@ -53,9 +53,11 @@ wmWidgetGroup::wmWidgetGroup()
 }
 #endif
 
-void widgetgroup_free(bContext *C, wmWidgetMap *wmap, wmWidgetGroup *wgroup)
+void widgetgroup_remove(bContext *C, wmWidgetMap *wmap, wmWidgetGroup *wgroup)
 {
-	for (wmWidget *widget = (wmWidget *)wgroup->widgets.first; widget;) {
+	wmWidget *widget = (wmWidget *)wgroup->widgets.first;
+
+	while (widget) {
 		wmWidget *widget_next = widget->next;
 		if (widget->flag & WM_WIDGET_HIGHLIGHT) {
 			wmap->set_highlighted_widget(C, NULL, 0);
@@ -63,9 +65,12 @@ void widgetgroup_free(bContext *C, wmWidgetMap *wmap, wmWidgetGroup *wgroup)
 		if (widget->flag & WM_WIDGET_ACTIVE) {
 			wmap->set_active_widget(C, NULL, NULL);
 		}
-		widget_delete(&wgroup->widgets, widget);
+
+		widget_remove(&wgroup->widgets, widget);
 		widget = widget_next;
 	}
+
+	BLI_remlink(&wmap->widgetgroups, wgroup);
 
 #ifdef WITH_PYTHON
 	if (wgroup->py_instance) {
@@ -80,7 +85,6 @@ void widgetgroup_free(bContext *C, wmWidgetMap *wmap, wmWidgetGroup *wgroup)
 		MEM_freeN(wgroup->reports);
 	}
 
-	BLI_remlink(&wmap->widgetgroups, wgroup);
-	MEM_freeN(wgroup);
+	delete wgroup;
 }
 

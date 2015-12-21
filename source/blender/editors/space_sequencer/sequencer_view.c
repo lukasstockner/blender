@@ -320,7 +320,7 @@ static void sequencer_overdrop_finish(bContext *C, OverDropTransformData *data)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ED_area_headerprint(sa, NULL);
-	WM_widgetgrouptype_delete(C, CTX_data_main(C), data->cagetype);
+	WM_widgetgrouptype_remove(C, CTX_data_main(C), data->cagetype);
 	MEM_freeN(data);
 }
 
@@ -489,7 +489,7 @@ static void sequencer_image_transform_widget_finish(bContext *C, ImageTransformD
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ED_area_headerprint(sa, NULL);
-	WM_widgetgrouptype_delete(C, CTX_data_main(C), data->cagetype);
+	WM_widgetgrouptype_remove(C, CTX_data_main(C), data->cagetype);
 	MEM_freeN(data);
 }
 

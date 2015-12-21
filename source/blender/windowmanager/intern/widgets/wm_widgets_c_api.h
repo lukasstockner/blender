@@ -52,8 +52,8 @@ struct wmWidgetMapType *WM_widgetmaptype_find(
         const bool is_3d, const bool create);
 
 struct wmWidgetMap *WM_widgetmap_new(const char *idname, const int spaceid, const int regionid, const bool is_3d);
-void WM_widgetmap_delete(struct wmWidgetMap *wmap);
-void WM_widgetmaps_delete(struct ListBase *widgetmaps);
+void WM_widgetmap_remove(struct wmWidgetMap *wmap, struct ListBase *widgetmaps);
+void WM_widgetmaps_remove(struct ListBase *widgetmaps);
 void WM_widgetmap_widgets_update(struct wmWidgetMap *wmap, const struct bContext *C);
 void WM_widgetmap_widgets_draw(const struct bContext *C, struct wmWidgetMap *wmap,
         const bool in_scene, const bool free_draw_widgets);
@@ -90,7 +90,7 @@ struct wmWidgetGroupType *WM_widgetgrouptype_new(
         struct wmKeyMap *(*keymap_init)(struct wmKeyConfig *, const char *),
         const struct Main *bmain, const char *mapidname, const char *name,
         const short spaceid, const short regionid, const bool is_3d);
-void WM_widgetgrouptype_delete(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgrouptype);
+void WM_widgetgrouptype_remove(struct bContext *C, struct Main *bmain, struct wmWidgetGroupType *wgrouptype);
 void WM_widgetgrouptype_attach_to_handler(
         struct bContext *C, struct wmWidgetGroupType *wgrouptype,
         struct wmEventHandler *handler, struct wmOperator *op);

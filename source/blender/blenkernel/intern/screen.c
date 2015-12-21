@@ -341,8 +341,7 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 		}
 	}
 
-	WM_widgetmaps_delete(&ar->widgetmaps);
-	BLI_listbase_clear(&ar->widgetmaps);
+	WM_widgetmaps_remove(&ar->widgetmaps);
 	BLI_freelistN(&ar->ui_lists);
 	BLI_freelistN(&ar->ui_previews);
 	BLI_freelistN(&ar->panels_category);

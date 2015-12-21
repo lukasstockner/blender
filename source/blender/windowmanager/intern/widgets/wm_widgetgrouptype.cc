@@ -108,7 +108,14 @@ wmWidgetGroupType::wmWidgetGroupType(
 	}
 }
 
-void wmWidgetGroupType::free(bContext *C, Main *bmain)
+#if 0 /* not needed yet */
+wmWidgetGroupType::~wmWidgetGroupType()
+{
+	
+}
+#endif
+
+void wmWidgetGroupType::unregister(bContext *C, Main *bmain)
 {
 	for (bScreen *sc = (bScreen *)bmain->screen.first; sc; sc = (bScreen *)sc->id.next) {
 		for (ScrArea *sa = (ScrArea *)sc->areabase.first; sa; sa = sa->next) {
@@ -121,7 +128,7 @@ void wmWidgetGroupType::free(bContext *C, Main *bmain)
 						for (wgroup = (wmWidgetGroup *)wmap->widgetgroups.first; wgroup; wgroup = wgroup_next) {
 							wgroup_next = wgroup->next;
 							if (wgroup->type == this) {
-								widgetgroup_free(C, wmap, wgroup);
+								widgetgroup_remove(C, wmap, wgroup);
 								ED_region_tag_redraw(ar);
 							}
 						}
@@ -131,14 +138,10 @@ void wmWidgetGroupType::free(bContext *C, Main *bmain)
 		}
 	}
 
+
 	wmWidgetMapType *wmaptype = WM_widgetmaptype_find(mapidname, spaceid,
 	                                                  regionid, is_3d, false);
-
 	BLI_remlink(&wmaptype->widgetgrouptypes, this);
-	prev = next = NULL;
-
-	// yay, suicide
-	delete this;
 }
 
 void wmWidgetGroupType::keymap_init_do(wmKeyConfig *keyconf)

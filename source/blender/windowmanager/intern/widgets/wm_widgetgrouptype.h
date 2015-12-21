@@ -49,9 +49,6 @@ class wmWidgetGroupType
 public:
 	wmWidgetGroupType *next, *prev;
 
-	/**
-	 * \brief wmWidgetGroupType Constructor
-	 */
 	wmWidgetGroupType(
 	        wmWidgetMapType *wmaptype,
 	        int (*poll)(const bContext *, wmWidgetGroupType *),
@@ -59,7 +56,7 @@ public:
 	        wmKeyMap *(*keymap_init)(wmKeyConfig *, const char *),
 	        const Main *bmain, const char *mapidname, const char *name,
 	        const short spaceid, const short regionid, const bool is_3d);
-	void free(bContext *C, Main *bmain);
+	void unregister(bContext *C, Main *bmain);
 
 	void keymap_init_do(wmKeyConfig *keyconf);
 	void attach_to_handler(bContext *C, struct wmEventHandler *handler, struct wmOperator *op_);

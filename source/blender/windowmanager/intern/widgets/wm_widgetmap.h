@@ -50,6 +50,7 @@ public:
 	 */
 	wmWidgetMap(const char *idname, const int spaceid, const int regionid, const bool is_3d);
 	~wmWidgetMap();
+	void unregister(ListBase *widgetmaps);
 
 	wmWidgetMapType *type;
 	ListBase widgetgroups;
