@@ -59,15 +59,11 @@ public:
 	void draw(const bContext *C, const bool in_scene, const bool free_draw_widgets);
 
 	bool cursor_update(wmWindow *win);
-	struct GHash *widget_hash_new(
-	        const bContext *C,
-	        bool (*poll)(const wmWidget *, void *),
-	        void *data,
-	        const bool include_hidden);
 
-	void set_highlighted_widget(bContext *C, wmWidget *widget, unsigned char part);
+	void      set_highlighted_widget(bContext *C, wmWidget *widget, unsigned char part);
 	wmWidget *find_highlighted_widget(bContext *C, const wmEvent *event, unsigned char *part);
-	void set_active_widget(bContext *C, const wmEvent *event, wmWidget *widget);
+	void      set_active_widget(bContext *C, const wmEvent *event, wmWidget *widget);
+	bool      select_all(bContext *C, const int action);
 
 	wmWidgetGroup *get_active_group();
 
@@ -90,6 +86,15 @@ public:
 		/* set while widget is highlighted/active */
 		wmWidgetGroup *activegroup = NULL;
 	} wmap_context;
+
+private:
+	struct GHash *widget_hash_new(
+	        const bContext *C,
+	        bool (*poll)(const wmWidget *, void *),
+	        void *data,
+	        const bool include_hidden);
+	bool select_all_intern(bContext *C, wmWidget ***sel, const int action);
+	bool deselect_all(wmWidget ***sel);
 };
 
 #endif // __WM_WIDGETMAP_H__

@@ -60,8 +60,6 @@ struct wmOperatorType;
 struct wmOperator;
 struct wmWidget;
 struct wmWidgetGroup;
-struct wmWidgetMapC;
-struct wmWidgetMapType;
 struct rcti;
 struct PointerRNA;
 struct PropertyRNA;
@@ -549,8 +547,6 @@ void WM_widget_set_line_width(struct wmWidget *widget, const float line_width);
 void WM_widget_set_colors(struct wmWidget *widget, const float col[4], const float col_hi[4]);
 
 wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, const char *wgroupname);
-
-bool WM_widgetmap_select_all(struct bContext *C, struct wmWidgetMapC *wmap, const int action);
 
 /* wm_generic_widgets.c */
 

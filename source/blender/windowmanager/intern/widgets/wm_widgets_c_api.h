@@ -61,10 +61,6 @@ void wm_widgetmap_handler_context(struct bContext *C, struct wmEventHandler *han
 void wm_widget_handler_modal_update(struct bContext *C, struct wmEvent *event, struct wmEventHandler *handler);
 void WM_widgetmaps_create_region_handlers(struct ARegion *ar);
 bool WM_widgetmap_cursor_set(struct wmWidgetMap *wmap, struct wmWindow *win);
-struct GHash *wm_widgetmap_widget_hash_new(
-        const struct bContext *C, struct wmWidgetMap *wmap,
-        bool (*poll)(const struct wmWidget *, void *),
-        void *data, const bool include_hidden) ATTR_WARN_UNUSED_RESULT;
 /* highlighted widget */
 void wm_widgetmap_highlighted_widget_set(
         struct bContext *C, struct wmWidgetMap *wmap, struct wmWidget *widget,
@@ -78,6 +74,10 @@ void wm_widgetmap_active_widget_set(
         struct wmWidgetMap *wmap, struct bContext *C,
         const struct wmEvent *event, struct wmWidget *widget);
 struct wmWidget *wm_widgetmap_active_widget_get(struct wmWidgetMap *wmap);
+/* selected widgets */
+bool WM_widgetmap_select_all(struct wmWidgetMap *wmap, struct bContext *C, const int action);
+void wm_widget_select(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget);
+void wm_widget_deselect(struct wmWidgetMap *wmap, const struct bContext *C, struct wmWidget *widget);
 /* active group */
 struct wmWidgetGroup *wm_widgetmap_active_group_get(struct wmWidgetMap *wmap);
 

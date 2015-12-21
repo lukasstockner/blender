@@ -65,14 +65,6 @@ bool WM_widgetmap_cursor_set(wmWidgetMap *wmap, wmWindow *win)
 	return wmap->cursor_update(win);
 }
 
-GHash *wm_widgetmap_widget_hash_new(
-        const bContext *C, wmWidgetMap *wmap,
-        bool (*poll)(const wmWidget *, void *),
-        void *data, const bool include_hidden)
-{
-	return wmap->widget_hash_new(C, poll, data, include_hidden);
-}
-
 void wm_widgetmap_highlighted_widget_set(bContext *C, wmWidgetMap *wmap, wmWidget *widget, unsigned char part)
 {
 	wmap->set_highlighted_widget(C, widget, part);
@@ -80,6 +72,12 @@ void wm_widgetmap_highlighted_widget_set(bContext *C, wmWidgetMap *wmap, wmWidge
 wmWidget *wm_widgetmap_highlighted_widget_get(wmWidgetMap *wmap)
 {
 	return wmap->wmap_context.highlighted_widget;
+}
+wmWidget *wm_widgetmap_highlighted_widget_find(
+        wmWidgetMap *wmap, bContext *C, const wmEvent *event,
+        unsigned char *part)
+{
+	return wmap->find_highlighted_widget(C, event, part);
 }
 
 void wm_widgetmap_active_widget_set(wmWidgetMap *wmap, bContext *C, const wmEvent *event, wmWidget *widget)
@@ -91,12 +89,9 @@ wmWidget *wm_widgetmap_active_widget_get(wmWidgetMap *wmap)
 	return wmap->wmap_context.active_widget;
 }
 
-
-wmWidget *wm_widgetmap_highlighted_widget_find(
-        wmWidgetMap *wmap, bContext *C, const wmEvent *event,
-        unsigned char *part)
+bool WM_widgetmap_select_all(wmWidgetMap *wmap, bContext *C, const int action)
 {
-	return wmap->find_highlighted_widget(C, event, part);
+	return wmap->select_all(C, action);
 }
 
 wmWidgetGroup *wm_widgetmap_active_group_get(wmWidgetMap *wmap)

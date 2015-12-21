@@ -36,12 +36,14 @@
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "ED_screen.h"
 #include "ED_view3d.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "WM_api.h"
 
+#include "wm_widgetmap.h"
 #include "wm_widgetgroup.h"
 #include "wm_widget.h" // own include
 
@@ -93,6 +95,68 @@ void widget_find_active_3D_loop(const bContext *C, ListBase *visible_widgets)
 	}
 }
 
+/**
+ * Add \a widget to selection.
+ * Reallocates memory for selected widgets so better not call for selecting multiple ones.
+ */
+void wm_widget_select(wmWidgetMap *wmap, bContext *C, wmWidget *widget)
+{
+	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
+	int *tot_selected = &wmap->wmap_context.tot_selected;
+
+	if (!widget || (widget->flag & WM_WIDGET_SELECTED))
+		return;
+
+	(*tot_selected)++;
+
+	*sel = (wmWidget **)MEM_reallocN(*sel, sizeof(**sel) * (*tot_selected));
+	(*sel)[(*tot_selected) - 1] = widget;
+
+	widget->flag |= WM_WIDGET_SELECTED;
+	if (widget->select) {
+		widget->select(C, widget, SEL_SELECT);
+	}
+	wmap->set_highlighted_widget(C, widget, widget->highlighted_part);
+
+	ED_region_tag_redraw(CTX_wm_region(C));
+}
+
+/**
+ * Remove \a widget from selection.
+ * Reallocates memory for selected widgets so better not call for selecting multiple ones.
+ */
+void wm_widget_deselect(wmWidgetMap *wmap, const bContext *C, wmWidget *widget)
+{
+	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
+	int *tot_selected = &wmap->wmap_context.tot_selected;
+
+	/* caller should check! */
+	BLI_assert(widget->flag & WM_WIDGET_SELECTED);
+
+	/* remove widget from selected_widgets array */
+	for (int i = 0; i < (*tot_selected); i++) {
+		if (widget_compare((*sel)[i], widget)) {
+			for (int j = i; j < ((*tot_selected) - 1); j++) {
+				(*sel)[j] = (*sel)[j + 1];
+			}
+			break;
+		}
+	}
+
+	/* update array data */
+	if ((*tot_selected) <= 1) {
+		MEM_SAFE_FREE(*sel);
+		*tot_selected = 0;
+	}
+	else {
+		*sel = (wmWidget **)MEM_reallocN(*sel, sizeof(**sel) * (*tot_selected));
+		(*tot_selected)--;
+	}
+
+	widget->flag &= ~WM_WIDGET_SELECTED;
+
+	ED_region_tag_redraw(CTX_wm_region(C));
+}
 
 void widget_calculate_scale(wmWidget *widget, const bContext *C)
 {

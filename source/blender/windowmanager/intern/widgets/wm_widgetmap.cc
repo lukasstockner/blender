@@ -674,6 +674,98 @@ void wmWidgetMap::set_active_widget(bContext *C, const wmEvent *event, wmWidget 
 	}
 }
 
+BLI_INLINE bool widget_selectable_poll(const wmWidget *widget, void *UNUSED(data))
+{
+	return (widget->flag & WM_WIDGET_SELECTABLE);
+}
+
+/**
+ * Select all selectable widgets in \a wmap.
+ * \return if selection has changed.
+ */
+bool wmWidgetMap::select_all_intern(bContext *C, wmWidget ***sel, const int action)
+{
+	/* GHash is used here to avoid having to loop over all widgets twice (once to
+	 * get tot_sel for allocating, once for actually selecting). Instead we collect
+	 * selectable widgets in hash table and use this to get tot_sel and do selection */
+
+	GHash *hash = widget_hash_new(C, widget_selectable_poll, NULL, true);
+	GHashIterator gh_iter;
+	int i, *tot_sel = &wmap_context.tot_selected;
+	bool changed = false;
+
+	*tot_sel = BLI_ghash_size(hash);
+	*sel = (wmWidget **)MEM_reallocN(*sel, sizeof(**sel) * (*tot_sel));
+
+	GHASH_ITER_INDEX (gh_iter, hash, i) {
+		wmWidget *widget_iter = (wmWidget *)BLI_ghashIterator_getValue(&gh_iter);
+
+		if ((widget_iter->flag & WM_WIDGET_SELECTED) == 0) {
+			changed = true;
+		}
+		widget_iter->flag |= WM_WIDGET_SELECTED;
+		if (widget_iter->select) {
+			widget_iter->select(C, widget_iter, action);
+		}
+		(*sel)[i] = widget_iter;
+		BLI_assert(i < (*tot_sel));
+	}
+	/* highlight first widget */
+	set_highlighted_widget(C, (*sel)[0], (*sel)[0]->highlighted_part);
+
+	BLI_ghash_free(hash, NULL, NULL);
+	return changed;
+}
+
+/**
+ * Deselect all selected widgets in \a wmap.
+ * \return if selection has changed.
+ */
+bool wmWidgetMap::deselect_all(wmWidget ***sel)
+{
+	if (*sel == NULL || wmap_context.tot_selected == 0)
+		return false;
+
+	for (int i = 0; i < wmap_context.tot_selected; i++) {
+		(*sel)[i]->flag &= ~WM_WIDGET_SELECTED;
+		(*sel)[i] = NULL;
+	}
+	MEM_SAFE_FREE(*sel);
+	wmap_context.tot_selected = 0;
+
+	/* always return true, we already checked
+	 * if there's anything to deselect */
+	return true;
+}
+
+/**
+ * Select/Deselect all selectable widgets in \a wmap.
+ * \return if selection has changed.
+ *
+ * TODO select all by type
+ */
+bool wmWidgetMap::select_all(bContext *C, const int action)
+{
+	wmWidget ***sel = &wmap_context.selected_widgets;
+	bool changed = false;
+
+	switch (action) {
+		case SEL_SELECT:
+			changed = select_all_intern(C, sel, action);
+			break;
+		case SEL_DESELECT:
+			changed = deselect_all(sel);
+			break;
+		default:
+			BLI_assert(0);
+	}
+
+	if (changed)
+		WM_event_add_mousemove(C);
+
+	return changed;
+}
+
 wmWidgetGroup *wmWidgetMap::get_active_group()
 {
 	return wmap_context.activegroup;

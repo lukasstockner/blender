@@ -254,162 +254,7 @@ void WM_widget_set_colors(wmWidget *widget, const float col[4], const float col_
  *
  * \{ */
 
-/**
- * Deselect all selected widgets in \a wmap.
- * \return if selection has changed.
- */
-static bool wm_widgetmap_deselect_all(wmWidgetMapC *wmap, wmWidget ***sel)
-{
-	if (*sel == NULL || wmap->wmap_context.tot_selected == 0)
-		return false;
-
-	for (int i = 0; i < wmap->wmap_context.tot_selected; i++) {
-		(*sel)[i]->flag &= ~WM_WIDGET_SELECTED;
-		(*sel)[i] = NULL;
-	}
-	MEM_SAFE_FREE(*sel);
-	wmap->wmap_context.tot_selected = 0;
-
-	/* always return true, we already checked
-	 * if there's anything to deselect */
-	return true;
-}
-
-BLI_INLINE bool widget_selectable_poll(const wmWidget *widget, void *UNUSED(data))
-{
-	return (widget->flag & WM_WIDGET_SELECTABLE);
-}
-
-/**
- * Select all selectable widgets in \a wmap.
- * \return if selection has changed.
- */
-static bool wm_widgetmap_select_all_intern(bContext *C, wmWidgetMapC *wmap, wmWidget ***sel, const int action)
-{
-	/* GHash is used here to avoid having to loop over all widgets twice (once to
-	 * get tot_sel for allocating, once for actually selecting). Instead we collect
-	 * selectable widgets in hash table and use this to get tot_sel and do selection */
-
-	GHash *hash = wm_widgetmap_widget_hash_new(C, wmap, widget_selectable_poll, NULL, true);
-	GHashIterator gh_iter;
-	int i, *tot_sel = &wmap->wmap_context.tot_selected;
-	bool changed = false;
-
-	*tot_sel = BLI_ghash_size(hash);
-	*sel = MEM_reallocN(*sel, sizeof(**sel) * (*tot_sel));
-
-	GHASH_ITER_INDEX (gh_iter, hash, i) {
-		wmWidget *widget_iter = BLI_ghashIterator_getValue(&gh_iter);
-
-		if ((widget_iter->flag & WM_WIDGET_SELECTED) == 0) {
-			changed = true;
-		}
-		widget_iter->flag |= WM_WIDGET_SELECTED;
-		if (widget_iter->select) {
-			widget_iter->select(C, widget_iter, action);
-		}
-		(*sel)[i] = widget_iter;
-		BLI_assert(i < (*tot_sel));
-	}
-	/* highlight first widget */
-	wm_widgetmap_highlighted_widget_set(C, wmap, (*sel)[0], (*sel)[0]->highlighted_part);
-
-	BLI_ghash_free(hash, NULL, NULL);
-	return changed;
-}
-
-/**
- * Select/Deselect all selectable widgets in \a wmap.
- * \return if selection has changed.
- *
- * TODO select all by type
- */
-bool WM_widgetmap_select_all(bContext *C, wmWidgetMapC *wmap, const int action)
-{
-	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
-	bool changed = false;
-
-	switch (action) {
-		case SEL_SELECT:
-			changed = wm_widgetmap_select_all_intern(C, wmap, sel, action);
-			break;
-		case SEL_DESELECT:
-			changed = wm_widgetmap_deselect_all(wmap, sel);
-			break;
-		default:
-			BLI_assert(0);
-	}
-
-	if (changed)
-		WM_event_add_mousemove(C);
-
-	return changed;
-}
-
-/**
- * Remove \a widget from selection.
- * Reallocates memory for selected widgets so better not call for selecting multiple ones.
- */
-static void wm_widget_deselect(const bContext *C, wmWidgetMapC *wmap, wmWidget *widget)
-{
-	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
-	int *tot_selected = &wmap->wmap_context.tot_selected;
-
-	/* caller should check! */
-	BLI_assert(widget->flag & WM_WIDGET_SELECTED);
-
-	/* remove widget from selected_widgets array */
-	for (int i = 0; i < (*tot_selected); i++) {
-		if (widget_compare((*sel)[i], widget)) {
-			for (int j = i; j < ((*tot_selected) - 1); j++) {
-				(*sel)[j] = (*sel)[j + 1];
-			}
-			break;
-		}
-	}
-
-	/* update array data */
-	if ((*tot_selected) <= 1) {
-		MEM_SAFE_FREE(*sel);
-		*tot_selected = 0;
-	}
-	else {
-		*sel = MEM_reallocN(*sel, sizeof(**sel) * (*tot_selected));
-		(*tot_selected)--;
-	}
-
-	widget->flag &= ~WM_WIDGET_SELECTED;
-
-	ED_region_tag_redraw(CTX_wm_region(C));
-}
-
-/**
- * Add \a widget to selection.
- * Reallocates memory for selected widgets so better not call for selecting multiple ones.
- */
-void wm_widget_select(bContext *C, wmWidgetMapC *wmap, wmWidget *widget)
-{
-	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
-	int *tot_selected = &wmap->wmap_context.tot_selected;
-
-	if (!widget || (widget->flag & WM_WIDGET_SELECTED))
-		return;
-
-	(*tot_selected)++;
-
-	*sel = MEM_reallocN(*sel, sizeof(**sel) * (*tot_selected));
-	(*sel)[(*tot_selected) - 1] = widget;
-
-	widget->flag |= WM_WIDGET_SELECTED;
-	if (widget->select) {
-		widget->select(C, widget, SEL_SELECT);
-	}
-	wm_widgetmap_highlighted_widget_set(C, wmap, widget, widget->highlighted_part);
-
-	ED_region_tag_redraw(CTX_wm_region(C));
-}
-
-static int widget_select_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+static int widget_select_invoke(bContext *C, wmOperator *op)
 {
 	ARegion *ar = CTX_wm_region(C);
 
@@ -418,14 +263,13 @@ static int widget_select_invoke(bContext *C, wmOperator *op, const wmEvent *UNUS
 	bool toggle = RNA_boolean_get(op->ptr, "toggle");
 
 
-	for (wmWidgetMapC *wmap = ar->widgetmaps.first; wmap; wmap = wmap->next) {
-		wmWidget ***sel = &wmap->wmap_context.selected_widgets;
-		wmWidget *highlighted = wmap->wmap_context.highlighted_widget;
+	for (Link *link = ar->widgetmaps.first; link; link = link->next) {
+		struct wmWidgetMap *wmap = (struct wmWidgetMap *)link;
+		wmWidget *highlighted = wm_widgetmap_highlighted_widget_get(wmap);
 
 		/* deselect all first */
 		if (extend == false && deselect == false && toggle == false) {
-			wm_widgetmap_deselect_all(wmap, sel);
-			BLI_assert(*sel == NULL && wmap->wmap_context.tot_selected == 0);
+			WM_widgetmap_select_all(wmap, C, SEL_DESELECT);
 		}
 
 		if (highlighted) {
@@ -438,10 +282,10 @@ static int widget_select_invoke(bContext *C, wmOperator *op, const wmEvent *UNUS
 
 			if (deselect) {
 				if (is_selected)
-					wm_widget_deselect(C, wmap, highlighted);
+					wm_widget_deselect(wmap, C, highlighted);
 			}
 			else {
-				wm_widget_select(C, wmap, highlighted);
+				wm_widget_select(wmap, C, highlighted);
 			}
 
 			return OPERATOR_FINISHED;
@@ -463,7 +307,7 @@ void WIDGETGROUP_OT_widget_select(wmOperatorType *ot)
 	ot->idname = "WIDGETGROUP_OT_widget_select";
 
 	/* api callbacks */
-	ot->invoke = widget_select_invoke;
+	ot->exec = widget_select_invoke;
 
 	ot->flag = OPTYPE_UNDO;
 
