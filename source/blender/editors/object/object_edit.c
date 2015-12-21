@@ -2134,21 +2134,6 @@ void OBJECT_OT_game_physics_copy(struct wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int WIDGETGROUP_object_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *wgrouptype)
-{
-	Object *ob = ED_object_active_context((bContext *)C);
-
-	if (ED_operator_object_active((bContext *)C)) {
-		char idname[MAX_NAME];
-
-		WM_widgetgrouptype_idname_get(wgrouptype, idname);
-		if (STREQ(idname, ob->id.name)) {
-			return true;
-		}
-	}
-	return false;
-}
-
 static int object_widget_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = ED_object_active_context((bContext *)C);

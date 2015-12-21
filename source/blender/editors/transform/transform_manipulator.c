@@ -83,6 +83,7 @@
 
 #include "GPU_select.h"
 
+
 /* drawing flags */
 
 #define MAN_TRANS_X  (1 << 0)
@@ -99,6 +100,12 @@
 #define MAN_SCALE_Y  (1 << 9)
 #define MAN_SCALE_Z  (1 << 10)
 #define MAN_SCALE_C  (MAN_SCALE_X | MAN_SCALE_Y | MAN_SCALE_Z)
+
+/* threshold for testing view aligned manipulator axis */
+#define TW_AXIS_DOT_MIN 0.02f
+#define TW_AXIS_DOT_MAX 0.1f
+
+#define MAN_AXIS_LINE_WIDTH 2.0
 
 /* axes as index */
 enum {
@@ -137,16 +144,33 @@ enum {
 	MAN_AXES_SCALE,
 };
 
-/* threshold for testing view aligned manipulator axis */
-#define TW_AXIS_DOT_MIN 0.02f
-#define TW_AXIS_DOT_MAX 0.1f
+typedef struct ManipulatorGroup {
+	struct wmWidget *translate_x,
+	                *translate_y,
+	                *translate_z,
+	                *translate_xy,
+	                *translate_yz,
+	                *translate_zx,
+	                *translate_c,
 
-#define MAN_AXIS_LINE_WIDTH 2.0
+	                *rotate_x,
+	                *rotate_y,
+	                *rotate_z,
+	                *rotate_c,
+
+	                *scale_x,
+	                *scale_y,
+	                *scale_z,
+	                *scale_xy,
+	                *scale_yz,
+	                *scale_zx,
+	                *scale_c;
+} ManipulatorGroup;
 
 
 /* **************** Utilities **************** */
 
-/* loop over axes of given type */
+/* loop over axes */
 #define MAN_ITER_AXES_BEGIN \
 	{ \
 		wmWidget *axis; \
@@ -1088,6 +1112,7 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 		}
 		MAN_ITER_AXES_END;
 
+		MEM_freeN(man);
 		return;
 	}
 
@@ -1191,6 +1216,15 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 	MEM_freeN(man);
 }
 
+int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
+{
+	/* it's a given we only use this in 3D view */
+	const ScrArea *sa = CTX_wm_area(C);
+	const View3D *v3d = sa->spacedata.first;
+
+	return ((v3d->twflag & V3D_USE_MANIPULATOR) != 0);
+}
+
 void WIDGETGROUP_object_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	Object *ob = ED_object_active_context((bContext *)C);
@@ -1202,12 +1236,18 @@ void WIDGETGROUP_object_manipulator_create(const struct bContext *C, struct wmWi
 	WIDGETGROUP_manipulator_create(C, wgroup);
 }
 
-int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
+int WIDGETGROUP_object_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *wgrouptype)
 {
-	/* it's a given we only use this in 3D view */
-	const ScrArea *sa = CTX_wm_area(C);
-	const View3D *v3d = sa->spacedata.first;
+	Object *ob = ED_object_active_context((bContext *)C);
 
-	return ((v3d->twflag & V3D_USE_MANIPULATOR) != 0);
+	if (ED_operator_object_active((bContext *)C)) {
+		char idname[MAX_NAME];
+
+		WM_widgetgrouptype_idname_get(wgrouptype, idname);
+		if (STREQ(idname, ob->id.name)) {
+			return true;
+		}
+	}
+	return false;
 }
 

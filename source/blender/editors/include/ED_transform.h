@@ -159,33 +159,11 @@ void Transform_Properties(struct wmOperatorType *ot, int flags);
 
 /* view3d manipulators */
 
-typedef struct ManipulatorGroup {
-	struct wmWidget *translate_x,
-	                *translate_y,
-	                *translate_z,
-	                *translate_xy,
-	                *translate_yz,
-	                *translate_zx,
-	                *translate_c,
-
-	                *rotate_x,
-	                *rotate_y,
-	                *rotate_z,
-	                *rotate_c,
-
-	                *scale_x,
-	                *scale_y,
-	                *scale_z,
-	                *scale_xy,
-	                *scale_yz,
-	                *scale_zx,
-	                *scale_c;
-} ManipulatorGroup;
-
 int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *wgrouptype);
 void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup);
 
 void WIDGETGROUP_object_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup);
+int WIDGETGROUP_object_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *wgrouptype);
 
 
 /* Snapping */
