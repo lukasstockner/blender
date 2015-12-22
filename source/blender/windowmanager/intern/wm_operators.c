@@ -5250,6 +5250,208 @@ static void WM_OT_stereo3d_set(wmOperatorType *ot)
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+/* ************************** wmWidget ***************** */
+
+/** \name Widget operators
+ *
+ * Basic operators for widget interaction with user configurable keymaps.
+ *
+ * \{ */
+
+static int widget_select_invoke(bContext *C, wmOperator *op)
+{
+	ARegion *ar = CTX_wm_region(C);
+
+	bool extend = RNA_boolean_get(op->ptr, "extend");
+	bool deselect = RNA_boolean_get(op->ptr, "deselect");
+	bool toggle = RNA_boolean_get(op->ptr, "toggle");
+
+
+	for (Link *link = ar->widgetmaps.first; link; link = link->next) {
+		struct wmWidgetMap *wmap = (struct wmWidgetMap *)link;
+		wmWidget *highlighted = wm_widgetmap_highlighted_widget_get(wmap);
+
+		/* deselect all first */
+		if (extend == false && deselect == false && toggle == false) {
+			WM_widgetmap_select_all(wmap, C, SEL_DESELECT);
+		}
+
+		if (highlighted) {
+			const bool is_selected = (highlighted->flag & WM_WIDGET_SELECTED);
+
+			if (toggle) {
+				/* toggle: deselect if already selected, else select */
+				deselect = is_selected;
+			}
+
+			if (deselect) {
+				if (is_selected)
+					wm_widget_deselect(wmap, C, highlighted);
+			}
+			else {
+				wm_widget_select(wmap, C, highlighted);
+			}
+
+			return OPERATOR_FINISHED;
+		}
+		else {
+			BLI_assert(0);
+			return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
+		}
+	}
+
+	return OPERATOR_PASS_THROUGH;
+}
+
+static void WM_OT_widget_select(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Widget Select";
+	ot->description = "Select the currently highlighted widget";
+	ot->idname = "WM_OT_widget_select";
+
+	/* api callbacks */
+	ot->exec = widget_select_invoke;
+
+	ot->flag = OPTYPE_UNDO;
+
+	WM_operator_properties_mouse_select(ot);
+	fix_linking_widgets();
+}
+
+typedef struct WidgetTweakData {
+	struct wmWidgetMap *wmap;
+	wmWidget *active;
+
+	int init_event; /* initial event type */
+	int flag;       /* tweak flags */
+} WidgetTweakData;
+
+static void widget_tweak_finish(bContext *C, wmOperator *op)
+{
+	WidgetTweakData *wtweak = op->customdata;
+	wm_widgetmap_active_widget_set(wtweak->wmap, C, NULL, NULL);
+	MEM_freeN(wtweak);
+}
+
+static void widget_tweak_cancel(bContext *C, wmOperator *op)
+{
+	WidgetTweakData *wtweak = op->customdata;
+	if (wtweak->active->cancel) {
+		wtweak->active->cancel(C, wtweak->active);
+	}
+	widget_tweak_finish(C, op);
+}
+
+static int widget_tweak_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	WidgetTweakData *wtweak = op->customdata;
+	wmWidget *widget = wtweak->active;
+
+	if (!widget) {
+		BLI_assert(0);
+		return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
+	}
+
+	if (event->type == wtweak->init_event && event->val == KM_RELEASE) {
+		widget_tweak_finish(C, op);
+		return OPERATOR_FINISHED;
+	}
+
+
+	if (event->type == EVT_MODAL_MAP) {
+		switch (event->val) {
+			case WIDGET_TWEAK_MODAL_CANCEL:
+				widget_tweak_cancel(C, op);
+				return OPERATOR_CANCELLED;
+			case WIDGET_TWEAK_MODAL_CONFIRM:
+				widget_tweak_finish(C, op);
+				return OPERATOR_FINISHED;
+			case WIDGET_TWEAK_MODAL_PRECISION_ON:
+				wtweak->flag |= WM_WIDGET_TWEAK_PRECISE;
+				break;
+			case WIDGET_TWEAK_MODAL_PRECISION_OFF:
+				wtweak->flag &= ~WM_WIDGET_TWEAK_PRECISE;
+				break;
+		}
+	}
+
+	/* handle widget */
+	if (widget->handler) {
+		widget->handler(C, event, widget, wtweak->flag);
+	}
+
+	/* Ugly hack to send widget events */
+	((wmEvent *)event)->type = EVT_WIDGET_UPDATE;
+
+	/* always return PASS_THROUGH so modal handlers
+	 * with widgets attached can update */
+	return OPERATOR_PASS_THROUGH;
+}
+
+static int widget_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	ARegion *ar = CTX_wm_region(C);
+	Link *link;
+	struct wmWidgetMap *wmap;
+	wmWidget *widget;
+
+	for (link = ar->widgetmaps.first; link; link = link->next) {
+		wmap = (struct wmWidgetMap *)link;
+		if ((widget = wm_widgetmap_highlighted_widget_get(wmap)))
+			break;
+	}
+
+	if (!widget) {
+		/* wm_handlers_do_intern shouldn't let this happen */
+		BLI_assert(0);
+		return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
+	}
+
+
+	/* activate highlighted widget */
+	wm_widgetmap_active_widget_set(wmap, C, event, widget);
+
+	/* XXX temporary workaround for modal widget operator
+	 * conflicting with modal operator attached to widget */
+	if (widget->opname) {
+		wmOperatorType *ot = WM_operatortype_find(widget->opname, true);
+		if (ot->modal) {
+			return OPERATOR_FINISHED;
+		}
+	}
+
+
+	WidgetTweakData *wtweak = MEM_mallocN(sizeof(WidgetTweakData), __func__);
+
+	wtweak->init_event = event->type;
+	wtweak->active = widget;
+	wtweak->wmap = wmap;
+	wtweak->flag = 0;
+
+	op->customdata = wtweak;
+
+	WM_event_add_modal_handler(C, op);
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static void WM_OT_widget_tweak(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Widget Tweak";
+	ot->description = "Tweak the active widget";
+	ot->idname = "WM_OT_widget_tweak";
+
+	/* api callbacks */
+	ot->invoke = widget_tweak_invoke;
+	ot->modal = widget_tweak_modal;
+	ot->cancel = widget_tweak_cancel;
+}
+
+/** \} */ // Widget operators
+
+
 /* ******************************************************* */
 /* called on initialize WM_exit() */
 void wm_operatortype_free(void)
@@ -5302,8 +5504,8 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_doc_view_manual_ui_context);
 
 	/* widgets */
-	WM_operatortype_append(WIDGETGROUP_OT_widget_select);
-	WM_operatortype_append(WIDGETGROUP_OT_widget_tweak);
+	WM_operatortype_append(WM_OT_widget_select);
+	WM_operatortype_append(WM_OT_widget_tweak);
 }
 
 /* circleselect-like modal operators */

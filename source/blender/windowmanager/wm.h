@@ -173,9 +173,7 @@ void wm_open_init_use_scripts(wmOperator *op, bool use_prefs);
 
 /* wm_widgets.c */
 bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *name);
-
-void WIDGETGROUP_OT_widget_select(wmOperatorType *ot);
-void WIDGETGROUP_OT_widget_tweak(wmOperatorType *ot);
+void fix_linking_widgets(void);
 
 
 /* hack to store circle select size - campbell, must replace with nice operator memory */

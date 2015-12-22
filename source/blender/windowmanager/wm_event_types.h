@@ -444,6 +444,13 @@ enum {
 	GESTURE_MODAL_CIRCLE_SIZE = 11, /* circle sel: size brush (for trackpad event) */
 };
 
+enum {
+	WIDGET_TWEAK_MODAL_CANCEL = 1,
+	WIDGET_TWEAK_MODAL_CONFIRM,
+	WIDGET_TWEAK_MODAL_PRECISION_ON,
+	WIDGET_TWEAK_MODAL_PRECISION_OFF,
+};
+
 
 #endif	/* __WM_EVENT_TYPES_H__ */
 

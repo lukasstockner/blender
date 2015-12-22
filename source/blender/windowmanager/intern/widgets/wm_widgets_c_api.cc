@@ -158,9 +158,3 @@ wmKeyMap *WM_widgetgrouptype_user_keymap_get(wmWidgetGroupType *wgrouptype)
 	return wgrouptype->get_keymap();
 }
 
-
-void fix_linking_widgets(void)
-{
-	(void)0;
-}
-

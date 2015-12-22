@@ -91,11 +91,6 @@ wmWidget *WM_widget_new(void (*draw)(const bContext *C, wmWidget *customdata),
 	return widget;
 }
 
-BLI_INLINE bool widget_compare(const wmWidget *a, const wmWidget *b)
-{
-	return STREQ(a->idname, b->idname);
-}
-
 /**
  * Assign an idname that is unique in \a wgroup to \a widget.
  *
@@ -248,219 +243,16 @@ void WM_widget_set_colors(wmWidget *widget, const float col[4], const float col_
 /** \} */ // Widget Creation API
 
 
-/** \name Widget operators
- *
- * Basic operators for widget interaction with user configurable keymaps.
- *
- * \{ */
-
-static int widget_select_invoke(bContext *C, wmOperator *op)
-{
-	ARegion *ar = CTX_wm_region(C);
-
-	bool extend = RNA_boolean_get(op->ptr, "extend");
-	bool deselect = RNA_boolean_get(op->ptr, "deselect");
-	bool toggle = RNA_boolean_get(op->ptr, "toggle");
-
-
-	for (Link *link = ar->widgetmaps.first; link; link = link->next) {
-		struct wmWidgetMap *wmap = (struct wmWidgetMap *)link;
-		wmWidget *highlighted = wm_widgetmap_highlighted_widget_get(wmap);
-
-		/* deselect all first */
-		if (extend == false && deselect == false && toggle == false) {
-			WM_widgetmap_select_all(wmap, C, SEL_DESELECT);
-		}
-
-		if (highlighted) {
-			const bool is_selected = (highlighted->flag & WM_WIDGET_SELECTED);
-
-			if (toggle) {
-				/* toggle: deselect if already selected, else select */
-				deselect = is_selected;
-			}
-
-			if (deselect) {
-				if (is_selected)
-					wm_widget_deselect(wmap, C, highlighted);
-			}
-			else {
-				wm_widget_select(wmap, C, highlighted);
-			}
-
-			return OPERATOR_FINISHED;
-		}
-		else {
-			BLI_assert(0);
-			return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
-		}
-	}
-
-	return OPERATOR_PASS_THROUGH;
-}
-
-void WIDGETGROUP_OT_widget_select(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Widget Select";
-	ot->description = "Select the currently highlighted widget";
-	ot->idname = "WIDGETGROUP_OT_widget_select";
-
-	/* api callbacks */
-	ot->exec = widget_select_invoke;
-
-	ot->flag = OPTYPE_UNDO;
-
-	WM_operator_properties_mouse_select(ot);
-}
-
-typedef struct WidgetTweakData {
-	wmWidgetMapC *wmap;
-	wmWidget *active;
-
-	int init_event; /* initial event type */
-	int flag;       /* tweak flags */
-} WidgetTweakData;
-
-enum {
-	TWEAK_MODAL_CANCEL = 1,
-	TWEAK_MODAL_CONFIRM,
-	TWEAK_MODAL_PRECISION_ON,
-	TWEAK_MODAL_PRECISION_OFF,
-};
-
-static void widget_tweak_finish(bContext *C, wmOperator *op)
-{
-	WidgetTweakData *wtweak = op->customdata;
-	wm_widgetmap_active_widget_set(wtweak->wmap, C, NULL, NULL);
-	MEM_freeN(wtweak);
-}
-
-static void widget_tweak_cancel(bContext *C, wmOperator *op)
-{
-	WidgetTweakData *wtweak = op->customdata;
-	if (wtweak->active->cancel) {
-		wtweak->active->cancel(C, wtweak->active);
-	}
-	widget_tweak_finish(C, op);
-}
-
-static int widget_tweak_modal(bContext *C, wmOperator *op, const wmEvent *event)
-{
-	WidgetTweakData *wtweak = op->customdata;
-	wmWidget *widget = wtweak->active;
-
-	if (!widget) {
-		BLI_assert(0);
-		return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
-	}
-
-	if (event->type == wtweak->init_event && event->val == KM_RELEASE) {
-		widget_tweak_finish(C, op);
-		return OPERATOR_FINISHED;
-	}
-
-
-	if (event->type == EVT_MODAL_MAP) {
-		switch (event->val) {
-			case TWEAK_MODAL_CANCEL:
-				widget_tweak_cancel(C, op);
-				return OPERATOR_CANCELLED;
-			case TWEAK_MODAL_CONFIRM:
-				widget_tweak_finish(C, op);
-				return OPERATOR_FINISHED;
-			case TWEAK_MODAL_PRECISION_ON:
-				wtweak->flag |= WM_WIDGET_TWEAK_PRECISE;
-				break;
-			case TWEAK_MODAL_PRECISION_OFF:
-				wtweak->flag &= ~WM_WIDGET_TWEAK_PRECISE;
-				break;
-		}
-	}
-
-	/* handle widget */
-	if (widget->handler) {
-		widget->handler(C, event, widget, wtweak->flag);
-	}
-
-	/* Ugly hack to send widget events */
-	((wmEvent *)event)->type = EVT_WIDGET_UPDATE;
-
-	/* always return PASS_THROUGH so modal handlers
-	 * with widgets attached can update */
-	return OPERATOR_PASS_THROUGH;
-}
-
-static int widget_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event)
-{
-	ARegion *ar = CTX_wm_region(C);
-	wmWidgetMapC *wmap;
-	wmWidget *widget;
-
-	for (wmap = ar->widgetmaps.first; wmap; wmap = wmap->next)
-		if ((widget = wmap->wmap_context.highlighted_widget))
-			break;
-
-	if (!widget) {
-		/* wm_handlers_do_intern shouldn't let this happen */
-		BLI_assert(0);
-		return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
-	}
-
-
-	/* activate highlighted widget */
-	wm_widgetmap_active_widget_set(wmap, C, event, widget);
-
-	/* XXX temporary workaround for modal widget operator
-	 * conflicting with modal operator attached to widget */
-	if (widget->opname) {
-		wmOperatorType *ot = WM_operatortype_find(widget->opname, true);
-		if (ot->modal) {
-			return OPERATOR_FINISHED;
-		}
-	}
-
-
-	WidgetTweakData *wtweak = MEM_mallocN(sizeof(WidgetTweakData), __func__);
-
-	wtweak->init_event = event->type;
-	wtweak->active = wmap->wmap_context.highlighted_widget;
-	wtweak->wmap = wmap;
-	wtweak->flag = 0;
-
-	op->customdata = wtweak;
-
-	WM_event_add_modal_handler(C, op);
-
-	return OPERATOR_RUNNING_MODAL;
-}
-
-void WIDGETGROUP_OT_widget_tweak(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Widget Tweak";
-	ot->description = "Tweak the active widget";
-	ot->idname = "WIDGETGROUP_OT_widget_tweak";
-
-	/* api callbacks */
-	ot->invoke = widget_tweak_invoke;
-	ot->modal = widget_tweak_modal;
-	ot->cancel = widget_tweak_cancel;
-}
-
-/** \} */ // Widget operators
-
-
 static wmKeyMap *widgetgroup_tweak_modal_keymap(wmKeyConfig *keyconf, const char *wgroupname)
 {
 	wmKeyMap *keymap;
 	char name[MAX_NAME];
 
 	static EnumPropertyItem modal_items[] = {
-		{TWEAK_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
-		{TWEAK_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
-		{TWEAK_MODAL_PRECISION_ON, "PRECISION_ON", 0, "Enable Precision", ""},
-		{TWEAK_MODAL_PRECISION_OFF, "PRECISION_OFF", 0, "Disable Precision", ""},
+		{WIDGET_TWEAK_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+		{WIDGET_TWEAK_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
+		{WIDGET_TWEAK_MODAL_PRECISION_ON, "PRECISION_ON", 0, "Enable Precision", ""},
+		{WIDGET_TWEAK_MODAL_PRECISION_OFF, "PRECISION_OFF", 0, "Disable Precision", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -476,19 +268,19 @@ static wmKeyMap *widgetgroup_tweak_modal_keymap(wmKeyConfig *keyconf, const char
 
 
 	/* items for modal map */
-	WM_modalkeymap_add_item(keymap, ESCKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_CANCEL);
-	WM_modalkeymap_add_item(keymap, RIGHTMOUSE, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_CANCEL);
+	WM_modalkeymap_add_item(keymap, ESCKEY, KM_PRESS, KM_ANY, 0, WIDGET_TWEAK_MODAL_CANCEL);
+	WM_modalkeymap_add_item(keymap, RIGHTMOUSE, KM_PRESS, KM_ANY, 0, WIDGET_TWEAK_MODAL_CANCEL);
 
-	WM_modalkeymap_add_item(keymap, RETKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_CONFIRM);
-	WM_modalkeymap_add_item(keymap, PADENTER, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_CONFIRM);
+	WM_modalkeymap_add_item(keymap, RETKEY, KM_PRESS, KM_ANY, 0, WIDGET_TWEAK_MODAL_CONFIRM);
+	WM_modalkeymap_add_item(keymap, PADENTER, KM_PRESS, KM_ANY, 0, WIDGET_TWEAK_MODAL_CONFIRM);
 
-	WM_modalkeymap_add_item(keymap, RIGHTSHIFTKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_PRECISION_ON);
-	WM_modalkeymap_add_item(keymap, RIGHTSHIFTKEY, KM_RELEASE, KM_ANY, 0, TWEAK_MODAL_PRECISION_OFF);
-	WM_modalkeymap_add_item(keymap, LEFTSHIFTKEY, KM_PRESS, KM_ANY, 0, TWEAK_MODAL_PRECISION_ON);
-	WM_modalkeymap_add_item(keymap, LEFTSHIFTKEY, KM_RELEASE, KM_ANY, 0, TWEAK_MODAL_PRECISION_OFF);
+	WM_modalkeymap_add_item(keymap, RIGHTSHIFTKEY, KM_PRESS, KM_ANY, 0, WIDGET_TWEAK_MODAL_PRECISION_ON);
+	WM_modalkeymap_add_item(keymap, RIGHTSHIFTKEY, KM_RELEASE, KM_ANY, 0, WIDGET_TWEAK_MODAL_PRECISION_OFF);
+	WM_modalkeymap_add_item(keymap, LEFTSHIFTKEY, KM_PRESS, KM_ANY, 0, WIDGET_TWEAK_MODAL_PRECISION_ON);
+	WM_modalkeymap_add_item(keymap, LEFTSHIFTKEY, KM_RELEASE, KM_ANY, 0, WIDGET_TWEAK_MODAL_PRECISION_OFF);
 
 
-	WM_modalkeymap_assign(keymap, "WIDGETGROUP_OT_widget_tweak");
+	WM_modalkeymap_assign(keymap, "WM_OT_widget_tweak");
 
 	return keymap;
 }
@@ -501,19 +293,24 @@ wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, const char *wgroupna
 	wmKeyMap *km = WM_keymap_find(config, wgroupname, 0, 0);
 	wmKeyMapItem *kmi;
 
-	WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_tweak", ACTIONMOUSE, KM_PRESS, KM_ANY, 0);
+	WM_keymap_add_item(km, "WM_OT_widget_tweak", ACTIONMOUSE, KM_PRESS, KM_ANY, 0);
 
 	widgetgroup_tweak_modal_keymap(config, wgroupname);
 
-	kmi = WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_select", SELECTMOUSE, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(km, "WM_OT_widget_select", SELECTMOUSE, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "extend", false);
 	RNA_boolean_set(kmi->ptr, "deselect", false);
 	RNA_boolean_set(kmi->ptr, "toggle", false);
-	kmi = WM_keymap_add_item(km, "WIDGETGROUP_OT_widget_select", SELECTMOUSE, KM_PRESS, KM_SHIFT, 0);
+	kmi = WM_keymap_add_item(km, "WM_OT_widget_select", SELECTMOUSE, KM_PRESS, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "extend", false);
 	RNA_boolean_set(kmi->ptr, "deselect", false);
 	RNA_boolean_set(kmi->ptr, "toggle", true);
 
 	return km;
+}
+
+void fix_linking_widgets(void)
+{
+	(void)0;
 }
 
