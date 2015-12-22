@@ -95,6 +95,7 @@ wmWidgetGroupType::wmWidgetGroupType(
 							wmWidgetGroup *wgroup = new wmWidgetGroup;
 
 							wgroup->type = this;
+							wgroup->widgets = ListBase_NULL;
 
 							/* just add here, drawing will occur on next update */
 							BLI_addtail(&wmap->widgetgroups, wgroup);

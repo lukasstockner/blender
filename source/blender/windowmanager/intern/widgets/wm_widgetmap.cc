@@ -75,6 +75,7 @@ wmWidgetMap::wmWidgetMap(const char *idname, const int spaceid, const int region
 	{
 		wmWidgetGroup *wgroup = new wmWidgetGroup;
 		wgroup->type = wgrouptype;
+		wgroup->widgets = ListBase_NULL;
 		BLI_addtail(&widgetgroups, wgroup);
 	}
 }
