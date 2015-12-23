@@ -172,7 +172,6 @@ void wm_open_init_load_ui(wmOperator *op, bool use_prefs);
 void wm_open_init_use_scripts(wmOperator *op, bool use_prefs);
 
 /* wm_widgets.c */
-bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *name);
 void fix_linking_widgets(void);
 
 
@@ -182,8 +181,6 @@ void fix_linking_widgets(void);
 #ifdef GESTURE_MEMORY
 extern int circle_select_size;
 #endif
-
-void fix_linking_widget_lib(void);
 
 #endif /* __WM_H__ */
 

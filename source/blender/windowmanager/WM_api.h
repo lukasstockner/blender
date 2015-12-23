@@ -499,15 +499,7 @@ float       WM_event_tablet_data(const struct wmEvent *event, int *pen_flip, flo
 bool        WM_event_is_tablet(const struct wmEvent *event);
 
 
-/* *************** Widget API ********************
- *
- * TODO getting a bit crowded here - maybe move into own .h file?
- */
-
-struct wmWidget *WM_widget_new(void (*draw)(const struct bContext *, struct wmWidget *),
-                               void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
-                               int  (*intersect)(struct bContext *, const struct wmEvent *, struct wmWidget *),
-                               int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *, const int));
+/* *************** Widget API ******************** */
 
 /* wmWidget->flag */
 enum widgetflags {

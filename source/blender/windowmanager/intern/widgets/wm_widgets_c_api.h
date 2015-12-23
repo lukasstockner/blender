@@ -99,6 +99,10 @@ size_t      WM_widgetgrouptype_idname_get(struct wmWidgetGroupType *wgrouptype, 
 wmOperator *WM_widgetgrouptype_operator_get(struct wmWidgetGroupType *wgrouptype);
 wmKeyMap   *WM_widgetgrouptype_user_keymap_get(struct wmWidgetGroupType *wgrouptype);
 
+bool wm_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget, const char *name);
+
+void fix_linking_widget_lib(void);
+
 #ifdef __cplusplus
 }
 #endif

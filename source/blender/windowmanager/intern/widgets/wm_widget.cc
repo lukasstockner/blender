@@ -31,6 +31,10 @@
 
 #include "BKE_context.h"
 
+#include "BLI_math.h"
+#include "BLI_path_util.h"
+#include "BLI_string.h"
+
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_view3d_types.h"
@@ -40,6 +44,8 @@
 #include "ED_view3d.h"
 
 #include "MEM_guardedalloc.h"
+
+#include "RNA_access.h"
 
 #include "WM_api.h"
 
@@ -54,7 +60,66 @@ wmWidget::wmWidget()
 {
 	
 }
+
 #endif
+
+/**
+ * Assign an idname that is unique in \a wgroup to \a widget.
+ *
+ * \param rawname  Name used as basis to define final unique idname.
+ */
+static void widget_unique_idname_set(wmWidgetGroup *wgroup, wmWidget *widget, const char *rawname)
+{
+	char groupname[MAX_NAME];
+
+	WM_widgetgrouptype_idname_get(wgroup->type, groupname);
+
+	if (groupname[0]) {
+		BLI_snprintf(widget->idname, sizeof(widget->idname), "%s_%s", groupname, rawname);
+	}
+	else {
+		BLI_strncpy(widget->idname, rawname, sizeof(widget->idname));
+	}
+
+	/* ensure name is unique, append '.001', '.002', etc if not */
+	BLI_uniquename(&wgroup->widgets, widget, "Widget", '.', offsetof(wmWidget, idname), sizeof(widget->idname));
+}
+
+/**
+ * Register \a widget.
+ *
+ * \param name  name used to create a unique idname for \a widget in \a wgroup
+ */
+bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *name)
+{
+	const float col_default[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+
+	widget_unique_idname_set(wgroup, widget, name);
+
+	widget->user_scale = 1.0f;
+	widget->line_width = 1.0f;
+
+	/* defaults */
+	copy_v4_v4(widget->col, col_default);
+	copy_v4_v4(widget->col_hi, col_default);
+
+	/* create at least one property for interaction */
+	if (widget->max_prop == 0) {
+		widget->max_prop = 1;
+	}
+
+	widget->props = (PropertyRNA **)MEM_callocN(sizeof(PropertyRNA *) * widget->max_prop, "widget->props");
+	widget->ptr = (PointerRNA *)MEM_callocN(sizeof(PointerRNA) * widget->max_prop, "widget->ptr");
+	widget->opptr = PointerRNA_NULL;
+
+	widget->wgroup = wgroup;
+
+	BLI_addtail(&wgroup->widgets, widget);
+
+	fix_linking_widget_lib();
+
+	return true;
+}
 
 /**
  * Free widget data, not widget itself.
