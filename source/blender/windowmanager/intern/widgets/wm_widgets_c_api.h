@@ -100,6 +100,17 @@ wmOperator *WM_widgetgrouptype_operator_get(struct wmWidgetGroupType *wgrouptype
 wmKeyMap   *WM_widgetgrouptype_user_keymap_get(struct wmWidgetGroupType *wgrouptype);
 
 bool wm_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget, const char *name);
+void WM_widget_set_property(struct wmWidget *, int slot, struct PointerRNA *ptr, const char *propname);
+struct PointerRNA *WM_widget_set_operator(struct wmWidget *, const char *opname);
+void WM_widget_set_func_select(
+        struct wmWidget *widget,
+        void (*select)(struct bContext *, struct wmWidget *, const int action));
+void WM_widget_set_origin(struct wmWidget *widget, const float origin[3]);
+void WM_widget_set_offset(struct wmWidget *widget, const float offset[3]);
+void WM_widget_set_flag(struct wmWidget *widget, const int flag, const bool enable);
+void WM_widget_set_scale(struct wmWidget *widget, float scale);
+void WM_widget_set_line_width(struct wmWidget *widget, const float line_width);
+void WM_widget_set_colors(struct wmWidget *widget, const float col[4], const float col_hi[4]);
 
 void fix_linking_widget_lib(void);
 

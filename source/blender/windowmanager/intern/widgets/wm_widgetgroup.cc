@@ -40,6 +40,7 @@
 #include "RNA_types.h"
 #include "BPY_extern.h"
 
+#include "WM_api.h"
 #include "wm.h" // tmp
 
 #include "wm_widget.h"

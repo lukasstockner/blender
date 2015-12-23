@@ -499,10 +499,10 @@ float       WM_event_tablet_data(const struct wmEvent *event, int *pen_flip, flo
 bool        WM_event_is_tablet(const struct wmEvent *event);
 
 
-/* *************** Widget API ******************** */
+/* *************** Widget API *************** */
 
 /* wmWidget->flag */
-enum widgetflags {
+enum {
 	/* states */
 	WM_WIDGET_HIGHLIGHT   = (1 << 0),
 	WM_WIDGET_ACTIVE      = (1 << 1),
@@ -515,28 +515,6 @@ enum widgetflags {
 	WM_WIDGET_HIDDEN      = (1 << 7),
 	WM_WIDGET_SELECTABLE  = (1 << 8),
 };
-
-/**
- * \brief Widget tweak flag.
- * Bitflag passed to widget while tweaking.
- */
-enum {
-	/* drag with extra precision (shift)
-	 * NOTE: Widgets are responsible for handling this (widget->handler callback)! */
-	WM_WIDGET_TWEAK_PRECISE = (1 << 0),
-};
-
-void WM_widget_set_property(struct wmWidget *, int slot, struct PointerRNA *ptr, const char *propname);
-struct PointerRNA *WM_widget_set_operator(struct wmWidget *, const char *opname);
-void WM_widget_set_func_select(
-        struct wmWidget *widget,
-        void (*select)(struct bContext *, struct wmWidget *, const int action));
-void WM_widget_set_origin(struct wmWidget *widget, const float origin[3]);
-void WM_widget_set_offset(struct wmWidget *widget, const float offset[3]);
-void WM_widget_set_flag(struct wmWidget *widget, const int flag, const bool enable);
-void WM_widget_set_scale(struct wmWidget *widget, float scale);
-void WM_widget_set_line_width(struct wmWidget *widget, const float line_width);
-void WM_widget_set_colors(struct wmWidget *widget, const float col[4], const float col_hi[4]);
 
 wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, const char *wgroupname);
 

@@ -444,11 +444,24 @@ enum {
 	GESTURE_MODAL_CIRCLE_SIZE = 11, /* circle sel: size brush (for trackpad event) */
 };
 
+
+/* ********** widget stuff ********** */
+
 enum {
 	WIDGET_TWEAK_MODAL_CANCEL = 1,
 	WIDGET_TWEAK_MODAL_CONFIRM,
 	WIDGET_TWEAK_MODAL_PRECISION_ON,
 	WIDGET_TWEAK_MODAL_PRECISION_OFF,
+};
+
+/**
+ * \brief Widget tweak flag.
+ * Bitflag passed to widget while tweaking.
+ */
+enum {
+	/* drag with extra precision (shift)
+	 * NOTE: Widgets are responsible for handling this (widget->handler callback)! */
+	WM_WIDGET_TWEAK_PRECISE = (1 << 0),
 };
 
 

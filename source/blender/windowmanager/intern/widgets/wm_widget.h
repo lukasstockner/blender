@@ -30,28 +30,6 @@
 #ifndef __WM_WIDGET_H__
 #define __WM_WIDGET_H__
 
-
-// Workaround until we can remove widgetflags from WM_api.h. We could also
-// simply include it, but would like to avoid that for various reasons.
-#ifndef __WM_API_H__
-
-/* wmWidget->flag */
-enum widgetflags {
-	/* states */
-	WM_WIDGET_HIGHLIGHT   = (1 << 0),
-	WM_WIDGET_ACTIVE      = (1 << 1),
-	WM_WIDGET_SELECTED    = (1 << 2),
-	/* settings */
-	WM_WIDGET_DRAW_HOVER  = (1 << 3),
-	WM_WIDGET_DRAW_ACTIVE = (1 << 4), /* draw while dragging */
-	WM_WIDGET_SCALE_3D    = (1 << 5),
-	WM_WIDGET_SCENE_DEPTH = (1 << 6), /* widget is depth culled with scene objects*/
-	WM_WIDGET_HIDDEN      = (1 << 7),
-	WM_WIDGET_SELECTABLE  = (1 << 8),
-};
-
-#endif // __WM_API_H__
-
 #if 0
 class wmWidget
 {
