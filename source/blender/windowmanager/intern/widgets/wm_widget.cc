@@ -248,3 +248,99 @@ bool widget_compare(const wmWidget *a, const wmWidget *b)
 	return STREQ(a->idname, b->idname);
 }
 
+
+/** \name Widget Creation API
+ *
+ * API for defining data on widget creation.
+ *
+ * \{ */
+
+void WM_widget_set_property(wmWidget *widget, const int slot, PointerRNA *ptr, const char *propname)
+{
+	if (slot < 0 || slot >= widget->max_prop) {
+		fprintf(stderr, "invalid index %d when binding property for widget type %s\n", slot, widget->idname);
+		return;
+	}
+
+	/* if widget evokes an operator we cannot use it for property manipulation */
+	widget->opname = NULL;
+	widget->ptr[slot] = *ptr;
+	widget->props[slot] = RNA_struct_find_property(ptr, propname);
+
+	if (widget->bind_to_prop)
+		widget->bind_to_prop(widget, slot);
+}
+
+PointerRNA *WM_widget_set_operator(wmWidget *widget, const char *opname)
+{
+	wmOperatorType *ot = WM_operatortype_find(opname, 0);
+
+	if (ot) {
+		widget->opname = opname;
+
+		WM_operator_properties_create_ptr(&widget->opptr, ot);
+
+		return &widget->opptr;
+	}
+	else {
+		fprintf(stderr, "Error binding operator to widget: operator %s not found!\n", opname);
+	}
+
+	return NULL;
+}
+
+/**
+ * \brief Set widget select callback.
+ *
+ * Callback is called when widget gets selected/deselected.
+ */
+void WM_widget_set_func_select(wmWidget *widget, void (*select)(bContext *, wmWidget *, const int action))
+{
+	widget->flag |= WM_WIDGET_SELECTABLE;
+	widget->select = select;
+}
+
+void WM_widget_set_origin(wmWidget *widget, const float origin[3])
+{
+	copy_v3_v3(widget->origin, origin);
+}
+
+void WM_widget_set_offset(wmWidget *widget, const float offset[3])
+{
+	copy_v3_v3(widget->offset, offset);
+}
+
+void WM_widget_set_flag(wmWidget *widget, const int flag, const bool enable)
+{
+	if (enable) {
+		widget->flag |= flag;
+	}
+	else {
+		widget->flag &= ~flag;
+	}
+}
+
+void WM_widget_set_scale(wmWidget *widget, const float scale)
+{
+	widget->user_scale = scale;
+}
+
+void WM_widget_set_line_width(wmWidget *widget, const float line_width)
+{
+	widget->line_width = line_width;
+}
+
+/**
+ * Set widget rgba colors.
+ *
+ * \param col  Normal state color.
+ * \param col_hi  Highlighted state color.
+ */
+void WM_widget_set_colors(wmWidget *widget, const float col[4], const float col_hi[4])
+{
+	copy_v4_v4(widget->col, col);
+	copy_v4_v4(widget->col_hi, col_hi);
+}
+
+/** \} */ // Widget Creation API
+
