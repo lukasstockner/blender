@@ -5316,7 +5316,6 @@ static void WM_OT_widget_select(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO;
 
 	WM_operator_properties_mouse_select(ot);
-	fix_linking_widgets();
 }
 
 typedef struct WidgetTweakData {
@@ -5695,6 +5694,72 @@ static void gesture_zoom_border_modal_keymap(wmKeyConfig *keyconf)
 	/* assign map to operators */
 	WM_modalkeymap_assign(keymap, "VIEW2D_OT_zoom_border");
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_zoom_border");
+}
+
+static wmKeyMap *widgetgroup_tweak_modal_keymap(wmKeyConfig *keyconf, const char *wgroupname)
+{
+	wmKeyMap *keymap;
+	char name[MAX_NAME];
+
+	static EnumPropertyItem modal_items[] = {
+		{WIDGET_TWEAK_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+		{WIDGET_TWEAK_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
+		{WIDGET_TWEAK_MODAL_PRECISION_ON, "PRECISION_ON", 0, "Enable Precision", ""},
+		{WIDGET_TWEAK_MODAL_PRECISION_OFF, "PRECISION_OFF", 0, "Disable Precision", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+
+	BLI_snprintf(name, sizeof(name), "%s Tweak Modal Map", wgroupname);
+	keymap = WM_modalkeymap_get(keyconf, name);
+
+	/* this function is called for each spacetype, only needs to add map once */
+	if (keymap && keymap->modal_items)
+		return NULL;
+
+	keymap = WM_modalkeymap_add(keyconf, name, modal_items);
+
+
+	/* items for modal map */
+	WM_modalkeymap_add_item(keymap, ESCKEY, KM_PRESS, KM_ANY, 0, WIDGET_TWEAK_MODAL_CANCEL);
+	WM_modalkeymap_add_item(keymap, RIGHTMOUSE, KM_PRESS, KM_ANY, 0, WIDGET_TWEAK_MODAL_CANCEL);
+
+	WM_modalkeymap_add_item(keymap, RETKEY, KM_PRESS, KM_ANY, 0, WIDGET_TWEAK_MODAL_CONFIRM);
+	WM_modalkeymap_add_item(keymap, PADENTER, KM_PRESS, KM_ANY, 0, WIDGET_TWEAK_MODAL_CONFIRM);
+
+	WM_modalkeymap_add_item(keymap, RIGHTSHIFTKEY, KM_PRESS, KM_ANY, 0, WIDGET_TWEAK_MODAL_PRECISION_ON);
+	WM_modalkeymap_add_item(keymap, RIGHTSHIFTKEY, KM_RELEASE, KM_ANY, 0, WIDGET_TWEAK_MODAL_PRECISION_OFF);
+	WM_modalkeymap_add_item(keymap, LEFTSHIFTKEY, KM_PRESS, KM_ANY, 0, WIDGET_TWEAK_MODAL_PRECISION_ON);
+	WM_modalkeymap_add_item(keymap, LEFTSHIFTKEY, KM_RELEASE, KM_ANY, 0, WIDGET_TWEAK_MODAL_PRECISION_OFF);
+
+
+	WM_modalkeymap_assign(keymap, "WM_OT_widget_tweak");
+
+	return keymap;
+}
+
+/**
+ * Common default keymap for widget groups
+ */
+wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, const char *wgroupname)
+{
+	wmKeyMap *km = WM_keymap_find(config, wgroupname, 0, 0);
+	wmKeyMapItem *kmi;
+
+	WM_keymap_add_item(km, "WM_OT_widget_tweak", ACTIONMOUSE, KM_PRESS, KM_ANY, 0);
+
+	widgetgroup_tweak_modal_keymap(config, wgroupname);
+
+	kmi = WM_keymap_add_item(km, "WM_OT_widget_select", SELECTMOUSE, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "extend", false);
+	RNA_boolean_set(kmi->ptr, "deselect", false);
+	RNA_boolean_set(kmi->ptr, "toggle", false);
+	kmi = WM_keymap_add_item(km, "WM_OT_widget_select", SELECTMOUSE, KM_PRESS, KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "extend", false);
+	RNA_boolean_set(kmi->ptr, "deselect", false);
+	RNA_boolean_set(kmi->ptr, "toggle", true);
+
+	return km;
 }
 
 /* default keymap for windows and screens, only call once per WM */
