@@ -129,7 +129,6 @@ struct wmOperator;
 struct wmOperatorType;
 struct wmWindow;
 struct wmWindowManager;
-struct wmWidgetMapC;
 
 
 /* -------------------------------------------------------------------- */

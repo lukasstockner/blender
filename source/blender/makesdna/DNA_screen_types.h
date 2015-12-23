@@ -44,7 +44,6 @@ struct PanelType;
 struct Scene;
 struct uiLayout;
 struct wmTimer;
-struct wmWidgetMapC;
 
 typedef struct bScreen {
 	ID id;

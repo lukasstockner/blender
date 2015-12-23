@@ -25,6 +25,9 @@
 
 /** \file blender/windowmanager/intern/widgets/wm_widgetgroup.cpp
  *  \ingroup wm
+ *
+ * WidgetGroups store and manage groups of widgets.
+ * They are responsible for drawing necessary widgets and updating their state and position.
  */
 
 #include "BKE_report.h"
@@ -46,6 +49,7 @@
 #include "wm_widget.h"
 #include "wm_widgetmap.h"
 #include "wm_widgetgroup.h" // own_include
+
 
 #if 0
 wmWidgetGroup::wmWidgetGroup()

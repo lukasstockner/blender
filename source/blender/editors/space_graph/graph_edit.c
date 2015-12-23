@@ -2713,11 +2713,11 @@ static int graph_widget_backdrop_transform_modal(bContext *C, wmOperator *op, co
 		case RIGHTMOUSE:
 		{
 			ARegion *ar = CTX_wm_region(C);
-			wmWidgetMapC *wmap = ar->widgetmaps.first;
+			wmWidgetMap *wmap = ar->widgetmaps.first;
 			SpaceIpo *sipo = CTX_wm_space_graph(C);
 
 			/* only end modal if we're not dragging a widget */
-			if (!wmap->wmap_context.active_widget && event->val == KM_PRESS) {
+			if (!wm_widgetmap_active_widget_get(wmap) && event->val == KM_PRESS) {
 				copy_v2_v2(sipo->backdrop_offset, data->init_offset);
 				sipo->backdrop_zoom = data->init_zoom;
 

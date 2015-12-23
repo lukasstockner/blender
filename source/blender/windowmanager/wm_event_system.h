@@ -39,8 +39,6 @@
 
 struct ScrArea;
 struct ARegion;
-struct wmWidgetMapC;
-struct wmWidget;
 
 /* wmKeyMap is in DNA_windowmanager.h, it's savable */
 

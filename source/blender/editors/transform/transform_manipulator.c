@@ -145,26 +145,26 @@ enum {
 };
 
 typedef struct ManipulatorGroup {
-	struct wmWidget *translate_x,
-	                *translate_y,
-	                *translate_z,
-	                *translate_xy,
-	                *translate_yz,
-	                *translate_zx,
-	                *translate_c,
+	wmWidget *translate_x,
+	         *translate_y,
+	         *translate_z,
+	         *translate_xy,
+	         *translate_yz,
+	         *translate_zx,
+	         *translate_c,
 
-	                *rotate_x,
-	                *rotate_y,
-	                *rotate_z,
-	                *rotate_c,
+	         *rotate_x,
+	         *rotate_y,
+	         *rotate_z,
+	         *rotate_c,
 
-	                *scale_x,
-	                *scale_y,
-	                *scale_z,
-	                *scale_xy,
-	                *scale_yz,
-	                *scale_zx,
-	                *scale_c;
+	         *scale_x,
+	         *scale_y,
+	         *scale_z,
+	         *scale_xy,
+	         *scale_yz,
+	         *scale_zx,
+	         *scale_c;
 } ManipulatorGroup;
 
 
@@ -1024,7 +1024,7 @@ static void manipulator_line_range(const View3D *v3d, const short axis_type, flo
 /* **************** Actual Widget Stuff **************** */
 
 static ManipulatorGroup *manipulatorgroup_init(
-        struct wmWidgetGroup *wgroup, const bool init_trans, const bool init_rot, const bool init_scale)
+        wmWidgetGroup *wgroup, const bool init_trans, const bool init_rot, const bool init_scale)
 {
 	ManipulatorGroup *man;
 
@@ -1083,7 +1083,7 @@ static int manipulator_handler(bContext *C, const wmEvent *UNUSED(event), wmWidg
 	return OPERATOR_PASS_THROUGH;
 }
 
-void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
+void WIDGETGROUP_manipulator_create(const bContext *C, wmWidgetGroup *wgroup)
 {
 	const ScrArea *sa = CTX_wm_area(C);
 	const ARegion *ar = CTX_wm_region(C);
@@ -1216,7 +1216,7 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 	MEM_freeN(man);
 }
 
-int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
+int WIDGETGROUP_manipulator_poll(const bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	/* it's a given we only use this in 3D view */
 	const ScrArea *sa = CTX_wm_area(C);
@@ -1225,7 +1225,7 @@ int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupT
 	return ((v3d->twflag & V3D_USE_MANIPULATOR) != 0);
 }
 
-void WIDGETGROUP_object_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
+void WIDGETGROUP_object_manipulator_create(const bContext *C, wmWidgetGroup *wgroup)
 {
 	Object *ob = ED_object_active_context((bContext *)C);
 
@@ -1236,7 +1236,7 @@ void WIDGETGROUP_object_manipulator_create(const struct bContext *C, struct wmWi
 	WIDGETGROUP_manipulator_create(C, wgroup);
 }
 
-int WIDGETGROUP_object_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *wgrouptype)
+int WIDGETGROUP_object_manipulator_poll(const bContext *C, struct wmWidgetGroupType *wgrouptype)
 {
 	Object *ob = ED_object_active_context((bContext *)C);
 

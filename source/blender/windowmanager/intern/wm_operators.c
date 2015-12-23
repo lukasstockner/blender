@@ -5268,7 +5268,7 @@ static int widget_select_invoke(bContext *C, wmOperator *op)
 
 
 	for (Link *link = ar->widgetmaps.first; link; link = link->next) {
-		struct wmWidgetMap *wmap = (struct wmWidgetMap *)link;
+		wmWidgetMap *wmap = (wmWidgetMap *)link;
 		wmWidget *highlighted = wm_widgetmap_highlighted_widget_get(wmap);
 
 		/* deselect all first */
@@ -5319,7 +5319,7 @@ static void WM_OT_widget_select(wmOperatorType *ot)
 }
 
 typedef struct WidgetTweakData {
-	struct wmWidgetMap *wmap;
+	wmWidgetMap *wmap;
 	wmWidget *active;
 
 	int init_event; /* initial event type */
@@ -5392,11 +5392,11 @@ static int widget_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event
 {
 	ARegion *ar = CTX_wm_region(C);
 	Link *link;
-	struct wmWidgetMap *wmap;
+	wmWidgetMap *wmap;
 	wmWidget *widget;
 
 	for (link = ar->widgetmaps.first; link; link = link->next) {
-		wmap = (struct wmWidgetMap *)link;
+		wmap = (wmWidgetMap *)link;
 		if ((widget = wm_widgetmap_highlighted_widget_get(wmap)))
 			break;
 	}

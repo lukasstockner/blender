@@ -34,7 +34,6 @@
 struct wmWindow;
 struct ReportList;
 struct wmEvent;
-struct wmWidgetMapC;
 struct wmOperatorType;
 struct PointerRNA;
 struct PropertyRNA;

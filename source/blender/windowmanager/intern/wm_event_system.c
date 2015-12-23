@@ -2087,7 +2087,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 			else if (handler->widgetmap) {
 				ScrArea *area = CTX_wm_area(C);
 				ARegion *region = CTX_wm_region(C);
-				struct wmWidgetMap *wmap = handler->widgetmap;
+				wmWidgetMap *wmap = handler->widgetmap;
 				wmWidgetGroup *wgroup = wm_widgetmap_active_group_get(wmap);
 				wmWidget *widget = wm_widgetmap_highlighted_widget_get(wmap);
 				unsigned char part;

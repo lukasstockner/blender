@@ -67,7 +67,6 @@ struct wmOperator;
 struct wmOperatorType;
 struct wmWindow;
 struct wmWindowManager;
-struct wmWidget;
 struct wmWidgetGroup;
 struct wmWidgetGroupType;
 struct GPUFX;

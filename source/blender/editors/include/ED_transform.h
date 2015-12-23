@@ -114,7 +114,6 @@ struct ScrArea;
 struct Base;
 struct Scene;
 struct Object;
-struct wmWidget;
 struct wmWidgetGroup;
 struct wmWidgetGroupType;
 

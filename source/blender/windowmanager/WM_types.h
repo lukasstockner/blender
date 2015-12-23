@@ -122,6 +122,12 @@ struct ImBuf;
 #include "wm_cursors.h"
 #include "wm_event_types.h"
 
+typedef struct wmWidget wmWidget;
+typedef struct wmWidgetGroup wmWidgetGroup;
+typedef struct wmWidgetMapType wmWidgetMapType;
+typedef struct wmWidgetMap wmWidgetMap;
+
+
 /* ************** wmOperatorType ************************ */
 
 /* flag */
@@ -671,40 +677,6 @@ typedef struct wmDropBox {
 	short opcontext;				/* default invoke */
 
 } wmDropBox;
-
-
-/* WidgetGroups store and manage groups of widgets.
- * They are responsible for drawing necessary widgets and updating their state and position. */
-typedef struct wmWidget wmWidget;
-typedef struct wmWidgetGroup wmWidgetGroup;
-typedef struct wmWidgetMapType wmWidgetMapType;
-
-typedef struct wmWidgetMapC {
-	struct wmWidgetMapC *next, *prev;
-
-	wmWidgetMapType *type;
-	ListBase widgetgroups;
-
-	/**
-	 * \brief Widget map runtime context
-	 *
-	 * Contains information about this widget map. Currently
-	 * highlighted widget, currently selected widgets, ...
-	 */
-	struct {
-		/* we redraw the widgetmap when this changes */
-		wmWidget *highlighted_widget;
-		/* user has clicked this widget and it gets all input */
-		wmWidget *active_widget;
-		/* array for all selected widgets
-		 * TODO  check on using BLI_array */
-		wmWidget **selected_widgets;
-		int tot_selected;
-
-		/* set while widget is highlighted/active */
-		wmWidgetGroup *activegroup;
-	} wmap_context;
-} wmWidgetMapC;
 
 /* *************** migrated stuff, clean later? ************** */
 
