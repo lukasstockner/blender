@@ -67,9 +67,6 @@ set(SRC
 	intern/wm_window.c
 	intern/wm_stereo.c
 	intern/wm_generic_widgets.c
-	3d_widgets/arrow_widget.c
-	3d_widgets/cube_widget.c
-	3d_widgets/dial_widget.c
 
 	WM_api.h
 	WM_keymap.h
@@ -82,21 +79,24 @@ set(SRC
 	wm_files.h
 	wm_subwindow.h
 	wm_window.h
-	3d_widgets/ui_widget_library.h
 
-	intern/widgets/wm_widget.cc
-	intern/widgets/wm_widgetgroup.cc
-	intern/widgets/wm_widgetgrouptype.cc
-	intern/widgets/wm_widgetmap.cc
-	intern/widgets/wm_widgetmaptype.cc
-	intern/widgets/wm_widgets_c_api.cc
+	widgets/wm_widget.cc
+	widgets/wm_widgetgroup.cc
+	widgets/wm_widgetgrouptype.cc
+	widgets/wm_widgetmap.cc
+	widgets/wm_widgetmaptype.cc
+	widgets/wm_widgets_c_api.cc
+	widgets/3d_widgets/arrow_widget.c
+	widgets/3d_widgets/cube_widget.c
+	widgets/3d_widgets/dial_widget.c
 
-	intern/widgets/wm_widget.h
-	intern/widgets/wm_widgetgroup.h
-	intern/widgets/wm_widgetgrouptype.h
-	intern/widgets/wm_widgetmap.h
-	intern/widgets/wm_widgetmaptype.h
-	intern/widgets/wm_widgets_c_api.h
+	widgets/wm_widget.h
+	widgets/wm_widgetgroup.h
+	widgets/wm_widgetgrouptype.h
+	widgets/wm_widgetmap.h
+	widgets/wm_widgetmaptype.h
+	widgets/wm_widgets_c_api.h
+	widgets/3d_widgets/wm_widget_library.h
 )
 
 if(WITH_AUDASPACE)

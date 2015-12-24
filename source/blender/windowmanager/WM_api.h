@@ -43,7 +43,7 @@
 #include "WM_keymap.h"
 #include "BLI_compiler_attrs.h"
 
-#include "intern/widgets/wm_widgets_c_api.h"
+#include "widgets/wm_widgets_c_api.h"
 
 #ifdef __cplusplus
 extern "C" {

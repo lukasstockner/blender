@@ -68,7 +68,7 @@
 
 #include "UI_interface.h"
 
-#include "3d_widgets/ui_widget_library.h"
+#include "widgets/3d_widgets/wm_widget_library.h"
 
 #include "wm.h"
 #include "WM_types.h"
