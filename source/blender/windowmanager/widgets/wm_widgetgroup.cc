@@ -23,7 +23,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/windowmanager/widgets/wm_widgetgroup.cpp
+/** \file blender/windowmanager/widgets/wm_widgetgroup.cc
  *  \ingroup wm
  *
  * WidgetGroups store and manage groups of widgets.

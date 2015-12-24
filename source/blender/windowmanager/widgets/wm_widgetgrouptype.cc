@@ -23,7 +23,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/windowmanager/widgets/wm_widgetgrouptype.cpp
+/** \file blender/windowmanager/widgets/wm_widgetgrouptype.cc
  *  \ingroup wm
  */
 
