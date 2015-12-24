@@ -66,7 +66,6 @@ set(SRC
 	intern/wm_subwindow.c
 	intern/wm_window.c
 	intern/wm_stereo.c
-	intern/wm_generic_widgets.c
 
 	WM_api.h
 	WM_keymap.h
@@ -80,6 +79,7 @@ set(SRC
 	wm_subwindow.h
 	wm_window.h
 
+	widgets/wm_generic_widgets.c
 	widgets/wm_widget.cc
 	widgets/wm_widgetgroup.cc
 	widgets/wm_widgetgrouptype.cc

@@ -23,7 +23,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/windowmanager/intern/widgets/wm_widgetmaptype.h
+/** \file blender/windowmanager/widgets/wm_widgetmaptype.h
  *  \ingroup wm
  *
  * \name wmWidgetMapType

@@ -23,7 +23,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/windowmanager/intern/widgets/wm_widgets_c_api.h
+/** \file blender/windowmanager/widgets/wm_widgets_c_api.h
  *  \ingroup wm
  *
  * C-API for wmWidget types.

@@ -23,7 +23,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/windowmanager/intern/widgets/wm_widgetmap.h
+/** \file blender/windowmanager/widgets/wm_widgetmap.h
  *  \ingroup wm
  */
 
