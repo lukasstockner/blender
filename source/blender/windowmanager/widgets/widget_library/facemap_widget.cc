@@ -56,8 +56,7 @@
 #include "../wm_widget.h"
 #include "widget_geometry.h"
 
-typedef struct FacemapWidget {
-	wmWidget widget;
+typedef struct FacemapWidget: wmWidget {
 	Object *ob;
 	int facemap;
 	int style;
@@ -106,16 +105,16 @@ wmWidget *WIDGET_facemap_new(
 
 	BLI_assert(facemap > -1);
 
-	fmap_widget->widget.draw = widget_facemap_draw;
-//	fmap_widget->widget.invoke = widget_facemap_invoke;
-//	fmap_widget->widget.bind_to_prop = NULL;
-//	fmap_widget->widget.handler = widget_facemap_handler;
-	fmap_widget->widget.render_3d_intersection = widget_facemap_render_3d_intersect;
-	fmap_widget->ob = ob;
-	fmap_widget->facemap = facemap;
-	fmap_widget->style = style;
+	fmap_widget->draw                    = widget_facemap_draw;
+//	fmap_widget->widget.invoke           = widget_facemap_invoke;
+//	fmap_widget->widget.bind_to_prop     = NULL;
+//	fmap_widget->widget.handler          = widget_facemap_handler;
+	fmap_widget->render_3d_intersection  = widget_facemap_render_3d_intersect;
+	fmap_widget->ob                      = ob;
+	fmap_widget->facemap                 = facemap;
+	fmap_widget->style                   = style;
 
-	wm_widget_register(wgroup, &fmap_widget->widget, name);
+	wm_widget_register(wgroup, fmap_widget, name);
 
 	return (wmWidget *)fmap_widget;
 }

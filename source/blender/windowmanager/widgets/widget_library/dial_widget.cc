@@ -61,8 +61,7 @@
 WidgetDrawInfo dial_draw_info = {0};
 #endif
 
-typedef struct DialWidget {
-	wmWidget widget;
+typedef struct DialWidget: wmWidget {
 	int style;
 	float direction[3];
 } DialWidget;
@@ -77,7 +76,7 @@ static void dial_draw_geom(const DialWidget *dial, const bool select)
 	const float width = 1.0f;
 	const int resol = 32;
 
-	glLineWidth(dial->widget.line_width);
+	glLineWidth(dial->line_width);
 	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
 	gluDisk(qobj, 0.0, width, resol, 1);
 	glLineWidth(1.0);
@@ -94,18 +93,18 @@ static void dial_draw_intern(DialWidget *dial, const bool select, const bool hig
 
 	rotation_between_vecs_to_mat3(rot, up, dial->direction);
 	copy_m4_m3(mat, rot);
-	copy_v3_v3(mat[3], dial->widget.origin);
+	copy_v3_v3(mat[3], dial->origin);
 	mul_mat3_m4_fl(mat, scale);
 
 	glPushMatrix();
 	glMultMatrixf(mat);
 
 	if (highlight)
-		glColor4fv(dial->widget.col_hi);
+		glColor4fv(dial->col_hi);
 	else
-		glColor4fv(dial->widget.col);
+		glColor4fv(dial->col);
 
-	glTranslate3fv(dial->widget.offset);
+	glTranslate3fv(dial->offset);
 	dial_draw_geom(dial, select);
 
 	glPopMatrix();
@@ -129,7 +128,7 @@ static void widget_dial_render_3d_intersect(const bContext *C, wmWidget *widget,
 	}
 
 	GPU_select_load_id(selectionbase);
-	dial_draw_intern(dial, true, false, dial->widget.scale);
+	dial_draw_intern(dial, true, false, dial->scale);
 
 	if (dial->style == WIDGET_DIAL_STYLE_RING_CLIPPED) {
 		glDisable(GL_CLIP_PLANE0);
@@ -172,26 +171,25 @@ wmWidget *WIDGET_dial_new(wmWidgetGroup *wgroup, const char *name, const int sty
 
 #ifdef WIDGET_USE_CUSTOM_DIAS
 	if (!dial_draw_info.init) {
-		dial_draw_info.nverts = _WIDGET_nverts_dial,
-		dial_draw_info.ntris = _WIDGET_ntris_dial,
-		dial_draw_info.verts = _WIDGET_verts_dial,
+		dial_draw_info.nverts  = _WIDGET_nverts_dial,
+		dial_draw_info.ntris   = _WIDGET_ntris_dial,
+		dial_draw_info.verts   = _WIDGET_verts_dial,
 		dial_draw_info.normals = _WIDGET_normals_dial,
 		dial_draw_info.indices = _WIDGET_indices_dial,
-		dial_draw_info.init = true;
+		dial_draw_info.init    = true;
 	}
 #endif
 
-	dial->widget.draw = widget_dial_draw;
-	dial->widget.intersect = NULL;
-	dial->widget.render_3d_intersection = widget_dial_render_3d_intersect;
-	dial->widget.flag |= WM_WIDGET_SCALE_3D;
-
-	dial->style = style;
+	dial->draw                    = widget_dial_draw;
+	dial->intersect               = NULL;
+	dial->render_3d_intersection  = widget_dial_render_3d_intersect;
+	dial->flag                   |= WM_WIDGET_SCALE_3D;
+	dial->style                   = style;
 
 	/* defaults */
 	copy_v3_v3(dial->direction, dir_default);
 
-	wm_widget_register(wgroup, &dial->widget, name);
+	wm_widget_register(wgroup, dial, name);
 
 	return (wmWidget *)dial;
 }

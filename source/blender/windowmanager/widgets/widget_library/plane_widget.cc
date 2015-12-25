@@ -50,16 +50,13 @@
 
 #include "../wm_widget.h"
 
-
 /* PlaneWidget->flag */
 #define PLANE_UP_VECTOR_SET 1
 
-typedef struct PlaneWidget {
-	wmWidget widget;
-
+typedef struct PlaneWidget: wmWidget {
 	float direction[3];
 	float up[3];
-	int flag;
+	int plane_flag;
 } PlaneWidget;
 
 
@@ -87,7 +84,7 @@ static void widget_plane_draw_intern(PlaneWidget *plane, const bool UNUSED(selec
 	float rot[3][3];
 	float mat[4][4];
 
-	if (plane->flag & PLANE_UP_VECTOR_SET) {
+	if (plane->plane_flag & PLANE_UP_VECTOR_SET) {
 		copy_v3_v3(rot[2], plane->direction);
 		copy_v3_v3(rot[1], plane->up);
 		cross_v3_v3v3(rot[0], plane->up, plane->direction);
@@ -98,24 +95,24 @@ static void widget_plane_draw_intern(PlaneWidget *plane, const bool UNUSED(selec
 	}
 
 	copy_m4_m3(mat, rot);
-	copy_v3_v3(mat[3], plane->widget.origin);
-	mul_mat3_m4_fl(mat, plane->widget.scale);
+	copy_v3_v3(mat[3], plane->origin);
+	mul_mat3_m4_fl(mat, plane->scale);
 
 	glPushMatrix();
 	glMultMatrixf(mat);
 
-	if (highlight && (plane->widget.flag & WM_WIDGET_DRAW_HOVER) == 0) {
-		copy_v4_v4(col_inner, plane->widget.col_hi);
-		copy_v4_v4(col_outer, plane->widget.col_hi);
+	if (highlight && (plane->flag & WM_WIDGET_DRAW_HOVER) == 0) {
+		copy_v4_v4(col_inner, plane->col_hi);
+		copy_v4_v4(col_outer, plane->col_hi);
 	}
 	else {
-		copy_v4_v4(col_inner, plane->widget.col);
-		copy_v4_v4(col_outer, plane->widget.col);
+		copy_v4_v4(col_inner, plane->col);
+		copy_v4_v4(col_outer, plane->col);
 	}
 	col_inner[3] *= 0.5f;
 
 	glEnable(GL_BLEND);
-	glTranslate3fv(plane->widget.offset);
+	glTranslate3fv(plane->offset);
 	widget_plane_draw_geom(col_inner, col_outer);
 	glDisable(GL_BLEND);
 
@@ -142,15 +139,15 @@ wmWidget *WIDGET_plane_new(wmWidgetGroup *wgroup, const char *name, const int UN
 	PlaneWidget *plane = (PlaneWidget *)MEM_callocN(sizeof(PlaneWidget), name);
 	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
 
-	plane->widget.draw = widget_plane_draw;
-	plane->widget.intersect = NULL;
-	plane->widget.render_3d_intersection = widget_plane_render_3d_intersect;
-	plane->widget.flag |= WM_WIDGET_SCALE_3D;
+	plane->draw                    = widget_plane_draw;
+	plane->intersect               = NULL;
+	plane->render_3d_intersection  = widget_plane_render_3d_intersect;
+	plane->flag                   |= WM_WIDGET_SCALE_3D;
 
 	/* defaults */
 	copy_v3_v3(plane->direction, dir_default);
 
-	wm_widget_register(wgroup, &plane->widget, name);
+	wm_widget_register(wgroup, plane, name);
 
 	return (wmWidget *)plane;
 }
@@ -176,10 +173,10 @@ void WIDGET_plane_set_up_vector(wmWidget *widget, const float direction[3])
 	if (direction) {
 		copy_v3_v3(plane->up, direction);
 		normalize_v3(plane->up);
-		plane->flag |= PLANE_UP_VECTOR_SET;
+		plane->plane_flag |= PLANE_UP_VECTOR_SET;
 	}
 	else {
-		plane->flag &= ~PLANE_UP_VECTOR_SET;
+		plane->plane_flag &= ~PLANE_UP_VECTOR_SET;
 	}
 }
 

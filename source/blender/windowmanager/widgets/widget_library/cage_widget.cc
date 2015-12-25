@@ -65,8 +65,7 @@ enum {
 #define WIDGET_RECT_MIN_WIDTH 15.0f
 #define WIDGET_RESIZER_WIDTH  20.0f
 
-typedef struct RectTransformWidget {
-	wmWidget widget;
+typedef struct RectTransformWidget: wmWidget {
 	float w, h;      /* dimensions of widget */
 	float rotation;  /* rotation of the rectangle */
 	float scale[2]; /* scaling for the widget for non-destructive editing. */
@@ -198,17 +197,17 @@ static void widget_rect_transform_draw(const bContext *UNUSED(C), wmWidget *widg
 
 	/* corner widgets */
 	glColor3f(0.0, 0.0, 0.0);
-	glLineWidth(cage->widget.line_width + 3.0f);
+	glLineWidth(cage->line_width + 3.0f);
 
 	rect_transform_draw_corners(&r, w, h);
 
 	/* corner widgets */
 	glColor3fv(widget->col);
-	glLineWidth(cage->widget.line_width);
+	glLineWidth(cage->line_width);
 	rect_transform_draw_corners(&r, w, h);
 
 	rect_transform_draw_interaction(widget->col, widget->highlighted_part, half_w, half_h,
-	                                w, h, cage->widget.line_width);
+	                                w, h, cage->line_width);
 
 	glLineWidth(1.0);
 	glPopMatrix();
@@ -518,21 +517,21 @@ wmWidget *WIDGET_rect_transform_new(
 {
 	RectTransformWidget *cage = (RectTransformWidget *)MEM_callocN(sizeof(RectTransformWidget), name);
 
-	cage->widget.draw = widget_rect_transform_draw;
-	cage->widget.invoke = widget_rect_transform_invoke;
-	cage->widget.bind_to_prop = widget_rect_transform_bind_to_prop;
-	cage->widget.handler = widget_rect_transform_handler;
-	cage->widget.intersect = widget_rect_transform_intersect;
-	cage->widget.cancel = widget_rect_transform_cancel;
-	cage->widget.get_cursor = widget_rect_transform_get_cursor;
-	cage->widget.max_prop = 2;
-	cage->widget.flag |= WM_WIDGET_DRAW_ACTIVE;
-	cage->scale[0] = cage->scale[1] = 1.0f;
-	cage->style = style;
-	cage->w = width;
-	cage->h = height;
+	cage->draw          = widget_rect_transform_draw;
+	cage->invoke        = widget_rect_transform_invoke;
+	cage->bind_to_prop  = widget_rect_transform_bind_to_prop;
+	cage->handler       = widget_rect_transform_handler;
+	cage->intersect     = widget_rect_transform_intersect;
+	cage->cancel        = widget_rect_transform_cancel;
+	cage->get_cursor    = widget_rect_transform_get_cursor;
+	cage->max_prop      = 2;
+	cage->flag         |= WM_WIDGET_DRAW_ACTIVE;
+	cage->scale[0]      = cage->scale[1] = 1.0f;
+	cage->style         = style;
+	cage->w             = width;
+	cage->h             = height;
 
-	wm_widget_register(wgroup, &cage->widget, name);
+	wm_widget_register(wgroup, cage, name);
 
 	return (wmWidget *)cage;
 }

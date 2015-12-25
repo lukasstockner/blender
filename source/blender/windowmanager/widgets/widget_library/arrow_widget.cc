@@ -74,10 +74,9 @@ enum {
 	ARROW_CUSTOM_RANGE_SET = (1 << 1),
 };
 
-typedef struct ArrowWidget {
-	wmWidget widget;
+typedef struct ArrowWidget: wmWidget {
 	int style;
-	int flag;
+	int arrow_flag;
 
 	float len;          /* arrow line length */
 	float direction[3];
@@ -85,7 +84,7 @@ typedef struct ArrowWidget {
 	float aspect[2];    /* cone style only */
 
 	float range_fac;      /* factor for arrow min/max distance */
-	float offset;
+	float arrow_offset;
 	/* property range and minimum for constrained arrows */
 	float range, min;
 } ArrowWidget;
@@ -112,8 +111,8 @@ static void widget_arrow_get_final_pos(wmWidget *widget, float r_pos[3])
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
 
-	mul_v3_v3fl(r_pos, arrow->direction, arrow->offset);
-	add_v3_v3(r_pos, arrow->widget.origin);
+	mul_v3_v3fl(r_pos, arrow->direction, arrow->arrow_offset);
+	add_v3_v3(r_pos, arrow->origin);
 }
 
 static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
@@ -140,7 +139,7 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 			{-unitx,  unity, 0},
 		};
 
-		glLineWidth(arrow->widget.line_width);
+		glLineWidth(arrow->line_width);
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glVertexPointer(3, GL_FLOAT, 0, vec);
 		glDrawArrays(GL_LINE_LOOP, 0, ARRAY_SIZE(vec));
@@ -156,7 +155,7 @@ static void arrow_draw_geom(const ArrowWidget *arrow, const bool select)
 			{0.0f, 0.0f, arrow->len},
 		};
 
-		glLineWidth(arrow->widget.line_width);
+		glLineWidth(arrow->line_width);
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glVertexPointer(3, GL_FLOAT, 0, vec);
 		glDrawArrays(GL_LINE_STRIP, 0, ARRAY_SIZE(vec));
@@ -215,9 +214,9 @@ static void arrow_draw_intern(ArrowWidget *arrow, const bool select, const bool 
 	float mat[4][4];
 	float final_pos[3];
 
-	widget_arrow_get_final_pos(&arrow->widget, final_pos);
+	widget_arrow_get_final_pos(arrow, final_pos);
 
-	if (arrow->flag & ARROW_UP_VECTOR_SET) {
+	if (arrow->arrow_flag & ARROW_UP_VECTOR_SET) {
 		copy_v3_v3(rot[2], arrow->direction);
 		copy_v3_v3(rot[1], arrow->up);
 		cross_v3_v3v3(rot[0], arrow->up, arrow->direction);
@@ -227,27 +226,27 @@ static void arrow_draw_intern(ArrowWidget *arrow, const bool select, const bool 
 	}
 	copy_m4_m3(mat, rot);
 	copy_v3_v3(mat[3], final_pos);
-	mul_mat3_m4_fl(mat, arrow->widget.scale);
+	mul_mat3_m4_fl(mat, arrow->scale);
 
 	glPushMatrix();
 	glMultMatrixf(mat);
 
-	if (highlight && !(arrow->widget.flag & WM_WIDGET_DRAW_HOVER)) {
-		glColor4fv(arrow->widget.col_hi);
+	if (highlight && !(arrow->flag & WM_WIDGET_DRAW_HOVER)) {
+		glColor4fv(arrow->col_hi);
 	}
 	else {
-		glColor4fv(arrow->widget.col);
+		glColor4fv(arrow->col);
 	}
 
 	glEnable(GL_BLEND);
-	glTranslate3fv(arrow->widget.offset);
+	glTranslate3fv(arrow->offset);
 	arrow_draw_geom(arrow, select);
 	glDisable(GL_BLEND);
 
 	glPopMatrix();
 
-	if (arrow->widget.interaction_data) {
-		ArrowInteraction *data = (ArrowInteraction *)arrow->widget.interaction_data;
+	if (arrow->interaction_data) {
+		ArrowInteraction *data = (ArrowInteraction *)arrow->interaction_data;
 
 		copy_m4_m3(mat, rot);
 		copy_v3_v3(mat[3], data->orig_origin);
@@ -258,7 +257,7 @@ static void arrow_draw_intern(ArrowWidget *arrow, const bool select, const bool 
 
 		glEnable(GL_BLEND);
 		glColor4f(0.5f, 0.5f, 0.5f, 0.5f);
-		glTranslate3fv(arrow->widget.offset);
+		glTranslate3fv(arrow->offset);
 		arrow_draw_geom(arrow, select);
 		glDisable(GL_BLEND);
 
@@ -396,7 +395,7 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 		}
 
 		/* clamp to custom range */
-		if (arrow->flag & ARROW_CUSTOM_RANGE_SET) {
+		if (arrow->arrow_flag & ARROW_CUSTOM_RANGE_SET) {
 			CLAMP(value, arrow->min, max);
 		}
 
@@ -412,19 +411,19 @@ static int widget_arrow_handler(bContext *C, const wmEvent *event, wmWidget *wid
 		/* accounts for clamping properly */
 		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED)
-				arrow->offset = arrow->range_fac * (max - value) / arrow->range;
+				arrow->arrow_offset = arrow->range_fac * (max - value) / arrow->range;
 			else
 #ifdef USE_ABS_HANDLE_RANGE
-				arrow->offset = arrow->range_fac * (value / arrow->range);
+				arrow->arrow_offset = arrow->range_fac * (value / arrow->range);
 #else
 				arrow->offset = arrow->range_fac * ((value - arrow->min) / arrow->range);
 #endif
 		}
 		else
-			arrow->offset = value;
+			arrow->arrow_offset = value;
 	}
 	else {
-		arrow->offset = ofs_new;
+		arrow->arrow_offset = ofs_new;
 	}
 
 	/* tag the region for redraw */
@@ -446,7 +445,7 @@ static int widget_arrow_invoke(bContext *UNUSED(C), const wmEvent *event, wmWidg
 		data->orig_value = RNA_property_float_get(&ptr, prop);
 	}
 
-	data->orig_offset = arrow->offset;
+	data->orig_offset = arrow->arrow_offset;
 
 	data->orig_mouse[0] = event->mval[0];
 	data->orig_mouse[1] = event->mval[1];
@@ -472,7 +471,7 @@ static void widget_arrow_bind_to_prop(wmWidget *widget, const int UNUSED(slot))
 		if (arrow->style & WIDGET_ARROW_STYLE_CONSTRAINED) {
 			float min, max;
 
-			if (arrow->flag & ARROW_CUSTOM_RANGE_SET) {
+			if (arrow->arrow_flag & ARROW_CUSTOM_RANGE_SET) {
 				max = arrow->min + arrow->range;
 			}
 			else {
@@ -483,11 +482,11 @@ static void widget_arrow_bind_to_prop(wmWidget *widget, const int UNUSED(slot))
 			}
 
 			if (arrow->style & WIDGET_ARROW_STYLE_INVERTED) {
-				arrow->offset = arrow->range_fac * (max - float_prop) / arrow->range;
+				arrow->arrow_offset = arrow->range_fac * (max - float_prop) / arrow->range;
 			}
 			else {
 #ifdef USE_ABS_HANDLE_RANGE
-				arrow->offset = arrow->range_fac * (float_prop / arrow->range);
+				arrow->arrow_offset = arrow->range_fac * (float_prop / arrow->range);
 #else
 				arrow->offset = arrow->range_fac * ((float_prop - arrow->min) / arrow->range);
 #endif
@@ -495,11 +494,11 @@ static void widget_arrow_bind_to_prop(wmWidget *widget, const int UNUSED(slot))
 		}
 		else {
 			/* we'd need to check the property type here but for now assume always float */
-			arrow->offset = float_prop;
+			arrow->arrow_offset = float_prop;
 		}
 	}
 	else
-		arrow->offset = 0.0f;
+		arrow->arrow_offset = 0.0f;
 }
 
 static void widget_arrow_cancel(bContext *C, wmWidget *widget)
@@ -523,21 +522,21 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 
 #ifdef WIDGET_USE_CUSTOM_ARROWS
 	if (!arrow_head_draw_info.init) {
-		arrow_head_draw_info.nverts = _WIDGET_nverts_arrow,
-		arrow_head_draw_info.ntris = _WIDGET_ntris_arrow,
-		arrow_head_draw_info.verts = _WIDGET_verts_arrow,
+		arrow_head_draw_info.nverts  = _WIDGET_nverts_arrow,
+		arrow_head_draw_info.ntris   = _WIDGET_ntris_arrow,
+		arrow_head_draw_info.verts   = _WIDGET_verts_arrow,
 		arrow_head_draw_info.normals = _WIDGET_normals_arrow,
 		arrow_head_draw_info.indices = _WIDGET_indices_arrow,
-		arrow_head_draw_info.init = true;
+		arrow_head_draw_info.init    = true;
 	}
 #endif
 	if (!cube_draw_info.init) {
-		cube_draw_info.nverts = _WIDGET_nverts_cube,
-		cube_draw_info.ntris = _WIDGET_ntris_cube,
-		cube_draw_info.verts = _WIDGET_verts_cube,
+		cube_draw_info.nverts  = _WIDGET_nverts_cube,
+		cube_draw_info.ntris   = _WIDGET_ntris_cube,
+		cube_draw_info.verts   = _WIDGET_verts_cube,
 		cube_draw_info.normals = _WIDGET_normals_cube,
 		cube_draw_info.indices = _WIDGET_indices_cube,
-		cube_draw_info.init = true;
+		cube_draw_info.init    = true;
 	}
 
 	/* inverted only makes sense in a constrained arrow */
@@ -549,22 +548,22 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	ArrowWidget *arrow = (ArrowWidget *)MEM_callocN(sizeof(ArrowWidget), name);
 	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
 
-	arrow->widget.draw = widget_arrow_draw;
-	arrow->widget.get_final_position = widget_arrow_get_final_pos;
-	arrow->widget.intersect = NULL;
-	arrow->widget.handler = widget_arrow_handler;
-	arrow->widget.invoke = widget_arrow_invoke;
-	arrow->widget.render_3d_intersection = widget_arrow_render_3d_intersect;
-	arrow->widget.bind_to_prop = widget_arrow_bind_to_prop;
-	arrow->widget.cancel = widget_arrow_cancel;
-	arrow->widget.flag |= (WM_WIDGET_SCALE_3D | WM_WIDGET_DRAW_ACTIVE);
+	arrow->draw                    = widget_arrow_draw;
+	arrow->intersect               = NULL;
+	arrow->get_final_position      = widget_arrow_get_final_pos;
+	arrow->handler                 = widget_arrow_handler;
+	arrow->invoke                  = widget_arrow_invoke;
+	arrow->render_3d_intersection  = widget_arrow_render_3d_intersect;
+	arrow->bind_to_prop            = widget_arrow_bind_to_prop;
+	arrow->cancel                  = widget_arrow_cancel;
+	arrow->flag                   |= (WM_WIDGET_SCALE_3D | WM_WIDGET_DRAW_ACTIVE);
 
-	arrow->style = real_style;
-	arrow->len = 1.0f;
+	arrow->style     = real_style;
+	arrow->len       = 1.0f;
 	arrow->range_fac = 1.0f;
 	copy_v3_v3(arrow->direction, dir_default);
 
-	wm_widget_register(wgroup, &arrow->widget, name);
+	wm_widget_register(wgroup, arrow, name);
 
 	return (wmWidget *)arrow;
 }
@@ -590,10 +589,10 @@ void WIDGET_arrow_set_up_vector(wmWidget *widget, const float direction[3])
 	if (direction) {
 		copy_v3_v3(arrow->up, direction);
 		normalize_v3(arrow->up);
-		arrow->flag |= ARROW_UP_VECTOR_SET;
+		arrow->arrow_flag |= ARROW_UP_VECTOR_SET;
 	}
 	else {
-		arrow->flag &= ~ARROW_UP_VECTOR_SET;
+		arrow->arrow_flag &= ~ARROW_UP_VECTOR_SET;
 	}
 }
 
@@ -616,11 +615,11 @@ void WIDGET_arrow_set_ui_range(wmWidget *widget, const float min, const float ma
 	ArrowWidget *arrow = (ArrowWidget *)widget;
 
 	BLI_assert(min < max);
-	BLI_assert(!(arrow->widget.props[0] && "Make sure this function is called before WM_widget_set_property"));
+	BLI_assert(!(arrow->props[0] && "Make sure this function is called before WM_widget_set_property"));
 
 	arrow->range = max - min;
 	arrow->min = min;
-	arrow->flag |= ARROW_CUSTOM_RANGE_SET;
+	arrow->arrow_flag |= ARROW_CUSTOM_RANGE_SET;
 }
 
 /**
@@ -632,7 +631,7 @@ void WIDGET_arrow_set_range_fac(wmWidget *widget, const float range_fac)
 {
 	ArrowWidget *arrow = (ArrowWidget *)widget;
 
-	BLI_assert(!(arrow->widget.props[0] && "Make sure this function is called before WM_widget_set_property"));
+	BLI_assert(!(arrow->props[0] && "Make sure this function is called before WM_widget_set_property"));
 
 	arrow->range_fac = range_fac;
 }
