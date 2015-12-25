@@ -43,6 +43,8 @@
 #include "ED_screen.h"
 #include "ED_view3d.h"
 
+#include "GL/glew.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "RNA_access.h"
@@ -116,7 +118,12 @@ bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *nam
 
 	BLI_addtail(&wgroup->widgets, widget);
 
-	fix_linking_widget_lib();
+	/* XXX */
+	fix_linking_widget_arrow();
+	fix_linking_widget_cage();
+	fix_linking_widget_dial();
+	fix_linking_widget_plane();
+	fix_linking_widget_facemap();
 
 	return true;
 }
@@ -248,6 +255,65 @@ bool widget_compare(const wmWidget *a, const wmWidget *b)
 	return STREQ(a->idname, b->idname);
 }
 
+
+/* -------------------------------------------------------------------- */
+/* Widget drawing */
+
+/**
+ * \brief Main draw call for WidgetDrawInfo data
+ */
+void widget_draw(WidgetDrawInfo *info, const bool select)
+{
+	GLuint buf[3];
+
+	const bool use_lighting = !select && ((U.tw_flag & V3D_SHADED_WIDGETS) != 0);
+
+	if (use_lighting)
+		glGenBuffers(3, buf);
+	else
+		glGenBuffers(2, buf);
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glBindBuffer(GL_ARRAY_BUFFER, buf[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * info->nverts, info->verts, GL_STATIC_DRAW);
+	glVertexPointer(3, GL_FLOAT, 0, NULL);
+
+	if (use_lighting) {
+		glEnableClientState(GL_NORMAL_ARRAY);
+		glBindBuffer(GL_ARRAY_BUFFER, buf[2]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * info->nverts, info->normals, GL_STATIC_DRAW);
+		glNormalPointer(GL_FLOAT, 0, NULL);
+		glShadeModel(GL_SMOOTH);
+	}
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buf[1]);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short) * (3 * info->ntris), info->indices, GL_STATIC_DRAW);
+
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_DEPTH_TEST);
+
+	glDrawElements(GL_TRIANGLES, info->ntris * 3, GL_UNSIGNED_SHORT, NULL);
+
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+
+	if (use_lighting) {
+		glDisableClientState(GL_NORMAL_ARRAY);
+		glShadeModel(GL_FLAT);
+		glDeleteBuffers(3, buf);
+	}
+	else {
+		glDeleteBuffers(2, buf);
+	}
+}
+
+
+/* -------------------------------------------------------------------- */
 
 /** \name Widget Creation API
  *

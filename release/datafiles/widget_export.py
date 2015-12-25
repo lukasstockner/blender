@@ -13,14 +13,14 @@ def mesh_triangulate(me):
     
 
 class ExportWidget(Operator, ExportHelper):
-    """Export a widget mesh as a C file"""
+    """Export a widget mesh as a C++ file"""
     bl_idname = "export_scene.widget"
     bl_label = "Export Widget"
     bl_options = {'PRESET', 'UNDO'}
 
-    filename_ext = ".c"
+    filename_ext = ".cc"
     filter_glob = StringProperty(
-            default="*.c;",
+            default="*.cc;",
             options={'HIDDEN'},
             )
     @classmethod
@@ -63,7 +63,7 @@ class ExportWidget(Operator, ExportHelper):
         return {'FINISHED'}
 
 def menu_func_export(self, context):
-    self.layout.operator(ExportWidget.bl_idname, text="Widget (.c)")
+    self.layout.operator(ExportWidget.bl_idname, text="Widget (.cc)")
 
         
 def register():

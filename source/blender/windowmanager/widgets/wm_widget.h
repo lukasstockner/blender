@@ -38,10 +38,28 @@ public:
 };
 #endif
 
+typedef struct WidgetDrawInfo {
+	int nverts;
+	int ntris;
+	float (*verts)[3];
+	float (*normals)[3];
+	unsigned short *indices;
+	bool init;
+} WidgetDrawInfo;
+
 void widget_remove(ListBase *widgetlist, wmWidget *widget);
 void widget_data_free(wmWidget *widget);
 void widget_find_active_3D_loop(const bContext *C, ListBase *visible_widgets);
 void widget_calculate_scale(wmWidget *widget, const bContext *C);
 bool widget_compare(const wmWidget *a, const wmWidget *b);
+
+void widget_draw(WidgetDrawInfo *info, const bool select);
+
+
+void fix_linking_widget_arrow(void);
+void fix_linking_widget_cage(void);
+void fix_linking_widget_dial(void);
+void fix_linking_widget_facemap(void);
+void fix_linking_widget_plane(void);
 
 #endif // __WM_WIDGET_H__

@@ -518,7 +518,8 @@ enum {
 
 wmKeyMap *WM_widgetgroup_keymap_common(wmKeyConfig *config, const char *wgroupname);
 
-/* wm_generic_widgets.c */
+
+/* widget library */
 
 enum {
 	WIDGET_ARROW_STYLE_NORMAL        =  1,
@@ -552,29 +553,7 @@ enum {
 	RECT_TRANSFORM_SLOT_SCALE = 1
 };
 
-struct wmWidget *WIDGET_arrow_new(struct wmWidgetGroup *wgroup, const char *name, const int style);
-void WIDGET_arrow_set_direction(struct wmWidget *widget, const float direction[3]);
-void WIDGET_arrow_set_up_vector(struct wmWidget *widget, const float direction[3]);
-void WIDGET_arrow_set_line_len(struct wmWidget *widget, const float len);
-void WIDGET_arrow_set_ui_range(struct wmWidget *widget, const float min, const float max);
-void WIDGET_arrow_set_range_fac(struct wmWidget *widget, const float range_fac);
-void WIDGET_arrow_cone_set_aspect(struct wmWidget *widget, const float aspect[2]);
-
-struct wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, const char *name, const int style);
-void WIDGET_dial_set_up_vector(struct wmWidget *widget, const float direction[3]);
-
-struct wmWidget *WIDGET_plane_new(struct wmWidgetGroup *wgroup, const char *name, const int style);
-void WIDGET_plane_set_direction(struct wmWidget *widget, const float direction[3]);
-void WIDGET_plane_set_up_vector(struct wmWidget *widget, const float direction[3]);
-
-struct wmWidget *WIDGET_rect_transform_new(
-        struct wmWidgetGroup *wgroup, const char *name, const int style,
-        const float width, const float height);
-
-struct wmWidget *WIDGET_facemap_new(
-        struct wmWidgetGroup *wgroup, const char *name, const int style,
-        struct Object *ob, const int facemap);
-struct bFaceMap *WIDGET_facemap_get_fmap(struct wmWidget *widget);
+/* end Widget API  */
 
 
 #ifdef WITH_INPUT_IME

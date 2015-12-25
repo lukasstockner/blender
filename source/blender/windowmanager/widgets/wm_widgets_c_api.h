@@ -29,14 +29,16 @@
  * C-API for wmWidget types.
  */
 
-#ifndef __WM_WIDGETS_C_API__
-#define __WM_WIDGETS_C_API__
+#ifndef __WM_WIDGETS_C_API_H__
+#define __WM_WIDGETS_C_API_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include "BLI_compiler_attrs.h"
+
+#include "widget_library/widget_library.h"
 
 struct ARegion;
 struct Main;
@@ -112,11 +114,9 @@ void WM_widget_set_scale(struct wmWidget *widget, float scale);
 void WM_widget_set_line_width(struct wmWidget *widget, const float line_width);
 void WM_widget_set_colors(struct wmWidget *widget, const float col[4], const float col_hi[4]);
 
-void fix_linking_widget_lib(void);
-
 #ifdef __cplusplus
 }
 #endif
 
-#endif // __WM_WIDGETS_C_API__
+#endif // __WM_WIDGETS_C_API_H__
 
