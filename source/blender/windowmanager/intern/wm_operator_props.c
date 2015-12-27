@@ -30,6 +30,8 @@
 
 #include "DNA_space_types.h"
 
+#include "BKE_screen.h"
+
 #include "BLI_rect.h"
 #include "BLI_math_base.h"
 
