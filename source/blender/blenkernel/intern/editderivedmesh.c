@@ -58,12 +58,12 @@
 #include "MEM_guardedalloc.h"
 
 #include "GPU_buffers.h"
-#include "GPU_extensions.h"
 #include "GPU_glew.h"
+#include "GPU_shader.h"
+#include "GPU_basic_shader.h"
 
 #include "WM_api.h"
 
-extern GLubyte stipple_quarttone[128]; /* glutil.c, bad level data */
 
 static void bmdm_get_tri_colpreview(BMLoop *ls[3], MLoopCol *lcol[3], unsigned char(*color_vert_array)[4]);
 
@@ -1104,8 +1104,8 @@ static void emDM_drawMappedFaces(
 					if (poly_prev != GL_ZERO) glEnd();
 					poly_prev = GL_ZERO; /* force glBegin */
 
-					glEnable(GL_POLYGON_STIPPLE);
-					glPolygonStipple(stipple_quarttone);
+					GPU_basic_shader_bind(GPU_SHADER_STIPPLE | GPU_SHADER_USE_COLOR);
+					GPU_basic_shader_stipple(GPU_SHADER_STIPPLE_QUARTTONE);
 				}
 
 				if      (has_vcol_preview) bmdm_get_tri_colpreview(ltri, lcol, color_vert_array);
@@ -1167,7 +1167,7 @@ static void emDM_drawMappedFaces(
 					glEnd();
 					poly_prev = GL_ZERO; /* force glBegin */
 
-					glDisable(GL_POLYGON_STIPPLE);
+					GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
 				}
 			}
 		}
@@ -1203,8 +1203,8 @@ static void emDM_drawMappedFaces(
 					if (poly_prev != GL_ZERO) glEnd();
 					poly_prev = GL_ZERO; /* force glBegin */
 
-					glEnable(GL_POLYGON_STIPPLE);
-					glPolygonStipple(stipple_quarttone);
+					GPU_basic_shader_bind(GPU_SHADER_STIPPLE | GPU_SHADER_USE_COLOR);
+					GPU_basic_shader_stipple(GPU_SHADER_STIPPLE_QUARTTONE);
 				}
 
 				if      (has_vcol_preview) bmdm_get_tri_colpreview(ltri, lcol, color_vert_array);
@@ -1268,7 +1268,7 @@ static void emDM_drawMappedFaces(
 					glEnd();
 					poly_prev = GL_ZERO; /* force glBegin */
 
-					glDisable(GL_POLYGON_STIPPLE);
+					GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
 				}
 			}
 		}

@@ -1621,6 +1621,56 @@ ConvertNode::ConvertNode(ShaderSocketType from_, ShaderSocketType to_, bool auto
 		assert(0);
 }
 
+bool ConvertNode::constant_fold(ShaderOutput *socket, float3 *optimized_value)
+{
+	ShaderInput *in = inputs[0];
+	float3 value = in->value;
+
+	/* TODO(DingTo): conversion from/to int is not supported yet, don't fold in that case */
+
+	if(socket == outputs[0] && in->link == NULL) {
+		if(from == SHADER_SOCKET_FLOAT) {
+			if(to == SHADER_SOCKET_INT)
+			/* float to int */
+				return false;
+			else
+			/* float to float3 */
+				*optimized_value = make_float3(value.x, value.x, value.x);
+		}
+		else if(from == SHADER_SOCKET_INT) {
+			if(to == SHADER_SOCKET_FLOAT)
+			/* int to float */
+				return false;
+			else
+			/* int to vector/point/normal */
+				return false;
+		}
+		else if(to == SHADER_SOCKET_FLOAT) {
+			if(from == SHADER_SOCKET_COLOR)
+			/* color to float */
+				optimized_value->x = linear_rgb_to_gray(value);
+			else
+			/* vector/point/normal to float */
+				optimized_value->x = average(value);
+		}
+		else if(to == SHADER_SOCKET_INT) {
+			if(from == SHADER_SOCKET_COLOR)
+			/* color to int */
+				return false;
+			else
+			/* vector/point/normal to int */
+				return false;
+		}
+		else {
+			*optimized_value = value;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 void ConvertNode::compile(SVMCompiler& compiler)
 {
 	ShaderInput *in = inputs[0];
@@ -1891,7 +1941,7 @@ void GlossyBsdfNode::simplify_settings(Scene *scene)
 		/* Fallback to Sharp closure for Roughness close to 0.
 		 * Note: Keep the epsilon in sync with kernel!
 		 */
-		ShaderInput *roughness_input = get_input("Roughness");
+		ShaderInput *roughness_input = input("Roughness");
 		if(!roughness_input->link && roughness_input->value.x <= 1e-4f) {
 			distribution = ustring("Sharp");
 		}
@@ -1905,7 +1955,7 @@ void GlossyBsdfNode::simplify_settings(Scene *scene)
 
 bool GlossyBsdfNode::has_integrator_dependency()
 {
-	ShaderInput *roughness_input = get_input("Roughness");
+	ShaderInput *roughness_input = input("Roughness");
 	return !roughness_input->link && roughness_input->value.x <= 1e-4f;
 }
 
@@ -1960,7 +2010,7 @@ void GlassBsdfNode::simplify_settings(Scene *scene)
 		/* Fallback to Sharp closure for Roughness close to 0.
 		 * Note: Keep the epsilon in sync with kernel!
 		 */
-		ShaderInput *roughness_input = get_input("Roughness");
+		ShaderInput *roughness_input = input("Roughness");
 		if(!roughness_input->link && roughness_input->value.x <= 1e-4f) {
 			distribution = ustring("Sharp");
 		}
@@ -1974,7 +2024,7 @@ void GlassBsdfNode::simplify_settings(Scene *scene)
 
 bool GlassBsdfNode::has_integrator_dependency()
 {
-	ShaderInput *roughness_input = get_input("Roughness");
+	ShaderInput *roughness_input = input("Roughness");
 	return !roughness_input->link && roughness_input->value.x <= 1e-4f;
 }
 
@@ -2029,7 +2079,7 @@ void RefractionBsdfNode::simplify_settings(Scene *scene)
 		/* Fallback to Sharp closure for Roughness close to 0.
 		 * Note: Keep the epsilon in sync with kernel!
 		 */
-		ShaderInput *roughness_input = get_input("Roughness");
+		ShaderInput *roughness_input = input("Roughness");
 		if(!roughness_input->link && roughness_input->value.x <= 1e-4f) {
 			distribution = ustring("Sharp");
 		}
@@ -2043,7 +2093,7 @@ void RefractionBsdfNode::simplify_settings(Scene *scene)
 
 bool RefractionBsdfNode::has_integrator_dependency()
 {
-	ShaderInput *roughness_input = get_input("Roughness");
+	ShaderInput *roughness_input = input("Roughness");
 	return !roughness_input->link && roughness_input->value.x <= 1e-4f;
 }
 
@@ -3177,6 +3227,13 @@ ValueNode::ValueNode()
 	add_output("Value", SHADER_SOCKET_FLOAT);
 }
 
+bool ValueNode::constant_fold(ShaderOutput * /*socket*/,
+                              float3 *optimized_value)
+{
+	*optimized_value = make_float3(value, value, value);
+	return true;
+}
+
 void ValueNode::compile(SVMCompiler& compiler)
 {
 	ShaderOutput *val_out = output("Value");
@@ -3199,6 +3256,13 @@ ColorNode::ColorNode()
 	value = make_float3(0.0f, 0.0f, 0.0f);
 
 	add_output("Color", SHADER_SOCKET_COLOR);
+}
+
+bool ColorNode::constant_fold(ShaderOutput * /*socket*/,
+                              float3 *optimized_value)
+{
+	*optimized_value = value;
+	return true;
 }
 
 void ColorNode::compile(SVMCompiler& compiler)
@@ -3500,6 +3564,23 @@ GammaNode::GammaNode()
 	add_input("Color", SHADER_SOCKET_COLOR);
 	add_input("Gamma", SHADER_SOCKET_FLOAT);
 	add_output("Color", SHADER_SOCKET_COLOR);
+}
+
+bool GammaNode::constant_fold(ShaderOutput *socket, float3 *optimized_value)
+{
+	ShaderInput *color_in = input("Color");
+	ShaderInput *gamma_in = input("Gamma");
+
+	if(socket == output("Color")) {
+		if(color_in->link == NULL && gamma_in->link == NULL) {
+			*optimized_value = svm_math_gamma_color(color_in->value,
+			                                        gamma_in->value.x);
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void GammaNode::compile(SVMCompiler& compiler)
@@ -4068,7 +4149,6 @@ bool MathNode::constant_fold(ShaderOutput *socket, float3 *optimized_value)
 	ShaderInput *value2_in = input("Value2");
 
 	if(socket == output("Value")) {
-		/* Optimize math node without links to a single value. */
 		if(value1_in->link == NULL && value2_in->link == NULL) {
 			optimized_value->x = svm_math((NodeMath)type_enum[type],
 			                              value1_in->value.x,
@@ -4148,7 +4228,6 @@ bool VectorMathNode::constant_fold(ShaderOutput *socket, float3 *optimized_value
 	float value;
 	float3 vector;
 
-	/* Optimize vector math node without links to a single value node. */
 	if(vector1_in->link == NULL && vector2_in->link == NULL) {
 		svm_vector_math(&value,
 						&vector,
