@@ -543,9 +543,15 @@ static void emDM_buffer_copy_vertex(
 
 	int start = 0;
 
+	/* use deformed vertices instead if they exist */
+	const float (*vertexCos)[3] = bmdm->vertexCos;
+
 	BM_ITER_MESH(efa, &iter, bm, BM_FACES_OF_MESH) {
 		BM_ITER_ELEM(v, &iterv, efa, BM_VERTS_OF_FACE) {
-			copy_v3_v3(&varray[start], v->co);
+			if (vertexCos)
+				copy_v3_v3(&varray[start], vertexCos[BM_elem_index_get(v)]);
+			else
+				copy_v3_v3(&varray[start], v->co);
 			start += 3;
 		}
 	}
