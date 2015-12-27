@@ -734,7 +734,7 @@ static bool foreach_libblock_id_users_callback(void *user_data, ID **id_p, int c
 	if (*id_p && (*id_p == iter->id)) {
 		printf("%s uses %s (refcounted: %d, userone: %d, used_one: %d, used_one_active: %d)\n",
 		       iter->curr_id->name, iter->id->name, (cb_flag & IDWALK_USER) ? 1 : 0, (cb_flag & IDWALK_USER_ONE) ? 1 : 0,
-		       (iter->id->flag2 & LIB_EXTRAUSER) ? 1 : 0, (iter->id->flag2 & LIB_EXTRAUSER_SET) ? 1 : 0);
+		       (iter->id->tag & LIB_TAG_EXTRAUSER) ? 1 : 0, (iter->id->tag & LIB_TAG_EXTRAUSER_SET) ? 1 : 0);
 		iter->count++;
 	}
 
