@@ -248,10 +248,10 @@ static void unlink_world_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeEleme
 	parscene->world = NULL;
 }
 
-static void outliner_do_libdata_operation(bContext *C, Scene *scene, SpaceOops *soops, ListBase *lb, 
-                                          void (*operation_cb)(bContext *C, Scene *scene, TreeElement *,
-                                                               TreeStoreElem *, TreeStoreElem *, void *),
-                                          void *user_data)
+static void outliner_do_libdata_operation(
+        bContext *C, Scene *scene, SpaceOops *soops, ListBase *lb,
+        void (*operation_cb)(bContext *C, Scene *scene, TreeElement *, TreeStoreElem *, TreeStoreElem *, void *),
+        void *user_data)
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
@@ -411,7 +411,7 @@ static void object_delete_cb(bContext *C, Scene *scene, TreeElement *te,
 static void id_local_cb(bContext *C, Scene *UNUSED(scene), TreeElement *UNUSED(te),
                         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
-	if (tselem->id->lib && (tselem->id->flag & LIB_EXTERN)) {
+	if (tselem->id->lib && (tselem->id->tag & LIB_TAG_EXTERN)) {
 		/* if the ID type has no special local function,
 		 * just clear the lib */
 		if (id_make_local(tselem->id, false) == false) {
@@ -522,8 +522,7 @@ static void group_instance_cb(bContext *C, Scene *scene, TreeElement *UNUSED(te)
  */
 void outliner_do_object_operation_ex(
         bContext *C, Scene *scene_act, SpaceOops *soops, ListBase *lb,
-        void (*operation_cb)(bContext *C, Scene *scene, TreeElement *,
-                             TreeStoreElem *, TreeStoreElem *, void *),
+        void (*operation_cb)(bContext *, Scene *, TreeElement *, TreeStoreElem *, TreeStoreElem *, void *),
         bool select_recurse)
 {
 	TreeElement *te;
@@ -553,7 +552,8 @@ void outliner_do_object_operation_ex(
 	}
 }
 
-void outliner_do_object_operation(bContext *C, Scene *scene_act, SpaceOops *soops, ListBase *lb,
+void outliner_do_object_operation(
+        bContext *C, Scene *scene_act, SpaceOops *soops, ListBase *lb,
         void (*operation_cb)(bContext *, Scene *, TreeElement *, TreeStoreElem *, TreeStoreElem *, void *))
 {
 	outliner_do_object_operation_ex(C, scene_act, soops, lb, operation_cb, true);

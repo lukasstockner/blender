@@ -128,8 +128,8 @@ void BKE_main_id_tag_idcode(struct Main *mainvar, const short type, const bool t
 void BKE_main_id_tag_listbase(struct ListBase *lb, const bool tag);
 void BKE_main_id_tag_all(struct Main *mainvar, const bool tag);
 
-void BKE_main_id_flag_listbase(ListBase *lb, const short flag, const bool value);
-void BKE_main_id_flag_all(struct Main *bmain, const short flag, const bool value);
+void BKE_main_id_flag_listbase(ListBase *lb, const int flag, const bool value);
+void BKE_main_id_flag_all(struct Main *bmain, const int flag, const bool value);
 
 void BKE_main_id_clear_newpoins(struct Main *bmain);
 
@@ -155,7 +155,7 @@ void BKE_library_callback_remap_editor_id_reference_set(BKE_library_remap_editor
 /* use when "" is given to new_id() */
 #define ID_FALLBACK_NAME N_("Untitled")
 
-#define IS_TAGGED(_id) ((_id) && (((ID *)_id)->flag & LIB_DOIT))
+#define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
 
 #ifdef __cplusplus
 }

@@ -154,9 +154,9 @@ void id_lib_extern(ID *id)
 {
 	if (id) {
 		BLI_assert(BKE_idcode_is_linkable(GS(id->name)));
-		if (id->flag & LIB_INDIRECT) {
-			id->flag -= LIB_INDIRECT;
-			id->flag |= LIB_EXTERN;
+		if (id->tag & LIB_TAG_INDIRECT) {
+			id->tag -= LIB_TAG_INDIRECT;
+			id->tag |= LIB_TAG_EXTERN;
 		}
 	}
 }
@@ -170,28 +170,28 @@ void id_us_ensure_real(ID *id)
 {
 	if (id) {
 		const int limit = ID_FAKE_USERS(id);
-		id->flag2 |= LIB_EXTRAUSER;
+		id->tag |= LIB_TAG_EXTRAUSER;
 		if (id->us <= limit) {
-			if (id->us < limit || ((id->us == limit) && (id->flag2 & LIB_EXTRAUSER_SET))) {
+			if (id->us < limit || ((id->us == limit) && (id->tag & LIB_TAG_EXTRAUSER_SET))) {
 				printf("ID user count error: %s (from '%s')\n", id->name, id->lib ? id->lib->filepath : "[Main]");
 				BLI_assert(0);
 			}
 			id->us = limit + 1;
-			id->flag2 |= LIB_EXTRAUSER_SET;
+			id->tag |= LIB_TAG_EXTRAUSER_SET;
 		}
 	}
 }
 
 static void id_us_clear_real(ID *id)
 {
-	if (id && (id->flag2 & LIB_EXTRAUSER)) {
-		if (id->flag2 & LIB_EXTRAUSER_SET) {
+	if (id && (id->tag & LIB_TAG_EXTRAUSER)) {
+		if (id->tag & LIB_TAG_EXTRAUSER_SET) {
 			const int limit = ID_FAKE_USERS(id);
 			id->us--;
 			BLI_assert(id->us >= limit);
 			UNUSED_VARS_NDEBUG(limit);
 		}
-		id->flag2 &= ~(LIB_EXTRAUSER | LIB_EXTRAUSER_SET);
+		id->tag &= ~(LIB_TAG_EXTRAUSER | LIB_TAG_EXTRAUSER_SET);
 	}
 }
 
@@ -210,7 +210,7 @@ void id_us_min(ID *id)
 	if (id) {
         const int limit = ID_FAKE_USERS(id);
 
-		if ((id->us == limit) && (id->flag2 & LIB_EXTRAUSER) && !(id->flag2 & LIB_EXTRAUSER_SET)) {
+		if ((id->us == limit) && (id->tag & LIB_TAG_EXTRAUSER) && !(id->tag & LIB_TAG_EXTRAUSER_SET)) {
 			/* We need an extra user here, but never actually incremented user count for it so far, do it now. */
 			id_us_ensure_real(id);
 		}
@@ -247,7 +247,7 @@ void id_fake_user_clear(ID *id)
  * if the block can be made local. */
 bool id_make_local(ID *id, bool test)
 {
-	if (id->flag & LIB_INDIRECT)
+	if (id->tag & LIB_TAG_INDIRECT)
 		return false;
 
 	switch (GS(id->name)) {
@@ -542,21 +542,27 @@ ListBase *which_libbase(Main *mainlib, short type)
 	return NULL;
 }
 
-/* Flag all ids in listbase */
-void BKE_main_id_flag_listbase(ListBase *lb, const short flag, const bool value)
+/**
+ * Clear or set given flags for all ids in listbase (runtime flags only).
+ */
+void BKE_main_id_flag_listbase(ListBase *lb, const int flag, const bool value)
 {
 	ID *id;
 	if (value) {
-		for (id = lb->first; id; id = id->next) id->flag |= flag;
+		for (id = lb->first; id; id = id->next)
+			id->tag |= flag;
 	}
 	else {
-		const short nflag = ~flag;
-		for (id = lb->first; id; id = id->next) id->flag &= nflag;
+		const int nflag = ~flag;
+		for (id = lb->first; id; id = id->next)
+			id->tag &= nflag;
 	}
 }
 
-/* Flag all ids in listbase */
-void BKE_main_id_flag_all(Main *bmain, const short flag, const bool value)
+/**
+ * Clear or set given flags for all ids in bmain (runtime flags only).
+ */
+void BKE_main_id_flag_all(Main *bmain, const int flag, const bool value)
 {
 	ListBase *lbarray[MAX_LIBARRAY];
 	int a;
@@ -945,7 +951,7 @@ void *BKE_libblock_copy_ex(Main *bmain, ID *id)
 	}
 	
 	id->newid = idn;
-	idn->flag |= LIB_NEW;
+	idn->tag |= LIB_TAG_NEW;
 
 	BKE_libblock_copy_data(idn, id, false);
 	
@@ -971,7 +977,7 @@ void *BKE_libblock_copy_nolib(ID *id, const bool do_action)
 	}
 
 	id->newid = idn;
-	idn->flag |= LIB_NEW;
+	idn->tag |= LIB_TAG_NEW;
 	idn->us = 1;
 
 	BKE_libblock_copy_data(idn, id, do_action);
@@ -993,8 +999,8 @@ static bool id_relink_looper(void *UNUSED(user_data), ID **id_pointer, const int
 			BKE_library_update_ID_link_user(id->newid, id, cd_flag);
 			*id_pointer = id->newid;
 		}
-		else if (id->flag & LIB_NEW) {
-			id->flag &= ~LIB_NEW;
+		else if (id->tag & LIB_TAG_NEW) {
+			id->tag &= ~LIB_TAG_NEW;
 			BKE_libblock_relink(id);
 		}
 	}
@@ -1071,7 +1077,7 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 	}
 
 	if (*id_p && (*id_p == old_id)) {
-		/* Note: proxy usage implies LIB_EXTERN, so on this aspect it is direct,
+		/* Note: proxy usage implies LIB_TAG_EXTERN, so on this aspect it is direct,
 		 *       on the other hand since they get reset to lib data on file open/reload it is indirect too...
 		 *       Edit Mode is also a 'skip direct' case. */
 		const bool is_obj = (GS(id->name) == ID_OB);
@@ -1084,7 +1090,7 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 		const bool skip_never_null = (id_remap_data->flag & ID_REMAP_SKIP_NEVER_NULL_USAGE) != 0;
 
 		if ((id_remap_data->flag & ID_REMAP_FLAG_NEVER_NULL_USAGE) && (cb_flag & IDWALK_NEVER_NULL)) {
-			id->flag |= LIB_DOIT;
+			id->flag |= LIB_TAG_DOIT;
 		}
 
 //		if (GS(old_id->name) == ID_TXT) {
@@ -1118,13 +1124,13 @@ static bool foreach_libblock_remap_callback(void *user_data, ID **id_p, int cb_f
 			}
 			if (cb_flag & IDWALK_USER) {
 				id_us_min(old_id);
-				/* We do not want to handle LIB_INDIRECT/LIB_EXTERN here. */
+				/* We do not want to handle LIB_TAG_INDIRECT/LIB_TAG_EXTERN here. */
 				if (new_id)
 					new_id->us++;
 			}
 			else if (cb_flag & IDWALK_USER_ONE) {
 				id_us_ensure_real(new_id);
-				/* We cannot affect old_id->us directly, LIB_EXTRAUSER(_SET) are assumed to be set as needed,
+				/* We cannot affect old_id->us directly, LIB_TAG_EXTRAUSER(_SET) are assumed to be set as needed,
 				 * that extra user is processed in final handling... */
 			}
 			if (!is_indirect) {
@@ -1215,9 +1221,9 @@ static void libblock_remap_data(
 
 	id_us_clear_real(old_id);
 
-	if (new_id && (new_id->flag & LIB_INDIRECT) && (r_id_remap_data->status & ID_REMAP_IS_LINKED_DIRECT)) {
-		new_id->flag &= ~LIB_INDIRECT;
-		new_id->flag |= LIB_EXTERN;
+	if (new_id && (new_id->flag & LIB_TAG_INDIRECT) && (r_id_remap_data->status & ID_REMAP_IS_LINKED_DIRECT)) {
+		new_id->flag &= ~LIB_TAG_INDIRECT;
+		new_id->flag |= LIB_TAG_EXTERN;
 	}
 
 //	printf("%s: %d occurences skipped (%d direct and %d indirect ones)\n", __func__,
@@ -1229,7 +1235,7 @@ static void libblock_remap_data(
  * Replace all references in given Main to \a old_id by \a new_id (if \a new_id is NULL, it unlinks \a old_id).
  *
  * \param skip_indirect_usage If \a true, indirect usages (like e.g. by other linked datablocks) are not remapped.
- * \param do_flag_never_null If \a true, 'NEVER_NULL' ID users are flagged with LIB_DOIT (caller is expected
+ * \param do_flag_never_null If \a true, 'NEVER_NULL' ID users are flagged with LIB_TAG_DOIT (caller is expected
  *                           to ensure that flag is correctly unset first).
  */
 void BKE_libblock_remap_locked(
@@ -1291,9 +1297,9 @@ void BKE_libblock_remap_locked(
 	/* If old_id was used by some ugly 'user_one' stuff (like Image or Clip editors...), and user count has actually
 	 * been incremented for that, we have to decrease once more its user count... unless we had to skip
 	 * some 'user_one' cases. */
-	if ((old_id->flag2 & LIB_EXTRAUSER_SET) && !(id_remap_data.status & ID_REMAP_IS_USER_ONE_SKIPPED)) {
+	if ((old_id->tag & LIB_TAG_EXTRAUSER_SET) && !(id_remap_data.status & ID_REMAP_IS_USER_ONE_SKIPPED)) {
 		id_us_min(old_id);
-		old_id->flag2 &= ~LIB_EXTRAUSER_SET;
+		old_id->tag &= ~LIB_TAG_EXTRAUSER_SET;
 	}
 
 	BLI_assert(old_id->us - skipped_refcounted >= 0);
@@ -1301,9 +1307,9 @@ void BKE_libblock_remap_locked(
 
 	if (skipped_direct == 0) {
 		/* old_id is assumed to not be used directly anymore... */
-		if (old_id->lib && (old_id->flag & LIB_EXTERN)) {
-			old_id->flag &= ~LIB_EXTERN;
-			old_id->flag |= LIB_INDIRECT;
+		if (old_id->lib && (old_id->flag & LIB_TAG_EXTERN)) {
+			old_id->flag &= ~LIB_TAG_EXTERN;
+			old_id->flag |= LIB_TAG_INDIRECT;
 		}
 	}
 
@@ -1355,7 +1361,7 @@ void BKE_libblock_remap(Main *bmain, void *old_idv, void *new_idv, const short r
 /**
  * Unlink given \a id from given \a bmain (does not touch to indirect, i.e. library, usages of the ID).
  *
- * \param do_flag_never_null If true, all IDs using \a idv in a 'non-NULL' way are flagged by \a LIB_DOIT flag
+ * \param do_flag_never_null If true, all IDs using \a idv in a 'non-NULL' way are flagged by \a LIB_TAG_DOIT flag
  *                           (quite obviously, 'non-NULL' usages can never be unlinked by this function...).
  */
 void BKE_libblock_unlink(Main *bmain, void *idv, const bool do_flag_never_null)
@@ -1618,8 +1624,8 @@ void BKE_libblock_delete(Main *bmain, void *idv)
 
 		for (id = lb->first; id; id = id->next) {
 			/* Note: in case we delete a library, we also delete all its datablocks! */
-			if ((id == (ID *)idv) || (id->lib == (Library *)idv) || (id->flag & LIB_DOIT)) {
-				id->flag |= LIB_DOIT;
+			if ((id == (ID *)idv) || (id->lib == (Library *)idv) || (id->flag & LIB_TAG_DOIT)) {
+				id->flag |= LIB_TAG_DOIT;
 				/* Will tag 'never NULL' users of this ID too. */
 				BKE_libblock_unlink(bmain, id, true);
 			}
@@ -1635,7 +1641,7 @@ void BKE_libblock_delete(Main *bmain, void *idv)
 
 		for (id = lb->first; id; id = id_next) {
 			id_next = id->next;
-			if (id->flag & LIB_DOIT) {
+			if (id->flag & LIB_TAG_DOIT) {
 				if (id->us != 0) {
 					printf("%s: deleting %s (%d)\n", __func__, id->name, id->us);
 					BLI_assert(id->us == 0);
@@ -2045,7 +2051,7 @@ void id_clear_lib_data(Main *bmain, ID *id)
 
 	id->lib = NULL;
 	MEM_SAFE_FREE(id->uuid);  /* Local ID have no more use for asset-related data. */
-	id->flag = LIB_LOCAL;
+	id->tag |= LIB_TAG_LOCAL;
 	new_id(which_libbase(bmain, GS(id->name)), id, NULL);
 
 	/* internal bNodeTree blocks inside ID types below
@@ -2080,7 +2086,7 @@ void BKE_main_id_clear_newpoins(Main *bmain)
 		id = lbarray[a]->first;
 		while (id) {
 			id->newid = NULL;
-			id->flag &= ~LIB_NEW;
+			id->tag &= ~LIB_TAG_NEW;
 			id = id->next;
 		}
 	}
@@ -2088,7 +2094,8 @@ void BKE_main_id_clear_newpoins(Main *bmain)
 
 static void lib_indirect_test_id(ID *id, Library *lib)
 {
-#define LIBTAG(a)   if (a && a->id.lib) { a->id.flag &= ~LIB_INDIRECT; a->id.flag |= LIB_EXTERN; } (void)0
+#define LIBTAG(a) \
+	if (a && a->id.lib) { a->id.tag &= ~LIB_TAG_INDIRECT; a->id.tag |= LIB_TAG_EXTERN; } (void)0
 	
 	if (id->lib) {
 		/* datablocks that were indirectly related are now direct links
@@ -2137,12 +2144,12 @@ void BKE_main_id_tag_listbase(ListBase *lb, const bool tag)
 	ID *id;
 	if (tag) {
 		for (id = lb->first; id; id = id->next) {
-			id->flag |= LIB_DOIT;
+			id->tag |= LIB_TAG_DOIT;
 		}
 	}
 	else {
 		for (id = lb->first; id; id = id->next) {
-			id->flag &= ~LIB_DOIT;
+			id->tag &= ~LIB_TAG_DOIT;
 		}
 	}
 }
@@ -2181,27 +2188,27 @@ void BKE_library_make_local(Main *bmain, Library *lib, bool untagged_only)
 			id->newid = NULL;
 			idn = id->next;      /* id is possibly being inserted again */
 			
-			/* The check on the second line (LIB_PRE_EXISTING) is done so its
+			/* The check on the second line (LIB_TAG_PRE_EXISTING) is done so its
 			 * possible to tag data you don't want to be made local, used for
 			 * appending data, so any libdata already linked wont become local
 			 * (very nasty to discover all your links are lost after appending)  
 			 * */
-			if (id->flag & (LIB_EXTERN | LIB_INDIRECT | LIB_NEW) &&
-			    ((untagged_only == false) || !(id->flag & LIB_PRE_EXISTING)))
+			if (id->tag & (LIB_TAG_EXTERN | LIB_TAG_INDIRECT | LIB_TAG_NEW) &&
+			    ((untagged_only == false) || !(id->tag & LIB_TAG_PRE_EXISTING)))
 			{
 				if (lib == NULL || id->lib == lib) {
 					if (id->lib) {
 						/* for Make Local > All we should be calling id_make_local,
 						 * but doing that breaks append (see #36003 and #36006), we
 						 * we should make it work with all datablocks and id.us==0 */
-						id_clear_lib_data(bmain, id); /* sets 'id->flag' */
+						id_clear_lib_data(bmain, id); /* sets 'id->tag' */
 
 						/* why sort alphabetically here but not in
 						 * id_clear_lib_data() ? - campbell */
 						id_sort_by_name(lbarray[a], id);
 					}
 					else {
-						id->flag &= ~(LIB_EXTERN | LIB_INDIRECT | LIB_NEW);
+						id->tag &= ~(LIB_TAG_EXTERN | LIB_TAG_INDIRECT | LIB_TAG_NEW);
 					}
 				}
 			}
