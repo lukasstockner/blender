@@ -37,6 +37,7 @@ struct OCIO_GLSLDrawState;
 #define OCIO_DECLARE_HANDLE(name) typedef struct name##__ { int unused; } *name
 
 #define OCIO_ROLE_SCENE_LINEAR       "scene_linear"
+#define OCIO_ROLE_XYZ_LINEAR         "chromaticity"
 #define OCIO_ROLE_COLOR_PICKING      "color_picking"
 #define OCIO_ROLE_TEXTURE_PAINT      "texture_paint"
 #define OCIO_ROLE_DEFAULT_BYTE       "default_byte"

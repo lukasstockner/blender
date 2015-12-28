@@ -54,6 +54,8 @@
 #include "BPY_extern.h"
 #endif
 
+#include "IMB_colormanagement.h"
+
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 #include "RE_bake.h"
@@ -388,6 +390,11 @@ void RE_engine_get_camera_model_matrix(RenderEngine *engine, Object *camera, flo
 {
 	Render *re = engine->re;
 	BKE_camera_multiview_model_matrix(re ? &re->r : NULL, camera, re->viewname, (float (*)[4])r_modelmat);
+}
+
+void RE_engine_get_xyz_to_scene_linear_matrix(RenderEngine *UNUSED(engine), float *r_matrix)
+{
+	IMB_colormanagement_xyz_to_scene_linear_m3((float (*)[3])r_matrix);
 }
 
 rcti* RE_engine_get_current_tiles(Render *re, int *r_total_tiles, bool *r_needs_free)

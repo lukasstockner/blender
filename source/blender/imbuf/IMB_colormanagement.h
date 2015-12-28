@@ -77,6 +77,9 @@ void IMB_colormanagement_transform_threaded(float *buffer, int width, int height
                                             const char *from_colorspace, const char *to_colorspace, bool predivide);
 void IMB_colormanagement_transform_v4(float pixel[4], const char *from_colorspace, const char *to_colorspace);
 
+void IMB_colormanagement_role_to_scene_linear_v3(float pixel[3], const char *name);
+void IMB_colormanagement_scene_linear_to_role_v3(float pixel[3], const char *name);
+
 void IMB_colormanagement_colorspace_to_scene_linear_v3(float pixel[3], struct ColorSpace *colorspace);
 void IMB_colormanagement_colorspace_to_scene_linear_v4(float pixel[4], bool predivide, struct ColorSpace *colorspace);
 
@@ -105,6 +108,8 @@ void IMB_colormanagement_buffer_make_display_space(float *buffer, unsigned char 
                                                    int width, int height, int channels, float dither,
                                                    const struct ColorManagedViewSettings *view_settings,
                                                    const struct ColorManagedDisplaySettings *display_settings);
+
+void IMB_colormanagement_xyz_to_scene_linear_m3(float matrix[3][3]);
 
 /* ** Public display buffers interfaces ** */
 

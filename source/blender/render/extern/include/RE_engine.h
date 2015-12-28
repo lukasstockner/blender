@@ -143,6 +143,7 @@ void RE_engine_end_result(RenderEngine *engine, struct RenderResult *result, int
 void RE_engine_active_view_set(RenderEngine *engine, const char *viewname);
 float RE_engine_get_camera_shift_x(RenderEngine *engine, struct Object *camera);
 void RE_engine_get_camera_model_matrix(RenderEngine *engine, struct Object *camera, float *r_modelmat);
+void RE_engine_get_xyz_to_scene_linear_matrix(RenderEngine *engine, float *r_matrix);
 
 int RE_engine_test_break(RenderEngine *engine);
 void RE_engine_update_stats(RenderEngine *engine, const char *stats, const char *info);

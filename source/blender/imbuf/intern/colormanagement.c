@@ -74,6 +74,7 @@
 
 /* ** list of all supported color spaces, displays and views */
 static char global_role_scene_linear[MAX_COLORSPACE_NAME];
+static char global_role_xyz_linear[MAX_COLORSPACE_NAME];
 static char global_role_color_picking[MAX_COLORSPACE_NAME];
 static char global_role_texture_painting[MAX_COLORSPACE_NAME];
 static char global_role_default_byte[MAX_COLORSPACE_NAME];
@@ -475,6 +476,7 @@ static void colormanage_load_config(OCIO_ConstConfigRcPtr *config)
 
 	/* get roles */
 	colormanage_role_color_space_name_get(config, global_role_scene_linear, OCIO_ROLE_SCENE_LINEAR, NULL);
+	colormanage_role_color_space_name_get(config, global_role_xyz_linear, OCIO_ROLE_XYZ_LINEAR, NULL);
 	colormanage_role_color_space_name_get(config, global_role_color_picking, OCIO_ROLE_COLOR_PICKING, NULL);
 	colormanage_role_color_space_name_get(config, global_role_texture_painting, OCIO_ROLE_TEXTURE_PAINT, NULL);
 	colormanage_role_color_space_name_get(config, global_role_default_sequencer, OCIO_ROLE_DEFAULT_SEQUENCER, OCIO_ROLE_SCENE_LINEAR);
@@ -1718,6 +1720,30 @@ void IMB_colormanagement_transform_v4(float pixel[4], const char *from_colorspac
 	IMB_colormanagement_processor_free(cm_processor);
 }
 
+/* convert pixel from specified color space to scene linear */
+
+void IMB_colormanagement_role_to_scene_linear_v3(float pixel[3], const char *name)
+{
+	OCIO_ConstProcessorRcPtr *processor;
+
+	processor = create_colorspace_transform_processor(name, global_role_scene_linear);
+
+	if (processor)
+		OCIO_processorApplyRGB(processor, pixel);
+}
+
+/* same as above, but opposite direction */
+
+void IMB_colormanagement_scene_linear_to_role_v3(float pixel[3], const char *name)
+{
+	OCIO_ConstProcessorRcPtr *processor;
+
+	processor = create_colorspace_transform_processor(global_role_scene_linear, name);
+
+	if (processor)
+		OCIO_processorApplyRGB(processor, pixel);
+}
+
 /* convert pixel from specified by descriptor color space to scene linear
  * used by performance-critical areas such as renderer and baker
  */
@@ -1868,6 +1894,32 @@ void IMB_colormanagement_imbuf_make_display_space(ImBuf *ibuf, const ColorManage
                                                   const ColorManagedDisplaySettings *display_settings)
 {
 	colormanagement_imbuf_make_display_space(ibuf, view_settings, display_settings, false);
+}
+
+void IMB_colormanagement_xyz_to_scene_linear_m3(float matrix[3][3])
+{
+	if (global_role_xyz_linear[0])
+	{
+		/* we assume that both spaces are linear and so that the transformation
+		 * must always be a 3x3 matrix which we can extract by converting
+		 * the (1, 0, 0), (0, 1, 0), (0, 0, 1) basis vectors */
+		ColormanageProcessor *cm_processor;
+		cm_processor = IMB_colormanagement_colorspace_processor_new(global_role_xyz_linear, global_role_scene_linear);
+
+		unit_m3(matrix);
+		IMB_colormanagement_processor_apply_v3(cm_processor, matrix[0]);
+		IMB_colormanagement_processor_apply_v3(cm_processor, matrix[1]);
+		IMB_colormanagement_processor_apply_v3(cm_processor, matrix[2]);
+
+		IMB_colormanagement_processor_free(cm_processor);
+	}
+	else
+	{
+		/* default XYZ to Rec.709 if the configuration contains no XYZ role */
+		matrix[0][0] =  3.240479f; matrix[1][0] = -1.537150f; matrix[2][0] = -0.498535f;
+		matrix[0][1] = -0.969256f; matrix[1][1] =  1.875991f; matrix[2][1] =  0.041556f;
+		matrix[0][2] =  0.055648f; matrix[1][2] = -0.204043f; matrix[2][2] =  1.057311f;
+	}
 }
 
 /* prepare image buffer to be saved on disk, applying color management if needed
