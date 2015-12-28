@@ -120,12 +120,14 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 	}
 
 	if(srgb) {
-		r.x = color_srgb_to_scene_linear(r.x);
-		r.y = color_srgb_to_scene_linear(r.y);
-		r.z = color_srgb_to_scene_linear(r.z);
+		r.x = color_srgb_to_linear(r.x);
+		r.y = color_srgb_to_linear(r.y);
+		r.z = color_srgb_to_linear(r.z);
 	}
 
-	return r;
+	/* TODO(lukas): This assumes that the texture is in Rec709/Linear sRGB, will be replaced with proper CM later on */
+	float3 rcol = rec709_to_scene_linear(kg, make_float3(r.x, r.y, r.z));
+	return make_float4(rcol.x, rcol.y, rcol.z, r.w);
 }
 
 #else
@@ -325,7 +327,7 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 	}
 
 	if(srgb) {
-		r_ssef = color_srgb_to_scene_linear(r_ssef);
+		r_ssef = color_srgb_to_linear(r_ssef);
 		r.w = alpha;
 	}
 #else
@@ -343,15 +345,16 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 	}
 
 	if(srgb) {
-		r.x = color_srgb_to_scene_linear(r.x);
-		r.y = color_srgb_to_scene_linear(r.y);
-		r.z = color_srgb_to_scene_linear(r.z);
+		r.x = color_srgb_to_linear(r.x);
+		r.y = color_srgb_to_linear(r.y);
+		r.z = color_srgb_to_linear(r.z);
 	}
 #endif
 
-	return r;
+	/* TODO(lukas): This assumes that the texture is in Rec709/Linear sRGB, will be replaced with proper CM later on */
+	float3 rcol = rec709_to_scene_linear(kg, make_float3(r.x, r.y, r.z));
+	return make_float4(rcol.x, rcol.y, rcol.z, r.w);
 }
-
 #endif
 
 /* Remap coordnate from 0..1 box to -1..-1 */

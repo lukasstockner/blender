@@ -288,14 +288,14 @@ static void attr_create_vertex_color(Scene *scene,
 		size_t i = 0;
 
 		for(l->data.begin(c); c != l->data.end(); ++c, ++i) {
-			cdata[0] = color_float_to_byte(color_srgb_to_scene_linear(get_float3(c->color1())));
-			cdata[1] = color_float_to_byte(color_srgb_to_scene_linear(get_float3(c->color2())));
-			cdata[2] = color_float_to_byte(color_srgb_to_scene_linear(get_float3(c->color3())));
+			cdata[0] = color_float_to_byte(color_srgb_to_linear(get_float3(c->color1())));
+			cdata[1] = color_float_to_byte(color_srgb_to_linear(get_float3(c->color2())));
+			cdata[2] = color_float_to_byte(color_srgb_to_linear(get_float3(c->color3())));
 
 			if(nverts[i] == 4) {
 				cdata[3] = cdata[0];
 				cdata[4] = cdata[2];
-				cdata[5] = color_float_to_byte(color_srgb_to_scene_linear(get_float3(c->color4())));
+				cdata[5] = color_float_to_byte(color_srgb_to_linear(get_float3(c->color4())));
 				cdata += 6;
 			}
 			else

@@ -171,16 +171,16 @@ ccl_device float3 svm_mix_burn(float t, float3 col1, float3 col2)
 	return outcol;
 }
 
-ccl_device float3 svm_mix_hue(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_hue(KernelGlobals *kg, float t, float3 col1, float3 col2)
 {
 	float3 outcol = col1;
 
-	float3 hsv2 = rgb_to_hsv(col2);
+	float3 hsv2 = scene_linear_to_hsv(kg, col2);
 
 	if(hsv2.y != 0.0f) {
-		float3 hsv = rgb_to_hsv(outcol);
+		float3 hsv = scene_linear_to_hsv(kg, outcol);
 		hsv.x = hsv2.x;
-		float3 tmp = hsv_to_rgb(hsv); 
+		float3 tmp = hsv_to_scene_linear(kg, hsv); 
 
 		outcol = interp(outcol, tmp, t);
 	}
@@ -188,46 +188,46 @@ ccl_device float3 svm_mix_hue(float t, float3 col1, float3 col2)
 	return outcol;
 }
 
-ccl_device float3 svm_mix_sat(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_sat(KernelGlobals *kg, float t, float3 col1, float3 col2)
 {
 	float tm = 1.0f - t;
 
 	float3 outcol = col1;
 
-	float3 hsv = rgb_to_hsv(outcol);
+	float3 hsv = scene_linear_to_hsv(kg, outcol);
 
 	if(hsv.y != 0.0f) {
-		float3 hsv2 = rgb_to_hsv(col2);
+		float3 hsv2 = scene_linear_to_hsv(kg, col2);
 
 		hsv.y = tm*hsv.y + t*hsv2.y;
-		outcol = hsv_to_rgb(hsv);
+		outcol = hsv_to_scene_linear(kg, hsv);
 	}
 
 	return outcol;
 }
 
-ccl_device float3 svm_mix_val(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_val(KernelGlobals *kg, float t, float3 col1, float3 col2)
 {
 	float tm = 1.0f - t;
 
-	float3 hsv = rgb_to_hsv(col1);
-	float3 hsv2 = rgb_to_hsv(col2);
+	float3 hsv = scene_linear_to_hsv(kg, col1);
+	float3 hsv2 = scene_linear_to_hsv(kg, col2);
 
 	hsv.z = tm*hsv.z + t*hsv2.z;
 
-	return hsv_to_rgb(hsv);
+	return hsv_to_scene_linear(kg, hsv);
 }
 
-ccl_device float3 svm_mix_color(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_color(KernelGlobals *kg, float t, float3 col1, float3 col2)
 {
 	float3 outcol = col1;
-	float3 hsv2 = rgb_to_hsv(col2);
+	float3 hsv2 = scene_linear_to_hsv(kg, col2);
 
 	if(hsv2.y != 0.0f) {
-		float3 hsv = rgb_to_hsv(outcol);
+		float3 hsv = scene_linear_to_hsv(kg, outcol);
 		hsv.x = hsv2.x;
 		hsv.y = hsv2.y;
-		float3 tmp = hsv_to_rgb(hsv); 
+		float3 tmp = hsv_to_scene_linear(kg, hsv);
 
 		outcol = interp(outcol, tmp, t);
 	}
@@ -261,7 +261,7 @@ ccl_device float3 svm_mix_clamp(float3 col)
 	return outcol;
 }
 
-ccl_device float3 svm_mix(NodeMix type, float fac, float3 c1, float3 c2)
+ccl_device float3 svm_mix(KernelGlobals *kg, NodeMix type, float fac, float3 c1, float3 c2)
 {
 	float t = saturate(fac);
 
@@ -278,10 +278,10 @@ ccl_device float3 svm_mix(NodeMix type, float fac, float3 c1, float3 c2)
 		case NODE_MIX_LIGHT: return svm_mix_light(t, c1, c2);
 		case NODE_MIX_DODGE: return svm_mix_dodge(t, c1, c2);
 		case NODE_MIX_BURN: return svm_mix_burn(t, c1, c2);
-		case NODE_MIX_HUE: return svm_mix_hue(t, c1, c2);
-		case NODE_MIX_SAT: return svm_mix_sat(t, c1, c2);
-		case NODE_MIX_VAL: return svm_mix_val (t, c1, c2);
-		case NODE_MIX_COLOR: return svm_mix_color(t, c1, c2);
+		case NODE_MIX_HUE: return svm_mix_hue(kg, t, c1, c2);
+		case NODE_MIX_SAT: return svm_mix_sat(kg, t, c1, c2);
+		case NODE_MIX_VAL: return svm_mix_val(kg, t, c1, c2);
+		case NODE_MIX_COLOR: return svm_mix_color(kg, t, c1, c2);
 		case NODE_MIX_SOFT: return svm_mix_soft(t, c1, c2);
 		case NODE_MIX_LINEAR: return svm_mix_linear(t, c1, c2);
 		case NODE_MIX_CLAMP: return svm_mix_clamp(c1);
@@ -300,7 +300,7 @@ ccl_device void svm_node_mix(KernelGlobals *kg, ShaderData *sd, float *stack, ui
 	float fac = stack_load_float(stack, fac_offset);
 	float3 c1 = stack_load_float3(stack, c1_offset);
 	float3 c2 = stack_load_float3(stack, c2_offset);
-	float3 result = svm_mix((NodeMix)node1.y, fac, c1, c2);
+	float3 result = svm_mix(kg, (NodeMix)node1.y, fac, c1, c2);
 
 	stack_store_float3(stack, node1.z, result);
 }

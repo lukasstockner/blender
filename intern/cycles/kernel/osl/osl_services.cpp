@@ -40,6 +40,7 @@
 
 #include "kernel_compat_cpu.h"
 #include "kernel_globals.h"
+#include "kernel_film.h"
 #include "kernel_random.h"
 #include "kernel_projection.h"
 #include "kernel_differential.h"

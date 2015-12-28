@@ -104,6 +104,27 @@ ccl_device float svm_math(NodeMath type, float Fac1, float Fac2)
 	return Fac;
 }
 
+ccl_device float3 svm_math_blackbody_xyz(float t) {
+	float x_c;
+	t = clamp(t, 1667.0f, 25000.0f);
+	float invT = 1000.0f / t;
+	if(t < 4000.0f)
+		x_c = ((-0.2661239f * invT - 0.2343580f) * invT + 0.8776956f) * invT + 0.179910f;
+	else
+		x_c = ((-3.0258469f * invT + 2.1070379f) * invT + 0.2226347f) * invT + 0.240390f;
+
+	float y_c;
+	if(t < 2222.0f)
+		y_c = ((-1.1063814f * x_c - 1.34811020f) * x_c + 2.18555832f) * x_c - 0.20219683f;
+	else if(t < 4000.0f)
+		y_c = ((-0.9549276f * x_c - 1.37418593f) * x_c + 2.09137015f) * x_c - 0.16748867f;
+	else
+		y_c = (( 3.0817580f * x_c - 5.87338760f) * x_c + 3.75112997f) * x_c - 0.37001483f;
+
+	return xyY_to_xyz(x_c, y_c, 1.0f);
+}
+
+#if 0
 ccl_device float3 svm_math_blackbody_color(float t) {
 	/* Calculate color in range 800..12000 using an approximation
 	 * a/x+bx+c for R and G and ((at + b)t + c)t + d) for B
@@ -165,6 +186,8 @@ ccl_device float3 svm_math_blackbody_color(float t) {
 	/* For 800 <= t < 965 color does not change in OSL implementation, so keep color the same */
 	return make_float3(4.70366907f, 0.0f, 0.0f);
 }
+
+#endif
 
 ccl_device_inline float3 svm_math_gamma_color(float3 color, float gamma)
 {

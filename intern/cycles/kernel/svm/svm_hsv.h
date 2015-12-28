@@ -32,7 +32,7 @@ ccl_device void svm_node_hsv(KernelGlobals *kg, ShaderData *sd, float *stack, ui
 	float sat = stack_load_float(stack, node1.z);
 	float val = stack_load_float(stack, node1.w);
 
-	color = rgb_to_hsv(color);
+	color = scene_linear_to_hsv(kg, color);
 
 	/* remember: fmod doesn't work for negative numbers here */
 	color.x += hue + 0.5f;
@@ -40,7 +40,7 @@ ccl_device void svm_node_hsv(KernelGlobals *kg, ShaderData *sd, float *stack, ui
 	color.y *= sat;
 	color.z *= val;
 
-	color = hsv_to_rgb(color);
+	color = hsv_to_scene_linear(kg, color);
 
 	color.x = fac*color.x + (1.0f - fac)*in_color.x;
 	color.y = fac*color.y + (1.0f - fac)*in_color.y;

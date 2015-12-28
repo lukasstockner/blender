@@ -34,7 +34,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Wavelength to RGB */
 
-ccl_device void svm_node_wavelength(ShaderData *sd, float *stack, uint wavelength, uint color_out)
+ccl_device void svm_node_wavelength(KernelGlobals *kg, ShaderData *sd, float *stack, uint wavelength, uint color_out)
 {	
 	// CIE colour matching functions xBar, yBar, and zBar for
 	//	 wavelengths from 380 through 780 nanometers, every 5
@@ -85,9 +85,9 @@ ccl_device void svm_node_wavelength(ShaderData *sd, float *stack, uint wavelengt
 		const float *c = cie_colour_match[i];
 		color = interp(make_float3(c[0], c[1], c[2]), make_float3(c[3], c[4], c[5]), ii);
 	}
-	
-	color = xyz_to_rgb(color.x, color.y, color.z);
-	color *= 1.0f/2.52f;	// Empirical scale from lg to make all comps <= 1
+
+	color *= 1.0f/2.52f; /* Empirical factor from old code */
+	color = xyz_to_scene_linear(kg, color);
 	
 	/* Clamp to zero if values are smaller */
 	color = max(color, make_float3(0.0f, 0.0f, 0.0f));

@@ -37,6 +37,11 @@ ccl_device float scene_linear_to_gray(KernelGlobals *kg, float3 c)
 	     + kernel_data.film.b_to_xyz.y * c.z;
 }
 
+ccl_device float3 rec709_to_scene_linear(KernelGlobals *kg, float3 rgb)
+{
+	return xyz_to_scene_linear(kg, rec709_to_xyz(rgb));
+}
+
 /* TODO(lukas): Is there a better approach? */
 ccl_device float3 hsv_to_scene_linear(KernelGlobals *kg, float3 hsv)
 {
@@ -51,17 +56,17 @@ ccl_device float3 scene_linear_to_hsv(KernelGlobals *kg, float3 c)
 ccl_device float4 film_map(KernelGlobals *kg, float4 irradiance, float scale)
 {
 	float exposure = kernel_data.film.exposure;
-	float4 result = irradiance*scale;
+	float3 result = make_float3(irradiance.x, irradiance.y, irradiance.z)*scale;
+	/* TODO(lukas): Instead of converting to sRGB here and drawing with OCIO sRGB->Display, leave in scene linear and draw with OCIO Scene->Display. */
+	result = xyz_to_rec709(scene_linear_to_xyz(kg, result));
 
 	/* conversion to srgb */
-	result.x = color_scene_linear_to_srgb(result.x*exposure);
-	result.y = color_scene_linear_to_srgb(result.y*exposure);
-	result.z = color_scene_linear_to_srgb(result.z*exposure);
+	result.x = color_linear_to_srgb(result.x*exposure);
+	result.y = color_linear_to_srgb(result.y*exposure);
+	result.z = color_linear_to_srgb(result.z*exposure);
 
-	/* clamp since alpha might be > 1.0 due to russian roulette */
-	result.w = saturate(result.w);
-
-	return result;
+	/* clamp alpha since it might be > 1.0 due to russian roulette */
+	return make_float4(result.x, result.y, result.z, saturate(irradiance.w*scale));
 }
 
 ccl_device uchar4 film_float_to_byte(float4 color)

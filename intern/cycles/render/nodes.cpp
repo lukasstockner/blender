@@ -1662,7 +1662,7 @@ bool ConvertNode::constant_fold(ShaderOutput *socket, float3 *optimized_value)
 		else if(to == SHADER_SOCKET_FLOAT) {
 			if(from == SHADER_SOCKET_COLOR)
 			/* color to float */
-				optimized_value->x = linear_rgb_to_gray(value);
+				return false; /* TODO(lukas): Do correct conversion (depending on color space) here. */
 			else
 			/* vector/point/normal to float */
 				optimized_value->x = average(value);
@@ -4052,6 +4052,8 @@ BlackbodyNode::BlackbodyNode()
 
 bool BlackbodyNode::constant_fold(ShaderOutput *socket, float3 *optimized_value)
 {
+	return false;
+#if 0 /* TODO(lukas): Fold with correct colorspace here. */
 	ShaderInput *temperature_in = input("Temperature");
 
 	if(socket == output("Color")) {
@@ -4063,6 +4065,7 @@ bool BlackbodyNode::constant_fold(ShaderOutput *socket, float3 *optimized_value)
 	}
 
 	return false;
+#endif
 }
 
 void BlackbodyNode::compile(SVMCompiler& compiler)
