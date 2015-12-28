@@ -179,7 +179,7 @@ size_t wmWidgetGroupType::get_idname(char *r_idname)
 		strcpy(r_idname, idname);
 		return sizeof(idname);
 	}
-
+	r_idname[0] = '\0';
 	return 0;
 }
 

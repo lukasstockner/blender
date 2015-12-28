@@ -33,6 +33,8 @@
  * \brief Circle shaped widget for circular interaction. Currently no own handling, use with operator only.
  */
 
+#include <new>
+
 #include "BIF_gl.h"
 
 #include "BKE_context.h"
@@ -62,10 +64,18 @@ WidgetDrawInfo dial_draw_info = {0};
 #endif
 
 typedef struct DialWidget: wmWidget {
+	DialWidget(wmWidgetGroup *wgroup, const char *name);
+
 	int style;
 	float direction[3];
 } DialWidget;
 
+
+DialWidget::DialWidget(wmWidgetGroup *wgroup, const char *name)
+    : wmWidget(wgroup, name)
+{
+	
+}
 
 static void dial_draw_geom(const DialWidget *dial, const bool select)
 {
@@ -166,7 +176,7 @@ static void widget_dial_draw(const bContext *C, wmWidget *widget)
 
 wmWidget *WIDGET_dial_new(wmWidgetGroup *wgroup, const char *name, const int style)
 {
-	DialWidget *dial = (DialWidget *)MEM_callocN(sizeof(DialWidget), name);
+	DialWidget *dial = OBJECT_GUARDED_NEW_CALLOC(DialWidget, wgroup, name);
 	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
 
 #ifdef WIDGET_USE_CUSTOM_DIAS
@@ -188,8 +198,6 @@ wmWidget *WIDGET_dial_new(wmWidgetGroup *wgroup, const char *name, const int sty
 
 	/* defaults */
 	copy_v3_v3(dial->direction, dir_default);
-
-	wm_widget_register(wgroup, dial, name);
 
 	return (wmWidget *)dial;
 }

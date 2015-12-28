@@ -57,66 +57,29 @@
 
 #include "wm.h" // tmp
 
-#if 0
-wmWidget::wmWidget()
-{
-	
-}
-
-#endif
-
-/**
- * Assign an idname that is unique in \a wgroup to \a widget.
- *
- * \param rawname  Name used as basis to define final unique idname.
- */
-static void widget_unique_idname_set(wmWidgetGroup *wgroup, wmWidget *widget, const char *rawname)
-{
-	char groupname[MAX_NAME];
-
-	WM_widgetgrouptype_idname_get(wgroup->type, groupname);
-
-	if (groupname[0]) {
-		BLI_snprintf(widget->idname, sizeof(widget->idname), "%s_%s", groupname, rawname);
-	}
-	else {
-		BLI_strncpy(widget->idname, rawname, sizeof(widget->idname));
-	}
-
-	/* ensure name is unique, append '.001', '.002', etc if not */
-	BLI_uniquename(&wgroup->widgets, widget, "Widget", '.', offsetof(wmWidget, idname), sizeof(widget->idname));
-}
 
 /**
  * Register \a widget.
  *
  * \param name  name used to create a unique idname for \a widget in \a wgroup
  */
-bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *name)
+wmWidget::wmWidget(wmWidgetGroup *wgroup, const char *name, const int max_prop_)
+    : wgroup(wgroup),
+      line_width(1.0f),
+      user_scale(1.0f),
+      max_prop(max_prop_)
 {
 	const float col_default[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-	widget_unique_idname_set(wgroup, widget, name);
+	unique_idname_set(name);
 
-	widget->user_scale = 1.0f;
-	widget->line_width = 1.0f;
+	copy_v4_v4(col, col_default);
+	copy_v4_v4(col_hi, col_default);
 
-	/* defaults */
-	copy_v4_v4(widget->col, col_default);
-	copy_v4_v4(widget->col_hi, col_default);
+	props = (PropertyRNA **)MEM_callocN(sizeof(PropertyRNA *) * max_prop, "widget->props");
+	ptr = (PointerRNA *)MEM_callocN(sizeof(PointerRNA) * max_prop, "widget->ptr");
 
-	/* create at least one property for interaction */
-	if (widget->max_prop == 0) {
-		widget->max_prop = 1;
-	}
-
-	widget->props = (PropertyRNA **)MEM_callocN(sizeof(PropertyRNA *) * widget->max_prop, "widget->props");
-	widget->ptr = (PointerRNA *)MEM_callocN(sizeof(PointerRNA) * widget->max_prop, "widget->ptr");
-	widget->opptr = PointerRNA_NULL;
-
-	widget->wgroup = wgroup;
-
-	BLI_addtail(&wgroup->widgets, widget);
+	BLI_addtail(&wgroup->widgets, this);
 
 	/* XXX */
 	fix_linking_widget_arrow();
@@ -124,33 +87,43 @@ bool wm_widget_register(wmWidgetGroup *wgroup, wmWidget *widget, const char *nam
 	fix_linking_widget_dial();
 	fix_linking_widget_plane();
 	fix_linking_widget_facemap();
-
-	return true;
 }
 
-/**
- * Free widget data, not widget itself.
- */
-void widget_data_free(wmWidget *widget)
+wmWidget::~wmWidget()
 {
-	if (widget->opptr.data) {
-		WM_operator_properties_free(&widget->opptr);
+	if (opptr.data) {
+		WM_operator_properties_free(&opptr);
 	}
 
-	MEM_freeN(widget->props);
-	MEM_freeN(widget->ptr);
+	MEM_freeN(props);
+	MEM_freeN(ptr);
+}
+
+void wmWidget::unregister(ListBase *widgetlist)
+{
+	BLI_remlink(widgetlist, this);
 }
 
 /**
- * Free and NULL \a widget.
- * \a widgetlist is allowed to be NULL.
+ * Assign an idname that is unique in \a wgroup to \a widget.
+ *
+ * \param rawname  Name used as basis to define final unique idname.
  */
-void widget_remove(ListBase *widgetlist, wmWidget *widget)
+void wmWidget::unique_idname_set(const char *rawname)
 {
-	widget_data_free(widget);
-	if (widgetlist)
-		BLI_remlink(widgetlist, widget);
-	MEM_SAFE_FREE(widget);
+	char groupname[MAX_NAME];
+
+	WM_widgetgrouptype_idname_get(wgroup->type, groupname);
+
+	if (groupname[0]) {
+		BLI_snprintf(idname, sizeof(idname), "%s_%s", groupname, rawname);
+	}
+	else {
+		BLI_strncpy(idname, rawname, sizeof(idname));
+	}
+
+	/* ensure name is unique, append '.001', '.002', etc if not */
+	BLI_uniquename(&wgroup->widgets, this, "Widget", '.', offsetof(wmWidget, idname), sizeof(idname));
 }
 
 void widget_find_active_3D_loop(const bContext *C, ListBase *visible_widgets)
@@ -171,24 +144,24 @@ void widget_find_active_3D_loop(const bContext *C, ListBase *visible_widgets)
  * Add \a widget to selection.
  * Reallocates memory for selected widgets so better not call for selecting multiple ones.
  */
-void wm_widget_select(wmWidgetMap *wmap, bContext *C, wmWidget *widget)
+void wmWidget::add_to_selection(wmWidgetMap *wmap, bContext *C)
 {
+	if (flag & WM_WIDGET_SELECTED)
+		return;
+
 	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
 	int *tot_selected = &wmap->wmap_context.tot_selected;
-
-	if (!widget || (widget->flag & WM_WIDGET_SELECTED))
-		return;
 
 	(*tot_selected)++;
 
 	*sel = (wmWidget **)MEM_reallocN(*sel, sizeof(**sel) * (*tot_selected));
-	(*sel)[(*tot_selected) - 1] = widget;
+	(*sel)[(*tot_selected) - 1] = this;
 
-	widget->flag |= WM_WIDGET_SELECTED;
-	if (widget->select) {
-		widget->select(C, widget, SEL_SELECT);
+	flag |= WM_WIDGET_SELECTED;
+	if (select) {
+		select(C, this, SEL_SELECT);
 	}
-	wmap->set_highlighted_widget(C, widget, widget->highlighted_part);
+	wmap->set_highlighted_widget(C, this, highlighted_part);
 
 	ED_region_tag_redraw(CTX_wm_region(C));
 }
@@ -197,17 +170,17 @@ void wm_widget_select(wmWidgetMap *wmap, bContext *C, wmWidget *widget)
  * Remove \a widget from selection.
  * Reallocates memory for selected widgets so better not call for selecting multiple ones.
  */
-void wm_widget_deselect(wmWidgetMap *wmap, const bContext *C, wmWidget *widget)
+void wmWidget::remove_from_selection(wmWidgetMap *wmap, const bContext *C)
 {
 	wmWidget ***sel = &wmap->wmap_context.selected_widgets;
 	int *tot_selected = &wmap->wmap_context.tot_selected;
 
 	/* caller should check! */
-	BLI_assert(widget->flag & WM_WIDGET_SELECTED);
+	BLI_assert(flag & WM_WIDGET_SELECTED);
 
 	/* remove widget from selected_widgets array */
 	for (int i = 0; i < (*tot_selected); i++) {
-		if (widget_compare((*sel)[i], widget)) {
+		if (widget_compare((*sel)[i], this)) {
 			for (int j = i; j < ((*tot_selected) - 1); j++) {
 				(*sel)[j] = (*sel)[j + 1];
 			}
@@ -225,34 +198,46 @@ void wm_widget_deselect(wmWidgetMap *wmap, const bContext *C, wmWidget *widget)
 		(*tot_selected)--;
 	}
 
-	widget->flag &= ~WM_WIDGET_SELECTED;
+	flag &= ~WM_WIDGET_SELECTED;
 
 	ED_region_tag_redraw(CTX_wm_region(C));
 }
 
-void widget_calculate_scale(wmWidget *widget, const bContext *C)
+void wmWidget::calculate_scale(const bContext *C)
 {
 	const RegionView3D *rv3d = CTX_wm_region_view3d(C);
-	float scale = 1.0f;
+	float scale_ = 1.0f;
 
-	if (rv3d && (U.tw_flag & V3D_3D_WIDGETS) == 0 && (widget->flag & WM_WIDGET_SCALE_3D)) {
-		if (widget->get_final_position) {
+	if (rv3d && (U.tw_flag & V3D_3D_WIDGETS) == 0 && (flag & WM_WIDGET_SCALE_3D)) {
+		if (get_final_position) {
 			float position[3];
 
-			widget->get_final_position(widget, position);
-			scale = ED_view3d_pixel_size(rv3d, position) * (float)U.tw_size;
+			get_final_position(this, position);
+			scale_ = ED_view3d_pixel_size(rv3d, position) * (float)U.tw_size;
 		}
 		else {
-			scale = ED_view3d_pixel_size(rv3d, widget->origin) * (float)U.tw_size;
+			scale_ = ED_view3d_pixel_size(rv3d, origin) * (float)U.tw_size;
 		}
 	}
 
-	widget->scale = scale * widget->user_scale;
+	scale = scale_ * user_scale;
 }
 
 bool widget_compare(const wmWidget *a, const wmWidget *b)
 {
 	return STREQ(a->idname, b->idname);
+}
+
+void wmWidget::handle(bContext *C, const wmEvent *event, const int handle_flag)
+{
+	if (handler)
+		handler(C, event, this, handle_flag);
+}
+
+void wmWidget::tweak_cancel(bContext *C)
+{
+	if (cancel)
+		cancel(C, this);
 }
 
 
@@ -321,38 +306,53 @@ void widget_draw(WidgetDrawInfo *info, const bool select)
  *
  * \{ */
 
-void WM_widget_set_property(wmWidget *widget, const int slot, PointerRNA *ptr, const char *propname)
+const char *wmWidget::idname_get()
 {
-	if (slot < 0 || slot >= widget->max_prop) {
-		fprintf(stderr, "invalid index %d when binding property for widget type %s\n", slot, widget->idname);
+	return idname;
+}
+
+void wmWidget::property_set(const int slot, PointerRNA *ptr_, const char *propname)
+{
+	if (slot < 0 || slot >= max_prop) {
+		fprintf(stderr, "invalid index %d when binding property for widget type %s\n", slot, idname);
 		return;
 	}
 
 	/* if widget evokes an operator we cannot use it for property manipulation */
-	widget->opname = NULL;
-	widget->ptr[slot] = *ptr;
-	widget->props[slot] = RNA_struct_find_property(ptr, propname);
+	opname = NULL;
+	ptr[slot] = *ptr_;
+	props[slot] = RNA_struct_find_property(ptr_, propname);
 
-	if (widget->bind_to_prop)
-		widget->bind_to_prop(widget, slot);
+	if (bind_to_prop)
+		bind_to_prop(this, slot);
 }
 
-PointerRNA *WM_widget_set_operator(wmWidget *widget, const char *opname)
+PointerRNA *wmWidget::operator_set(const char *opname_)
 {
-	wmOperatorType *ot = WM_operatortype_find(opname, 0);
+	wmOperatorType *ot = WM_operatortype_find(opname_, 0);
 
 	if (ot) {
-		widget->opname = opname;
+		opname = opname_;
 
-		WM_operator_properties_create_ptr(&widget->opptr, ot);
+		WM_operator_properties_create_ptr(&opptr, ot);
 
-		return &widget->opptr;
+		return &opptr;
 	}
 	else {
-		fprintf(stderr, "Error binding operator to widget: operator %s not found!\n", opname);
+		fprintf(stderr, "Error binding operator to widget: operator %s not found!\n", opname_);
 	}
 
 	return NULL;
+}
+
+const char *wmWidget::operatorname_get()
+{
+	return opname;
+}
+
+void wmWidget::func_handler_set(int (*handler_)(bContext *, const wmEvent *, wmWidget *, const int))
+{
+	handler = handler_;
 }
 
 /**
@@ -360,40 +360,45 @@ PointerRNA *WM_widget_set_operator(wmWidget *widget, const char *opname)
  *
  * Callback is called when widget gets selected/deselected.
  */
-void WM_widget_set_func_select(wmWidget *widget, void (*select)(bContext *, wmWidget *, const int action))
+void wmWidget::func_select_set(void (*select_)(bContext *, wmWidget *, const int ))
 {
-	widget->flag |= WM_WIDGET_SELECTABLE;
-	widget->select = select;
+	flag |= WM_WIDGET_SELECTABLE;
+	select = select_;
 }
 
-void WM_widget_set_origin(wmWidget *widget, const float origin[3])
+void wmWidget::origin_set(const float origin_[3])
 {
-	copy_v3_v3(widget->origin, origin);
+	copy_v3_v3(origin, origin_);
 }
 
-void WM_widget_set_offset(wmWidget *widget, const float offset[3])
+void wmWidget::offset_set(const float offset_[3])
 {
-	copy_v3_v3(widget->offset, offset);
+	copy_v3_v3(offset, offset_);
 }
 
-void WM_widget_set_flag(wmWidget *widget, const int flag, const bool enable)
+void wmWidget::flag_set(const int flag_, const bool enable)
 {
 	if (enable) {
-		widget->flag |= flag;
+		flag |= flag_;
 	}
 	else {
-		widget->flag &= ~flag;
+		flag &= ~flag_;
 	}
 }
 
-void WM_widget_set_scale(wmWidget *widget, const float scale)
+bool wmWidget::flag_is_set(const int flag_)
 {
-	widget->user_scale = scale;
+	return (flag & flag_);
 }
 
-void WM_widget_set_line_width(wmWidget *widget, const float line_width)
+void wmWidget::scale_set(const float scale_)
 {
-	widget->line_width = line_width;
+	user_scale = scale_;
+}
+
+void wmWidget::line_width_set(const float line_width_)
+{
+	line_width = line_width_;
 }
 
 /**
@@ -402,10 +407,10 @@ void WM_widget_set_line_width(wmWidget *widget, const float line_width)
  * \param col  Normal state color.
  * \param col_hi  Highlighted state color.
  */
-void WM_widget_set_colors(wmWidget *widget, const float col[4], const float col_hi[4])
+void wmWidget::colors_set(const float col_[4], const float col_hi_[4])
 {
-	copy_v4_v4(widget->col, col);
-	copy_v4_v4(widget->col_hi, col_hi);
+	copy_v4_v4(col, col_);
+	copy_v4_v4(col_hi, col_hi_);
 }
 
 /** \} */ // Widget Creation API

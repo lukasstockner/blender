@@ -34,6 +34,8 @@
  *        cone, box, etc.
  */
 
+#include <new>
+
 #include "BIF_gl.h"
 
 #include "BKE_context.h"
@@ -75,6 +77,8 @@ enum {
 };
 
 typedef struct ArrowWidget: wmWidget {
+	ArrowWidget(wmWidgetGroup *wgroup, const char *name);
+
 	int style;
 	int arrow_flag;
 
@@ -106,6 +110,12 @@ typedef struct ArrowInteraction {
 /* factor for precision tweaking */
 #define ARROW_PRECISION_FAC 0.05f
 
+
+ArrowWidget::ArrowWidget(wmWidgetGroup *wgroup, const char *name)
+    : wmWidget(wgroup, name)
+{
+	
+}
 
 static void widget_arrow_get_final_pos(wmWidget *widget, float r_pos[3])
 {
@@ -545,7 +555,7 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	}
 
 
-	ArrowWidget *arrow = (ArrowWidget *)MEM_callocN(sizeof(ArrowWidget), name);
+	ArrowWidget *arrow = OBJECT_GUARDED_NEW_CALLOC(ArrowWidget, wgroup, name);
 	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
 
 	arrow->draw                    = widget_arrow_draw;
@@ -562,8 +572,6 @@ wmWidget *WIDGET_arrow_new(wmWidgetGroup *wgroup, const char *name, const int st
 	arrow->len       = 1.0f;
 	arrow->range_fac = 1.0f;
 	copy_v3_v3(arrow->direction, dir_default);
-
-	wm_widget_register(wgroup, arrow, name);
 
 	return (wmWidget *)arrow;
 }

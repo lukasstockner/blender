@@ -1139,7 +1139,7 @@ void WIDGETGROUP_manipulator_create(const bContext *C, wmWidgetGroup *wgroup)
 		WM_widget_set_origin(axis, rv3d->twmat[3]);
 		WM_widget_set_colors(axis, col, col_hi);
 		/* custom handler! */
-		axis->handler = manipulator_handler;
+		WM_widget_set_func_handler(axis, manipulator_handler);
 
 		switch(axis_idx) {
 			case MAN_AXIS_TRANS_X:

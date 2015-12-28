@@ -5277,7 +5277,7 @@ static int widget_select_invoke(bContext *C, wmOperator *op)
 		}
 
 		if (highlighted) {
-			const bool is_selected = (highlighted->flag & WM_WIDGET_SELECTED);
+			const bool is_selected = WM_widget_flag_is_set(highlighted, WM_WIDGET_SELECTED);
 
 			if (toggle) {
 				/* toggle: deselect if already selected, else select */
@@ -5286,10 +5286,10 @@ static int widget_select_invoke(bContext *C, wmOperator *op)
 
 			if (deselect) {
 				if (is_selected)
-					wm_widget_deselect(wmap, C, highlighted);
+					wm_widget_deselect(highlighted, wmap, C);
 			}
 			else {
-				wm_widget_select(wmap, C, highlighted);
+				wm_widget_select(highlighted, wmap, C);
 			}
 
 			return OPERATOR_FINISHED;
@@ -5336,9 +5336,7 @@ static void widget_tweak_finish(bContext *C, wmOperator *op)
 static void widget_tweak_cancel(bContext *C, wmOperator *op)
 {
 	WidgetTweakData *wtweak = op->customdata;
-	if (wtweak->active->cancel) {
-		wtweak->active->cancel(C, wtweak->active);
-	}
+	wm_widget_tweak_cancel(wtweak->active, C);
 	widget_tweak_finish(C, op);
 }
 
@@ -5375,10 +5373,7 @@ static int widget_tweak_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		}
 	}
 
-	/* handle widget */
-	if (widget->handler) {
-		widget->handler(C, event, widget, wtweak->flag);
-	}
+	wm_widget_handle(widget, C, event, wtweak->flag);
 
 	/* Ugly hack to send widget events */
 	((wmEvent *)event)->type = EVT_WIDGET_UPDATE;
@@ -5394,6 +5389,7 @@ static int widget_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	Link *link;
 	wmWidgetMap *wmap;
 	wmWidget *widget;
+	const char *opname;
 
 	for (link = ar->widgetmaps.first; link; link = link->next) {
 		wmap = (wmWidgetMap *)link;
@@ -5413,8 +5409,8 @@ static int widget_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
 	/* XXX temporary workaround for modal widget operator
 	 * conflicting with modal operator attached to widget */
-	if (widget->opname) {
-		wmOperatorType *ot = WM_operatortype_find(widget->opname, true);
+	if ((opname = WM_widget_get_operatorname(widget))) {
+		wmOperatorType *ot = WM_operatortype_find(opname, true);
 		if (ot->modal) {
 			return OPERATOR_FINISHED;
 		}

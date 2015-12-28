@@ -33,6 +33,8 @@
  * \brief Rectangular widget acting as a 'cage' around its content. Interacting scales or translates the widget.
  */
 
+#include <new>
+
 #include "BIF_gl.h"
 
 #include "BKE_context.h"
@@ -66,12 +68,20 @@ enum {
 #define WIDGET_RESIZER_WIDTH  20.0f
 
 typedef struct RectTransformWidget: wmWidget {
+	RectTransformWidget(wmWidgetGroup *wgroup, const char *name, const int max_prop);
+
 	float w, h;      /* dimensions of widget */
 	float rotation;  /* rotation of the rectangle */
 	float scale[2]; /* scaling for the widget for non-destructive editing. */
 	int style;
 } RectTransformWidget;
 
+
+RectTransformWidget::RectTransformWidget(wmWidgetGroup *wgroup, const char *name, const int max_prop)
+    : wmWidget(wgroup, name, max_prop)
+{
+	
+}
 
 static void rect_transform_draw_corners(rctf *r, const float offsetx, const float offsety)
 {
@@ -515,7 +525,7 @@ wmWidget *WIDGET_rect_transform_new(
         wmWidgetGroup *wgroup, const char *name, const int style,
         const float width, const float height)
 {
-	RectTransformWidget *cage = (RectTransformWidget *)MEM_callocN(sizeof(RectTransformWidget), name);
+	RectTransformWidget *cage = OBJECT_GUARDED_NEW_CALLOC(RectTransformWidget, wgroup, name, 2);
 
 	cage->draw          = widget_rect_transform_draw;
 	cage->invoke        = widget_rect_transform_invoke;
@@ -524,14 +534,11 @@ wmWidget *WIDGET_rect_transform_new(
 	cage->intersect     = widget_rect_transform_intersect;
 	cage->cancel        = widget_rect_transform_cancel;
 	cage->get_cursor    = widget_rect_transform_get_cursor;
-	cage->max_prop      = 2;
 	cage->flag         |= WM_WIDGET_DRAW_ACTIVE;
 	cage->scale[0]      = cage->scale[1] = 1.0f;
 	cage->style         = style;
 	cage->w             = width;
 	cage->h             = height;
-
-	wm_widget_register(wgroup, cage, name);
 
 	return (wmWidget *)cage;
 }

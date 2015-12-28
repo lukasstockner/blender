@@ -71,7 +71,7 @@ void widgetgroup_remove(bContext *C, wmWidgetMap *wmap, wmWidgetGroup *wgroup)
 			wmap->set_active_widget(C, NULL, NULL);
 		}
 
-		widget_remove(&wgroup->widgets, widget);
+		WM_widget_remove(widget, &wgroup->widgets);
 		widget = widget_next;
 	}
 

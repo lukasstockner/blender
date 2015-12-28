@@ -31,11 +31,17 @@
 
 #include "DNA_windowmanager_types.h"
 
+#include "MEM_guardedalloc.h"
+
 #include "wm_widgetmap.h"
 #include "wm_widgetmaptype.h"
 #include "wm_widgetgrouptype.h"
+#include "wm_widget.h"
 #include "wm_widgets_c_api.h" // own include
 
+
+/* -------------------------------------------------------------------- */
+/* wmWidgetMap */
 
 wmWidgetMap *WM_widgetmap_new(const char *idname, const int spaceid, const int regionid, const bool is_3d)
 {
@@ -100,6 +106,9 @@ wmWidgetGroup *wm_widgetmap_active_group_get(wmWidgetMap *wmap)
 }
 
 
+/* -------------------------------------------------------------------- */
+/* wmWidgetGroupType */
+
 /**
  * Create and register a new widget-group-type
  */
@@ -156,5 +165,103 @@ wmOperator *WM_widgetgrouptype_operator_get(wmWidgetGroupType *wgrouptype)
 wmKeyMap *WM_widgetgrouptype_user_keymap_get(wmWidgetGroupType *wgrouptype)
 {
 	return wgrouptype->get_keymap();
+}
+
+
+/* -------------------------------------------------------------------- */
+/* wmWidget */
+
+wmWidget *wm_widget_new(wmWidgetGroup *wgroup, const char *name)
+{
+	return new wmWidget(wgroup, name);
+}
+void WM_widget_remove(wmWidget *widget, ListBase *widgetlist)
+{
+	widget->unregister(widgetlist);
+	OBJECT_GUARDED_DELETE(widget, wmWidget);
+}
+
+void wm_widget_handle(wmWidget *widget, bContext *C, const wmEvent *event, const int handle_flag)
+{
+	widget->handle(C, event, handle_flag);
+}
+
+void wm_widget_tweak_cancel(wmWidget *widget, bContext *C)
+{
+	widget->tweak_cancel(C);
+}
+
+void wm_widget_select(wmWidget *widget, wmWidgetMap *wmap, bContext *C)
+{
+	widget->add_to_selection(wmap, C);
+}
+
+void wm_widget_deselect(wmWidget *widget, wmWidgetMap *wmap, const bContext *C)
+{
+	widget->remove_from_selection(wmap, C);
+}
+
+const char *wm_widget_idname_get(wmWidget *widget)
+{
+	return widget->idname_get();
+}
+
+void WM_widget_set_property(wmWidget *widget, const int slot, PointerRNA *ptr, const char *propname)
+{
+	widget->property_set(slot, ptr, propname);
+}
+
+PointerRNA *WM_widget_set_operator(wmWidget *widget, const char *opname)
+{
+	return widget->operator_set(opname);
+}
+
+const char *WM_widget_get_operatorname(wmWidget *widget)
+{
+	return widget->operatorname_get();
+}
+
+void WM_widget_set_func_handler(wmWidget *widget, int (*handler)(bContext *, const wmEvent *, wmWidget *, const int ))
+{
+	widget->func_handler_set(handler);
+}
+
+void WM_widget_set_func_select(wmWidget *widget, void (*select)(bContext *, wmWidget *, const int action))
+{
+	widget->func_select_set(select);
+}
+
+void WM_widget_set_origin(wmWidget *widget, const float origin[3])
+{
+	widget->origin_set(origin);
+}
+
+void WM_widget_set_offset(struct wmWidget *widget, const float offset[3])
+{
+	widget->offset_set(offset);
+}
+
+void WM_widget_set_flag(struct wmWidget *widget, const int flag, const bool enable)
+{
+	widget->flag_set(flag, enable);
+}
+bool WM_widget_flag_is_set(wmWidget *widget, const int flag)
+{
+	return widget->flag_is_set(flag);
+}
+
+void WM_widget_set_scale(struct wmWidget *widget, float scale)
+{
+	widget->scale_set(scale);
+}
+
+void WM_widget_set_line_width(struct wmWidget *widget, const float line_width)
+{
+	widget->line_width_set(line_width);
+}
+
+void WM_widget_set_colors(struct wmWidget *widget, const float col[4], const float col_hi[4])
+{
+	widget->colors_set(col, col_hi);
 }
 

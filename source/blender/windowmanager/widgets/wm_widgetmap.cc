@@ -65,6 +65,7 @@ static GHash *draw_widgets = NULL;
 wmWidgetMap::wmWidgetMap(const char *idname, const int spaceid, const int regionid, const bool is_3d)
     : widgetgroups(ListBase_NULL)
 {
+	wmap_context.tot_selected = 0;
 	type = WM_widgetmaptype_find(idname, spaceid, regionid, is_3d, true);
 
 	/* create all widgetgroups for this widgetmap. We may create an empty one
@@ -131,6 +132,16 @@ static void widget_highlight_update(wmWidgetMap *wmap, const wmWidget *old_, wmW
 	new_->highlighted_part = old_->highlighted_part;
 }
 
+static void widget_drawhash_insert(wmWidget *widget)
+{
+	BLI_ghash_reinsert(draw_widgets, (void *)widget->idname_get(), widget, NULL, NULL);
+}
+
+static wmWidget *widget_drawhash_lookup(wmWidget *old)
+{
+	return (wmWidget *)BLI_ghash_lookup(draw_widgets, old->idname_get());
+}
+
 void wmWidgetMap::update(const bContext *C)
 {
 	wmWidget *widget = wmap_context.active_widget;
@@ -141,8 +152,8 @@ void wmWidgetMap::update(const bContext *C)
 
 	if (widget) {
 		if ((widget->flag & WM_WIDGET_HIDDEN) == 0) {
-			widget_calculate_scale(widget, C);
-			BLI_ghash_reinsert(draw_widgets, widget->idname, widget, NULL, NULL);
+			widget->calculate_scale(C);
+			widget_drawhash_insert(widget);
 		}
 	}
 	else if (!BLI_listbase_is_empty(&widgetgroups)) {
@@ -157,19 +168,20 @@ void wmWidgetMap::update(const bContext *C)
 					/* do not delete selected and highlighted widgets,
 					 * keep them to compare with new ones */
 					if (widget->flag & WM_WIDGET_SELECTED) {
-						BLI_remlink(&wgroup->widgets, widget);
+						widget->unregister(&wgroup->widgets);
 						widget->next = widget->prev = NULL;
 					}
 					else if (widget->flag & WM_WIDGET_HIGHLIGHT) {
 						highlighted = widget;
-						BLI_remlink(&wgroup->widgets, widget);
+						widget->unregister(&wgroup->widgets);
 						widget->next = widget->prev = NULL;
 					}
 					else {
-						widget_remove(&wgroup->widgets, widget);
+						WM_widget_remove(widget, &wgroup->widgets);
 					}
 					widget = widget_next;
 				}
+				BLI_assert(BLI_listbase_is_empty(&wgroup->widgets));
 
 				if (wgroup->type->create) {
 					wgroup->type->create(C, wgroup);
@@ -179,9 +191,9 @@ void wmWidgetMap::update(const bContext *C)
 					if (widget->flag & WM_WIDGET_HIDDEN)
 						continue;
 
-					widget_calculate_scale(widget, C);
+					widget->calculate_scale(C);
 					/* insert newly created widget into hash table */
-					BLI_ghash_reinsert(draw_widgets, widget->idname, widget, NULL, NULL);
+					widget_drawhash_insert(widget);
 				}
 
 				/* *** From now on, draw_widgets hash table can be used! *** */
@@ -190,23 +202,23 @@ void wmWidgetMap::update(const bContext *C)
 		}
 
 		if (highlighted) {
-			wmWidget *highlighted_new = (wmWidget *)BLI_ghash_lookup(draw_widgets, highlighted->idname);
+			wmWidget *highlighted_new = widget_drawhash_lookup(highlighted);
+
 			if (highlighted_new) {
 				BLI_assert(widget_compare(highlighted, highlighted_new));
 				widget_highlight_update(this, highlighted, highlighted_new);
-				widget_remove(NULL, highlighted);
 			}
 			/* if we didn't find a highlighted widget, delete the old one here */
 			else {
-				MEM_SAFE_FREE(highlighted);
 				wmap_context.highlighted_widget = NULL;
 			}
+			OBJECT_GUARDED_DELETE(highlighted, wmWidget);
 		}
 
 		if (wmap_context.selected_widgets) {
 			for (int i = 0; i < wmap_context.tot_selected; i++) {
 				wmWidget *sel_old = wmap_context.selected_widgets[i];
-				wmWidget *sel_new = (wmWidget *)BLI_ghash_lookup(draw_widgets, sel_old->idname);
+				wmWidget *sel_new = widget_drawhash_lookup(sel_old);
 
 				/* fails if wgtype->poll state changed */
 				if (!sel_new)
@@ -218,7 +230,7 @@ void wmWidgetMap::update(const bContext *C)
 				if (sel_old->flag & WM_WIDGET_HIGHLIGHT) {
 					widget_highlight_update(this, sel_old, sel_new);
 				}
-				widget_data_free(sel_old);
+				OBJECT_GUARDED_DELETE(sel_old, wmWidget);
 				/* XXX freeing sel_old leads to crashes, hrmpf */
 
 				sel_new->flag |= WM_WIDGET_SELECTED;
@@ -289,7 +301,7 @@ void wmWidgetMap::draw(const bContext *C, const bool in_scene, const bool free_d
 	/* draw selected widgets last */
 	if (wmap_context.selected_widgets) {
 		for (int i = 0; i < wmap_context.tot_selected; i++) {
-			widget = (wmWidget*)BLI_ghash_lookup(draw_widgets, wmap_context.selected_widgets[i]->idname);
+			widget = widget_drawhash_lookup(wmap_context.selected_widgets[i]);
 			if (widget && (in_scene == (widget->flag & WM_WIDGET_SCENE_DEPTH))) {
 				/* notice that we don't update the widgetgroup, widget is now on
 				 * its own, it should have all relevant data to update itself */
@@ -362,8 +374,11 @@ void wm_widget_handler_modal_update(bContext *C, wmEvent *event, wmEventHandler 
 
 		/* regular update for running operator */
 		if (handler->op) {
-			if (widget && widget->handler && widget->opname && STREQ(widget->opname, handler->op->idname)) {
-				widget->handler(C, event, widget, 0);
+			if (widget && widget->handler) {
+				const char *opname = WM_widget_get_operatorname(widget);
+				if (opname && STREQ(opname, handler->op->idname)) {
+					widget->handler(C, event, widget, 0);
+				}
 			}
 		}
 		/* operator not running anymore */
@@ -421,7 +436,7 @@ GHash *wmWidgetMap::widget_hash_new(
 				if ((include_hidden || (widget->flag & WM_WIDGET_HIDDEN) == 0) &&
 				    (!poll || poll(widget, data)))
 				{
-					BLI_ghash_insert(hash, widget->idname, widget);
+					BLI_ghash_insert(hash, (void *)widget->idname_get(), widget);
 				}
 			}
 		}
@@ -618,8 +633,10 @@ void wmWidgetMap::set_highlighted_widget(bContext *C, wmWidget *widget, unsigned
 void wmWidgetMap::set_active_widget(bContext *C, const wmEvent *event, wmWidget *widget)
 {
 	if (widget) {
-		if (widget->opname) {
-			wmOperatorType *ot = WM_operatortype_find(widget->opname, 0);
+		const char *opname = WM_widget_get_operatorname(widget);
+
+		if (opname) {
+			wmOperatorType *ot = WM_operatortype_find(opname, 0);
 
 			if (ot) {
 				/* first activate the widget itself */

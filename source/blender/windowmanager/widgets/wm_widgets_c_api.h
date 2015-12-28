@@ -36,8 +36,6 @@
 extern "C" {
 #endif
 
-#include "BLI_compiler_attrs.h"
-
 #include "widget_library/widget_library.h"
 
 struct ARegion;
@@ -49,10 +47,14 @@ struct wmWidgetGroupType;
 struct wmWidget;
 
 
+/* -------------------------------------------------------------------- */
+/* wmWidgetMapType */
 struct wmWidgetMapType *WM_widgetmaptype_find(
         const char *idname, const int spaceid, const int regionid,
         const bool is_3d, const bool create);
 
+/* -------------------------------------------------------------------- */
+/* wmWidgetMap */
 struct wmWidgetMap *WM_widgetmap_new(const char *idname, const int spaceid, const int regionid, const bool is_3d);
 void WM_widgetmap_remove(struct wmWidgetMap *wmap, struct ListBase *widgetmaps);
 void WM_widgetmaps_remove(struct ListBase *widgetmaps);
@@ -78,14 +80,14 @@ void wm_widgetmap_active_widget_set(
 struct wmWidget *wm_widgetmap_active_widget_get(struct wmWidgetMap *wmap);
 /* selected widgets */
 bool WM_widgetmap_select_all(struct wmWidgetMap *wmap, struct bContext *C, const int action);
-void wm_widget_select(struct wmWidgetMap *wmap, struct bContext *C, struct wmWidget *widget);
-void wm_widget_deselect(struct wmWidgetMap *wmap, const struct bContext *C, struct wmWidget *widget);
 /* active group */
 struct wmWidgetGroup *wm_widgetmap_active_group_get(struct wmWidgetMap *wmap);
 
 void wm_widgets_keymap(struct wmKeyConfig *keyconf);
 void WM_widgetmaptypes_free(void);
 
+/* -------------------------------------------------------------------- */
+/* wmWidgetGroupType */
 struct wmWidgetGroupType *WM_widgetgrouptype_new(
         int (*poll)(const struct bContext *, struct wmWidgetGroupType *),
         void (*create)(const struct bContext *, struct wmWidgetGroup *),
@@ -101,15 +103,28 @@ size_t      WM_widgetgrouptype_idname_get(struct wmWidgetGroupType *wgrouptype, 
 wmOperator *WM_widgetgrouptype_operator_get(struct wmWidgetGroupType *wgrouptype);
 wmKeyMap   *WM_widgetgrouptype_user_keymap_get(struct wmWidgetGroupType *wgrouptype);
 
-bool wm_widget_register(struct wmWidgetGroup *wgroup, struct wmWidget *widget, const char *name);
+/* -------------------------------------------------------------------- */
+/* wmWidget */
+struct wmWidget *wm_widget_new(struct wmWidgetGroup *wgroup, const char *name);
+void WM_widget_remove(struct wmWidget *widget, ListBase *widgetlist);
+void wm_widget_handle(struct wmWidget *widget, struct bContext *C, const struct wmEvent *event, const int handle_flag);
+void wm_widget_tweak_cancel(struct wmWidget *widget, struct bContext *C);
+void wm_widget_select(struct wmWidget *widget, struct wmWidgetMap *wmap, struct bContext *C);
+void wm_widget_deselect(struct wmWidget *widget, struct wmWidgetMap *wmap, const struct bContext *C);
+/* get/set functions */
+const char *wm_widget_idname_get(struct wmWidget *widget);
+void WM_widget_set_func_handler(struct wmWidget *widget, int(*handler)(struct bContext *, const struct wmEvent *,
+                                                                       struct wmWidget *, const int ));
 void WM_widget_set_property(struct wmWidget *, int slot, struct PointerRNA *ptr, const char *propname);
 struct PointerRNA *WM_widget_set_operator(struct wmWidget *, const char *opname);
+const char *WM_widget_get_operatorname(struct wmWidget *widget);
 void WM_widget_set_func_select(
         struct wmWidget *widget,
         void (*select)(struct bContext *, struct wmWidget *, const int action));
 void WM_widget_set_origin(struct wmWidget *widget, const float origin[3]);
 void WM_widget_set_offset(struct wmWidget *widget, const float offset[3]);
 void WM_widget_set_flag(struct wmWidget *widget, const int flag, const bool enable);
+bool WM_widget_flag_is_set(struct wmWidget *widget, const int flag);
 void WM_widget_set_scale(struct wmWidget *widget, float scale);
 void WM_widget_set_line_width(struct wmWidget *widget, const float line_width);
 void WM_widget_set_colors(struct wmWidget *widget, const float col[4], const float col_hi[4]);

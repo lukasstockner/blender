@@ -228,9 +228,15 @@ public:                                                                       \
 #if defined __GNUC__ || defined __sun
 #  define OBJECT_GUARDED_NEW(type, args ...) \
 	new(MEM_mallocN(sizeof(type), __func__)) type(args)
+/* Same as OBJECT_GUARDED_NEW, but uses calloc */
+#  define OBJECT_GUARDED_NEW_CALLOC(type, args ...) \
+	new(MEM_callocN(sizeof(type), __func__)) type(args)
 #else
 #  define OBJECT_GUARDED_NEW(type, ...) \
 	new(MEM_mallocN(sizeof(type), __FUNCTION__)) type(__VA_ARGS__)
+/* Same as OBJECT_GUARDED_NEW, but uses calloc */
+#  define OBJECT_GUARDED_NEW_CALLOC(type, ...) \
+	new(MEM_callocN(sizeof(type), __FUNCTION__)) type(__VA_ARGS__)
 #endif
 #define OBJECT_GUARDED_DELETE(what, type) \
 	{ if(what) { \

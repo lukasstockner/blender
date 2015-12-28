@@ -33,6 +33,8 @@
  * \brief Flat and rectangular shaped widget for planar interaction. Currently no own handling, use with operator only.
  */
 
+#include <new>
+
 #include "BIF_gl.h"
 
 #include "BKE_context.h"
@@ -54,11 +56,19 @@
 #define PLANE_UP_VECTOR_SET 1
 
 typedef struct PlaneWidget: wmWidget {
+	PlaneWidget(wmWidgetGroup *wgroup, const char *name);
+
 	float direction[3];
 	float up[3];
 	int plane_flag;
 } PlaneWidget;
 
+
+PlaneWidget::PlaneWidget(wmWidgetGroup *wgroup, const char *name)
+    : wmWidget(wgroup, name)
+{
+	
+}
 
 static void widget_plane_draw_geom(const float col_inner[4], const float col_outer[4])
 {
@@ -136,7 +146,7 @@ static void widget_plane_draw(const bContext *UNUSED(C), wmWidget *widget)
 
 wmWidget *WIDGET_plane_new(wmWidgetGroup *wgroup, const char *name, const int UNUSED(style))
 {
-	PlaneWidget *plane = (PlaneWidget *)MEM_callocN(sizeof(PlaneWidget), name);
+	PlaneWidget *plane = OBJECT_GUARDED_NEW_CALLOC(PlaneWidget, wgroup, name);
 	const float dir_default[3] = {0.0f, 0.0f, 1.0f};
 
 	plane->draw                    = widget_plane_draw;
@@ -146,8 +156,6 @@ wmWidget *WIDGET_plane_new(wmWidgetGroup *wgroup, const char *name, const int UN
 
 	/* defaults */
 	copy_v3_v3(plane->direction, dir_default);
-
-	wm_widget_register(wgroup, plane, name);
 
 	return (wmWidget *)plane;
 }

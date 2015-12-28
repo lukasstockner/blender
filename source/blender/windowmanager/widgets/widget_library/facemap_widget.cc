@@ -33,6 +33,8 @@
  * \brief Widget representing shape of a face map. Currently no own handling, use with operator only.
  */
 
+#include <new>
+
 #include "BIF_gl.h"
 
 #include "BKE_context.h"
@@ -57,11 +59,19 @@
 #include "widget_geometry.h"
 
 typedef struct FacemapWidget: wmWidget {
+	FacemapWidget(wmWidgetGroup *wgroup, const char *name);
+
 	Object *ob;
 	int facemap;
 	int style;
 } FacemapWidget;
 
+
+FacemapWidget::FacemapWidget(wmWidgetGroup *wgroup, const char *name)
+    : wmWidget(wgroup, name)
+{
+	
+}
 
 static void widget_facemap_draw(const bContext *C, wmWidget *widget)
 {
@@ -101,7 +111,7 @@ wmWidget *WIDGET_facemap_new(
         wmWidgetGroup *wgroup, const char *name, const int style,
         Object *ob, const int facemap)
 {
-	FacemapWidget *fmap_widget = (FacemapWidget *)MEM_callocN(sizeof(FacemapWidget), name);
+	FacemapWidget *fmap_widget = OBJECT_GUARDED_NEW_CALLOC(FacemapWidget, wgroup, name);
 
 	BLI_assert(facemap > -1);
 
@@ -113,8 +123,6 @@ wmWidget *WIDGET_facemap_new(
 	fmap_widget->ob                      = ob;
 	fmap_widget->facemap                 = facemap;
 	fmap_widget->style                   = style;
-
-	wm_widget_register(wgroup, fmap_widget, name);
 
 	return (wmWidget *)fmap_widget;
 }
