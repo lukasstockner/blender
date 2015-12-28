@@ -1514,6 +1514,26 @@ ccl_device_inline int util_max_axis(float3 vec)
 	}
 }
 
+ccl_device_inline void invert_m3(float *imat, float *mat)
+{
+	float det = mat[0]*mat[4]*mat[8]
+	          + mat[1]*mat[5]*mat[6]
+	          + mat[2]*mat[3]*mat[7]
+	          - mat[6]*mat[4]*mat[2]
+	          - mat[7]*mat[5]*mat[0]
+	          - mat[8]*mat[3]*mat[1];
+	float idet = 1.0f / det;
+	imat[0] = (mat[4]*mat[8] - mat[5]*mat[7]) * idet;
+	imat[1] = (mat[2]*mat[7] - mat[1]*mat[8]) * idet;
+	imat[2] = (mat[1]*mat[5] - mat[2]*mat[4]) * idet;
+	imat[3] = (mat[5]*mat[6] - mat[3]*mat[8]) * idet;
+	imat[4] = (mat[0]*mat[8] - mat[2]*mat[6]) * idet;
+	imat[5] = (mat[2]*mat[3] - mat[0]*mat[5]) * idet;
+	imat[6] = (mat[3]*mat[7] - mat[4]*mat[6]) * idet;
+	imat[7] = (mat[1]*mat[6] - mat[0]*mat[7]) * idet;
+	imat[8] = (mat[0]*mat[4] - mat[1]*mat[3]) * idet;
+}
+
 CCL_NAMESPACE_END
 
 #endif /* __UTIL_MATH_H__ */

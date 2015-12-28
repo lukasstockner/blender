@@ -909,6 +909,12 @@ typedef struct KernelFilm {
 	int pass_ray_bounces;
 	int pass_pad3;
 #endif
+	float3 x_to_rgb;
+	float3 y_to_rgb;
+	float3 z_to_rgb;
+	float3 r_to_xyz;
+	float3 g_to_xyz;
+	float3 b_to_xyz;
 } KernelFilm;
 
 typedef struct KernelBackground {

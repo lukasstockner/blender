@@ -436,6 +436,14 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	kfilm->mist_inv_depth = (mist_depth > 0.0f)? 1.0f/mist_depth: 0.0f;
 	kfilm->mist_falloff = mist_falloff;
 
+	/* color space */
+	kfilm->r_to_xyz = r_to_xyz;
+	kfilm->g_to_xyz = g_to_xyz;
+	kfilm->b_to_xyz = b_to_xyz;
+	kfilm->x_to_rgb = x_to_rgb;
+	kfilm->y_to_rgb = y_to_rgb;
+	kfilm->z_to_rgb = z_to_rgb;
+
 	need_update = false;
 }
 
@@ -459,7 +467,13 @@ bool Film::modified(const Film& film)
 		&& filter_width == film.filter_width
 		&& mist_start == film.mist_start
 		&& mist_depth == film.mist_depth
-		&& mist_falloff == film.mist_falloff);
+		&& mist_falloff == film.mist_falloff
+		&& r_to_xyz == film.r_to_xyz
+		&& g_to_xyz == film.g_to_xyz
+		&& b_to_xyz == film.b_to_xyz
+		&& x_to_rgb == film.x_to_rgb
+		&& y_to_rgb == film.y_to_rgb
+		&& z_to_rgb == film.z_to_rgb);
 }
 
 void Film::tag_passes_update(Scene *scene, const vector<Pass>& passes_)

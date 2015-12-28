@@ -302,6 +302,21 @@ void BlenderSync::sync_film()
 		}
 	}
 
+	float xyz_to_rgb[9], rgb_to_xyz[9];
+	b_engine.xyz_to_scene_linear_matrix(xyz_to_rgb);
+	film->x_to_rgb = make_float3(xyz_to_rgb[0], xyz_to_rgb[1], xyz_to_rgb[2]);
+	film->y_to_rgb = make_float3(xyz_to_rgb[3], xyz_to_rgb[4], xyz_to_rgb[5]);
+	film->z_to_rgb = make_float3(xyz_to_rgb[6], xyz_to_rgb[7], xyz_to_rgb[8]);
+	invert_m3(rgb_to_xyz, xyz_to_rgb);
+	film->r_to_xyz = make_float3(rgb_to_xyz[0], rgb_to_xyz[1], rgb_to_xyz[2]);
+	film->g_to_xyz = make_float3(rgb_to_xyz[3], rgb_to_xyz[4], rgb_to_xyz[5]);
+	film->b_to_xyz = make_float3(rgb_to_xyz[6], rgb_to_xyz[7], rgb_to_xyz[8]);
+
+#if 0
+	printf("XYZ to RGB:\n%f %f %f\n%f %f %f\n%f %f %f\n", (double)xyz_to_rgb[0], (double)xyz_to_rgb[3], (double)xyz_to_rgb[6], (double)xyz_to_rgb[1], (double)xyz_to_rgb[4], (double)xyz_to_rgb[7], (double)xyz_to_rgb[2], (double)xyz_to_rgb[5], (double)xyz_to_rgb[8]);
+	printf("RGB to XYZ:\n%f %f %f\n%f %f %f\n%f %f %f\n", (double)rgb_to_xyz[0], (double)rgb_to_xyz[3], (double)rgb_to_xyz[6], (double)rgb_to_xyz[1], (double)rgb_to_xyz[4], (double)rgb_to_xyz[7], (double)rgb_to_xyz[2], (double)rgb_to_xyz[5], (double)rgb_to_xyz[8]);
+#endif
+
 	if(film->modified(prevfilm))
 		film->tag_update(scene);
 }

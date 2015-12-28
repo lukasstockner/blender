@@ -16,6 +16,38 @@
 
 CCL_NAMESPACE_BEGIN
 
+ccl_device float3 xyz_to_scene_linear(KernelGlobals *kg, float3 xyz)
+{
+	return xyz.x * kernel_data.film.x_to_rgb
+	     + xyz.y * kernel_data.film.y_to_rgb
+	     + xyz.z * kernel_data.film.z_to_rgb;
+}
+
+ccl_device float3 scene_linear_to_xyz(KernelGlobals *kg, float3 c)
+{
+	return c.x * kernel_data.film.r_to_xyz
+	     + c.y * kernel_data.film.g_to_xyz
+	     + c.z * kernel_data.film.b_to_xyz;
+}
+
+ccl_device float scene_linear_to_gray(KernelGlobals *kg, float3 c)
+{
+	return kernel_data.film.r_to_xyz.y * c.x
+	     + kernel_data.film.g_to_xyz.y * c.y
+	     + kernel_data.film.b_to_xyz.y * c.z;
+}
+
+/* TODO(lukas): Is there a better approach? */
+ccl_device float3 hsv_to_scene_linear(KernelGlobals *kg, float3 hsv)
+{
+	return hsv_to_rec709(hsv);
+}
+
+ccl_device float3 scene_linear_to_hsv(KernelGlobals *kg, float3 c)
+{
+	return rec709_to_hsv(c);
+}
+
 ccl_device float4 film_map(KernelGlobals *kg, float4 irradiance, float scale)
 {
 	float exposure = kernel_data.film.exposure;

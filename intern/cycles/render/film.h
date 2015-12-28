@@ -57,6 +57,15 @@ public:
 	float filter_width;
 	size_t filter_table_offset;
 
+	/* Color space conversion between the scene linear space and CIE XYZ
+	 * In this context, xyz are the three components of XYZ space, while rgb are the components of the scene linear space.
+	 * This is pure notation, for example, XYZ could also be used as the scene linear space, in which case the two would be identical.
+	 * The float3's below always express one primary of the source space in the target space, so e.g. converting RGB->XYZ is done by:
+	 *     float3 xyz = R * r_to_xyz + G * g_to_xyz + B * b_to_xyz;
+	 */
+	float3 x_to_rgb, y_to_rgb, z_to_rgb;
+	float3 r_to_xyz, g_to_xyz, b_to_xyz;
+
 	float mist_start;
 	float mist_depth;
 	float mist_falloff;
