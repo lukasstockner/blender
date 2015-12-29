@@ -299,6 +299,19 @@ colorspaces:
     from_reference: !<MatrixTransform> {matrix: [0.4124564, 0.3575761, 0.1804375, 0, 0.2126729, 0.7151522, 0.0721750, 0, 0.0193339, 0.1191920, 0.9503041, 0, 0, 0, 0, 1]}
 
   - !<ColorSpace>
+    name: Linear Rec.2020
+    family:
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      Linear Rec.2020
+    isdata: false
+    from_reference: !<GroupTransform>
+      children:
+        - !<FileTransform> {src: srgb_to_xyz.spimtx, interpolation: linear}
+        - !<FileTransform> {src: xyz_to_rec2020.spimtx, interpolation: linear}
+
+  - !<ColorSpace>
     name: Linear BGR
     family:
     equalitygroup:

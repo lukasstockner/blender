@@ -38,7 +38,7 @@ void interp_weights(float t, float data[4]);
 float shaperadius(float shape, float root, float tip, float time);
 void InterpolateKeySegments(int seg, int segno, int key, int curve, float3 *keyloc, float *time, ParticleCurveData *CData);
 bool ObtainCacheParticleUV(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, ParticleCurveData *CData, bool background, int uv_num);
-bool ObtainCacheParticleVcol(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, ParticleCurveData *CData, bool background, int vcol_num);
+bool ObtainCacheParticleVcol(BL::RenderEngine, Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, ParticleCurveData *CData, bool background, int vcol_num);
 bool ObtainCacheParticleData(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, ParticleCurveData *CData, bool background);
 void ExportCurveSegments(Scene *scene, Mesh *mesh, ParticleCurveData *CData);
 void ExportCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData,
@@ -268,7 +268,7 @@ bool ObtainCacheParticleUV(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, Parti
 	return true;
 }
 
-bool ObtainCacheParticleVcol(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, ParticleCurveData *CData, bool background, int vcol_num)
+bool ObtainCacheParticleVcol(BL::RenderEngine b_engine, Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, ParticleCurveData *CData, bool background, int vcol_num)
 {
 	if(!(mesh && b_mesh && b_ob && CData))
 		return false;
@@ -307,10 +307,11 @@ bool ObtainCacheParticleVcol(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, Par
 					BL::Mesh::tessface_vertex_colors_iterator l;
 					b_mesh->tessface_vertex_colors.begin(l);
 
-					float3 vcol = make_float3(0.0f, 0.0f, 0.0f);
+					float vcol[3] = {0.0f, 0.0f, 0.0f};
 					if(b_mesh->tessface_vertex_colors.length())
-						b_psys.mcol_on_emitter(psmd, *b_pa, pa_no, vcol_num, &vcol.x);
-					CData->curve_vcol.push_back(vcol);
+						b_psys.mcol_on_emitter(psmd, *b_pa, pa_no, vcol_num, vcol);
+					b_engine.color_picker_to_scene_linear(vcol);
+					CData->curve_vcol.push_back(make_float3(vcol[0], vcol[1], vcol[2]));
 
 					if(pa_no < totparts && b_pa != b_psys.particles.end())
 						++b_pa;
@@ -764,17 +765,17 @@ void ExportCurveTriangleVcol(ParticleCurveData *CData, int vert_offset, int reso
 
 			for(int curvekey = CData->curve_firstkey[curve]; curvekey < CData->curve_firstkey[curve] + CData->curve_keynum[curve] - 1; curvekey++) {
 				for(int section = 0; section < resol; section++) {
-					cdata[vertexindex] = color_float_to_byte(color_srgb_to_linear(CData->curve_vcol[curve]));
+					cdata[vertexindex] = color_float_to_byte(CData->curve_vcol[curve]);
 					vertexindex++;
-					cdata[vertexindex] = color_float_to_byte(color_srgb_to_linear(CData->curve_vcol[curve]));
+					cdata[vertexindex] = color_float_to_byte(CData->curve_vcol[curve]);
 					vertexindex++;
-					cdata[vertexindex] = color_float_to_byte(color_srgb_to_linear(CData->curve_vcol[curve]));
+					cdata[vertexindex] = color_float_to_byte(CData->curve_vcol[curve]);
 					vertexindex++;
-					cdata[vertexindex] = color_float_to_byte(color_srgb_to_linear(CData->curve_vcol[curve]));
+					cdata[vertexindex] = color_float_to_byte(CData->curve_vcol[curve]);
 					vertexindex++;
-					cdata[vertexindex] = color_float_to_byte(color_srgb_to_linear(CData->curve_vcol[curve]));
+					cdata[vertexindex] = color_float_to_byte(CData->curve_vcol[curve]);
 					vertexindex++;
-					cdata[vertexindex] = color_float_to_byte(color_srgb_to_linear(CData->curve_vcol[curve]));
+					cdata[vertexindex] = color_float_to_byte(CData->curve_vcol[curve]);
 					vertexindex++;
 				}
 			}
@@ -958,7 +959,7 @@ void BlenderSync::sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool
 			if(!mesh->need_attribute(scene, ustring(l->name().c_str())))
 				continue;
 
-			ObtainCacheParticleVcol(mesh, &b_mesh, &b_ob, &CData, !preview, vcol_num);
+			ObtainCacheParticleVcol(b_engine, mesh, &b_mesh, &b_ob, &CData, !preview, vcol_num);
 
 			if(primitive == CURVE_TRIANGLES) {
 				Attribute *attr_vcol = mesh->attributes.add(
@@ -979,7 +980,7 @@ void BlenderSync::sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool
 
 					for(size_t curve = 0; curve < CData.curve_vcol.size(); curve++)
 						if(!(CData.curve_keynum[curve] <= 1 || CData.curve_length[curve] == 0.0f))
-							fdata[i++] = color_srgb_to_linear(CData.curve_vcol[curve]);
+							fdata[i++] = CData.curve_vcol[curve];
 				}
 			}
 		}

@@ -64,11 +64,12 @@ static BL::NodeSocket get_node_output(BL::Node b_node, const string& name)
 	return *b_out;
 }
 
-static float3 get_node_output_rgba(BL::Node b_node, const string& name)
+static float3 get_node_output_rgba(BL::RenderEngine b_engine, BL::Node b_node, const string& name)
 {
 	BL::NodeSocket b_sock = get_node_output(b_node, name);
 	float value[4];
 	RNA_float_get_array(&b_sock.ptr, "default_value", value);
+	b_engine.color_picker_to_scene_linear(value);
 	return make_float3(value[0], value[1], value[2]);
 }
 
@@ -133,7 +134,7 @@ static ShaderSocketType convert_osl_socket_type(OSL::OSLQuery& query,
 }
 #endif  /* WITH_OSL */
 
-static void set_default_value(ShaderInput *input, BL::NodeSocket b_sock, BL::BlendData b_data, BL::ID b_id)
+static void set_default_value(ShaderInput *input, BL::RenderEngine b_engine, BL::NodeSocket b_sock, BL::BlendData b_data, BL::ID b_id)
 {
 	/* copy values for non linked inputs */
 	switch(input->type) {
@@ -146,7 +147,10 @@ static void set_default_value(ShaderInput *input, BL::NodeSocket b_sock, BL::Ble
 		break;
 	}
 	case SHADER_SOCKET_COLOR: {
-		input->set(float4_to_float3(get_float4(b_sock.ptr, "default_value")));
+		float color[4];
+		RNA_float_get_array(&b_sock.ptr, "default_value", color);
+		b_engine.color_picker_to_scene_linear(color);
+		input->set(make_float3(color[0], color[1], color[2]));
 		break;
 	}
 	case SHADER_SOCKET_NORMAL:
@@ -249,7 +253,7 @@ static ShaderNode *add_node(Scene *scene,
 	}
 	else if(b_node.is_a(&RNA_ShaderNodeRGB)) {
 		ColorNode *color = new ColorNode();
-		color->value = get_node_output_rgba(b_node, "Color");
+		color->value = get_node_output_rgba(b_engine, b_node, "Color");
 		node = color;
 	}
 	else if(b_node.is_a(&RNA_ShaderNodeValue)) {
@@ -574,7 +578,7 @@ static ShaderNode *add_node(Scene *scene,
 				script_node->input_names.push_back(ustring(b_input->name()));
 				ShaderInput *input = script_node->add_input(script_node->input_names.back().c_str(),
 				                                            convert_osl_socket_type(query, *b_input));
-				set_default_value(input, *b_input, b_data, b_ntree);
+				set_default_value(input, b_engine, *b_input, b_data, b_ntree);
 			}
 
 			BL::Node::outputs_iterator b_output;
@@ -975,7 +979,7 @@ static void add_nodes(Scene *scene,
 
 				input_map[b_input->ptr.data] = proxy->inputs[0];
 
-				set_default_value(proxy->inputs[0], *b_input, b_data, b_ntree);
+				set_default_value(proxy->inputs[0], b_engine, *b_input, b_data, b_ntree);
 			}
 			for(b_node->outputs.begin(b_output); b_output != b_node->outputs.end(); ++b_output) {
 				ProxyNode *proxy = new ProxyNode(convert_socket_type(*b_output));
@@ -1022,7 +1026,7 @@ static void add_nodes(Scene *scene,
 
 						input_map[b_input->ptr.data] = proxy->inputs[0];
 
-						set_default_value(proxy->inputs[0], *b_input, b_data, b_ntree);
+						set_default_value(proxy->inputs[0], b_engine, *b_input, b_data, b_ntree);
 					}
 				}
 			}
@@ -1056,7 +1060,7 @@ static void add_nodes(Scene *scene,
 					}
 					input_map[b_input->ptr.data] = input;
 
-					set_default_value(input, *b_input, b_data, b_ntree);
+					set_default_value(input, b_engine, *b_input, b_data, b_ntree);
 				}
 				for(b_node->outputs.begin(b_output); b_output != b_node->outputs.end(); ++b_output) {
 					ShaderOutput *output = node_find_output_by_name(node, *b_node, *b_output);

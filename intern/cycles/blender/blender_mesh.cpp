@@ -270,7 +270,8 @@ static void create_mesh_volume_attributes(Scene *scene, BL::Object b_ob, Mesh *m
 }
 
 /* Create vertex color attributes. */
-static void attr_create_vertex_color(Scene *scene,
+static void attr_create_vertex_color(BL::RenderEngine b_engine,
+                                     Scene *scene,
                                      Mesh *mesh,
                                      BL::Mesh b_mesh,
                                      const vector<int>& nverts)
@@ -288,14 +289,23 @@ static void attr_create_vertex_color(Scene *scene,
 		size_t i = 0;
 
 		for(l->data.begin(c); c != l->data.end(); ++c, ++i) {
-			cdata[0] = color_float_to_byte(color_srgb_to_linear(get_float3(c->color1())));
-			cdata[1] = color_float_to_byte(color_srgb_to_linear(get_float3(c->color2())));
-			cdata[2] = color_float_to_byte(color_srgb_to_linear(get_float3(c->color3())));
+			float col[3];
+			c->color1(col);
+			b_engine.color_picker_to_scene_linear(col);
+			cdata[0] = color_float_to_byte(make_float3(col[0], col[1], col[2]));
+			c->color2(col);
+			b_engine.color_picker_to_scene_linear(col);
+			cdata[1] = color_float_to_byte(make_float3(col[0], col[1], col[2]));
+			c->color3(col);
+			b_engine.color_picker_to_scene_linear(col);
+			cdata[2] = color_float_to_byte(make_float3(col[0], col[1], col[2]));
 
 			if(nverts[i] == 4) {
 				cdata[3] = cdata[0];
 				cdata[4] = cdata[2];
-				cdata[5] = color_float_to_byte(color_srgb_to_linear(get_float3(c->color4())));
+				c->color4(col);
+				b_engine.color_picker_to_scene_linear(col);
+				cdata[5] = color_float_to_byte(make_float3(col[0], col[1], col[2]));
 				cdata += 6;
 			}
 			else
@@ -432,7 +442,7 @@ static void attr_create_pointiness(Scene *scene,
 
 /* Create Mesh */
 
-static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<uint>& used_shaders)
+static void create_mesh(BL::RenderEngine b_engine, Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<uint>& used_shaders)
 {
 	/* count vertices and faces */
 	int numverts = b_mesh.vertices.length();
@@ -534,7 +544,7 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 	/* Create all needed attributes.
 	 * The calculate functions will check whether they're needed or not.
 	 */
-	attr_create_vertex_color(scene, mesh, b_mesh, nverts);
+	attr_create_vertex_color(b_engine, scene, mesh, b_mesh, nverts);
 	attr_create_uv_map(scene, mesh, b_mesh, nverts);
 
 	/* for volume objects, create a matrix to transform from object space to
@@ -696,7 +706,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 				if(cmesh.data && experimental && RNA_boolean_get(&cmesh, "use_subdivision"))
 					create_subd_mesh(scene, mesh, b_mesh, &cmesh, used_shaders);
 				else
-					create_mesh(scene, mesh, b_mesh, used_shaders);
+					create_mesh(b_engine, scene, mesh, b_mesh, used_shaders);
 
 				create_mesh_volume_attributes(scene, b_ob, mesh, b_scene.frame_current());
 			}

@@ -524,6 +524,10 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	prop = RNA_def_float_matrix(func, "matrix", 3, 3, NULL, 0.0f, 0.0f, "Matrix", "CIE XYZ to scene linear color space matrix, depending on the OpenColorIO configuration", 0.0f, 0.0f);
 	RNA_def_property_flag(prop, PROP_REQUIRED);
 
+	func = RNA_def_function(srna, "color_picker_to_scene_linear", "RE_engine_get_color_picker_to_scene_linear");
+	prop = RNA_def_float_color(func, "color", 3, NULL, 0.0f, 0.0f, "Color", "Color to be converted from the Color Picker role to the Scene Linear OpenColorIO role", 0.0f, 0.0f);
+	RNA_def_property_flag(prop, PROP_REQUIRED);
+
 	func = RNA_def_function(srna, "update_stats", "RE_engine_update_stats");
 	RNA_def_function_ui_description(func, "Update and signal to redraw render status text");
 	prop = RNA_def_string(func, "stats", NULL, 0, "Stats", "");

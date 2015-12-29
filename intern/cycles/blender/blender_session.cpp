@@ -29,7 +29,6 @@
 #include "session.h"
 #include "shader.h"
 
-#include "util_color.h"
 #include "util_foreach.h"
 #include "util_function.h"
 #include "util_logging.h"

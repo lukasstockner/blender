@@ -397,6 +397,11 @@ void RE_engine_get_xyz_to_scene_linear_matrix(RenderEngine *UNUSED(engine), floa
 	IMB_colormanagement_xyz_to_scene_linear_m3((float (*)[3])r_matrix);
 }
 
+void RE_engine_get_color_picker_to_scene_linear(RenderEngine *UNUSED(engine), float *r_color)
+{
+	IMB_colormanagement_color_picker_to_scene_linear_v3(r_color);
+}
+
 rcti* RE_engine_get_current_tiles(Render *re, int *r_total_tiles, bool *r_needs_free)
 {
 	static rcti tiles_static[BLENDER_MAX_THREADS];

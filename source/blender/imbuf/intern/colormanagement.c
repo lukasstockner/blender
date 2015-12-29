@@ -1922,6 +1922,19 @@ void IMB_colormanagement_xyz_to_scene_linear_m3(float matrix[3][3])
 	}
 }
 
+void IMB_colormanagement_color_picker_to_scene_linear_v3(float color[3])
+{
+	if (global_role_color_picking[0])
+	{
+		ColormanageProcessor *cm_processor;
+		cm_processor = IMB_colormanagement_colorspace_processor_new(global_role_color_picking, global_role_scene_linear);
+
+		IMB_colormanagement_processor_apply_v3(cm_processor, color);
+
+		IMB_colormanagement_processor_free(cm_processor);
+	}
+}
+
 /* prepare image buffer to be saved on disk, applying color management if needed
  * color management would be applied if image is saving as render result and if
  * file format is not expecting float buffer to be in linear space (currently

@@ -110,6 +110,7 @@ void IMB_colormanagement_buffer_make_display_space(float *buffer, unsigned char 
                                                    const struct ColorManagedDisplaySettings *display_settings);
 
 void IMB_colormanagement_xyz_to_scene_linear_m3(float matrix[3][3]);
+void IMB_colormanagement_color_picker_to_scene_linear_v3(float color[3]);
 
 /* ** Public display buffers interfaces ** */
 
