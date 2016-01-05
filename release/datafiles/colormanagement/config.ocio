@@ -20,7 +20,7 @@ displays:
   sRGB / REC.709 Reference:
     - !<View> {name: sRGB D65 View, colorspace: sRGB D65}
     - !<View> {name: Linear sRGB D65 View, colorspace: Utility - Linear Color}
-    - !<View> {name: Raw View, colorspace: Utility - Raw}
+    - !<View> {name: Raw View, colorspace: Utility - Raw Data}
 
   DCI-P3 Reference:
     - !<View> {name: Apple iMac P3 (2015), colorspace: iMac P3 2015}
