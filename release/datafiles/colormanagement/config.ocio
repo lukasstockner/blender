@@ -21,6 +21,7 @@ displays:
     - !<View> {name: sRGB D65 View, colorspace: sRGB D65}
     - !<View> {name: Linear sRGB D65 View, colorspace: Utility - Linear Color}
     - !<View> {name: Raw View, colorspace: Utility - Raw Data}
+    - !<View> {name: Cineon Log View, colorspace: Cineon Log Curve}
 
   DCI-P3 Reference:
     - !<View> {name: Apple iMac P3 (2015), colorspace: iMac P3 2015}
@@ -47,8 +48,8 @@ colorspaces:
     equalitygroup:
     bitdepth: 32f
     isdata: false
-    allocation: uniform
-    allocationvars: [0, 1]
+    allocation: lg2
+    allocationvars: [-8, 5, 0.00390625]
 
 # Curves - Transfer curves
 
@@ -75,6 +76,18 @@ colorspaces:
     allocation: uniform
     allocationvars: [0, 1]
     to_reference: !<FileTransform> {src: AdobeRGB_to_linear.spi1d, interpolation: linear}
+
+  - !<ColorSpace>
+    name: Cineon Log Curve
+    family: Curves
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      Cineon log curve
+    isdata: false
+    allocation: uniform
+    allocationvars: [0, 1]
+    to_reference: !<FileTransform> {src: CineonLog_to_linear.spi1d, interpolation: linear}
 
 # Spaces - Fully defined spaces for transformations to and from
 
@@ -154,6 +167,11 @@ colorspaces:
 # Looks - Creative display referred looks. Should not be considered accurate for film emulation matching
 
 looks:
+  - !<Look>
+    name: Greyscale sRGB D65
+    process_space: Linear sRGB / REC.709 D65
+    transform: !<MatrixTransform> {matrix: [0.2126729, 0.7151521, 0.0721750, 0, 0.2126729, 0.7151521, 0.0721750, 0, 0.2126729, 0.7151521, 0.0721750, 0, 0, 0, 0, 1]}
+
   - !<Look>
     name: Agfa Agfacolor Futura 100
     process_space: Linear sRGB / REC.709 D65
