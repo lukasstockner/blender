@@ -217,6 +217,12 @@ Device *Device::create(DeviceInfo& info, Stats &stats, bool background)
 			else
 				device = NULL;
 			break;
+		case DEVICE_CUDA_SPLIT:
+			if(device_cuda_split_init())
+				device = device_cuda_split_create(info, stats, background);
+			else
+				device = NULL;
+			break;
 #endif
 #ifdef WITH_MULTI
 		case DEVICE_MULTI:
@@ -315,6 +321,8 @@ vector<DeviceInfo>& Device::available_devices()
 #ifdef WITH_CUDA
 		if(device_cuda_init())
 			device_cuda_info(devices);
+		//if(device_cuda_split_init())
+		//	device_cuda_split_info(devices);
 #endif
 
 #ifdef WITH_OPENCL

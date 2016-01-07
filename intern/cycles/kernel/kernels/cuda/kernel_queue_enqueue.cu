@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#define __KERNEL_CUDA__
+#define __KERNEL_CUDA_SPLIT__
+#define __SPLIT_KERNEL__
 
-#include "../../kernel_compat_opencl.h"
-#include "../../kernel_math.h"
-#include "../../kernel_types.h"
-#include "../../kernel_globals.h"
-#include "../../kernel_queues.h"
+#include "split/kernel_split_common.h"
 
 /*
  * The kernel "kernel_queue_enqueue" enqueues rays of
@@ -51,7 +50,7 @@
  * QUEUE_ACTIVE_AND_REGENERATED_RAYS will be filled with RAY_ACTIVE rays.
  * QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS will be filled with RAY_TO_REGENERATE, RAY_UPDATE_BUFFER, RAY_HIT_BACKGROUND rays.
  */
-__kernel void kernel_ocl_path_trace_queue_enqueue(
+__global__ void kernel_cuda_path_trace_queue_enqueue(
         ccl_global int *Queue_data,   /* Queue memory */
         ccl_global int *Queue_index,  /* Tracks the number of elements in each queue */
         ccl_global char *ray_state,   /* Denotes the state of each ray */
@@ -60,13 +59,13 @@ __kernel void kernel_ocl_path_trace_queue_enqueue(
 	/* We have only 2 cases (Hit/Not-Hit) */
 	ccl_local_var unsigned int local_queue_atomics[2];
 
-	int lidx = get_local_id(1) * get_local_size(0) + get_local_id(0);
-	int ray_index = get_global_id(1) * get_global_size(0) + get_global_id(0);
+	int lidx = ccl_local_thread_y*ccl_local_size_x + ccl_local_thread_x;
+	int ray_index = ccl_thread_y*ccl_size_x + ccl_thread_x;
 
 	if(lidx < 2 ) {
 		local_queue_atomics[lidx] = 0;
 	}
-	barrier(CLK_LOCAL_MEM_FENCE);
+	ccl_local_barrier();
 
 	int queue_number = -1;
 
@@ -81,7 +80,7 @@ __kernel void kernel_ocl_path_trace_queue_enqueue(
 	if(queue_number != -1) {
 		my_lqidx = get_local_queue_index(queue_number, local_queue_atomics);
 	}
-	barrier(CLK_LOCAL_MEM_FENCE);
+	ccl_local_barrier();
 
 	if(lidx == 0) {
 		local_queue_atomics[QUEUE_ACTIVE_AND_REGENERATED_RAYS] =
@@ -93,7 +92,7 @@ __kernel void kernel_ocl_path_trace_queue_enqueue(
 		                                    local_queue_atomics,
 		                                    Queue_index);
 	}
-	barrier(CLK_LOCAL_MEM_FENCE);
+	ccl_local_barrier();
 
 	unsigned int my_gqidx;
 	if(queue_number != -1) {

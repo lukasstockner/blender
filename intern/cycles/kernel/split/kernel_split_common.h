@@ -17,7 +17,11 @@
 #ifndef  __KERNEL_SPLIT_H__
 #define  __KERNEL_SPLIT_H__
 
+#ifdef __KERNEL_CUDA__
+#include "kernel_compat_cuda_split.h"
+#else
 #include "kernel_compat_opencl.h"
+#endif
 #include "kernel_math.h"
 #include "kernel_types.h"
 #include "kernel_globals.h"

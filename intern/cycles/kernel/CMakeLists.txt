@@ -208,16 +208,16 @@ if(WITH_CYCLES_CUDA_BINARIES)
 	endif()
 
 	# build for each arch
-	set(cuda_sources kernels/cuda/kernel.cu ${SRC_HEADERS} ${SRC_SVM_HEADERS} ${SRC_GEOM_HEADERS} ${SRC_CLOSURE_HEADERS} ${SRC_UTIL_HEADERS})
+	set(cuda_sources kernels/cuda/kernel.cu ${SRC_HEADERS} ${SRC_SVM_HEADERS} ${SRC_GEOM_HEADERS} ${SRC_CLOSURE_HEADERS} ${SRC_UTIL_HEADERS} ${SRC_SPLIT_HEADERS})
 	set(cuda_cubins)
 
-	macro(CYCLES_CUDA_KERNEL_ADD arch experimental)
+	macro(CYCLES_CUDA_KERNEL_ADD arch experimental name)
 		if(${experimental})
 			set(cuda_extra_flags "-D__KERNEL_EXPERIMENTAL__")
-			set(cuda_cubin kernel_experimental_${arch}.cubin)
+			set(cuda_cubin ${name}_experimental_${arch}.cubin)
 		else()
 			set(cuda_extra_flags "")
-			set(cuda_cubin kernel_${arch}.cubin)
+			set(cuda_cubin ${name}_${arch}.cubin)
 		endif()
 
 		if(WITH_CYCLES_DEBUG)
@@ -234,7 +234,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
 			COMMAND ${CUDA_NVCC_EXECUTABLE}
 					-arch=${arch}
 					-m${CUDA_BITS}
-					--cubin ${CMAKE_CURRENT_SOURCE_DIR}/kernels/cuda/kernel.cu
+					--cubin ${CMAKE_CURRENT_SOURCE_DIR}/kernels/cuda/${name}.cu
 					-o ${CMAKE_CURRENT_BINARY_DIR}/${cuda_cubin}
 					--ptxas-options="-v"
 					${cuda_arch_flags}
@@ -244,6 +244,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
 					${cuda_debug_flags}
 					-I${CMAKE_CURRENT_SOURCE_DIR}/../util
 					-I${CMAKE_CURRENT_SOURCE_DIR}/svm
+					-I${CMAKE_CURRENT_SOURCE_DIR}
 					-DCCL_NAMESPACE_BEGIN=
 					-DCCL_NAMESPACE_END=
 					-DNVCC
@@ -259,10 +260,20 @@ if(WITH_CYCLES_CUDA_BINARIES)
 
 	foreach(arch ${CYCLES_CUDA_BINARIES_ARCH})
 		# Compile regular kernel
-		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE)
+		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel_data_init)
+		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel_scene_intersect)
+		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel_lamp_emission)
+		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel_queue_enqueue)
+		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel_background_buffer_update)
+		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel_shader_eval)
+		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel_holdout_emission_blurring_pathtermination_ao)
+		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel_direct_lighting)
+		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel_shadow_blocked)
+		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel_next_iteration_setup)
+		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel)
 
 		# Compile experimental kernel
-		CYCLES_CUDA_KERNEL_ADD(${arch} TRUE)
+		CYCLES_CUDA_KERNEL_ADD(${arch} TRUE kernel)
 	endforeach()
 
 	add_custom_target(cycles_kernel_cuda ALL DEPENDS ${cuda_cubins})

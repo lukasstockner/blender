@@ -80,9 +80,11 @@ CCL_NAMESPACE_BEGIN
 #ifdef __KERNEL_CUDA__
 #define __KERNEL_SHADING__
 #define __KERNEL_ADV_SHADING__
+#ifndef __SPLIT_KERNEL__
 #define __BRANCHED_PATH__
 #define __VOLUME__
 #define __VOLUME_SCATTER__
+#endif
 
 /* Experimental on GPU */
 #ifdef __KERNEL_EXPERIMENTAL__
@@ -696,7 +698,11 @@ struct KernelGlobals;
 #ifdef __SPLIT_KERNEL__
 #define SD_VAR(type, what) ccl_global type *what;
 #define SD_CLOSURE_VAR(type, what, max_closure) type *what;
+#ifdef __KERNEL_OPENCL__
 #define TIDX (get_global_id(1) * get_global_size(0) + get_global_id(0))
+#else
+#define TIDX ((blockIdx.y*blockDim.y+threadIdx.y)*(gridDim.x*blockDim.x) + blockIdx.x*blockDim.x+threadIdx.x)
+#endif
 #define ccl_fetch(s, t) (s->t[TIDX])
 #define ccl_fetch_array(s, t, index) (&s->t[TIDX * MAX_CLOSURE + index])
 #else

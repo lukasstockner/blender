@@ -21,8 +21,10 @@
  * Queue utility functions for split kernel
  */
 
+#ifdef __KERNEL_OPENCL__
 #pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics : enable
 #pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics : enable
+#endif
 
 /*
  * Enqueue ray index into the queue
@@ -72,20 +74,20 @@ ccl_device void enqueue_ray_index_local(
         ccl_global int *Queue_data,                  /* Queues. */
         ccl_global int *Queue_index)                 /* To do global queue atomics. */
 {
-	int lidx = get_local_id(1) * get_local_size(0) + get_local_id(0);
+	int lidx = ccl_local_thread_y*ccl_local_size_x + ccl_local_thread_x;
 
 	/* Get local queue id .*/
 	unsigned int lqidx;
 	if(enqueue_flag) {
 		lqidx = atomic_inc(local_queue_atomics);
 	}
-	barrier(CLK_LOCAL_MEM_FENCE);
+	ccl_local_barrier();
 
 	/* Get global queue offset. */
 	if(lidx == 0) {
 		*local_queue_atomics = atomic_add(&Queue_index[queue_number], *local_queue_atomics);
 	}
-	barrier(CLK_LOCAL_MEM_FENCE);
+	ccl_local_barrier();
 
 	/* Get global queue index and enqueue ray. */
 	if(enqueue_flag) {

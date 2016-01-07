@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#define __KERNEL_CUDA__
+#define __KERNEL_CUDA_SPLIT__
+#define __SPLIT_KERNEL__
 
 #include "split/kernel_direct_lighting.h"
 
-__kernel void kernel_ocl_path_trace_direct_lighting(
+__global__ void kernel_cuda_path_trace_direct_lighting(
         ccl_global char *kg,
         ccl_constant KernelData *data,
         ccl_global char *sd,                    /* Required for direct lighting */
@@ -32,35 +35,20 @@ __kernel void kernel_ocl_path_trace_direct_lighting(
         int queuesize)                          /* Size (capacity) of each queue */
 {
 	ccl_local_var unsigned int local_queue_atomics;
-	if(get_local_id(0) == 0 && get_local_id(1) == 0) {
+	if(ccl_local_thread_x == 0 && ccl_local_thread_y == 0) {
 		local_queue_atomics = 0;
 	}
-	barrier(CLK_LOCAL_MEM_FENCE);
+	ccl_local_barrier();
 
 	char enqueue_flag = 0;
-	int ray_index = get_global_id(1) * get_global_size(0) + get_global_id(0);
+	int ray_index = ccl_thread_y*ccl_size_x + ccl_thread_x;
 	ray_index = get_ray_index(ray_index,
 	                          QUEUE_ACTIVE_AND_REGENERATED_RAYS,
 	                          Queue_data,
 	                          queuesize,
 	                          0);
 
-#ifdef __COMPUTE_DEVICE_GPU__
-	/* If we are executing on a GPU device, we exit all threads that are not
-	 * required.
-	 *
-	 * If we are executing on a CPU device, then we need to keep all threads
-	 * active since we have barrier() calls later in the kernel. CPU devices,
-	 * expect all threads to execute barrier statement.
-	 */
-	if(ray_index == QUEUE_EMPTY_SLOT) {
-		return;
-	}
-#endif
-
-#ifndef __COMPUTE_DEVICE_GPU__
 	if(ray_index != QUEUE_EMPTY_SLOT) {
-#endif
 		enqueue_flag = kernel_direct_lighting((KernelGlobals *)kg,
 		                                      (ShaderData *)sd,
 		                                      (ShaderData *)sd_DL,
@@ -72,9 +60,7 @@ __kernel void kernel_ocl_path_trace_direct_lighting(
 		                                      ray_state,
 		                                      ray_index);
 
-#ifndef __COMPUTE_DEVICE_GPU__
 	}
-#endif
 
 #ifdef __EMISSION__
 	/* Enqueue RAY_SHADOW_RAY_CAST_DL rays. */

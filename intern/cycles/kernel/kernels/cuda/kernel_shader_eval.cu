@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#define __KERNEL_CUDA__
+#define __KERNEL_CUDA_SPLIT__
+#define __SPLIT_KERNEL__
 
 #include "split/kernel_shader_eval.h"
 
-__kernel void kernel_ocl_path_trace_shader_eval(
+__global__ void kernel_cuda_path_trace_shader_eval(
         ccl_global char *kg,
         ccl_constant KernelData *data,
         ccl_global char *sd,                   /* Output ShaderData structure to be filled */
@@ -31,21 +34,24 @@ __kernel void kernel_ocl_path_trace_shader_eval(
 {
 	/* Enqeueue RAY_TO_REGENERATE rays into QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS queue. */
 	ccl_local_var unsigned int local_queue_atomics;
-	if(get_local_id(0) == 0 && get_local_id(1) == 0) {
+	if(ccl_local_thread_x == 0 && ccl_local_thread_y == 0) {
 		local_queue_atomics = 0;
 	}
-	barrier(CLK_LOCAL_MEM_FENCE);
+	ccl_local_barrier();
 
-	int ray_index = get_global_id(1) * get_global_size(0) + get_global_id(0);
+	int ray_index = ccl_thread_y*ccl_size_x + ccl_thread_x;
 	ray_index = get_ray_index(ray_index,
 	                          QUEUE_ACTIVE_AND_REGENERATED_RAYS,
 	                          Queue_data,
 	                          queuesize,
 	                          0);
 
+	/* TODO(lukas): Seems to conflict with queue code below? */
+#if 0
 	if(ray_index == QUEUE_EMPTY_SLOT) {
 		return;
 	}
+#endif
 
 	char enqueue_flag = (IS_STATE(ray_state, ray_index, RAY_TO_REGENERATE)) ? 1 : 0;
 	enqueue_ray_index_local(ray_index,

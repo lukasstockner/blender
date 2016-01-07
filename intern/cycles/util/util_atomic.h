@@ -59,6 +59,29 @@ ccl_device_inline void atomic_add_float(volatile ccl_global float *source,
 }
 
 #endif  /* __KERNEL_OPENCL__ */
+#ifdef __KERNEL_CUDA__
+
+ccl_device_inline void atomic_add_float(float *source, const float operand)
+{
+	atomicAdd(source, operand);
+}
+
+ccl_device_inline int atomic_inc(int *data)
+{
+	return  atomicAdd(data, 1);
+}
+
+ccl_device_inline unsigned int atomic_inc(unsigned int *data)
+{
+	return  atomicAdd(data, 1);
+}
+
+ccl_device_inline int atomic_add(int *data, int val)
+{
+	return atomicAdd(data, val);
+}
+
+#endif  /* __KERNEL_CUDA__ */
 
 #endif  /* __KERNEL_GPU__ */
 

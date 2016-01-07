@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#define __KERNEL_CUDA__
+#define __KERNEL_CUDA_SPLIT__
+#define __SPLIT_KERNEL__
 
 #include "split/kernel_holdout_emission_blurring_pathtermination_ao.h"
 
-__kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_ao(
+__global__ void kernel_cuda_path_trace_holdout_emission_blurring_pathtermination_ao(
         ccl_global char *kg,
         ccl_constant KernelData *data,
         ccl_global char *sd,                   /* Required throughout the kernel except probabilistic path termination and AO */
@@ -43,37 +46,24 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_ao
 {
 	ccl_local_var unsigned int local_queue_atomics_bg;
 	ccl_local_var unsigned int local_queue_atomics_ao;
-	if(get_local_id(0) == 0 && get_local_id(1) == 0) {
+	if(ccl_local_thread_x == 0 && ccl_local_thread_y == 0) {
 		local_queue_atomics_bg = 0;
 		local_queue_atomics_ao = 0;
 	}
-	barrier(CLK_LOCAL_MEM_FENCE);
+	ccl_local_barrier();
 
 	char enqueue_flag = 0;
 	char enqueue_flag_AO_SHADOW_RAY_CAST = 0;
-	int ray_index = get_global_id(1) * get_global_size(0) + get_global_id(0);
+	int ray_index = ccl_thread_y*ccl_size_x + ccl_thread_x;
 	ray_index = get_ray_index(ray_index,
 	                          QUEUE_ACTIVE_AND_REGENERATED_RAYS,
 	                          Queue_data,
 	                          queuesize,
 	                          0);
 
-#ifdef __COMPUTE_DEVICE_GPU__
-	/* If we are executing on a GPU device, we exit all threads that are not
-	 * required.
-	 *
-	 * If we are executing on a CPU device, then we need to keep all threads
-	 * active since we have barrier() calls later in the kernel. CPU devices,
-	 * expect all threads to execute barrier statement.
-	 */
-	if(ray_index == QUEUE_EMPTY_SLOT) {
-		return;
-	}
-#endif  /* __COMPUTE_DEVICE_GPU__ */
+	/* TODO(lukas): Maybe exit earlier? barrier is problematic, though... */
 
-#ifndef __COMPUTE_DEVICE_GPU__
 	if(ray_index != QUEUE_EMPTY_SLOT) {
-#endif
 		kernel_holdout_emission_blurring_pathtermination_ao(
 		        (KernelGlobals *)kg,
 		        (ShaderData *)sd,
@@ -97,9 +87,7 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_ao
 		        ray_index,
 		        &enqueue_flag,
 		        &enqueue_flag_AO_SHADOW_RAY_CAST);
-#ifndef __COMPUTE_DEVICE_GPU__
 	}
-#endif
 
 	/* Enqueue RAY_UPDATE_BUFFER rays. */
 	enqueue_ray_index_local(ray_index,

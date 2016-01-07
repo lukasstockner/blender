@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#define __KERNEL_CUDA__
+#define __KERNEL_CUDA_SPLIT__
+#define __SPLIT_KERNEL__
 
 #include "split/kernel_shadow_blocked.h"
 
-__kernel void kernel_ocl_path_trace_shadow_blocked(
+__global__ void kernel_cuda_path_trace_shadow_blocked(
         ccl_global char *kg,
         ccl_constant KernelData *data,
         ccl_global char *sd_shadow,            /* Required for shadow blocked */
@@ -31,16 +34,8 @@ __kernel void kernel_ocl_path_trace_shadow_blocked(
         int queuesize,                         /* Size (capacity) of each queue */
         int total_num_rays)
 {
-#if 0
-	/* We will make the Queue_index entries '0' in the next kernel. */
-	if(get_global_id(0) == 0 && get_global_id(1) == 0) {
-		/* We empty this queue here */
-		Queue_index[QUEUE_SHADOW_RAY_CAST_AO_RAYS] = 0;
-		Queue_index[QUEUE_SHADOW_RAY_CAST_DL_RAYS] = 0;
-	}
-#endif
 
-	int lidx = get_local_id(1) * get_local_id(0) + get_local_id(0);
+	int lidx = ccl_local_thread_y*ccl_local_size_x + ccl_local_thread_x;
 
 	ccl_local_var unsigned int ao_queue_length;
 	ccl_local_var unsigned int dl_queue_length;
@@ -48,13 +43,13 @@ __kernel void kernel_ocl_path_trace_shadow_blocked(
 		ao_queue_length = Queue_index[QUEUE_SHADOW_RAY_CAST_AO_RAYS];
 		dl_queue_length = Queue_index[QUEUE_SHADOW_RAY_CAST_DL_RAYS];
 	}
-	barrier(CLK_LOCAL_MEM_FENCE);
+	ccl_local_barrier();
 
 	/* flag determining if the current ray is to process shadow ray for AO or DL */
 	char shadow_blocked_type = -1;
 
 	int ray_index = QUEUE_EMPTY_SLOT;
-	int thread_index = get_global_id(1) * get_global_size(0) + get_global_id(0);
+	int thread_index = ccl_thread_y*ccl_size_x + ccl_thread_x;
 	if(thread_index < ao_queue_length + dl_queue_length) {
 		if(thread_index < ao_queue_length) {
 			ray_index = get_ray_index(thread_index, QUEUE_SHADOW_RAY_CAST_AO_RAYS, Queue_data, queuesize, 1);

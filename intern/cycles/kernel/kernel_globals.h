@@ -61,7 +61,7 @@ typedef struct KernelGlobals {
  * globals and simply pass along a NULL pointer everywhere, which we hope gets
  * optimized out. */
 
-#ifdef __KERNEL_CUDA__
+#if defined(__KERNEL_CUDA__)
 
 __constant__ KernelData __data;
 typedef struct KernelGlobals {} KernelGlobals;
@@ -78,7 +78,7 @@ typedef struct KernelGlobals {} KernelGlobals;
 
 /* OpenCL */
 
-#ifdef __KERNEL_OPENCL__
+#if defined(__KERNEL_OPENCL__)
 
 typedef ccl_addr_space struct KernelGlobals {
 	ccl_constant KernelData *data;

@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#define __KERNEL_CUDA__
+#define __KERNEL_CUDA_SPLIT__
+#define __SPLIT_KERNEL__
 
 #include "split/kernel_scene_intersect.h"
 
-__kernel void kernel_ocl_path_trace_scene_intersect(
+__global__ void kernel_cuda_path_trace_scene_intersect(
         ccl_global char *kg,
         ccl_constant KernelData *data,
         ccl_global uint *rng_coop,
@@ -35,19 +38,19 @@ __kernel void kernel_ocl_path_trace_scene_intersect(
 #endif
         int parallel_samples)                  /* Number of samples to be processed in parallel */
 {
-	int x = get_global_id(0);
-	int y = get_global_id(1);
+	int x = ccl_thread_x;
+	int y = ccl_thread_y;
 
 	/* Fetch use_queues_flag */
 	ccl_local_var char local_use_queues_flag;
-	if(get_local_id(0) == 0 && get_local_id(1) == 0) {
+	if(ccl_local_thread_x == 0 && ccl_local_thread_y == 0) {
 		local_use_queues_flag = use_queues_flag[0];
 	}
-	barrier(CLK_LOCAL_MEM_FENCE);
+	ccl_local_barrier();
 
 	int ray_index;
 	if(local_use_queues_flag) {
-		int thread_index = get_global_id(1) * get_global_size(0) + get_global_id(0);
+		int thread_index = ccl_thread_y*ccl_size_x + ccl_thread_x;
 		ray_index = get_ray_index(thread_index,
 		                          QUEUE_ACTIVE_AND_REGENERATED_RAYS,
 		                          Queue_data,

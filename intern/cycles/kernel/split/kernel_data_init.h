@@ -152,10 +152,11 @@ ccl_device void kernel_data_init(
         ccl_global Ray *Ray_coop,                    /* Ray array to store Ray information for all rays */
         ccl_global PathState *PathState_coop,        /* PathState array to store PathState information for all rays */
         ccl_global char *ray_state,                  /* Stores information on current state of a ray */
-
+#ifdef __KERNEL_OPENCL__
 #define KERNEL_TEX(type, ttype, name)                                   \
         ccl_global type *name,
 #include "../kernel_textures.h"
+#endif
 
         int start_sample, int sx, int sy, int sw, int sh, int offset, int stride,
         int rng_state_offset_x,
@@ -175,10 +176,12 @@ ccl_device void kernel_data_init(
 #endif
         int parallel_samples)                        /* Number of samples to be processed in parallel */
 {
+#ifdef __KERNEL_OPENCL__
 	kg->data = data;
 #define KERNEL_TEX(type, ttype, name) \
 	kg->name = name;
 #include "../kernel_textures.h"
+#endif
 
 	sd->P = P_sd;
 	sd_DL_shadow->P = P_sd_DL_shadow;
@@ -269,7 +272,7 @@ ccl_device void kernel_data_init(
 	sd->ray_dP = ray_dP_sd;
 	sd_DL_shadow->ray_dP = ray_dP_sd_DL_shadow;
 
-	int thread_index = get_global_id(1) * get_global_size(0) + get_global_id(0);
+	int thread_index = ccl_thread_y*ccl_size_x + ccl_thread_x;
 
 #ifdef __WORK_STEALING__
 	int lid = get_local_id(1) * get_local_size(0) + get_local_id(0);
@@ -304,8 +307,8 @@ ccl_device void kernel_data_init(
 		use_queues_flag[0] = 0;
 	}
 
-	int x = get_global_id(0);
-	int y = get_global_id(1);
+	int x = ccl_thread_x;
+	int y = ccl_thread_y;
 
 	if(x < (sw * parallel_samples) && y < sh) {
 		int ray_index = x + y * (sw * parallel_samples);
@@ -400,7 +403,7 @@ ccl_device void kernel_data_init(
 	}
 
 	/* Mark rest of the ray-state indices as RAY_INACTIVE. */
-	if(thread_index < (get_global_size(0) * get_global_size(1)) - (sh * (sw * parallel_samples))) {
+	if(thread_index < (ccl_size_x*ccl_size_y) - (sh * (sw * parallel_samples))) {
 		/* First assignment, hence we dont use ASSIGN_RAY_STATE macro */
 		ray_state[((sw * parallel_samples) * sh) + thread_index] = RAY_INACTIVE;
 	}

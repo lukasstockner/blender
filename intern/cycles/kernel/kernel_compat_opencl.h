@@ -39,12 +39,27 @@
 #define ccl_global __global
 #define ccl_local __local
 #define ccl_private __private
+#define ccl_local_var __local
 
 #ifdef __SPLIT_KERNEL__
 #define ccl_addr_space __global
 #else
 #define ccl_addr_space
 #endif
+
+#define ccl_thread_x get_global_id(0)
+#define ccl_thread_y get_global_id(1)
+#define ccl_local_thread_x get_local_id(0)
+#define ccl_local_thread_y get_local_id(1)
+#define ccl_size_x get_global_size(0)
+#define ccl_size_y get_global_size(1)
+#define ccl_local_size_x get_local_size(0)
+#define ccl_local_size_y get_local_size(1)
+
+ccl_device_inline void ccl_local_barrier()
+{
+	barrier(CLK_LOCAL_MEM_FENCE);
+}
 
 /* Selective nodes compilation. */
 #ifndef __NODES_MAX_GROUP__
