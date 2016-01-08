@@ -2570,7 +2570,7 @@ public:
 			/* TODO(sergey): This will actually over-allocate if
 			 * particular kernel does not support multiclosure.
 			 */
-			size_t ShaderClosure_size = get_shader_closure_size(current_max_closure);
+			size_t ShaderClosure_size = get_shader_closure_size(16);
 
 #ifdef __WORK_STEALING__
 			/* Calculate max groups */

@@ -73,7 +73,7 @@ typedef texture<float4, 2> texture_image_float4;
 typedef texture<uchar4, 2, cudaReadModeNormalizedFloat> texture_image_uchar4;
 
 #define ccl_thread_x (blockIdx.x*blockDim.x + threadIdx.x)
-#define ccl_thread_y (blockIdx.x*blockDim.x + threadIdx.x)
+#define ccl_thread_y (blockIdx.y*blockDim.y + threadIdx.y)
 #define ccl_local_thread_x threadIdx.x
 #define ccl_local_thread_y threadIdx.y
 #define ccl_size_x (gridDim.x*blockDim.x)

@@ -59,7 +59,6 @@ ccl_device void kernel_shader_eval(
 		ccl_global uint *rng = &rng_coop[ray_index];
 		ccl_global PathState *state = &PathState_coop[ray_index];
 		Ray ray = Ray_coop[ray_index];
-
 		shader_setup_from_ray(kg,
 		                      sd,
 		                      isect,

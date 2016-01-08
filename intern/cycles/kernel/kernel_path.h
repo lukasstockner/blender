@@ -497,7 +497,7 @@ ccl_device bool kernel_path_subsurface_scatter(
 			hit_state->rng_offset += PRNG_BOUNCE_NUM;
 
 			path_radiance_init(hit_L, kernel_data.film.use_light_pass);
-			hit_L->direct_throughput = L->direct_throughput;
+			//hit_L->direct_throughput = L->direct_throughput;
 			path_radiance_copy_indirect(hit_L, L);
 
 			kernel_path_surface_connect_light(kg, rng, sd, *hit_tp, state, hit_L);

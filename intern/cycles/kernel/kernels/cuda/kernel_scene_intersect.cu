@@ -19,9 +19,8 @@
 
 #include "split/kernel_scene_intersect.h"
 
+extern "C" 
 __global__ void kernel_cuda_path_trace_scene_intersect(
-        ccl_global char *kg,
-        ccl_constant KernelData *data,
         ccl_global uint *rng_coop,
         ccl_global Ray *Ray_coop,              /* Required for scene_intersect */
         ccl_global PathState *PathState_coop,  /* Required for scene_intersect */
@@ -33,10 +32,11 @@ __global__ void kernel_cuda_path_trace_scene_intersect(
         int queuesize,                         /* Size (capacity) of queues */
         ccl_global char *use_queues_flag,      /* used to decide if this kernel should use
                                                 * queues to fetch ray index */
+        int parallel_samples                   /* Number of samples to be processed in parallel */
 #ifdef __KERNEL_DEBUG__
-        DebugData *debugdata_coop,
+        , DebugData *debugdata_coop
 #endif
-        int parallel_samples)                  /* Number of samples to be processed in parallel */
+)
 {
 	int x = ccl_thread_x;
 	int y = ccl_thread_y;
@@ -67,8 +67,7 @@ __global__ void kernel_cuda_path_trace_scene_intersect(
 			return;
 		}
 	}
-
-	kernel_scene_intersect((KernelGlobals *)kg,
+	kernel_scene_intersect(NULL,
 	                       rng_coop,
 	                       Ray_coop,
 	                       PathState_coop,

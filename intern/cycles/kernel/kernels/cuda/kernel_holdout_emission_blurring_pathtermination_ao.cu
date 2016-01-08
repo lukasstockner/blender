@@ -19,9 +19,8 @@
 
 #include "split/kernel_holdout_emission_blurring_pathtermination_ao.h"
 
+extern "C" 
 __global__ void kernel_cuda_path_trace_holdout_emission_blurring_pathtermination_ao(
-        ccl_global char *kg,
-        ccl_constant KernelData *data,
         ccl_global char *sd,                   /* Required throughout the kernel except probabilistic path termination and AO */
         ccl_global float *per_sample_output_buffers,
         ccl_global uint *rng_coop,             /* Required for "kernel_write_data_passes" and AO */
@@ -39,11 +38,11 @@ __global__ void kernel_cuda_path_trace_holdout_emission_blurring_pathtermination
         ccl_global int *Queue_data,            /* Queue memory */
         ccl_global int *Queue_index,           /* Tracks the number of elements in each queue */
         int queuesize,                         /* Size (capacity) of each queue */
+        int parallel_samples                   /* Number of samples to be processed in parallel */
 #ifdef __WORK_STEALING__
-        unsigned int start_sample,
+        , unsigned int start_sample
 #endif
-        int parallel_samples)                  /* Number of samples to be processed in parallel */
-{
+) {
 	ccl_local_var unsigned int local_queue_atomics_bg;
 	ccl_local_var unsigned int local_queue_atomics_ao;
 	if(ccl_local_thread_x == 0 && ccl_local_thread_y == 0) {
@@ -65,7 +64,7 @@ __global__ void kernel_cuda_path_trace_holdout_emission_blurring_pathtermination
 
 	if(ray_index != QUEUE_EMPTY_SLOT) {
 		kernel_holdout_emission_blurring_pathtermination_ao(
-		        (KernelGlobals *)kg,
+		        NULL,
 		        (ShaderData *)sd,
 		        per_sample_output_buffers,
 		        rng_coop,

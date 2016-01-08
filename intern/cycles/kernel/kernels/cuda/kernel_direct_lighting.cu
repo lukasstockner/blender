@@ -19,9 +19,8 @@
 
 #include "split/kernel_direct_lighting.h"
 
+extern "C" 
 __global__ void kernel_cuda_path_trace_direct_lighting(
-        ccl_global char *kg,
-        ccl_constant KernelData *data,
         ccl_global char *sd,                    /* Required for direct lighting */
         ccl_global char *sd_DL,                 /* Required for direct lighting */
         ccl_global uint *rng_coop,              /* Required for direct lighting */
@@ -49,7 +48,7 @@ __global__ void kernel_cuda_path_trace_direct_lighting(
 	                          0);
 
 	if(ray_index != QUEUE_EMPTY_SLOT) {
-		enqueue_flag = kernel_direct_lighting((KernelGlobals *)kg,
+		enqueue_flag = kernel_direct_lighting(NULL,
 		                                      (ShaderData *)sd,
 		                                      (ShaderData *)sd_DL,
 		                                      rng_coop,

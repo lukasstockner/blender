@@ -19,9 +19,8 @@
 
 #include "split/kernel_background_buffer_update.h"
 
+extern "C" 
 __global__ void kernel_cuda_path_trace_background_buffer_update(
-        ccl_global char *kg,
-        ccl_constant KernelData *data,
         ccl_global char *sd,
         ccl_global float *per_sample_output_buffers,
         ccl_global uint *rng_state,
@@ -42,15 +41,15 @@ __global__ void kernel_cuda_path_trace_background_buffer_update(
         int queuesize,                         /* Size (capacity) of each queue */
         int end_sample,
         int start_sample,
+        int parallel_samples                  /* Number of samples to be processed in parallel */
 #ifdef __WORK_STEALING__
-        ccl_global unsigned int *work_pool_wgs,
-        unsigned int num_samples,
+        , ccl_global unsigned int *work_pool_wgs,
+        unsigned int num_samples
 #endif
 #ifdef __KERNEL_DEBUG__
-        DebugData *debugdata_coop,
+        , DebugData *debugdata_coop
 #endif
-        int parallel_samples)                  /* Number of samples to be processed in parallel */
-{
+) {
 	ccl_local_var unsigned int local_queue_atomics;
 	if(ccl_local_thread_x == 0 && ccl_local_thread_y == 0) {
 		local_queue_atomics = 0;
@@ -73,7 +72,7 @@ __global__ void kernel_cuda_path_trace_background_buffer_update(
 
 	if(ray_index != QUEUE_EMPTY_SLOT) {
 		enqueue_flag =
-			kernel_background_buffer_update((KernelGlobals *)kg,
+			kernel_background_buffer_update(NULL,
 			                                (ShaderData *)sd,
 			                                per_sample_output_buffers,
 			                                rng_state,

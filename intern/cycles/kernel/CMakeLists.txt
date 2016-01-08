@@ -11,6 +11,21 @@ set(INC_SYS
 
 )
 
+set(CUDA_KERNELS
+	kernels/cuda/kernel.cu
+	kernels/cuda/kernel_data_init.cu
+	kernels/cuda/kernel_queue_enqueue.cu
+	kernels/cuda/kernel_scene_intersect.cu
+	kernels/cuda/kernel_lamp_emission.cu
+	kernels/cuda/kernel_background_buffer_update.cu
+	kernels/cuda/kernel_shader_eval.cu
+	kernels/cuda/kernel_holdout_emission_blurring_pathtermination_ao.cu
+	kernels/cuda/kernel_direct_lighting.cu
+	kernels/cuda/kernel_shadow_blocked.cu
+	kernels/cuda/kernel_next_iteration_setup.cu
+	kernels/cuda/kernel_sum_all_radiance.cu
+)
+
 set(SRC
 	kernels/cpu/kernel.cpp
 	kernels/opencl/kernel.cl
@@ -25,7 +40,7 @@ set(SRC
 	kernels/opencl/kernel_shadow_blocked.cl
 	kernels/opencl/kernel_next_iteration_setup.cl
 	kernels/opencl/kernel_sum_all_radiance.cl
-	kernels/cuda/kernel.cu
+	${CUDA_KERNELS}
 )
 
 set(SRC_HEADERS
@@ -208,7 +223,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
 	endif()
 
 	# build for each arch
-	set(cuda_sources kernels/cuda/kernel.cu ${SRC_HEADERS} ${SRC_SVM_HEADERS} ${SRC_GEOM_HEADERS} ${SRC_CLOSURE_HEADERS} ${SRC_UTIL_HEADERS} ${SRC_SPLIT_HEADERS})
+	set(cuda_sources ${CUDA_KERNELS} ${SRC_HEADERS} ${SRC_SVM_HEADERS} ${SRC_GEOM_HEADERS} ${SRC_CLOSURE_HEADERS} ${SRC_UTIL_HEADERS} ${SRC_SPLIT_HEADERS})
 	set(cuda_cubins)
 
 	macro(CYCLES_CUDA_KERNEL_ADD arch experimental name)
@@ -270,10 +285,11 @@ if(WITH_CYCLES_CUDA_BINARIES)
 		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel_direct_lighting)
 		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel_shadow_blocked)
 		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel_next_iteration_setup)
+		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel_sum_all_radiance)
 		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE kernel)
 
 		# Compile experimental kernel
-		CYCLES_CUDA_KERNEL_ADD(${arch} TRUE kernel)
+#		CYCLES_CUDA_KERNEL_ADD(${arch} TRUE kernel)
 	endforeach()
 
 	add_custom_target(cycles_kernel_cuda ALL DEPENDS ${cuda_cubins})

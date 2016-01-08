@@ -385,6 +385,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	if(!(params.background && params.output_path.empty())) {
 		tile_manager.state.buffer.get_offset_stride(rtile.offset, rtile.stride);
 
+		rtile.buffer_size = buffers->buffer.memory_size();
 		rtile.buffer = buffers->buffer.device_pointer;
 		rtile.rng_state = buffers->rng_state.device_pointer;
 		rtile.buffers = buffers;
@@ -433,6 +434,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 		tilebuffers->reset(tile_device, buffer_params);
 	}
 
+	rtile.buffer_size = tilebuffers->buffer.memory_size();
 	rtile.buffer = tilebuffers->buffer.device_pointer;
 	rtile.rng_state = tilebuffers->rng_state.device_pointer;
 	rtile.buffers = tilebuffers;

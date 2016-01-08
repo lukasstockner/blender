@@ -597,7 +597,7 @@ typedef enum AttributeStandard {
 
 #ifdef __MULTI_CLOSURE__
 #  ifndef __MAX_CLOSURE__
-#     define MAX_CLOSURE 64
+#     define MAX_CLOSURE 8
 #  else
 #    define MAX_CLOSURE __MAX_CLOSURE__
 #  endif
@@ -696,20 +696,20 @@ enum ShaderDataFlag {
 struct KernelGlobals;
 
 #ifdef __SPLIT_KERNEL__
-#define SD_VAR(type, what) ccl_global type *what;
-#define SD_CLOSURE_VAR(type, what, max_closure) type *what;
-#ifdef __KERNEL_OPENCL__
-#define TIDX (get_global_id(1) * get_global_size(0) + get_global_id(0))
+	#define SD_VAR(type, what) ccl_global type *what;
+	#define SD_CLOSURE_VAR(type, what, max_closure) type *what;
+	#ifdef __KERNEL_OPENCL__
+		#define TIDX (get_global_id(1) * get_global_size(0) + get_global_id(0))
+	#else
+		#define TIDX ((blockIdx.y*blockDim.y+threadIdx.y)*(gridDim.x*blockDim.x) + blockIdx.x*blockDim.x+threadIdx.x)
+	#endif
+	#define ccl_fetch(s, t) (s->t[TIDX])
+	#define ccl_fetch_array(s, t, index) (&s->t[TIDX * MAX_CLOSURE + index])
 #else
-#define TIDX ((blockIdx.y*blockDim.y+threadIdx.y)*(gridDim.x*blockDim.x) + blockIdx.x*blockDim.x+threadIdx.x)
-#endif
-#define ccl_fetch(s, t) (s->t[TIDX])
-#define ccl_fetch_array(s, t, index) (&s->t[TIDX * MAX_CLOSURE + index])
-#else
-#define SD_VAR(type, what) type what;
-#define SD_CLOSURE_VAR(type, what, max_closure) type what[max_closure];
-#define ccl_fetch(s, t) (s->t)
-#define ccl_fetch_array(s, t, index) (&s->t[index])
+	#define SD_VAR(type, what) type what;
+	#define SD_CLOSURE_VAR(type, what, max_closure) type what[max_closure];
+	#define ccl_fetch(s, t) (s->t)
+	#define ccl_fetch_array(s, t, index) (&s->t[index])
 #endif
 
 typedef ccl_addr_space struct ShaderData {
@@ -777,12 +777,12 @@ struct SubsurfaceIndirectRays
 	bool need_update_volume_stack;
 	bool tracing;
 	PathState state[BSSRDF_MAX_HITS];
-	struct PathRadiance direct_L;
+	PathRadiance direct_L;
 
 	int num_rays;
 	struct Ray rays[BSSRDF_MAX_HITS];
 	float3 throughputs[BSSRDF_MAX_HITS];
-	struct PathRadiance L[BSSRDF_MAX_HITS];
+	PathRadiance L[BSSRDF_MAX_HITS];
 };
 
 /* Constant Kernel Data

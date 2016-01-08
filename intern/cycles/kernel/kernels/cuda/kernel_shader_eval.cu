@@ -19,9 +19,8 @@
 
 #include "split/kernel_shader_eval.h"
 
+extern "C" 
 __global__ void kernel_cuda_path_trace_shader_eval(
-        ccl_global char *kg,
-        ccl_constant KernelData *data,
         ccl_global char *sd,                   /* Output ShaderData structure to be filled */
         ccl_global uint *rng_coop,             /* Required for rbsdf calculation */
         ccl_global Ray *Ray_coop,              /* Required for setting up shader from ray */
@@ -46,29 +45,27 @@ __global__ void kernel_cuda_path_trace_shader_eval(
 	                          queuesize,
 	                          0);
 
-	/* TODO(lukas): Seems to conflict with queue code below? */
-#if 0
-	if(ray_index == QUEUE_EMPTY_SLOT) {
-		return;
-	}
-#endif
-
 	char enqueue_flag = (IS_STATE(ray_state, ray_index, RAY_TO_REGENERATE)) ? 1 : 0;
 	enqueue_ray_index_local(ray_index,
-	                        QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS,
-	                        enqueue_flag,
-	                        queuesize,
-	                        &local_queue_atomics,
-	                        Queue_data,
-	                        Queue_index);
+		                    QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS,
+		                    enqueue_flag,
+		                    queuesize,
+		                    &local_queue_atomics,
+		                    Queue_data,
+		                    Queue_index);
 
-	/* Continue on with shader evaluation. */
-	kernel_shader_eval((KernelGlobals *)kg,
-	                   (ShaderData *)sd,
-	                   rng_coop,
-	                   Ray_coop,
-	                   PathState_coop,
-	                   Intersection_coop,
-	                   ray_state,
-	                   ray_index);
+	/* TODO(lukas): Seems to conflict with queue code below? */
+	if(ray_index != QUEUE_EMPTY_SLOT) {
+
+		/* Continue on with shader evaluation. */
+
+		kernel_shader_eval(NULL,
+			               (ShaderData *)sd,
+			               rng_coop,
+			               Ray_coop,
+			               PathState_coop,
+			               Intersection_coop,
+			               ray_state,
+			               ray_index);
+	}
 }

@@ -19,9 +19,8 @@
 
 #include "split/kernel_shadow_blocked.h"
 
+extern "C" 
 __global__ void kernel_cuda_path_trace_shadow_blocked(
-        ccl_global char *kg,
-        ccl_constant KernelData *data,
         ccl_global char *sd_shadow,            /* Required for shadow blocked */
         ccl_global PathState *PathState_coop,  /* Required for shadow blocked */
         ccl_global Ray *LightRay_dl_coop,      /* Required for direct lighting's shadow blocked */
@@ -63,7 +62,7 @@ __global__ void kernel_cuda_path_trace_shadow_blocked(
 	if(ray_index == QUEUE_EMPTY_SLOT)
 		return;
 
-	kernel_shadow_blocked((KernelGlobals *)kg,
+	kernel_shadow_blocked(NULL,
 	                      (ShaderData *)sd_shadow,
 	                      PathState_coop,
 	                      LightRay_dl_coop,

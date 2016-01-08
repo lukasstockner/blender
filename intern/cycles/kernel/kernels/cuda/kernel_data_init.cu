@@ -19,8 +19,8 @@
 
 #include "../../split/kernel_data_init.h"
 
+extern "C" 
 __global__ void kernel_cuda_path_trace_data_init(
-        ccl_global char *kg,
         ccl_global char *sd,
         ccl_global char *sd_DL_shadow,
 
@@ -111,7 +111,6 @@ __global__ void kernel_cuda_path_trace_data_init(
         ccl_global differential3 *ray_dP_sd,
         ccl_global differential3 *ray_dP_sd_DL_shadow,
 
-        ccl_constant KernelData *data,
         ccl_global float *per_sample_output_buffers,
         ccl_global uint *rng_state,
         ccl_global uint *rng_coop,                   /* rng array to store rng values for all rays */
@@ -131,12 +130,12 @@ __global__ void kernel_cuda_path_trace_data_init(
         int queuesize,                               /* size (capacity) of the queue */
         ccl_global char *use_queues_flag,            /* flag to decide if scene-intersect kernel should use queues to fetch ray index */
         ccl_global unsigned int *work_array,         /* work array to store which work each ray belongs to */
+        int parallel_samples                        /* Number of samples to be processed in parallel */
 #ifdef __KERNEL_DEBUG__
-        DebugData *debugdata_coop,
+        , DebugData *debugdata_coop
 #endif
-        int parallel_samples)                        /* Number of samples to be processed in parallel */
-{
-	kernel_data_init((KernelGlobals *)kg,
+) {
+	kernel_data_init(NULL,
 	                 (ShaderData *)sd,
 	                 (ShaderData *)sd_DL_shadow,
 	                 P_sd,
@@ -202,7 +201,7 @@ __global__ void kernel_cuda_path_trace_data_init(
 	                 ray_P_sd_DL_shadow,
 	                 ray_dP_sd,
 	                 ray_dP_sd_DL_shadow,
-	                 data,
+	                 NULL,
 	                 per_sample_output_buffers,
 	                 rng_state,
 	                 rng_coop,

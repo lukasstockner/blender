@@ -255,6 +255,8 @@ DeviceType Device::type_from_string(const char *name)
 		return DEVICE_CPU;
 	else if(strcmp(name, "cuda") == 0)
 		return DEVICE_CUDA;
+	else if(strcmp(name, "cudasplit") == 0)
+		return DEVICE_CUDA_SPLIT;
 	else if(strcmp(name, "opencl") == 0)
 		return DEVICE_OPENCL;
 	else if(strcmp(name, "network") == 0)
@@ -271,6 +273,8 @@ string Device::string_from_type(DeviceType type)
 		return "cpu";
 	else if(type == DEVICE_CUDA)
 		return "cuda";
+	else if(type == DEVICE_CUDA_SPLIT)
+		return "cudasplit";
 	else if(type == DEVICE_OPENCL)
 		return "opencl";
 	else if(type == DEVICE_NETWORK)
@@ -290,8 +294,10 @@ vector<DeviceType>& Device::available_types()
 		types.push_back(DEVICE_CPU);
 
 #ifdef WITH_CUDA
-		if(device_cuda_init())
+		if(device_cuda_init()) {
 			types.push_back(DEVICE_CUDA);
+			types.push_back(DEVICE_CUDA);
+		}
 #endif
 
 #ifdef WITH_OPENCL
@@ -321,8 +327,8 @@ vector<DeviceInfo>& Device::available_devices()
 #ifdef WITH_CUDA
 		if(device_cuda_init())
 			device_cuda_info(devices);
-		//if(device_cuda_split_init())
-		//	device_cuda_split_info(devices);
+		if(device_cuda_split_init())
+			device_cuda_split_info(devices);
 #endif
 
 #ifdef WITH_OPENCL

@@ -20,9 +20,8 @@
 
 #include "split/kernel_lamp_emission.h"
 
+extern "C" 
 __global__ void kernel_cuda_path_trace_lamp_emission(
-        ccl_global char *kg,
-        ccl_constant KernelData *data,
         ccl_global char *sd,                   /* Required for lamp emission */
         ccl_global float3 *throughput_coop,    /* Required for lamp emission */
         PathRadiance *PathRadiance_coop,       /* Required for lamp emission */
@@ -72,7 +71,7 @@ __global__ void kernel_cuda_path_trace_lamp_emission(
 		}
 	}
 
-	kernel_lamp_emission((KernelGlobals *)kg,
+	kernel_lamp_emission(NULL,
 	                     (ShaderData *)sd,
 	                     throughput_coop,
 	                     PathRadiance_coop,

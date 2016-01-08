@@ -110,7 +110,7 @@
 #endif
 
 /* kernels */
-
+/*
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_path_trace(float *buffer, uint *rng_state, int sample, int sx, int sy, int sw, int sh, int offset, int stride)
@@ -134,7 +134,7 @@ kernel_cuda_branched_path_trace(float *buffer, uint *rng_state, int sample, int 
 		kernel_branched_path_trace(NULL, buffer, rng_state, sample, x, y, offset, stride);
 }
 #endif
-
+*/
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_convert_to_byte(uchar4 *rgba, float *buffer, float sample_scale, int sx, int sy, int sw, int sh, int offset, int stride)

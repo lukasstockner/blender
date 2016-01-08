@@ -140,6 +140,7 @@ public:
 	int stride;
 
 	device_ptr buffer;
+	int buffer_size;
 	device_ptr rng_state;
 
 	RenderBuffers *buffers;

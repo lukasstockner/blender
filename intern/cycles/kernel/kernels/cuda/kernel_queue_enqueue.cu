@@ -50,6 +50,8 @@
  * QUEUE_ACTIVE_AND_REGENERATED_RAYS will be filled with RAY_ACTIVE rays.
  * QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS will be filled with RAY_TO_REGENERATE, RAY_UPDATE_BUFFER, RAY_HIT_BACKGROUND rays.
  */
+
+extern "C" 
 __global__ void kernel_cuda_path_trace_queue_enqueue(
         ccl_global int *Queue_data,   /* Queue memory */
         ccl_global int *Queue_index,  /* Tracks the number of elements in each queue */

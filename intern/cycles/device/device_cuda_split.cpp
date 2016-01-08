@@ -44,26 +44,28 @@ CCL_NAMESPACE_BEGIN
 
 #define SPLIT_BLOCK_X 64
 #define SPLIT_BLOCK_Y 1
+#define PATH_ITER_INC_FACTOR 8
 
 enum CUDAKernel {
 	CUDA_KERNEL = 0,
 	CUDA_KERNEL_DATA_INIT,
-	CUDA_KERNEL_SCENE_INTERSECTION,
+	CUDA_KERNEL_SCENE_INTERSECT,
 	CUDA_KERNEL_LAMP_EMISSION,
 	CUDA_KERNEL_QUEUE_ENQUEUE,
-	CUDA_KERNEL_BACKGROUND_BUFFER_UPDATE,
+	CUDA_KERNEL_BACKGROUND_BUFFER,
 	CUDA_KERNEL_SHADER_EVAL,
 	CUDA_KERNEL_SHADER_STUFF,
 	CUDA_KERNEL_DIRECT_LIGHTING,
 	CUDA_KERNEL_SHADOW_BLOCKED,
-	CUDA_KERNEL_NEXT_ITERATION_SETUP,
+	CUDA_KERNEL_NEXT_ITERATION,
+	CUDA_KERNEL_SUM_ALL_RADIANCE,
 	CUDA_NUM_KERNELS,
 };
 
 string kernel_file_names[] = {
 "kernel",
 "kernel_data_init",
-"kernel_scene_intersection",
+"kernel_scene_intersect",
 "kernel_lamp_emission",
 "kernel_queue_enqueue",
 "kernel_background_buffer_update",
@@ -71,12 +73,13 @@ string kernel_file_names[] = {
 "kernel_holdout_emission_blurring_pathtermination_ao",
 "kernel_direct_lighting",
 "kernel_shadow_blocked",
-"kernel_next_iteration_step"};
+"kernel_next_iteration_setup",
+"kernel_sum_all_radiance"};
 
 string kernel_names[] = {
 "",
 "kernel_cuda_path_trace_data_init",
-"kernel_cuda_path_trace_scene_intersection",
+"kernel_cuda_path_trace_scene_intersect",
 "kernel_cuda_path_trace_lamp_emission",
 "kernel_cuda_path_trace_queue_enqueue",
 "kernel_cuda_path_trace_background_buffer_update",
@@ -84,7 +87,8 @@ string kernel_names[] = {
 "kernel_cuda_path_trace_holdout_emission_blurring_pathtermination_ao",
 "kernel_cuda_path_trace_direct_lighting",
 "kernel_cuda_path_trace_shadow_blocked",
-"kernel_cuda_path_trace_next_iteration_step"};
+"kernel_cuda_path_trace_next_iteration_setup",
+"kernel_cuda_path_trace_sum_all_radiance"};
 
 class CUDASplitDevice : public Device
 {
@@ -100,9 +104,15 @@ public:
 	bool use_texture_storage;
 	bool first_tile;
 
-#define SPLIT_BUF(name) CUdeviceptr name;
+#define SPLIT_BUF(name, type) CUdeviceptr name;
 #include "../kernel/split/kernel_split_bufs.h"
-#undef SPLIT_BUF
+	CUdeviceptr Queue_index;
+	CUdeviceptr use_queues_flag;
+	CUdeviceptr sd;
+	CUdeviceptr sd_DL_shadow;
+	CUdeviceptr Queue_data;
+	CUdeviceptr per_sample_output_buffers;
+	int num_path_iteration;
 
 	struct PixelMem {
 		GLuint cuPBO;
@@ -232,9 +242,15 @@ public:
 
 		first_tile = true;
 
-#define SPLIT_BUF(name) name = (CUdeviceptr)NULL;
+#define SPLIT_BUF(name, type) name = (CUdeviceptr)NULL;
 #include "../kernel/split/kernel_split_bufs.h"
-#undef SPLIT_BUF
+		Queue_index = (CUdeviceptr)NULL;
+		use_queues_flag = (CUdeviceptr)NULL;
+		sd = (CUdeviceptr)NULL;
+		sd_DL_shadow = (CUdeviceptr)NULL;
+		Queue_data = (CUdeviceptr)NULL;
+		per_sample_output_buffers = (CUdeviceptr)NULL;
+		num_path_iteration = PATH_ITER_INC_FACTOR;
 
 		cuda_pop_context();
 	}
@@ -243,9 +259,14 @@ public:
 	{
 		task_pool.stop();
 
-#define SPLIT_BUF(name) if((void*) name) cuda_assert(cuMemFree(name));
+#define SPLIT_BUF(name, type) if((void*) name) cuda_assert(cuMemFree(name));
 #include "../kernel/split/kernel_split_bufs.h"
-#undef SPLIT_BUF
+		if((void*) Queue_index) cuda_assert(cuMemFree(Queue_index));
+		if((void*) use_queues_flag) cuda_assert(cuMemFree(use_queues_flag));
+		if((void*) sd) cuda_assert(cuMemFree(sd));
+		if((void*) sd_DL_shadow) cuda_assert(cuMemFree(sd_DL_shadow));
+		if((void*) Queue_data) cuda_assert(cuMemFree(Queue_data));
+		if((void*) per_sample_output_buffers) cuda_assert(cuMemFree(per_sample_output_buffers));
 
 		cuda_assert(cuCtxDestroy(cuContext));
 	}
@@ -283,7 +304,7 @@ public:
 			VLOG(1) << "Using precompiled kernel";
 			return cubin;
 		}
-		cuda_error_message("No runtime compilation support for the split kernel!");
+		cuda_error_message(string_printf("No runtime compilation support for the split kernel and %s was not found!", cubin.c_str()));
 		return "";
 	}
 
@@ -314,6 +335,7 @@ public:
 			if(path_read_text(cubin, cubin_data)) {
 				if(cuModuleLoadData(&cuModules[kernel], cubin_data.c_str()) != CUDA_SUCCESS)
 					result = CUDA_ERROR_FILE_NOT_FOUND; /* TODO */
+				//printf("Loaded %s!\n", kernel_file_names[kernel].c_str());
 			}
 			else
 				result = CUDA_ERROR_FILE_NOT_FOUND;
@@ -571,6 +593,25 @@ public:
 		}
 	}
 
+	size_t get_shader_closure_size(int max_closure)
+	{
+		return (sizeof(ShaderClosure) * max_closure);
+	}
+
+	/* Returns size of Structure of arrays implementation of. */
+	size_t get_shaderdata_soa_size()
+	{
+		size_t shader_soa_size = 0;
+
+#define SD_VAR(type, what) shader_soa_size += sizeof(void *);
+#define SD_CLOSURE_VAR(type, what, max_closure) shader_soa_size += sizeof(void *);
+		#include "kernel_shaderdata_vars.h"
+#undef SD_VAR
+#undef SD_CLOSURE_VAR
+
+		return shader_soa_size;
+	}
+
 	void path_trace(RenderTile& rtile, int2 max_render_feasible_tile_size)
 	{
 		if(have_error())
@@ -579,7 +620,7 @@ public:
 		assert(max_render_feasible_tile_size.x % SPLIT_BLOCK_X == 0);
 		assert(max_render_feasible_tile_size.y % SPLIT_BLOCK_Y == 0);
 
-		unsigned int blocks_y = (((rtile.h - 1) / SPLIT_BLOCK_Y) + 1) * SPLIT_BLOCK_Y;
+		unsigned int size_y = (((rtile.h - 1) / SPLIT_BLOCK_Y) + 1) * SPLIT_BLOCK_Y;
 		unsigned int num_threads = max_render_feasible_tile_size.x *
 		                           max_render_feasible_tile_size.y;
 		unsigned int num_tile_columns_possible = num_threads / SPLIT_BLOCK_Y;
@@ -591,29 +632,141 @@ public:
 		/* Wavefront size in AMD is 64.
 		 * TODO(sergey): What about other platforms?
 		 */
-		if(num_parallel_samples >= 64) {
+		if(num_parallel_samples >= SPLIT_BLOCK_X) {
 			/* TODO(sergey): Could use generic round-up here. */
-			num_parallel_samples = (num_parallel_samples / 64) * 64;
+			num_parallel_samples = (num_parallel_samples / SPLIT_BLOCK_X) * SPLIT_BLOCK_X;
 		}
 		assert(num_parallel_samples != 0);
 
-		unsigned int blocks_x = rtile.w * num_parallel_samples;
-		assert(blocks_x*blocks_y <= max_render_feasible_tile_size.x*max_render_feasible_tile_size.y);
+		unsigned int size_x = rtile.w * num_parallel_samples;
+		if(size_x*size_y > max_render_feasible_tile_size.x*max_render_feasible_tile_size.y) {
+			printf("Size too large!\n");
+			return;
+		}
+		printf("Size %d %d\n", size_x, size_y);
 
+		if(first_tile) {
+			cuda_push_context();
+			size_t num_global_elements = max_render_feasible_tile_size.x *
+			                             max_render_feasible_tile_size.y;
+			size_t ShaderClosure_size = get_shader_closure_size(8);
+			size_t per_thread_output_buffer_size =	rtile.buffer_size / (rtile.w * rtile.h);
 
+#define SPLIT_BUF(name, type) cuda_assert(cuMemAlloc(&name, num_global_elements*sizeof(type)));
+#define SPLIT_BUF2(name, type) cuda_assert(cuMemAlloc(&name, num_global_elements*2*sizeof(type)));
+#define SPLIT_BUF_CL(name, type) cuda_assert(cuMemAlloc(&name, num_global_elements*ShaderClosure_size));
+#define SPLIT_BUF2_CL(name, type) cuda_assert(cuMemAlloc(&name, num_global_elements*2*ShaderClosure_size));
+#include "../kernel/split/kernel_split_bufs.h"
+			cuda_assert(cuMemAlloc(&Queue_index, NUM_QUEUES * sizeof(int)));
+			cuda_assert(cuMemAlloc(&use_queues_flag, sizeof(char)));
+			cuda_assert(cuMemAlloc(&sd, get_shaderdata_soa_size()));
+			cuda_assert(cuMemAlloc(&sd_DL_shadow, get_shaderdata_soa_size()));
+			cuda_assert(cuMemAlloc(&Queue_data, num_global_elements * (NUM_QUEUES * sizeof(int)+sizeof(int))));
+			cuda_assert(cuMemAlloc(&per_sample_output_buffers, num_global_elements * per_thread_output_buffer_size));
+			cuda_pop_context();
+			first_tile = false;
+		}
 
 		cuda_push_context();
 
 		CUfunction cuKernels[CUDA_NUM_KERNELS];
 		CUdeviceptr d_buffer = cuda_device_ptr(rtile.buffer);
 		CUdeviceptr d_rng_state = cuda_device_ptr(rtile.rng_state);
+		int dQueue_size = size_x*size_y;
+		int total_num_rays = size_x*size_y;
+		int zero = 0;
+		int end_sample = rtile.start_sample + rtile.num_samples;
 
 		/* get kernel function */
-		for(int kernel = 1; kernel < CUDA_NUM_KERNELS; kernel++)
+		for(int kernel = 1; kernel < CUDA_NUM_KERNELS; kernel++) {
+			//printf("Loading %s (from file %s)!\n", kernel_names[kernel].c_str(), kernel_file_names[kernel].c_str());
 			cuda_assert(cuModuleGetFunction(&cuKernels[kernel], cuModules[kernel], kernel_names[kernel].c_str()));
+		}
 
 		if(have_error())
 			return;
+
+#ifdef __KERNEL_DEBUG__
+#define DEBUGDATA , &debugdata_coop
+#else
+#define DEBUGDATA
+#endif
+
+		void *data_init_args[] =         {&sd, &sd_DL_shadow, &P_sd, &P_sd_DL_shadow, &N_sd, &N_sd_DL_shadow, &Ng_sd, &Ng_sd_DL_shadow, &I_sd, &I_sd_DL_shadow, &shader_sd, &shader_sd_DL_shadow, &flag_sd, &flag_sd_DL_shadow, &prim_sd,
+		                                  &prim_sd_DL_shadow, &type_sd, &type_sd_DL_shadow, &u_sd, &u_sd_DL_shadow, &v_sd, &v_sd_DL_shadow, &object_sd, &object_sd_DL_shadow, &time_sd, &time_sd_DL_shadow, &ray_length_sd,
+		                                  &ray_length_sd_DL_shadow, &ray_depth_sd, &ray_depth_sd_DL_shadow, &transparent_depth_sd, &transparent_depth_sd_DL_shadow, &dP_sd, &dP_sd_DL_shadow, &dI_sd, &dI_sd_DL_shadow, &du_sd, &du_sd_DL_shadow,
+		                                  &dv_sd, &dv_sd_DL_shadow, &dPdu_sd, &dPdu_sd_DL_shadow, &dPdv_sd, &dPdv_sd_DL_shadow, &ob_tfm_sd, &ob_tfm_sd_DL_shadow, &ob_itfm_sd, &ob_itfm_sd_DL_shadow, &closure_sd, &closure_sd_DL_shadow,
+		                                  &num_closure_sd, &num_closure_sd_DL_shadow, &randb_closure_sd, &randb_closure_sd_DL_shadow, &ray_P_sd, &ray_P_sd_DL_shadow, &ray_dP_sd, &ray_dP_sd_DL_shadow,
+		                                  &per_sample_output_buffers, &d_rng_state, &rng_coop, &throughput_coop, &L_transparent_coop, &PathRadiance_coop, &Ray_coop, &PathState_coop, &ray_state,
+		                                  &rtile.start_sample, &rtile.x, &rtile.y, &rtile.w, &rtile.h, &rtile.offset, &rtile.stride, &zero, &zero, &rtile.stride,
+		                                  &Queue_data, &Queue_index, &dQueue_size, &use_queues_flag, &work_array, &num_parallel_samples DEBUGDATA};
+		void *scene_intersect_args[] =   {&rng_coop, &Ray_coop, &PathState_coop, &Intersection_coop, &ray_state, &rtile.w, &rtile.h, &Queue_data, &Queue_index, &dQueue_size, &use_queues_flag, &num_parallel_samples DEBUGDATA};
+		void *lamp_emission_args[] =     {&sd, &throughput_coop, &PathRadiance_coop, &Ray_coop, &PathState_coop, &Intersection_coop, &ray_state, &rtile.w, &rtile.h, &Queue_data, &Queue_index, &dQueue_size, &use_queues_flag, &num_parallel_samples};
+		void *queue_enqueue_args[] =     {&Queue_data, &Queue_index, &ray_state, &dQueue_size};
+		void *background_buffer_args[] = {&sd, &per_sample_output_buffers, &d_rng_state, &rng_coop, &throughput_coop, &PathRadiance_coop, &Ray_coop, &PathState_coop, &L_transparent_coop, &ray_state, &rtile.w, &rtile.h, &rtile.x, &rtile.y,
+		                                  &rtile.stride, &zero, &zero, &rtile.stride, &work_array, &Queue_data, &Queue_index, &dQueue_size, &end_sample, &rtile.start_sample, &num_parallel_samples DEBUGDATA};
+		void *shader_eval_args[] =       {&sd, &rng_coop, &Ray_coop, &PathState_coop, &Intersection_coop, &ray_state, &Queue_data, &Queue_index, &dQueue_size};
+		void *shader_stuff_args[] =      {&sd, &per_sample_output_buffers, &rng_coop, &throughput_coop, &L_transparent_coop, &PathRadiance_coop, &PathState_coop, &Intersection_coop, &AOAlpha_coop, &AOBSDF_coop, &AOLightRay_coop, &rtile.w, &rtile.h,
+		                                  &rtile.x, &rtile.y, &rtile.stride, &ray_state, &work_array, &Queue_data, &Queue_index, &dQueue_size, &num_parallel_samples};
+		void *direct_lighting_args[] =   {&sd, &sd_DL_shadow, &rng_coop, &PathState_coop, &ISLamp_coop, &LightRay_coop, &BSDFEval_coop, &ray_state, &Queue_data, &Queue_index, &dQueue_size};
+		void *shadow_blocked_args[] =    {&sd_DL_shadow, &PathState_coop, &LightRay_coop, &AOLightRay_coop, &Intersection_coop_AO, &Intersection_coop_DL, &ray_state, &Queue_data, &Queue_index, &dQueue_size, &total_num_rays};
+		void *next_iteration_args[] =    {&sd, &rng_coop, &throughput_coop, &PathRadiance_coop, &Ray_coop, &PathState_coop, &LightRay_coop, &ISLamp_coop, &BSDFEval_coop, &AOLightRay_coop, &AOBSDF_coop, &AOAlpha_coop, &ray_state,
+		                                  &Queue_data, &Queue_index, &dQueue_size, &use_queues_flag};
+		void *sum_all_radiance_args[] =  {&d_buffer, &per_sample_output_buffers, &num_parallel_samples, &rtile.w, &rtile.h, &rtile.stride, &zero, &zero, &rtile.stride, &rtile.start_sample};
+
+		cuda_assert(cuLaunchKernel(cuKernels[CUDA_KERNEL_DATA_INIT], size_x/SPLIT_BLOCK_X, size_y/SPLIT_BLOCK_Y, 1, SPLIT_BLOCK_X, SPLIT_BLOCK_Y, 1, 0, 0, data_init_args, 0));
+			cuda_assert(cuCtxSynchronize());
+		bool activeRaysAvailable = true;
+		unsigned int numHostIntervention = 0;
+		unsigned int numNextPathIterTimes = num_path_iteration;
+		char *host_ray_state = new char[size_x*size_y];
+		while(activeRaysAvailable) {
+			printf("Starting pass!\n");
+			for(int iter = 0; iter < num_path_iteration; iter++) {
+			printf("Starting iter!\n");
+				cuda_assert(cuLaunchKernel(cuKernels[CUDA_KERNEL_SCENE_INTERSECT], size_x/SPLIT_BLOCK_X, size_y/SPLIT_BLOCK_Y, 1, SPLIT_BLOCK_X, SPLIT_BLOCK_Y, 1, 0, 0, scene_intersect_args, 0));
+				cuda_assert(cuLaunchKernel(cuKernels[CUDA_KERNEL_LAMP_EMISSION], size_x/SPLIT_BLOCK_X, size_y/SPLIT_BLOCK_Y, 1, SPLIT_BLOCK_X, SPLIT_BLOCK_Y, 1, 0, 0, lamp_emission_args, 0));
+				cuda_assert(cuLaunchKernel(cuKernels[CUDA_KERNEL_QUEUE_ENQUEUE], size_x/SPLIT_BLOCK_X, size_y/SPLIT_BLOCK_Y, 1, SPLIT_BLOCK_X, SPLIT_BLOCK_Y, 1, 0, 0, queue_enqueue_args, 0));
+				cuda_assert(cuLaunchKernel(cuKernels[CUDA_KERNEL_BACKGROUND_BUFFER], size_x/SPLIT_BLOCK_X, size_y/SPLIT_BLOCK_Y, 1, SPLIT_BLOCK_X, SPLIT_BLOCK_Y, 1, 0, 0, background_buffer_args, 0));
+				cuda_assert(cuLaunchKernel(cuKernels[CUDA_KERNEL_SHADER_EVAL], size_x/SPLIT_BLOCK_X, size_y/SPLIT_BLOCK_Y, 1, SPLIT_BLOCK_X, SPLIT_BLOCK_Y, 1, 0, 0, shader_eval_args, 0));
+				cuda_assert(cuLaunchKernel(cuKernels[CUDA_KERNEL_SHADER_STUFF], size_x/SPLIT_BLOCK_X, size_y/SPLIT_BLOCK_Y, 1, SPLIT_BLOCK_X, SPLIT_BLOCK_Y, 1, 0, 0, shader_stuff_args, 0));
+				cuda_assert(cuLaunchKernel(cuKernels[CUDA_KERNEL_DIRECT_LIGHTING], size_x/SPLIT_BLOCK_X, size_y/SPLIT_BLOCK_Y, 1, SPLIT_BLOCK_X, SPLIT_BLOCK_Y, 1, 0, 0, direct_lighting_args, 0));
+				cuda_assert(cuLaunchKernel(cuKernels[CUDA_KERNEL_SHADOW_BLOCKED], 2*size_x/SPLIT_BLOCK_X, size_y/SPLIT_BLOCK_Y, 1, SPLIT_BLOCK_X, SPLIT_BLOCK_Y, 1, 0, 0, shadow_blocked_args, 0));
+				cuda_assert(cuLaunchKernel(cuKernels[CUDA_KERNEL_NEXT_ITERATION], size_x/SPLIT_BLOCK_X, size_y/SPLIT_BLOCK_Y, 1, SPLIT_BLOCK_X, SPLIT_BLOCK_Y, 1, 0, 0, next_iteration_args, 0));
+				cuda_assert(cuCtxSynchronize());
+			}
+			cuda_assert(cuCtxSynchronize());
+			cuda_assert(cuMemcpyDtoH(host_ray_state, ray_state, size_x*size_y*sizeof(char)));
+			activeRaysAvailable = false;
+
+			for(int ray = 0; ray < size_x*size_y; ray++) {
+				if(int8_t(host_ray_state[ray]) != RAY_INACTIVE) {
+					activeRaysAvailable = true;
+					break;
+				}
+			}
+
+			if(activeRaysAvailable) {
+				numHostIntervention++;
+				num_path_iteration = PATH_ITER_INC_FACTOR;
+				numNextPathIterTimes += PATH_ITER_INC_FACTOR;
+			}
+
+			if(have_error())
+				return;
+		}
+
+		cuda_assert(cuLaunchKernel(cuKernels[CUDA_KERNEL_SUM_ALL_RADIANCE], ((rtile.w - 1) / 16) + 1, ((rtile.h - 1) / 16) + 1, 1, 16, 16, 1, 0, 0, sum_all_radiance_args, 0));
+		cuda_assert(cuCtxSynchronize());
+
+		delete[] host_ray_state;
+		if(numHostIntervention == 0) {
+			num_path_iteration = ((numNextPathIterTimes - PATH_ITER_INC_FACTOR) <= 0) ?	PATH_ITER_INC_FACTOR : numNextPathIterTimes - PATH_ITER_INC_FACTOR;
+		}
+		else {
+			num_path_iteration = numNextPathIterTimes;
+		}
+
 #if 0
 		/* pass in parameters */
 		void *args[] = {&d_buffer,
@@ -1036,7 +1189,7 @@ public:
 
 					task->update_progress(&tile);
 				}*/
-				path_trace(tile, make_int2(128, 128));
+				path_trace(tile, make_int2(640, 64));
 
 				task->release_tile(tile);
 			}
