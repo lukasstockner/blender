@@ -18,8 +18,10 @@
 #define __SPLIT_KERNEL__
 
 #include "split/kernel_scene_intersect.h"
+#include "kernel_split.cuh"
 
 extern "C" 
+SPLIT_KERNEL_BOUNDS
 __global__ void kernel_cuda_path_trace_scene_intersect(
         ccl_global uint *rng_coop,
         ccl_global Ray *Ray_coop,              /* Required for scene_intersect */

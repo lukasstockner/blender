@@ -18,6 +18,7 @@
 #define __SPLIT_KERNEL__
 
 #include "split/kernel_split_common.h"
+#include "kernel_split.cuh"
 
 /*
  * The kernel "kernel_queue_enqueue" enqueues rays of
@@ -52,6 +53,7 @@
  */
 
 extern "C" 
+SPLIT_KERNEL_BOUNDS
 __global__ void kernel_cuda_path_trace_queue_enqueue(
         ccl_global int *Queue_data,   /* Queue memory */
         ccl_global int *Queue_index,  /* Tracks the number of elements in each queue */

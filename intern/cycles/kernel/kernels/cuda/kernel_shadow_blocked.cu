@@ -18,8 +18,10 @@
 #define __SPLIT_KERNEL__
 
 #include "split/kernel_shadow_blocked.h"
+#include "kernel_split.cuh"
 
 extern "C" 
+SPLIT_KERNEL_BOUNDS
 __global__ void kernel_cuda_path_trace_shadow_blocked(
         ccl_global char *sd_shadow,            /* Required for shadow blocked */
         ccl_global PathState *PathState_coop,  /* Required for shadow blocked */

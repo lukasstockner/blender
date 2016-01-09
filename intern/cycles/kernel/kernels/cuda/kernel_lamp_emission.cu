@@ -17,10 +17,11 @@
 #define __KERNEL_CUDA_SPLIT__
 #define __SPLIT_KERNEL__
 
-
 #include "split/kernel_lamp_emission.h"
+#include "kernel_split.cuh"
 
 extern "C" 
+SPLIT_KERNEL_BOUNDS
 __global__ void kernel_cuda_path_trace_lamp_emission(
         ccl_global char *sd,                   /* Required for lamp emission */
         ccl_global float3 *throughput_coop,    /* Required for lamp emission */

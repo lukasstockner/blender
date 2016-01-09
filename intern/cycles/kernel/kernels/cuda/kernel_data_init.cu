@@ -18,8 +18,10 @@
 #define __SPLIT_KERNEL__
 
 #include "../../split/kernel_data_init.h"
+#include "kernel_split.cuh"
 
-extern "C" 
+extern "C"
+SPLIT_KERNEL_BOUNDS
 __global__ void kernel_cuda_path_trace_data_init(
         ccl_global char *sd,
         ccl_global char *sd_DL_shadow,

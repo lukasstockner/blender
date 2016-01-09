@@ -18,8 +18,10 @@
 #define __SPLIT_KERNEL__
 
 #include "split/kernel_holdout_emission_blurring_pathtermination_ao.h"
+#include "kernel_split.cuh"
 
 extern "C" 
+SPLIT_KERNEL_BOUNDS
 __global__ void kernel_cuda_path_trace_holdout_emission_blurring_pathtermination_ao(
         ccl_global char *sd,                   /* Required throughout the kernel except probabilistic path termination and AO */
         ccl_global float *per_sample_output_buffers,

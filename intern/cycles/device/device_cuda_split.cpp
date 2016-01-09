@@ -42,8 +42,8 @@
 
 CCL_NAMESPACE_BEGIN
 
-#define SPLIT_BLOCK_X 64
-#define SPLIT_BLOCK_Y 1
+#define SPLIT_BLOCK_X 32
+#define SPLIT_BLOCK_Y 8
 #define PATH_ITER_INC_FACTOR 8
 
 enum CUDAKernel {
@@ -623,7 +623,7 @@ public:
 		unsigned int size_y = (((rtile.h - 1) / SPLIT_BLOCK_Y) + 1) * SPLIT_BLOCK_Y;
 		unsigned int num_threads = max_render_feasible_tile_size.x *
 		                           max_render_feasible_tile_size.y;
-		unsigned int num_tile_columns_possible = num_threads / SPLIT_BLOCK_Y;
+		unsigned int num_tile_columns_possible = num_threads / size_y;
 		/* Estimate number of parallel samples that can be
 		 * processed in parallel.
 		 */
@@ -1189,7 +1189,9 @@ public:
 
 					task->update_progress(&tile);
 				}*/
-				path_trace(tile, make_int2(640, 64));
+				path_trace(tile, make_int2(1280, 256));
+
+				tile.sample = tile.start_sample + tile.num_samples;
 
 				task->release_tile(tile);
 			}

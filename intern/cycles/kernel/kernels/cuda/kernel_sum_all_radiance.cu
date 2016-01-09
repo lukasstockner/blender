@@ -19,8 +19,10 @@
 
 #include "split/kernel_split_common.h"
 #include "split/kernel_sum_all_radiance.h"
+#include "kernel_split.cuh"
 
 extern "C" 
+CUDA_LAUNCH_BOUNDS(16, 16, CUDA_SPLIT_KERNEL_MAX_REGISTERS)
 __global__ void kernel_cuda_path_trace_sum_all_radiance(
         ccl_global float *buffer,                    /* Output buffer of RenderTile */
         ccl_global float *per_sample_output_buffer,  /* Radiance contributed by all samples */

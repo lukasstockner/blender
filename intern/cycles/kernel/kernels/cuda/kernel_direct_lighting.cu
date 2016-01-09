@@ -18,8 +18,10 @@
 #define __SPLIT_KERNEL__
 
 #include "split/kernel_direct_lighting.h"
+#include "kernel_split.cuh"
 
 extern "C" 
+SPLIT_KERNEL_BOUNDS
 __global__ void kernel_cuda_path_trace_direct_lighting(
         ccl_global char *sd,                    /* Required for direct lighting */
         ccl_global char *sd_DL,                 /* Required for direct lighting */

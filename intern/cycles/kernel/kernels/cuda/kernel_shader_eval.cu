@@ -18,8 +18,10 @@
 #define __SPLIT_KERNEL__
 
 #include "split/kernel_shader_eval.h"
+#include "kernel_split.cuh"
 
 extern "C" 
+SPLIT_KERNEL_BOUNDS
 __global__ void kernel_cuda_path_trace_shader_eval(
         ccl_global char *sd,                   /* Output ShaderData structure to be filled */
         ccl_global uint *rng_coop,             /* Required for rbsdf calculation */

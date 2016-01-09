@@ -18,8 +18,10 @@
 #define __SPLIT_KERNEL__
 
 #include "split/kernel_next_iteration_setup.h"
+#include "kernel_split.cuh"
 
 extern "C" 
+SPLIT_KERNEL_BOUNDS
 __global__ void kernel_cuda_path_trace_next_iteration_setup(
         ccl_global char *sd,                  /* Required for setting up ray for next iteration */
         ccl_global uint *rng_coop,            /* Required for setting up ray for next iteration */
