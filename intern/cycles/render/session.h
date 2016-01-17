@@ -56,7 +56,10 @@ public:
 	int threads;
 
 	bool filter;
+	bool use_lwr_library;
 	int filter_period;
+	int filter_half_window;
+	float filter_bias_weight;
 
 	bool display_buffer_linear;
 

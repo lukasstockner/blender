@@ -28,6 +28,7 @@
 #include "kernel_path.h"
 #include "kernel_path_branched.h"
 #include "kernel_bake.h"
+#include "kernel_filter.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -128,9 +129,14 @@ void KERNEL_FUNCTION_FULL_NAME(shader)(KernelGlobals *kg,
 	}
 }
 
-void KERNEL_FUNCTION_FULL_NAME(filter_pixel)(KernelGlobals *kg, float *buffers, int x, int y, int w, int h)
+void KERNEL_FUNCTION_FULL_NAME(filter1_pixel)(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int halfWindow, float biasWeight, float *storage)
 {
-	kernel_filter_pixel(kg, buffers, x, y, w, h);
+	kernel_filter1_pixel(kg, buffers, x, y, w, h, halfWindow, biasWeight, storage);
+}
+
+void KERNEL_FUNCTION_FULL_NAME(filter2_pixel)(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int halfWindow, float biasWeight, float *storage)
+{
+	kernel_filter2_pixel(kg, buffers, x, y, w, h, halfWindow, biasWeight, storage);
 }
 
 CCL_NAMESPACE_END

@@ -187,12 +187,12 @@ ccl_device_inline float saturate(float a)
 	return clamp(a, 0.0f, 1.0f);
 }
 
+#endif
+
 ccl_device_inline float3 saturate(float3 a)
 {
 	return make_float3(saturate(a.x), saturate(a.y), saturate(a.z));
 }
-
-#endif
 
 ccl_device_inline int float_to_int(float f)
 {

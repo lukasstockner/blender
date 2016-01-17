@@ -24,6 +24,7 @@
 #include "../../kernel_path.h"
 #include "../../kernel_path_branched.h"
 #include "../../kernel_bake.h"
+#include "../../kernel_filter.h"
 
 /* device data taken from CUDA occupancy calculator */
 
@@ -203,6 +204,30 @@ kernel_cuda_bake(uint4 *input, float4 *output, int type, int filter, int sx, int
 
 	if(x < sx + sw)
 		kernel_bake_evaluate(NULL, input, output, (ShaderEvalType)type, filter, x, offset, sample);
+}
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter1(float *buffers, int w, int h, int halfWindow, float biasWeight, float *storage)
+{
+	int x = blockDim.x*blockIdx.x + threadIdx.x;
+	int y = blockDim.y*blockIdx.y + threadIdx.y;
+	int id = y*w + x;
+
+	if(x < w && y < h)
+		kernel_filter1_pixel(NULL, buffers, x, y, w, h, halfWindow, biasWeight, storage + 103*id);
+}
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter2(float *buffers, int w, int h, int halfWindow, float biasWeight, float *storage)
+{
+	int x = blockDim.x*blockIdx.x + threadIdx.x;
+	int y = blockDim.y*blockIdx.y + threadIdx.y;
+	int id = y*w + x;
+
+	if(x < w && y < h)
+		kernel_filter2_pixel(NULL, buffers, x, y, w, h, halfWindow, biasWeight, storage + 103*id);
 }
 
 #endif
