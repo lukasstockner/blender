@@ -49,7 +49,7 @@ void KERNEL_FUNCTION_FULL_NAME(shader)(KernelGlobals *kg,
                                        int offset,
                                        int sample);
 
-void KERNEL_FUNCTION_FULL_NAME(filter1_pixel)(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, float *storage);
-void KERNEL_FUNCTION_FULL_NAME(filter2_pixel)(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, float *storage);
+void KERNEL_FUNCTION_FULL_NAME(filter1_pixel)(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int halfWindow, float biasWeight, float *storage);
+void KERNEL_FUNCTION_FULL_NAME(filter2_pixel)(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int halfWindow, float biasWeight, float *storage);
 
 #undef KERNEL_ARCH

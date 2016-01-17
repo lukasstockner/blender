@@ -36,7 +36,7 @@ static inline bool write_pfm(const char *name, float3 *data, int w, int h) {
 	return true;
 }
 
-void LWRR_apply(RenderTile &tile);
+void LWRR_apply(RenderBuffers *buffers);
 
 class SampleMap {
 public:

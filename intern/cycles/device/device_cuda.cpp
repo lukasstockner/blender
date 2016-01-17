@@ -677,6 +677,57 @@ public:
 		}
 	}
 
+	void filter(DeviceTask& task)
+	{
+		if(have_error())
+			return;
+
+		cuda_push_context();
+
+		CUfunction cuFilter1, cuFilter2;
+		CUdeviceptr d_buffer = cuda_device_ptr(task.buffer);
+
+		/* get kernel function */
+		cuda_assert(cuModuleGetFunction(&cuFilter1, cuModule, "kernel_cuda_filter1"));
+		cuda_assert(cuModuleGetFunction(&cuFilter2, cuModule, "kernel_cuda_filter2"));
+
+		CUdeviceptr storage;
+		cuda_assert(cuMemAlloc(&storage, 103*sizeof(float)*task.w*task.h));
+
+		/* pass in parameters */
+		void *args[] = {&d_buffer,
+		                &task.w,
+		                &task.h,
+		                &task.filter_half_window,
+		                &task.filter_bias_weight,
+		                &storage};
+
+		/* launch kernel */
+		int threads_per_block;
+		cuda_assert(cuFuncGetAttribute(&threads_per_block, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, cuFilter1));
+
+		int xthreads = (int)sqrt((float)threads_per_block);
+		int ythreads = (int)sqrt((float)threads_per_block);
+		int xblocks = (task.w + xthreads - 1)/xthreads;
+		int yblocks = (task.h + ythreads - 1)/ythreads;
+
+		cuda_assert(cuFuncSetCacheConfig(cuFilter1, CU_FUNC_CACHE_PREFER_L1));
+		cuda_assert(cuFuncSetCacheConfig(cuFilter2, CU_FUNC_CACHE_PREFER_L1));
+
+		cuda_assert(cuLaunchKernel(cuFilter1,
+		                           xblocks , yblocks, 1, /* blocks */
+		                           xthreads, ythreads, 1, /* threads */
+		                           0, 0, args, 0));
+		cuda_assert(cuLaunchKernel(cuFilter2,
+		                           xblocks , yblocks, 1, /* blocks */
+		                           xthreads, ythreads, 1, /* threads */
+		                           0, 0, args, 0));
+
+		cuda_assert(cuMemFree(storage));
+
+		cuda_pop_context();
+	}
+
 	void path_trace(RenderTile& rtile, int sample, bool branched, device_ptr adaptive_samples_ptr)
 	{
 		printf("PathTracing, Sample %d, ASPtr %p\n", sample, adaptive_samples_ptr);
@@ -1158,6 +1209,13 @@ public:
 		}
 		else if(task->type == DeviceTask::SHADER) {
 			shader(*task);
+
+			cuda_push_context();
+			cuda_assert(cuCtxSynchronize());
+			cuda_pop_context();
+		}
+		else if(task->type == DeviceTask::FILTER) {
+			filter(*task);
 
 			cuda_push_context();
 			cuda_assert(cuCtxSynchronize());

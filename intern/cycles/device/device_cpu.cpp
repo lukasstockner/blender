@@ -314,8 +314,8 @@ public:
 	{
 		KernelGlobals kg = kernel_globals;
 
-		void(*filter1_kernel)(KernelGlobals *, float *, int, int, int, int, float*);
-		void(*filter2_kernel)(KernelGlobals *, float *, int, int, int, int, float*);
+		void(*filter1_kernel)(KernelGlobals *, float *, int, int, int, int, int, float, float*);
+		void(*filter2_kernel)(KernelGlobals *, float *, int, int, int, int, int, float, float*);
 
 		filter1_kernel = kernel_cpu_filter1_pixel;
 		filter2_kernel = kernel_cpu_filter2_pixel;
@@ -323,8 +323,8 @@ public:
 		float *storage = new float[103*task.h*task.w];
 		for(int y = 0; y < task.h; y++)
 			for(int x = 0; x < task.w; x++)
-				filter1_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.offset, task.stride, storage + 103*(y*task.w+x));
-		write_pfm("hopt_b0.pfm", storage+0, task.w, task.h, 103);
+				filter1_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.offset, task.stride, task.filter_half_window, task.filter_bias_weight, storage + 103*(y*task.w+x));
+/*		write_pfm("hopt_b0.pfm", storage+0, task.w, task.h, 103);
 		write_pfm("hopt_b1.pfm", storage+1, task.w, task.h, 103);
 		write_pfm("hopt_b2.pfm", storage+2, task.w, task.h, 103);
 		write_pfm("hopt_b3.pfm", storage+3, task.w, task.h, 103);
@@ -342,9 +342,9 @@ public:
 		for(int i = 0; i < task.w*task.h; i++)
 			ranks[i] = __float_as_int(storage[90+103*i]);
 		write_pfm("hopt_ranks.pfm", ranks, task.w, task.h);
-		delete[] ranks;
+		delete[] ranks;*/
 		//hopt filter
-		for(int y = 0; y < task.h; y++) {
+/*		for(int y = 0; y < task.h; y++) {
 			for(int x = 0; x < task.w; x++) {
 				float sum_w = 0.0f;
 				float sum = 0.0f;
@@ -361,11 +361,11 @@ public:
 		}
 		for(int y = 0; y < task.h; y++)
 			for(int x = 0; x < task.w; x++)
-				storage[(y*task.w+x)*103 + 101] = storage[(y*task.w+x)*103 + 102];
-		write_pfm("hopt_f.pfm", storage+101, task.w, task.h, 103);
+				storage[(y*task.w+x)*103 + 101] = storage[(y*task.w+x)*103 + 102];*/
+		//write_pfm("hopt_f.pfm", storage+101, task.w, task.h, 103);
 		for(int y = 0; y < task.h; y++)
 			for(int x = 0; x < task.w; x++)
-				filter2_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.offset, task.stride, storage + 103*(y*task.w+x));
+				filter2_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.offset, task.stride, task.filter_half_window, task.filter_bias_weight, storage + 103*(y*task.w+x));
 
 		delete[] storage;
 	}

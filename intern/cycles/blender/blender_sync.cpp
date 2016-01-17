@@ -526,6 +526,9 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 	params.background = background;
 
 	params.filter = background && get_boolean(cscene, "use_filtering");
+	params.use_lwr_library = background && get_boolean(cscene, "use_lwr_library");
+	params.filter_half_window = get_int(cscene, "filter_half_window");
+	params.filter_bias_weight = get_float(cscene, "filter_bias_weight");
 	params.filter_period = params.filter? get_int(cscene, "filtering_period"): 0;
 
 	/* samples */

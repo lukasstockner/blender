@@ -192,6 +192,8 @@ void LWRR::biasCurveFit(float** _bias_map, float** _var_map, const int nIterate,
 
 		_coef0_bias[idx] = invXtX[0][0] * XtB[0] + invXtX[0][1] * XtB[1];			
 		_coef1_bias[idx] = invXtX[1][0] * XtB[0] + invXtX[1][1] * XtB[1];			
+//		if(idx == 41*w+141)
+//			printf("BiasCoefs %f %f\n", _coef0_bias[idx], _coef1_bias[idx]);
 	}
 }
 
@@ -223,6 +225,8 @@ void LWRR::varCurveFit(float** _var_map, const int nIterate, double* _coef0_var,
 			XtB[0] += v;
 			XtB[1] += v / pow(h, rank);
 		}
+//		if(idx == 0)
+//			printf("XtX %f %f %f %f, XtB %f %f\n", XtX[0][0], XtX[0][1], XtX[1][0], XtX[1][1], XtB[0], XtB[1]);
 
 		double det = XtX[0][0] * XtX[1][1] - XtX[1][0] * XtX[0][1] + 0.0001;		
 		double invDet = 1.0 / det;
@@ -242,7 +246,9 @@ void LWRR::varCurveFit(float** _var_map, const int nIterate, double* _coef0_var,
 		else {
 			_coef0_var[idx] = beta[0];			
 			_coef1_var[idx] = beta[1];			
-		}	
+		}
+//		if(idx == 0)
+//			printf("VarCoefs %f %f\n", _coef0_var[idx], _coef1_var[idx]);
 	}
 }
 
@@ -262,6 +268,8 @@ void LWRR::estimateOptimalWidth(float* _width_img, double* _coef_bias, double* _
 			opt_h = 0.0;
 		else if (b != 0.0) 			
 			opt_h = (float)pow((rank * v) / (4.0 * b * b * n), 1.0 / (double)(4 + rank));				
+//		if(idx == 0)
+//			printf("OptH %f\n", opt_h);
 
 		// to avoid extrapolation		
 		opt_h = MIN(opt_h, (double)m_width_guess[nIterate - 1][idx]);									
@@ -360,7 +368,7 @@ void LWRR::estimate_error(float* map_MSE, const int halfWindowSize, const bool i
 	/////////////////////////////////////////////////////////////////////	
 
 	estimateOptimalWidth(m_mem->_width_img, m_mem->_coef1_bias, m_mem->_coef1_var, nIterate);	
-	localGuassian2(m_mem->_width_img, m_cudaMem._d_temp_mem1, m_cudaMem._d_temp_mem2, m_width, m_height, 1.f, false);	
+	//localGuassian2(m_mem->_width_img, m_cudaMem._d_temp_mem1, m_cudaMem._d_temp_mem2, m_width, m_height, 1.f, false);	
 
 	// Last Filtting
 	localFitSharedFinal(m_optImg, m_width, m_height, halfWindowSize, m_mem->_width_img, m_cudaMem, m_optVar);	

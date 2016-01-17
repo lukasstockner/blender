@@ -259,6 +259,23 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 description="Apply a post-processing filter to the image that removes noise at the cost of accuracy",
                 default=False,
                 )
+        cls.use_lwr_library = BoolProperty(
+                name="Use external library",
+                description="Use the reference implementation of LWR instead of the internal one, requires CUDA to work",
+                default=False,
+                )
+        cls.filter_half_window = IntProperty(
+                name="Half Window",
+                description="Radius of the LWR filter window (larger values mean better quality, but slower filtering)",
+                min=2, max=64,
+                default=5,
+                )
+        cls.filter_bias_weight = FloatProperty(
+                name="Bias Weight",
+                description="Not sure yet, let's find out ;)",
+                min=0.001, max=1000,
+                default=1,
+                )
         cls.filtering_period = IntProperty(
                 name="Filtering period",
                 description="After how many samples the filter is applied",

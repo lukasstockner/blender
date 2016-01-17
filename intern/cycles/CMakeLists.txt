@@ -208,7 +208,6 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 	unset(_has_no_error_unused_macros)
 endif()
 
-
 # Subdirectories
 
 if(WITH_CYCLES_BLENDER)

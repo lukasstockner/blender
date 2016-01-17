@@ -66,12 +66,15 @@ bool BufferParams::modified(const BufferParams& params)
 		&& lwr_passes == params.lwr_passes);
 }
 
-int BufferParams::get_passes_size()
+int BufferParams::get_passes_size(bool get_lwr)
 {
 	int size = 0;
 
 	foreach(Pass& pass, passes)
 		size += pass.components;
+
+	if(get_lwr)
+		return size;
 
 	if(lwr_passes)
 		size += 21;
@@ -173,38 +176,23 @@ bool RenderBuffers::copy_to_device()
 	return true;
 }
 
-bool RenderBuffers::filter_lwr()
+bool RenderBuffers::filter_lwr(bool use_library, int half_window, float bias_weight)
 {
-	copy_from_device();
-
-	const int blocksize = 256;
-
-	int nx = (params.width + blocksize - 1) / blocksize;
-	int ny = (params.height + blocksize - 1) / blocksize;
-	for(int ty = 0; ty < ny; ty++) {
-		for(int tx = 0; tx < nx; tx++) {
-			int w = min(blocksize, params.width  - tx*blocksize);
-			int h = min(blocksize, params.height - ty*blocksize);
-			DeviceTask task(DeviceTask::FILTER);
-			task.x = blocksize*tx;
-			task.y = blocksize*ty;
-			task.w = w;
-			task.h = h;
-			task.offset = params.width;
-			task.stride = params.height;
-			task.buffer = buffer.device_pointer;
-			device->task_add(task);
-		}
+	if(use_library)
+		LWRR_apply(this);
+	else {
+		DeviceTask task(DeviceTask::FILTER);
+		task.x = task.y = 0;
+		task.w = params.width;
+		task.h = params.height;
+		task.offset = params.width;
+		task.stride = params.height;
+		task.buffer = buffer.device_pointer;
+		task.filter_half_window = half_window;
+		task.filter_bias_weight = bias_weight;
+		device->task_add(task);
+		device->task_wait();
 	}
-	device->task_wait();
-/*	DeviceTask task(DeviceTask::FILTER);
-	task.x = task.y = 0;
-	task.w = params.width;
-	task.h = params.height;
-	task.stride = params.height; //To know the original height after task splitting
-	task.buffer = buffer.device_pointer;
-	device->task_add(task);
-	device->task_wait();*/
 
 	return true;
 }

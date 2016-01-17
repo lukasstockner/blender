@@ -10,76 +10,47 @@ CCL_NAMESPACE_BEGIN
 
 thread_mutex gpu_mutex;
 
-void LWRR_apply(RenderTile &tile) {
+void LWRR_apply(RenderBuffers *buffers) {
 	thread_scoped_lock lock(gpu_mutex);
 //	if((tile.sample <= 32 && (tile.sample % 16)) || (tile.sample > 32 && tile.sample <= 128 && (tile.sample % 32)) || (tile.sample > 128 && (tile.sample % 64)))
 //		return;
 
-	tile.buffers->copy_from_device();
+	buffers->copy_from_device();
 
-	float *buffer = (float*)tile.buffers->buffer.data_pointer;
-	int oC = 0, oC2 = 0, oN = 0, oN2 = 0, oM = 0, oM2 = 0, oD = 0, oD2 = 0, oS = 0, oT = 0;
+	int oLWR = buffers->params.get_passes_size(true);
+	float *buffer = (float*)buffers->buffer.data_pointer + oLWR;
+	int oC = 14, oC2 = 17, oN = 2, oN2 = 5, oM = 8, oM2 = 11, oD = 0, oD2 = 1, oS = -oLWR, oT = 20, oF = -oLWR;
 
-	int pass_offset = 0;
-	foreach(Pass& pass, tile.buffers->params.passes) {
-		switch(pass.type) {
-			case PASS_MOTION:
-				oC = pass_offset;
-				break;
-			case PASS_AO:
-				oC2 = pass_offset;
-				break;
-			case PASS_NORMAL:
-				oN = pass_offset;
-				break;
-			case PASS_UV:
-				oN2 = pass_offset;
-				break;
-			case PASS_EMISSION:
-				oM = pass_offset;
-				break;
-			case PASS_BACKGROUND:
-				oM2 = pass_offset;
-				break;
-			case PASS_DEPTH:
-				oD = pass_offset;
-				break;
-			case PASS_OBJECT_ID:
-				oD2 = pass_offset;
-				break;
-			case PASS_MIST:
-				oS = pass_offset;
-				break;
-			case PASS_MATERIAL_ID:
-				oT = pass_offset;
-				break;
-			default:
-				break;
-		}
-                pass_offset += pass.components;
+	foreach(Pass& pass, buffers->params.passes) {
+		if(pass.type == PASS_MIST)
+			break;
+		oS += pass.components;
 	}
 
-	int w = tile.w, h = tile.h;
+	int pass_stride = buffers->params.get_passes_size();
+	int w = buffers->params.width;
+	int h = buffers->params.height;
+
 	float *bC = new float[3*w*h], *bC2 = new float[3*w*h];
 	float *bN = new float[3*w*h], *bN2 = new float[3*w*h];
 	float *bM = new float[3*w*h], *bM2 = new float[3*w*h];
 	float *bD = new float[  w*h], *bD2 = new float[  w*h];
 	int *bS   = new   int[  w*h];
 
-	int pass_stride = tile.buffers->params.get_passes_size();
 	for(int y = 0; y < h; y++)
 		for(int x = 0; x < w; x++) {
-			float *base = buffer + (tile.offset + (y + tile.y)*tile.stride + (x + tile.x))*pass_stride;
+			float *base = buffer + (y*w + x)*pass_stride;
 			int i = y*w+x;
+			float iS = 1.0f / base[oS];
 			bC [3*i+0] = base[oC +0]; bC [3*i+1] = base[oC +1]; bC [3*i+2] = base[oC +2];
-			bC2[3*i+0] = base[oC2+0]; bC2[3*i+1] = base[oC2+1]; bC2[3*i+2] = base[oC2+2];
+			bC2[3*i+0] = base[oC2+0]+base[oC+0]*base[oC+0]*iS; bC2[3*i+1] = base[oC2+1]+base[oC+1]*base[oC+1]*iS; bC2[3*i+2] = base[oC2+2]+base[oC+2]*base[oC+2]*iS;
 			bN [3*i+0] = base[oN +0]; bN [3*i+1] = base[oN +1]; bN [3*i+2] = base[oN +2];
-			bN2[3*i+0] = base[oN2+0]; bN2[3*i+1] = base[oN2+1]; bN2[3*i+2] = base[oN2+2];
+			bN2[3*i+0] = base[oN2+0]+base[oN+0]*base[oN+0]*iS; bN2[3*i+1] = base[oN2+1]+base[oN+1]*base[oN+1]*iS; bN2[3*i+2] = base[oN2+2]+base[oN+2]*base[oN+2]*iS;
 			bM [3*i+0] = base[oM +0]; bM [3*i+1] = base[oM +1]; bM [3*i+2] = base[oM +2];
-			bM2[3*i+0] = base[oM2+0]; bM2[3*i+1] = base[oM2+1]; bM2[3*i+2] = base[oM2+2];
+			bM2[3*i+0] = base[oM2+0]+base[oM+0]*base[oM+0]*iS; bM2[3*i+1] = base[oM2+1]+base[oM+1]*base[oM+1]*iS; bM2[3*i+2] = base[oM2+2]+base[oM+2]*base[oM+2]*iS;
 
 			bD [i] = base[oD ];
-			bD2[i] = base[oD2];
+			bD2[i] = base[oD2]+base[oD]*base[oD]*iS;
 			bS [i] = base[oS ];
 		}
 
@@ -109,17 +80,17 @@ void LWRR_apply(RenderTile &tile) {
 		sumMse += outMse[3*i];
 	for(int y = 0; y < h; y++)
 		for(int x = 0; x < w; x++) {
-			float *base = buffer + (tile.offset + (y + tile.y)*tile.stride + (x + tile.x))*pass_stride;
-			base[0] = outImg[3*(y*w+x)+0];
-			base[1] = outImg[3*(y*w+x)+1];
-			base[2] = outImg[3*(y*w+x)+2];
-			base[3] = base[oC+3] / base[oS];
+			float *base = buffer + (y*w+x)*pass_stride;
+			base[oF+0] = outImg[3*(y*w+x)+0];
+			base[oF+1] = outImg[3*(y*w+x)+1];
+			base[oF+2] = outImg[3*(y*w+x)+2];
+//			base[oF+3] = base[oC+3] / base[oS];
 			base[oT] = min(outMse[3*(y*w+x)], maxMse) * w*h / sumMse;
 		}
 
 	delete[] bS;
 
-	tile.buffers->copy_to_device();
+	buffers->copy_to_device();
 /*
 	char name[1024];
 	sprintf(name, "in_%d.pfm", tile.sample);

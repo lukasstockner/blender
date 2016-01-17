@@ -347,6 +347,14 @@ __global__ void kernel_compute_derivatives_approx(float* _out,
 			transform[row][col] = _transform[xSize * ySize * (row * nDimens + col) + cIdx];
 	}
 	////////////////////////
+	if(cx == 5 && cy == 25) {
+		printf("Transform:\n");
+		for(int r = 0; r < 9; r++) {
+			for(int c = 0; c < localD; c++)
+				printf("%f ", transform[r][c]);
+			printf("\n");
+		}
+	}
 
 	float4 cImg = tex2D(g_img, cx, cy);
 	float4 cNorDepth = tex2D(g_normal_depth, cx, cy);
@@ -417,6 +425,15 @@ __global__ void kernel_compute_derivatives_approx(float* _out,
 	for (int row = 0; row < localQuadP; ++row)
 		A[row * localQuadP + row] += 0.001f;
 
+	if(cx == 5 && cy == 25) {
+		printf("A:\n");
+		for(int r = 0; r < localQuadP; r++) {
+			for(int c = 0; c < localQuadP; c++)
+				printf("%f ", A[r*localQuadP+c]);
+			printf("\n");
+		}
+	}
+
 	float* L = A;
 	cholesky(A, localQuadP, L);
 
@@ -447,6 +464,8 @@ __global__ void kernel_compute_derivatives_approx(float* _out,
 		_hessians[xSize * ySize * f + cIdx] = 2.f * (fabs(XtB[localP + f][0]) * 0.33333f +
 													 fabs(XtB[localP + f][1]) * 0.33333f +
 													 fabs(XtB[localP + f][2]) * 0.33333f);
+		if(cx == 5 && cy == 25)
+			printf("Hessian %d: %f\n", f, _hessians[xSize * ySize * f + cIdx]);
 	}
 }
 
@@ -481,6 +500,9 @@ __global__ void kernel_compute_transform(float* _out, float* _transform, float* 
 	float invN = 1.f / ((endWindow.y - startWindow.y + 1) * (endWindow.x - startWindow.x + 1));
 	avgNorDepth = make_float4(avgNorDepth.x * invN, avgNorDepth.y * invN, avgNorDepth.z * invN, avgNorDepth.w * invN);
 	avgTex = make_float4(avgTex.x * invN, avgTex.y * invN, avgTex.z * invN, 0.f);
+
+	if(cx == 5 && cy == 25)
+		printf("Avgs: %f %f %f, %f, %f %f %f\n", avgNorDepth.x, avgNorDepth.y, avgNorDepth.z, avgNorDepth.w, avgTex.x, avgTex.y, avgTex.z);
 
 #ifdef FEATURE_MOTION
 	avgMovTex *= invN;
@@ -535,6 +557,8 @@ __global__ void kernel_compute_transform(float* _out, float* _transform, float* 
 	// else
 	// We don't have any samples for this basic G-buffer (Undefined) - Ignore those buffers by making factor zero
 #endif
+	if(cx == 5 && cy == 25)
+		printf("Factors: %f %f %f\n", factorNormal, factorDepth, factorTexture);
 	
 	float delta[nDimens];
 	float A[nDimens * nDimens] = {0.f,};	
@@ -600,6 +624,8 @@ __global__ void kernel_compute_transform(float* _out, float* _transform, float* 
 	
 	// 0.01 is for thin-SVD 
 	float tol = 0.01f + 2.f * errNorm;																					
+	if(cx == 5 && cy == 25)
+		printf("Tolerance: %f, 5 SingVals: %f %f %f %f %f\n", tol, sqrtf(S[0]), sqrtf(S[1]), sqrtf(S[2]), sqrtf(S[3]), sqrtf(S[4]));
 
 	// Update V = VS^(-2)Vt		
 	// T-SVD
@@ -627,6 +653,8 @@ __global__ void kernel_compute_transform(float* _out, float* _transform, float* 
 #endif
 		}
 	}	
+	if(cx == 5 && cy == 25)
+		printf("Rank: %d\n", rank);
 	_ranks[cIdx] = rank;		
 }
 
@@ -663,6 +691,8 @@ __global__ void kernel_fit_anisotropic(float* _out,
 	for (int i = 0; i < localD; ++i) {
 		// feature bandwidth bi = (0, 2.5]
 		float bi = 1.f / sqrtf(fabs(_hessians[nPix * i + cIdx]) + 0.16f);				
+		if(cx == 5 && cy == 25)
+			printf("BI(%d): %f\n", i, bi);
 		band[i] = _bandwidth[cIdx] * bi;				
 	}
 
@@ -683,6 +713,8 @@ __global__ void kernel_fit_anisotropic(float* _out,
 	float A[(nDimens + 1) * (nDimens + 1)] = {0.f,};		
 	int nSample = 0;
 	float sumWeight = 0.f;
+	if(cx == 5 && cy == 25)
+		printf("cCm %f cCs %f\n", cGreyImg, sqrtf(cImg.w));
 	for (int y = startWindow.y; y <= endWindow.y; ++y) {		
 		for (int x = startWindow.x; x <= endWindow.x; ++x) {
 			const float4& iImg = tex2D(g_img, x, y);	
@@ -709,7 +741,9 @@ __global__ void kernel_fit_anisotropic(float* _out,
 					weight = 0.f;
 					break;
 				}
-			}			
+			}		
+			if(cx == 5 && cy == 25 && isFinalFit)
+				printf("Pixel %d %d, Weight %f\n", x, y, weight);	
 
 			if (weight > 0.0f) {				
 #ifdef OUTLIER_TRICK
@@ -742,6 +776,15 @@ __global__ void kernel_fit_anisotropic(float* _out,
 
 	for (int row = 0; row < localP; ++row)
 		A[row * localP + row] += 0.0001f;
+
+	if(cx == 5 && cy == 25) {
+		printf("A for h %f:\n", _bandwidth[cIdx]);
+		for(int r = 0; r < localP; r++) {
+			for(int c = 0; c < localP; c++)
+				printf("%f ", A[r*localP+c]);
+			printf("\n");
+		}
+	}
 
 	float* L = A;
 	cholesky(A, localP, L);
@@ -827,6 +870,10 @@ __global__ void kernel_fit_anisotropic(float* _out,
 		var = err_var / (err_sum_l * err_sum_l);
 	}
 
+	if(cx == 5 && cy == 25)
+		printf("Out: %f %f %f, Bias %f, Var %f\n", max(0.f, beta[0]), max(0.f, beta[1]), max(0.f, beta[2]), (beta[0] - cImg.x) * 0.33333f +
+                              (beta[1] - cImg.y) * 0.33333f +
+                                          (beta[2] - cImg.z) * 0.33333f, var);
 
 	_out[cIdx * 3 + 0] = max(0.f, beta[0]);
 	_out[cIdx * 3 + 1] = max(0.f, beta[1]);
