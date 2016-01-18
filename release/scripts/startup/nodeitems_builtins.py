@@ -238,6 +238,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeTexChecker"),
         NodeItem("ShaderNodeTexBrick"),
         NodeItem("ShaderNodeTexPointDensity"),
+        NodeItem("ShaderNodeIESLight"),
         ]),
     ShaderNewNodeCategory("SH_NEW_OP_COLOR", "Color", items=[
         NodeItem("ShaderNodeMixRGB"),

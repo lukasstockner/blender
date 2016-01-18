@@ -125,6 +125,7 @@ DefNode( ShaderNode,     SH_NODE_UVMAP,              def_sh_uvmap,           "UV
 DefNode( ShaderNode,     SH_NODE_UVALONGSTROKE,      def_sh_uvalongstroke,   "UVALONGSTROKE",      UVAlongStroke,    "UV Along Stroke",   ""       )
 DefNode( ShaderNode,     SH_NODE_SEPXYZ,             0,                      "SEPXYZ",             SeparateXYZ,      "Separate XYZ",      ""       )
 DefNode( ShaderNode,     SH_NODE_COMBXYZ,            0,                      "COMBXYZ",            CombineXYZ,       "Combine XYZ",       ""       )
+DefNode( ShaderNode,     SH_NODE_IESLIGHT,          def_sh_ies_light,       "IES_LIGHT",          IESLight,         "IES Light",         ""       )
 
 DefNode( CompositorNode, CMP_NODE_VIEWER,         def_cmp_viewer,         "VIEWER",         Viewer,           "Viewer",            ""              )
 DefNode( CompositorNode, CMP_NODE_RGB,            0,                      "RGB",            RGB,              "RGB",               ""              )
