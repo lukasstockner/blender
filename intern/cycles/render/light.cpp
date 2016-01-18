@@ -23,10 +23,14 @@
 #include "object.h"
 #include "scene.h"
 #include "shader.h"
+#include "tables.h"
 
 #include "util_foreach.h"
+#include "util_hash.h"
 #include "util_progress.h"
 #include "util_logging.h"
+
+#include <fstream>
 
 CCL_NAMESPACE_BEGIN
 
@@ -114,6 +118,8 @@ Light::Light()
 	axisv = make_float3(0.0f, 0.0f, 0.0f);
 	sizev = 1.0f;
 
+	tfm = transform_identity();
+
 	map_resolution = 512;
 
 	spot_angle = M_PI_4_F;
@@ -155,6 +161,8 @@ LightManager::LightManager()
 {
 	need_update = true;
 	use_light_visibility = false;
+
+	ies_table_offset = TABLE_OFFSET_INVALID;
 }
 
 LightManager::~LightManager()
@@ -703,6 +711,11 @@ void LightManager::device_update_points(Device *device, DeviceScene *dscene, Sce
 			light_data[light_index*LIGHT_SIZE + 4] = make_float4(max_bounces, 0.0f, 0.0f, 0.0f);
 		}
 
+		Transform tfm = light->tfm;
+		Transform itfm = transform_inverse(tfm);
+		memcpy(&light_data[light_index*LIGHT_SIZE + 5],  &tfm, 4*sizeof(float4));
+		memcpy(&light_data[light_index*LIGHT_SIZE + 9], &itfm, 4*sizeof(float4));
+
 		light_index++;
 	}
 
@@ -729,6 +742,11 @@ void LightManager::device_update_points(Device *device, DeviceScene *dscene, Sce
 		light_data[light_index*LIGHT_SIZE + 3] = make_float4(-1, dir.x, dir.y, dir.z);
 		light_data[light_index*LIGHT_SIZE + 4] = make_float4(-1, 0.0f, 0.0f, 0.0f);
 
+		Transform tfm = light->tfm;
+		Transform itfm = transform_inverse(tfm);
+		memcpy(&light_data[light_index*LIGHT_SIZE + 5],  &tfm, 4*sizeof(float4));
+		memcpy(&light_data[light_index*LIGHT_SIZE + 9], &itfm, 4*sizeof(float4));
+
 		light_index++;
 	}
 
@@ -738,6 +756,30 @@ void LightManager::device_update_points(Device *device, DeviceScene *dscene, Sce
 	device->tex_alloc("__light_data", dscene->light_data);
 }
 
+void LightManager::device_update_ies(DeviceScene *dscene, Scene *scene)
+{
+	vector<float> offsets;
+	for(int slot = 0; slot < ies_lights.size(); slot++) {
+		IESEntry *entry = &ies_lights[slot];
+		if(entry->ieslight == NULL) {
+			offsets.push_back(TABLE_OFFSET_INVALID);
+			continue;
+		}
+		if(entry->offset == TABLE_OFFSET_INVALID) {
+			vector<float> data;
+			entry->ieslight->pack(data);
+			entry->offset = scene->lookup_tables->add_table(dscene, data);
+		}
+		offsets.push_back(__int_as_float((int) entry->offset));
+	}
+
+	KernelTables *ktables = &dscene->data.tables;
+	if(ies_table_offset != TABLE_OFFSET_INVALID)
+		scene->lookup_tables->remove_table(ies_table_offset);
+	ies_table_offset = scene->lookup_tables->add_table(dscene, offsets);
+	ktables->ies_table_offset = (int) ies_table_offset;
+}
+
 void LightManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)
 {
 	VLOG(1) << "Total " << scene->lights.size() << " lights.";
@@ -745,7 +787,7 @@ void LightManager::device_update(Device *device, DeviceScene *dscene, Scene *sce
 	if(!need_update)
 		return;
 
-	device_free(device, dscene);
+	device_free(device, dscene, scene);
 
 	use_light_visibility = false;
 
@@ -758,6 +800,9 @@ void LightManager::device_update(Device *device, DeviceScene *dscene, Scene *sce
 	device_update_background(device, dscene, scene, progress);
 	if(progress.get_cancel()) return;
 
+	device_update_ies(dscene, scene);
+	if(progress.get_cancel()) return;
+
 	if(use_light_visibility != scene->film->use_light_visibility) {
 		scene->film->use_light_visibility = use_light_visibility;
 		scene->film->tag_update(scene);
@@ -766,7 +811,7 @@ void LightManager::device_update(Device *device, DeviceScene *dscene, Scene *sce
 	need_update = false;
 }
 
-void LightManager::device_free(Device *device, DeviceScene *dscene)
+void LightManager::device_free(Device *device, DeviceScene *dscene, Scene *scene)
 {
 	device->tex_free(dscene->light_distribution);
 	device->tex_free(dscene->light_data);
@@ -777,11 +822,59 @@ void LightManager::device_free(Device *device, DeviceScene *dscene)
 	dscene->light_data.clear();
 	dscene->light_background_marginal_cdf.clear();
 	dscene->light_background_conditional_cdf.clear();
+
+	if(ies_table_offset != TABLE_OFFSET_INVALID) {
+		scene->lookup_tables->remove_table(ies_table_offset);
+		ies_table_offset = TABLE_OFFSET_INVALID;
+	}
+	for(int slot = 0; slot < ies_lights.size(); slot++) {
+		if(ies_lights[slot].offset != TABLE_OFFSET_INVALID) {
+			scene->lookup_tables->remove_table(ies_lights[slot].offset);
+			ies_lights[slot].offset = TABLE_OFFSET_INVALID;
+		}
+	}
 }
 
 void LightManager::tag_update(Scene * /*scene*/)
 {
 	need_update = true;
+}
+
+int LightManager::add_ies_from_file(const string& filename) {
+	string content;
+	std::ifstream in(filename.c_str(), std::ios::in | std::ios::binary);
+	if(in) {
+		content = string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+	}
+	/* If the file can't be opened, call with an empty string */
+	return add_ies(content);
+}
+
+int LightManager::add_ies(const string& content) {
+	uint hash = hash_string(content.c_str());
+	for(int slot = 0; slot < ies_lights.size(); slot++) {
+		if(ies_lights[slot].hash == hash) {
+			ies_lights[slot].users++;
+			return slot;
+		}
+	}
+	IESEntry entry;
+	entry.hash = hash;
+	entry.ieslight = new IESLight(content);
+	entry.users = 1;
+	entry.offset = TABLE_OFFSET_INVALID;
+	ies_lights.push_back(entry);
+	return ies_lights.size()-1;
+}
+
+void LightManager::remove_ies(int slot) {
+	assert(slot < ies_lights.size());
+	assert(ies_lights[slot].users > 0);
+	ies_lights[slot].users--;
+	if(ies_lights[slot].users == 0) {
+		delete ies_lights[slot].ieslight;
+		ies_lights[slot].ieslight = NULL;
+	}
 }
 
 CCL_NAMESPACE_END

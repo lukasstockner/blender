@@ -105,7 +105,7 @@ void Scene::free_memory(bool final)
 		object_manager->device_free(device, &dscene);
 		mesh_manager->device_free(device, &dscene);
 		shader_manager->device_free(device, &dscene, this);
-		light_manager->device_free(device, &dscene);
+		light_manager->device_free(device, &dscene, this);
 
 		particle_system_manager->device_free(device, &dscene);
 		curve_system_manager->device_free(device, &dscene);

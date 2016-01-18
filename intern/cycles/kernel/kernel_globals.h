@@ -124,5 +124,16 @@ ccl_device float lookup_table_read_2D(KernelGlobals *kg, float x, float y, int o
 	return (1.0f - t)*data0 + t*data1;
 }
 
+#define T_AT(x) kernel_tex_fetch(__lookup_table, offset + (x))
+#define I_AT(h, v) T_AT((h)*v_num + (v))
+#define V_INTERP(h, v, x) cubic_interp(I_AT(h, ((v) > 0)? (v)-1: (v)+1), I_AT(h, v), I_AT(h, (v)+1), I_AT(h, (((v)+2) < v_num)? (v)+2: (v)+1), x)
+ccl_device float lookup_table_interpolate_hemisphere(KernelGlobals *kg, int offset, float h_angle, float v_angle)
+{
+	int h_num = __float_as_int(kernel_tex_fetch(__lookup_table, offset++));
+	int v_num = __float_as_int(kernel_tex_fetch(__lookup_table, offset++));
+
+	if((h_angle >= T_AT(0)) && (h_angle <= T_AT(h_num-1)) && (v_angle >= T_AT(h_num)) && (v_angle <= T_AT(h_num+v_num-1))) {
+		
+
 CCL_NAMESPACE_END
 

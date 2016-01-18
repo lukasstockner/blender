@@ -77,7 +77,7 @@ void SVMShaderManager::device_update(Device *device, DeviceScene *dscene, Scene 
 			scene->light_manager->need_update = true;
 
 		SVMCompiler::Summary summary;
-		SVMCompiler compiler(scene->shader_manager, scene->image_manager);
+		SVMCompiler compiler(scene->shader_manager, scene->image_manager, scene->light_manager);
 		compiler.background = ((int)i == scene->default_background);
 		compiler.compile(scene, shader, svm_nodes, i, &summary);
 
@@ -109,10 +109,11 @@ void SVMShaderManager::device_free(Device *device, DeviceScene *dscene, Scene *s
 
 /* Graph Compiler */
 
-SVMCompiler::SVMCompiler(ShaderManager *shader_manager_, ImageManager *image_manager_)
+SVMCompiler::SVMCompiler(ShaderManager *shader_manager_, ImageManager *image_manager_, LightManager *light_manager_)
 {
 	shader_manager = shader_manager_;
 	image_manager = image_manager_;
+	light_manager = light_manager_;
 	max_stack_use = 0;
 	current_type = SHADER_TYPE_SURFACE;
 	current_shader = NULL;

@@ -516,6 +516,12 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 			xml_read_enum(&wave->profile, WaveTextureNode::profile_enum, node, "profile");
 			snode = wave;
 		}
+		else if(string_iequals(node.name(), "ies_light")) {
+			IESLightNode *ies = new IESLightNode();
+			xml_read_string(&ies->filename, node, "src");
+			ies->filename = path_join(state.base, ies->filename);
+			snode = ies;
+		}
 		else if(string_iequals(node.name(), "normal")) {
 			NormalNode *normal = new NormalNode();
 			xml_read_float3(&normal->direction, node, "direction");

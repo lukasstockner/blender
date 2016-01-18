@@ -1556,6 +1556,74 @@ void NormalNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_normal");
 }
 
+/* IES Light */
+
+IESLightNode::IESLightNode()
+: ShaderNode("ies_light")
+{
+	light_manager = NULL;
+	slot = -1;
+	filename = "";
+
+	add_input("Strength", SHADER_SOCKET_FLOAT);
+	add_input("Vector", SHADER_SOCKET_POINT);
+	add_output("Fac", SHADER_SOCKET_FLOAT);
+}
+
+ShaderNode *IESLightNode::clone() const
+{
+	IESLightNode *node = new IESLightNode(*this);
+	node->light_manager = NULL;
+	node->slot = -1;
+	return node;
+}
+
+IESLightNode::~IESLightNode()
+{
+	if(light_manager)
+		light_manager->remove_ies(slot);
+}
+
+void IESLightNode::compile(SVMCompiler& compiler)
+{
+	light_manager = compiler.light_manager;
+	if(slot == -1) {
+		if(ies.empty()) {
+			slot = light_manager->add_ies_from_file(filename);
+		}
+		else {
+			slot = light_manager->add_ies(ies);
+		}
+	}
+
+	ShaderInput *strength_in = input("Strength");
+	ShaderInput *vector_in = input("Vector");
+	ShaderOutput *fac_out = output("Fac");
+
+	if(vector_in->link)
+		compiler.stack_assign(vector_in);
+	if(strength_in->link)
+		compiler.stack_assign(strength_in);
+	compiler.stack_assign(fac_out);
+
+	compiler.add_node(NODE_IES, compiler.encode_uchar4(strength_in->stack_offset, vector_in->stack_offset, fac_out->stack_offset, 0), slot, __float_as_int(strength_in->value.x));
+}
+
+void IESLightNode::compile(OSLCompiler& compiler)
+{
+	light_manager = compiler.light_manager;
+	if(slot == -1) {
+		if(ies.empty()) {
+			slot = light_manager->add_ies_from_file(filename);
+		}
+ 		else {
+			slot = light_manager->add_ies(ies);
+		}
+	}
+	compiler.parameter("slot", slot);
+	compiler.add(this, "node_ies_light");
+}
+
 /* Mapping */
 
 MappingNode::MappingNode()

@@ -36,10 +36,10 @@ CCL_NAMESPACE_BEGIN
 /* constants */
 #define OBJECT_SIZE 		11
 #define OBJECT_VECTOR_SIZE	6
-#define LIGHT_SIZE			5
+#define LIGHT_SIZE		13
 #define FILTER_TABLE_SIZE	1024
 #define RAMP_TABLE_SIZE		256
-#define SHUTTER_TABLE_SIZE		256
+#define SHUTTER_TABLE_SIZE	256
 #define PARTICLE_SIZE 		5
 #define TIME_INVALID		FLT_MAX
 
@@ -1052,7 +1052,8 @@ typedef struct KernelCurves {
 
 typedef struct KernelTables {
 	int beckmann_offset;
-	int pad1, pad2, pad3;
+	int ies_table_offset;
+	int pad1, pad2;
 } KernelTables;
 
 typedef struct KernelData {

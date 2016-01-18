@@ -113,7 +113,9 @@ protected:
 
 class OSLCompiler {
 public:
-	OSLCompiler(void *manager, void *shadingsys, ImageManager *image_manager);
+	OSLCompiler(void *manager, void *shadingsys,
+	            ImageManager *image_manager,
+	            LightManager *light_manager);
 	void compile(Scene *scene, OSLGlobals *og, Shader *shader);
 
 	void add(ShaderNode *node, const char *name, bool isfilepath = false);
@@ -141,6 +143,7 @@ public:
 
 	bool background;
 	ImageManager *image_manager;
+	LightManager *light_manager;
 
 private:
 #ifdef WITH_OSL

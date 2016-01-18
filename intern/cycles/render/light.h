@@ -21,6 +21,7 @@
 
 #include "util_types.h"
 #include "util_vector.h"
+#include "util_ies.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -43,6 +44,8 @@ public:
 	float sizeu;
 	float3 axisv;
 	float sizev;
+
+	Transform tfm;
 
 	int map_resolution;
 
@@ -77,14 +80,27 @@ public:
 	~LightManager();
 
 	void device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
-	void device_free(Device *device, DeviceScene *dscene);
+	void device_free(Device *device, DeviceScene *dscene, Scene *scene);
 
 	void tag_update(Scene *scene);
+	int add_ies_from_file(const string& filename);
+	int add_ies(const string& content);
+	void remove_ies(int offset);
 
 protected:
 	void device_update_points(Device *device, DeviceScene *dscene, Scene *scene);
 	void device_update_distribution(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
 	void device_update_background(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
+	void device_update_ies(DeviceScene *dscene, Scene *scene);
+
+	struct IESEntry {
+		uint hash;
+		IESLight *ieslight;
+		size_t offset;
+		int users;
+	};
+	vector<IESEntry> ies_lights;
+	size_t ies_table_offset;
 };
 
 CCL_NAMESPACE_END
