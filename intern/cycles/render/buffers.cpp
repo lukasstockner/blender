@@ -198,6 +198,9 @@ bool RenderBuffers::filter_lwr(bool use_library, int half_window, float bias_wei
 }
 
 SampleMap* RenderBuffers::get_sample_map(RenderTile *tile) {
+	if(!params.lwr_passes)
+		return NULL;
+
 	if(tile->sample < params.lwr_offset)
 		return NULL;
 

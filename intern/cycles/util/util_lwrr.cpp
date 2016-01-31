@@ -3,17 +3,20 @@
 #include "util_foreach.h"
 #include "util_hash.h"
 
+#ifdef WITH_LWRR
 #include "lwrr.h"
 #include "lwrr_fit.h"
+#endif
+
+#include <algorithm>
 
 CCL_NAMESPACE_BEGIN
 
 thread_mutex gpu_mutex;
 
 void LWRR_apply(RenderBuffers *buffers) {
+#ifdef WITH_LWRR
 	thread_scoped_lock lock(gpu_mutex);
-//	if((tile.sample <= 32 && (tile.sample % 16)) || (tile.sample > 32 && tile.sample <= 128 && (tile.sample % 32)) || (tile.sample > 128 && (tile.sample % 64)))
-//		return;
 
 	buffers->copy_from_device();
 
@@ -84,24 +87,15 @@ void LWRR_apply(RenderBuffers *buffers) {
 			base[oF+0] = outImg[3*(y*w+x)+0];
 			base[oF+1] = outImg[3*(y*w+x)+1];
 			base[oF+2] = outImg[3*(y*w+x)+2];
-//			base[oF+3] = base[oC+3] / base[oS];
 			base[oT] = min(outMse[3*(y*w+x)], maxMse) * w*h / sumMse;
 		}
 
 	delete[] bS;
 
 	buffers->copy_to_device();
-/*
-	char name[1024];
-	sprintf(name, "in_%d.pfm", tile.sample);
-	write_pfm3(name, lwrr.get_inputImg(), w, h);
-	sprintf(name, "out_%d.pfm", tile.sample);
-	write_pfm3(name, lwrr.get_optImg(), w, h);
-	sprintf(name, "rank_%d.pfm", tile.sample);
-	write_pfm(name, lwrr.get_ranks(), w, h);
-	sprintf(name, "mse_%d.pfm", tile.sample);
-	write_pfm3(name, lwrr.get_mse_optImg(), w, h);
-*/
+#else
+	printf("Compiled without LWRR support!\n");
+#endif
 }
 
 SampleMap::SampleMap(RenderTile &tile, int ofs, int lwr_passes)
@@ -117,14 +111,16 @@ SampleMap::SampleMap(RenderTile &tile, int ofs, int lwr_passes)
 	int oT = lwr_passes + 20;
 
 	float *buffer = (float*)tile.buffers->buffer.data_pointer;
+	int2 lowP = make_int2(tile.buffers->params.full_x, tile.buffers->params.full_y);
+	int2 highP = lowP + make_int2(tile.buffers->params.width, tile.buffers->params.height);
 	int pass_stride = tile.buffers->params.get_passes_size();
 	//Prefilter
 	for(int y = 0; y < h; y++) {
 		for(int x = 0; x < w; x++) {
 			float sum_w = 0.0f;
 			float sum = 0.0f;
-			for(int py = max(0, y + tile.y - 3); py < min(tile.buffers->params.height, y + tile.y + 4); py++) {
-				for(int px = max(0, x + tile.x - 3); px < min(tile.buffers->params.width, x + tile.x + 4); px++) {
+			for(int py = max(lowP.y, y + tile.y - 3); py < min(highP.y, y + tile.y + 4); py++) {
+				for(int px = max(lowP.x, x + tile.x - 3); px < min(highP.x, x + tile.x + 4); px++) {
 					float dist = (py - (y+tile.y))*(py - (y+tile.y)) + (px - (x+tile.x))*(px - (x+tile.x));
 					float w = expf(-dist/2.0f);
 					sum_w += w;

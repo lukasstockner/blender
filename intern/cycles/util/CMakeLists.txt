@@ -1,7 +1,6 @@
 
 set(INC
 	.
-	../../../extern/lwrr
 	../../glew-mx
 	../device
 	../kernel

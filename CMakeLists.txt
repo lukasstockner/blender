@@ -377,6 +377,7 @@ endif()
 
 # Cycles
 option(WITH_CYCLES					"Enable Cycles Render Engine" ON)
+option(WITH_CYCLES_LWRR					"Enable Reference LWR implementation (needs CUDA 7.5 and C++11)" OFF)
 option(WITH_CYCLES_STANDALONE		"Build Cycles standalone application" OFF)
 option(WITH_CYCLES_STANDALONE_GUI	"Build Cycles standalone with GUI" OFF)
 option(WITH_CYCLES_OSL				"Build Cycles with OSL support" ${_init_CYCLES_OSL})

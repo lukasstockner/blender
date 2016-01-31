@@ -138,6 +138,15 @@ if(WITH_CYCLES_OSL)
 	)
 endif()
 
+if(WITH_CYCLES_LWRR)
+	add_definitions(-DWITH_LWRR)
+	include_directories(
+		SYSTEM
+		../../extern/lwrr
+	)
+		
+endif()
+
 set(WITH_CYCLES_DEVICE_OPENCL TRUE)
 set(WITH_CYCLES_DEVICE_CUDA TRUE)
 set(WITH_CYCLES_DEVICE_MULTI TRUE)

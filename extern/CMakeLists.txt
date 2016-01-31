@@ -56,7 +56,7 @@ if(WITH_GAMEENGINE)
 	add_subdirectory(recastnavigation)
 endif()
 
-if(WITH_CYCLES)
+if(WITH_CYCLES_LWRR)
 	add_subdirectory(lwrr)
 endif()
 
