@@ -33,6 +33,7 @@ CCL_NAMESPACE_BEGIN
 class Device;
 struct DeviceDrawParams;
 struct float4;
+struct RenderTile;
 
 /* Buffer Parameters
  * Size of render buffer and how it fits in the full image (border render). */
@@ -72,6 +73,7 @@ public:
 	device_vector<float> buffer;
 	/* random number generator state */
 	device_vector<uint> rng_state;
+	vector<int> samples;
 
 	RenderBuffers(Device *device);
 	~RenderBuffers();
@@ -79,7 +81,9 @@ public:
 	void reset(Device *device, BufferParams& params);
 
 	bool copy_from_device();
-	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels);
+	bool get_pass_rect(PassType type, float exposure, int components, float *pixels);
+
+	void set_tile(RenderTile *rtile);
 
 protected:
 	void device_free();
@@ -132,9 +136,6 @@ protected:
 class RenderTile {
 public:
 	int x, y, w, h;
-	int start_sample;
-	int num_samples;
-	int sample;
 	int resolution;
 	int offset;
 	int stride;
@@ -143,6 +144,13 @@ public:
 	device_ptr rng_state;
 
 	RenderBuffers *buffers;
+
+	/* Number of samples to render for each pixel, indexed like the main buffer */
+	int *num_samples;
+	/* Total number of samples for all pixels in the tile */
+	int total_samples;
+	/* Highest number of samples per pixel in the tile */
+	int max_samples;
 
 	RenderTile();
 };

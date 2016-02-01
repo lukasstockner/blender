@@ -911,7 +911,7 @@ ccl_device_inline float4 kernel_path_integrate(KernelGlobals *kg,
 
 ccl_device void kernel_path_trace(KernelGlobals *kg,
 	ccl_global float *buffer, ccl_global uint *rng_state,
-	int sample, int x, int y, int offset, int stride)
+	int x, int y, int offset, int stride)
 {
 	/* buffer offset */
 	int index = offset + x + y*stride;
@@ -919,6 +919,15 @@ ccl_device void kernel_path_trace(KernelGlobals *kg,
 
 	rng_state += index;
 	buffer += index*pass_stride;
+
+	float *sample_buf = buffer + kernel_data.film.pass_samples;
+#ifdef __KERNEL_GPU__
+	int sample = (int)atomic_add_float(sample_buf, 1.0f);
+#else
+	int sample = *sample_buf;
+	*sample_buf += 1.0f;
+#endif
+
 
 	/* initialize random numbers and ray */
 	RNG rng;

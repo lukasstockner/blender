@@ -81,9 +81,6 @@ RenderTile::RenderTile()
 	w = 0;
 	h = 0;
 
-	sample = 0;
-	start_sample = 0;
-	num_samples = 0;
 	resolution = 0;
 
 	offset = 0;
@@ -93,6 +90,10 @@ RenderTile::RenderTile()
 	rng_state = 0;
 
 	buffers = NULL;
+	num_samples = NULL;
+
+	total_samples = 0;
+	max_samples = 0;
 }
 
 /* Render Buffers */
@@ -156,9 +157,28 @@ bool RenderBuffers::copy_from_device()
 	return true;
 }
 
-bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels)
+void RenderBuffers::set_tile(RenderTile *rtile)
+{
+	rtile->buffers = this;
+	rtile->buffer = buffer.device_pointer;
+	rtile->rng_state = rng_state.device_pointer;
+
+	rtile->total_samples = 0;
+	rtile->max_samples = 0;
+	rtile->num_samples = &samples[0];
+	for(int y = rtile->y; y < rtile->y + rtile->h; y++) {
+		for(int x = rtile->x; x < rtile->x + rtile->w; x++) {
+			int pixel_samples = samples[rtile->offset + y*rtile->stride + x];
+			rtile->total_samples += pixel_samples;
+			rtile->max_samples = max(rtile->max_samples, pixel_samples);
+		}
+	}
+}
+
+bool RenderBuffers::get_pass_rect(PassType type, float exposure, int components, float *pixels)
 {
 	int pass_offset = 0;
+	int sample = 1;
 
 	foreach(Pass& pass, params.passes) {
 		if(pass.type != type) {

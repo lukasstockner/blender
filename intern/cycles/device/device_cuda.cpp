@@ -103,6 +103,7 @@ public:
 	};
 
 	map<device_ptr, PixelMem> pixel_mem_map;
+	device_vector<int2> thread_to_pixel;
 
 	CUdeviceptr cuda_device_ptr(device_ptr mem)
 	{
@@ -633,7 +634,7 @@ public:
 		}
 	}
 
-	void path_trace(RenderTile& rtile, int sample, bool branched)
+	void path_trace(DeviceTask *task, RenderTile& rtile, bool branched)
 	{
 		if(have_error())
 			return;
@@ -655,18 +656,7 @@ public:
 		if(have_error())
 			return;
 
-		/* pass in parameters */
-		void *args[] = {&d_buffer,
-						 &d_rng_state,
-						 &sample,
-						 &rtile.x,
-						 &rtile.y,
-						 &rtile.w,
-						 &rtile.h,
-						 &rtile.offset,
-						 &rtile.stride};
-
-		/* launch kernel */
+		/* set kernel launch config */
 		int threads_per_block;
 		cuda_assert(cuFuncGetAttribute(&threads_per_block, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, cuPathTrace));
 
@@ -683,12 +673,65 @@ public:
 
 		cuda_assert(cuFuncSetCacheConfig(cuPathTrace, CU_FUNC_CACHE_PREFER_L1));
 
-		cuda_assert(cuLaunchKernel(cuPathTrace,
-								   xblocks , yblocks, 1, /* blocks */
-								   xthreads, ythreads, 1, /* threads */
-								   0, 0, args, 0));
+		int num_threads = xblocks*xthreads * yblocks*ythreads;
 
-		cuda_assert(cuCtxSynchronize());
+		if(thread_to_pixel.size() < num_threads) {
+			mem_free(thread_to_pixel);
+			thread_to_pixel.resize(num_threads);
+			mem_alloc(thread_to_pixel, MEM_READ_ONLY);
+		}
+
+		int num_queued = 0;
+
+		/* pass in parameters */
+		void *args[] = {&d_buffer,
+		                &d_rng_state,
+		                &thread_to_pixel,
+		                &num_queued,
+		                &rtile.w,
+		                &rtile.h,
+		                &rtile.offset,
+		                &rtile.stride};
+
+		int2 *queue = thread_to_pixel.get_data();
+		for(int sample = 0; sample < rtile.max_samples; sample++) {
+			if(task->get_cancel()) {
+				if(task->need_finish_queue == false)
+					break;
+			}
+
+			for(int y = rtile.y; y < rtile.y + rtile.h; y++) {
+				for(int x = rtile.x; x < rtile.x + rtile.w; x++) {
+					int pixel_samples = rtile.num_samples[rtile.offset + y*rtile.stride + x];
+					 if(sample < pixel_samples) {
+						queue[num_queued++] = make_int2(x, y);
+						if(num_queued == num_threads) {
+							cuda_assert(cuLaunchKernel(cuPathTrace,
+							                           xblocks , yblocks, 1, /* blocks */
+							                           xthreads, ythreads, 1, /* threads */
+							                           0, 0, args, 0));
+
+							cuda_assert(cuCtxSynchronize());
+							task->update_progress(&rtile);
+
+							num_queued = 0;
+						}
+					}
+				}
+			}
+		}
+
+		if(num_queued > 0 && (!task->get_cancel() || task->need_finish_queue)) {
+			cuda_assert(cuLaunchKernel(cuPathTrace,
+			                           xblocks , yblocks, 1, /* blocks */
+			                           xthreads, ythreads, 1, /* threads */
+			                           0, 0, args, 0));
+
+			cuda_assert(cuCtxSynchronize());
+			task->update_progress(&rtile);
+
+			num_queued = 0;
+		}
 
 		cuda_pop_context();
 	}
@@ -1056,26 +1099,12 @@ public:
 	{
 		if(task->type == DeviceTask::PATH_TRACE) {
 			RenderTile tile;
-			
+
 			bool branched = task->integrator_branched;
-			
+
 			/* keep rendering tiles until done */
 			while(task->acquire_tile(this, tile)) {
-				int start_sample = tile.start_sample;
-				int end_sample = tile.start_sample + tile.num_samples;
-
-				for(int sample = start_sample; sample < end_sample; sample++) {
-					if(task->get_cancel()) {
-						if(task->need_finish_queue == false)
-							break;
-					}
-
-					path_trace(tile, sample, branched);
-
-					tile.sample = sample + 1;
-
-					task->update_progress(&tile);
-				}
+				path_trace(task, tile, branched);
 
 				task->release_tile(tile);
 			}

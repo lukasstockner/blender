@@ -127,7 +127,7 @@ public:
 	Stats stats;
 
 	function<void(RenderTile&)> write_render_tile_cb;
-	function<void(RenderTile&)> update_render_tile_cb;
+	function<void(RenderTile&, bool)> update_render_tile_cb;
 
 	Session(const SessionParams& params);
 	~Session();

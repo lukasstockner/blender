@@ -36,7 +36,6 @@ CCL_NAMESPACE_BEGIN
 void KERNEL_FUNCTION_FULL_NAME(path_trace)(KernelGlobals *kg,
                                            float *buffer,
                                            unsigned int *rng_state,
-                                           int sample,
                                            int x, int y,
                                            int offset,
                                            int stride)
@@ -46,7 +45,6 @@ void KERNEL_FUNCTION_FULL_NAME(path_trace)(KernelGlobals *kg,
 		kernel_branched_path_trace(kg,
 		                           buffer,
 		                           rng_state,
-		                           sample,
 		                           x, y,
 		                           offset,
 		                           stride);
@@ -54,7 +52,7 @@ void KERNEL_FUNCTION_FULL_NAME(path_trace)(KernelGlobals *kg,
 	else
 #endif
 	{
-		kernel_path_trace(kg, buffer, rng_state, sample, x, y, offset, stride);
+		kernel_path_trace(kg, buffer, rng_state, x, y, offset, stride);
 	}
 }
 

@@ -67,7 +67,7 @@ public:
 	/* update functions are used to update display buffer only after sample was rendered
 	 * only needed for better visual feedback */
 	void update_render_result(BL::RenderResult b_rr, BL::RenderLayer b_rlay, RenderTile& rtile);
-	void update_render_tile(RenderTile& rtile);
+	void update_render_tile(RenderTile& rtile, bool only_highlight);
 
 	/* interactive updates */
 	void synchronize();
@@ -110,7 +110,7 @@ public:
 
 protected:
 	void do_write_update_render_result(BL::RenderResult b_rr, BL::RenderLayer b_rlay, RenderTile& rtile, bool do_update_only);
-	void do_write_update_render_tile(RenderTile& rtile, bool do_update_only);
+	void do_write_update_render_tile(RenderTile& rtile, bool do_update_only, bool only_highlight);
 
 	int builtin_image_frame(const string &builtin_name);
 	void builtin_image_info(const string &builtin_name, void *builtin_data, bool &is_float, int &width, int &height, int &depth, int &channels);

@@ -113,25 +113,29 @@
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
-kernel_cuda_path_trace(float *buffer, uint *rng_state, int sample, int sx, int sy, int sw, int sh, int offset, int stride)
+kernel_cuda_path_trace(float *buffer, uint *rng_state, int2 *pixel_queue, int len_queue, int sw, int sh, int offset, int stride)
 {
-	int x = sx + blockDim.x*blockIdx.x + threadIdx.x;
-	int y = sy + blockDim.y*blockIdx.y + threadIdx.y;
+	int x = blockDim.x*blockIdx.x + threadIdx.x;
+	int y = blockDim.y*blockIdx.y + threadIdx.y;
 
-	if(x < sx + sw && y < sy + sh)
-		kernel_path_trace(NULL, buffer, rng_state, sample, x, y, offset, stride);
+	int id = y*blockDim.x*gridDim.x + x;
+
+	if(id < len_queue)
+		kernel_path_trace(NULL, buffer, rng_state, pixel_queue[id].x, pixel_queue[id].y, offset, stride);
 }
 
 #ifdef __BRANCHED_PATH__
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_BRANCHED_MAX_REGISTERS)
-kernel_cuda_branched_path_trace(float *buffer, uint *rng_state, int sample, int sx, int sy, int sw, int sh, int offset, int stride)
+kernel_cuda_branched_path_trace(float *buffer, uint *rng_state, int2 *pixel_queue, int len_queue, int sw, int sh, int offset, int stride)
 {
-	int x = sx + blockDim.x*blockIdx.x + threadIdx.x;
-	int y = sy + blockDim.y*blockIdx.y + threadIdx.y;
+	int x = blockDim.x*blockIdx.x + threadIdx.x;
+	int y = blockDim.y*blockIdx.y + threadIdx.y;
 
-	if(x < sx + sw && y < sy + sh)
-		kernel_branched_path_trace(NULL, buffer, rng_state, sample, x, y, offset, stride);
+	int id = y*blockDim.x*gridDim.x + x;
+
+	if(id < len_queue)
+		kernel_branched_path_trace(NULL, buffer, rng_state, pixel_queue[id].x, pixel_queue[id].y, offset, stride);
 }
 #endif
 

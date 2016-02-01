@@ -374,8 +374,6 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	rtile.y = tile_manager.state.buffer.full_y + tile.y;
 	rtile.w = tile.w;
 	rtile.h = tile.h;
-	rtile.start_sample = tile_manager.state.sample;
-	rtile.num_samples = tile_manager.state.num_samples;
 	rtile.resolution = tile_manager.state.resolution_divider;
 
 	tile_lock.unlock();
@@ -385,9 +383,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	if(!(params.background && params.output_path.empty())) {
 		tile_manager.state.buffer.get_offset_stride(rtile.offset, rtile.stride);
 
-		rtile.buffer = buffers->buffer.device_pointer;
-		rtile.rng_state = buffers->rng_state.device_pointer;
-		rtile.buffers = buffers;
+		buffers->set_tile(&rtile);
 
 		device->map_tile(tile_device, rtile);
 
@@ -433,15 +429,16 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 		tilebuffers->reset(tile_device, buffer_params);
 	}
 
-	rtile.buffer = tilebuffers->buffer.device_pointer;
-	rtile.rng_state = tilebuffers->rng_state.device_pointer;
-	rtile.buffers = tilebuffers;
+	tilebuffers->set_tile(&rtile);
 
 	/* this will tag tile as IN PROGRESS in blender-side render pipeline,
 	 * which is needed to highlight currently rendering tile before first
 	 * sample was processed for it
 	 */
-	update_tile_sample(rtile);
+	if(update_render_tile_cb && params.progressive_refine == false) {
+		/* todo: optimize this by making it thread safe and removing lock */
+		update_render_tile_cb(rtile, true);
+	}
 
 	return true;
 }
@@ -454,7 +451,7 @@ void Session::update_tile_sample(RenderTile& rtile)
 		if(params.progressive_refine == false) {
 			/* todo: optimize this by making it thread safe and removing lock */
 
-			update_render_tile_cb(rtile);
+			update_render_tile_cb(rtile, false);
 		}
 	}
 
@@ -965,7 +962,7 @@ bool Session::update_progressive_refine(bool cancel)
 		foreach(RenderBuffers *buffers, tile_buffers) {
 			RenderTile rtile;
 			rtile.buffers = buffers;
-			rtile.sample = sample;
+			//rtile.sample = sample;
 
 			if(write) {
 				if(write_render_tile_cb)
@@ -973,7 +970,7 @@ bool Session::update_progressive_refine(bool cancel)
 			}
 			else {
 				if(update_render_tile_cb)
-					update_render_tile_cb(rtile);
+					update_render_tile_cb(rtile, false);
 			}
 		}
 	}

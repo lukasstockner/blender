@@ -1702,6 +1702,7 @@ public:
 
 	void path_trace(RenderTile& rtile, int sample)
 	{
+#if 0
 		/* Cast arguments to cl types. */
 		cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
 		cl_mem d_buffer = CL_MEM_PTR(rtile.buffer);
@@ -1739,6 +1740,7 @@ public:
 		                                   d_stride);
 
 		enqueue_kernel(ckPathTraceKernel, d_w, d_h);
+#endif
 	}
 
 	void thread_run(DeviceTask *task)
@@ -1753,6 +1755,7 @@ public:
 			RenderTile tile;
 			/* Keep rendering tiles until done. */
 			while(task->acquire_tile(this, tile)) {
+#if 0
 				int start_sample = tile.start_sample;
 				int end_sample = tile.start_sample + tile.num_samples;
 
@@ -1780,6 +1783,7 @@ public:
 				 */
 				clFinish(cqCommandQueue);
 
+#endif
 				task->release_tile(tile);
 			}
 		}
@@ -2493,6 +2497,7 @@ public:
 
 	void path_trace(SplitRenderTile& rtile, int2 max_render_feasible_tile_size)
 	{
+#if 0
 		/* cast arguments to cl types */
 		cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
 		cl_mem d_buffer = CL_MEM_PTR(rtile.buffer);
@@ -3113,6 +3118,7 @@ public:
 		}
 
 		first_tile = false;
+#endif
 	}
 
 	/* Calculates the amount of memory that has to be always
@@ -3410,6 +3416,7 @@ public:
 			const int2 tile_size = task->requested_tile_size;
 			/* Keep rendering tiles until done. */
 			while(task->acquire_tile(this, tile)) {
+#if 0
 				if(!initialize_data_and_check_render_feasibility) {
 					/* Initialize data. */
 					/* Calculate per_thread_output_buffer_size. */
@@ -3502,7 +3509,7 @@ public:
 				 * next tile.
 				 */
 				clFinish(cqCommandQueue);
-
+#endif
 				task->release_tile(tile);
 			}
 		}

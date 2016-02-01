@@ -343,7 +343,7 @@ static void end_render_result(BL::RenderEngine b_engine, BL::RenderResult b_rr, 
 	b_engine.end_result(b_rr, (int)cancel, (int)do_merge_results);
 }
 
-void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only)
+void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only, bool only_highlight)
 {
 	BufferParams& params = rtile.buffers->params;
 	int x = params.full_x - session->tile_manager.params.full_x;
@@ -371,7 +371,7 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_upda
 	if(do_update_only) {
 		/* update only needed */
 
-		if(rtile.sample != 0) {
+		if(!only_highlight) {
 			/* sample would be zero at initial tile update, which is only needed
 			 * to tag tile form blender side as IN PROGRESS for proper highlight
 			 * no buffers should be sent to blender yet
@@ -390,26 +390,26 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_upda
 
 void BlenderSession::write_render_tile(RenderTile& rtile)
 {
-	do_write_update_render_tile(rtile, false);
+	do_write_update_render_tile(rtile, false, false);
 }
 
-void BlenderSession::update_render_tile(RenderTile& rtile)
+void BlenderSession::update_render_tile(RenderTile& rtile, bool only_highlight)
 {
 	/* use final write for preview renders, otherwise render result wouldn't be
 	 * be updated in blender side
 	 * would need to be investigated a bit further, but for now shall be fine
 	 */
 	if(!b_engine.is_preview())
-		do_write_update_render_tile(rtile, true);
+		do_write_update_render_tile(rtile, true, only_highlight);
 	else
-		do_write_update_render_tile(rtile, false);
+		do_write_update_render_tile(rtile, false, only_highlight);
 }
 
 void BlenderSession::render()
 {
 	/* set callback to write out render results */
 	session->write_render_tile_cb = function_bind(&BlenderSession::write_render_tile, this, _1);
-	session->update_render_tile_cb = function_bind(&BlenderSession::update_render_tile, this, _1);
+	session->update_render_tile_cb = function_bind(&BlenderSession::update_render_tile, this, _1, _2);
 
 	/* get buffer parameters */
 	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
@@ -682,7 +682,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::Re
 			int components = b_pass.channels();
 
 			/* copy pixels */
-			if(!buffers->get_pass_rect(pass_type, exposure, rtile.sample, components, &pixels[0]))
+			if(!buffers->get_pass_rect(pass_type, exposure, components, &pixels[0]))
 				memset(&pixels[0], 0, pixels.size()*sizeof(float));
 
 			b_pass.rect(&pixels[0]);
@@ -691,7 +691,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::Re
 	else {
 		/* copy combined pass */
 		BL::RenderPass b_combined_pass(b_rlay.passes.find_by_type(BL::RenderPass::type_COMBINED, b_rview_name.c_str()));
-		if(buffers->get_pass_rect(PASS_COMBINED, exposure, rtile.sample, 4, &pixels[0]))
+		if(buffers->get_pass_rect(PASS_COMBINED, exposure, 4, &pixels[0]))
 			b_combined_pass.rect(&pixels[0]);
 	}
 

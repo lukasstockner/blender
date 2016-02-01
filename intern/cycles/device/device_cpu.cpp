@@ -228,7 +228,7 @@ public:
 
 		RenderTile tile;
 
-		void(*path_trace_kernel)(KernelGlobals*, float*, unsigned int*, int, int, int, int, int);
+		void(*path_trace_kernel)(KernelGlobals*, float*, unsigned int*, int, int, int, int);
 
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
 		if(system_cpu_support_avx2()) {
@@ -267,10 +267,8 @@ public:
 		while(task.acquire_tile(this, tile)) {
 			float *render_buffer = (float*)tile.buffer;
 			uint *rng_state = (uint*)tile.rng_state;
-			int start_sample = tile.start_sample;
-			int end_sample = tile.start_sample + tile.num_samples;
 
-			for(int sample = start_sample; sample < end_sample; sample++) {
+			for(int sample = 0; sample < tile.max_samples; sample++) {
 				if(task.get_cancel() || task_pool.canceled()) {
 					if(task.need_finish_queue == false)
 						break;
@@ -278,17 +276,16 @@ public:
 
 				for(int y = tile.y; y < tile.y + tile.h; y++) {
 					for(int x = tile.x; x < tile.x + tile.w; x++) {
-						path_trace_kernel(&kg, render_buffer, rng_state,
-						                  sample, x, y, tile.offset, tile.stride);
+						int pixel_samples = tile.num_samples[tile.offset + y*tile.stride + x];
+						if(sample < pixel_samples) {
+							path_trace_kernel(&kg, render_buffer, rng_state,
+							                  x, y, tile.offset, tile.stride);
+						}
 					}
 				}
 
-				tile.sample = sample + 1;
-
 				task.update_progress(&tile);
 			}
-
-			task.release_tile(tile);
 
 			if(task_pool.canceled()) {
 				if(task.need_finish_queue == false)

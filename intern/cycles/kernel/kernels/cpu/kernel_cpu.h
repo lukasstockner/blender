@@ -19,7 +19,6 @@
 void KERNEL_FUNCTION_FULL_NAME(path_trace)(KernelGlobals *kg,
                                            float *buffer,
                                            unsigned int *rng_state,
-                                           int sample,
                                            int x, int y,
                                            int offset,
                                            int stride);

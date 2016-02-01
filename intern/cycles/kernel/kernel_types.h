@@ -920,7 +920,7 @@ typedef struct KernelFilm {
 	int pass_shadow;
 	float pass_shadow_scale;
 	int filter_table_offset;
-	int pass_pad2;
+	int pass_samples;
 
 	int pass_mist;
 	float mist_start;
