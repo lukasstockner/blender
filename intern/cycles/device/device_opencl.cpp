@@ -1820,9 +1820,11 @@ public:
 		y = tile.y;
 		w = tile.w;
 		h = tile.h;
+#if 0
 		start_sample = tile.start_sample;
 		num_samples = tile.num_samples;
 		sample = tile.sample;
+#endif
 		resolution = tile.resolution;
 		offset = tile.offset;
 		stride = tile.stride;
@@ -3353,7 +3355,7 @@ public:
 		split_tile_size.y = d_h;
 		return split_tile_size;
 	}
-
+#if 0
 	/* Splits existing tile into multiple tiles of tile size split_tile_size. */
 	vector<SplitRenderTile> split_tiles(RenderTile rtile, int2 split_tile_size)
 	{
@@ -3398,7 +3400,7 @@ public:
 		}
 		return to_path_trace_rtile;
 	}
-
+#endif
 	void thread_run(DeviceTask *task)
 	{
 		if(task->type == DeviceTask::FILM_CONVERT) {

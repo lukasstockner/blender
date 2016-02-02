@@ -83,7 +83,9 @@ public:
 	bool copy_from_device();
 	bool get_pass_rect(PassType type, float exposure, int components, float *pixels);
 
-	void set_tile(RenderTile *rtile);
+	void set_tile(RenderTile *tile);
+	void set_samples_constant(int num_samples);
+	void set_samples_adaptive(float tolerance, int avg_samples);
 
 protected:
 	void device_free();
@@ -139,6 +141,7 @@ public:
 	int resolution;
 	int offset;
 	int stride;
+	int index;
 
 	device_ptr buffer;
 	device_ptr rng_state;

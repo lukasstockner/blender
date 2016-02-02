@@ -40,6 +40,64 @@ class Scene;
 
 /* Session Parameters */
 
+enum RenderStrategyEnum {
+	RENDER_PROGRESSIVE, /* One sample per tile per iteration */
+	RENDER_INCREMENTAL, /* Multiple samples per tile per iteration */
+	RENDER_PREPASS, /* A few samples per time in the first iteration, afterwards the remaining ones */
+	RENDER_ADAPTIVE, /* Choose samples based on the noise in the render */
+	RENDER_FULL, /* Render all samples of a tile in one iteration */
+};
+
+class RenderStrategy {
+public:
+	virtual bool needs_shared_buffer() = 0;
+
+	virtual bool acquired_tile(RenderTile *tile) = 0;
+	virtual bool write_tile(RenderTile *tile) = 0;
+
+	virtual void start_iteration() = 0;
+	virtual bool done() = 0;
+	virtual void end_iteration() = 0;
+
+	virtual int resolution_divider() = 0;
+
+	virtual void update_status_time(bool pause = false) = 0;
+};
+
+class RenderStrategyFull : public RenderStrategy {
+public:
+	bool finished = false;
+
+	virtual bool needs_shared_buffer() {
+		return false;
+	}
+
+	virtual bool acquired_tile(RenderTile *tile) {
+		tile->buffers->set_samples_constant(10);
+		return true;
+	}
+	virtual bool write_tile(RenderTile *tile) {
+		return true;
+	}
+
+	virtual void start_iteration() {
+	}
+	virtual bool done() {
+		return finished;
+	}
+	virtual void end_iteration() {
+		finished = true;
+	}
+
+	virtual int resolution_divider() {
+		return 1;
+	}
+
+	virtual void update_status_time(bool pause = false) {
+		printf("Time Update!\n");
+	}
+};
+
 class SessionParams {
 public:
 	DeviceInfo device;
@@ -110,6 +168,10 @@ public:
 
 };
 
+static RenderStrategy* GetRenderStrategy(SessionParams *params) {
+	return new RenderStrategyFull();
+}
+
 /* Session
  *
  * This is the class that contains the session thread, running the render
@@ -126,6 +188,8 @@ public:
 	TileManager tile_manager;
 	Stats stats;
 
+	RenderStrategy *strategy;
+
 	function<void(RenderTile&)> write_render_tile_cb;
 	function<void(RenderTile&, bool)> update_render_tile_cb;
 
@@ -137,8 +201,8 @@ public:
 	void wait();
 
 	bool ready_to_reset();
-	void reset(BufferParams& params, int samples);
-	void set_samples(int samples);
+	void reset(BufferParams& params);
+	//void set_samples(int samples);
 	void set_pause(bool pause);
 
 	void update_scene();
@@ -156,25 +220,25 @@ protected:
 
 	void run();
 
-	void update_status_time(bool show_pause = false, bool show_done = false);
+//	void update_status_time(bool show_pause = false, bool show_done = false);
 
-	void tonemap(int sample);
+	void tonemap();
 	void path_trace();
-	void reset_(BufferParams& params, int samples);
+	void reset_(BufferParams& params);
 
 	void run_cpu();
 	bool draw_cpu(BufferParams& params, DeviceDrawParams& draw_params);
-	void reset_cpu(BufferParams& params, int samples);
+	void reset_cpu(BufferParams& params);
 
 	void run_gpu();
 	bool draw_gpu(BufferParams& params, DeviceDrawParams& draw_params);
-	void reset_gpu(BufferParams& params, int samples);
+	void reset_gpu(BufferParams& params);
 
 	bool acquire_tile(Device *tile_device, RenderTile& tile);
 	void update_tile_sample(RenderTile& tile);
 	void release_tile(RenderTile& tile);
 
-	void update_progress_sample();
+//	void update_progress_sample();
 
 	bool device_use_gl;
 

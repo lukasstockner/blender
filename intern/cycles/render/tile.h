@@ -59,8 +59,6 @@ public:
 
 	struct State {
 		BufferParams buffer;
-		int sample;
-		int num_samples;
 		int resolution_divider;
 		int num_tiles;
 		int num_rendered_tiles;
@@ -69,24 +67,19 @@ public:
 		vector<list<Tile> > tiles;
 	} state;
 
-	int num_samples;
-
-	TileManager(bool progressive, int num_samples, int2 tile_size, int start_resolution,
-	            bool preserve_tile_device, bool background, TileOrder tile_order, int num_devices = 1);
+	TileManager(int2 tile_size, bool preserve_tile_device,
+	            bool background, TileOrder tile_order, int num_devices = 1);
 	~TileManager();
 
-	void reset(BufferParams& params, int num_samples);
-	void set_samples(int num_samples);
-	bool next();
+	void reset(BufferParams& params);
+
+	void set_tiles(int resolution_divider);
+
 	bool next_tile(Tile& tile, int device = 0);
-	bool done();
 
 	void set_tile_order(TileOrder tile_order_) { tile_order = tile_order_; }
 protected:
 
-	void set_tiles();
-
-	bool progressive;
 	int2 tile_size;
 	TileOrder tile_order;
 	int start_resolution;
@@ -112,7 +105,7 @@ protected:
 	bool background;
 
 	/* Generate tile list, return number of tiles. */
-	int gen_tiles(bool sliced);
+	int gen_tiles(bool sliced, int resolution);
 };
 
 CCL_NAMESPACE_END

@@ -140,7 +140,7 @@ void BlenderSession::create_session()
 
 	/* set buffer parameters */
 	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_v3d, b_rv3d, scene->camera, width, height);
-	session->reset(buffer_params, session_params.samples);
+	session->reset(buffer_params);
 
 	b_engine.use_highlight_tiles(session_params.progressive_refine == false);
 }
@@ -193,7 +193,7 @@ void BlenderSession::reset_session(BL::BlendData b_data_, BL::Scene b_scene_)
 	sync->sync_camera(b_render, b_engine.camera_override(), width, height);
 
 	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, PointerRNA_NULL, PointerRNA_NULL, scene->camera, width, height);
-	session->reset(buffer_params, session_params.samples);
+	session->reset(buffer_params);
 
 	b_engine.use_highlight_tiles(session_params.progressive_refine == false);
 
@@ -482,9 +482,9 @@ void BlenderSession::render()
 			bool bound_samples = sync->get_layer_bound_samples();
 
 			if(samples != 0 && (!bound_samples || (samples < session_params.samples)))
-				session->reset(buffer_params, samples);
+				session->reset(buffer_params);
 			else
-				session->reset(buffer_params, session_params.samples);
+				session->reset(buffer_params);
 
 			/* render */
 			session->start();
@@ -618,8 +618,8 @@ void BlenderSession::bake(BL::Object b_object,
 	scene->bake_manager->set_shader_limit((size_t)b_engine.tile_x(), (size_t)b_engine.tile_y());
 
 	/* set number of samples */
-	session->tile_manager.set_samples(session_params.samples);
-	session->reset(buffer_params, session_params.samples);
+//	session->tile_manager.set_samples(session_params.samples);
+	session->reset(buffer_params);
 	session->update_scene();
 
 	/* find object index. todo: is arbitrary - copied from mesh_displace.cpp */
@@ -639,8 +639,8 @@ void BlenderSession::bake(BL::Object b_object,
 	populate_bake_data(bake_data, object_id, pixel_array, num_pixels);
 
 	/* set number of samples */
-	session->tile_manager.set_samples(session_params.samples);
-	session->reset(buffer_params, session_params.samples);
+//	session->tile_manager.set_samples(session_params.samples);
+	session->reset(buffer_params);
 	session->update_scene();
 
 	session->progress.set_update_callback(function_bind(&BlenderSession::update_bake_progress, this));
@@ -731,7 +731,7 @@ void BlenderSession::synchronize()
 	}
 
 	/* increase samples, but never decrease */
-	session->set_samples(session_params.samples);
+//	session->set_samples(session_params.samples);
 	session->set_pause(session_pause);
 
 	/* copy recalc flags, outside of mutex so we can decide to do the real
@@ -769,7 +769,7 @@ void BlenderSession::synchronize()
 	/* reset if needed */
 	if(scene->need_reset()) {
 		BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_v3d, b_rv3d, scene->camera, width, height);
-		session->reset(buffer_params, session_params.samples);
+		session->reset(buffer_params);
 
 		/* reset time */
 		start_resize_time = 0.0;
@@ -827,7 +827,7 @@ bool BlenderSession::draw(int w, int h)
 			bool session_pause = BlenderSync::get_session_pause(b_scene, background);
 
 			if(session_pause == false) {
-				session->reset(buffer_params, session_params.samples);
+				session->reset(buffer_params);
 				start_resize_time = 0.0;
 			}
 		}
@@ -861,13 +861,13 @@ void BlenderSession::get_progress(float& progress, double& total_time, double& r
 	double tile_time;
 	int tile, sample, samples_per_tile;
 	int tile_total = session->tile_manager.state.num_tiles;
-	int samples = session->tile_manager.state.sample + 1;
-	int total_samples = session->tile_manager.num_samples;
+	int samples = 1;
+	int total_samples = 1;
 
 	session->progress.get_tile(tile, total_time, render_time, tile_time);
 
 	sample = session->progress.get_sample();
-	samples_per_tile = session->tile_manager.num_samples;
+	samples_per_tile = 1;
 
 	if(background && samples_per_tile && tile_total)
 		progress = ((float)sample / (float)(tile_total * samples_per_tile));

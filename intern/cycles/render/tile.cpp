@@ -85,63 +85,37 @@ enum SpiralDirection {
 
 }  /* namespace */
 
-TileManager::TileManager(bool progressive_, int num_samples_, int2 tile_size_, int start_resolution_,
-                         bool preserve_tile_device_, bool background_, TileOrder tile_order_, int num_devices_)
+TileManager::TileManager(int2 tile_size_, bool preserve_tile_device_,
+                         bool background_, TileOrder tile_order_, int num_devices_)
 {
-	progressive = progressive_;
 	tile_size = tile_size_;
 	tile_order = tile_order_;
-	start_resolution = start_resolution_;
-	num_samples = num_samples_;
 	num_devices = num_devices_;
 	preserve_tile_device = preserve_tile_device_;
 	background = background_;
 
 	BufferParams buffer_params;
-	reset(buffer_params, 0);
+	reset(buffer_params);
 }
 
 TileManager::~TileManager()
 {
 }
 
-void TileManager::reset(BufferParams& params_, int num_samples_)
+void TileManager::reset(BufferParams& params_)
 {
 	params = params_;
 
-	int divider = 1;
-	int w = params.width, h = params.height;
-
-	if(start_resolution != INT_MAX) {
-		while(w*h > start_resolution*start_resolution) {
-			w = max(1, w/2);
-			h = max(1, h/2);
-
-			divider *= 2;
-		}
-	}
-
-	num_samples = num_samples_;
-
 	state.buffer = BufferParams();
-	state.sample = -1;
 	state.num_tiles = 0;
 	state.num_rendered_tiles = 0;
-	state.num_samples = 0;
-	state.resolution_divider = divider;
 	state.tiles.clear();
-}
-
-void TileManager::set_samples(int num_samples_)
-{
-	num_samples = num_samples_;
 }
 
 /* If sliced is false, splits image into tiles and assigns equal amount of tiles to every render device.
  * If sliced is true, slice image into as much pieces as how many devices are rendering this image. */
-int TileManager::gen_tiles(bool sliced)
+int TileManager::gen_tiles(bool sliced, int resolution)
 {
-	int resolution = state.resolution_divider;
 	int image_w = max(1, params.width/resolution);
 	int image_h = max(1, params.height/resolution);
 	int2 center = make_int2(image_w/2, image_h/2);
@@ -293,13 +267,12 @@ int TileManager::gen_tiles(bool sliced)
 	return tile_index;
 }
 
-void TileManager::set_tiles()
+void TileManager::set_tiles(int resolution)
 {
-	int resolution = state.resolution_divider;
 	int image_w = max(1, params.width/resolution);
 	int image_h = max(1, params.height/resolution);
 
-	state.num_tiles = gen_tiles(!background);
+	state.num_tiles = gen_tiles(!background, resolution);
 
 	state.buffer.width = image_w;
 	state.buffer.height = image_h;
@@ -320,37 +293,6 @@ bool TileManager::next_tile(Tile& tile, int device)
 	tile = Tile(state.tiles[logical_device].front());
 	state.tiles[logical_device].pop_front();
 	state.num_rendered_tiles++;
-	return true;
-}
-
-bool TileManager::done()
-{
-	return (state.sample+state.num_samples >= num_samples && state.resolution_divider == 1);
-}
-
-bool TileManager::next()
-{
-	if(done())
-		return false;
-
-	if(progressive && state.resolution_divider > 1) {
-		state.sample = 0;
-		state.resolution_divider /= 2;
-		state.num_samples = 1;
-		set_tiles();
-	}
-	else {
-		state.sample++;
-
-		if(progressive)
-			state.num_samples = 1;
-		else
-			state.num_samples = num_samples;
-
-		state.resolution_divider = 1;
-		set_tiles();
-	}
-
 	return true;
 }
 

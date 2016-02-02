@@ -145,6 +145,12 @@ void RenderBuffers::reset(Device *device, BufferParams& params_)
 
 	device->mem_alloc(rng_state, MEM_READ_WRITE);
 	device->mem_copy_to(rng_state);
+
+	/* allocate samples buffer */
+	samples.resize(params.width*params.height);
+	for(y = 0; y < height; y++)
+		for(x = 0; x < width; x++)
+			samples[y*width + x] = 0;
 }
 
 bool RenderBuffers::copy_from_device()
@@ -157,22 +163,33 @@ bool RenderBuffers::copy_from_device()
 	return true;
 }
 
-void RenderBuffers::set_tile(RenderTile *rtile)
-{
-	rtile->buffers = this;
+void RenderBuffers::set_tile(RenderTile *rtile) {
 	rtile->buffer = buffer.device_pointer;
 	rtile->rng_state = rng_state.device_pointer;
 
 	rtile->total_samples = 0;
 	rtile->max_samples = 0;
 	rtile->num_samples = &samples[0];
-	for(int y = rtile->y; y < rtile->y + rtile->h; y++) {
-		for(int x = rtile->x; x < rtile->x + rtile->w; x++) {
-			int pixel_samples = samples[rtile->offset + y*rtile->stride + x];
-			rtile->total_samples += pixel_samples;
-			rtile->max_samples = max(rtile->max_samples, pixel_samples);
+
+	for(int y = rtile->y; y < rtile->y+rtile->h; y++) {
+		for(int x = rtile->x; x < rtile->x+rtile->w; x++) {
+			int val = samples[rtile->offset + y*rtile->stride + x];
+			rtile->max_samples = max(rtile->max_samples, val);
+			rtile->total_samples += val;
 		}
 	}
+}
+
+void RenderBuffers::set_samples_constant(int num_samples) {
+	printf("SSC %p\n", this);
+
+	for(int y = 0; y < params.height; y++)
+		for(int x = 0; x < params.width; x++)
+			samples[y*params.width + x] = num_samples;
+}
+
+void RenderBuffers::set_samples_adaptive(float tolerance, int avg_samples) {
+	set_samples_constant(avg_samples);
 }
 
 bool RenderBuffers::get_pass_rect(PassType type, float exposure, int components, float *pixels)
