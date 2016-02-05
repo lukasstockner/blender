@@ -21,6 +21,7 @@ displays:
     - !<View> {name: sRGB D65 View, colorspace: sRGB D65}
     - !<View> {name: Linear sRGB D65 View, colorspace: Utility - Linear Color}
     - !<View> {name: Raw View, colorspace: Utility - Raw Data}
+    - !<View> {name: Josh Pines Log View, colorspace: Josh Pines Log Curve}
     - !<View> {name: Cineon Log View, colorspace: Cineon Log Curve}
 
   DCI-P3 Reference:
@@ -76,6 +77,18 @@ colorspaces:
     allocation: uniform
     allocationvars: [0, 1]
     to_reference: !<FileTransform> {src: AdobeRGB_to_linear.spi1d, interpolation: linear}
+
+  - !<ColorSpace>
+    name: Josh Pines Log Curve
+    family: Curves
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      Josh Pines log curve
+    isdata: false
+    allocation: uniform
+    allocationvars: [0, 1]
+    to_reference: !<FileTransform> {src: JPLog_to_linear.spi1d, interpolation: linear}
 
   - !<ColorSpace>
     name: Cineon Log Curve
