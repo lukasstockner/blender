@@ -27,6 +27,7 @@
 #include "util_opengl.h"
 #include "util_time.h"
 #include "util_types.h"
+#include <fenv.h>
 
 CCL_NAMESPACE_BEGIN
 
@@ -43,6 +44,8 @@ BufferParams::BufferParams()
 	full_height = 0;
 
 	Pass::add(PASS_COMBINED, passes);
+	Pass::add(PASS_SAMPLES, passes);
+	Pass::add(PASS_HALF, passes);
 }
 
 void BufferParams::get_offset_stride(int& offset, int& stride)
@@ -181,21 +184,123 @@ void RenderBuffers::set_tile(RenderTile *rtile) {
 }
 
 void RenderBuffers::set_samples_constant(int num_samples) {
-	printf("SSC %p\n", this);
-
 	for(int y = 0; y < params.height; y++)
 		for(int x = 0; x < params.width; x++)
 			samples[y*params.width + x] = num_samples;
 }
 
-void RenderBuffers::set_samples_adaptive(float tolerance, int avg_samples) {
-	set_samples_constant(avg_samples);
+void RenderBuffers::set_samples_adaptive(vector<int4> &blocks, int num_samples, float tolerance) {
+	feenableexcept(FE_INVALID | FE_OVERFLOW | FE_DIVBYZERO);
+	copy_from_device();
+
+	int half_offset = 0, samples_offset = 0;
+	foreach(Pass& pass, params.passes) {
+		if(pass.type == PASS_HALF)
+			break;
+		half_offset += pass.components;
+	}
+	foreach(Pass& pass, params.passes) {
+		if(pass.type == PASS_SAMPLES)
+			break;
+		samples_offset += pass.components;
+	}
+	int pass_stride = params.get_passes_size();
+
+	if(blocks.empty())
+		blocks.push_back(make_int4(params.full_x, params.full_y, params.full_x+params.width, params.full_y+params.height));
+
+	vector<int4> new_blocks;
+	for(int i = 0; i < blocks.size(); i++) {
+		int4 block = blocks[i];
+
+		bool split_y = (block.w > block.z); /* Along which axis would the block be split? */
+		int longer_axis = split_y? block.w: block.z;
+		float *marginal = new float[longer_axis];
+		for(int i = 0; i < longer_axis; i++)
+			marginal[i] = 0.0f;
+
+		/* Offset from block-local coords to buffer-local coords */
+		int2 offset = make_int2(block.x - params.full_x, block.y - params.full_y);
+		for(int y = 0; y < block.w; y++) {
+			for(int x = 0; x < block.z; x++) {
+				float *buf = (float*) buffer.data_pointer + ((y + offset.y)*params.width + x + offset.x)*pass_stride;
+
+				if(buf[half_offset + 3] < 4.0f) {
+					marginal[split_y? y: x] += 1e30f; /* Not enough half samples yet, force further sampling of this block */
+					continue;
+				}
+
+				float3 full_c = *((float3*) buf) / *((int*) (buf + samples_offset));
+				float3 half_c = *((float3*) (buf + half_offset));
+				half_c /= buf[half_offset + 3];
+				float err = linear_rgb_to_gray(fabs(full_c-half_c));
+				err /= sqrtf(max(1e-4f, linear_rgb_to_gray(full_c)));
+				marginal[split_y? y: x] += err;
+			}
+		}
+		for(int i = 1; i < longer_axis; i++)
+			marginal[i] += marginal[i-1];
+		/* (Error/Ablock)*sqrt(Ablock / Aimg) = Error*sqrt((Ablock / Aimg) / Ablock^2) = Error / sqrt(Aimg*Ablock) */
+		float tile_error = marginal[longer_axis-1] / sqrtf((float)block.z*block.w * params.full_width*params.full_height);
+
+		printf("Block at %d %d, size %d %d, has error %f\n", block.x, block.y, block.z, block.w, (double) tile_error);
+
+		if(tile_error < tolerance)
+			continue; /* Block is done. */
+		else if(tile_error < 256*tolerance && longer_axis > 8) {
+			printf("Marginal values are (%d):", longer_axis);
+			for(int i = 0; i < longer_axis; i++)
+				printf(" %f", (double) marginal[i]);
+			int split;
+			if(longer_axis == 2)
+				split = 1;
+			else
+				split = std::upper_bound(marginal+1, marginal+longer_axis-1, 0.5f*marginal[longer_axis-1]) - marginal;
+			printf(", splitting at %d\n", split);
+
+/*			for(split = 1; split < longer_axis-1; split++)
+				if(marginal[split]*2.0f > marginal[longer_axis-1])
+					break;*/
+
+			if(split_y) {
+				new_blocks.push_back(make_int4(block.x, block.y, block.z, split));
+				new_blocks.push_back(make_int4(block.x, block.y+split, block.z, block.w-split));
+			}
+			else {
+				new_blocks.push_back(make_int4(block.x, block.y, split, block.w));
+				new_blocks.push_back(make_int4(block.x+split, block.y, block.z-split, block.w));
+			}
+		}
+		else {
+			new_blocks.push_back(block);
+		}
+	}
+
+	blocks.swap(new_blocks);
+
+	for(int i = 0; i < blocks.size(); i++) {
+		int4 block = blocks[i];
+		/* Offset from block-local coords to buffer-local coords */
+		int2 offset = make_int2(block.x - params.full_x, block.y - params.full_y);
+		for(int y = 0; y < block.w; y++)
+			for(int x = 0; x < block.z; x++)
+				samples[(y+offset.y)*params.width + x + offset.x] = num_samples;
+	}
+
+	fedisableexcept(FE_INVALID | FE_OVERFLOW | FE_DIVBYZERO);
 }
 
+#define get_scale(in) (pass_exposure * (pass.filter? (1.0f / ((int*) in)[samples_pass - pass_offset]): 1.0f))
 bool RenderBuffers::get_pass_rect(PassType type, float exposure, int components, float *pixels)
 {
 	int pass_offset = 0;
-	int sample = 1;
+
+	int samples_pass = 0;
+	foreach(Pass& pass, params.passes) {
+		if(pass.type == PASS_SAMPLES)
+			break;
+		samples_pass += pass.components;
+	}
 
 	foreach(Pass& pass, params.passes) {
 		if(pass.type != type) {
@@ -206,8 +311,7 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int components,
 		float *in = (float*)buffer.data_pointer + pass_offset;
 		int pass_stride = params.get_passes_size();
 
-		float scale = (pass.filter)? 1.0f/(float)sample: 1.0f;
-		float scale_exposure = (pass.exposure)? scale*exposure: scale;
+		float pass_exposure = pass.exposure? exposure: 1.0f;
 
 		int size = params.width*params.height;
 
@@ -218,13 +322,13 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int components,
 			if(type == PASS_DEPTH) {
 				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
 					float f = *in;
-					pixels[0] = (f == 0.0f)? 1e10f: f*scale_exposure;
+					pixels[0] = ((int*) in)[samples_pass - pass_offset];//(f == 0.0f)? 1e10f: f*get_scale(in);
 				}
 			}
 			else if(type == PASS_MIST) {
 				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
 					float f = *in;
-					pixels[0] = saturate(f*scale_exposure);
+					pixels[0] = saturate(f*get_scale(in));
 				}
 			}
 #ifdef WITH_CYCLES_DEBUG
@@ -244,7 +348,7 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int components,
 			else {
 				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
 					float f = *in;
-					pixels[0] = f*scale_exposure;
+					pixels[0] = f*get_scale(in);
 				}
 			}
 		}
@@ -289,9 +393,10 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int components,
 				for(int i = 0; i < size; i++, in += pass_stride, pixels += 3) {
 					float3 f = make_float3(in[0], in[1], in[2]);
 
-					pixels[0] = f.x*scale_exposure;
-					pixels[1] = f.y*scale_exposure;
-					pixels[2] = f.z*scale_exposure;
+					float scale = get_scale(in);
+					pixels[0] = f.x*scale;
+					pixels[1] = f.y*scale;
+					pixels[2] = f.z*scale;
 				}
 			}
 		}
@@ -336,12 +441,13 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int components,
 				for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {
 					float4 f = make_float4(in[0], in[1], in[2], in[3]);
 
-					pixels[0] = f.x*scale_exposure;
-					pixels[1] = f.y*scale_exposure;
-					pixels[2] = f.z*scale_exposure;
+					float scale = get_scale(in);
+					pixels[0] = f.x*scale;
+					pixels[1] = f.y*scale;
+					pixels[2] = f.z*scale;
 
 					/* clamp since alpha might be > 1.0 due to russian roulette */
-					pixels[3] = saturate(f.w*scale);
+					pixels[3] = saturate(f.w*scale/pass_exposure);
 				}
 			}
 		}

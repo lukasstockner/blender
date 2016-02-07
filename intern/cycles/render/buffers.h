@@ -85,7 +85,7 @@ public:
 
 	void set_tile(RenderTile *tile);
 	void set_samples_constant(int num_samples);
-	void set_samples_adaptive(float tolerance, int avg_samples);
+	void set_samples_adaptive(vector<int4> &blocks, int num_samples, float tolerance);
 
 protected:
 	void device_free();

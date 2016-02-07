@@ -439,6 +439,8 @@ void BlenderSession::render()
 		/* add passes */
 		vector<Pass> passes;
 		Pass::add(PASS_COMBINED, passes);
+		Pass::add(PASS_SAMPLES, passes);
+		Pass::add(PASS_HALF, passes);
 
 		if(session_params.device.advanced_shading) {
 

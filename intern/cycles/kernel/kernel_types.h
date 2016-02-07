@@ -235,11 +235,12 @@ enum PathTraceDimension {
 	PRNG_FILTER_V = 1,
 	PRNG_LENS_U = 2,
 	PRNG_LENS_V = 3,
+	PRNG_HALF = 4,
 #ifdef __CAMERA_MOTION__
-	PRNG_TIME = 4,
-	PRNG_UNUSED_0 = 5,
-	PRNG_UNUSED_1 = 6,	/* for some reason (6, 7) is a bad sobol pattern */
-	PRNG_UNUSED_2 = 7,  /* with a low number of samples (< 64) */
+	PRNG_TIME = 5,
+	PRNG_UNUSED_0 = 6,
+	PRNG_UNUSED_1 = 7,	/* for some reason (6, 7) is a bad sobol pattern */
+				/* with a low number of samples (< 64) */
 #endif
 	PRNG_BASE_NUM = 8,
 
@@ -342,10 +343,12 @@ typedef enum PassType {
 	PASS_SUBSURFACE_INDIRECT = (1 << 23),
 	PASS_SUBSURFACE_COLOR = (1 << 24),
 	PASS_LIGHT = (1 << 25), /* no real pass, used to force use_light_pass */
+	PASS_SAMPLES = (1 << 26),
+	PASS_HALF = (1 << 27),
 #ifdef __KERNEL_DEBUG__
-	PASS_BVH_TRAVERSAL_STEPS = (1 << 26),
-	PASS_BVH_TRAVERSED_INSTANCES = (1 << 27),
-	PASS_RAY_BOUNCES = (1 << 28),
+	PASS_BVH_TRAVERSAL_STEPS = (1 << 28),
+	PASS_BVH_TRAVERSED_INSTANCES = (1 << 29),
+	PASS_RAY_BOUNCES = (1 << 30),
 #endif
 } PassType;
 
@@ -927,11 +930,13 @@ typedef struct KernelFilm {
 	float mist_inv_depth;
 	float mist_falloff;
 
+	int pass_half;
 #ifdef __KERNEL_DEBUG__
 	int pass_bvh_traversal_steps;
 	int pass_bvh_traversed_instances;
 	int pass_ray_bounces;
-	int pass_pad3;
+#else
+	int pass_pad[3];
 #endif
 } KernelFilm;
 

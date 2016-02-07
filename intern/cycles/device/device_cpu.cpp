@@ -287,6 +287,8 @@ public:
 				task.update_progress(&tile);
 			}
 
+			task.release_tile(tile);
+
 			if(task_pool.canceled()) {
 				if(task.need_finish_queue == false)
 					break;

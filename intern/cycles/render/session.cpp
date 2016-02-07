@@ -50,7 +50,7 @@ Session::Session(const SessionParams& params_)
 {
 	device_use_gl = ((params.device.type != DEVICE_CPU) && !params.background);
 
-	strategy = GetRenderStrategy(&params);
+	strategy = GetRenderStrategy(this);
 
 	TaskScheduler::init(params.threads);
 
@@ -298,6 +298,8 @@ void Session::run_gpu()
 		//tiles_written = update_progressive_refine(progress.get_cancel());
 	}
 
+	strategy->finish();
+
 //	if(!tiles_written)
 //		update_progressive_refine(true);
 }
@@ -377,10 +379,12 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 		bool tag_tile = strategy->acquired_tile(&rtile);
 		buffers->set_tile(&rtile);
 
+#if 0
 		if(update_render_tile_cb && tag_tile) {
 			/* todo: optimize this by making it thread safe and removing lock */
 			update_render_tile_cb(rtile, true);
 		}
+#endif
 
 		device->map_tile(tile_device, rtile);
 
@@ -600,6 +604,8 @@ void Session::run_cpu()
 		//progress.set_update();
 		strategy->end_iteration();
 	}
+
+	strategy->finish();
 
 //	if(!tiles_written)
 //		update_progressive_refine(true);
@@ -997,6 +1003,94 @@ int Session::get_max_closure_count()
 	}
 	max_closure_global = max(max_closure_global, max_closures);
 	return max_closure_global;
+}
+
+class RenderStrategyFull : public RenderStrategy {
+public:
+	bool finished = false;
+
+	virtual bool needs_shared_buffer() {
+		return false;
+	}
+
+	virtual bool acquired_tile(RenderTile *tile) {
+		tile->buffers->set_samples_constant(10);
+		return true;
+	}
+	virtual bool write_tile(RenderTile *tile) {
+		return true;
+	}
+
+	virtual void start_iteration() {
+	}
+	virtual bool done() {
+		return finished;
+	}
+	virtual void end_iteration() {
+		finished = true;
+	}
+	virtual void finish() {
+	}
+
+	virtual int resolution_divider() {
+		return 1;
+	}
+
+	virtual void update_status_time(bool pause = false) {
+		printf("Time Update!\n");
+	}
+};
+
+class RenderStrategyAdaptive : public RenderStrategy {
+public:
+	bool first_done = false;
+	vector<int4> blocks;
+	Session *session;
+
+	RenderStrategyAdaptive(Session *s) : session(s) {}
+
+	virtual bool needs_shared_buffer() {
+		return true;
+	}
+
+	virtual bool acquired_tile(RenderTile *tile) {
+		return true;
+	}
+	virtual bool write_tile(RenderTile *tile) {
+		return false;
+	}
+
+	virtual void start_iteration() {
+		if(first_done)
+			session->buffers->set_samples_adaptive(blocks, session->params.samples, 0.0002f);
+		else
+			session->buffers->set_samples_constant(session->params.samples);
+	}
+	virtual bool done() {
+		return first_done && blocks.empty();
+	}
+	virtual void end_iteration() {
+		first_done = true;
+	}
+	virtual void finish() {
+		if(session->write_render_tile_cb) {
+			RenderTile rtile;
+			rtile.buffers = session->buffers;
+			session->write_render_tile_cb(rtile);
+		}
+	}
+
+	virtual int resolution_divider() {
+		return 1;
+	}
+
+	virtual void update_status_time(bool pause = false) {
+		session->progress.set_status(string_printf("Adaptive Path Tracing %d blocks", blocks.size()), string_printf("%d tiles left", session->tile_manager.state.tiles[0].size()));
+	}
+};
+
+RenderStrategy* GetRenderStrategy(Session *session) {
+	return new RenderStrategyAdaptive(session);
 }
 
 CCL_NAMESPACE_END

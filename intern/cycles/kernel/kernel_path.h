@@ -920,14 +920,12 @@ ccl_device void kernel_path_trace(KernelGlobals *kg,
 	rng_state += index;
 	buffer += index*pass_stride;
 
-	float *sample_buf = buffer + kernel_data.film.pass_samples;
+	int *sample_buf = (int*) (buffer + kernel_data.film.pass_samples);
 #ifdef __KERNEL_GPU__
-	int sample = (int)atomic_add_float(sample_buf, 1.0f);
+	int sample = (int)atomic_add_int(sample_buf, 1);
 #else
-	int sample = *sample_buf;
-	*sample_buf += 1.0f;
+	int sample = (*sample_buf)++;
 #endif
-
 
 	/* initialize random numbers and ray */
 	RNG rng;
@@ -945,6 +943,9 @@ ccl_device void kernel_path_trace(KernelGlobals *kg,
 
 	/* accumulate result in output buffer */
 	kernel_write_pass_float4(buffer, sample, L);
+	if(path_rng_1D(kg, &rng, sample, 1, PRNG_HALF) >= 0.5f) {
+		kernel_write_pass_float4(buffer + kernel_data.film.pass_half, sample, make_float4(L.x, L.y, L.z, 1.0f));
+	}
 
 	path_rng_end(kg, rng_state, rng);
 }

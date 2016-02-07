@@ -55,47 +55,23 @@ public:
 	virtual bool acquired_tile(RenderTile *tile) = 0;
 	virtual bool write_tile(RenderTile *tile) = 0;
 
+	/* Control flow:
+	   1: StartIteration()
+	   2: Done()? If yes, finish()
+	   3: For every tile:
+	      3.1: AcquiredTile()
+	      3.2: WriteTile()
+	   4: EndIteration(), go to 1
+	*/
+
 	virtual void start_iteration() = 0;
 	virtual bool done() = 0;
 	virtual void end_iteration() = 0;
+	virtual void finish() = 0;
 
 	virtual int resolution_divider() = 0;
 
 	virtual void update_status_time(bool pause = false) = 0;
-};
-
-class RenderStrategyFull : public RenderStrategy {
-public:
-	bool finished = false;
-
-	virtual bool needs_shared_buffer() {
-		return false;
-	}
-
-	virtual bool acquired_tile(RenderTile *tile) {
-		tile->buffers->set_samples_constant(10);
-		return true;
-	}
-	virtual bool write_tile(RenderTile *tile) {
-		return true;
-	}
-
-	virtual void start_iteration() {
-	}
-	virtual bool done() {
-		return finished;
-	}
-	virtual void end_iteration() {
-		finished = true;
-	}
-
-	virtual int resolution_divider() {
-		return 1;
-	}
-
-	virtual void update_status_time(bool pause = false) {
-		printf("Time Update!\n");
-	}
 };
 
 class SessionParams {
@@ -167,10 +143,6 @@ public:
 		&& shadingsystem == params.shadingsystem); }
 
 };
-
-static RenderStrategy* GetRenderStrategy(SessionParams *params) {
-	return new RenderStrategyFull();
-}
 
 /* Session
  *
@@ -280,6 +252,8 @@ protected:
 	/* Get maximum number of closures to be used in kernel. */
 	int get_max_closure_count();
 };
+
+RenderStrategy* GetRenderStrategy(Session *session);
 
 CCL_NAMESPACE_END
 

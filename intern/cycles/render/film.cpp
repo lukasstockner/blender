@@ -153,6 +153,12 @@ void Pass::add(PassType type, vector<Pass>& passes)
 			 */
 			pass.components = 0;
 			break;
+		case PASS_SAMPLES:
+			pass.components = 1;
+			break;
+		case PASS_HALF:
+			pass.components = 4;
+			break;
 #ifdef WITH_CYCLES_DEBUG
 		case PASS_BVH_TRAVERSAL_STEPS:
 			pass.components = 1;
@@ -267,6 +273,8 @@ Film::Film()
 {
 	exposure = 0.8f;
 	Pass::add(PASS_COMBINED, passes);
+	Pass::add(PASS_SAMPLES, passes);
+	Pass::add(PASS_HALF, passes);
 	pass_alpha_threshold = 0.5f;
 
 	filter_type = FILTER_BOX;
@@ -404,6 +412,13 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 				kfilm->use_light_pass = 1;
 				break;
 
+			case PASS_SAMPLES:
+				kfilm->pass_samples = kfilm->pass_stride;
+				break;
+
+			case PASS_HALF:
+				kfilm->pass_half = kfilm->pass_stride;
+				break;
 #ifdef WITH_CYCLES_DEBUG
 			case PASS_BVH_TRAVERSAL_STEPS:
 				kfilm->pass_bvh_traversal_steps = kfilm->pass_stride;
