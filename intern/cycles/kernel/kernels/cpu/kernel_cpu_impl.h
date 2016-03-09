@@ -134,9 +134,9 @@ void KERNEL_FUNCTION_FULL_NAME(filter1_pixel)(KernelGlobals *kg, float *buffers,
 	kernel_filter1_pixel(kg, buffers, x, y, w, h, halfWindow, biasWeight, storage);
 }
 
-void KERNEL_FUNCTION_FULL_NAME(filter2_pixel)(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int halfWindow, float biasWeight, float *storage)
+void KERNEL_FUNCTION_FULL_NAME(filter2_pixel)(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int halfWindow, float biasWeight, float *storage, int4 tile)
 {
-	kernel_filter2_pixel(kg, buffers, x, y, w, h, halfWindow, biasWeight, storage);
+	kernel_filter2_pixel(kg, buffers, x, y, w, h, halfWindow, biasWeight, storage, tile);
 }
 
 CCL_NAMESPACE_END

@@ -85,7 +85,7 @@ public:
 	bool copy_from_device();
 	bool copy_to_device();
 	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels);
-	bool filter_lwr(bool use_library, int half_window, float bias_weight);
+	bool filter_lwr(bool use_library, int half_window, float bias_weight, int2 tile_size);
 	SampleMap *get_sample_map(RenderTile *tile);
 
 protected:

@@ -176,21 +176,28 @@ bool RenderBuffers::copy_to_device()
 	return true;
 }
 
-bool RenderBuffers::filter_lwr(bool use_library, int half_window, float bias_weight)
+bool RenderBuffers::filter_lwr(bool use_library, int half_window, float bias_weight, int2 tiles)
 {
 	if(use_library)
 		LWRR_apply(this);
 	else {
-		DeviceTask task(DeviceTask::FILTER);
-		task.x = task.y = 0;
-		task.w = params.width;
-		task.h = params.height;
-		task.offset = params.width;
-		task.stride = params.height;
-		task.buffer = buffer.device_pointer;
-		task.filter_half_window = half_window;
-		task.filter_bias_weight = bias_weight;
-		device->task_add(task);
+		int nx = (params.width  + tiles.x - 1)/tiles.x;
+		int ny = (params.height + tiles.y - 1)/tiles.y;
+		for(int iy = 0; iy < ny; iy++) {
+			for(int ix = 0; ix < nx; ix++) {
+				DeviceTask task(DeviceTask::FILTER);
+				task.x = tiles.x*ix;
+				task.y = tiles.y*iy;
+				task.w = min(tiles.x, params.width  - ix*tiles.x);
+				task.h = min(tiles.y, params.height - iy*tiles.y);
+				task.offset = params.width;
+				task.stride = params.height;
+				task.buffer = buffer.device_pointer;
+				task.filter_half_window = half_window;
+				task.filter_bias_weight = bias_weight;
+				device->task_add(task);
+			}
+		}
 		device->task_wait();
 	}
 

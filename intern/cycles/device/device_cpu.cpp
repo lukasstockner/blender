@@ -315,7 +315,7 @@ public:
 		KernelGlobals kg = kernel_globals;
 
 		void(*filter1_kernel)(KernelGlobals *, float *, int, int, int, int, int, float, float*);
-		void(*filter2_kernel)(KernelGlobals *, float *, int, int, int, int, int, float, float*);
+		void(*filter2_kernel)(KernelGlobals *, float *, int, int, int, int, int, float, float*, int4);
 
 		filter1_kernel = kernel_cpu_filter1_pixel;
 		filter2_kernel = kernel_cpu_filter2_pixel;
@@ -365,7 +365,7 @@ public:
 		//write_pfm("hopt_f.pfm", storage+101, task.w, task.h, 103);
 		for(int y = 0; y < task.h; y++)
 			for(int x = 0; x < task.w; x++)
-				filter2_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.offset, task.stride, task.filter_half_window, task.filter_bias_weight, storage + 103*(y*task.w+x));
+				filter2_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.offset, task.stride, task.filter_half_window, task.filter_bias_weight, storage + 103*(y*task.w+x), make_int4(task.x, task.y, task.w, task.h));
 
 		delete[] storage;
 	}

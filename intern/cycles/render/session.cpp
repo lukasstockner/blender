@@ -588,7 +588,7 @@ void Session::run_cpu()
 			else {
 				if(params.filter) {
 					assert(buffers != NULL);
-					buffers->filter_lwr(params.use_lwr_library, params.filter_half_window, params.filter_bias_weight);
+					buffers->filter_lwr(params.use_lwr_library, params.filter_half_window, params.filter_bias_weight, params.tile_size);
 					if(write_render_tile_cb) {
 						RenderTile rtile;
 						rtile.buffers = buffers;

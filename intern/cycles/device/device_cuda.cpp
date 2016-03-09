@@ -693,6 +693,7 @@ public:
 
 		CUdeviceptr storage;
 		cuda_assert(cuMemAlloc(&storage, 103*sizeof(float)*task.w*task.h));
+		int4 tile = make_int4(task.x, task.y, task.w, task.h);
 
 		/* pass in parameters */
 		void *args[] = {&d_buffer,
@@ -700,7 +701,8 @@ public:
 		                &task.h,
 		                &task.filter_half_window,
 		                &task.filter_bias_weight,
-		                &storage};
+		                &storage,
+		                &tile};
 
 		/* launch kernel */
 		int threads_per_block;

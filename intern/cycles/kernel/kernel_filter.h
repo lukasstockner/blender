@@ -28,8 +28,7 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 
 	int m_S = kernel_data.film.pass_mist    , m_C = kernel_data.film.pass_lwr + 14, v_C = kernel_data.film.pass_lwr + 17,
 	    m_D = kernel_data.film.pass_lwr     , v_D = kernel_data.film.pass_lwr + 1 , m_T = kernel_data.film.pass_lwr + 8 ,
-	    v_T = kernel_data.film.pass_lwr + 11, m_N = kernel_data.film.pass_lwr + 2 , v_N = kernel_data.film.pass_lwr + 5 ,
-	    m_I = kernel_data.film.pass_lwr + 20;
+	    v_T = kernel_data.film.pass_lwr + 11, m_N = kernel_data.film.pass_lwr + 2 , v_N = kernel_data.film.pass_lwr + 5;
 
 	float3 meanT = make_float3(0.0f, 0.0f, 0.0f);
 	float3 meanN = make_float3(0.0f, 0.0f, 0.0f);
@@ -403,15 +402,13 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 	storage[101] = h_opt;
 }
 
-ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int halfWindow, float biasWeight, float *storage)
+ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int halfWindow, float biasWeight, float *storage, int4 tile)
 {
 	int2 lo = make_int2(max(x - halfWindow, 0), max(y - halfWindow, 0));
 	int2 hi = make_int2(min(x + halfWindow, w-1), min(y + halfWindow, h-1));
-	int num = (hi.x - lo.x + 1) * (hi.y - lo.y + 1);
 
 	int m_S = kernel_data.film.pass_mist    , m_C = kernel_data.film.pass_lwr + 14, v_C = kernel_data.film.pass_lwr + 17,
-	    m_D = kernel_data.film.pass_lwr     , v_D = kernel_data.film.pass_lwr + 1 , m_T = kernel_data.film.pass_lwr + 8 ,
-	    v_T = kernel_data.film.pass_lwr + 11, m_N = kernel_data.film.pass_lwr + 2 , v_N = kernel_data.film.pass_lwr + 5 ,
+	    m_D = kernel_data.film.pass_lwr     , m_T = kernel_data.film.pass_lwr + 8 , m_N = kernel_data.film.pass_lwr + 2,
 	    m_I = kernel_data.film.pass_lwr + 20;
 
 	//Load bi[]
@@ -423,14 +420,23 @@ ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, i
 	float3 coefs = *((float3*) (storage + 98));
 
 	float h_opt = 0.0f, sum_w = 0.0f;
-	for(int dy = max(0, y-3); dy < min(h, y+4); dy++) {
+	for(int dy = -3; dy < 4; dy++) {
+		if(dy+y < tile.y || dy+y >= tile.y+tile.w) continue;
+		for(int dx = -3; dx < 4; dx++) {
+			if(dx+x < tile.x || dx+x >= tile.x+tile.z) continue;
+			float we = expf(-0.5f*(dx*dx+dy*dy));
+			h_opt += we*storage[101 + dx + 103*tile.z*dy];
+			sum_w += we;
+		}
+	}
+	/*for(int dy = max(0, y-3); dy < min(h, y+4); dy++) {
 		for(int dx = max(0, x-3); dx < min(w, x+4); dx++) {
 			float2 d = make_float2(dx-x, dy-y);
 			float w = expf(-dot(d, d)*0.5f);
-			h_opt += w*storage[101];
+			h_opt += w*storage[101 + (dx];
 			sum_w += w;
 		}
-	}
+	}*/
 	h_opt /= sum_w;
 
 	{
