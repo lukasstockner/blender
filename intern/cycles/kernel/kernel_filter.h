@@ -125,7 +125,6 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 			}
 		}
 	}
-	Buf_F(x, y, 4) = rank*Buf_F(x, y, m_S);
 
 	float bi[9];
 	/* Approximate bandwidths */
@@ -419,13 +418,15 @@ ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, i
 	float3 meanN = *((float3*) (storage + 92)), meanT = *((float3*) (storage + 95));
 	float3 coefs = *((float3*) (storage + 98));
 
+//	Buf_F(x, y, 4) = storage[101]*Buf_F(x, y, m_S);
+
 	float h_opt = 0.0f, sum_w = 0.0f;
 	for(int dy = -3; dy < 4; dy++) {
 		if(dy+y < tile.y || dy+y >= tile.y+tile.w) continue;
 		for(int dx = -3; dx < 4; dx++) {
 			if(dx+x < tile.x || dx+x >= tile.x+tile.z) continue;
 			float we = expf(-0.5f*(dx*dx+dy*dy));
-			h_opt += we*storage[101 + dx + 103*tile.z*dy];
+			h_opt += we*storage[101 + 103*(dx + tile.z*dy)];
 			sum_w += we;
 		}
 	}
@@ -438,6 +439,8 @@ ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, i
 		}
 	}*/
 	h_opt /= sum_w;
+	Buf_F(x, y, 4) = h_opt*Buf_F(x, y, m_S);
+//	h_opt = storage[101];
 
 	{
 		float A[100], z[9], invL[100], invA[10];
@@ -565,7 +568,8 @@ ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, i
 		if(out.x < 0.0f || out.y < 0.0f || out.z < 0.0f)
 			out = outP / max(Psum, 0.001f);
 
-		Buf_F3(x, y, 0) = out;
+		float o_alpha = Buf_F(x, y, 3);
+		Buf_F4(x, y, 0) = make_float4(out.x, out.y, out.z, o_alpha);
 	}
 
 	{

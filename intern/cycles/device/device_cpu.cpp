@@ -267,7 +267,7 @@ public:
 			int end_sample = tile.start_sample + tile.num_samples;
 
 			tile.sample = start_sample;
-			SampleMap *map = tile.buffers->get_sample_map(&tile);
+			SampleMap *map = tile.buffers->get_sample_map(&tile, tile.start_sample);
 
 			for(int sample = start_sample; sample < end_sample; sample++) {
 				if(task.get_cancel() || task_pool.canceled()) {

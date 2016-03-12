@@ -1169,7 +1169,7 @@ public:
 				int end_sample = tile.start_sample + tile.num_samples;
 				tile.sample = start_sample;
 
-				SampleMap *map = tile.buffers->get_sample_map(&tile);
+				SampleMap *map = tile.buffers->get_sample_map(&tile, tile.start_sample);
 
 				printf("AS size %d, need %d\n", adaptive_samples.data_size, tile.w*tile.h);
 				if(adaptive_samples.data_size != tile.w*tile.h) {

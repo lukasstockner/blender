@@ -267,6 +267,7 @@ Film::Film()
 {
 	exposure = 0.8f;
 	Pass::add(PASS_COMBINED, passes);
+	Pass::add(PASS_MIST, passes);
 	pass_alpha_threshold = 0.5f;
 
 	filter_type = FILTER_BOX;

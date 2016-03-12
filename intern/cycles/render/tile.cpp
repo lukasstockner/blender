@@ -85,10 +85,11 @@ enum SpiralDirection {
 
 }  /* namespace */
 
-TileManager::TileManager(int samples_per_tile_, int num_samples_, int2 tile_size_, int start_resolution_,
-                         bool preserve_tile_device_, bool background_, TileOrder tile_order_, int num_devices_)
+TileManager::TileManager(bool progressive_, int num_samples_, int2 tile_size_, int start_resolution_,
+                         bool preserve_tile_device_, bool background_, TileOrder tile_order_,
+                         int prepass_samples_, int num_devices_)
 {
-	samples_per_tile = samples_per_tile_;
+	progressive = progressive_;
 	tile_size = tile_size_;
 	tile_order = tile_order_;
 	start_resolution = start_resolution_;
@@ -96,6 +97,7 @@ TileManager::TileManager(int samples_per_tile_, int num_samples_, int2 tile_size
 	num_devices = num_devices_;
 	preserve_tile_device = preserve_tile_device_;
 	background = background_;
+	prepass_samples = prepass_samples_;
 
 	BufferParams buffer_params;
 	reset(buffer_params, 0);
@@ -124,7 +126,7 @@ void TileManager::reset(BufferParams& params_, int num_samples_)
 	num_samples = num_samples_;
 
 	state.buffer = BufferParams();
-	state.sample = -samples_per_tile;
+	state.sample = -1;
 	state.num_tiles = 0;
 	state.num_rendered_tiles = 0;
 	state.num_samples = 0;
@@ -333,16 +335,29 @@ bool TileManager::next()
 	if(done())
 		return false;
 
-	if(samples_per_tile == 1 && state.resolution_divider > 1) {
+	if(progressive && state.resolution_divider > 1) {
 		state.sample = 0;
 		state.resolution_divider /= 2;
 		state.num_samples = 1;
 		set_tiles();
 	}
 	else {
-		state.sample += samples_per_tile;
-		state.num_samples = samples_per_tile;
+		if(prepass_samples > 0 && state.sample == 0)
+			state.sample += prepass_samples;
+		else
+			state.sample++;
+
+		if(progressive)
+			state.num_samples = 1;
+		else {
+			if(prepass_samples > 0 && state.sample == 0)
+				state.num_samples = prepass_samples;
+			else
+				state.num_samples = num_samples - prepass_samples;
+		}
+
 		state.resolution_divider = 1;
+		state.num_rendered_tiles = 0;
 		set_tiles();
 	}
 

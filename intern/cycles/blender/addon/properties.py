@@ -276,11 +276,12 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 min=0.001, max=1000,
                 default=1,
                 )
-        cls.filtering_period = IntProperty(
-                name="Filtering period",
-                description="After how many samples the filter is applied",
-                min=1, max=1024,
-                default=16,
+        cls.prepass_samples = IntProperty(
+                name="Prepass Samples",
+                description="Number of samples to render before the remaining samples are rendered"
+                            "in order to give a faster preview of the result",
+                min=0, max=16384,
+                default=0,
                 )
         cls.use_adaptive_sampling = BoolProperty(
                 name="Use adaptive sampling",

@@ -375,17 +375,13 @@ static void end_render_result(BL::RenderEngine& b_engine,
 	b_engine.end_result(b_rr, (int)cancel, (int)do_merge_results);
 }
 
-void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only)
+void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool highlight, bool do_update_only)
 {
 	printf("Update!\n");
 	BufferParams& params = rtile.buffers->params;
-	int x = params.full_x - session->tile_manager.params.full_x;
-	int y = params.full_y - session->tile_manager.params.full_y;
-	int w = params.width;
-	int h = params.height;
 
 	/* get render result */
-	BL::RenderResult b_rr = begin_render_result(b_engine, x, y, w, h, b_rlay_name.c_str(), b_rview_name.c_str());
+	BL::RenderResult b_rr = begin_render_result(b_engine, rtile.x, rtile.y, rtile.w, rtile.h, b_rlay_name.c_str(), b_rview_name.c_str());
 
 	/* can happen if the intersected rectangle gives 0 width or height */
 	if(b_rr.ptr.data == NULL) {
@@ -409,40 +405,41 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_upda
 			 * to tag tile form blender side as IN PROGRESS for proper highlight
 			 * no buffers should be sent to blender yet
 			 */
+			printf("UpdateRenderResult!\n");
 			update_render_result(b_rr, b_rlay, rtile);
 		}
 
-		end_render_result(b_engine, b_rr, true, true);
+		end_render_result(b_engine, b_rr, highlight, true);
 	}
 	else {
 		/* write result */
 		write_render_result(b_rr, b_rlay, rtile);
-		end_render_result(b_engine, b_rr, false, true);
+		end_render_result(b_engine, b_rr, highlight, true);
 	}
 }
 
 void BlenderSession::write_render_tile(RenderTile& rtile)
 {
-	do_write_update_render_tile(rtile, false);
+	do_write_update_render_tile(rtile, false, false);
 }
 
-void BlenderSession::update_render_tile(RenderTile& rtile)
+void BlenderSession::update_render_tile(RenderTile& rtile, bool highlight)
 {
 	/* use final write for preview renders, otherwise render result wouldn't be
 	 * be updated in blender side
 	 * would need to be investigated a bit further, but for now shall be fine
 	 */
 	if(!b_engine.is_preview())
-		do_write_update_render_tile(rtile, true);
+		do_write_update_render_tile(rtile, highlight, true);
 	else
-		do_write_update_render_tile(rtile, false);
+		do_write_update_render_tile(rtile, false, false);
 }
 
 void BlenderSession::render()
 {
 	/* set callback to write out render results */
 	session->write_render_tile_cb = function_bind(&BlenderSession::write_render_tile, this, _1);
-	session->update_render_tile_cb = function_bind(&BlenderSession::update_render_tile, this, _1);
+	session->update_render_tile_cb = function_bind(&BlenderSession::update_render_tile, this, _1, _2);
 
 	/* get buffer parameters */
 	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
@@ -472,6 +469,7 @@ void BlenderSession::render()
 		/* add passes */
 		vector<Pass> passes;
 		Pass::add(PASS_COMBINED, passes);
+		Pass::add(PASS_MIST, passes);
 
 		if(session_params.device.advanced_shading) {
 
@@ -491,7 +489,7 @@ void BlenderSession::render()
 
 		buffer_params.passes = passes;
 		buffer_params.lwr_passes = session_params.filter;
-		buffer_params.lwr_offset = session_params.filter_period;
+		buffer_params.lwr_adaptive = session_params.use_adaptive_sampling;
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes, session_params.filter);
 		scene->film->tag_update(scene);
@@ -710,10 +708,9 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 	if(!buffers->copy_from_device())
 		return;
 
-	BufferParams& params = buffers->params;
 	float exposure = scene->film->exposure;
 
-	vector<float> pixels(params.width*params.height*4);
+	vector<float> pixels(rtile.w*rtile.h*4);
 
 	if(!do_update_only) {
 		/* copy each pass */
@@ -727,7 +724,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 			int components = b_pass.channels();
 
 			/* copy pixels */
-			if(!buffers->get_pass_rect(pass_type, exposure, rtile.sample, components, &pixels[0]))
+			if(!buffers->get_pass_rect(pass_type, exposure, rtile.sample, components, &pixels[0], rtile.x, rtile.y, rtile.w, rtile.h))
 				memset(&pixels[0], 0, pixels.size()*sizeof(float));
 
 			b_pass.rect(&pixels[0]);
@@ -736,7 +733,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 	else {
 		/* copy combined pass */
 		BL::RenderPass b_combined_pass(b_rlay.passes.find_by_type(BL::RenderPass::type_COMBINED, b_rview_name.c_str()));
-		if(buffers->get_pass_rect(PASS_COMBINED, exposure, rtile.sample, 4, &pixels[0]))
+		if(buffers->get_pass_rect(PASS_COMBINED, exposure, rtile.sample, 4, &pixels[0], rtile.x, rtile.y, rtile.w, rtile.h))
 			b_combined_pass.rect(&pixels[0]);
 	}
 

@@ -57,7 +57,8 @@ public:
 
 	bool filter;
 	bool use_lwr_library;
-	int filter_period;
+	bool use_adaptive_sampling;
+	int prepass_samples;
 	int filter_half_window;
 	float filter_bias_weight;
 
@@ -92,6 +93,13 @@ public:
 
 		shadingsystem = SHADINGSYSTEM_SVM;
 		tile_order = TILE_CENTER;
+
+		filter = false;
+		use_lwr_library = false;
+		use_adaptive_sampling = false;
+		prepass_samples = 0;
+		filter_half_window = 5;
+		filter_bias_weight = 1.0f;
 	}
 
 	bool modified(const SessionParams& params)
@@ -112,6 +120,12 @@ public:
 		&& text_timeout == params.text_timeout
 		&& progressive_update_timeout == params.progressive_update_timeout
 		&& tile_order == params.tile_order
+	        && filter == params.filter
+	        && use_adaptive_sampling == params.use_adaptive_sampling
+	        && use_lwr_library == params.use_lwr_library
+	        && prepass_samples == params.prepass_samples
+	        && filter_half_window == params.filter_half_window
+	        && filter_bias_weight == params.filter_bias_weight
 		&& shadingsystem == params.shadingsystem); }
 
 };
@@ -133,8 +147,7 @@ public:
 	Stats stats;
 
 	function<void(RenderTile&)> write_render_tile_cb;
-	function<void(RenderTile&)> update_render_tile_cb;
-
+	function<void(RenderTile&, bool)> update_render_tile_cb;
 	Session(const SessionParams& params);
 	~Session();
 

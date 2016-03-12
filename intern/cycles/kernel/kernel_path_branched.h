@@ -595,7 +595,7 @@ ccl_device void kernel_branched_path_trace(KernelGlobals *kg,
 	/* accumulate result in output buffer */
 	if(kernel_data.film.pass_lwr) {
 		kernel_write_pass_float(buffer + 3, sample, L.w); /* Alpha is not filtered, so it's stored in the final pass */
-		kernel_write_lwr_float3(buffer + kernel_data.film.pass_lwr + 14, sample, make_float3(L.x, L.y, L.z));
+		kernel_write_lwr_float3(buffer + kernel_data.film.pass_lwr + 14, sample, make_float3(L.x, L.y, L.z), -kernel_data.film.pass_lwr-14);
 	}
 	else kernel_write_pass_float4(buffer, sample, L);
 

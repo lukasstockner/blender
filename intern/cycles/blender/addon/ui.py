@@ -205,7 +205,6 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
         sub.prop(cscene, "use_filtering")
         if cscene.use_filtering:
             sub.prop(cscene, "use_lwr_library")
-            sub.prop(cscene, "filtering_period")
             sub.prop(cscene, "filter_half_window")
             sub.prop(cscene, "filter_bias_weight")
             sub.prop(cscene, "use_adaptive_sampling")
@@ -373,6 +372,7 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
         sub.prop(rd, "tile_y", text="Y")
 
         sub.prop(cscene, "use_progressive_refine")
+        sub.prop(cscene, "prepass_samples")
 
         subsub = sub.column(align=True)
         subsub.enabled = not rd.use_border

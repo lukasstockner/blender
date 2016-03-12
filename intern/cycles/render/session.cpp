@@ -44,9 +44,9 @@ CCL_NAMESPACE_BEGIN
  */
 Session::Session(const SessionParams& params_)
 : params(params_),
-  tile_manager(params.progressive? 1: (params.filter? params.filter_period: params.samples), params.samples, params.tile_size, params.start_resolution,
+  tile_manager(params.progressive, params.samples, params.tile_size, params.start_resolution,
        params.background == false || params.progressive_refine, params.background, params.tile_order,
-       max(params.device.multi_devices.size(), 1)),
+       params.prepass_samples, max(params.device.multi_devices.size(), 1)),
   stats()
 {
 	device_use_gl = ((params.device.type != DEVICE_CPU) && !params.background);
@@ -211,6 +211,7 @@ void Session::run_gpu()
 	while(!progress.get_cancel()) {
 		/* advance to next tile */
 		bool no_tiles = !tile_manager.next();
+		progress.reset_sample();
 
 		if(params.background) {
 			/* if no work left and in background mode, we can stop immediately */
@@ -368,7 +369,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 
 	if(!tile_manager.next_tile(tile, device_num))
 		return false;
-	
+
 	/* fill render tile */
 	rtile.x = tile_manager.state.buffer.full_x + tile.x;
 	rtile.y = tile_manager.state.buffer.full_y + tile.y;
@@ -377,12 +378,14 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	rtile.start_sample = tile_manager.state.sample;
 	rtile.num_samples = tile_manager.state.num_samples;
 	rtile.resolution = tile_manager.state.resolution_divider;
+	rtile.index = tile.index;
+	rtile.sample = 0;
 
 	tile_lock.unlock();
 
 	/* in case of a permanent buffer, return it, otherwise we will allocate
 	 * a new temporary buffer */
-	if(!(params.background && params.output_path.empty() && !params.filter)) {
+	if(!(params.background && params.output_path.empty()) || params.filter) {
 		tile_manager.state.buffer.get_offset_stride(rtile.offset, rtile.stride);
 
 		rtile.buffer = buffers->buffer.device_pointer;
@@ -390,6 +393,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 		rtile.buffers = buffers;
 
 		device->map_tile(tile_device, rtile);
+		update_tile_sample(rtile);
 
 		return true;
 	}
@@ -406,7 +410,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	RenderBuffers *tilebuffers;
 
 	/* allocate buffers */
-	if(params.progressive_refine) {
+	if(params.progressive_refine || (params.prepass_samples > 0)) {
 		tile_lock.lock();
 
 		if(tile_buffers.size() == 0)
@@ -451,9 +455,9 @@ void Session::update_tile_sample(RenderTile& rtile)
 	thread_scoped_lock tile_lock(tile_mutex);
 
 	if(update_render_tile_cb) {
-		if(params.progressive_refine == false && !params.filter) {
+		if(params.progressive_refine == false) {
 			/* todo: optimize this by making it thread safe and removing lock */
-			update_render_tile_cb(rtile);
+			update_render_tile_cb(rtile, true);
 		}
 	}
 
@@ -464,13 +468,21 @@ void Session::release_tile(RenderTile& rtile)
 {
 	thread_scoped_lock tile_lock(tile_mutex);
 
-	if(write_render_tile_cb) {
-		if(params.progressive_refine == false && !params.filter) {
-			/* todo: optimize this by making it thread safe and removing lock */
-			write_render_tile_cb(rtile);
+	if(write_render_tile_cb && !params.filter && params.progressive_refine == false && ((params.prepass_samples == 0) || (rtile.start_sample > 0))) {
+		/* todo: optimize this by making it thread safe and removing lock */
+		write_render_tile_cb(rtile);
 
-			delete rtile.buffers;
+		/* If the prepass is used, the tile may be in the tile_buffer list, but is still deleted here.
+		 * To avoid deleting it again in device_free, it is removed form the list here. */
+		if(rtile.index < tile_buffers.size()) {
+			assert(tile_buffers[rtile.index] == rtile.buffers);
+			tile_buffers[rtile.index] = NULL;
 		}
+
+		delete rtile.buffers;
+	}
+	else if(update_render_tile_cb && (((params.prepass_samples > 0) && (rtile.start_sample == 0)) || params.filter)) {
+		update_render_tile_cb(rtile, false);
 	}
 
 	update_status_time();
@@ -496,6 +508,7 @@ void Session::run_cpu()
 		/* advance to next tile */
 		bool no_tiles = !tile_manager.next();
 		bool need_tonemap = false;
+		progress.reset_sample();
 
 		if(params.background) {
 			/* if no work left and in background mode, we can stop immediately */
@@ -588,11 +601,16 @@ void Session::run_cpu()
 			else {
 				if(params.filter) {
 					assert(buffers != NULL);
-					buffers->filter_lwr(params.use_lwr_library, params.filter_half_window, params.filter_bias_weight, params.tile_size);
+					progress.set_status("Filtering...");
+					buffers->filter_lwr(params.use_lwr_library, params.filter_half_window, params.filter_bias_weight);
 					if(write_render_tile_cb) {
 						RenderTile rtile;
 						rtile.buffers = buffers;
 						rtile.sample = tile_manager.state.sample;
+						rtile.x = buffers->params.full_x;
+						rtile.y = buffers->params.full_y;
+						rtile.w = buffers->params.width;
+						rtile.h = buffers->params.height;
 						write_render_tile_cb(rtile);
 					}
 				}
@@ -741,7 +759,7 @@ void Session::reset(BufferParams& buffer_params, int samples)
 	else
 		reset_cpu(buffer_params, samples);
 
-	if(params.progressive_refine) {
+	if(params.progressive_refine || ((params.prepass_samples > 0) && !params.filter)) {
 		thread_scoped_lock buffers_lock(buffers_mutex);
 
 		foreach(RenderBuffers *buffers, tile_buffers)
@@ -842,7 +860,7 @@ void Session::update_status_time(bool show_pause, bool show_done)
 	string status, substatus;
 
 	if(!params.progressive) {
-		const int progress_sample = progress.get_sample(), num_samples = tile_manager.num_samples;
+		const int progress_sample = progress.get_sample(), num_samples = tile_manager.state.num_samples;
 		const bool is_gpu = params.device.type == DEVICE_CUDA || params.device.type == DEVICE_OPENCL;
 		const bool is_multidevice = params.device.multi_devices.size() > 1;
 		const bool is_cpu = params.device.type == DEVICE_CPU;
@@ -977,6 +995,10 @@ bool Session::update_progressive_refine(bool cancel)
 			RenderTile rtile;
 			rtile.buffers = buffers;
 			rtile.sample = sample;
+			rtile.x = buffers->params.full_x;
+			rtile.y = buffers->params.full_y;
+			rtile.w = buffers->params.width;
+			rtile.h = buffers->params.height;
 
 			if(write) {
 				if(write_render_tile_cb)
@@ -984,7 +1006,7 @@ bool Session::update_progressive_refine(bool cancel)
 			}
 			else {
 				if(update_render_tile_cb)
-					update_render_tile_cb(rtile);
+					update_render_tile_cb(rtile, true);
 			}
 		}
 	}

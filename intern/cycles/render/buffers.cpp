@@ -45,7 +45,7 @@ BufferParams::BufferParams()
 
 	Pass::add(PASS_COMBINED, passes);
 	lwr_passes = false;
-	lwr_offset = 0;
+	lwr_adaptive = false;
 }
 
 void BufferParams::get_offset_stride(int& offset, int& stride)
@@ -63,7 +63,8 @@ bool BufferParams::modified(const BufferParams& params)
 		&& full_width == params.full_width
 		&& full_height == params.full_height
 		&& Pass::equals(passes, params.passes)
-		&& lwr_passes == params.lwr_passes);
+		&& lwr_passes == params.lwr_passes
+	        && lwr_adaptive == params.lwr_adaptive);
 }
 
 int BufferParams::get_passes_size(bool get_lwr)
@@ -154,6 +155,8 @@ void RenderBuffers::reset(Device *device, BufferParams& params_)
 
 	device->mem_alloc(rng_state, MEM_READ_WRITE);
 	device->mem_copy_to(rng_state);
+
+	has_sample_map = false;
 }
 
 bool RenderBuffers::copy_from_device()
@@ -176,20 +179,20 @@ bool RenderBuffers::copy_to_device()
 	return true;
 }
 
-bool RenderBuffers::filter_lwr(bool use_library, int half_window, float bias_weight, int2 tiles)
+bool RenderBuffers::filter_lwr(bool use_library, int half_window, float bias_weight)
 {
 	if(use_library)
 		LWRR_apply(this);
 	else {
-		int nx = (params.width  + tiles.x - 1)/tiles.x;
-		int ny = (params.height + tiles.y - 1)/tiles.y;
+		int nx = (params.width  + 63) / 64;
+		int ny = (params.height + 53) / 64;
 		for(int iy = 0; iy < ny; iy++) {
 			for(int ix = 0; ix < nx; ix++) {
 				DeviceTask task(DeviceTask::FILTER);
-				task.x = tiles.x*ix;
-				task.y = tiles.y*iy;
-				task.w = min(tiles.x, params.width  - ix*tiles.x);
-				task.h = min(tiles.y, params.height - iy*tiles.y);
+				task.x = 64*ix;
+				task.y = 64*iy;
+				task.w = min(64, params.width  - ix*64);
+				task.h = min(64, params.height - iy*64);
 				task.offset = params.width;
 				task.stride = params.height;
 				task.buffer = buffer.device_pointer;
@@ -201,25 +204,26 @@ bool RenderBuffers::filter_lwr(bool use_library, int half_window, float bias_wei
 		device->task_wait();
 	}
 
+	has_sample_map = true;
+
 	return true;
 }
 
-SampleMap* RenderBuffers::get_sample_map(RenderTile *tile) {
-	if(!params.lwr_passes)
-		return NULL;
-
-	if(tile->sample < params.lwr_offset)
+SampleMap* RenderBuffers::get_sample_map(RenderTile *tile, int sample) {
+	if(!params.lwr_passes || !has_sample_map || !params.lwr_adaptive)
 		return NULL;
 
 	int lwr_pass_ofs = 0;
 	foreach(Pass& pass, params.passes)
 		lwr_pass_ofs += pass.components;
-	SampleMap *m = new SampleMap(*tile, params.lwr_offset, lwr_pass_ofs);
+	SampleMap *m = new SampleMap(*tile, sample, lwr_pass_ofs);
 	return m;
 }
 
-bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels)
+bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels, int x, int y, int w, int h)
 {
+	x -= params.full_x;
+	y -= params.full_y;
 	int oS = 0;
 	foreach(Pass& pass, params.passes) {
 		if(pass.type == PASS_MIST)
@@ -238,14 +242,13 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 			continue;
 		}
 
-		float *in = (float*)buffer.data_pointer + pass_offset;
 		int pass_stride = params.get_passes_size();
+		float *in = (float*)buffer.data_pointer + pass_offset + pass_stride*params.width*y;
 
 		int size = params.width*params.height;
 
 		if(components == 1) {
 			assert(pass.components == components);
-			float *oin = in;
 
 			if(type == PASS_SUBSURFACE_DIRECT)
 				in = in - pass_offset + lwr_pass_ofs + 0;
@@ -254,19 +257,22 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 			/* scalar */
 			if(type == PASS_MIST) {
-				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
-					pixels[0] = *in;
+				for(int py = y; py < y+h; py++, in += pass_stride*params.width) {
+					for(int px = x; px < x+w; px++, pixels++) {
+						pixels[0] = in[px*pass_stride];
+					}
 				}
 			}
 			else {
-				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
-					pixels[0] = *in / oin[oS-pass_offset];
+				for(int py = y; py < y+h; py++, in += pass_stride*params.width) {
+					for(int px = x; px < x+w; px++, pixels++) {
+						pixels[0] = in[px*pass_stride] / in[px*pass_stride + oS-pass_offset];
+					}
 				}
 			}
 		}
 		else if(components == 3) {
 			assert(pass.components == 4);
-			float *oin = in;
 
 			if(type == PASS_DIFFUSE_DIRECT)
 				in = in - pass_offset + lwr_pass_ofs + 14;
@@ -283,13 +289,15 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 			/* RGBA */
 			{
 				/* RGB/vector */
-				for(int i = 0; i < size; i++, in += pass_stride, pixels += 3) {
-					float3 f = make_float3(in[0], in[1], in[2]);
+				for(int py = y; py < y+h; py++, in += pass_stride*params.width) {
+					for(int px = x; px < x+w; px++, pixels += 3) {
+						float3 f = make_float3(in[px*pass_stride], in[px*pass_stride+1], in[px*pass_stride+2]);
 
-					float scale = 1.0f / oin[oS-pass_offset];
-					pixels[0] = f.x*scale;
-					pixels[1] = f.y*scale;
-					pixels[2] = f.z*scale;
+						float scale = 1.0f / in[px*pass_stride + oS-pass_offset];
+						pixels[0] = f.x*scale;
+						pixels[1] = f.y*scale;
+						pixels[2] = f.z*scale;
+					}
 				}
 			}
 		}
@@ -298,26 +306,32 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 			/* RGBA */
 			if(type == PASS_COMBINED) {
-				float fac = (params.lwr_passes)? 1.0f: 1.0f / in[oS-pass_offset];
-				for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {
-					pixels[0] = in[0] * fac;
-					pixels[1] = in[1] * fac;
-					pixels[2] = in[2] * fac;
+				float scale = (params.lwr_passes)? 1.0f : 1.0f / in[oS-pass_offset];
+				for(int py = y; py < y+h; py++, in += pass_stride*params.width) {
+					for(int px = x; px < x+w; px++, pixels += 4) {
+						float4 f = make_float4(in[px*pass_stride], in[px*pass_stride+1], in[px*pass_stride+2], in[px*pass_stride+3]);
 
-					/* clamp since alpha might be > 1.0 due to russian roulette */
-					pixels[3] = saturate(in[3] * fac);
+						pixels[0] = f.x * scale;
+						pixels[1] = f.y * scale;
+						pixels[2] = f.z * scale;
+
+						/* clamp since alpha might be > 1.0 due to russian roulette */
+						pixels[3] = saturate(f.w * scale);
+					}
 				}
 			} else {
-				for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {
-					float4 f = make_float4(in[0], in[1], in[2], in[3]);
+				for(int py = y; py < y+h; py++, in += pass_stride*params.width) {
+					for(int px = x; px < x+w; px++, pixels += 4) {
+						float4 f = make_float4(in[px*pass_stride], in[px*pass_stride+1], in[px*pass_stride+2], in[px*pass_stride+3]);
 
-					float scale = 1.0f / in[oS-pass_offset];
-					pixels[0] = f.x*scale;
-					pixels[1] = f.y*scale;
-					pixels[2] = f.z*scale;
+						float scale = 1.0f / in[px*pass_stride + oS-pass_offset];
+						pixels[0] = f.x*scale;
+						pixels[1] = f.y*scale;
+						pixels[2] = f.z*scale;
 
-					/* clamp since alpha might be > 1.0 due to russian roulette */
-					pixels[3] = saturate(f.w*scale);
+						/* clamp since alpha might be > 1.0 due to russian roulette */
+						pixels[3] = saturate(f.w*scale);
+					}
 				}
 			}
 		}

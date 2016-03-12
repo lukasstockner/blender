@@ -87,16 +87,21 @@ ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, int sa
 #endif
 }
 
-ccl_device_inline void kernel_write_lwr_float3(ccl_global float *buffer, float sample, float3 value) {
+ccl_device_inline void kernel_write_lwr_float3(ccl_global float *buffer, float sample, float3 value, int copy = 0) {
 	float old = kernel_add_pass_float(buffer, sample, value.x);
 	float var = (sample > 0.0f)? (value.x - (old / sample)) * (value.x - ((old + value.x) / (sample + 1))): 0.0f;
 	kernel_add_pass_float(buffer + 3, sample, var);
+	if(copy) buffer[copy] = (old + value.x) / (sample + 1);
+
 	old = kernel_add_pass_float(buffer+1, sample, value.y);
 	var = (sample > 0.0f)? (value.y - (old / sample)) * (value.y - ((old + value.y) / (sample + 1))): 0.0f;
 	kernel_add_pass_float(buffer + 4, sample, var);
+	if(copy) buffer[copy+1] = (old + value.y) / (sample + 1);
+
 	old = kernel_add_pass_float(buffer+2, sample, value.z);
 	var = (sample > 0.0f)? (value.z - (old / sample)) * (value.z - ((old + value.z) / (sample + 1))): 0.0f;
 	kernel_add_pass_float(buffer + 5, sample, var);
+	if(copy) buffer[copy+2] = (old + value.z) / (sample + 1);
 }
 
 ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sample, float4 value)

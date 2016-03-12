@@ -529,7 +529,8 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 	params.use_lwr_library = background && get_boolean(cscene, "use_lwr_library");
 	params.filter_half_window = get_int(cscene, "filter_half_window");
 	params.filter_bias_weight = get_float(cscene, "filter_bias_weight");
-	params.filter_period = params.filter? get_int(cscene, "filtering_period"): 0;
+	params.prepass_samples = params.progressive? 0: get_int(cscene, "prepass_samples");
+	params.use_adaptive_sampling = params.filter && get_boolean(cscene, "use_adaptive_sampling");
 
 	/* samples */
 	int samples = get_int(cscene, "samples");
