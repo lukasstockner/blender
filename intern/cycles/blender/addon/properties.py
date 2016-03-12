@@ -271,10 +271,10 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 default=5,
                 )
         cls.filter_bias_weight = FloatProperty(
-                name="Bias Weight",
-                description="Not sure yet, let's find out ;)",
-                min=0.001, max=1000,
-                default=1,
+                name="Bias weight",
+                description="Controls tradeoff between noise and blurriness - larger values are noisier, smaller values blurrier",
+                min=-3, max=3,
+                default=0,
                 )
         cls.prepass_samples = IntProperty(
                 name="Prepass Samples",
@@ -282,11 +282,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                             "in order to give a faster preview of the result",
                 min=0, max=16384,
                 default=0,
-                )
-        cls.use_adaptive_sampling = BoolProperty(
-                name="Use adaptive sampling",
-                description="Put more samples where they will improve the filtered result the most",
-                default=False,
                 )
 
         cls.sample_all_lights_direct = BoolProperty(

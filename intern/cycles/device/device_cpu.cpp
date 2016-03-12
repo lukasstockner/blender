@@ -41,7 +41,6 @@
 #include "util_foreach.h"
 #include "util_function.h"
 #include "util_logging.h"
-#include "util_lwrr.h"
 #include "util_opengl.h"
 #include "util_progress.h"
 #include "util_system.h"
@@ -266,36 +265,23 @@ public:
 			int start_sample = tile.start_sample;
 			int end_sample = tile.start_sample + tile.num_samples;
 
-			tile.sample = start_sample;
-			SampleMap *map = tile.buffers->get_sample_map(&tile, tile.start_sample);
-
 			for(int sample = start_sample; sample < end_sample; sample++) {
 				if(task.get_cancel() || task_pool.canceled()) {
 					if(task.need_finish_queue == false)
 						break;
 				}
 
-				for(int y = 0; y < tile.h; y++) {
-					for(int x = 0; x < tile.w; x++) {
-						int2 p = make_int2(x, y);
-						if(map) map->sample(tile.sample, p);
+				for(int y = tile.y; y < tile.y + tile.h; y++) {
+					for(int x = tile.x; x < tile.x + tile.w; x++) {
 						path_trace_kernel(&kg, render_buffer, rng_state,
-						                  sample, tile.x + p.x, tile.y + p.y, tile.offset, tile.stride);
+						                  sample, x, y, tile.offset, tile.stride);
 					}
 				}
 
 				tile.sample = sample + 1;
 
-/*				if(tile.sample >= 32 && (tile.sample % 16 == 0)) {
-					LWRR_apply(tile);
-					if(map) delete map;
-					map = new SampleMap(tile);
-				}*/
-
 				task.update_progress(&tile);
 			}
-
-			//if(map) delete map;
 
 			task.release_tile(tile);
 
@@ -314,58 +300,19 @@ public:
 	{
 		KernelGlobals kg = kernel_globals;
 
-		void(*filter1_kernel)(KernelGlobals *, float *, int, int, int, int, int, float, float*);
-		void(*filter2_kernel)(KernelGlobals *, float *, int, int, int, int, int, float, float*, int4);
+		void(*filter1_kernel)(KernelGlobals *, float *, int, int, int, int, int, int, float, float*);
+		void(*filter2_kernel)(KernelGlobals *, float *, int, int, int, int, int, int, float, float*, int4);
 
 		filter1_kernel = kernel_cpu_filter1_pixel;
 		filter2_kernel = kernel_cpu_filter2_pixel;
 
-		float *storage = new float[103*task.h*task.w];
+		float *storage = new float[99*task.h*task.w];
 		for(int y = 0; y < task.h; y++)
 			for(int x = 0; x < task.w; x++)
-				filter1_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.offset, task.stride, task.filter_half_window, task.filter_bias_weight, storage + 103*(y*task.w+x));
-/*		write_pfm("hopt_b0.pfm", storage+0, task.w, task.h, 103);
-		write_pfm("hopt_b1.pfm", storage+1, task.w, task.h, 103);
-		write_pfm("hopt_b2.pfm", storage+2, task.w, task.h, 103);
-		write_pfm("hopt_b3.pfm", storage+3, task.w, task.h, 103);
-		write_pfm("hopt_b4.pfm", storage+4, task.w, task.h, 103);
-		write_pfm("hopt_b5.pfm", storage+5, task.w, task.h, 103);
-		write_pfm("hopt_b6.pfm", storage+6, task.w, task.h, 103);
-		write_pfm("hopt_b7.pfm", storage+7, task.w, task.h, 103);
-		write_pfm("hopt_b8.pfm", storage+8, task.w, task.h, 103);
-		write_pfm("hopt_unf.pfm", storage+101, task.w, task.h, 103);
-		write_pfm("hopt_var0.pfm", storage+98, task.w, task.h, 103);
-		write_pfm("hopt_var1.pfm", storage+99, task.w, task.h, 103);
-		write_pfm("hopt_bias1.pfm", storage+100, task.w, task.h, 103);
-		write_pfm("hopt_threshold.pfm", storage+102, task.w, task.h, 103);
-		float *ranks = new float[task.w*task.h];
-		for(int i = 0; i < task.w*task.h; i++)
-			ranks[i] = __float_as_int(storage[90+103*i]);
-		write_pfm("hopt_ranks.pfm", ranks, task.w, task.h);
-		delete[] ranks;*/
-		//hopt filter
-/*		for(int y = 0; y < task.h; y++) {
-			for(int x = 0; x < task.w; x++) {
-				float sum_w = 0.0f;
-				float sum = 0.0f;
-				for(int dy = max(0, y - 3); dy < min(task.h, y + 4); dy++) {
-					for(int dx = max(0, x - 3); dx < min(task.w, x + 4); dx++) {
-						float dist = ((dy-y)*(dy-y)) + ((dx-x)*(dx-x));
-						float w = expf(-dist/2.0f);
-						sum += w*storage[(dy*task.w+dx)*103 + 101];
-						sum_w += w;
-					}
-				}
-				storage[(y*task.w+x)*103 + 102] = sum/sum_w;
-			}
-		}
+				filter1_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.offset, task.stride, task.sample, task.filter_half_window, task.filter_bias_weight, storage + 99*(y*task.w+x));
 		for(int y = 0; y < task.h; y++)
 			for(int x = 0; x < task.w; x++)
-				storage[(y*task.w+x)*103 + 101] = storage[(y*task.w+x)*103 + 102];*/
-		//write_pfm("hopt_f.pfm", storage+101, task.w, task.h, 103);
-		for(int y = 0; y < task.h; y++)
-			for(int x = 0; x < task.w; x++)
-				filter2_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.offset, task.stride, task.filter_half_window, task.filter_bias_weight, storage + 103*(y*task.w+x), make_int4(task.x, task.y, task.w, task.h));
+				filter2_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.offset, task.stride, task.sample, task.filter_half_window, task.filter_bias_weight, storage + 99*(y*task.w+x), make_int4(task.x, task.y, task.w, task.h));
 
 		delete[] storage;
 	}

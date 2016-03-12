@@ -207,7 +207,6 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
             sub.prop(cscene, "use_lwr_library")
             sub.prop(cscene, "filter_half_window")
             sub.prop(cscene, "filter_bias_weight")
-            sub.prop(cscene, "use_adaptive_sampling")
 
         for rl in scene.render.layers:
             if rl.samples > 0:

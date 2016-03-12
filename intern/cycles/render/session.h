@@ -57,7 +57,6 @@ public:
 
 	bool filter;
 	bool use_lwr_library;
-	bool use_adaptive_sampling;
 	int prepass_samples;
 	int filter_half_window;
 	float filter_bias_weight;
@@ -96,7 +95,6 @@ public:
 
 		filter = false;
 		use_lwr_library = false;
-		use_adaptive_sampling = false;
 		prepass_samples = 0;
 		filter_half_window = 5;
 		filter_bias_weight = 1.0f;
@@ -120,12 +118,11 @@ public:
 		&& text_timeout == params.text_timeout
 		&& progressive_update_timeout == params.progressive_update_timeout
 		&& tile_order == params.tile_order
-	        && filter == params.filter
-	        && use_adaptive_sampling == params.use_adaptive_sampling
-	        && use_lwr_library == params.use_lwr_library
-	        && prepass_samples == params.prepass_samples
-	        && filter_half_window == params.filter_half_window
-	        && filter_bias_weight == params.filter_bias_weight
+		&& filter == params.filter
+		&& use_lwr_library == params.use_lwr_library
+		&& prepass_samples == params.prepass_samples
+		&& filter_half_window == params.filter_half_window
+		&& filter_bias_weight == params.filter_bias_weight
 		&& shadingsystem == params.shadingsystem); }
 
 };

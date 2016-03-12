@@ -54,7 +54,6 @@ public:
 	/* passes */
 	vector<Pass> passes;
 	bool lwr_passes;
-	bool lwr_adaptive;
 
 	/* functions */
 	BufferParams();
@@ -76,7 +75,6 @@ public:
 	device_vector<float> buffer;
 	/* random number generator state */
 	device_vector<uint> rng_state;
-	bool has_sample_map;
 
 	RenderBuffers(Device *device);
 	~RenderBuffers();
@@ -86,8 +84,7 @@ public:
 	bool copy_from_device();
 	bool copy_to_device();
 	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels, int x, int y, int w, int h);
-	bool filter_lwr(bool use_library, int half_window, float bias_weight);
-	SampleMap *get_sample_map(RenderTile *tile, int sample);
+	bool filter_lwr(bool use_library, int sample, int half_window, float bias_weight);
 
 protected:
 	void device_free();

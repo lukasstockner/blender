@@ -602,11 +602,12 @@ void Session::run_cpu()
 				if(params.filter) {
 					assert(buffers != NULL);
 					progress.set_status("Filtering...");
-					buffers->filter_lwr(params.use_lwr_library, params.filter_half_window, params.filter_bias_weight);
+					int sample = tile_manager.state.sample + tile_manager.state.num_samples;
+					buffers->filter_lwr(params.use_lwr_library, sample, params.filter_half_window, params.filter_bias_weight);
 					if(write_render_tile_cb) {
 						RenderTile rtile;
 						rtile.buffers = buffers;
-						rtile.sample = tile_manager.state.sample;
+						rtile.sample = sample;
 						rtile.x = buffers->params.full_x;
 						rtile.y = buffers->params.full_y;
 						rtile.w = buffers->params.width;

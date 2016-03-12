@@ -20,15 +20,18 @@ CCL_NAMESPACE_BEGIN
 #define Buf_F3(x, y, o) *((float3*) (buffers + ((y) * w + (x)) * kernel_data.film.pass_stride + (o)))
 #define Buf_F4(x, y, o) *((float4*) (buffers + ((y) * w + (x)) * kernel_data.film.pass_stride + (o)))
 
-ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int halfWindow, float biasWeight, float* storage)
+ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int samples, int halfWindow, float biasWeight, float* storage)
 {
+	float invS = 1.0f / samples;
+	float invSv = 1.0f / (samples - 1);
+
 	int2 lo = make_int2(max(x - halfWindow, 0), max(y - halfWindow, 0));
 	int2 hi = make_int2(min(x + halfWindow, w-1), min(y + halfWindow, h-1));
 	int num = (hi.x - lo.x + 1) * (hi.y - lo.y + 1);
 
-	int m_S = kernel_data.film.pass_mist    , m_C = kernel_data.film.pass_lwr + 14, v_C = kernel_data.film.pass_lwr + 17,
-	    m_D = kernel_data.film.pass_lwr     , v_D = kernel_data.film.pass_lwr + 1 , m_T = kernel_data.film.pass_lwr + 8 ,
-	    v_T = kernel_data.film.pass_lwr + 11, m_N = kernel_data.film.pass_lwr + 2 , v_N = kernel_data.film.pass_lwr + 5;
+	int m_C = kernel_data.film.pass_lwr + 14, v_C = kernel_data.film.pass_lwr + 17, m_D = kernel_data.film.pass_lwr,
+	    v_D = kernel_data.film.pass_lwr + 1 , m_T = kernel_data.film.pass_lwr + 8 , v_T = kernel_data.film.pass_lwr + 11,
+	    m_N = kernel_data.film.pass_lwr + 2 , v_N = kernel_data.film.pass_lwr + 5;
 
 	float3 meanT = make_float3(0.0f, 0.0f, 0.0f);
 	float3 meanN = make_float3(0.0f, 0.0f, 0.0f);
@@ -36,7 +39,6 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 
 	for(int py = lo.y; py <= hi.y; py++) {
 		for(int px = lo.x; px <= hi.x; px++) {
-			float invS = 1.0f / Buf_F(px, py, m_S);
 			meanT += Buf_F3(px, py, m_T) * invS;
 			meanN += Buf_F3(px, py, m_N) * invS;
 			meanD += Buf_F (px, py, m_D) * invS;
@@ -53,7 +55,6 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 		float nD = 0.0f, nT = 0.0f, nN = 0.0f;
 		for(int py = lo.y; py <= hi.y; py++) {
 			for(int px = lo.x; px <= hi.x; px++) {
-				float invS = 1.0f / Buf_F(px, py, m_S);
 				nD = max(fabsf(Buf_F(px, py, m_D) * invS - meanD), nD);
 				nN = max(len_squared(Buf_F3(px, py, m_N) * invS - meanN), nN);
 				nT = max(len_squared(Buf_F3(px, py, m_T) * invS - meanT), nT);
@@ -69,8 +70,6 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 			transform[i] = 0.0f;
 		for(int py = lo.y; py <= hi.y; py++) {
 			for(int px = lo.x; px <= hi.x; px++) {
-				float invS = 1.0f / Buf_F(px, py, m_S);
-				float invSv = 1.0f / (Buf_F(px, py, m_S) - 1.0f);
 				delta[0] = ((float) px - x) / halfWindow;
 				delta[1] = ((float) py - y) / halfWindow;
 				delta[2] = (Buf_F(px, py, m_D) * invS - meanD) * nD;
@@ -105,7 +104,6 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 			S[i] = sqrtf(fabsf(S[i]));
 
 		float threshold = 0.01f + 2.0f * (sqrtf(norm) / (sqrtf(rank) * 0.5f));
-		storage[102] = threshold;
 		rank = 0;
 
 		/* Truncate matrix to reduce the rank */
@@ -134,9 +132,9 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 		float A[19*19];
 		float3 XtB[19];
 
-		meanD = Buf_F (x, y, m_D) / Buf_F(x, y, m_S);
-		meanN = Buf_F3(x, y, m_N) / Buf_F(x, y, m_S);
-		meanT = Buf_F3(x, y, m_T) / Buf_F(x, y, m_S);
+		meanD = Buf_F (x, y, m_D) * invS;
+		meanN = Buf_F3(x, y, m_N) * invS;
+		meanT = Buf_F3(x, y, m_T) * invS;
 
 		for(int i = 0; i < size*size; i++)
 			A[i] = 0.0f;
@@ -144,8 +142,6 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 			XtB[i] = make_float3(0.0f, 0.0f, 0.0f);
 		for(int py = lo.y; py <= hi.y; py++) {
 			for(int px = lo.x; px <= hi.x; px++) {
-				float invS = 1.0f / Buf_F(px, py, m_S);
-				float invSv = 1.0f / (Buf_F(px, py, m_S) - 1.0f);
 				float dD = Buf_F(px, py, m_D) * invS - meanD;
 				float3 dN = Buf_F3(px, py, m_N) * invS - meanN;
 				float3 dT = Buf_F3(px, py, m_T) * invS - meanT;
@@ -203,7 +199,7 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 			XtB[i] = (XtB[i] - s) / A[i*size + i];
 		}
 
-		for(int i = 0; i < 9; i++) //TODO < rank genug?
+		for(int i = 0; i < 9; i++) //TODO < rank enough? Why +0.16?
 		{
 			bi[i] = 1.0f / sqrtf(fabsf(2.0f * average(fabs(XtB[i + rank + 1]))) + 0.16f);
 		}
@@ -224,14 +220,11 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 		for(int i = 0; i < rank; i++)
 			bandwidth[i] = g_w * bi[i];
 
-		float cCm = average(Buf_F3(x, y, m_C)) / Buf_F(x, y, m_S);
-		float cCs = sqrtf(average(Buf_F3(x, y, v_C)) / (Buf_F(x, y, m_S) * (Buf_F(x, y, m_S) - 1.0f)));
+		float cCm = average(Buf_F3(x, y, m_C))*invS;
+		float cCs = sqrtf(average(Buf_F3(x, y, v_C))*invS*invSv);
 
 		for(int py = lo.y; py <= hi.y; py++) {
 			for(int px = lo.x; px <= hi.x; px++) {
-				float invS = 1.0f / Buf_F(px, py, m_S);
-				float invSv = 1.0f / (Buf_F(px, py, m_S) - 1.0f);
-
 				if(fabsf(average(Buf_F3(px, py, m_C))*invS - cCm) > 3.0f * (cCs + sqrtf(average(Buf_F3(px, py, v_C))*invS*invSv)) + 0.005f)
 					continue;
 
@@ -296,9 +289,6 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 
 		for(int py = lo.y; py <= hi.y; py++) {
 			for(int px = lo.x; px <= hi.x; px++) {
-				float invS = 1.0f / Buf_F(px, py, m_S);
-				float invSv = 1.0f / (Buf_F(px, py, m_S) - 1.0f);
-
 				if(fabsf(average(Buf_F3(px, py, m_C))*invS - cCm) > 3.0f * (cCs + sqrtf(average(Buf_F3(px, py, v_C))*invS*invSv)) + 0.005f)
 					continue;
 
@@ -348,11 +338,10 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 			var = err_var / (err_sum_l*err_sum_l);
 		}
 
-		int spp = Buf_F(x, y, m_S);
 		double h2 = g_w*g_w;
-		double bias = average(beta - (Buf_F3(x, y, m_C)/spp)) * biasWeight;
+		double bias = average(beta - (Buf_F3(x, y, m_C)*invS)) * biasWeight;
 		double i_h_r = pow(g_w, -rank);
-		double svar = max(spp*var, 0.0f);
+		double svar = max(samples*var, 0.0f);
 
 		bias_XtX[0] += 1.0;
 		bias_XtX[1] += h2;
@@ -383,8 +372,7 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 		coef_var[1] = fabsf(coef_var[1]);
 	}
 
-	double spp = Buf_F(x, y, m_S);
-	double h_opt = pow((rank * coef_var[1]) / (4.0 * coef_bias[1] * coef_bias[1] * spp), 1.0 / (4 + rank));
+	double h_opt = pow((rank * coef_var[1]) / (4.0 * coef_bias[1] * coef_bias[1] * samples), 1.0 / (4 + rank));
 	h_opt = clamp(h_opt, 0.2, 1.0);
 
 	for(int i = 0; i < 9; i++)
@@ -395,30 +383,26 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 	storage[91] = meanD;
 	*((float3*) (storage + 92)) = meanN;
 	*((float3*) (storage + 95)) = meanT;
-	storage[98] = (float) coef_var[0];
-	storage[99] = (float) coef_var[1];
-	storage[100] = (float) coef_bias[1];
-	storage[101] = h_opt;
+	storage[98] = h_opt;
 }
 
-ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int halfWindow, float biasWeight, float *storage, int4 tile)
+ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int samples, int halfWindow, float biasWeight, float *storage, int4 tile)
 {
+	float invS = 1.0f / samples;
+	float invSv = 1.0f / (samples - 1);
+
 	int2 lo = make_int2(max(x - halfWindow, 0), max(y - halfWindow, 0));
 	int2 hi = make_int2(min(x + halfWindow, w-1), min(y + halfWindow, h-1));
 
-	int m_S = kernel_data.film.pass_mist    , m_C = kernel_data.film.pass_lwr + 14, v_C = kernel_data.film.pass_lwr + 17,
-	    m_D = kernel_data.film.pass_lwr     , m_T = kernel_data.film.pass_lwr + 8 , m_N = kernel_data.film.pass_lwr + 2,
-	    m_I = kernel_data.film.pass_lwr + 20;
+	int m_C = kernel_data.film.pass_lwr + 14, v_C = kernel_data.film.pass_lwr + 17, m_D = kernel_data.film.pass_lwr,
+	    m_T = kernel_data.film.pass_lwr + 8 , m_N = kernel_data.film.pass_lwr + 2;
 
-	//Load bi[]
+	//Load storage data
 	float *bi = storage;
 	float *transform = storage + 9;
 	int rank = __float_as_int(storage[90]);
 	float meanD = storage[91];
 	float3 meanN = *((float3*) (storage + 92)), meanT = *((float3*) (storage + 95));
-	float3 coefs = *((float3*) (storage + 98));
-
-//	Buf_F(x, y, 4) = storage[101]*Buf_F(x, y, m_S);
 
 	float h_opt = 0.0f, sum_w = 0.0f;
 	for(int dy = -3; dy < 4; dy++) {
@@ -426,21 +410,12 @@ ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, i
 		for(int dx = -3; dx < 4; dx++) {
 			if(dx+x < tile.x || dx+x >= tile.x+tile.z) continue;
 			float we = expf(-0.5f*(dx*dx+dy*dy));
-			h_opt += we*storage[101 + 103*(dx + tile.z*dy)];
+			h_opt += we*storage[98 + 99*(dx + tile.z*dy)];
 			sum_w += we;
 		}
 	}
-	/*for(int dy = max(0, y-3); dy < min(h, y+4); dy++) {
-		for(int dx = max(0, x-3); dx < min(w, x+4); dx++) {
-			float2 d = make_float2(dx-x, dy-y);
-			float w = expf(-dot(d, d)*0.5f);
-			h_opt += w*storage[101 + (dx];
-			sum_w += w;
-		}
-	}*/
 	h_opt /= sum_w;
-	Buf_F(x, y, 4) = h_opt*Buf_F(x, y, m_S);
-//	h_opt = storage[101];
+	Buf_F(x, y, 4) = h_opt*samples;
 
 	{
 		float A[100], z[9], invL[100], invA[10];
@@ -451,14 +426,11 @@ ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, i
 		for(int i = 0; i < rank; i++)
 			bandwidth[i] = (float) h_opt * bi[i];
 
-		float cCm = average(Buf_F3(x, y, m_C)) / Buf_F(x, y, m_S);
-		float cCs = sqrtf(average(Buf_F3(x, y, v_C)) / (Buf_F(x, y, m_S) * (Buf_F(x, y, m_S) - 1.0f)));
+		float cCm = average(Buf_F3(x, y, m_C))*invS;
+		float cCs = sqrtf(average(Buf_F3(x, y, v_C))*invS*invSv);
 
 		for(int py = lo.y; py <= hi.y; py++) {
 			for(int px = lo.x; px <= hi.x; px++) {
-				float invS = 1.0f / Buf_F(px, py, m_S);
-				float invSv = 1.0f / (Buf_F(px, py, m_S) - 1.0f);
-
 				if(fabsf(cCm - average(Buf_F3(px, py, m_C))*invS) > 3.0f * (cCs + sqrtf(average(Buf_F3(px, py, v_C))*invS*invSv)) + 0.005f)
 					continue;
 
@@ -522,9 +494,6 @@ ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, i
 
 		for(int py = lo.y; py <= hi.y; py++) {
 			for(int px = lo.x; px <= hi.x; px++) {
-				float invS = 1.0f / Buf_F(px, py, m_S);
-				float invSv = 1.0f / (Buf_F(px, py, m_S) - 1.0f);
-
 				if(fabsf(average(Buf_F3(px, py, m_C))*invS - cCm) > 3.0f * (cCs + sqrtf(average(Buf_F3(px, py, v_C))*invS*invSv)) + 0.005f)
 					continue;
 
@@ -570,17 +539,6 @@ ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, i
 
 		float o_alpha = Buf_F(x, y, 3);
 		Buf_F4(x, y, 0) = make_float4(out.x, out.y, out.z, o_alpha);
-	}
-
-	{
-		int spp = Buf_F(x, y, m_S);
-		float var = ((coefs.x + coefs.y * powf(h_opt, -rank)) / spp);
-		float bias = (coefs.z*h_opt*h_opt) * biasWeight;
-		float mse = max(0.0f, var + bias*bias);
-
-		float dmse_dspp = mse * powf(spp, -4.0f / (rank + 4.0f));
-		float lum = linear_rgb_to_gray(Buf_F3(x, y, 0));
-		Buf_F(x, y, m_I) = dmse_dspp / (lum * lum + 0.001f);
 	}
 }
 

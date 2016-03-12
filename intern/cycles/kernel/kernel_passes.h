@@ -14,122 +14,68 @@
  * limitations under the License.
  */
 
-#include "util_atomic.h"
-
 CCL_NAMESPACE_BEGIN
 
 ccl_device_inline void kernel_write_pass_float(ccl_global float *buffer, int sample, float value)
 {
-#ifdef __KERNEL_GPU__
-	ccl_global float *buf = buffer;
-	if(sample)
-		atomic_add_float(buf, value);
-	else
-		*buf = value;
-#else
 	if(sample)
 		*buffer += value;
 	else
 		*buffer = value;
-#endif
 }
 
 ccl_device_inline float kernel_add_pass_float(ccl_global float *buffer, int sample, float value)
 {
-#ifdef __KERNEL_GPU__
-	ccl_global float *buf = buffer;
-	if(sample)
-		return atomic_add_float(buf, value);
-	else {
-		*buf = value;
-		return 0.0f;
-	}
-#else
 	if(sample) {
 		float v = *buffer;
 		*buffer += value;
 		return v;
-	} else {
+	}
+	else {
 		*buffer = value;
 		return 0.0f;
 	}
-#endif
 }
 
 ccl_device_inline void kernel_write_lwr_float(ccl_global float *buffer, float sample, float value) {
 	float old = kernel_add_pass_float(buffer, sample, value);
 	float var = (sample > 0.0f)? (value - (old / sample)) * (value - ((old + value) / (sample + 1))): 0.0f;
-	kernel_add_pass_float(buffer + 1, sample, var);
+	kernel_write_pass_float(buffer + 1, sample, var);
 }
 
 ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, int sample, float3 value)
 {
-#ifdef __KERNEL_GPU__
-	ccl_global float *buf_x = buffer + 0;
-	ccl_global float *buf_y = buffer + 1;
-	ccl_global float *buf_z = buffer + 2;
-
-	if(sample) {
-		atomic_add_float(buf_x, value.x);
-		atomic_add_float(buf_y, value.y);
-		atomic_add_float(buf_z, value.z);
-	} else {
-		*buf_x = value.x;
-		*buf_y = value.y;
-		*buf_z = value.z;
-	}
-#else
 	float3 *buf = (float3*) buffer;
 	if(sample)
 		*buf += value;
 	else
 		*buf = value;
-#endif
 }
 
 ccl_device_inline void kernel_write_lwr_float3(ccl_global float *buffer, float sample, float3 value, int copy = 0) {
 	float old = kernel_add_pass_float(buffer, sample, value.x);
 	float var = (sample > 0.0f)? (value.x - (old / sample)) * (value.x - ((old + value.x) / (sample + 1))): 0.0f;
-	kernel_add_pass_float(buffer + 3, sample, var);
+	kernel_write_pass_float(buffer + 3, sample, var);
 	if(copy) buffer[copy] = (old + value.x) / (sample + 1);
 
 	old = kernel_add_pass_float(buffer+1, sample, value.y);
 	var = (sample > 0.0f)? (value.y - (old / sample)) * (value.y - ((old + value.y) / (sample + 1))): 0.0f;
-	kernel_add_pass_float(buffer + 4, sample, var);
+	kernel_write_pass_float(buffer + 4, sample, var);
 	if(copy) buffer[copy+1] = (old + value.y) / (sample + 1);
 
 	old = kernel_add_pass_float(buffer+2, sample, value.z);
 	var = (sample > 0.0f)? (value.z - (old / sample)) * (value.z - ((old + value.z) / (sample + 1))): 0.0f;
-	kernel_add_pass_float(buffer + 5, sample, var);
+	kernel_write_pass_float(buffer + 5, sample, var);
 	if(copy) buffer[copy+2] = (old + value.z) / (sample + 1);
 }
 
 ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sample, float4 value)
 {
-#ifdef __KERNEL_GPU__
-	ccl_global float *buf_x = buffer + 0;
-	ccl_global float *buf_y = buffer + 1;
-	ccl_global float *buf_z = buffer + 2;
-	ccl_global float *buf_w = buffer + 3;
-
-	if(sample) {
-		atomic_add_float(buf_x, value.x);
-		atomic_add_float(buf_y, value.y);
-		atomic_add_float(buf_z, value.z);
-		atomic_add_float(buf_w, value.w);
-	} else {
-		*buf_x = value.x;
-		*buf_y = value.y;
-		*buf_z = value.z;
-		*buf_w = value.w;
-	}
-#else
 	float4 *buf = (float4*) buffer;
 	if(sample)
 		*buf += value;
 	else
 		*buf = value;
-#endif
 }
 
 ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L,
@@ -281,8 +227,8 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global f
 		shadow.w = kernel_data.film.pass_shadow_scale;
 		kernel_write_pass_float4(buffer + kernel_data.film.pass_shadow, sample, shadow);
 	}
-//	if(flag & PASS_MIST)
-//		kernel_write_pass_float(buffer + kernel_data.film.pass_mist, sample, 1.0f - L->mist);
+	if(flag & PASS_MIST)
+		kernel_write_pass_float(buffer + kernel_data.film.pass_mist, sample, 1.0f - L->mist);
 #endif
 }
 

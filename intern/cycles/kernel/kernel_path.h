@@ -925,8 +925,6 @@ ccl_device void kernel_path_trace(KernelGlobals *kg,
 	RNG rng;
 	Ray ray;
 
-	sample = (int) kernel_add_pass_float(buffer + kernel_data.film.pass_mist, sample, 1.0f);
-
 	kernel_path_trace_setup(kg, rng_state, sample, x, y, &rng, &ray);
 
 	/* integrate */

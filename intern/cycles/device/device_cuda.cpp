@@ -32,7 +32,6 @@
 #endif
 #include "util_debug.h"
 #include "util_logging.h"
-#include "util_lwrr.h"
 #include "util_map.h"
 #include "util_md5.h"
 #include "util_opengl.h"
@@ -95,7 +94,7 @@ public:
 	int cuDevArchitecture;
 	bool first_error;
 	bool use_texture_storage;
-	device_vector<int2> adaptive_samples;
+	thread_mutex gpu_mutex;
 
 	struct PixelMem {
 		GLuint cuPBO;
@@ -692,17 +691,20 @@ public:
 		cuda_assert(cuModuleGetFunction(&cuFilter2, cuModule, "kernel_cuda_filter2"));
 
 		CUdeviceptr storage;
-		cuda_assert(cuMemAlloc(&storage, 103*sizeof(float)*task.w*task.h));
+		cuda_assert(cuMemAlloc(&storage, 99*sizeof(float)*task.w*task.h));
 		int4 tile = make_int4(task.x, task.y, task.w, task.h);
 
 		/* pass in parameters */
 		void *args[] = {&d_buffer,
-		                &task.w,
-		                &task.h,
+		                &task.offset,
+		                &task.stride,
+		                &task.sample,
 		                &task.filter_half_window,
 		                &task.filter_bias_weight,
 		                &storage,
 		                &tile};
+
+		printf("Filtering Tile %d %d, Size %d %d, with task of size %d %d\n", tile.x, tile.y, tile.z, tile.w, task.w, task.h);
 
 		/* launch kernel */
 		int threads_per_block;
@@ -730,10 +732,8 @@ public:
 		cuda_pop_context();
 	}
 
-	void path_trace(RenderTile& rtile, int sample, bool branched, device_ptr adaptive_samples_ptr)
+	void path_trace(RenderTile& rtile, int sample, bool branched)
 	{
-		printf("PathTracing, Sample %d, ASPtr %p\n", sample, adaptive_samples_ptr);
-
 		if(have_error())
 			return;
 
@@ -742,7 +742,6 @@ public:
 		CUfunction cuPathTrace;
 		CUdeviceptr d_buffer = cuda_device_ptr(rtile.buffer);
 		CUdeviceptr d_rng_state = cuda_device_ptr(rtile.rng_state);
-		CUdeviceptr d_adaptive_samples = cuda_device_ptr(adaptive_samples_ptr);
 
 		/* get kernel function */
 		if(branched) {
@@ -758,7 +757,6 @@ public:
 		/* pass in parameters */
 		void *args[] = {&d_buffer,
 		                &d_rng_state,
-		                &d_adaptive_samples,
 		                &sample,
 		                &rtile.x,
 		                &rtile.y,
@@ -1158,6 +1156,7 @@ public:
 
 	void thread_run(DeviceTask *task)
 	{
+		thread_scoped_lock gpu_lock(gpu_mutex);
 		if(task->type == DeviceTask::PATH_TRACE) {
 			RenderTile tile;
 			
@@ -1167,17 +1166,6 @@ public:
 			while(task->acquire_tile(this, tile)) {
 				int start_sample = tile.start_sample;
 				int end_sample = tile.start_sample + tile.num_samples;
-				tile.sample = start_sample;
-
-				SampleMap *map = tile.buffers->get_sample_map(&tile, tile.start_sample);
-
-				printf("AS size %d, need %d\n", adaptive_samples.data_size, tile.w*tile.h);
-				if(adaptive_samples.data_size != tile.w*tile.h) {
-					printf("Realloc!\n");
-					mem_free(adaptive_samples);
-					adaptive_samples.resize(tile.w*tile.h);
-					mem_alloc(adaptive_samples, MEM_READ_ONLY);
-				}
 
 				for(int sample = start_sample; sample < end_sample; sample++) {
 					if(task->get_cancel()) {
@@ -1185,26 +1173,12 @@ public:
 							break;
 					}
 
-					if(map) {
-						printf("Filling Map!\n");
-						for(int y = 0; y < tile.h; y++) {
-							for(int x = 0; x < tile.w; x++) {
-								int2 p = make_int2(x, y);
-								map->sample(tile.sample, p);
-								((int2*) adaptive_samples.data_pointer)[y*tile.w+x] = p;
-							}
-						}
-						mem_copy_to(adaptive_samples);
-					}
-
-					path_trace(tile, sample, branched, map? adaptive_samples.device_pointer: (device_ptr) NULL);
+					path_trace(tile, sample, branched);
 
 					tile.sample = sample + 1;
 
 					task->update_progress(&tile);
 				}
-
-				if(map) delete map;
 
 				task->release_tile(tile);
 			}

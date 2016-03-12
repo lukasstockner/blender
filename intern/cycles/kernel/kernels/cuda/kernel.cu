@@ -126,39 +126,25 @@
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
-kernel_cuda_path_trace(float *buffer, uint *rng_state, uint2 *pixel_mapping, int sample, int sx, int sy, int sw, int sh, int offset, int stride)
+kernel_cuda_path_trace(float *buffer, uint *rng_state, int sample, int sx, int sy, int sw, int sh, int offset, int stride)
 {
-	int x = blockDim.x*blockIdx.x + threadIdx.x;
-	int y = blockDim.y*blockIdx.y + threadIdx.y;
+	int x = sx + blockDim.x*blockIdx.x + threadIdx.x;
+	int y = sy + blockDim.y*blockIdx.y + threadIdx.y;
 
-	if(x < sw && y < sh) {
-		if(pixel_mapping) {
-			uint2 p = pixel_mapping[y*sw+x];
-			x = p.x;
-			y = p.y;
-		}
-
-		kernel_path_trace(NULL, buffer, rng_state, sample, sx + x, sy + y, offset, stride);
-	}
+	if(x < sx + sw && y < sy + sh)
+		kernel_path_trace(NULL, buffer, rng_state, sample, x, y, offset, stride);
 }
 
 #ifdef __BRANCHED_PATH__
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_BRANCHED_MAX_REGISTERS)
-kernel_cuda_branched_path_trace(float *buffer, uint *rng_state, uint2 *pixel_mapping, int sample, int sx, int sy, int sw, int sh, int offset, int stride)
+kernel_cuda_branched_path_trace(float *buffer, uint *rng_state, int sample, int sx, int sy, int sw, int sh, int offset, int stride)
 {
-	int x = blockDim.x*blockIdx.x + threadIdx.x;
-	int y = blockDim.y*blockIdx.y + threadIdx.y;
+	int x = sx + blockDim.x*blockIdx.x + threadIdx.x;
+	int y = sy + blockDim.y*blockIdx.y + threadIdx.y;
 
-	if(x < sw && y < sh) {
-		if(pixel_mapping) {
-			uint2 p = pixel_mapping[y*sw+x];
-			x = p.x;
-			y = p.y;
-		}
-
-		kernel_branched_path_trace(NULL, buffer, rng_state, sample, sx + x, sy + y, offset, stride);
-	}
+	if(x < sx + sw && y < sy + sh)
+		kernel_branched_path_trace(NULL, buffer, rng_state, sample, x, y, offset, stride);
 }
 #endif
 
@@ -220,26 +206,26 @@ kernel_cuda_bake(uint4 *input, float4 *output, int type, int filter, int sx, int
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
-kernel_cuda_filter1(float *buffers, int w, int h, int halfWindow, float biasWeight, float *storage, int4 tile)
+kernel_cuda_filter1(float *buffers, int w, int h, int samples, int halfWindow, float biasWeight, float *storage, int4 tile)
 {
 	int x = blockDim.x*blockIdx.x + threadIdx.x;
 	int y = blockDim.y*blockIdx.y + threadIdx.y;
 	int id = y*tile.z + x;
 
 	if(x < tile.z && y < tile.w)
-		kernel_filter1_pixel(NULL, buffers, x+tile.x, y+tile.y, w, h, halfWindow, biasWeight, storage + 103*id);
+		kernel_filter1_pixel(NULL, buffers, x+tile.x, y+tile.y, w, h, samples, halfWindow, biasWeight, storage + 99*id);
 }
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
-kernel_cuda_filter2(float *buffers, int w, int h, int halfWindow, float biasWeight, float *storage, int4 tile)
+kernel_cuda_filter2(float *buffers, int w, int h, int samples, int halfWindow, float biasWeight, float *storage, int4 tile)
 {
 	int x = blockDim.x*blockIdx.x + threadIdx.x;
 	int y = blockDim.y*blockIdx.y + threadIdx.y;
 	int id = y*tile.z + x;
 
 	if(x < tile.z && y < tile.w)
-		kernel_filter2_pixel(NULL, buffers, x+tile.x, y+tile.y, w, h, halfWindow, biasWeight, storage + 103*id, tile);
+		kernel_filter2_pixel(NULL, buffers, x+tile.x, y+tile.y, w, h, samples, halfWindow, biasWeight, storage + 99*id, tile);
 }
 
 #endif

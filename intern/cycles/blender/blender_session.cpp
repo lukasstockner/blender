@@ -469,7 +469,6 @@ void BlenderSession::render()
 		/* add passes */
 		vector<Pass> passes;
 		Pass::add(PASS_COMBINED, passes);
-		Pass::add(PASS_MIST, passes);
 
 		if(session_params.device.advanced_shading) {
 
@@ -489,7 +488,6 @@ void BlenderSession::render()
 
 		buffer_params.passes = passes;
 		buffer_params.lwr_passes = session_params.filter;
-		buffer_params.lwr_adaptive = session_params.use_adaptive_sampling;
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes, session_params.filter);
 		scene->film->tag_update(scene);
