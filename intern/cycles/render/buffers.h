@@ -53,7 +53,7 @@ public:
 
 	/* passes */
 	vector<Pass> passes;
-	bool lwr_passes;
+	int lwr_passes;
 
 	/* functions */
 	BufferParams();

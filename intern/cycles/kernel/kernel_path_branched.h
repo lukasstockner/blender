@@ -556,7 +556,7 @@ ccl_device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, in
 
 	float3 L_sum = path_radiance_clamp_and_sum(kg, &L);
 
-	kernel_write_light_passes(kg, buffer, &L, sample);
+	kernel_write_light_passes(kg, buffer, &L, sample, L_sum);
 
 #ifdef __KERNEL_DEBUG__
 	kernel_write_debug_passes(kg, buffer, &state, &debug_data, sample);
@@ -591,11 +591,7 @@ ccl_device void kernel_branched_path_trace(KernelGlobals *kg,
 		L = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 
 	/* accumulate result in output buffer */
-	if(kernel_data.film.pass_lwr) {
-		kernel_write_pass_float(buffer + 3, sample, L.w); /* Alpha is not filtered, so it's stored in the final pass */
-		kernel_write_lwr_float3(buffer + kernel_data.film.pass_lwr + 14, sample, make_float3(L.x, L.y, L.z), -kernel_data.film.pass_lwr-14);
-	}
-	else kernel_write_pass_float4(buffer, sample, L);
+	kernel_write_pass_float4(buffer, sample, L);
 
 	path_rng_end(kg, rng_state, rng);
 }

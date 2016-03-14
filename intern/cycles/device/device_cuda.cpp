@@ -699,6 +699,7 @@ public:
 		                &task.offset,
 		                &task.stride,
 		                &task.sample,
+		                &task.filter_mode,
 		                &task.filter_half_window,
 		                &task.filter_bias_weight,
 		                &storage,

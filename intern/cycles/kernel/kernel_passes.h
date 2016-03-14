@@ -52,20 +52,20 @@ ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, int sa
 		*buf = value;
 }
 
-ccl_device_inline void kernel_write_lwr_float3(ccl_global float *buffer, float sample, float3 value, int copy = 0) {
+ccl_device_inline void kernel_write_lwr_float3(ccl_global float *buffer, float sample, float3 value, int var_ofs = 3, int copy = 0) {
 	float old = kernel_add_pass_float(buffer, sample, value.x);
 	float var = (sample > 0.0f)? (value.x - (old / sample)) * (value.x - ((old + value.x) / (sample + 1))): 0.0f;
-	kernel_write_pass_float(buffer + 3, sample, var);
+	kernel_write_pass_float(buffer + var_ofs, sample, var);
 	if(copy) buffer[copy] = (old + value.x) / (sample + 1);
 
 	old = kernel_add_pass_float(buffer+1, sample, value.y);
 	var = (sample > 0.0f)? (value.y - (old / sample)) * (value.y - ((old + value.y) / (sample + 1))): 0.0f;
-	kernel_write_pass_float(buffer + 4, sample, var);
+	kernel_write_pass_float(buffer + var_ofs+1, sample, var);
 	if(copy) buffer[copy+1] = (old + value.y) / (sample + 1);
 
 	old = kernel_add_pass_float(buffer+2, sample, value.z);
 	var = (sample > 0.0f)? (value.z - (old / sample)) * (value.z - ((old + value.z) / (sample + 1))): 0.0f;
-	kernel_write_pass_float(buffer + 5, sample, var);
+	kernel_write_pass_float(buffer + var_ofs+2, sample, var);
 	if(copy) buffer[copy+2] = (old + value.z) / (sample + 1);
 }
 
@@ -182,28 +182,68 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global fl
 #endif
 }
 
-ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L, int sample)
+ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L, int sample, float3 L_sum)
 {
 #ifdef __PASSES__
 	int flag = kernel_data.film.pass_flag;
 
+	if(flag & PASS_DIFFUSE_INDIRECT) {
+		if(kernel_data.film.lwr_diffuse_indirect) {
+			L_sum -= L->indirect_diffuse;
+			kernel_write_lwr_float3(buffer + kernel_data.film.pass_diffuse_indirect, sample, L->indirect_diffuse, kernel_data.film.lwr_diffuse_indirect - kernel_data.film.pass_diffuse_indirect);
+		}
+		else
+			kernel_write_pass_float3(buffer + kernel_data.film.pass_diffuse_indirect, sample, L->indirect_diffuse);
+	}
+	if(flag & PASS_GLOSSY_INDIRECT) {
+		if(kernel_data.film.lwr_glossy_indirect) {
+			L_sum -= L->indirect_glossy;
+			kernel_write_lwr_float3(buffer + kernel_data.film.pass_glossy_indirect, sample, L->indirect_glossy, kernel_data.film.lwr_glossy_indirect - kernel_data.film.pass_glossy_indirect);
+		}
+		else
+			kernel_write_pass_float3(buffer + kernel_data.film.pass_glossy_indirect, sample, L->indirect_glossy);
+	}
+	if(flag & PASS_TRANSMISSION_INDIRECT) {
+		if(kernel_data.film.lwr_transmission_indirect) {
+			L_sum -= L->indirect_transmission;
+			kernel_write_lwr_float3(buffer + kernel_data.film.pass_transmission_indirect, sample, L->indirect_transmission, kernel_data.film.lwr_transmission_indirect - kernel_data.film.pass_transmission_indirect);
+		}
+		else
+			kernel_write_pass_float3(buffer + kernel_data.film.pass_transmission_indirect, sample, L->indirect_transmission);
+	}
+	if(flag & PASS_DIFFUSE_DIRECT) {
+		if(kernel_data.film.lwr_diffuse_direct) {
+			L_sum -= L->direct_diffuse;
+			kernel_write_lwr_float3(buffer + kernel_data.film.pass_diffuse_direct, sample, L->direct_diffuse, kernel_data.film.lwr_diffuse_direct - kernel_data.film.pass_diffuse_direct);
+		}
+		else
+			kernel_write_pass_float3(buffer + kernel_data.film.pass_diffuse_direct, sample, L->direct_diffuse);
+	}
+	if(flag & PASS_GLOSSY_DIRECT) {
+		if(kernel_data.film.lwr_glossy_direct) {
+			L_sum -= L->direct_glossy;
+			kernel_write_lwr_float3(buffer + kernel_data.film.pass_glossy_direct, sample, L->direct_glossy, kernel_data.film.lwr_glossy_direct - kernel_data.film.pass_glossy_direct);
+		}
+		else
+			kernel_write_pass_float3(buffer + kernel_data.film.pass_glossy_direct, sample, L->direct_glossy);
+	}
+	if(flag & PASS_TRANSMISSION_DIRECT) {
+		if(kernel_data.film.lwr_transmission_direct) {
+			L_sum -= L->direct_transmission;
+			kernel_write_lwr_float3(buffer + kernel_data.film.pass_transmission_direct, sample, L->direct_transmission, kernel_data.film.lwr_transmission_direct - kernel_data.film.pass_transmission_direct);
+		}
+		else
+			kernel_write_pass_float3(buffer + kernel_data.film.pass_transmission_direct, sample, L->direct_transmission);
+	}
+	if(kernel_data.film.pass_lwr) {
+		kernel_write_lwr_float3(buffer + kernel_data.film.pass_lwr+14, sample, L_sum, 3);
+	}
+
 	if(!kernel_data.film.use_light_pass)
 		return;
-	
-	if(flag & PASS_DIFFUSE_INDIRECT)
-		kernel_write_pass_float3(buffer + kernel_data.film.pass_diffuse_indirect, sample, L->indirect_diffuse);
-	if(flag & PASS_GLOSSY_INDIRECT)
-		kernel_write_pass_float3(buffer + kernel_data.film.pass_glossy_indirect, sample, L->indirect_glossy);
-	if(flag & PASS_TRANSMISSION_INDIRECT)
-		kernel_write_pass_float3(buffer + kernel_data.film.pass_transmission_indirect, sample, L->indirect_transmission);
+
 	if(flag & PASS_SUBSURFACE_INDIRECT)
 		kernel_write_pass_float3(buffer + kernel_data.film.pass_subsurface_indirect, sample, L->indirect_subsurface);
-	if(flag & PASS_DIFFUSE_DIRECT)
-		kernel_write_pass_float3(buffer + kernel_data.film.pass_diffuse_direct, sample, L->direct_diffuse);
-	if(flag & PASS_GLOSSY_DIRECT)
-		kernel_write_pass_float3(buffer + kernel_data.film.pass_glossy_direct, sample, L->direct_glossy);
-	if(flag & PASS_TRANSMISSION_DIRECT)
-		kernel_write_pass_float3(buffer + kernel_data.film.pass_transmission_direct, sample, L->direct_transmission);
 	if(flag & PASS_SUBSURFACE_DIRECT)
 		kernel_write_pass_float3(buffer + kernel_data.film.pass_subsurface_direct, sample, L->direct_subsurface);
 

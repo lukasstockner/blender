@@ -55,7 +55,7 @@ public:
 	int start_resolution;
 	int threads;
 
-	bool filter;
+	int filter_params;
 	bool use_lwr_library;
 	int prepass_samples;
 	int filter_half_window;
@@ -93,7 +93,7 @@ public:
 		shadingsystem = SHADINGSYSTEM_SVM;
 		tile_order = TILE_CENTER;
 
-		filter = false;
+		filter_params = 0;
 		use_lwr_library = false;
 		prepass_samples = 0;
 		filter_half_window = 5;
@@ -118,7 +118,7 @@ public:
 		&& text_timeout == params.text_timeout
 		&& progressive_update_timeout == params.progressive_update_timeout
 		&& tile_order == params.tile_order
-		&& filter == params.filter
+		&& filter_params == params.filter_params
 		&& use_lwr_library == params.use_lwr_library
 		&& prepass_samples == params.prepass_samples
 		&& filter_half_window == params.filter_half_window

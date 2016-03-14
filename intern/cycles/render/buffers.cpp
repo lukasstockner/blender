@@ -44,7 +44,7 @@ BufferParams::BufferParams()
 	full_height = 0;
 
 	Pass::add(PASS_COMBINED, passes);
-	lwr_passes = false;
+	lwr_passes = 0;
 }
 
 void BufferParams::get_offset_stride(int& offset, int& stride)
@@ -77,6 +77,9 @@ int BufferParams::get_passes_size(bool get_lwr)
 
 	if(lwr_passes)
 		size += 20;
+	for(int i = 1; i < 7; i++)
+		if(lwr_passes & (1 << i))
+			size += 3;
 
 	return align_up(size, 4);
 }
@@ -175,30 +178,48 @@ bool RenderBuffers::copy_to_device()
 	return true;
 }
 
+static void filter_buffer(int w, int h, int sample, int half_window, float bias_weight, device_ptr buffer, int mode, Device *device)
+{
+	int nx = (w + 63) / 64;
+	int ny = (h + 63) / 64;
+	for(int iy = 0; iy < ny; iy++) {
+		for(int ix = 0; ix < nx; ix++) {
+			DeviceTask task(DeviceTask::FILTER);
+			task.x = 64*ix;
+			task.y = 64*iy;
+			task.w = min(64, w - ix*64);
+			task.h = min(64, h - iy*64);
+			task.offset = w;
+			task.stride = h;
+			task.sample = sample;
+			task.buffer = buffer;
+			task.filter_mode = mode;
+			task.filter_half_window = half_window;
+			task.filter_bias_weight = bias_weight;
+			device->task_add(task);
+		}
+	}
+	device->task_wait();
+}
+
 bool RenderBuffers::filter_lwr(bool use_library, int sample, int half_window, float bias_weight)
 {
 	if(use_library)
 		LWRR_apply(this);
 	else {
-		int nx = (params.width  + 63) / 64;
-		int ny = (params.height + 63) / 64;
-		for(int iy = 0; iy < ny; iy++) {
-			for(int ix = 0; ix < nx; ix++) {
-				DeviceTask task(DeviceTask::FILTER);
-				task.x = 64*ix;
-				task.y = 64*iy;
-				task.w = min(64, params.width  - ix*64);
-				task.h = min(64, params.height - iy*64);
-				task.offset = params.width;
-				task.stride = params.height;
-				task.sample = sample;
-				task.buffer = buffer.device_pointer;
-				task.filter_half_window = half_window;
-				task.filter_bias_weight = bias_weight;
-				device->task_add(task);
-			}
-		}
-		device->task_wait();
+		filter_buffer(params.width, params.height, sample, half_window, bias_weight, buffer.device_pointer, FILTER_COMBINED, device);
+		if(params.lwr_passes & 2)
+			filter_buffer(params.width, params.height, sample, half_window, bias_weight, buffer.device_pointer, FILTER_DIFFUSE_DIRECT, device);
+		if(params.lwr_passes & 4)
+			filter_buffer(params.width, params.height, sample, half_window, bias_weight, buffer.device_pointer, FILTER_DIFFUSE_INDIRECT, device);
+		if(params.lwr_passes & 8)
+			filter_buffer(params.width, params.height, sample, half_window, bias_weight, buffer.device_pointer, FILTER_GLOSSY_DIRECT, device);
+		if(params.lwr_passes & 16)
+			filter_buffer(params.width, params.height, sample, half_window, bias_weight, buffer.device_pointer, FILTER_GLOSSY_INDIRECT, device);
+		if(params.lwr_passes & 32)
+			filter_buffer(params.width, params.height, sample, half_window, bias_weight, buffer.device_pointer, FILTER_TRANSMISSION_DIRECT, device);
+		if(params.lwr_passes & 64)
+			filter_buffer(params.width, params.height, sample, half_window, bias_weight, buffer.device_pointer, FILTER_TRANSMISSION_INDIRECT, device);
 	}
 
 	return true;
@@ -338,18 +359,6 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 					pixels[1] = f.y*invw;
 					pixels[2] = f.z*invw;
 					pixels[3] = f.w*invw;
-				}
-			}
-			else if(type == PASS_COMBINED && params.lwr_passes) {
-				FORALL_PIXELS(4) {
-					float4 f = make_float4(in[0], in[1], in[2], in[3]);
-
-					pixels[0] = f.x;
-					pixels[1] = f.y;
-					pixels[2] = f.z;
-
-					/* clamp since alpha might be > 1.0 due to russian roulette */
-					pixels[3] = saturate(f.w);
 				}
 			}
 			else {

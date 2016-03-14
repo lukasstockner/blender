@@ -55,7 +55,7 @@ Session::Session(const SessionParams& params_)
 
 	device = Device::create(params.device, stats, params.background);
 
-	if(params.background && params.output_path.empty() && !params.filter) {
+	if(params.background && params.output_path.empty() && !params.filter_params) {
 		buffers = NULL;
 		display = NULL;
 	}
@@ -385,7 +385,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 
 	/* in case of a permanent buffer, return it, otherwise we will allocate
 	 * a new temporary buffer */
-	if(!(params.background && params.output_path.empty()) || params.filter) {
+	if(!(params.background && params.output_path.empty()) || params.filter_params) {
 		tile_manager.state.buffer.get_offset_stride(rtile.offset, rtile.stride);
 
 		rtile.buffer = buffers->buffer.device_pointer;
@@ -468,7 +468,7 @@ void Session::release_tile(RenderTile& rtile)
 {
 	thread_scoped_lock tile_lock(tile_mutex);
 
-	if(write_render_tile_cb && !params.filter && params.progressive_refine == false && ((params.prepass_samples == 0) || (rtile.start_sample > 0))) {
+	if(write_render_tile_cb && !params.filter_params && params.progressive_refine == false && ((params.prepass_samples == 0) || (rtile.start_sample > 0))) {
 		/* todo: optimize this by making it thread safe and removing lock */
 		write_render_tile_cb(rtile);
 
@@ -481,7 +481,7 @@ void Session::release_tile(RenderTile& rtile)
 
 		delete rtile.buffers;
 	}
-	else if(update_render_tile_cb && (((params.prepass_samples > 0) && (rtile.start_sample == 0)) || params.filter)) {
+	else if(update_render_tile_cb && (((params.prepass_samples > 0) && (rtile.start_sample == 0)) || params.filter_params)) {
 		update_render_tile_cb(rtile, false);
 	}
 
@@ -599,7 +599,7 @@ void Session::run_cpu()
 				reset_(delayed_reset.params, delayed_reset.samples);
 			}
 			else {
-				if(params.filter) {
+				if(params.filter_params) {
 					assert(buffers != NULL);
 					progress.set_status("Filtering...");
 					int sample = tile_manager.state.sample + tile_manager.state.num_samples;
@@ -760,7 +760,7 @@ void Session::reset(BufferParams& buffer_params, int samples)
 	else
 		reset_cpu(buffer_params, samples);
 
-	if(params.progressive_refine || ((params.prepass_samples > 0) && !params.filter)) {
+	if(params.progressive_refine || ((params.prepass_samples > 0) && !params.filter_params)) {
 		thread_scoped_lock buffers_lock(buffers_mutex);
 
 		foreach(RenderBuffers *buffers, tile_buffers)

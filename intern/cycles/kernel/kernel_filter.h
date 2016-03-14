@@ -20,7 +20,42 @@ CCL_NAMESPACE_BEGIN
 #define Buf_F3(x, y, o) *((float3*) (buffers + ((y) * w + (x)) * kernel_data.film.pass_stride + (o)))
 #define Buf_F4(x, y, o) *((float4*) (buffers + ((y) * w + (x)) * kernel_data.film.pass_stride + (o)))
 
-ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int samples, int halfWindow, float biasWeight, float* storage)
+ccl_device_inline void filter_get_color_passes(KernelGlobals *kg, int mode, int &m_C, int &v_C)
+{
+	switch(mode) {
+		case FILTER_DIFFUSE_DIRECT:
+			m_C = kernel_data.film.pass_diffuse_direct;
+			v_C = kernel_data.film.lwr_diffuse_direct;
+			break;
+		case FILTER_DIFFUSE_INDIRECT:
+			m_C = kernel_data.film.pass_diffuse_indirect;
+			v_C = kernel_data.film.lwr_diffuse_indirect;
+			break;
+		case FILTER_GLOSSY_DIRECT:
+			m_C = kernel_data.film.pass_glossy_direct;
+			v_C = kernel_data.film.lwr_glossy_direct;
+			break;
+		case FILTER_GLOSSY_INDIRECT:
+			m_C = kernel_data.film.pass_glossy_indirect;
+			v_C = kernel_data.film.lwr_glossy_indirect;
+			break;
+		case FILTER_TRANSMISSION_DIRECT:
+			m_C = kernel_data.film.pass_transmission_direct;
+			v_C = kernel_data.film.lwr_transmission_direct;
+			break;
+		case FILTER_TRANSMISSION_INDIRECT:
+			m_C = kernel_data.film.pass_transmission_indirect;
+			v_C = kernel_data.film.lwr_transmission_indirect;
+			break;
+		case FILTER_COMBINED:
+		default:
+			m_C = kernel_data.film.pass_lwr + 14;
+			v_C = kernel_data.film.pass_lwr + 17;
+			break;
+	}
+}
+
+ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int samples, int mode, int halfWindow, float biasWeight, float* storage)
 {
 	float invS = 1.0f / samples;
 	float invSv = 1.0f / (samples - 1);
@@ -29,9 +64,11 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 	int2 hi = make_int2(min(x + halfWindow, w-1), min(y + halfWindow, h-1));
 	int num = (hi.x - lo.x + 1) * (hi.y - lo.y + 1);
 
-	int m_C = kernel_data.film.pass_lwr + 14, v_C = kernel_data.film.pass_lwr + 17, m_D = kernel_data.film.pass_lwr,
-	    v_D = kernel_data.film.pass_lwr + 1 , m_T = kernel_data.film.pass_lwr + 8 , v_T = kernel_data.film.pass_lwr + 11,
-	    m_N = kernel_data.film.pass_lwr + 2 , v_N = kernel_data.film.pass_lwr + 5;
+	int m_D = kernel_data.film.pass_lwr     , v_D = kernel_data.film.pass_lwr + 1 ,
+	    m_N = kernel_data.film.pass_lwr + 2 , v_N = kernel_data.film.pass_lwr + 5 ,
+	    m_T = kernel_data.film.pass_lwr + 8 , v_T = kernel_data.film.pass_lwr + 11,
+	    m_C, v_C;
+	filter_get_color_passes(kg, mode, m_C, v_C);
 
 	float3 meanT = make_float3(0.0f, 0.0f, 0.0f);
 	float3 meanN = make_float3(0.0f, 0.0f, 0.0f);
@@ -386,7 +423,7 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 	storage[98] = h_opt;
 }
 
-ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int samples, int halfWindow, float biasWeight, float *storage, int4 tile)
+ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int samples, int mode, int halfWindow, float biasWeight, float *storage, int4 tile)
 {
 	float invS = 1.0f / samples;
 	float invSv = 1.0f / (samples - 1);
@@ -394,8 +431,9 @@ ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, i
 	int2 lo = make_int2(max(x - halfWindow, 0), max(y - halfWindow, 0));
 	int2 hi = make_int2(min(x + halfWindow, w-1), min(y + halfWindow, h-1));
 
-	int m_C = kernel_data.film.pass_lwr + 14, v_C = kernel_data.film.pass_lwr + 17, m_D = kernel_data.film.pass_lwr,
-	    m_T = kernel_data.film.pass_lwr + 8 , m_N = kernel_data.film.pass_lwr + 2;
+	int m_D = kernel_data.film.pass_lwr, m_N = kernel_data.film.pass_lwr + 2, m_T = kernel_data.film.pass_lwr + 8,
+	    m_C, v_C;
+	filter_get_color_passes(kg, mode, m_C, v_C);
 
 	//Load storage data
 	float *bi = storage;
@@ -537,8 +575,13 @@ ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, i
 		if(out.x < 0.0f || out.y < 0.0f || out.z < 0.0f)
 			out = outP / max(Psum, 0.001f);
 
-		float o_alpha = Buf_F(x, y, 3);
-		Buf_F4(x, y, 0) = make_float4(out.x, out.y, out.z, o_alpha);
+		if(mode == FILTER_COMBINED) {
+			float o_alpha = Buf_F(x, y, 3);
+			Buf_F4(x, y, 0) = samples*make_float4(out.x, out.y, out.z, o_alpha);
+		}
+		else {
+			Buf_F4(x, y, 0) += samples*make_float4(out.x, out.y, out.z, 0.0f);
+		}
 	}
 }
 

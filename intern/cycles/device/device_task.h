@@ -53,6 +53,7 @@ public:
 
 	float filter_bias_weight;
 	int filter_half_window;
+	int filter_mode;
 
 	DeviceTask(Type type = PATH_TRACE);
 

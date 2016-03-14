@@ -207,6 +207,15 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
             sub.prop(cscene, "use_lwr_library")
             sub.prop(cscene, "filter_half_window")
             sub.prop(cscene, "filter_bias_weight")
+            col = sub.column(align=True)
+            row = col.row(align=True)
+            row.prop(cscene, "filter_diffuse_direct", toggle=True)
+            row.prop(cscene, "filter_glossy_direct", toggle=True)
+            row.prop(cscene, "filter_transmission_direct", toggle=True)
+            row = col.row(align=True)
+            row.prop(cscene, "filter_diffuse_indirect", toggle=True)
+            row.prop(cscene, "filter_glossy_indirect", toggle=True)
+            row.prop(cscene, "filter_transmission_indirect", toggle=True)
 
         for rl in scene.render.layers:
             if rl.samples > 0:

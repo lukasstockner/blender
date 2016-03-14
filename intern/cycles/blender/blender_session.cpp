@@ -381,7 +381,9 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool highlig
 	BufferParams& params = rtile.buffers->params;
 
 	/* get render result */
-	BL::RenderResult b_rr = begin_render_result(b_engine, rtile.x, rtile.y, rtile.w, rtile.h, b_rlay_name.c_str(), b_rview_name.c_str());
+	int x = rtile.x - session->tile_manager.params.full_x;
+	int y = rtile.y - session->tile_manager.params.full_y;
+	BL::RenderResult b_rr = begin_render_result(b_engine, x, y, rtile.w, rtile.h, b_rlay_name.c_str(), b_rview_name.c_str());
 
 	/* can happen if the intersected rectangle gives 0 width or height */
 	if(b_rr.ptr.data == NULL) {
@@ -487,9 +489,9 @@ void BlenderSession::render()
 		}
 
 		buffer_params.passes = passes;
-		buffer_params.lwr_passes = session_params.filter;
+		buffer_params.lwr_passes = session_params.filter_params;
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
-		scene->film->tag_passes_update(scene, passes, session_params.filter);
+		scene->film->tag_passes_update(scene, passes, session_params.filter_params);
 		scene->film->tag_update(scene);
 		scene->integrator->tag_update(scene);
 

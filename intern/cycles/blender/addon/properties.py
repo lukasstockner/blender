@@ -254,6 +254,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 items=enum_use_layer_samples,
                 default='USE',
                 )
+
         cls.use_filtering = BoolProperty(
                 name="Use LWR filtering",
                 description="Apply a post-processing filter to the image that removes noise at the cost of accuracy",
@@ -276,6 +277,38 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 min=-3, max=3,
                 default=0,
                 )
+
+        cls.filter_diffuse_direct = BoolProperty(
+                name="Diffuse Direct",
+                description="Filter the diffuse direct pass separately",
+                default=False,
+                )
+        cls.filter_diffuse_indirect = BoolProperty(
+                name="Diffuse Indirect",
+                description="Filter the diffuse indirect pass separately",
+                default=False,
+                )
+        cls.filter_glossy_direct = BoolProperty(
+                name="Glossy Direct",
+                description="Filter the glossy direct pass separately",
+                default=False,
+                )
+        cls.filter_glossy_indirect = BoolProperty(
+                name="Glossy Indirect",
+                description="Filter the glossy indirect pass separately",
+                default=False,
+                )
+        cls.filter_transmission_direct = BoolProperty(
+                name="Transmission Direct",
+                description="Filter the transmission direct pass separately",
+                default=False,
+                )
+        cls.filter_transmission_indirect = BoolProperty(
+                name="Transmissison Indirect",
+                description="Filter the transmission indirect pass separately",
+                default=False,
+                )
+
         cls.prepass_samples = IntProperty(
                 name="Prepass Samples",
                 description="Number of samples to render before the remaining samples are rendered"

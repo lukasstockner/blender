@@ -427,6 +427,30 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	if(lwr_passes) {
 		kfilm->pass_lwr = kfilm->pass_stride;
 		kfilm->pass_stride += 20;
+		if(lwr_passes & 2) {
+			kfilm->lwr_diffuse_direct = kfilm->pass_stride;
+			kfilm->pass_stride += 3;
+		} else kfilm->lwr_diffuse_direct = 0;
+		if(lwr_passes & 4) {
+			kfilm->lwr_diffuse_indirect = kfilm->pass_stride;
+			kfilm->pass_stride += 3;
+		} else kfilm->lwr_diffuse_indirect = 0;
+		if(lwr_passes & 8) {
+			kfilm->lwr_glossy_direct = kfilm->pass_stride;
+			kfilm->pass_stride += 3;
+		} else kfilm->lwr_glossy_direct = 0;
+		if(lwr_passes & 16) {
+			kfilm->lwr_glossy_indirect = kfilm->pass_stride;
+			kfilm->pass_stride += 3;
+		} else kfilm->lwr_glossy_indirect = 0;
+		if(lwr_passes & 32) {
+			kfilm->lwr_transmission_direct = kfilm->pass_stride;
+			kfilm->pass_stride += 3;
+		} else kfilm->lwr_transmission_direct = 0;
+		if(lwr_passes & 64) {
+			kfilm->lwr_transmission_indirect = kfilm->pass_stride;
+			kfilm->pass_stride += 3;
+		} else kfilm->lwr_transmission_indirect = 0;
 	}
 	else
 		kfilm->pass_lwr = 0;
@@ -471,7 +495,7 @@ bool Film::modified(const Film& film)
 		&& lwr_passes == film.lwr_passes);
 }
 
-void Film::tag_passes_update(Scene *scene, const vector<Pass>& passes_, bool lwr_passes_)
+void Film::tag_passes_update(Scene *scene, const vector<Pass>& passes_, int lwr_passes_)
 {
 	if(Pass::contains(passes, PASS_UV) != Pass::contains(passes_, PASS_UV)) {
 		scene->mesh_manager->tag_update(scene);
