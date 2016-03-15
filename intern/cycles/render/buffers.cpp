@@ -178,48 +178,68 @@ bool RenderBuffers::copy_to_device()
 	return true;
 }
 
-static void filter_buffer(int w, int h, int sample, int half_window, float bias_weight, device_ptr buffer, int mode, Device *device)
+#define LWR_FILTER_TILE 128
+void RenderBuffers::filter_buffer(int sample, int half_window, float bandwidth_factor, int mode,
+                                  Progress *progress,
+                                  function<void(RenderTile&)> write_render_tile_cb)
 {
-	int nx = (w + 63) / 64;
-	int ny = (h + 63) / 64;
+	int nx = (params.width  + LWR_FILTER_TILE - 1) / LWR_FILTER_TILE;
+	int ny = (params.height + LWR_FILTER_TILE - 1) / LWR_FILTER_TILE;
 	for(int iy = 0; iy < ny; iy++) {
 		for(int ix = 0; ix < nx; ix++) {
+			if(progress->get_cancel())
+				return;
+
+			progress->set_status("Filtering...", string_printf("Block %d/%d", iy*nx+ix, ny*nx));
+
+			RenderTile rtile;
+			rtile.buffers = this;
+			rtile.sample = sample;
+			rtile.x = params.full_x + LWR_FILTER_TILE*ix;
+			rtile.y = params.full_y + LWR_FILTER_TILE*iy;
+			rtile.w = min(LWR_FILTER_TILE, params.width  - ix*LWR_FILTER_TILE);
+			rtile.h = min(LWR_FILTER_TILE, params.height - iy*LWR_FILTER_TILE);
+
 			DeviceTask task(DeviceTask::FILTER);
-			task.x = 64*ix;
-			task.y = 64*iy;
-			task.w = min(64, w - ix*64);
-			task.h = min(64, h - iy*64);
-			task.offset = w;
-			task.stride = h;
+			task.x = LWR_FILTER_TILE*ix;
+			task.y = LWR_FILTER_TILE*iy;
+			task.w = rtile.w;
+			task.h = rtile.h;
+			task.offset = params.width;
+			task.stride = params.height;
 			task.sample = sample;
-			task.buffer = buffer;
+			task.buffer = buffer.device_pointer;
 			task.filter_mode = mode;
 			task.filter_half_window = half_window;
-			task.filter_bias_weight = bias_weight;
+			task.filter_bandwidth_factor = bandwidth_factor;
 			device->task_add(task);
+			device->task_wait();
+
+			write_render_tile_cb(rtile);
 		}
 	}
-	device->task_wait();
 }
 
-bool RenderBuffers::filter_lwr(bool use_library, int sample, int half_window, float bias_weight)
+bool RenderBuffers::filter_lwr(bool use_library, int sample, int half_window, float bandwidth_factor,
+                               Progress *progress,
+                               function<void(RenderTile&)> write_render_tile_cb)
 {
 	if(use_library)
 		LWRR_apply(this);
 	else {
-		filter_buffer(params.width, params.height, sample, half_window, bias_weight, buffer.device_pointer, FILTER_COMBINED, device);
+		filter_buffer(sample, half_window, bandwidth_factor, FILTER_COMBINED, progress, write_render_tile_cb);
 		if(params.lwr_passes & 2)
-			filter_buffer(params.width, params.height, sample, half_window, bias_weight, buffer.device_pointer, FILTER_DIFFUSE_DIRECT, device);
+			filter_buffer(sample, half_window, bandwidth_factor, FILTER_DIFFUSE_DIRECT, progress, write_render_tile_cb);
 		if(params.lwr_passes & 4)
-			filter_buffer(params.width, params.height, sample, half_window, bias_weight, buffer.device_pointer, FILTER_DIFFUSE_INDIRECT, device);
+			filter_buffer(sample, half_window, bandwidth_factor, FILTER_DIFFUSE_INDIRECT, progress, write_render_tile_cb);
 		if(params.lwr_passes & 8)
-			filter_buffer(params.width, params.height, sample, half_window, bias_weight, buffer.device_pointer, FILTER_GLOSSY_DIRECT, device);
+			filter_buffer(sample, half_window, bandwidth_factor, FILTER_GLOSSY_DIRECT, progress, write_render_tile_cb);
 		if(params.lwr_passes & 16)
-			filter_buffer(params.width, params.height, sample, half_window, bias_weight, buffer.device_pointer, FILTER_GLOSSY_INDIRECT, device);
+			filter_buffer(sample, half_window, bandwidth_factor, FILTER_GLOSSY_INDIRECT, progress, write_render_tile_cb);
 		if(params.lwr_passes & 32)
-			filter_buffer(params.width, params.height, sample, half_window, bias_weight, buffer.device_pointer, FILTER_TRANSMISSION_DIRECT, device);
+			filter_buffer(sample, half_window, bandwidth_factor, FILTER_TRANSMISSION_DIRECT, progress, write_render_tile_cb);
 		if(params.lwr_passes & 64)
-			filter_buffer(params.width, params.height, sample, half_window, bias_weight, buffer.device_pointer, FILTER_TRANSMISSION_INDIRECT, device);
+			filter_buffer(sample, half_window, bandwidth_factor, FILTER_TRANSMISSION_INDIRECT, progress, write_render_tile_cb);
 	}
 
 	return true;

@@ -59,7 +59,7 @@ public:
 	bool use_lwr_library;
 	int prepass_samples;
 	int filter_half_window;
-	float filter_bias_weight;
+	float filter_bandwidth_factor;
 
 	bool display_buffer_linear;
 
@@ -97,7 +97,7 @@ public:
 		use_lwr_library = false;
 		prepass_samples = 0;
 		filter_half_window = 5;
-		filter_bias_weight = 1.0f;
+		filter_bandwidth_factor = 1.0f;
 	}
 
 	bool modified(const SessionParams& params)
@@ -122,7 +122,7 @@ public:
 		&& use_lwr_library == params.use_lwr_library
 		&& prepass_samples == params.prepass_samples
 		&& filter_half_window == params.filter_half_window
-		&& filter_bias_weight == params.filter_bias_weight
+		&& filter_bandwidth_factor == params.filter_bandwidth_factor
 		&& shadingsystem == params.shadingsystem); }
 
 };

@@ -601,19 +601,11 @@ void Session::run_cpu()
 			else {
 				if(params.filter_params) {
 					assert(buffers != NULL);
-					progress.set_status("Filtering...");
+
+					thread_scoped_lock tile_lock(tile_mutex);
 					int sample = tile_manager.state.sample + tile_manager.state.num_samples;
-					buffers->filter_lwr(params.use_lwr_library, sample, params.filter_half_window, params.filter_bias_weight);
-					if(write_render_tile_cb) {
-						RenderTile rtile;
-						rtile.buffers = buffers;
-						rtile.sample = sample;
-						rtile.x = buffers->params.full_x;
-						rtile.y = buffers->params.full_y;
-						rtile.w = buffers->params.width;
-						rtile.h = buffers->params.height;
-						write_render_tile_cb(rtile);
-					}
+					buffers->filter_lwr(params.use_lwr_library, sample, params.filter_half_window, params.filter_bandwidth_factor,
+					                    &progress, write_render_tile_cb);
 				}
 				/* tonemap only if we do not reset, we don't we don't
 				 * want to show the result of an incomplete sample */

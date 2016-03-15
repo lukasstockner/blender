@@ -534,7 +534,7 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 	params.filter_params |= (params.filter_params && get_boolean(cscene, "filter_transmission_indirect"))? 64: 0;
 	params.use_lwr_library = background && get_boolean(cscene, "use_lwr_library");
 	params.filter_half_window = get_int(cscene, "filter_half_window");
-	params.filter_bias_weight = powf(10.0f, get_float(cscene, "filter_bias_weight"));
+	params.filter_bandwidth_factor = powf(2.0f, get_float(cscene, "filter_bandwidth_factor"));
 	params.prepass_samples = params.progressive? 0: get_int(cscene, "prepass_samples");
 
 	/* samples */

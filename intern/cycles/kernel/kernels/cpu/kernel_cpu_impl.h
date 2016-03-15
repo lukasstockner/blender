@@ -129,14 +129,14 @@ void KERNEL_FUNCTION_FULL_NAME(shader)(KernelGlobals *kg,
 	}
 }
 
-void KERNEL_FUNCTION_FULL_NAME(filter1_pixel)(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int samples, int mode, int halfWindow, float biasWeight, float *storage)
+void KERNEL_FUNCTION_FULL_NAME(filter1_pixel)(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int samples, int mode, int halfWindow, float bandwidthFactor, float *storage)
 {
-	kernel_filter1_pixel(kg, buffers, x, y, w, h, samples, mode, halfWindow, biasWeight, storage);
+	kernel_filter1_pixel(kg, buffers, x, y, w, h, samples, mode, halfWindow, bandwidthFactor, storage);
 }
 
-void KERNEL_FUNCTION_FULL_NAME(filter2_pixel)(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int samples, int mode, int halfWindow, float biasWeight, float *storage, int4 tile)
+void KERNEL_FUNCTION_FULL_NAME(filter2_pixel)(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int samples, int mode, int halfWindow, float bandwidthFactor, float *storage, int4 tile)
 {
-	kernel_filter2_pixel(kg, buffers, x, y, w, h, samples, mode, halfWindow, biasWeight, storage, tile);
+	kernel_filter2_pixel(kg, buffers, x, y, w, h, samples, mode, halfWindow, bandwidthFactor, storage, tile);
 }
 
 CCL_NAMESPACE_END

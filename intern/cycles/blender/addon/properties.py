@@ -267,14 +267,14 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 )
         cls.filter_half_window = IntProperty(
                 name="Half Window",
-                description="Radius of the LWR filter window (larger values mean better quality, but slower filtering)",
+                description="Radius of the LWR filter window (larger values produce smoother results, but take longer to filter and potentially lose more detail)",
                 min=2, max=64,
                 default=5,
                 )
-        cls.filter_bias_weight = FloatProperty(
-                name="Bias weight",
-                description="Controls tradeoff between noise and blurriness - larger values are noisier, smaller values blurrier",
-                min=-3, max=3,
+        cls.filter_bandwidth_factor = FloatProperty(
+                name="Bandwidth factor",
+                description="Controls the strength of the filtering - 0 is the automatically selected strength (and should be fine for most scenes, except for hair/fur)",
+                min=-2, max=2,
                 default=0,
                 )
 

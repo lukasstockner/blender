@@ -701,11 +701,9 @@ public:
 		                &task.sample,
 		                &task.filter_mode,
 		                &task.filter_half_window,
-		                &task.filter_bias_weight,
+		                &task.filter_bandwidth_factor,
 		                &storage,
 		                &tile};
-
-		printf("Filtering Tile %d %d, Size %d %d, with task of size %d %d\n", tile.x, tile.y, tile.z, tile.w, task.w, task.h);
 
 		/* launch kernel */
 		int threads_per_block;

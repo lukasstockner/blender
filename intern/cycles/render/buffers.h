@@ -24,6 +24,7 @@
 #include "kernel_types.h"
 
 #include "util_half.h"
+#include "util_progress.h"
 #include "util_string.h"
 #include "util_thread.h"
 #include "util_types.h"
@@ -84,10 +85,15 @@ public:
 	bool copy_from_device();
 	bool copy_to_device();
 	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels, int x, int y, int w, int h);
-	bool filter_lwr(bool use_library, int sample, int half_window, float bias_weight);
+	bool filter_lwr(bool use_library, int sample, int half_window, float bandwidth_factor,
+	                Progress *progress,
+	                function<void(RenderTile&)> write_render_tile_cb);
 
 protected:
 	void device_free();
+	void filter_buffer(int sample, int half_window, float bandwidth_factor, int mode,
+	                Progress *progress,
+	                function<void(RenderTile&)> write_render_tile_cb);
 
 	Device *device;
 };

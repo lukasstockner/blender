@@ -377,9 +377,6 @@ static void end_render_result(BL::RenderEngine& b_engine,
 
 void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool highlight, bool do_update_only)
 {
-	printf("Update!\n");
-	BufferParams& params = rtile.buffers->params;
-
 	/* get render result */
 	int x = rtile.x - session->tile_manager.params.full_x;
 	int y = rtile.y - session->tile_manager.params.full_y;
@@ -407,7 +404,6 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool highlig
 			 * to tag tile form blender side as IN PROGRESS for proper highlight
 			 * no buffers should be sent to blender yet
 			 */
-			printf("UpdateRenderResult!\n");
 			update_render_result(b_rr, b_rlay, rtile);
 		}
 

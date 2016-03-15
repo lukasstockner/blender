@@ -99,8 +99,17 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global fl
 
 		if(sd) {
 			L->depth += ccl_fetch(sd, ray_length);
-			L->normal = ccl_fetch(sd, N);
-			L->color = shader_bsdf_diffuse(kg, sd) + shader_bsdf_glossy(kg, sd) + shader_bsdf_subsurface(kg, sd) + shader_bsdf_transmission(kg, sd);
+			L->normal = make_float3(0.0f, 0.0f, 0.0f);
+			L->color = make_float3(0.0f, 0.0f, 0.0f);
+			float accum_weight = 0.0f;
+			for(int i = 0; i < ccl_fetch(sd, num_closure); i++) {
+				ShaderClosure *sc = ccl_fetch_array(sd, closure, i);
+				L->normal += sc->sample_weight * sc->N;
+				L->color += sc->weight;
+				accum_weight += sc->sample_weight;
+			}
+			if(accum_weight > 0.0f)
+				L->normal /= accum_weight;
 		}
 	}
 

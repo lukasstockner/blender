@@ -51,7 +51,7 @@ public:
 	int shader_filter;
 	int shader_x, shader_w;
 
-	float filter_bias_weight;
+	float filter_bandwidth_factor;
 	int filter_half_window;
 	int filter_mode;
 

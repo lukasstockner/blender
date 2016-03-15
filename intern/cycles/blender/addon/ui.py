@@ -206,7 +206,7 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
         if cscene.use_filtering:
             sub.prop(cscene, "use_lwr_library")
             sub.prop(cscene, "filter_half_window")
-            sub.prop(cscene, "filter_bias_weight")
+            sub.prop(cscene, "filter_bandwidth_factor", slider=True)
             col = sub.column(align=True)
             row = col.row(align=True)
             row.prop(cscene, "filter_diffuse_direct", toggle=True)

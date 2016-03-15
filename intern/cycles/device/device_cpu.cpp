@@ -309,10 +309,10 @@ public:
 		float *storage = new float[99*task.h*task.w];
 		for(int y = 0; y < task.h; y++)
 			for(int x = 0; x < task.w; x++)
-				filter1_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.offset, task.stride, task.sample, task.filter_mode, task.filter_half_window, task.filter_bias_weight, storage + 99*(y*task.w+x));
+				filter1_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.offset, task.stride, task.sample, task.filter_mode, task.filter_half_window, task.filter_bandwidth_factor, storage + 99*(y*task.w+x));
 		for(int y = 0; y < task.h; y++)
 			for(int x = 0; x < task.w; x++)
-				filter2_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.offset, task.stride, task.sample, task.filter_mode, task.filter_half_window, task.filter_bias_weight, storage + 99*(y*task.w+x), make_int4(task.x, task.y, task.w, task.h));
+				filter2_kernel(&kg, (float*)task.buffer, x+task.x, y+task.y, task.offset, task.stride, task.sample, task.filter_mode, task.filter_half_window, task.filter_bandwidth_factor, storage + 99*(y*task.w+x), make_int4(task.x, task.y, task.w, task.h));
 
 		delete[] storage;
 	}
@@ -483,20 +483,16 @@ public:
 
 	void task_add(DeviceTask& task)
 	{
-		if(task.type == DeviceTask::FILTER)
+		/* split task into smaller ones */
+		list<DeviceTask> tasks;
+
+		if(task.type == DeviceTask::SHADER)
+			task.split(tasks, TaskScheduler::num_threads(), 256);
+		else
+			task.split(tasks, TaskScheduler::num_threads());
+
+		foreach(DeviceTask& task, tasks)
 			task_pool.push(new CPUDeviceTask(this, task));
-		else {
-			/* split task into smaller ones */
-			list<DeviceTask> tasks;
-
-			if(task.type == DeviceTask::SHADER)
-				task.split(tasks, TaskScheduler::num_threads(), 256);
-			else
-				task.split(tasks, TaskScheduler::num_threads());
-
-			foreach(DeviceTask& task, tasks)
-				task_pool.push(new CPUDeviceTask(this, task));
-		}
 	}
 
 	void task_wait()

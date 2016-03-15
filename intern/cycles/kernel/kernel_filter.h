@@ -55,7 +55,7 @@ ccl_device_inline void filter_get_color_passes(KernelGlobals *kg, int mode, int 
 	}
 }
 
-ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int samples, int mode, int halfWindow, float biasWeight, float* storage)
+ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int samples, int mode, int halfWindow, float bandwidthFactor, float* storage)
 {
 	float invS = 1.0f / samples;
 	float invSv = 1.0f / (samples - 1);
@@ -238,7 +238,7 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 
 		for(int i = 0; i < 9; i++) //TODO < rank enough? Why +0.16?
 		{
-			bi[i] = 1.0f / sqrtf(fabsf(2.0f * average(fabs(XtB[i + rank + 1]))) + 0.16f);
+			bi[i] = bandwidthFactor / sqrtf(fabsf(2.0f * average(fabs(XtB[i + rank + 1]))) + 0.16f);
 		}
 
 	}
@@ -376,7 +376,7 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 		}
 
 		double h2 = g_w*g_w;
-		double bias = average(beta - (Buf_F3(x, y, m_C)*invS)) * biasWeight;
+		double bias = average(beta - (Buf_F3(x, y, m_C)*invS));
 		double i_h_r = pow(g_w, -rank);
 		double svar = max(samples*var, 0.0f);
 
@@ -423,7 +423,7 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 	storage[98] = h_opt;
 }
 
-ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int samples, int mode, int halfWindow, float biasWeight, float *storage, int4 tile)
+ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, int y, int w, int h, int samples, int mode, int halfWindow, float bandwidthFactor, float *storage, int4 tile)
 {
 	float invS = 1.0f / samples;
 	float invSv = 1.0f / (samples - 1);
@@ -575,9 +575,10 @@ ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, i
 		if(out.x < 0.0f || out.y < 0.0f || out.z < 0.0f)
 			out = outP / max(Psum, 0.001f);
 
+		out *= samples;
 		if(mode == FILTER_COMBINED) {
 			float o_alpha = Buf_F(x, y, 3);
-			Buf_F4(x, y, 0) = samples*make_float4(out.x, out.y, out.z, o_alpha);
+			Buf_F4(x, y, 0) = make_float4(out.x, out.y, out.z, o_alpha);
 		}
 		else {
 			Buf_F4(x, y, 0) += samples*make_float4(out.x, out.y, out.z, 0.0f);
