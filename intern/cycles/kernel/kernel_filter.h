@@ -418,8 +418,12 @@ ccl_device void kernel_filter1_pixel(KernelGlobals *kg, float *buffers, int x, i
 		storage[i+9] = transform[i];
 	storage[90] = __int_as_float(rank);
 	storage[91] = meanD;
-	*((float3*) (storage + 92)) = meanN;
-	*((float3*) (storage + 95)) = meanT;
+	storage[92] = meanN.x;
+	storage[93] = meanN.y;
+	storage[94] = meanN.z;
+	storage[95] = meanT.x;
+	storage[96] = meanT.y;
+	storage[97] = meanT.z;
 	storage[98] = h_opt;
 }
 
@@ -440,7 +444,8 @@ ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, int x, i
 	float *transform = storage + 9;
 	int rank = __float_as_int(storage[90]);
 	float meanD = storage[91];
-	float3 meanN = *((float3*) (storage + 92)), meanT = *((float3*) (storage + 95));
+	float3 meanN = make_float3(storage[92], storage[93], storage[94]);
+	float3 meanT = make_float3(storage[95], storage[96], storage[97]);
 
 	float h_opt = 0.0f, sum_w = 0.0f;
 	for(int dy = -3; dy < 4; dy++) {
