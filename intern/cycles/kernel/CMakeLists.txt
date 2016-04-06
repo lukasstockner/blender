@@ -61,10 +61,10 @@ set(SRC_HEADERS
 	kernel_types.h
 	kernel_volume.h
 	kernel_work_stealing.h
+	kernel.h
 )
 
 set(SRC_KERNELS_CPU_HEADERS
-	kernel.h
 	kernels/cpu/kernel_cpu.h
 	kernels/cpu/kernel_cpu_impl.h
 )
@@ -166,6 +166,12 @@ set(SRC_UTIL_HEADERS
 	../util/util_math_fast.h
 	../util/util_transform.h
 	../util/util_types.h
+	../util/util_optimization.h
+	../util/util_simd.h
+	../util/util_debug.h
+	../util/util_sseb.h
+	../util/util_ssei.h
+	../util/util_ssef.h
 )
 
 set(SRC_SPLIT_HEADERS
@@ -340,9 +346,9 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_next_iteratio
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_sum_all_radiance.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/cuda/kernel.cu" ${CYCLES_INSTALL_PATH}/kernel/kernels/cuda)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNELS_CPU_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/kernels/cpu)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_CLOSURE_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/closure)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_SVM_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/svm)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_GEOM_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/geom)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_UTIL_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_SPLIT_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/split)
-

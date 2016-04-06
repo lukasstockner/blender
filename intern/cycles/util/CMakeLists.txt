@@ -11,6 +11,7 @@ set(INC_SYS
 set(SRC
 	util_aligned_malloc.cpp
 	util_debug.cpp
+	util_llvm.cpp
 	util_logging.cpp
 	util_math_cdf.cpp
 	util_md5.cpp
@@ -22,6 +23,8 @@ set(SRC
 	util_time.cpp
 	util_transform.cpp
 )
+
+set_source_files_properties(util_llvm.cpp PROPERTIES COMPILE_FLAGS "-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS")
 
 if(NOT CYCLES_STANDALONE_REPOSITORY)
 	add_definitions(-DWITH_GLEW_MX)
@@ -48,6 +51,7 @@ set(SRC_HEADERS
 	util_hash.h
 	util_image.h
 	util_list.h
+	util_llvm.h
 	util_logging.h
 	util_map.h
 	util_math.h

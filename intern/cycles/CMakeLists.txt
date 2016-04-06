@@ -146,6 +146,10 @@ if(WITH_CYCLES_OSL)
 	)
 endif()
 
+if(WITH_LLVM)
+	include_directories( SYSTEM ${LLVM_ROOT_DIR}/include )
+endif()
+
 set(WITH_CYCLES_DEVICE_OPENCL TRUE)
 set(WITH_CYCLES_DEVICE_CUDA TRUE)
 set(WITH_CYCLES_DEVICE_MULTI TRUE)

@@ -35,8 +35,61 @@
 #include "util_opengl.h"
 #include "util_task.h"
 #include "util_time.h"
+#include "util_path.h"
+#include "util_llvm.h"
 
 CCL_NAMESPACE_BEGIN
+
+#if 0
+const char *jit_kernel =
+"void *__dso_handle;\n"
+"#include \"kernel_compat_cpu.h\"\n"
+"#include \"kernel_math.h\"\n"
+"#include \"kernel_types.h\"\n"
+"#include \"kernel_globals.h\"\n"
+"#include \"kernel_film.h\"\n"
+"#include \"kernel_path.h\"\n"
+"#include \"kernel_path_branched.h\"\n"
+"#include \"kernel_bake.h\"\n"
+"int testfunc() { printf(\"Hallo\\n\"); return 42;}\n";
+#elif 0
+const char *jit_kernel =
+/*"#  define __KERNEL_SSE2__\n"
+"#  define __KERNEL_SSE3__\n"
+"#  define __KERNEL_SSSE3__\n"
+"#  define __KERNEL_SSE41__\n"
+"#  define __KERNEL_AVX__\n"*/
+"void *__dso_handle;\n"
+"#include \"util_optimization.h\"\n"
+"#include \"kernel.h\"\n"
+"#define KERNEL_ARCH cpu\n"
+"#include \"kernels/cpu/kernel_cpu_impl.h\"\n";
+#else
+const char *jit_kernel =
+"void *__dso_handle;\n"
+"#include \"kernel_compat_cpu.h\"\n"
+"#include \"kernel_math.h\"\n"
+"#include \"kernel_types.h\"\n"
+"#include \"kernel_globals.h\"\n"
+"#include \"kernel_random.h\"\n"
+"#include \"kernel_projection.h\"\n"
+"#include \"kernel_montecarlo.h\"\n"
+"#include \"kernel_differential.h\"\n"
+"#include \"kernel_camera.h\"\n"
+"#include \"geom/geom.h\"\n"
+"#include \"closure/bsdf_util.h\"\n"
+"#include \"closure/bsdf.h\"\n"
+"#include \"closure/emissive.h\"\n"
+"#include \"svm/svm.h\"\n"
+"void svm_eval_nodes_wrapper(KernelGlobals *kg, ShaderData *sd, ccl_addr_space PathState *state, ShaderType type, int path_flag) {\n"
+"svm_eval_nodes(kg, sd, state, type, path_flag); }\n";
+#endif
+
+const char *compile_options = "-DBOOST_ALL_NO_LIB -DCCL_NAMESPACE_BEGIN= -DCCL_NAMESPACE_END= -DCYCLES_GFLAGS_NAMESPACE=gflags -DCYCLES_TR1_UNORDERED_MAP -DGOOGLE_GLOG_DLL_DECL=\"\" -DNDEBUG -DWITH_BLENDER_GUARDEDALLOC -DWITH_CYCLES_DEBUG -DWITH_CYCLES_LOGGING -DWITH_KERNEL_AVX -DWITH_KERNEL_AVX2 -DWITH_KERNEL_SSE2 -DWITH_KERNEL_SSE3 -DWITH_KERNEL_SSE41 -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -D__LITTLE_ENDIAN__ -D__MMX__ -D__SSE2__ -D__SSE__ -Wredundant-decls -Wall -Wno-invalid-offsetof -Wno-sign-compare -Winit-self -Wmissing-include-dirs -Wno-div-by-zero -Wtype-limits -Werror=return-type -Werror=implicit-function-declaration -Wno-char-subscripts -Wno-unknown-pragmas -Wpointer-arith  -Wwrite-strings -Wundef -Wuninitialized -Wundef -Wmissing-declarations -fopenmp -ffast-math -Wno-error=unused-macros -O2 -DNDEBUG";
+//const char *compile_options = "-DBOOST_ALL_NO_LIB -DCCL_NAMESPACE_BEGIN= -DCCL_NAMESPACE_END= -DCYCLES_GFLAGS_NAMESPACE=gflags -DCYCLES_TR1_UNORDERED_MAP -DDEBUG -DGOOGLE_GLOG_DLL_DECL=\"\"  -DWITH_BLENDER_GUARDEDALLOC -DWITH_CYCLES_LOGGING -DWITH_KERNEL_AVX -DWITH_KERNEL_AVX2 -DWITH_KERNEL_SSE2 -DWITH_KERNEL_SSE3 -DWITH_KERNEL_SSE41 -D_DEBUG -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -D__LITTLE_ENDIAN__ -D__MMX__ -D__SSE2__ -D__SSE__ -Wredundant-decls -Wall -Wno-invalid-offsetof -Wno-sign-compare -Winit-self -Wmissing-include-dirs -Wno-div-by-zero -Wtype-limits -Werror=return-type -Werror=implicit-function-declaration -Wno-char-subscripts -Wno-unknown-pragmas -Wpointer-arith  -Wwrite-strings -Wundef -Wuninitialized -Wundef -Wmissing-declarations -fopenmp -Wno-error=unused-macros -g";
+void (*jit_path_trace)(KernelGlobals *kg, float *buffer, unsigned int *rng_state, int sample, int x, int y, int offset, int stride);
+void (*jit_branched_path_trace)(KernelGlobals *kg, float *buffer, unsigned int *rng_state, int sample, int x, int y, int offset, int stride);
+void (*jit_svm)(KernelGlobals*, ShaderData*, PathState*, ShaderType, int);
 
 /* Note about  preserve_tile_device option for tile manager:
  * progressive refine and viewport rendering does requires tiles to
@@ -49,6 +102,7 @@ Session::Session(const SessionParams& params_)
        max(params.device.multi_devices.size(), 1)),
   stats()
 {
+	printf("CPU SD is %d bytes!\n", sizeof(ShaderData));
 	device_use_gl = ((params.device.type != DEVICE_CPU) && !params.background);
 
 	TaskScheduler::init(params.threads);
@@ -84,6 +138,35 @@ Session::Session(const SessionParams& params_)
 
 	/* TODO(sergey): Check if it's indeed optimal value for the split kernel. */
 	max_closure_global = 1;
+
+	LLVMShaderModule *module = new LLVMShaderModule();
+	std::string source(jit_kernel);
+
+	std::vector<std::string> args;
+	args.push_back("-x");
+	args.push_back("c++");
+	args.push_back("-I");
+	args.push_back(path_get("kernel"));
+	args.push_back("-D__JIT_KERNEL__");
+	args.push_back("-Dassert(x)=");
+	//args.push_back("-g");
+	std::stringstream flags(compile_options);
+	std::string flag;
+	while (std::getline(flags, flag, ' ')) {
+		args.push_back(flag);
+	}
+
+	std::vector<std::string> funcs;
+//	funcs.push_back("_ZL17kernel_path_traceP13KernelGlobalsPfPjiiiii");
+//	funcs.push_back("_ZL26kernel_branched_path_traceP13KernelGlobalsPfPjiiiii");
+	funcs.push_back("_Z22svm_eval_nodes_wrapperP13KernelGlobalsP10ShaderDataP9PathState10ShaderTypei");
+
+	module->compile(funcs, source, args);
+	module->finalize();
+
+	jit_svm = (void(*)(KernelGlobals*, ShaderData*, PathState*, ShaderType, int)) module->get_function("_Z22svm_eval_nodes_wrapperP13KernelGlobalsP10ShaderDataP9PathState10ShaderTypei");
+	//jit_path_trace = (void(*)(KernelGlobals*, float*, unsigned int*, int, int, int, int, int)) module->get_function("_ZL17kernel_path_traceP13KernelGlobalsPfPjiiiii");
+	//jit_branched_path_trace = (void(*)(KernelGlobals*, float*, unsigned int*, int, int, int, int, int)) module->get_function("_ZL26kernel_branched_path_traceP13KernelGlobalsPfPjiiiii");
 }
 
 Session::~Session()

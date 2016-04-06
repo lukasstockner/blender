@@ -18,9 +18,11 @@
 #ifndef __UTIL_SIMD_TYPES_H__
 #define __UTIL_SIMD_TYPES_H__
 
+#ifndef __JIT_KERNEL__
+#include "util_debug.h"
+#endif
 #include <limits>
 
-#include "util_debug.h"
 #include "util_types.h"
 
 CCL_NAMESPACE_BEGIN

@@ -32,6 +32,8 @@
 
 CCL_NAMESPACE_BEGIN
 
+extern void (*jit_svm)(KernelGlobals*, ShaderData*, PathState*, ShaderType, int);
+
 /* ShaderData setup from incoming ray */
 
 #ifdef __OBJECT_MOTION__
@@ -837,7 +839,7 @@ ccl_device void shader_eval_surface(KernelGlobals *kg, ShaderData *sd,
 #endif
 	{
 #ifdef __SVM__
-		svm_eval_nodes(kg, sd, state, SHADER_TYPE_SURFACE, path_flag);
+		jit_svm(kg, sd, state, SHADER_TYPE_SURFACE, path_flag);
 #else
 		ccl_fetch_array(sd, closure, 0)->weight = make_float3(0.8f, 0.8f, 0.8f);
 		ccl_fetch_array(sd, closure, 0)->N = ccl_fetch(sd, N);
@@ -865,7 +867,7 @@ ccl_device float3 shader_eval_background(KernelGlobals *kg, ShaderData *sd,
 
 	{
 #ifdef __SVM__
-		svm_eval_nodes(kg, sd, state, SHADER_TYPE_SURFACE, path_flag);
+		jit_svm(kg, sd, state, SHADER_TYPE_SURFACE, path_flag);
 
 		float3 eval = make_float3(0.0f, 0.0f, 0.0f);
 
@@ -1027,7 +1029,7 @@ ccl_device void shader_eval_volume(KernelGlobals *kg, ShaderData *sd,
 		else
 #  endif
 		{
-			svm_eval_nodes(kg, sd, state, SHADER_TYPE_VOLUME, path_flag);
+			jit_svm(kg, sd, state, SHADER_TYPE_VOLUME, path_flag);
 		}
 #endif
 
@@ -1054,7 +1056,7 @@ ccl_device void shader_eval_displacement(KernelGlobals *kg, ShaderData *sd, ccl_
 	else
 #  endif
 	{
-		svm_eval_nodes(kg, sd, state, SHADER_TYPE_DISPLACEMENT, 0);
+		jit_svm(kg, sd, state, SHADER_TYPE_DISPLACEMENT, 0);
 	}
 #endif
 }

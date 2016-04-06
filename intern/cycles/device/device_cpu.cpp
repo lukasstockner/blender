@@ -48,6 +48,9 @@
 
 CCL_NAMESPACE_BEGIN
 
+extern void (*jit_path_trace)(KernelGlobals *kg, float *buffer, unsigned int *rng_state, int sample, int x, int y, int offset, int stride);
+extern void (*jit_branched_path_trace)(KernelGlobals *kg, float *buffer, unsigned int *rng_state, int sample, int x, int y, int offset, int stride);
+
 class CPUDevice : public Device
 {
 public:
@@ -256,7 +259,7 @@ public:
 		{
 			path_trace_kernel = kernel_cpu_path_trace;
 		}
-		
+
 		while(task.acquire_tile(this, tile)) {
 			float *render_buffer = (float*)tile.buffer;
 			uint *rng_state = (uint*)tile.rng_state;
