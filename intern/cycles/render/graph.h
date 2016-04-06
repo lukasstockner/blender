@@ -37,6 +37,7 @@ class ShaderNode;
 class ShaderGraph;
 class SVMCompiler;
 class OSLCompiler;
+class JITCompiler;
 class OutputNode;
 
 /* Socket Type
@@ -194,6 +195,7 @@ public:
 	virtual void attributes(Shader *shader, AttributeRequestSet *attributes);
 	virtual void compile(SVMCompiler& compiler) = 0;
 	virtual void compile(OSLCompiler& compiler) = 0;
+	virtual void compile(JITCompiler& compiler) = 0;
 
 	/* ** Node optimization ** */
 	/* Check whether the node can be replaced with single constant. */
@@ -218,7 +220,7 @@ public:
 	ustring name; /* name, not required to be unique */
 	int id; /* index in graph node array */
 	ShaderBump bump; /* for bump mapping utility */
-	
+
 	ShaderNodeSpecialType special_type;	/* special node type */
 
 	/* ** Selective nodes compilation ** */
@@ -263,16 +265,19 @@ public:
 	virtual ShaderNode *clone() const { return new type(*this); } \
 	virtual void compile(SVMCompiler& compiler); \
 	virtual void compile(OSLCompiler& compiler); \
+	virtual void compile(JITCompiler& compiler); \
 
 #define SHADER_NODE_NO_CLONE_CLASS(type) \
 	type(); \
 	virtual void compile(SVMCompiler& compiler); \
 	virtual void compile(OSLCompiler& compiler); \
+	virtual void compile(JITCompiler& compiler); \
 
 #define SHADER_NODE_BASE_CLASS(type) \
 	virtual ShaderNode *clone() const { return new type(*this); } \
 	virtual void compile(SVMCompiler& compiler); \
 	virtual void compile(OSLCompiler& compiler); \
+	virtual void compile(JITCompiler& compiler); \
 
 class ShaderNodeIDComparator
 {

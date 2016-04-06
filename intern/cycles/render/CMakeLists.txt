@@ -24,6 +24,7 @@ set(SRC
 	graph.cpp
 	image.cpp
 	integrator.cpp
+	jit.cpp
 	light.cpp
 	mesh.cpp
 	mesh_displace.cpp
@@ -51,6 +52,7 @@ set(SRC_HEADERS
 	graph.h
 	image.h
 	integrator.h
+	jit.h
 	light.h
 	mesh.h
 	nodes.h

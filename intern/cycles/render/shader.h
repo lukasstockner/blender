@@ -45,7 +45,8 @@ struct float3;
 
 enum ShadingSystem {
 	SHADINGSYSTEM_OSL,
-	SHADINGSYSTEM_SVM
+	SHADINGSYSTEM_SVM,
+	SHADINGSYSTEM_JIT,
 };
 
 /* Keep those in sync with the python-defined enum. */

@@ -21,6 +21,7 @@
 #include "svm.h"
 #include "svm_math_util.h"
 #include "osl.h"
+#include "jit.h"
 
 #include "util_sky_model.h"
 #include "util_foreach.h"
@@ -1451,6 +1452,14 @@ void NormalNode::compile(SVMCompiler& compiler)
 		__float_as_int(direction.x),
 		__float_as_int(direction.y),
 		__float_as_int(direction.z));
+}
+
+void NormalNode::compile(JITCompiler& compiler)
+{
+	compiler.add_input(input("Normal"));
+	compiler.add_output(output("Normal"));
+	compiler.add_output(output("Dot"));
+	compiler.generate_call("jit_normal_node");
 }
 
 void NormalNode::compile(OSLCompiler& compiler)
@@ -4480,6 +4489,13 @@ void SetNormalNode::compile(SVMCompiler& compiler)
 	compiler.stack_assign(normal_out);
 
 	compiler.add_node(NODE_CLOSURE_SET_NORMAL, direction_in->stack_offset, normal_out->stack_offset);
+}
+
+void SetNormalNode::compile(JITCompiler& compiler)
+{
+	compiler.add_input(input("Direction"));
+	compiler.add_output(output("Normal"));
+	compiler.generate_call("jit_set_normal_node");
 }
 
 void SetNormalNode::compile(OSLCompiler& compiler)

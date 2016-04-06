@@ -27,6 +27,7 @@
 #include "scene.h"
 #include "shader.h"
 #include "svm.h"
+#include "jit.h"
 #include "tables.h"
 
 #include "util_foreach.h"
@@ -262,6 +263,9 @@ ShaderManager *ShaderManager::create(Scene *scene, int shadingsystem)
 		manager = new OSLShaderManager();
 	else
 #endif
+	if(shadingsystem == SHADINGSYSTEM_JIT)
+		manager = new JITShaderManager();
+	else
 		manager = new SVMShaderManager();
 	
 	add_default(scene);
