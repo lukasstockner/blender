@@ -1107,27 +1107,32 @@ public:
 
 	void thread_run(DeviceTask *task)
 	{
-		if(task->type == DeviceTask::PATH_TRACE) {
+		if(task->type == DeviceTask::RENDER) {
 			RenderTile tile;
 			
 			bool branched = task->integrator_branched;
 			
 			/* keep rendering tiles until done */
 			while(task->acquire_tile(this, tile)) {
-				int start_sample = tile.start_sample;
-				int end_sample = tile.start_sample + tile.num_samples;
+				if(tile.task == RenderTile::PATH_TRACE) {
+					int start_sample = tile.start_sample;
+					int end_sample = tile.start_sample + tile.num_samples;
 
-				for(int sample = start_sample; sample < end_sample; sample++) {
-					if(task->get_cancel()) {
-						if(task->need_finish_queue == false)
-							break;
+					for(int sample = start_sample; sample < end_sample; sample++) {
+						if(task->get_cancel()) {
+							if(task->need_finish_queue == false)
+								break;
+						}
+
+						path_trace(tile, sample, branched);
+
+						tile.sample = sample + 1;
+
+						task->update_progress(&tile);
 					}
-
-					path_trace(tile, sample, branched);
-
-					tile.sample = sample + 1;
-
-					task->update_progress(&tile);
+				}
+				else if(tile.task == RenderTile::DENOISE) {
+					printf("TODO: Implement Denoising kernel, was called for tile at (%d, %d) with size %dx%d!\n", tile.x, tile.y, tile.w, tile.h);
 				}
 
 				task->release_tile(tile);

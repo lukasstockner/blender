@@ -273,8 +273,8 @@ void Session::run_gpu()
 			/* update status and timing */
 			update_status_time();
 
-			/* path trace */
-			path_trace();
+			/* render */
+			render();
 
 			device->task_wait();
 
@@ -377,6 +377,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	rtile.start_sample = tile_manager.state.sample;
 	rtile.num_samples = tile_manager.state.num_samples;
 	rtile.resolution = tile_manager.state.resolution_divider;
+	rtile.task = RenderTile::PATH_TRACE;
 
 	tile_lock.unlock();
 
@@ -561,8 +562,8 @@ void Session::run_cpu()
 			/* update status and timing */
 			update_status_time();
 
-			/* path trace */
-			path_trace();
+			/* render */
+			render();
 
 			/* update status and timing */
 			update_status_time();
@@ -908,10 +909,10 @@ void Session::update_progress_sample()
 	progress.increment_sample();
 }
 
-void Session::path_trace()
+void Session::render()
 {
 	/* add path trace task */
-	DeviceTask task(DeviceTask::PATH_TRACE);
+	DeviceTask task(DeviceTask::RENDER);
 	
 	task.acquire_tile = function_bind(&Session::acquire_tile, this, _1, _2);
 	task.release_tile = function_bind(&Session::release_tile, this, _1);

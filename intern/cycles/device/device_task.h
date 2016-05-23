@@ -34,7 +34,7 @@ class Tile;
 
 class DeviceTask : public Task {
 public:
-	typedef enum { PATH_TRACE, FILM_CONVERT, SHADER } Type;
+	typedef enum { RENDER, FILM_CONVERT, SHADER } Type;
 	Type type;
 
 	int x, y, w, h;
@@ -51,7 +51,7 @@ public:
 	int shader_filter;
 	int shader_x, shader_w;
 
-	explicit DeviceTask(Type type = PATH_TRACE);
+	explicit DeviceTask(Type type = RENDER);
 
 	int get_subtask_count(int num, int max_size = 0);
 	void split(list<DeviceTask>& tasks, int num, int max_size = 0);

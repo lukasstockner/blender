@@ -189,8 +189,8 @@ public:
 
 	void thread_run(DeviceTask *task)
 	{
-		if(task->type == DeviceTask::PATH_TRACE)
-			thread_path_trace(*task);
+		if(task->type == DeviceTask::RENDER)
+			thread_render(*task);
 		else if(task->type == DeviceTask::FILM_CONVERT)
 			thread_film_convert(*task);
 		else if(task->type == DeviceTask::SHADER)
@@ -206,7 +206,7 @@ public:
 		}
 	};
 
-	void thread_path_trace(DeviceTask& task)
+	void thread_render(DeviceTask& task)
 	{
 		if(task_pool.canceled()) {
 			if(task.need_finish_queue == false)
@@ -259,26 +259,41 @@ public:
 		
 		while(task.acquire_tile(this, tile)) {
 			float *render_buffer = (float*)tile.buffer;
-			uint *rng_state = (uint*)tile.rng_state;
-			int start_sample = tile.start_sample;
-			int end_sample = tile.start_sample + tile.num_samples;
 
-			for(int sample = start_sample; sample < end_sample; sample++) {
-				if(task.get_cancel() || task_pool.canceled()) {
-					if(task.need_finish_queue == false)
-						break;
+			if(tile.task == RenderTile::PATH_TRACE) {
+				uint *rng_state = (uint*)tile.rng_state;
+				int start_sample = tile.start_sample;
+				int end_sample = tile.start_sample + tile.num_samples;
+
+				for(int sample = start_sample; sample < end_sample; sample++) {
+					if(task.get_cancel() || task_pool.canceled()) {
+						if(task.need_finish_queue == false)
+							break;
+					}
+
+					for(int y = tile.y; y < tile.y + tile.h; y++) {
+						for(int x = tile.x; x < tile.x + tile.w; x++) {
+							path_trace_kernel(&kg, render_buffer, rng_state,
+							                  sample, x, y, tile.offset, tile.stride);
+						}
+					}
+
+					tile.sample = sample + 1;
+
+					task.update_progress(&tile);
 				}
-
+			}
+			else if(tile.task == RenderTile::DENOISE) {
+				printf("TODO: Implement Denoising kernel, was called for tile at (%d, %d) with size %dx%d!\n", tile.x, tile.y, tile.w, tile.h);
+				/* Small brightness increase to have visual feedback in the UI which parts have been "denoised" already, will of course be removed once proper denoising works. */
 				for(int y = tile.y; y < tile.y + tile.h; y++) {
 					for(int x = tile.x; x < tile.x + tile.w; x++) {
-						path_trace_kernel(&kg, render_buffer, rng_state,
-						                  sample, x, y, tile.offset, tile.stride);
+						float4 *pix = (float4*) (render_buffer + (tile.offset + y*tile.stride + x)*kg.__data.film.pass_stride);
+						pix->x *= 2;
+						pix->y *= 2;
+						pix->z *= 2;
 					}
 				}
-
-				tile.sample = sample + 1;
-
-				task.update_progress(&tile);
 			}
 
 			task.release_tile(tile);

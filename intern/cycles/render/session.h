@@ -159,7 +159,7 @@ protected:
 	void update_status_time(bool show_pause = false, bool show_done = false);
 
 	void tonemap(int sample);
-	void path_trace();
+	void render();
 	void reset_(BufferParams& params, int samples);
 
 	void run_cpu();

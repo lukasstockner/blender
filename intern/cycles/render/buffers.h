@@ -131,6 +131,9 @@ protected:
 
 class RenderTile {
 public:
+	typedef enum { PATH_TRACE, DENOISE } Task;
+
+	Task task;
 	int x, y, w, h;
 	int start_sample;
 	int num_samples;
