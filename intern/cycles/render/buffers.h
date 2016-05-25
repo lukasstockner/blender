@@ -141,6 +141,7 @@ public:
 	int resolution;
 	int offset;
 	int stride;
+	int tile_index;
 
 	device_ptr buffer;
 	device_ptr rng_state;

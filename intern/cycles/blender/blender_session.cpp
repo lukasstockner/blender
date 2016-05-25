@@ -379,7 +379,7 @@ static void end_render_result(BL::RenderEngine& b_engine,
 	b_engine.end_result(b_rr, (int)cancel, (int)do_merge_results);
 }
 
-void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only)
+void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only, bool highlight)
 {
 	BufferParams& params = rtile.buffers->params;
 	int x = params.full_x - session->tile_manager.params.full_x;
@@ -415,7 +415,7 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_upda
 			update_render_result(b_rr, b_rlay, rtile);
 		}
 
-		end_render_result(b_engine, b_rr, true, true);
+		end_render_result(b_engine, b_rr, highlight, true);
 	}
 	else {
 		/* write result */
@@ -426,26 +426,26 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_upda
 
 void BlenderSession::write_render_tile(RenderTile& rtile)
 {
-	do_write_update_render_tile(rtile, false);
+	do_write_update_render_tile(rtile, false, false);
 }
 
-void BlenderSession::update_render_tile(RenderTile& rtile)
+void BlenderSession::update_render_tile(RenderTile& rtile, bool highlight)
 {
 	/* use final write for preview renders, otherwise render result wouldn't be
 	 * be updated in blender side
 	 * would need to be investigated a bit further, but for now shall be fine
 	 */
 	if(!b_engine.is_preview())
-		do_write_update_render_tile(rtile, true);
+		do_write_update_render_tile(rtile, true, highlight);
 	else
-		do_write_update_render_tile(rtile, false);
+		do_write_update_render_tile(rtile, false, false);
 }
 
 void BlenderSession::render()
 {
 	/* set callback to write out render results */
 	session->write_render_tile_cb = function_bind(&BlenderSession::write_render_tile, this, _1);
-	session->update_render_tile_cb = function_bind(&BlenderSession::update_render_tile, this, _1);
+	session->update_render_tile_cb = function_bind(&BlenderSession::update_render_tile, this, _1, _2);
 
 	/* get buffer parameters */
 	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);

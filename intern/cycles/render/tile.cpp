@@ -25,37 +25,39 @@ namespace {
 
 class TileComparator {
 public:
-	TileComparator(TileOrder order, int2 center)
-	 :  order_(order),
-	    center_(center)
+	TileComparator(TileOrder order_, int2 center_, Tile *tiles_)
+	 :  order(order_),
+	    center(center_),
+	    tiles(tiles_)
 	{}
 
-	bool operator()(Tile &a, Tile &b)
+	bool operator()(int a, int b)
 	{
-		switch(order_) {
+		switch(order) {
 			case TILE_CENTER:
 			{
-				float2 dist_a = make_float2(center_.x - (a.x + a.w/2),
-				                            center_.y - (a.y + a.h/2));
-				float2 dist_b = make_float2(center_.x - (b.x + b.w/2),
-				                            center_.y - (b.y + b.h/2));
+				float2 dist_a = make_float2(center.x - (tiles[a].x + tiles[a].w/2),
+				                            center.y - (tiles[a].y + tiles[a].h/2));
+				float2 dist_b = make_float2(center.x - (tiles[b].x + tiles[b].w/2),
+				                            center.y - (tiles[b].y + tiles[b].h/2));
 				return dot(dist_a, dist_a) < dot(dist_b, dist_b);
 			}
 			case TILE_LEFT_TO_RIGHT:
-				return (a.x == b.x)? (a.y < b.y): (a.x < b.x);
+				return (tiles[a].x == tiles[b].x)? (tiles[a].y < tiles[b].y): (tiles[a].x < tiles[b].x);
 			case TILE_RIGHT_TO_LEFT:
-				return (a.x == b.x)? (a.y < b.y): (a.x > b.x);
+				return (tiles[a].x == tiles[b].x)? (tiles[a].y < tiles[b].y): (tiles[a].x > tiles[b].x);
 			case TILE_TOP_TO_BOTTOM:
-				return (a.y == b.y)? (a.x < b.x): (a.y > b.y);
+				return (tiles[a].y == tiles[b].y)? (tiles[a].x < tiles[b].x): (tiles[a].y > tiles[b].y);
 			case TILE_BOTTOM_TO_TOP:
 			default:
-				return (a.y == b.y)? (a.x < b.x): (a.y < b.y);
+				return (tiles[a].y == tiles[b].y)? (tiles[a].x < tiles[b].x): (tiles[a].y < tiles[b].y);
 		}
 	}
 
 protected:
-	TileOrder order_;
-	int2 center_;
+	TileOrder order;
+	int2 center;
+	Tile *tiles;
 };
 
 inline int2 hilbert_index_to_pos(int n, int d)
@@ -96,6 +98,7 @@ TileManager::TileManager(bool progressive_, int num_samples_, int2 tile_size_, i
 	num_devices = num_devices_;
 	preserve_tile_device = preserve_tile_device_;
 	background = background_;
+	denoise = false;
 
 	range_start_sample = 0;
 	range_num_samples = -1;
@@ -132,6 +135,8 @@ void TileManager::reset(BufferParams& params_, int num_samples_)
 	state.num_rendered_tiles = 0;
 	state.num_samples = 0;
 	state.resolution_divider = divider;
+	state.render_tiles.clear();
+	state.denoise_tiles.clear();
 	state.tiles.clear();
 }
 
@@ -149,16 +154,21 @@ int TileManager::gen_tiles(bool sliced)
 	int image_h = max(1, params.height/resolution);
 	int2 center = make_int2(image_w/2, image_h/2);
 
-	state.tiles.clear();
-
 	int num_logical_devices = preserve_tile_device? num_devices: 1;
 	int num = min(image_h, num_logical_devices);
 	int slice_num = sliced? num: 1;
-	int tile_index = 0;
+
+	int tile_w = (tile_size.x >= image_w)? 1: (image_w + tile_size.x - 1)/tile_size.x;
+	int tile_h = (tile_size.y >= image_h)? 1: (image_h + tile_size.y - 1)/tile_size.y;
 
 	state.tiles.clear();
-	state.tiles.resize(num);
-	vector<list<Tile> >::iterator tile_list = state.tiles.begin();
+	state.tiles.resize(tile_w*tile_h);
+	state.render_tiles.clear();
+	state.denoise_tiles.clear();
+	state.render_tiles.resize(num);
+	state.denoise_tiles.resize(num);
+	state.tile_stride = tile_w;
+	vector<list<int> >::iterator tile_list = state.render_tiles.begin();
 
 	if(tile_order == TILE_HILBERT_SPIRAL) {
 		assert(!sliced);
@@ -166,8 +176,6 @@ int TileManager::gen_tiles(bool sliced)
 		/* Size of blocks in tiles, must be a power of 2 */
 		const int hilbert_size = (max(tile_size.x, tile_size.y) <= 12)? 8: 4;
 
-		int tile_w = (tile_size.x >= image_w)? 1: (image_w + tile_size.x - 1)/tile_size.x;
-		int tile_h = (tile_size.y >= image_h)? 1: (image_h + tile_size.y - 1)/tile_size.y;
 		int tiles_per_device = (tile_w * tile_h + num - 1) / num;
 		int cur_device = 0, cur_tiles = 0;
 
@@ -205,9 +213,11 @@ int TileManager::gen_tiles(bool sliced)
 				if(pos.x >= 0 && pos.y >= 0 && pos.x < image_w && pos.y < image_h) {
 					int w = min(tile_size.x, image_w - pos.x);
 					int h = min(tile_size.y, image_h - pos.y);
-					tile_list->push_front(Tile(tile_index, pos.x, pos.y, w, h, cur_device));
+					int2 ipos = pos / tile_size;
+					int idx = ipos.y*tile_w + ipos.x;
+					state.tiles[idx] = Tile(idx, pos.x, pos.y, w, h, cur_device);
+					tile_list->push_front(idx);
 					cur_tiles++;
-					tile_index++;
 
 					if(cur_tiles == tiles_per_device) {
 						tile_list++;
@@ -251,27 +261,28 @@ int TileManager::gen_tiles(bool sliced)
 					break;
 			}
 		}
-		return tile_index;
+		return tile_w*tile_h;
 	}
 
 	for(int slice = 0; slice < slice_num; slice++) {
 		int slice_y = (image_h/slice_num)*slice;
 		int slice_h = (slice == slice_num-1)? image_h - slice*(image_h/slice_num): image_h/slice_num;
 
-		int tile_w = (tile_size.x >= image_w)? 1: (image_w + tile_size.x - 1)/tile_size.x;
-		int tile_h = (tile_size.y >= slice_h)? 1: (slice_h + tile_size.y - 1)/tile_size.y;
+		int tile_slice_h = (tile_size.y >= slice_h)? 1: (slice_h + tile_size.y - 1)/tile_size.y;
 
-		int tiles_per_device = (tile_w * tile_h + num - 1) / num;
+		int tiles_per_device = (tile_w * tile_slice_h + num - 1) / num;
 		int cur_device = 0, cur_tiles = 0;
 
-		for(int tile_y = 0; tile_y < tile_h; tile_y++) {
-			for(int tile_x = 0; tile_x < tile_w; tile_x++, tile_index++) {
+		for(int tile_y = 0; tile_y < tile_slice_h; tile_y++) {
+			for(int tile_x = 0; tile_x < tile_w; tile_x++) {
 				int x = tile_x * tile_size.x;
 				int y = tile_y * tile_size.y;
 				int w = (tile_x == tile_w-1)? image_w - x: tile_size.x;
-				int h = (tile_y == tile_h-1)? slice_h - y: tile_size.y;
+				int h = (tile_y == tile_slice_h-1)? slice_h - y: tile_size.y;
 
-				tile_list->push_back(Tile(tile_index, x, y + slice_y, w, h, sliced? slice: cur_device));
+				int idx = tile_y*tile_w + tile_x;
+				state.tiles[idx] = Tile(idx, x, y + slice_y, w, h, sliced? slice: cur_device);
+				tile_list->push_back(idx);
 
 				if(!sliced) {
 					cur_tiles++;
@@ -279,7 +290,7 @@ int TileManager::gen_tiles(bool sliced)
 					if(cur_tiles == tiles_per_device) {
 						/* Tiles are already generated in Bottom-to-Top order, so no sort is necessary in that case. */
 						if(tile_order != TILE_BOTTOM_TO_TOP) {
-							tile_list->sort(TileComparator(tile_order, center));
+							tile_list->sort(TileComparator(tile_order, center, &state.tiles[0]));
 						}
 						tile_list++;
 						cur_tiles = 0;
@@ -293,7 +304,7 @@ int TileManager::gen_tiles(bool sliced)
 		}
 	}
 
-	return tile_index;
+	return tile_w*tile_h;
 }
 
 void TileManager::set_tiles()
@@ -313,15 +324,116 @@ void TileManager::set_tiles()
 	state.buffer.full_height = max(1, params.full_height/resolution);
 }
 
-bool TileManager::next_tile(Tile& tile, int device)
+/* Returns whether the tile should be written (and freed if no denoising is used) instead of updating. */
+bool TileManager::return_tile(int index, bool &delete_tile)
+{
+	int resolution = state.resolution_divider;
+	int image_w = max(1, params.width/resolution);
+	int image_h = max(1, params.height/resolution);
+	int tile_w = (tile_size.x >= image_w)? 1: (image_w + tile_size.x - 1)/tile_size.x;
+	int tile_h = (tile_size.y >= image_h)? 1: (image_h + tile_size.y - 1)/tile_size.y;
+	int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1, 0}, dy[] = {-1, -1, -1, 0, 0, 1, 1, 1, 0};
+
+	delete_tile = false;
+
+	switch(state.tiles[index].state) {
+		case Tile::RENDER:
+		{
+			if(!denoise) {
+				state.tiles[index].state = Tile::DONE;
+				delete_tile = true;
+				return true;
+			}
+			state.tiles[index].state = Tile::RENDERED;
+			/* For each neighbor and the tile itself, check whether all of its neighbors have been rendered. If yes, it can be denoised. */
+			for(int n = 0; n < 9; n++) {
+				int nx = state.tiles[index].x/tile_size.x + dx[n], ny = state.tiles[index].y/tile_size.y + dy[n];
+				if(nx < 0 || ny < 0 || nx >= tile_w || ny >= tile_h)
+					continue;
+				int nindex = ny*state.tile_stride + nx;
+				if(state.tiles[nindex].state != Tile::RENDERED)
+					continue;
+				bool can_be_denoised = true;
+				for(int nn = 0; nn < 8; nn++) {
+					int nnx = state.tiles[nindex].x/tile_size.x + dx[nn], nny = state.tiles[nindex].y/tile_size.y + dy[nn];
+					if(nnx < 0 || nny < 0 || nnx >= tile_w || nny >= tile_h)
+						continue;
+					int nnindex = nny*state.tile_stride + nnx;
+					if(state.tiles[nnindex].state < Tile::RENDERED) {
+						can_be_denoised = false;
+						break;
+					}
+				}
+				if(can_be_denoised) {
+					state.tiles[nindex].state = Tile::DENOISE;
+					state.denoise_tiles[state.tiles[nindex].device].push_back(nindex);
+				}
+			}
+			return false;
+		}
+		case Tile::DENOISE:
+		{
+			state.tiles[index].state = Tile::DENOISED;
+			/* For each neighbor and the tile itself, check whether all of its neighbors have been denoised. If yes, it can be freed. */
+			for(int n = 0; n < 9; n++) {
+				int nx = state.tiles[index].x/tile_size.x + dx[n], ny = state.tiles[index].y/tile_size.y + dy[n];
+				if(nx < 0 || ny < 0 || nx >= tile_w || ny >= tile_h)
+					continue;
+				int nindex = ny*state.tile_stride + nx;
+				if(state.tiles[nindex].state != Tile::DENOISED)
+					continue;
+				bool can_be_freed = true;
+				for(int nn = 0; nn < 8; nn++) {
+					int nnx = state.tiles[nindex].x/tile_size.x + dx[nn], nny = state.tiles[nindex].y/tile_size.y + dy[nn];
+					if(nnx < 0 || nny < 0 || nnx >= tile_w || nny >= tile_h)
+						continue;
+					int nnindex = nny*state.tile_stride + nnx;
+					if(state.tiles[nnindex].state < Tile::DENOISED) {
+						can_be_freed = false;
+						break;
+					}
+				}
+				if(can_be_freed) {
+					state.tiles[nindex].state = Tile::DONE;
+					/* It can happen that the tile just finished denoising and already can be freed here.
+					 * However, in that case it still has to be written before deleting, so we can't delete it here. */
+					if(n == 8) {
+						delete_tile = true;
+					}
+					else {
+						delete state.tiles[nindex].buffers;
+						state.tiles[nindex].buffers = NULL;
+					}
+				}
+			}
+			return true;
+		}
+		default:
+			assert(false);
+			return true;
+	}
+}
+
+bool TileManager::next_tile(Tile* &tile, int device)
 {
 	int logical_device = preserve_tile_device? device: 0;
 
-	if((logical_device >= state.tiles.size()) || state.tiles[logical_device].empty())
+	if(logical_device >= state.render_tiles.size())
 		return false;
 
-	tile = Tile(state.tiles[logical_device].front());
-	state.tiles[logical_device].pop_front();
+	if(!state.denoise_tiles[logical_device].empty()) {
+		int idx = state.denoise_tiles[logical_device].front();
+		state.denoise_tiles[logical_device].pop_front();
+		tile = &state.tiles[idx];
+		return true;
+	}
+
+	if(state.render_tiles[logical_device].empty())
+		return false;
+
+	int idx = state.render_tiles[logical_device].front();
+	state.render_tiles[logical_device].pop_front();
+	tile = &state.tiles[idx];
 	state.num_rendered_tiles++;
 	return true;
 }

@@ -31,12 +31,20 @@ public:
 	int index;
 	int x, y, w, h;
 	int device;
+	/* RENDER: The tile has to be rendered.
+	 * RENDERED: The tile has been rendered, but can't be denoised yet (waiting for neighbors).
+	 * DENOISE: The tile can be denoised now.
+	 * DENOISED: The tile has been denoised, but can't be freed yet (waiting for neighbors).
+	 * DONE: The tile is finished and has been freed. */
+	typedef enum { RENDER = 0, RENDERED, DENOISE, DENOISED, DONE } TileState;
+	TileState state;
+	RenderBuffers *buffers;
 
 	Tile()
 	{}
 
 	Tile(int index_, int x_, int y_, int w_, int h_, int device_)
-	: index(index_), x(x_), y(y_), w(w_), h(h_), device(device_) {}
+	: index(index_), x(x_), y(y_), w(w_), h(h_), device(device_), state(RENDER), buffers(NULL) {}
 };
 
 /* Tile order */
@@ -58,15 +66,19 @@ public:
 	BufferParams params;
 
 	struct State {
+		vector<Tile> tiles;
+		int tile_stride;
 		BufferParams buffer;
 		int sample;
 		int num_samples;
 		int resolution_divider;
 		int num_tiles;
 		int num_rendered_tiles;
-		/* This vector contains a list of tiles for every logical device in the session.
-		 * In each list, the tiles are sorted according to the tile order setting. */
-		vector<list<Tile> > tiles;
+		/* These lists contain the indices of the tiles to be rendered/denoised and are used
+		 * when acquiring a new tile for the device.
+		 * Each list in each vector is for one logical device. */
+		vector<list<int> > render_tiles;
+		vector<list<int> > denoise_tiles;
 	} state;
 
 	int num_samples;
@@ -78,7 +90,8 @@ public:
 	void reset(BufferParams& params, int num_samples);
 	void set_samples(int num_samples);
 	bool next();
-	bool next_tile(Tile& tile, int device = 0);
+	bool next_tile(Tile* &tile, int device = 0);
+	bool return_tile(int index, bool& delete_tile);
 	bool done();
 
 	void set_tile_order(TileOrder tile_order_) { tile_order = tile_order_; }
@@ -93,6 +106,9 @@ public:
 
 	/* get number of actual samples to render. */
 	int get_num_effective_samples();
+
+	/* Denoise tiles after they've been rendered. */
+	bool denoise;
 protected:
 
 	void set_tiles();
