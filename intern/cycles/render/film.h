@@ -53,6 +53,8 @@ class Film {
 public:
 	float exposure;
 	vector<Pass> passes;
+	bool denoising_passes;
+	bool selective_denoising;
 	float pass_alpha_threshold;
 
 	FilterType filter_type;

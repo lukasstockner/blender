@@ -42,6 +42,9 @@ BufferParams::BufferParams()
 	full_width = 0;
 	full_height = 0;
 
+	denoising_passes = false;
+	selective_denoising = false;
+
 	Pass::add(PASS_COMBINED, passes);
 }
 
@@ -68,7 +71,13 @@ int BufferParams::get_passes_size()
 
 	foreach(Pass& pass, passes)
 		size += pass.components;
-	
+
+	if(denoising_passes) {
+		/* Feature passes: 7 Channels (3 Color, 3 Normal, 1 Depth) + 7 Variance
+		 * Color passes: 3 Noisy (RGB) + 3 Variance [+ 3 Skip (RGB)] */
+		size += selective_denoising? 23: 20;
+	}
+
 	return align_up(size, 4);
 }
 

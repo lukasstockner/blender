@@ -1021,6 +1021,11 @@ typedef struct KernelFilm {
 	float mist_inv_depth;
 	float mist_falloff;
 
+	int pass_denoising;
+	int pass_no_denoising;
+	int pass_pad4;
+	int pass_pad5;
+
 #ifdef __KERNEL_DEBUG__
 	int pass_bvh_traversal_steps;
 	int pass_bvh_traversed_instances;

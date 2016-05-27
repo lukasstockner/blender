@@ -267,6 +267,8 @@ Film::Film()
 {
 	exposure = 0.8f;
 	Pass::add(PASS_COMBINED, passes);
+	denoising_passes = false;
+	selective_denoising = false;
 	pass_alpha_threshold = 0.5f;
 
 	filter_type = FILTER_BOX;
@@ -423,6 +425,15 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 		kfilm->pass_stride += pass.components;
 	}
 
+	if(denoising_passes) {
+		kfilm->pass_denoising = kfilm->pass_stride;
+		kfilm->pass_stride += 20;
+		if(selective_denoising) {
+			kfilm->pass_no_denoising = kfilm->pass_stride;
+			kfilm->pass_stride += 3;
+		}
+	}
+
 	kfilm->pass_stride = align_up(kfilm->pass_stride, 4);
 	kfilm->pass_alpha_threshold = pass_alpha_threshold;
 
@@ -457,7 +468,9 @@ bool Film::modified(const Film& film)
 		&& filter_width == film.filter_width
 		&& mist_start == film.mist_start
 		&& mist_depth == film.mist_depth
-		&& mist_falloff == film.mist_falloff);
+		&& mist_falloff == film.mist_falloff
+		&& denoising_passes == film.denoising_passes
+		&& selective_denoising == film.selective_denoising);
 }
 
 void Film::tag_passes_update(Scene *scene, const vector<Pass>& passes_)

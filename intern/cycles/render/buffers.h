@@ -51,6 +51,9 @@ public:
 
 	/* passes */
 	vector<Pass> passes;
+	bool denoising_passes;
+	/* If only some light path types should be denoised, an additional pass is needed. */
+	bool selective_denoising;
 
 	/* functions */
 	BufferParams();
