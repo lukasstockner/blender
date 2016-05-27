@@ -1190,4 +1190,20 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
+
+	{
+		if (!DNA_struct_elem_find(fd->filesdna, "SceneRenderLayer", "int", "denoiseflag")) {
+			Scene *sce;
+
+			for (sce = main->scene.first; sce; sce = sce->id.next) {
+				SceneRenderLayer *rl;
+				for (rl = sce->r.layers.first; rl; rl = rl->next) {
+					rl->denoiseflag = SCE_DENOISE_DIFFDIR|SCE_DENOISE_GLOSSDIR|SCE_DENOISE_TRANSDIR|SCE_DENOISE_SUBDIR|
+					                  SCE_DENOISE_DIFFIND|SCE_DENOISE_GLOSSIND|SCE_DENOISE_TRANSIND|SCE_DENOISE_SUBIND;
+					rl->denoise_half_window = 8;
+					rl->denoise_strength = 0.0f;
+				}
+			}
+		}
+	}
 }
