@@ -543,6 +543,44 @@ class CyclesRender_PT_views(CyclesButtonsPanel, Panel):
             row.prop(rv, "camera_suffix", text="")
 
 
+class CyclesRender_PT_denoising(CyclesButtonsPanel, Panel):
+    bl_label = "Denoising"
+    bl_context = "render_layer"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        rd = context.scene.render
+        rl = rd.layers.active
+        self.layout.prop(rl, "denoise_result", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        rd = scene.render
+        rl = rd.layers.active
+
+        col = layout.column()
+
+        col.prop(rl, "keep_denoise_data")
+
+        sub = col.column(align=True)
+        sub.prop(rl, "half_window")
+        sub.prop(rl, "filter_strength", slider=True)
+
+        sub = col.column(align=True)
+        row = sub.row(align=True)
+        row.prop(rl, "denoise_diffuse_direct", toggle=True)
+        row.prop(rl, "denoise_glossy_direct", toggle=True)
+        row.prop(rl, "denoise_transmission_direct", toggle=True)
+        row.prop(rl, "denoise_subsurface_direct", toggle=True)
+        row = sub.row(align=True)
+        row.prop(rl, "denoise_diffuse_indirect", toggle=True)
+        row.prop(rl, "denoise_glossy_indirect", toggle=True)
+        row.prop(rl, "denoise_transmission_indirect", toggle=True)
+        row.prop(rl, "denoise_subsurface_indirect", toggle=True)
+
+
 class Cycles_PT_post_processing(CyclesButtonsPanel, Panel):
     bl_label = "Post Processing"
     bl_options = {'DEFAULT_CLOSED'}

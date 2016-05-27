@@ -493,10 +493,16 @@ void BlenderSession::render()
 		}
 
 		buffer_params.passes = passes;
+		buffer_params.denoising_passes = b_layer_iter->keep_denoise_data() || b_layer_iter->denoise_result();
+		buffer_params.selective_denoising = !(b_layer_iter->denoise_diffuse_direct() && b_layer_iter->denoise_glossy_direct() && b_layer_iter->denoise_transmission_direct() && b_layer_iter->denoise_subsurface_direct() &&
+		                                      b_layer_iter->denoise_diffuse_indirect() && b_layer_iter->denoise_glossy_indirect() && b_layer_iter->denoise_transmission_indirect() && b_layer_iter->denoise_subsurface_indirect());
+		scene->film->denoising_passes = buffer_params.denoising_passes;
+		scene->film->selective_denoising = buffer_params.selective_denoising;
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes);
 		scene->film->tag_update(scene);
 		scene->integrator->tag_update(scene);
+		session->tile_manager.denoise = b_layer_iter->denoise_result();
 
 		for(b_rr.views.begin(b_view_iter); b_view_iter != b_rr.views.end(); ++b_view_iter) {
 			b_rview_name = b_view_iter->name();

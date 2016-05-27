@@ -190,6 +190,11 @@ typedef struct SceneRenderLayer {
 	int passflag;			/* pass_xor has to be after passflag */
 	int pass_xor;
 
+	int denoiseflag;
+	int denoise_half_window;
+	float denoise_strength;
+	int pad;
+
 	int samples;
 	float pass_alpha_threshold;
 	
@@ -212,6 +217,19 @@ typedef struct SceneRenderLayer {
 #define SCE_LAY_DISABLE		0x20000
 #define SCE_LAY_ZMASK		0x40000
 #define SCE_LAY_NEG_ZMASK	0x80000
+
+typedef enum SceneDenoiseFlag {
+	SCE_DENOISE_RESULT                = (1 << 0),
+	SCE_DENOISE_PASSES                = (1 << 1),
+	SCE_DENOISE_DIFFDIR               = (1 << 2),
+	SCE_DENOISE_DIFFIND               = (1 << 3),
+	SCE_DENOISE_GLOSSDIR              = (1 << 4),
+	SCE_DENOISE_GLOSSIND              = (1 << 5),
+	SCE_DENOISE_TRANSDIR              = (1 << 6),
+	SCE_DENOISE_TRANSIND              = (1 << 7),
+	SCE_DENOISE_SUBDIR                = (1 << 8),
+	SCE_DENOISE_SUBIND                = (1 << 9),
+} SceneDenoiseFlag;
 
 /* srl->passflag */
 typedef enum ScenePassType {
