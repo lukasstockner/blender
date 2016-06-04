@@ -403,6 +403,12 @@ void rna_RenderPass_rect_set(PointerRNA *ptr, const float *values)
 	memcpy(rpass->rect, values, sizeof(float) * rpass->rectx * rpass->recty * rpass->channels);
 }
 
+static int rna_RenderPass_extended_type_get(PointerRNA *ptr)
+{
+	RenderPass *rpass = (RenderPass *)ptr->data;
+	return rpass->passtype >> 32;
+}
+
 static PointerRNA rna_BakePixel_next_get(PointerRNA *ptr)
 {
 	BakePixel *bp = ptr->data;
@@ -829,6 +835,10 @@ static void rna_def_render_pass(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "passtype");
 	RNA_def_property_enum_items(prop, rna_enum_render_pass_type_items);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop = RNA_def_property(srna, "extended_type", PROP_INT, PROP_NONE);
+	RNA_def_property_int_funcs(prop, "rna_RenderPass_extended_type_get", NULL, NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	prop = RNA_def_property(srna, "rect", PROP_FLOAT, PROP_NONE);

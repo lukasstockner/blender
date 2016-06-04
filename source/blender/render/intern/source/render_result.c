@@ -173,7 +173,7 @@ void render_result_views_shallowdelete(RenderResult *rr)
 	}
 }
 
-static const char *name_from_passtype(int passtype, int channel)
+static const char *name_from_passtype(uint64_t passtype, int channel)
 {
 	if (passtype == SCE_PASS_COMBINED) {
 		if (channel == -1) return "Combined";
@@ -359,7 +359,7 @@ static const char *name_from_passtype(int passtype, int channel)
 	return "Unknown";
 }
 
-static int passtype_from_name(const char *str)
+static uint64_t passtype_from_name(const char *str)
 {
 	if (STRPREFIX(str, "Combined"))
 		return SCE_PASS_COMBINED;
@@ -458,7 +458,7 @@ static int passtype_from_name(const char *str)
 }
 
 
-static void set_pass_name(char *passname, int passtype, int channel, const char *view)
+static void set_pass_name(char *passname, uint64_t passtype, int channel, const char *view)
 {
 	const char delims[] = {'.', '\0'};
 	const char *sep;
@@ -484,7 +484,7 @@ static void set_pass_name(char *passname, int passtype, int channel, const char 
 
 /********************************** New **************************************/
 
-static RenderPass *render_layer_add_pass(RenderResult *rr, RenderLayer *rl, int channels, int passtype, const char *viewname)
+static RenderPass *render_layer_add_pass(RenderResult *rr, RenderLayer *rl, int channels, uint64_t passtype, const char *viewname)
 {
 	const int view_id = BLI_findstringindex(&rr->views, viewname, offsetof(RenderView, name));
 	const char *typestr = name_from_passtype(passtype, -1);
