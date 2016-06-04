@@ -502,15 +502,24 @@ void BlenderSession::render()
 
 		buffer_params.passes = passes;
 		buffer_params.denoising_passes = b_layer_iter->keep_denoise_data() || b_layer_iter->denoise_result();
-		buffer_params.selective_denoising = !(b_layer_iter->denoise_diffuse_direct() && b_layer_iter->denoise_glossy_direct() && b_layer_iter->denoise_transmission_direct() && b_layer_iter->denoise_subsurface_direct() &&
-		                                      b_layer_iter->denoise_diffuse_indirect() && b_layer_iter->denoise_glossy_indirect() && b_layer_iter->denoise_transmission_indirect() && b_layer_iter->denoise_subsurface_indirect());
+		session->tile_manager.denoise = b_layer_iter->denoise_result();
 		scene->film->denoising_passes = buffer_params.denoising_passes;
-		scene->film->selective_denoising = buffer_params.selective_denoising;
+		scene->film->denoise_flags = 0;
+		if(b_layer_iter->denoise_diffuse_direct()) scene->film->denoise_flags |= DENOISE_DIFFUSE_DIR;
+		if(b_layer_iter->denoise_diffuse_indirect()) scene->film->denoise_flags |= DENOISE_DIFFUSE_IND;
+		if(b_layer_iter->denoise_glossy_direct()) scene->film->denoise_flags |= DENOISE_GLOSSY_DIR;
+		if(b_layer_iter->denoise_glossy_indirect()) scene->film->denoise_flags |= DENOISE_GLOSSY_IND;
+		if(b_layer_iter->denoise_transmission_direct()) scene->film->denoise_flags |= DENOISE_TRANSMISSION_DIR;
+		if(b_layer_iter->denoise_transmission_indirect()) scene->film->denoise_flags |= DENOISE_TRANSMISSION_IND;
+		if(b_layer_iter->denoise_subsurface_direct()) scene->film->denoise_flags |= DENOISE_SUBSURFACE_DIR;
+		if(b_layer_iter->denoise_subsurface_indirect()) scene->film->denoise_flags |= DENOISE_SUBSURFACE_IND;
+		scene->film->selective_denoising = (scene->film->denoise_flags != DENOISE_ALL);
+		buffer_params.selective_denoising = scene->film->selective_denoising;
+
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes);
 		scene->film->tag_update(scene);
 		scene->integrator->tag_update(scene);
-		session->tile_manager.denoise = b_layer_iter->denoise_result();
 
 		if(b_layer_iter->keep_denoise_data()) {
 			add_pass(b_engine, SCE_PASS_DENOISE_NORMAL, 3, b_rlay_name.c_str(), NULL);

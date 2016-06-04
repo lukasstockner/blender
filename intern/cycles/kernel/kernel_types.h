@@ -394,6 +394,27 @@ typedef enum BakePassFilterCombos {
 	BAKE_FILTER_SUBSURFACE_INDIRECT = (BAKE_FILTER_INDIRECT | BAKE_FILTER_SUBSURFACE),
 } BakePassFilterCombos;
 
+typedef enum DenoiseFlag {
+	DENOISE_DIFFUSE_DIR      = (1 << 0),
+	DENOISE_DIFFUSE_IND      = (1 << 1),
+	DENOISE_GLOSSY_DIR       = (1 << 2),
+	DENOISE_GLOSSY_IND       = (1 << 3),
+	DENOISE_TRANSMISSION_DIR = (1 << 4),
+	DENOISE_TRANSMISSION_IND = (1 << 5),
+	DENOISE_SUBSURFACE_DIR   = (1 << 6),
+	DENOISE_SUBSURFACE_IND   = (1 << 7),
+
+	DENOISE_ALL = (
+	    DENOISE_DIFFUSE_DIR |
+	    DENOISE_DIFFUSE_IND |
+	    DENOISE_GLOSSY_DIR |
+	    DENOISE_GLOSSY_IND |
+	    DENOISE_TRANSMISSION_DIR |
+	    DENOISE_TRANSMISSION_IND |
+	    DENOISE_SUBSURFACE_DIR |
+	    DENOISE_SUBSURFACE_IND),
+} DenoiseFlag;
+
 #ifdef __PASSES__
 
 typedef ccl_addr_space struct PathRadiance {
@@ -1029,7 +1050,7 @@ typedef struct KernelFilm {
 
 	int pass_denoising;
 	int pass_no_denoising;
-	int pass_pad4;
+	int denoise_flag;
 	int pass_pad5;
 
 #ifdef __KERNEL_DEBUG__

@@ -55,6 +55,7 @@ public:
 	vector<Pass> passes;
 	bool denoising_passes;
 	bool selective_denoising;
+	int denoise_flags;
 	float pass_alpha_threshold;
 
 	FilterType filter_type;

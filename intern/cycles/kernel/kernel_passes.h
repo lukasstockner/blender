@@ -56,6 +56,14 @@ ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, int sa
 #endif // __SPLIT_KERNEL__ && __WORK_STEALING__
 }
 
+ccl_device_inline void kernel_write_pass_float3_nopad(ccl_global float *buffer, int sample, float3 value)
+{
+	/* TODO somehow avoid this duplicated function */
+	buffer[0] = (sample == 0)? value.x: buffer[0] + value.x;
+	buffer[1] = (sample == 0)? value.y: buffer[1] + value.y;
+	buffer[2] = (sample == 0)? value.z: buffer[2] + value.z;
+}
+
 ccl_device_inline void kernel_write_pass_float3_var(ccl_global float *buffer, int sample, float3 value)
 {
 	if(sample == 0) {
@@ -303,9 +311,28 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *
 		kernel_write_pass_float4(buffer, sample, make_float4(L_sum.x, L_sum.y, L_sum.z, alpha));
 
 		kernel_write_light_passes(kg, buffer, L, sample);
+
+		if(kernel_data.film.pass_denoising) {
+			if(kernel_data.film.pass_no_denoising) {
+				float3 noisy, clean;
+				path_radiance_split_denoising(kg, L, &noisy, &clean);
+				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 14, sample, noisy);
+				kernel_write_pass_float3_nopad(buffer + kernel_data.film.pass_no_denoising, sample, clean);
+			}
+			else {
+				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 14, sample, L_sum);
+			}
+		}
 	}
 	else {
 		kernel_write_pass_float4(buffer, sample, make_float4(0.0f, 0.0f, 0.0f, 0.0f));
+
+		if(kernel_data.film.pass_denoising) {
+			kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 14, sample, make_float3(0.0f, 0.0f, 0.0f));
+		}
+		if(kernel_data.film.pass_no_denoising) {
+			kernel_write_pass_float3_nopad(buffer + kernel_data.film.pass_no_denoising, sample, make_float3(0.0f, 0.0f, 0.0f));
+		}
 	}
 }
 
