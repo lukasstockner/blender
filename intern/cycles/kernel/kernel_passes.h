@@ -295,5 +295,19 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global f
 #endif
 }
 
+ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *buffer,
+	int sample, PathRadiance *L, float alpha)
+{
+	if(L) {
+		float3 L_sum = path_radiance_clamp_and_sum(kg, L);
+		kernel_write_pass_float4(buffer, sample, make_float4(L_sum.x, L_sum.y, L_sum.z, alpha));
+
+		kernel_write_light_passes(kg, buffer, L, sample);
+	}
+	else {
+		kernel_write_pass_float4(buffer, sample, make_float4(0.0f, 0.0f, 0.0f, 0.0f));
+	}
+}
+
 CCL_NAMESPACE_END
 

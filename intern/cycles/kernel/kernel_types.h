@@ -433,6 +433,7 @@ typedef ccl_addr_space struct PathRadiance {
 
 	float4 shadow;
 	float mist;
+	float transparent;
 } PathRadiance;
 
 typedef struct BsdfEval {
