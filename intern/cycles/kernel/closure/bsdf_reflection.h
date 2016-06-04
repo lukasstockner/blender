@@ -40,6 +40,7 @@ CCL_NAMESPACE_BEGIN
 ccl_device int bsdf_reflection_setup(ShaderClosure *sc)
 {
 	sc->type = CLOSURE_BSDF_REFLECTION_ID;
+	sc->roughness = 0.0f;
 	return SD_BSDF;
 }
 

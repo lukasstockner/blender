@@ -66,6 +66,7 @@ ccl_device_inline ShaderClosure *svm_node_closure_get_non_bsdf(ShaderData *sd, C
 		sc->data0 = 0.0f;
 		sc->data1 = 0.0f;
 		sc->data2 = 0.0f;
+		sc->roughness = 1.0f;
 #ifdef __OSL__
 		sc->prim = NULL;
 #endif
@@ -86,6 +87,7 @@ ccl_device_inline ShaderClosure *svm_node_closure_get_bsdf(ShaderData *sd, float
 	if(sample_weight > CLOSURE_WEIGHT_CUTOFF && ccl_fetch(sd, num_closure) < MAX_CLOSURE) {
 		sc->weight = weight;
 		sc->sample_weight = sample_weight;
+		sc->roughness = 1.0f;
 		ccl_fetch(sd, num_closure)++;
 #ifdef __OSL__
 		sc->prim = NULL;

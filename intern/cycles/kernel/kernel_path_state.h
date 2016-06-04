@@ -30,6 +30,8 @@ ccl_device_inline void path_state_init(KernelGlobals *kg, ccl_addr_space PathSta
 	state->transmission_bounce = 0;
 	state->transparent_bounce = 0;
 
+	state->path_length = 0.0f;
+
 	state->min_ray_pdf = FLT_MAX;
 	state->ray_pdf = 0.0f;
 #ifdef __LAMP_MIS__

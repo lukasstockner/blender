@@ -660,7 +660,9 @@ typedef ccl_addr_space struct ShaderClosure {
 	 */
 	float custom1;
 	float custom2;
-	float custom3;
+
+	/* Used for the denoising heuristics. */
+	float roughness;
 
 #ifdef __OSL__
 	void *prim, *pad4;
@@ -849,6 +851,8 @@ typedef struct PathState {
 	int glossy_bounce;
 	int transmission_bounce;
 	int transparent_bounce;
+
+	float path_length;
 
 	/* multiple importance sampling */
 	float min_ray_pdf; /* smallest bounce pdf over entire path up to now */

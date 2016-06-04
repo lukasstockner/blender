@@ -237,7 +237,8 @@ ccl_device int bsdf_microfacet_ggx_setup(ShaderClosure *sc)
 {
 	sc->data0 = saturate(sc->data0); /* alpha_x */
 	sc->data1 = sc->data0; /* alpha_y */
-	
+	sc->roughness = sc->data0;
+
 	sc->type = CLOSURE_BSDF_MICROFACET_GGX_ID;
 
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
@@ -247,7 +248,8 @@ ccl_device int bsdf_microfacet_ggx_aniso_setup(ShaderClosure *sc)
 {
 	sc->data0 = saturate(sc->data0); /* alpha_x */
 	sc->data1 = saturate(sc->data1); /* alpha_y */
-	
+	sc->roughness = sqrtf(sc->data0*sc->data1);
+
 	sc->type = CLOSURE_BSDF_MICROFACET_GGX_ANISO_ID;
 
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
@@ -257,6 +259,7 @@ ccl_device int bsdf_microfacet_ggx_refraction_setup(ShaderClosure *sc)
 {
 	sc->data0 = saturate(sc->data0); /* alpha_x */
 	sc->data1 = sc->data0; /* alpha_y */
+	sc->roughness = sc->data0;
 
 	sc->type = CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID;
 
@@ -267,6 +270,7 @@ ccl_device void bsdf_microfacet_ggx_blur(ShaderClosure *sc, float roughness)
 {
 	sc->data0 = fmaxf(roughness, sc->data0); /* alpha_x */
 	sc->data1 = fmaxf(roughness, sc->data1); /* alpha_y */
+	sc->roughness = sqrtf(sc->data0*sc->data1);
 }
 
 ccl_device float3 bsdf_microfacet_ggx_eval_reflect(const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
@@ -586,6 +590,7 @@ ccl_device int bsdf_microfacet_beckmann_setup(ShaderClosure *sc)
 {
 	sc->data0 = saturate(sc->data0); /* alpha_x */
 	sc->data1 = sc->data0; /* alpha_y */
+	sc->roughness = sc->data0;
 
 	sc->type = CLOSURE_BSDF_MICROFACET_BECKMANN_ID;
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
@@ -595,6 +600,7 @@ ccl_device int bsdf_microfacet_beckmann_aniso_setup(ShaderClosure *sc)
 {
 	sc->data0 = saturate(sc->data0); /* alpha_x */
 	sc->data1 = saturate(sc->data1); /* alpha_y */
+	sc->roughness = sqrtf(sc->data0*sc->data1);
 
 	sc->type = CLOSURE_BSDF_MICROFACET_BECKMANN_ANISO_ID;
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
@@ -604,6 +610,7 @@ ccl_device int bsdf_microfacet_beckmann_refraction_setup(ShaderClosure *sc)
 {
 	sc->data0 = saturate(sc->data0); /* alpha_x */
 	sc->data1 = sc->data0; /* alpha_y */
+	sc->roughness = sc->data0;
 
 	sc->type = CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID;
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
@@ -613,6 +620,7 @@ ccl_device void bsdf_microfacet_beckmann_blur(ShaderClosure *sc, float roughness
 {
 	sc->data0 = fmaxf(roughness, sc->data0); /* alpha_x */
 	sc->data1 = fmaxf(roughness, sc->data1); /* alpha_y */
+	sc->roughness = sqrtf(sc->data0*sc->data1);
 }
 
 ccl_device float3 bsdf_microfacet_beckmann_eval_reflect(const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)

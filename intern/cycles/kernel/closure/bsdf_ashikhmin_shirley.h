@@ -35,6 +35,7 @@ ccl_device int bsdf_ashikhmin_shirley_setup(ShaderClosure *sc)
 {
 	sc->data0 = clamp(sc->data0, 1e-4f, 1.0f);
 	sc->data1 = sc->data0;
+	sc->roughness = sc->data0;
 
 	sc->type = CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID;
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
@@ -44,6 +45,7 @@ ccl_device int bsdf_ashikhmin_shirley_aniso_setup(ShaderClosure *sc)
 {
 	sc->data0 = clamp(sc->data0, 1e-4f, 1.0f);
 	sc->data1 = clamp(sc->data1, 1e-4f, 1.0f);
+	sc->roughness = sqrtf(sc->data0*sc->data1);
 
 	sc->type = CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ANISO_ID;
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
@@ -53,6 +55,7 @@ ccl_device void bsdf_ashikhmin_shirley_blur(ShaderClosure *sc, float roughness)
 {
 	sc->data0 = fmaxf(roughness, sc->data0); /* clamp roughness */
 	sc->data1 = fmaxf(roughness, sc->data1);
+	sc->roughness = sqrtf(sc->data0*sc->data1);
 }
 
 ccl_device_inline float bsdf_ashikhmin_shirley_roughness_to_exponent(float roughness)
