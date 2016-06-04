@@ -67,6 +67,11 @@ void render_result_views_new(struct RenderResult *rr, struct RenderData *rd);
 
 void render_result_merge(struct RenderResult *rr, struct RenderResult *rrpart);
 
+/* Add Pass */
+
+void render_result_clone_passes(struct Render *re, struct RenderResult *rr, const char *viewname);
+void render_result_add_pass(struct RenderResult *rr, uint64_t passtype, int channels, const char *layername, const char *viewname);
+
 /* Free */
 
 void render_result_free(struct RenderResult *rr);

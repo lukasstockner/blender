@@ -799,6 +799,64 @@ RenderResult *render_result_new(Render *re, rcti *partrct, int crop, int savebuf
 	return rr;
 }
 
+void render_result_clone_passes(Render *re, RenderResult *rr, const char *viewname)
+{
+	RenderLayer *rl, *main_rl;
+	RenderPass *rp, *main_rp;
+	RenderView *rv;
+
+	for(rl = rr->layers.first; rl; rl = rl->next) {
+		/* Find corresponding layer in main result */
+		for(main_rl = re->result->layers.first; main_rl; main_rl = main_rl->next) {
+			if(strcmp(main_rl->name, rl->name) == 0)
+				break;
+		}
+
+		if(!main_rl)
+			continue;
+
+		for (rv = rr->views.first; rv; rv = rv->next) {
+			const char *view = rv->name;
+
+			if (viewname && viewname[0])
+				if (!STREQ(view, viewname))
+					continue;
+
+			/* Skip all common passes */
+			for(rp = rl->passes.first, main_rp = main_rl->passes.first; rp && main_rp; rp = rp->next)
+				main_rp = main_rp->next;
+			/* Add the missing passes */
+			for(; main_rp; main_rp = main_rp->next) {
+				render_layer_add_pass(rr, rl, main_rp->channels, main_rp->passtype, view);
+			}
+		}
+	}
+}
+
+
+/* allocate new pass in an existing render result */
+void render_result_add_pass(RenderResult *rr, uint64_t passtype, int channels, const char *layername, const char *viewname)
+{
+	RenderLayer *rl;
+	RenderView *rv;
+
+	for (rl = rr->layers.first; rl; rl = rl->next) {
+		if (layername && layername[0])
+			if (!STREQ(rl->name, layername))
+				continue;
+
+		for (rv = rr->views.first; rv; rv = rv->next) {
+			const char *view = rv->name;
+
+			if (viewname && viewname[0])
+				if (!STREQ(view, viewname))
+					continue;
+
+			render_layer_add_pass(rr, rl, channels, passtype, view);
+		}
+	}
+}
+
 /* allocate osa new results for samples */
 RenderResult *render_result_new_full_sample(Render *re, ListBase *lb, rcti *partrct, int crop, int savebuffers, const char *viewname)
 {

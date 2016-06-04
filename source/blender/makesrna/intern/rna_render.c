@@ -523,6 +523,15 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	RNA_def_boolean(func, "cancel", 0, "Cancel", "Don't mark tile as done, don't merge results unless forced");
 	RNA_def_boolean(func, "do_merge_results", 0, "Merge Results", "Merge results even if cancel=true");
 
+	func = RNA_def_function(srna, "add_pass", "RE_engine_add_pass");
+	RNA_def_function_ui_description(func, "Add a pass to the render layer");
+	prop = RNA_def_int(func, "type", 0, 0, INT_MAX, "Pass Type", "", 0, INT_MAX);
+	RNA_def_property_flag(prop, PROP_REQUIRED);
+	prop = RNA_def_int(func, "channels", 0, 0, INT_MAX, "Channels", "", 0, INT_MAX);
+	RNA_def_property_flag(prop, PROP_REQUIRED);
+	RNA_def_string(func, "layer", NULL, 0, "Layer", "Single layer to add render pass to");  /* NULL ok here */
+	RNA_def_string(func, "view", NULL, 0, "View", "Single view to add render pass to");  /* NULL ok here */
+
 	func = RNA_def_function(srna, "test_break", "RE_engine_test_break");
 	RNA_def_function_ui_description(func, "Test if the render operation should been canceled, this is a fast call that should be used regularly for responsiveness");
 	prop = RNA_def_boolean(func, "do_break", 0, "Break", "");
