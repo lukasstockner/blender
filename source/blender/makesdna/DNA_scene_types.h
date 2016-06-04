@@ -267,6 +267,18 @@ typedef enum ScenePassType {
 	SCE_PASS_DEBUG                    = (1 << 31),  /* This is a virtual pass. */
 } ScenePassType;
 
+typedef enum SceneExtendedPassType {
+	SCE_PASS_DENOISE_NORMAL           = (1UL << 32),
+	SCE_PASS_DENOISE_NORMAL_VAR       = (1UL << 33),
+	SCE_PASS_DENOISE_ALBEDO           = (1UL << 34),
+	SCE_PASS_DENOISE_ALBEDO_VAR       = (1UL << 35),
+	SCE_PASS_DENOISE_DEPTH            = (1UL << 36),
+	SCE_PASS_DENOISE_DEPTH_VAR        = (1UL << 37),
+	SCE_PASS_DENOISE_NOISY            = (1UL << 38), /* The original noisy image (only the components that are denoised). */
+	SCE_PASS_DENOISE_NOISY_VAR        = (1UL << 39),
+	SCE_PASS_DENOISE_CLEAN            = (1UL << 40), /* If present, these image components are added to the denoised image. */
+} SceneExtendedPassType;
+
 /* note, srl->passflag is treestore element 'nr' in outliner, short still... */
 
 /* View - MultiView */

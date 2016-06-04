@@ -356,6 +356,57 @@ static const char *name_from_passtype(uint64_t passtype, int channel)
 		if (channel == 1) return "SubsurfaceCol.G";
 		return "SubsurfaceCol.B";
 	}
+	if (passtype == SCE_PASS_DENOISE_NORMAL) {
+		if (channel == -1) return "DenoiseNormal";
+		if (channel == 0) return "DenoiseNormal.X";
+		if (channel == 1) return "DenoiseNormal.Y";
+		return "DenoiseNormal.Z";
+	}
+	if (passtype == SCE_PASS_DENOISE_NORMAL_VAR) {
+		if (channel == -1) return "DenoiseNormalVar";
+		if (channel == 0) return "DenoiseNormalVar.X";
+		if (channel == 1) return "DenoiseNormalVar.Y";
+		return "DenoiseNormalVar.Z";
+	}
+	if (passtype == SCE_PASS_DENOISE_ALBEDO) {
+		if (channel == -1) return "DenoiseAlbedo";
+		if (channel == 0) return "DenoiseAlbedo.R";
+		if (channel == 1) return "DenoiseAlbedo.G";
+		return "DenoiseAlbedo.B";
+	}
+	if (passtype == SCE_PASS_DENOISE_ALBEDO_VAR) {
+		if (channel == -1) return "DenoiseAlbedoVar";
+		if (channel == 0) return "DenoiseAlbedoVar.R";
+		if (channel == 1) return "DenoiseAlbedoVar.G";
+		return "DenoiseAlbedoVar.B";
+	}
+	if (passtype == SCE_PASS_DENOISE_DEPTH) {
+		if (channel == -1) return "DenoiseDepth";
+		return "DenoiseDepth.Z";
+	}
+	if (passtype == SCE_PASS_DENOISE_DEPTH_VAR) {
+		if (channel == -1) return "DenoiseDepthVar";
+		return "DenoiseDepthVar.Z";
+	}
+	if (passtype == SCE_PASS_DENOISE_NOISY) {
+		if (channel == -1) return "DenoiseNoisy";
+		if (channel == 0) return "DenoiseNoisy.R";
+		if (channel == 1) return "DenoiseNoisy.G";
+		return "DenoiseNoisy.B";
+	}
+	if (passtype == SCE_PASS_DENOISE_NOISY_VAR) {
+		if (channel == -1) return "DenoiseNoisyVar";
+		if (channel == 0) return "DenoiseNoisyVar.R";
+		if (channel == 1) return "DenoiseNoisyVar.G";
+		return "DenoiseNoisyVar.B";
+	}
+	if (passtype == SCE_PASS_DENOISE_CLEAN) {
+		if (channel == -1) return "DenoiseClean";
+		if (channel == 0) return "DenoiseClean.R";
+		if (channel == 1) return "DenoiseClean.G";
+		return "DenoiseClean.B";
+	}
+
 	return "Unknown";
 }
 
@@ -453,6 +504,33 @@ static uint64_t passtype_from_name(const char *str)
 
 	if (STRPREFIX(str, "SubsurfaceCol"))
 		return SCE_PASS_SUBSURFACE_COLOR;
+
+	if (STRPREFIX(str, "DenoiseNormal"))
+		return SCE_PASS_DENOISE_NORMAL;
+
+	if (STRPREFIX(str, "DenoiseNormalVar"))
+		return SCE_PASS_DENOISE_NORMAL_VAR;
+
+	if (STRPREFIX(str, "DenoiseAlbedo"))
+		return SCE_PASS_DENOISE_ALBEDO;
+
+	if (STRPREFIX(str, "DenoiseAlbedoVar"))
+		return SCE_PASS_DENOISE_ALBEDO_VAR;
+
+	if (STRPREFIX(str, "DenoiseDepth"))
+		return SCE_PASS_DENOISE_DEPTH;
+
+	if (STRPREFIX(str, "DenoiseDepthVar"))
+		return SCE_PASS_DENOISE_DEPTH_VAR;
+
+	if (STRPREFIX(str, "DenoiseNoisy"))
+		return SCE_PASS_DENOISE_NOISY;
+
+	if (STRPREFIX(str, "DenoiseNoisyVar"))
+		return SCE_PASS_DENOISE_NOISY_VAR;
+
+	if (STRPREFIX(str, "DenoiseClean"))
+		return SCE_PASS_DENOISE_CLEAN;
 
 	return 0;
 }
