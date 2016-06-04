@@ -81,6 +81,16 @@ int BufferParams::get_passes_size()
 	return align_up(size, 4);
 }
 
+int BufferParams::get_denoise_offset()
+{
+	int offset = 0;
+
+	foreach(Pass& pass, passes)
+		offset += pass.components;
+
+	return offset;
+}
+
 /* Render Buffer Task */
 
 RenderTile::RenderTile()
@@ -163,6 +173,11 @@ bool RenderBuffers::copy_from_device()
 	device->mem_copy_from(buffer, 0, params.width, params.height, params.get_passes_size()*sizeof(float));
 
 	return true;
+}
+
+bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int components, float *pixels)
+{
+	return false;
 }
 
 bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels)

@@ -379,6 +379,14 @@ static void end_render_result(BL::RenderEngine& b_engine,
 	b_engine.end_result(b_rr, (int)cancel, (int)do_merge_results);
 }
 
+static void add_pass(BL::RenderEngine& b_engine,
+                     int passtype, int channels,
+                     const char *layername,
+                     const char *viewname)
+{
+	b_engine.add_pass(passtype, channels, layername, viewname);
+}
+
 void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only, bool highlight)
 {
 	BufferParams& params = rtile.buffers->params;
@@ -503,6 +511,20 @@ void BlenderSession::render()
 		scene->film->tag_update(scene);
 		scene->integrator->tag_update(scene);
 		session->tile_manager.denoise = b_layer_iter->denoise_result();
+
+		if(b_layer_iter->keep_denoise_data()) {
+			add_pass(b_engine, SCE_PASS_DENOISE_NORMAL, 3, b_rlay_name.c_str(), NULL);
+			add_pass(b_engine, SCE_PASS_DENOISE_NORMAL_VAR, 3, b_rlay_name.c_str(), NULL);
+			add_pass(b_engine, SCE_PASS_DENOISE_ALBEDO, 3, b_rlay_name.c_str(), NULL);
+			add_pass(b_engine, SCE_PASS_DENOISE_ALBEDO_VAR, 3, b_rlay_name.c_str(), NULL);
+			add_pass(b_engine, SCE_PASS_DENOISE_DEPTH, 1, b_rlay_name.c_str(), NULL);
+			add_pass(b_engine, SCE_PASS_DENOISE_DEPTH_VAR, 1, b_rlay_name.c_str(), NULL);
+			add_pass(b_engine, SCE_PASS_DENOISE_NOISY, 3, b_rlay_name.c_str(), NULL);
+			add_pass(b_engine, SCE_PASS_DENOISE_NOISY_VAR, 3, b_rlay_name.c_str(), NULL);
+			if(buffer_params.selective_denoising) {
+				add_pass(b_engine, SCE_PASS_DENOISE_CLEAN, 3, b_rlay_name.c_str(), NULL);
+			}
+		}
 
 		for(b_rr.views.begin(b_view_iter); b_view_iter != b_rr.views.end(); ++b_view_iter) {
 			b_rview_name = b_view_iter->name();
@@ -743,13 +765,21 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 		for(b_rlay.passes.begin(b_iter); b_iter != b_rlay.passes.end(); ++b_iter) {
 			BL::RenderPass b_pass(*b_iter);
 
-			/* find matching pass type */
-			PassType pass_type = get_pass_type(b_pass);
+			int extended_type = b_pass.extended_type();
 			int components = b_pass.channels();
 
 			/* copy pixels */
-			if(!buffers->get_pass_rect(pass_type, exposure, sample, components, &pixels[0]))
-				memset(&pixels[0], 0, pixels.size()*sizeof(float));
+			if(extended_type) {
+				if(!buffers->get_denoising_rect(extended_type, exposure, sample, components, &pixels[0]))
+					memset(&pixels[0], 0, pixels.size()*sizeof(float));
+			}
+			else {
+				/* find matching pass type */
+				PassType pass_type = get_pass_type(b_pass);
+
+				if(!buffers->get_pass_rect(pass_type, exposure, sample, components, &pixels[0]))
+					memset(&pixels[0], 0, pixels.size()*sizeof(float));
+			}
 
 			b_pass.rect(&pixels[0]);
 		}

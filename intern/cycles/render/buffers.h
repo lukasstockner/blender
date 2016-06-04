@@ -62,6 +62,7 @@ public:
 	bool modified(const BufferParams& params);
 	void add_pass(PassType type);
 	int get_passes_size();
+	int get_denoise_offset();
 };
 
 /* Render Buffers */
@@ -83,6 +84,7 @@ public:
 
 	bool copy_from_device();
 	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels);
+	bool get_denoising_rect(int denoising_pass, float exposure, int sample, int components, float *pixels);
 
 protected:
 	void device_free();
