@@ -26,6 +26,20 @@ ccl_device_inline void kernel_write_pass_float(ccl_global float *buffer, int sam
 #endif // __SPLIT_KERNEL__ && __WORK_STEALING__
 }
 
+ccl_device_inline void kernel_write_pass_float_var(ccl_global float *buffer, int sample, float value)
+{
+	if(sample == 0) {
+		*buffer = value;
+		*(buffer + 1) = 0.0f;
+	}
+	else {
+		float old = *buffer;
+		buffer[0] += value;
+		/* Online single-pass variance estimation - difference to old mean multiplied by difference to new mean. */
+		buffer[1] += (value - (old / sample)) * (value - ((old + value) / (sample + 1)));
+	}
+}
+
 ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, int sample, float3 value)
 {
 #if defined(__SPLIT_KERNEL__) && defined(__WORK_STEALING__)
@@ -40,6 +54,30 @@ ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, int sa
 	ccl_global float3 *buf = (ccl_global float3*)buffer;
 	*buf = (sample == 0)? value: *buf + value;
 #endif // __SPLIT_KERNEL__ && __WORK_STEALING__
+}
+
+ccl_device_inline void kernel_write_pass_float3_var(ccl_global float *buffer, int sample, float3 value)
+{
+	if(sample == 0) {
+		buffer[0] = value.x;
+		buffer[1] = value.y;
+		buffer[2] = value.z;
+		buffer[3] = 0.0f;
+		buffer[4] = 0.0f;
+		buffer[5] = 0.0f;
+	}
+	else {
+		float old;
+		old = buffer[0];
+		buffer[0] += value.x;
+		buffer[3] += (value.x - (old / sample)) * (value.x - ((old + value.x) / (sample + 1)));
+		old = buffer[1];
+		buffer[1] += value.y;
+		buffer[4] += (value.y - (old / sample)) * (value.y - ((old + value.y) / (sample + 1)));
+		old = buffer[2];
+		buffer[2] += value.z;
+		buffer[5] += (value.z - (old / sample)) * (value.z - ((old + value.z) / (sample + 1)));
+	}
 }
 
 ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sample, float4 value)
@@ -58,6 +96,64 @@ ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sa
 	ccl_global float4 *buf = (ccl_global float4*)buffer;
 	*buf = (sample == 0)? value: *buf + value;
 #endif // __SPLIT_KERNEL__ && __WORK_STEALING__
+}
+
+ccl_device_inline void kernel_write_denoising_passes(KernelGlobals *kg, ccl_global float *buffer,
+	ccl_addr_space PathState *state, ShaderData *sd, int sample, float3 world_albedo)
+{
+	if(kernel_data.film.pass_denoising == 0)
+		return;
+	buffer += kernel_data.film.pass_denoising;
+
+	if(state->flag & PATH_RAY_DENOISING_PASS_DONE)
+		return;
+
+	/* Can also be called if the ray misses the scene, sd is NULL in that case. */
+	if(sd) {
+		state->path_length += ccl_fetch(sd, ray_length);
+
+		float3 normal = make_float3(0.0f, 0.0f, 0.0f);
+		float3 albedo = make_float3(0.0f, 0.0f, 0.0f);
+		float sum_weight = 0.0f, max_weight = 0.0f;
+		int max_weight_closure = -1;
+
+		/* Average normal and albedo, determine the closure with the highest weight for the roughness decision. */
+		for(int i = 0; i < ccl_fetch(sd, num_closure); i++) {
+			ShaderClosure *sc = ccl_fetch_array(sd, closure, i);
+
+			normal += sc->N * sc->sample_weight;
+			albedo += sc->weight;
+			sum_weight += sc->sample_weight;
+
+			if(sc->sample_weight > max_weight) {
+				max_weight = sc->sample_weight;
+				max_weight_closure = i;
+			}
+		}
+
+		if(sum_weight == 0.0f) {
+			kernel_write_pass_float3_var(buffer, sample, make_float3(0.0f, 0.0f, 0.0f));
+			kernel_write_pass_float3_var(buffer + 6, sample, make_float3(0.0f, 0.0f, 0.0f));
+			kernel_write_pass_float_var(buffer + 12, sample, 0.0f);
+		}
+		else {
+			ShaderClosure *max_sc = ccl_fetch_array(sd, closure, max_weight_closure);
+			if(max_sc->roughness <= 0.075f) {
+				/* This bounce is almost specular, so don't write the data yet. */
+				return;
+			}
+			kernel_write_pass_float3_var(buffer, sample, normal/sum_weight);
+			kernel_write_pass_float3_var(buffer + 6, sample, albedo);
+			kernel_write_pass_float_var(buffer + 12, sample, state->path_length);
+		}
+	}
+	else {
+		kernel_write_pass_float3_var(buffer, sample, make_float3(0.0f, 0.0f, 0.0f));
+		kernel_write_pass_float3_var(buffer + 6, sample, world_albedo);
+		kernel_write_pass_float_var(buffer + 12, sample, 1e10f);
+	}
+
+	state->flag |= PATH_RAY_DENOISING_PASS_DONE;
 }
 
 ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L,

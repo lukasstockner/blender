@@ -433,7 +433,10 @@ ccl_device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, in
 #ifdef __BACKGROUND__
 			/* sample background shader */
 			float3 L_background = indirect_background(kg, &state, &ray);
-			path_radiance_accum_background(&L, throughput, L_background, state.bounce);
+			path_radiance_accum_background(L, throughput, L_background, state.bounce);
+			kernel_write_denoising_passes(kg, buffer, &state, NULL, sample, L_background);
+#else
+			kernel_write_denoising_passes(kg, buffer, &state, NULL, sample, make_float3(0.0f, 0.0f, 0.0f));
 #endif
 
 			break;
@@ -444,6 +447,8 @@ ccl_device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, in
 		shader_setup_from_ray(kg, &sd, &isect, &ray);
 		shader_eval_surface(kg, &sd, &state, 0.0f, state.flag, SHADER_CONTEXT_MAIN);
 		shader_merge_closures(&sd);
+
+		kernel_write_denoising_passes(kg, buffer, &state, &sd, sample, make_float3(0.0f, 0.0f, 0.0f));
 
 		/* holdout */
 #ifdef __HOLDOUT__

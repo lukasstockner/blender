@@ -282,27 +282,28 @@ enum SamplingPattern {
  * layer visibility tests. */
 
 enum PathRayFlag {
-	PATH_RAY_CAMERA = 1,
-	PATH_RAY_REFLECT = 2,
-	PATH_RAY_TRANSMIT = 4,
-	PATH_RAY_DIFFUSE = 8,
-	PATH_RAY_GLOSSY = 16,
-	PATH_RAY_SINGULAR = 32,
-	PATH_RAY_TRANSPARENT = 64,
+	PATH_RAY_CAMERA              = (1 << 0),
+	PATH_RAY_REFLECT             = (1 << 1),
+	PATH_RAY_TRANSMIT            = (1 << 2),
+	PATH_RAY_DIFFUSE             = (1 << 3),
+	PATH_RAY_GLOSSY              = (1 << 4),
+	PATH_RAY_SINGULAR            = (1 << 5),
+	PATH_RAY_TRANSPARENT         = (1 << 6),
 
-	PATH_RAY_SHADOW_OPAQUE = 128,
-	PATH_RAY_SHADOW_TRANSPARENT = 256,
+	PATH_RAY_SHADOW_OPAQUE       = (1 << 7),
+	PATH_RAY_SHADOW_TRANSPARENT  = (1 << 8),
 	PATH_RAY_SHADOW = (PATH_RAY_SHADOW_OPAQUE|PATH_RAY_SHADOW_TRANSPARENT),
 
-	PATH_RAY_CURVE = 512, /* visibility flag to define curve segments */
-	PATH_RAY_VOLUME_SCATTER = 1024, /* volume scattering */
+	PATH_RAY_CURVE               = (1 << 9), /* visibility flag to define curve segments */
+	PATH_RAY_VOLUME_SCATTER      = (1 << 10), /* volume scattering */
 
 	/* note that these can use maximum 12 bits, the other are for layers */
 	PATH_RAY_ALL_VISIBILITY = (1|2|4|8|16|32|64|128|256|512|1024),
 
-	PATH_RAY_MIS_SKIP = 2048,
-	PATH_RAY_DIFFUSE_ANCESTOR = 4096,
-	PATH_RAY_SINGLE_PASS_DONE = 8192,
+	PATH_RAY_MIS_SKIP            = (1 << 11),
+	PATH_RAY_DIFFUSE_ANCESTOR    = (1 << 12),
+	PATH_RAY_SINGLE_PASS_DONE    = (1 << 13),
+	PATH_RAY_DENOISING_PASS_DONE = (1 << 14),
 
 	/* we need layer member flags to be the 20 upper bits */
 	PATH_RAY_LAYER_SHIFT = (32-20)

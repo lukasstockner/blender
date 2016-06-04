@@ -177,7 +177,51 @@ bool RenderBuffers::copy_from_device()
 
 bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int components, float *pixels)
 {
-	return false;
+	if(!params.denoising_passes)
+		/* The RenderBuffer doesn't have denoising passes. */
+		return false;
+	if(!(type & 0b111111111))
+		/* The type doesn't correspond to any denoising pass. */
+		return false;
+
+	float scale = 1.0f;
+	int type_offset = 0;
+	switch(type) {
+		case (1 << 0): break;
+		case (1 << 1): type_offset =  3; break;
+		case (1 << 2): type_offset =  6; break;
+		case (1 << 3): type_offset =  9; break;
+		case (1 << 4): type_offset = 12; break;
+		case (1 << 5): type_offset = 13; break;
+		case (1 << 6): type_offset = 14; scale = exposure; break;
+		case (1 << 7): type_offset = 17; scale = exposure*exposure; break;
+		case (1 << 8): type_offset = 20; scale = exposure/sample; break;
+	}
+
+	int pass_offset = params.get_denoise_offset() + type_offset;
+
+	float *in = (float*)buffer.data_pointer + pass_offset;
+	int pass_stride = params.get_passes_size();
+
+	int size = params.width*params.height;
+
+	if(components == 1) {
+		assert(type & 0b110000);
+		for(int i = 0; i < size; i++, in += pass_stride)
+			pixels[i] = *in;
+	}
+	else {
+		assert(components == 3);
+		assert(!(type & 0b110000));
+
+		for(int i = 0; i < size; i++, in += pass_stride, pixels += 3) {
+			pixels[0] = in[0] * scale;
+			pixels[1] = in[1] * scale;
+			pixels[2] = in[2] * scale;
+		}
+	}
+
+	return true;
 }
 
 bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels)
