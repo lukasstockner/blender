@@ -173,6 +173,7 @@ protected:
 	bool acquire_tile(Device *tile_device, RenderTile& tile);
 	void update_tile_sample(RenderTile& tile);
 	void release_tile(RenderTile& tile);
+	void get_neighbor_tiles(RenderTile *tiles);
 
 	void update_progress_sample();
 

@@ -63,6 +63,7 @@ public:
 	function<void(RenderTile&)> update_tile_sample;
 	function<void(RenderTile&)> release_tile;
 	function<bool(void)> get_cancel;
+	function<void(RenderTile*)> get_neighbor_tiles;
 
 	bool need_finish_queue;
 	bool integrator_branched;

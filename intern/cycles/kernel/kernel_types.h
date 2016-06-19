@@ -1143,7 +1143,8 @@ typedef struct KernelIntegrator {
 	float volume_step_size;
 	int volume_samples;
 
-	int pad;
+	/* denoiser */
+	int half_window;
 } KernelIntegrator;
 
 typedef struct KernelBVH {

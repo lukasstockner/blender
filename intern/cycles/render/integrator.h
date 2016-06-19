@@ -77,6 +77,8 @@ public:
 
 	bool need_update;
 
+	int half_window;
+
 	Integrator();
 	~Integrator();
 

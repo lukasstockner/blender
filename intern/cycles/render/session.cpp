@@ -489,6 +489,44 @@ void Session::release_tile(RenderTile& rtile)
 	update_status_time();
 }
 
+void Session::get_neighbor_tiles(RenderTile *tiles)
+{
+	int center_idx = tiles[4].tile_index;
+	assert(tile_manager.state.tiles[center_idx].state == Tile::DENOISE);
+	int width = tile_manager.params.width, height = tile_manager.params.height;
+	for(int dy = -1, i = 0; dy <= 1; dy++) {
+		for(int dx = -1; dx <= 1; dx++, i++) {
+			int px = tiles[4].x + dx*params.tile_size.x;
+			int py = tiles[4].y + dy*params.tile_size.y;
+			if(px >= 0 && py >= 0 && px < width && py < height) {
+				int tile_index = center_idx + dy*tile_manager.state.tile_stride + dx;
+				Tile *tile = &tile_manager.state.tiles[tile_index];
+				assert(tile->buffers);
+
+				tiles[i].buffer = tile->buffers->buffer.device_pointer;
+				tiles[i].x = tile_manager.state.buffer.full_x + tile->x;
+				tiles[i].y = tile_manager.state.buffer.full_y + tile->y;
+				tiles[i].w = tile->w;
+				tiles[i].h = tile->h;
+
+				BufferParams buffer_params = tile_manager.params;
+				buffer_params.full_x = tiles[i].x;
+				buffer_params.full_y = tiles[i].y;
+				buffer_params.width  = tiles[i].w;
+				buffer_params.height = tiles[i].h;
+
+				buffer_params.get_offset_stride(tiles[i].offset, tiles[i].stride);
+			}
+			else {
+				tiles[i].buffer = (device_ptr)NULL;
+				tiles[i].x = clamp(px, 0, width);
+				tiles[i].y = clamp(py, 0, height);
+				tiles[i].w = tiles[i].h = 0;
+			}
+		}
+	}
+}
+
 void Session::run_cpu()
 {
 	bool tiles_written = false;
@@ -927,6 +965,7 @@ void Session::render()
 	
 	task.acquire_tile = function_bind(&Session::acquire_tile, this, _1, _2);
 	task.release_tile = function_bind(&Session::release_tile, this, _1);
+	task.get_neighbor_tiles = function_bind(&Session::get_neighbor_tiles, this, _1);
 	task.get_cancel = function_bind(&Progress::get_cancel, &this->progress);
 	task.update_tile_sample = function_bind(&Session::update_tile_sample, this, _1);
 	task.update_progress_sample = function_bind(&Session::update_progress_sample, this);

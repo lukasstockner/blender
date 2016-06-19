@@ -183,6 +183,8 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 		scene->film->tag_update(scene);
 	}
 
+	kintegrator->half_window = half_window;
+
 	need_update = false;
 }
 
@@ -223,6 +225,7 @@ bool Integrator::modified(const Integrator& integrator)
 		volume_samples == integrator.volume_samples &&
 		motion_blur == integrator.motion_blur &&
 		sampling_pattern == integrator.sampling_pattern &&
+		half_window == integrator.half_window &&
 		sample_all_lights_direct == integrator.sample_all_lights_direct &&
 		sample_all_lights_indirect == integrator.sample_all_lights_indirect);
 }

@@ -515,6 +515,7 @@ void BlenderSession::render()
 		if(b_layer_iter->denoise_subsurface_indirect()) scene->film->denoise_flags |= DENOISE_SUBSURFACE_IND;
 		scene->film->selective_denoising = (scene->film->denoise_flags != DENOISE_ALL);
 		buffer_params.selective_denoising = scene->film->selective_denoising;
+		scene->integrator->half_window = b_layer_iter->half_window();
 
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes);
