@@ -49,4 +49,26 @@ void KERNEL_FUNCTION_FULL_NAME(shader)(KernelGlobals *kg,
                                        int offset,
                                        int sample);
 
+void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
+                                                       int sample,
+                                                       float** buffers,
+                                                       int x,
+                                                       int y,
+                                                       int *tile_x,
+                                                       int *tile_y,
+                                                       int *offset,
+                                                       int *stride,
+                                                       void *storage);
+
+void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
+                                                  int sample,
+                                                  float** buffers,
+                                                  int x,
+                                                  int y,
+                                                  int *tile_x,
+                                                  int *tile_y,
+                                                  int *offset,
+                                                  int *stride,
+                                                  void *storage);
+
 #undef KERNEL_ARCH

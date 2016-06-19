@@ -28,6 +28,7 @@
 #include "kernel_path.h"
 #include "kernel_path_branched.h"
 #include "kernel_bake.h"
+#include "kernel_filter.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -126,6 +127,36 @@ void KERNEL_FUNCTION_FULL_NAME(shader)(KernelGlobals *kg,
 		                       i,
 		                       sample);
 	}
+}
+
+/* Denoise filter */
+
+void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
+                                                       int sample,
+                                                       float** buffers,
+                                                       int x,
+                                                       int y,
+                                                       int *tile_x,
+                                                       int *tile_y,
+                                                       int *offset,
+                                                       int *stride,
+                                                       void *storage)
+{
+	kernel_filter_estimate_params(kg, sample, buffers, x, y, tile_x, tile_y, offset, stride, (FilterStorage*) storage);
+}
+
+void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
+                                                       int sample,
+                                                       float** buffers,
+                                                       int x,
+                                                       int y,
+                                                       int *tile_x,
+                                                       int *tile_y,
+                                                       int *offset,
+                                                       int *stride,
+                                                       void *storage)
+{
+	kernel_filter_final_pass(kg, sample, buffers, x, y, tile_x, tile_y, offset, stride, (FilterStorage*) storage);
 }
 
 CCL_NAMESPACE_END

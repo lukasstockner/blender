@@ -222,39 +222,53 @@ public:
 		RenderTile tile;
 
 		void(*path_trace_kernel)(KernelGlobals*, float*, unsigned int*, int, int, int, int, int);
+		void(*filter_estimate_params_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*);
+		void(*filter_final_pass_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*);
 
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
 		if(system_cpu_support_avx2()) {
 			path_trace_kernel = kernel_cpu_avx2_path_trace;
+			filter_estimate_params_kernel = kernel_cpu_avx2_filter_estimate_params;
+			filter_final_pass_kernel = kernel_cpu_avx2_filter_final_pass;
 		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
 		if(system_cpu_support_avx()) {
 			path_trace_kernel = kernel_cpu_avx_path_trace;
+			filter_estimate_params_kernel = kernel_cpu_avx_filter_estimate_params;
+			filter_final_pass_kernel = kernel_cpu_avx_filter_final_pass;
 		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
 		if(system_cpu_support_sse41()) {
 			path_trace_kernel = kernel_cpu_sse41_path_trace;
+			filter_estimate_params_kernel = kernel_cpu_sse41_filter_estimate_params;
+			filter_final_pass_kernel = kernel_cpu_sse41_filter_final_pass;
 		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
 		if(system_cpu_support_sse3()) {
 			path_trace_kernel = kernel_cpu_sse3_path_trace;
+			filter_estimate_params_kernel = kernel_cpu_sse3_filter_estimate_params;
+			filter_final_pass_kernel = kernel_cpu_sse3_filter_final_pass;
 		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
 		if(system_cpu_support_sse2()) {
 			path_trace_kernel = kernel_cpu_sse2_path_trace;
+			filter_estimate_params_kernel = kernel_cpu_sse2_filter_estimate_params;
+			filter_final_pass_kernel = kernel_cpu_sse2_filter_final_pass;
 		}
 		else
 #endif
 		{
 			path_trace_kernel = kernel_cpu_path_trace;
+			filter_estimate_params_kernel = kernel_cpu_filter_estimate_params;
+			filter_final_pass_kernel = kernel_cpu_filter_final_pass;
 		}
 		
 		while(task.acquire_tile(this, tile)) {
@@ -284,14 +298,30 @@ public:
 				}
 			}
 			else if(tile.task == RenderTile::DENOISE) {
-				printf("TODO: Implement Denoising kernel, was called for tile at (%d, %d) with size %dx%d!\n", tile.x, tile.y, tile.w, tile.h);
-				/* Small brightness increase to have visual feedback in the UI which parts have been "denoised" already, will of course be removed once proper denoising works. */
+				int sample = tile.start_sample + tile.num_samples;
+
+				RenderTile rtiles[9];
+				rtiles[4] = tile;
+				task.get_neighbor_tiles(rtiles);
+				float *buffers[9];
+				int offsets[9], strides[9];
+				for(int i = 0; i < 9; i++) {
+					buffers[i] = (float*) rtiles[i].buffer;
+					offsets[i] = rtiles[i].offset;
+					strides[i] = rtiles[i].stride;
+				}
+				int tile_x[4] = {rtiles[0].x, rtiles[1].x, rtiles[2].x, rtiles[2].x+rtiles[2].w};
+				int tile_y[4] = {rtiles[0].y, rtiles[3].y, rtiles[6].y, rtiles[6].y+rtiles[6].h};
+				FilterStorage *storages = new FilterStorage[tile.w*tile.h];
+
 				for(int y = tile.y; y < tile.y + tile.h; y++) {
 					for(int x = tile.x; x < tile.x + tile.w; x++) {
-						float4 *pix = (float4*) (render_buffer + (tile.offset + y*tile.stride + x)*kg.__data.film.pass_stride);
-						pix->x *= 2;
-						pix->y *= 2;
-						pix->z *= 2;
+						filter_estimate_params_kernel(&kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages);
+					}
+				}
+				for(int y = tile.y; y < tile.y + tile.h; y++) {
+					for(int x = tile.x; x < tile.x + tile.w; x++) {
+						filter_final_pass_kernel(&kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages);
 					}
 				}
 			}

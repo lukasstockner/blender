@@ -1270,6 +1270,15 @@ enum RayState {
 #define REMOVE_RAY_FLAG(ray_state, ray_index, flag) (ray_state[ray_index] = (ray_state[ray_index] & (~flag)))
 #define IS_FLAG(ray_state, ray_index, flag) (ray_state[ray_index] & flag)
 
+#define DENOISE_FEATURES 9 /* The amount of denoising features: Normal, Albedo, Depth and screen position (x, y)*/
+
+typedef struct FilterStorage {
+	float transform[DENOISE_FEATURES*DENOISE_FEATURES];
+	float bandwidth[DENOISE_FEATURES];
+	int rank;
+	float global_bandwidth;
+} FilterStorage;
+
 CCL_NAMESPACE_END
 
 #endif /*  __KERNEL_TYPES_H__ */
