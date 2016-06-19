@@ -1270,7 +1270,14 @@ enum RayState {
 #define REMOVE_RAY_FLAG(ray_state, ray_index, flag) (ray_state[ray_index] = (ray_state[ray_index] & (~flag)))
 #define IS_FLAG(ray_state, ray_index, flag) (ray_state[ray_index] & flag)
 
+/* Enabling second-order screen features will preserve shadow edges better, but currently may cause artifacts in smooth areas. */
+#undef DENOISE_SECOND_ORDER_SCREEN
+
+#ifdef DENOISE_SECOND_ORDER_SCREEN
+#define DENOISE_FEATURES 12 /* The amount of denoising features: Normal, Albedo, Depth and screen position (x, y, x^2, y^2, x*y) */
+#else
 #define DENOISE_FEATURES 9 /* The amount of denoising features: Normal, Albedo, Depth and screen position (x, y)*/
+#endif
 
 typedef struct FilterStorage {
 	float transform[DENOISE_FEATURES*DENOISE_FEATURES];

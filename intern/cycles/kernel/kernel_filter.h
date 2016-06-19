@@ -45,6 +45,11 @@ ccl_device_inline void filter_get_features(int x, int y, float *buffer, float sa
 		for(int i = 0; i < DENOISE_FEATURES; i++)
 			features[i] -= mean[i];
 	}
+#ifdef DENOISE_SECOND_ORDER_SCREEN
+	features[9] = features[7]*features[7];
+	features[10] = features[8]*features[8];
+	features[11] = features[7]*features[8];
+#endif
 }
 
 ccl_device_inline void filter_get_feature_variance(int x, int y, float *buffer, float sample, float *features, float *scale)
@@ -60,6 +65,11 @@ ccl_device_inline void filter_get_feature_variance(int x, int y, float *buffer, 
 	features[6] = saturate(buffer[13] * sample_scale_var) * sample_scale;
 	features[7] = 0.0f;
 	features[8] = 0.0f;
+#ifdef DENOISE_SECOND_ORDER_SCREEN
+	features[9] = 0.0f;
+	features[10] = 0.0f;
+	features[11] = 0.0f;
+#endif
 	for(int i = 0; i < DENOISE_FEATURES; i++)
 		features[i] *= scale[i]*scale[i];
 }
@@ -165,6 +175,9 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	for(int i = 0; i < FEATURE_PASSES; i++)
 		feature_scale[i] = 1.0f / max(feature_scale[i], 0.01f);
 	feature_scale[7] = feature_scale[8] = 1.0f / kernel_data.integrator.half_window;
+#ifdef DENOISE_SECOND_ORDER_SCREEN
+	feature_scale[9] = feature_scale[10] = feature_scale[11] = 1.0f / (kernel_data.integrator.half_window*kernel_data.integrator.half_window);
+#endif
 
 
 
