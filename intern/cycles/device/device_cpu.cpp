@@ -296,6 +296,28 @@ public:
 
 					task.update_progress(&tile);
 				}
+
+				if(tile.buffers->params.overscan) {
+					int tile_x[4] = {tile.x, tile.x, tile.x+tile.w, tile.x+tile.w};
+					int tile_y[4] = {tile.y, tile.y, tile.y+tile.h, tile.y+tile.h};
+					int offsets[9] = {0, 0, 0, 0, tile.offset, 0, 0, 0, 0};
+					int strides[9] = {0, 0, 0, 0, tile.stride, 0, 0, 0, 0};
+					float *buffers[9] = {NULL, NULL, NULL, NULL, (float*) tile.buffer, NULL, NULL, NULL, NULL};
+					FilterStorage *storages = new FilterStorage[tile.buffers->params.final_width*tile.buffers->params.final_height];
+
+					int overscan = tile.buffers->params.overscan;
+					int4 filter_rect = make_int4(tile.x + overscan, tile.y + overscan, tile.x + tile.w - overscan, tile.y + tile.h - overscan);
+					for(int y = filter_rect.y; y < filter_rect.w; y++) {
+						for(int x = filter_rect.x; x < filter_rect.z; x++) {
+							filter_estimate_params_kernel(&kg, end_sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, filter_rect);
+						}
+					}
+					for(int y = filter_rect.y; y < filter_rect.w; y++) {
+						for(int x = filter_rect.x; x < filter_rect.z; x++) {
+							filter_final_pass_kernel(&kg, end_sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, filter_rect);
+						}
+					}
+				}
 			}
 			else if(tile.task == RenderTile::DENOISE) {
 				int sample = tile.start_sample + tile.num_samples;
