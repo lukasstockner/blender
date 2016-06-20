@@ -24,6 +24,7 @@
 #include "../../kernel_path.h"
 #include "../../kernel_path_branched.h"
 #include "../../kernel_bake.h"
+#include "../../kernel_filter.h"
 
 /* device data taken from CUDA occupancy calculator */
 
@@ -204,6 +205,44 @@ kernel_cuda_bake(uint4 *input, float4 *output, int type, int filter, int sx, int
 		kernel_bake_evaluate(NULL, input, output, (ShaderEvalType)type, filter, x, offset, sample);
 }
 #endif
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter_estimate_params(int sample, float* buffers, int sx, int sy, int w, int h, int overscan, int offset, int stride, void *storage)
+{
+	int4 filter_rect = make_int4(sx + overscan, sy + overscan, sx+w - overscan, sy+h - overscan);
+	int lx = blockDim.x*blockIdx.x + threadIdx.x;
+	int ly = blockDim.y*blockIdx.y + threadIdx.y;
+	int x = filter_rect.x + lx;
+	int y = filter_rect.y + ly;
+	if(x < filter_rect.z && y < filter_rect.w) {
+		int tile_x[4] = {sx, sx, sx+w, sx+w};
+		int tile_y[4] = {sy, sy, sy+h, sy+h};
+		float *tile_buffers[9] = {NULL, NULL, NULL, NULL, buffers, NULL, NULL, NULL, NULL};
+		int tile_offset[9] = {0, 0, 0, 0, offset, 0, 0, 0, 0};
+		int tile_stride[9] = {0, 0, 0, 0, stride, 0, 0, 0, 0};
+		kernel_filter_estimate_params(NULL, sample, tile_buffers, x, y, tile_x, tile_y, tile_offset, tile_stride, (FilterStorage*) storage, filter_rect);
+	}
+}
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter_final_pass(int sample, float* buffers, int sx, int sy, int w, int h, int overscan, int offset, int stride, void *storage)
+{
+	int4 filter_rect = make_int4(sx + overscan, sy + overscan, sx+w - overscan, sy+h - overscan);
+	int lx = blockDim.x*blockIdx.x + threadIdx.x;
+	int ly = blockDim.y*blockIdx.y + threadIdx.y;
+	int x = filter_rect.x + lx;
+	int y = filter_rect.y + ly;
+	if(x < filter_rect.z && y < filter_rect.w) {
+		int tile_x[4] = {sx, sx, sx+w, sx+w};
+		int tile_y[4] = {sy, sy, sy+h, sy+h};
+		float *tile_buffers[9] = {NULL, NULL, NULL, NULL, buffers, NULL, NULL, NULL, NULL};
+		int tile_offset[9] = {0, 0, 0, 0, offset, 0, 0, 0, 0};
+		int tile_stride[9] = {0, 0, 0, 0, stride, 0, 0, 0, 0};
+		kernel_filter_final_pass(NULL, sample, tile_buffers, x, y, tile_x, tile_y, tile_offset, tile_stride, (FilterStorage*) storage, filter_rect);
+	}
+}
 
 #endif
 

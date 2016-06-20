@@ -457,6 +457,7 @@ void BlenderSession::render()
 
 	/* get buffer parameters */
 	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
+	const bool is_cpu = session_params.device.type == DEVICE_CPU;
 	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_v3d, b_rv3d, scene->camera, width, height);
 
 	/* render each layer */
@@ -502,7 +503,7 @@ void BlenderSession::render()
 
 		buffer_params.passes = passes;
 		buffer_params.denoising_passes = b_layer_iter->keep_denoise_data() || b_layer_iter->denoise_result();
-		session->tile_manager.schedule_denoising = b_layer_iter->denoise_result();
+		session->tile_manager.schedule_denoising = b_layer_iter->denoise_result() && is_cpu;
 		session->params.denoise_result = b_layer_iter->denoise_result();
 		scene->film->denoising_passes = buffer_params.denoising_passes;
 		scene->film->denoise_flags = 0;

@@ -380,6 +380,16 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	rtile.tile_index = tile->index;
 	rtile.task = (tile->state == Tile::DENOISE)? RenderTile::DENOISE: RenderTile::PATH_TRACE;
 
+	int overscan = 0;
+	const bool is_gpu = params.device.type == DEVICE_CUDA || params.device.type == DEVICE_OPENCL;
+	if(params.denoise_result && is_gpu) {
+		overscan = scene->integrator->half_window;
+		rtile.x -= overscan;
+		rtile.y -= overscan;
+		rtile.w += 2*overscan;
+		rtile.h += 2*overscan;
+	}
+
 	tile_lock.unlock();
 
 	/* in case of a permanent buffer, return it, otherwise we will allocate
@@ -403,7 +413,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	buffer_params.full_y = rtile.y;
 	buffer_params.width = rtile.w;
 	buffer_params.height = rtile.h;
-	buffer_params.overscan = 0;
+	buffer_params.overscan = overscan;
 	buffer_params.final_width = rtile.w - 2*overscan;
 	buffer_params.final_height = rtile.h - 2*overscan;
 

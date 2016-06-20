@@ -683,6 +683,68 @@ public:
 		}
 	}
 
+	void denoise(RenderTile &rtile, int sample)
+	{
+		if(have_error())
+			return;
+
+		cuda_push_context();
+
+		CUfunction cuFilterEstimateParams, cuFilterFinalPass;
+		CUdeviceptr d_buffer = cuda_device_ptr(rtile.buffer);
+
+		cuda_assert(cuModuleGetFunction(&cuFilterEstimateParams, cuModule, "kernel_cuda_filter_estimate_params"));
+		cuda_assert(cuModuleGetFunction(&cuFilterFinalPass, cuModule, "kernel_cuda_filter_final_pass"));
+
+		if(have_error())
+			return;
+
+		int filter_x = rtile.x + rtile.buffers->params.overscan, filter_y = rtile.y + rtile.buffers->params.overscan;
+		int filter_w = rtile.buffers->params.final_width, filter_h = rtile.buffers->params.final_height;
+
+		CUdeviceptr d_storage;
+		int storage_size = filter_w*filter_h*sizeof(FilterStorage);
+		cuda_assert(cuMemAlloc(&d_storage, storage_size));
+
+		void *args[] = {&sample,
+		                &d_buffer,
+		                &rtile.x,
+		                &rtile.y,
+		                &rtile.w,
+		                &rtile.h,
+		                &rtile.buffers->params.overscan,
+		                &rtile.offset,
+		                &rtile.stride,
+		                &d_storage};
+
+		int threads_per_block;
+		cuda_assert(cuFuncGetAttribute(&threads_per_block, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, cuFilterEstimateParams));
+
+		int xthreads = (int)sqrt((float)threads_per_block);
+		int ythreads = (int)sqrt((float)threads_per_block);
+		int xblocks = (filter_w + xthreads - 1)/xthreads;
+		int yblocks = (filter_h + ythreads - 1)/ythreads;
+
+		cuda_assert(cuFuncSetCacheConfig(cuFilterEstimateParams, CU_FUNC_CACHE_PREFER_L1));
+		cuda_assert(cuFuncSetCacheConfig(cuFilterFinalPass, CU_FUNC_CACHE_PREFER_L1));
+
+		cuda_assert(cuLaunchKernel(cuFilterEstimateParams,
+		                           xblocks , yblocks, 1, /* blocks */
+		                           xthreads, ythreads, 1, /* threads */
+		                           0, 0, args, 0));
+
+		cuda_assert(cuLaunchKernel(cuFilterFinalPass,
+		                           xblocks , yblocks, 1, /* blocks */
+		                           xthreads, ythreads, 1, /* threads */
+		                           0, 0, args, 0));
+
+		cuda_assert(cuCtxSynchronize());
+
+		cuda_assert(cuMemFree(d_storage));
+
+		cuda_pop_context();
+	}
+
 	void path_trace(RenderTile& rtile, int sample, bool branched)
 	{
 		if(have_error())
@@ -1130,9 +1192,13 @@ public:
 
 						task->update_progress(&tile);
 					}
+
+					if(tile.buffers->params.overscan) { /* TODO(lukas) Works, but seems hacky? */
+						denoise(tile, end_sample);
+					}
 				}
 				else if(tile.task == RenderTile::DENOISE) {
-					printf("TODO: Implement Denoising kernel, was called for tile at (%d, %d) with size %dx%d!\n", tile.x, tile.y, tile.w, tile.h);
+					assert(!"Explicitly scheduling tiles for denoising isn't supported on GPUs!");
 				}
 
 				task->release_tile(tile);
