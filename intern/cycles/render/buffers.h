@@ -49,11 +49,17 @@ public:
 	int full_width;
 	int full_height;
 
+	/* the width/height of the part that will be visible (might be smaller due to overscan). */
+	int final_width;
+	int final_height;
+
 	/* passes */
 	vector<Pass> passes;
 	bool denoising_passes;
 	/* If only some light path types should be denoised, an additional pass is needed. */
 	bool selective_denoising;
+	/* On GPUs, tiles are extended in each direction to include all the info required for denoising. */
+	int overscan;
 
 	/* functions */
 	BufferParams();

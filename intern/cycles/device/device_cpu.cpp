@@ -222,8 +222,8 @@ public:
 		RenderTile tile;
 
 		void(*path_trace_kernel)(KernelGlobals*, float*, unsigned int*, int, int, int, int, int);
-		void(*filter_estimate_params_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*);
-		void(*filter_final_pass_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*);
+		void(*filter_estimate_params_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*, int4);
+		void(*filter_final_pass_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*, int4);
 
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
 		if(system_cpu_support_avx2()) {
@@ -314,14 +314,15 @@ public:
 				int tile_y[4] = {rtiles[0].y, rtiles[3].y, rtiles[6].y, rtiles[6].y+rtiles[6].h};
 				FilterStorage *storages = new FilterStorage[tile.w*tile.h];
 
-				for(int y = tile.y; y < tile.y + tile.h; y++) {
-					for(int x = tile.x; x < tile.x + tile.w; x++) {
-						filter_estimate_params_kernel(&kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages);
+				int4 filter_rect = make_int4(tile.x, tile.y, tile.x + tile.w, tile.y + tile.h);
+				for(int y = filter_rect.y; y < filter_rect.w; y++) {
+					for(int x = filter_rect.x; x < filter_rect.z; x++) {
+						filter_estimate_params_kernel(&kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, filter_rect);
 					}
 				}
-				for(int y = tile.y; y < tile.y + tile.h; y++) {
-					for(int x = tile.x; x < tile.x + tile.w; x++) {
-						filter_final_pass_kernel(&kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages);
+				for(int y = filter_rect.y; y < filter_rect.w; y++) {
+					for(int x = filter_rect.x; x < filter_rect.z; x++) {
+						filter_final_pass_kernel(&kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, filter_rect);
 					}
 				}
 			}

@@ -123,9 +123,9 @@ ccl_device_inline bool filter_firefly_rejection(float3 pixel_color, float pixel_
  * - Start of the next upper/right neighbor (not accessed)
  * buffers contains the nine buffer pointers (y-major ordering, starting with the lower left tile), offset and stride the respective parameters of the tile.
  */
-ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, float **buffers, int x, int y, int *tile_x, int *tile_y, int *offset, int *stride, FilterStorage *storage)
+ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, float **buffers, int x, int y, int *tile_x, int *tile_y, int *offset, int *stride, FilterStorage *storage, int4 filter_rect)
 {
-	storage += (y - tile_y[1])*(tile_y[2] - tile_y[1]) + (x - tile_x[1]);
+	storage += (y-filter_rect.y)*(filter_rect.z-filter_rect.x) + (x-filter_rect.x);
 
 	/* Temporary storage, used in different steps of the algorithm. */
 	float tempmatrix[(2*DENOISE_FEATURES+1)*(2*DENOISE_FEATURES+1)], tempvector[2*DENOISE_FEATURES+1];
@@ -350,9 +350,9 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 
 
 
-ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float **buffers, int x, int y, int *tile_x, int *tile_y, int *offset, int *stride, FilterStorage *storage)
+ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float **buffers, int x, int y, int *tile_x, int *tile_y, int *offset, int *stride, FilterStorage *storage, int4 filter_rect)
 {
-	storage += (y - tile_y[1])*(tile_y[2] - tile_y[1]) + (x - tile_x[1]);
+	storage += (y-filter_rect.y)*(filter_rect.z-filter_rect.x) + (x-filter_rect.x);
 	float *buffer, features[DENOISE_FEATURES];
 
 	/* === Get center pixel. === */
@@ -372,9 +372,9 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float **
 	/* Apply a median filter to the 3x3 window aroung the current pixel. */
 	int sort_idx = 0;
 	float global_bandwidths[9];
-	for(int py = max(y-1, tile_y[1]); py < min(y+2, tile_y[2]); py++) {
-		for(int px = max(x-1, tile_x[1]); px < min(x+2, tile_x[2]); px++) {
-			int ofs = (py-y)*(tile_y[2] - tile_y[1]) + (px-x);
+	for(int py = max(y-1, filter_rect.y); py < min(y+2, filter_rect.w); py++) {
+		for(int px = max(x-1, filter_rect.x); px < min(x+2, filter_rect.z); px++) {
+			int ofs = (py-y)*(filter_rect.z - filter_rect.x) + (px-x);
 			if(storage[ofs].rank != rank) continue;
 			global_bandwidths[sort_idx++] = storage[ofs].global_bandwidth;
 		}

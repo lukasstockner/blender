@@ -58,7 +58,8 @@ void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
                                                        int *tile_y,
                                                        int *offset,
                                                        int *stride,
-                                                       void *storage);
+                                                       void *storage,
+                                                       int4 filter_rect);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
                                                   int sample,
@@ -69,6 +70,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
                                                   int *tile_y,
                                                   int *offset,
                                                   int *stride,
-                                                  void *storage);
+                                                  void *storage,
+                                                  int4 filter_rect);
 
 #undef KERNEL_ARCH

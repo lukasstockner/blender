@@ -98,7 +98,7 @@ TileManager::TileManager(bool progressive_, int num_samples_, int2 tile_size_, i
 	num_devices = num_devices_;
 	preserve_tile_device = preserve_tile_device_;
 	background = background_;
-	denoise = false;
+	schedule_denoising = false;
 
 	range_start_sample = 0;
 	range_num_samples = -1;
@@ -339,7 +339,7 @@ bool TileManager::return_tile(int index, bool &delete_tile)
 	switch(state.tiles[index].state) {
 		case Tile::RENDER:
 		{
-			if(!denoise) {
+			if(!schedule_denoising) {
 				state.tiles[index].state = Tile::DONE;
 				delete_tile = true;
 				return true;

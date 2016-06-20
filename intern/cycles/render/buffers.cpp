@@ -41,9 +41,12 @@ BufferParams::BufferParams()
 	full_y = 0;
 	full_width = 0;
 	full_height = 0;
+	final_width = 0;
+	final_height = 0;
 
 	denoising_passes = false;
 	selective_denoising = false;
+	overscan = 0;
 
 	Pass::add(PASS_COMBINED, passes);
 }
@@ -62,6 +65,9 @@ bool BufferParams::modified(const BufferParams& params)
 		&& height == params.height
 		&& full_width == params.full_width
 		&& full_height == params.full_height
+		&& final_width == params.final_width
+		&& final_height == params.final_height
+	        && overscan == params.overscan
 		&& Pass::equals(passes, params.passes));
 }
 
@@ -203,18 +209,20 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 	float *in = (float*)buffer.data_pointer + pass_offset;
 	int pass_stride = params.get_passes_size();
 
-	int size = params.width*params.height;
+#define FOREACH_PIXEL in += (params.overscan*(params.width + 1))*pass_stride; \
+                      for(int y = params.overscan; y < params.height - params.overscan; y++, in += 2*params.overscan*pass_stride) \
+                          for(int x = params.overscan; x < params.width - params.overscan; x++, in += pass_stride, pixels += components)
 
 	if(components == 1) {
 		assert(type & 0b110000);
-		for(int i = 0; i < size; i++, in += pass_stride)
-			pixels[i] = *in;
+		FOREACH_PIXEL
+			pixels[0] = *in;
 	}
 	else {
 		assert(components == 3);
 		assert(!(type & 0b110000));
 
-		for(int i = 0; i < size; i++, in += pass_stride, pixels += 3) {
+		FOREACH_PIXEL {
 			pixels[0] = in[0] * scale;
 			pixels[1] = in[1] * scale;
 			pixels[2] = in[2] * scale;
@@ -240,40 +248,38 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 		float scale = (pass.filter)? 1.0f/(float)sample: 1.0f;
 		float scale_exposure = (pass.exposure)? scale*exposure: scale;
 
-		int size = params.width*params.height;
-
 		if(components == 1) {
 			assert(pass.components == components);
 
 			/* scalar */
 			if(type == PASS_DEPTH) {
-				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
+				FOREACH_PIXEL {
 					float f = *in;
 					pixels[0] = (f == 0.0f)? 1e10f: f*scale_exposure;
 				}
 			}
 			else if(type == PASS_MIST) {
-				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
+				FOREACH_PIXEL {
 					float f = *in;
 					pixels[0] = saturate(f*scale_exposure);
 				}
 			}
 #ifdef WITH_CYCLES_DEBUG
 			else if(type == PASS_BVH_TRAVERSAL_STEPS) {
-				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
+				FOREACH_PIXEL {
 					float f = *in;
 					pixels[0] = f*scale;
 				}
 			}
 			else if(type == PASS_RAY_BOUNCES) {
-				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
+				FOREACH_PIXEL {
 					float f = *in;
 					pixels[0] = f*scale;
 				}
 			}
 #endif
 			else {
-				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
+				FOREACH_PIXEL {
 					float f = *in;
 					pixels[0] = f*scale_exposure;
 				}
@@ -284,7 +290,7 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 			/* RGBA */
 			if(type == PASS_SHADOW) {
-				for(int i = 0; i < size; i++, in += pass_stride, pixels += 3) {
+				FOREACH_PIXEL {
 					float4 f = make_float4(in[0], in[1], in[2], in[3]);
 					float invw = (f.w > 0.0f)? 1.0f/f.w: 1.0f;
 
@@ -294,19 +300,17 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 				}
 			}
 			else if(pass.divide_type != PASS_NONE) {
+				int divide_offset = -pass_offset;
 				/* RGB lighting passes that need to divide out color */
-				pass_offset = 0;
 				foreach(Pass& color_pass, params.passes) {
 					if(color_pass.type == pass.divide_type)
 						break;
-					pass_offset += color_pass.components;
+					divide_offset += color_pass.components;
 				}
 
-				float *in_divide = (float*)buffer.data_pointer + pass_offset;
-
-				for(int i = 0; i < size; i++, in += pass_stride, in_divide += pass_stride, pixels += 3) {
+				FOREACH_PIXEL {
 					float3 f = make_float3(in[0], in[1], in[2]);
-					float3 f_divide = make_float3(in_divide[0], in_divide[1], in_divide[2]);
+					float3 f_divide = make_float3(in[divide_offset], in[divide_offset+1], in[divide_offset+2]);
 
 					f = safe_divide_even_color(f*exposure, f_divide);
 
@@ -317,7 +321,7 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 			}
 			else {
 				/* RGB/vector */
-				for(int i = 0; i < size; i++, in += pass_stride, pixels += 3) {
+				FOREACH_PIXEL {
 					float3 f = make_float3(in[0], in[1], in[2]);
 
 					pixels[0] = f.x*scale_exposure;
@@ -331,7 +335,7 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 			/* RGBA */
 			if(type == PASS_SHADOW) {
-				for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {
+				FOREACH_PIXEL {
 					float4 f = make_float4(in[0], in[1], in[2], in[3]);
 					float invw = (f.w > 0.0f)? 1.0f/f.w: 1.0f;
 
@@ -342,19 +346,17 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 				}
 			}
 			else if(type == PASS_MOTION) {
+				int weight_offset = -pass_offset;
 				/* need to normalize by number of samples accumulated for motion */
-				pass_offset = 0;
 				foreach(Pass& color_pass, params.passes) {
 					if(color_pass.type == PASS_MOTION_WEIGHT)
 						break;
-					pass_offset += color_pass.components;
+					weight_offset += color_pass.components;
 				}
 
-				float *in_weight = (float*)buffer.data_pointer + pass_offset;
-
-				for(int i = 0; i < size; i++, in += pass_stride, in_weight += pass_stride, pixels += 4) {
+				FOREACH_PIXEL {
 					float4 f = make_float4(in[0], in[1], in[2], in[3]);
-					float w = in_weight[0];
+					float w = in[weight_offset];
 					float invw = (w > 0.0f)? 1.0f/w: 0.0f;
 
 					pixels[0] = f.x*invw;
@@ -364,7 +366,7 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 				}
 			}
 			else {
-				for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {
+				FOREACH_PIXEL {
 					float4 f = make_float4(in[0], in[1], in[2], in[3]);
 
 					pixels[0] = f.x*scale_exposure;
@@ -376,6 +378,7 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 				}
 			}
 		}
+#undef FOREACH_PIXEL
 
 		return true;
 	}

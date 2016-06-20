@@ -390,10 +390,10 @@ static void add_pass(BL::RenderEngine& b_engine,
 void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only, bool highlight)
 {
 	BufferParams& params = rtile.buffers->params;
-	int x = params.full_x - session->tile_manager.params.full_x;
-	int y = params.full_y - session->tile_manager.params.full_y;
-	int w = params.width;
-	int h = params.height;
+	int x = params.full_x + params.overscan - session->tile_manager.params.full_x;
+	int y = params.full_y + params.overscan - session->tile_manager.params.full_y;
+	int w = params.final_width;
+	int h = params.final_height;
 
 	/* get render result */
 	BL::RenderResult b_rr = begin_render_result(b_engine, x, y, w, h, b_rlay_name.c_str(), b_rview_name.c_str());
@@ -502,7 +502,8 @@ void BlenderSession::render()
 
 		buffer_params.passes = passes;
 		buffer_params.denoising_passes = b_layer_iter->keep_denoise_data() || b_layer_iter->denoise_result();
-		session->tile_manager.denoise = b_layer_iter->denoise_result();
+		session->tile_manager.schedule_denoising = b_layer_iter->denoise_result();
+		session->params.denoise_result = b_layer_iter->denoise_result();
 		scene->film->denoising_passes = buffer_params.denoising_passes;
 		scene->film->denoise_flags = 0;
 		if(b_layer_iter->denoise_diffuse_direct()) scene->film->denoise_flags |= DENOISE_DIFFUSE_DIR;
@@ -759,7 +760,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 	BufferParams& params = buffers->params;
 	float exposure = scene->film->exposure;
 
-	vector<float> pixels(params.width*params.height*4);
+	vector<float> pixels(params.final_width*params.final_height*4);
 
 	/* Adjust absolute sample number to the range. */
 	int sample = rtile.sample;

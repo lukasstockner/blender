@@ -403,6 +403,9 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	buffer_params.full_y = rtile.y;
 	buffer_params.width = rtile.w;
 	buffer_params.height = rtile.h;
+	buffer_params.overscan = 0;
+	buffer_params.final_width = rtile.w - 2*overscan;
+	buffer_params.final_height = rtile.h - 2*overscan;
 
 	buffer_params.get_offset_stride(rtile.offset, rtile.stride);
 

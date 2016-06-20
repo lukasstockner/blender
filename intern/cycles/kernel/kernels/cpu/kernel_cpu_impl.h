@@ -140,23 +140,25 @@ void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
                                                        int *tile_y,
                                                        int *offset,
                                                        int *stride,
-                                                       void *storage)
+                                                       void *storage,
+                                                       int4 filter_rect)
 {
-	kernel_filter_estimate_params(kg, sample, buffers, x, y, tile_x, tile_y, offset, stride, (FilterStorage*) storage);
+	kernel_filter_estimate_params(kg, sample, buffers, x, y, tile_x, tile_y, offset, stride, (FilterStorage*) storage, filter_rect);
 }
 
 void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
-                                                       int sample,
-                                                       float** buffers,
-                                                       int x,
-                                                       int y,
-                                                       int *tile_x,
-                                                       int *tile_y,
-                                                       int *offset,
-                                                       int *stride,
-                                                       void *storage)
+                                                  int sample,
+                                                  float** buffers,
+                                                  int x,
+                                                  int y,
+                                                  int *tile_x,
+                                                  int *tile_y,
+                                                  int *offset,
+                                                  int *stride,
+                                                  void *storage,
+                                                  int4 filter_rect)
 {
-	kernel_filter_final_pass(kg, sample, buffers, x, y, tile_x, tile_y, offset, stride, (FilterStorage*) storage);
+	kernel_filter_final_pass(kg, sample, buffers, x, y, tile_x, tile_y, offset, stride, (FilterStorage*) storage, filter_rect);
 }
 
 CCL_NAMESPACE_END
