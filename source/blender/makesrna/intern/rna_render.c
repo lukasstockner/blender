@@ -256,6 +256,47 @@ static void engine_update_script_node(RenderEngine *engine, struct bNodeTree *nt
 	RNA_parameter_list_free(&list);
 }
 
+static int engine_can_postprocess(RenderEngine *engine, struct RenderResult *result)
+{
+	extern FunctionRNA rna_RenderEngine_can_postprocess_func;
+	PointerRNA ptr;
+	ParameterList list;
+	FunctionRNA *func;
+	void *ret;
+	int can_postprocess;
+
+	RNA_pointer_create(NULL, engine->type->ext.srna, engine, &ptr);
+	func = &rna_RenderEngine_can_postprocess_func;
+
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "result", &result);
+	engine->type->ext.call(NULL, &ptr, func, &list);
+	RNA_parameter_get_lookup(&list, "can_postprocess", &ret);
+	can_postprocess = *(int *)ret;
+
+	RNA_parameter_list_free(&list);
+
+	return can_postprocess;
+}
+
+static void engine_postprocess(RenderEngine *engine, struct Scene *scene, struct RenderResult *result)
+{
+	extern FunctionRNA rna_RenderEngine_postprocess_func;
+	PointerRNA ptr;
+	ParameterList list;
+	FunctionRNA *func;
+
+	RNA_pointer_create(NULL, engine->type->ext.srna, engine, &ptr);
+	func = &rna_RenderEngine_postprocess_func;
+
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "scene", &scene);
+	RNA_parameter_set_lookup(&list, "result", &result);
+	engine->type->ext.call(NULL, &ptr, func, &list);
+
+	RNA_parameter_list_free(&list);
+}
+
 /* RenderEngine registration */
 
 static void rna_RenderEngine_unregister(Main *UNUSED(bmain), StructRNA *type)
@@ -276,7 +317,7 @@ static StructRNA *rna_RenderEngine_register(Main *bmain, ReportList *reports, vo
 	RenderEngineType *et, dummyet = {NULL};
 	RenderEngine dummyengine = {NULL};
 	PointerRNA dummyptr;
-	int have_function[6];
+	int have_function[8];
 
 	/* setup dummy engine & engine type to store static properties in */
 	dummyengine.type = &dummyet;
@@ -318,6 +359,8 @@ static StructRNA *rna_RenderEngine_register(Main *bmain, ReportList *reports, vo
 	et->view_update = (have_function[3]) ? engine_view_update : NULL;
 	et->view_draw = (have_function[4]) ? engine_view_draw : NULL;
 	et->update_script_node = (have_function[5]) ? engine_update_script_node : NULL;
+	et->can_postprocess = (have_function[6]) ? engine_can_postprocess : NULL;
+	et->postprocess = (have_function[7]) ? engine_postprocess : NULL;
 
 	BLI_addtail(&R_engines, et);
 
@@ -487,6 +530,23 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
 	prop = RNA_def_pointer(func, "node", "Node", "", "");
 	RNA_def_property_flag(prop, PROP_RNAPTR);
+
+	/* result postprocessing callbacks */
+	func = RNA_def_function(srna, "can_postprocess", NULL);
+	RNA_def_function_ui_description(func, "Pool whether a render result can be postprocessed");
+	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
+	prop = RNA_def_pointer(func, "result", "RenderResult", "Result", "");
+	RNA_def_property_flag(prop, PROP_REQUIRED);
+	prop = RNA_def_boolean(func, "can_postprocess", 0, "Can post-process", "Whether the render result can be postprocessed or not");
+	RNA_def_function_return(func, prop);
+
+	func = RNA_def_function(srna, "postprocess", NULL);
+	RNA_def_function_ui_description(func, "Postprocess the given render result");
+	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
+	prop = RNA_def_pointer(func, "scene", "Scene", "Scene", "");
+	RNA_def_property_flag(prop, PROP_REQUIRED);
+	prop = RNA_def_pointer(func, "result", "RenderResult", "Result", "");
+	RNA_def_property_flag(prop, PROP_REQUIRED);
 
 	/* tag for redraw */
 	func = RNA_def_function(srna, "tag_redraw", "engine_tag_redraw");
@@ -696,6 +756,10 @@ static void rna_def_render_engine(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "bl_use_spherical_stereo", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "type->flag", RE_USE_SPHERICAL_STEREO);
+	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+
+	prop = RNA_def_property(srna, "bl_use_result_postprocess", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "type->flag", RE_USE_RESULT_POSTPROCESS);
 	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
 
 	RNA_define_verify_sdna(1);

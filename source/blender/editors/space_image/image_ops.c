@@ -3662,3 +3662,63 @@ void IMAGE_OT_clear_render_border(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
+static int postprocess_poll(bContext *C)
+{
+	Scene *scene = CTX_data_scene(C);
+	Image *ima = CTX_data_edit_image(C);
+	RenderResult *rr = BKE_image_acquire_renderresult(scene, ima);
+	RenderEngineType *type = RE_engines_find(scene->r.engine);
+	RenderEngine *engine;
+	int can_postprocess;
+
+	if (!(ima && ima->type == IMA_TYPE_R_RESULT && rr &&
+	      BKE_scene_use_result_postprocess(scene) &&
+	      type->can_postprocess && type->postprocess)) {
+		if (rr) {
+			BKE_image_release_renderresult(scene, ima);
+		}
+		return 0;
+	}
+
+	/* this is probably a bit slow, but how else to check for passes etc. in a flexible way? */
+	engine = RE_engine_create(type);
+
+	can_postprocess = type->can_postprocess(engine, rr);
+
+	BKE_image_release_renderresult(scene, ima);
+	RE_engine_free(engine);
+
+	return can_postprocess;
+}
+
+static int postprocess_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+	Image *ima = CTX_data_edit_image(C);
+	RenderResult *rr = BKE_image_acquire_renderresult(scene, ima);
+	RenderEngineType *type = RE_engines_find(scene->r.engine);
+	RenderEngine *engine = RE_engine_create(type);
+
+	type->postprocess(engine, scene, rr);
+
+	BKE_image_release_renderresult(scene, ima);
+	RE_engine_free(engine);
+
+	return OPERATOR_FINISHED;
+}
+
+void IMAGE_OT_postprocess(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Postprocess Render Result";
+	ot->description = "Call the render engine to post-process the render result";
+	ot->idname = "IMAGE_OT_postprocess";
+
+	/* api callbacks */
+	ot->exec = postprocess_exec;
+	ot->poll = postprocess_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER;
+}

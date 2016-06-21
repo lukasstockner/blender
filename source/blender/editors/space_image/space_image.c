@@ -262,6 +262,8 @@ static void image_operatortypes(void)
 	WM_operatortype_append(IMAGE_OT_read_renderlayers);
 	WM_operatortype_append(IMAGE_OT_render_border);
 	WM_operatortype_append(IMAGE_OT_clear_render_border);
+
+	WM_operatortype_append(IMAGE_OT_postprocess);
 }
 
 static void image_keymap(struct wmKeyConfig *keyconf)
