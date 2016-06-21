@@ -1402,4 +1402,22 @@ void BlenderSession::update_resumable_tile_manager(int num_samples)
 	session->tile_manager.range_num_samples = range_num_samples;
 }
 
+bool can_denoise_render_result(BL::RenderResult& b_rr)
+{
+	/* Since the RenderResult may contain multiple layers,
+	 * this function returns true if at least one of them can be denoised. */
+	BL::RenderResult::layers_iterator b_layer_iter;
+	BL::RenderLayer::passes_iterator b_pass_iter;
+	for(b_rr.layers.begin(b_layer_iter); b_layer_iter != b_rr.layers.end(); ++b_layer_iter) {
+		int extended_types = 0;
+		for(b_layer_iter->passes.begin(b_pass_iter); b_pass_iter != b_layer_iter->passes.end(); ++b_pass_iter) {
+			extended_types |= b_pass_iter->extended_type();
+		}
+		if((~extended_types & EX_TYPE_DENOISE_REQUIRED) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
 CCL_NAMESPACE_END

@@ -153,6 +153,8 @@ protected:
 	void update_resumable_tile_manager(int num_samples);
 };
 
+bool can_denoise_render_result(BL::RenderResult& b_rr);
+
 CCL_NAMESPACE_END
 
 #endif /* __BLENDER_SESSION_H__ */
