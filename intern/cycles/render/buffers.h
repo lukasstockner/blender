@@ -30,6 +30,29 @@
 
 CCL_NAMESPACE_BEGIN
 
+typedef enum DenoiseExtendedTypes {
+	EX_TYPE_NONE                      = 0,
+	EX_TYPE_DENOISE_NORMAL            = (1 << 0),
+	EX_TYPE_DENOISE_NORMAL_VAR        = (1 << 1),
+	EX_TYPE_DENOISE_ALBEDO            = (1 << 2),
+	EX_TYPE_DENOISE_ALBEDO_VAR        = (1 << 3),
+	EX_TYPE_DENOISE_DEPTH             = (1 << 4),
+	EX_TYPE_DENOISE_DEPTH_VAR         = (1 << 5),
+	EX_TYPE_DENOISE_NOISY             = (1 << 6),
+	EX_TYPE_DENOISE_NOISY_VAR         = (1 << 7),
+	EX_TYPE_DENOISE_CLEAN             = (1 << 8),
+
+	EX_TYPE_DENOISE_REQUIRED = (EX_TYPE_DENOISE_NORMAL
+	                          | EX_TYPE_DENOISE_NORMAL_VAR
+	                          | EX_TYPE_DENOISE_ALBEDO
+	                          | EX_TYPE_DENOISE_ALBEDO_VAR
+	                          | EX_TYPE_DENOISE_DEPTH
+	                          | EX_TYPE_DENOISE_DEPTH_VAR
+	                          | EX_TYPE_DENOISE_NOISY
+	                          | EX_TYPE_DENOISE_NOISY_VAR),
+	EX_TYPE_DENOISE_ALL = EX_TYPE_DENOISE_REQUIRED | EX_TYPE_DENOISE_CLEAN,
+} DenoiseExtendedTypes;
+
 class Device;
 struct DeviceDrawParams;
 struct float4;

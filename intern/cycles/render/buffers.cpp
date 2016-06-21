@@ -186,22 +186,23 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 	if(!params.denoising_passes)
 		/* The RenderBuffer doesn't have denoising passes. */
 		return false;
-	if(!(type & 0b111111111))
+	if(!(type & EX_TYPE_DENOISE_ALL))
 		/* The type doesn't correspond to any denoising pass. */
 		return false;
 
 	float scale = 1.0f;
 	int type_offset = 0;
 	switch(type) {
-		case (1 << 0): break;
-		case (1 << 1): type_offset =  3; break;
-		case (1 << 2): type_offset =  6; break;
-		case (1 << 3): type_offset =  9; break;
-		case (1 << 4): type_offset = 12; break;
-		case (1 << 5): type_offset = 13; break;
-		case (1 << 6): type_offset = 14; scale = exposure; break;
-		case (1 << 7): type_offset = 17; scale = exposure*exposure; break;
-		case (1 << 8): type_offset = 20; scale = exposure/sample; break;
+		case EX_TYPE_NONE: assert(0); break;
+		case EX_TYPE_DENOISE_NORMAL:     type_offset =  0; scale = 1.0f/sample; break;
+		case EX_TYPE_DENOISE_NORMAL_VAR: type_offset =  3; scale = 1.0f/sample; break;
+		case EX_TYPE_DENOISE_ALBEDO:     type_offset =  6; scale = 1.0f/sample; break;
+		case EX_TYPE_DENOISE_ALBEDO_VAR: type_offset =  9; scale = 1.0f/sample; break;
+		case EX_TYPE_DENOISE_DEPTH:      type_offset = 12; scale = 1.0f/sample; break;
+		case EX_TYPE_DENOISE_DEPTH_VAR:  type_offset = 13; scale = 1.0f/sample; break;
+		case EX_TYPE_DENOISE_NOISY:      type_offset = 14; scale = exposure/sample; break;
+		case EX_TYPE_DENOISE_NOISY_VAR:  type_offset = 17; scale = exposure*exposure/sample; break;
+		case EX_TYPE_DENOISE_CLEAN:      type_offset = 20; scale = exposure/sample; break;
 	}
 
 	int pass_offset = params.get_denoise_offset() + type_offset;
@@ -214,13 +215,13 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
                           for(int x = params.overscan; x < params.width - params.overscan; x++, in += pass_stride, pixels += components)
 
 	if(components == 1) {
-		assert(type & 0b110000);
+		assert(type & (EX_TYPE_DENOISE_DEPTH | EX_TYPE_DENOISE_DEPTH_VAR));
 		FOREACH_PIXEL
 			pixels[0] = *in;
 	}
 	else {
 		assert(components == 3);
-		assert(!(type & 0b110000));
+		assert(!(type & (EX_TYPE_DENOISE_DEPTH | EX_TYPE_DENOISE_DEPTH_VAR)));
 
 		FOREACH_PIXEL {
 			pixels[0] = in[0] * scale;
