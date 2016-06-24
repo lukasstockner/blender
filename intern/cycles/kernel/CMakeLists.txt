@@ -39,6 +39,7 @@ set(SRC_HEADERS
 	kernel_differential.h
 	kernel_emission.h
 	kernel_film.h
+	kernel_filter.h
 	kernel_globals.h
 	kernel_jitter.h
 	kernel_light.h
@@ -164,6 +165,7 @@ set(SRC_UTIL_HEADERS
 	../util/util_half.h
 	../util/util_math.h
 	../util/util_math_fast.h
+	../util/util_math_matrix.h
 	../util/util_transform.h
 	../util/util_texture.h
 	../util/util_types.h
