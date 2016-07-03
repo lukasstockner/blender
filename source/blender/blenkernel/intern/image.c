@@ -95,8 +95,6 @@
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
 
-#include "WM_api.h"
-
 static SpinLock image_spin;
 
 /* prototypes */
@@ -109,8 +107,8 @@ static void image_add_view(Image *ima, const char *viewname, const char *filepat
 #define IMA_NO_INDEX    0x7FEFEFEF
 
 /* quick lookup: supports 1 million frames, thousand passes */
-#define IMA_MAKE_INDEX(frame, index)    ((frame) << 10) + index
-#define IMA_INDEX_FRAME(index)          (index >> 10)
+#define IMA_MAKE_INDEX(frame, index)    (((frame) << 10) + (index))
+#define IMA_INDEX_FRAME(index)           ((index) >> 10)
 /*
 #define IMA_INDEX_PASS(index)           (index & ~1023)
 */
@@ -324,19 +322,15 @@ void BKE_image_free_buffers(Image *ima)
 	ima->ok = IMA_OK;
 }
 
-/* called by library too, do not free ima itself */
+/** Free (or release) any data used by this image (does not free the image itself). */
 void BKE_image_free(Image *ima)
 {
 	int a;
 
+	/* Also frees animdata. */
 	BKE_image_free_buffers(ima);
 
 	image_free_packedfiles(ima);
-
-	BKE_icon_id_delete(&ima->id);
-	ima->id.icon_id = 0;
-
-	BKE_previewimg_free(&ima->preview);
 
 	for (a = 0; a < IMA_MAX_RENDER_SLOT; a++) {
 		if (ima->renders[a]) {
@@ -346,7 +340,10 @@ void BKE_image_free(Image *ima)
 	}
 
 	BKE_image_free_views(ima);
-	MEM_freeN(ima->stereo3d_format);
+	MEM_SAFE_FREE(ima->stereo3d_format);
+
+	BKE_icon_id_delete(&ima->id);
+	BKE_previewimg_free(&ima->preview);
 }
 
 /* only image block itself */
@@ -1748,6 +1745,7 @@ typedef struct StampData {
 	char scene[STAMP_NAME_SIZE];
 	char strip[STAMP_NAME_SIZE];
 	char rendertime[STAMP_NAME_SIZE];
+	char memory[STAMP_NAME_SIZE];
 } StampData;
 #undef STAMP_NAME_SIZE
 
@@ -1869,6 +1867,13 @@ static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int d
 		else {
 			stamp_data->rendertime[0] = '\0';
 		}
+
+		if (stats && (scene->r.stamp & R_STAMP_MEMORY)) {
+			BLI_snprintf(stamp_data->memory, sizeof(stamp_data->memory), do_prefix ? "Peak Memory %.2fM" : "%.2fM", stats->mem_peak);
+		}
+		else {
+			stamp_data->memory[0] = '\0';
+		}
 	}
 }
 
@@ -1942,6 +1947,12 @@ static void stampdata_from_template(StampData *stamp_data,
 	}
 	else {
 		stamp_data->rendertime[0] = '\0';
+	}
+	if (scene->r.stamp & R_STAMP_MEMORY) {
+		BLI_snprintf(stamp_data->memory, sizeof(stamp_data->memory), "Peak Memory %s", stamp_data_template->memory);
+	}
+	else {
+		stamp_data->memory[0] = '\0';
 	}
 }
 
@@ -2056,6 +2067,21 @@ void BKE_image_stamp_buf(
 	}
 
 	/* Top left corner, below File, Date, Rendertime */
+	if (TEXT_SIZE_CHECK(stamp_data.memory, w, h)) {
+		y -= h;
+
+		/* and space for background. */
+		buf_rectfill_area(rect, rectf, width, height, scene->r.bg_stamp, display,
+		                  0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
+
+		BLF_position(mono, x, y + y_ofs, 0.0);
+		BLF_draw_buffer(mono, stamp_data.memory, BLF_DRAW_STR_DUMMY_MAX);
+
+		/* the extra pixel for background. */
+		y -= BUFF_MARGIN_Y * 2;
+	}
+
+	/* Top left corner, below File, Date, Memory, Rendertime */
 	BLF_enable(mono, BLF_WORD_WRAP);
 	if (TEXT_SIZE_CHECK_WORD_WRAP(stamp_data.note, w, h)) {
 		y -= h;
@@ -2219,6 +2245,7 @@ void BKE_stamp_info_callback(void *data, struct StampData *stamp_data, StampCall
 	CALL(scene, "Scene");
 	CALL(strip, "Strip");
 	CALL(rendertime, "RenderTime");
+	CALL(memory, "Memory");
 
 #undef CALL
 }

@@ -75,8 +75,8 @@ int BufferParams::get_passes_size()
 {
 	int size = 0;
 
-	foreach(Pass& pass, passes)
-		size += pass.components;
+	for(size_t i = 0; i < passes.size(); i++)
+		size += passes[i].components;
 
 	if(denoising_passes) {
 		/* Feature passes: 7 Channels (3 Color, 3 Normal, 1 Depth) + 7 Variance
@@ -91,8 +91,8 @@ int BufferParams::get_denoise_offset()
 {
 	int offset = 0;
 
-	foreach(Pass& pass, passes)
-		offset += pass.components;
+	for(size_t i = 0; i < passes.size(); i++)
+		offset += passes[i].components;
 
 	return offset;
 }
@@ -237,7 +237,9 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 {
 	int pass_offset = 0;
 
-	foreach(Pass& pass, params.passes) {
+	for(size_t j = 0; j < params.passes.size(); j++) {
+		Pass& pass = params.passes[j];
+
 		if(pass.type != type) {
 			pass_offset += pass.components;
 			continue;
@@ -303,7 +305,8 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 			else if(pass.divide_type != PASS_NONE) {
 				int divide_offset = -pass_offset;
 				/* RGB lighting passes that need to divide out color */
-				foreach(Pass& color_pass, params.passes) {
+				for(size_t k = 0; k < params.passes.size(); k++) {
+					Pass& color_pass = params.passes[k];
 					if(color_pass.type == pass.divide_type)
 						break;
 					divide_offset += color_pass.components;
@@ -349,7 +352,8 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 			else if(type == PASS_MOTION) {
 				int weight_offset = -pass_offset;
 				/* need to normalize by number of samples accumulated for motion */
-				foreach(Pass& color_pass, params.passes) {
+				for(size_t k = 0; k < params.passes.size(); k++) {
+					Pass& color_pass = params.passes[k];
 					if(color_pass.type == PASS_MOTION_WEIGHT)
 						break;
 					weight_offset += color_pass.components;

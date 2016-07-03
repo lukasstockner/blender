@@ -141,6 +141,11 @@ int count_particles_mod(ParticleSystem *psys, int totgr, int cur)
 
 #define PATH_CACHE_BUF_SIZE 1024
 
+static ParticleCacheKey *pcache_key_segment_endpoint_safe(ParticleCacheKey *key)
+{
+	return (key->segments > 0) ? (key + (key->segments - 1)) : key;
+}
+
 static ParticleCacheKey **psys_alloc_path_cache_buffers(ListBase *bufs, int tot, int totkeys)
 {
 	LinkData *buf;
@@ -278,7 +283,7 @@ bool psys_in_edit_mode(Scene *scene, ParticleSystem *psys)
 {
 	return (scene->basact && (scene->basact->object->mode & OB_MODE_PARTICLE_EDIT) && psys == psys_get_current((scene->basact)->object) && (psys->edit || psys->pointcache->edit) && !psys->renderdata);
 }
-bool psys_check_enabled(Object *ob, ParticleSystem *psys)
+bool psys_check_enabled(Object *ob, ParticleSystem *psys, const bool use_render_params)
 {
 	ParticleSystemModifierData *psmd;
 
@@ -286,7 +291,7 @@ bool psys_check_enabled(Object *ob, ParticleSystem *psys)
 		return 0;
 
 	psmd = psys_get_modifier(ob, psys);
-	if (psys->renderdata || G.is_rendering) {
+	if (psys->renderdata || use_render_params) {
 		if (!(psmd->modifier.mode & eModifierMode_Render))
 			return 0;
 	}
@@ -371,12 +376,17 @@ static void fluid_free_settings(SPHFluidSettings *fluid)
 		MEM_freeN(fluid); 
 }
 
+/** Free (or release) any data used by this particle settings (does not free the partsett itself). */
 void BKE_particlesettings_free(ParticleSettings *part)
 {
-	MTex *mtex;
 	int a;
-	BKE_animdata_free(&part->id);
+
+	BKE_animdata_free((ID *)part, false);
 	
+	for (a = 0; a < MAX_MTEX; a++) {
+		MEM_SAFE_FREE(part->mtex[a]);
+	}
+
 	if (part->clumpcurve)
 		curvemapping_free(part->clumpcurve);
 	if (part->roughcurve)
@@ -385,21 +395,12 @@ void BKE_particlesettings_free(ParticleSettings *part)
 	free_partdeflect(part->pd);
 	free_partdeflect(part->pd2);
 
-	if (part->effector_weights)
-		MEM_freeN(part->effector_weights);
+	MEM_SAFE_FREE(part->effector_weights);
 
 	BLI_freelistN(&part->dupliweights);
 
 	boid_free_settings(part->boids);
 	fluid_free_settings(part->fluid);
-
-	for (a = 0; a < MAX_MTEX; a++) {
-		mtex = part->mtex[a];
-		if (mtex && mtex->tex)
-			id_us_min(&mtex->tex->id);
-		if (mtex)
-			MEM_freeN(mtex);
-	}
 }
 
 void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int dynamics)
@@ -568,10 +569,7 @@ void psys_free(Object *ob, ParticleSystem *psys)
 		if (!nr)
 			ob->transflag &= ~OB_DUPLIPARTS;
 
-		if (psys->part) {
-			id_us_min(&psys->part->id);
-			psys->part = NULL;
-		}
+		psys->part = NULL;
 
 		BKE_ptcache_free_list(&psys->ptcaches);
 		psys->pointcache = NULL;
@@ -2009,7 +2007,7 @@ float *psys_cache_vgroup(DerivedMesh *dm, ParticleSystem *psys, int vgroup)
 	}
 	return vg;
 }
-void psys_find_parents(ParticleSimulationData *sim)
+void psys_find_parents(ParticleSimulationData *sim, const bool use_render_params)
 {
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = sim->psys->part;
@@ -2021,7 +2019,7 @@ void psys_find_parents(ParticleSimulationData *sim)
 	int from = PART_FROM_FACE;
 	totparent = (int)(totchild * part->parents * 0.3f);
 
-	if ((sim->psys->renderdata || G.is_rendering) && part->child_nbr && part->ren_child_nbr)
+	if ((sim->psys->renderdata || use_render_params) && part->child_nbr && part->ren_child_nbr)
 		totparent *= (float)part->child_nbr / (float)part->ren_child_nbr;
 
 	/* hard limit, workaround for it being ignored above */
@@ -2052,7 +2050,9 @@ void psys_find_parents(ParticleSimulationData *sim)
 	BLI_kdtree_free(tree);
 }
 
-static bool psys_thread_context_init_path(ParticleThreadContext *ctx, ParticleSimulationData *sim, Scene *scene, float cfra, int editupdate)
+static bool psys_thread_context_init_path(
+        ParticleThreadContext *ctx, ParticleSimulationData *sim, Scene *scene,
+        float cfra, const bool editupdate, const bool use_render_params)
 {
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
@@ -2066,7 +2066,7 @@ static bool psys_thread_context_init_path(ParticleThreadContext *ctx, ParticleSi
 	if (psys_in_edit_mode(scene, psys)) {
 		ParticleEditSettings *pset = &scene->toolsettings->particle;
 
-		if ((psys->renderdata == 0 && G.is_rendering == 0) && (psys->edit == NULL || pset->flag & PE_DRAW_PART) == 0)
+		if ((psys->renderdata == 0 && use_render_params == 0) && (psys->edit == NULL || pset->flag & PE_DRAW_PART) == 0)
 			totchild = 0;
 
 		segments = 1 << pset->draw_step;
@@ -2075,14 +2075,14 @@ static bool psys_thread_context_init_path(ParticleThreadContext *ctx, ParticleSi
 	if (totchild && part->childtype == PART_CHILD_FACES) {
 		totparent = (int)(totchild * part->parents * 0.3f);
 		
-		if ((psys->renderdata || G.is_rendering) && part->child_nbr && part->ren_child_nbr)
+		if ((psys->renderdata || use_render_params) && part->child_nbr && part->ren_child_nbr)
 			totparent *= (float)part->child_nbr / (float)part->ren_child_nbr;
 
 		/* part->parents could still be 0 so we can't test with totparent */
 		between = 1;
 	}
 
-	if (psys->renderdata || G.is_rendering)
+	if (psys->renderdata || use_render_params)
 		segments = 1 << part->ren_step;
 	else {
 		totchild = (int)((float)totchild * (float)part->disp / 100.0f);
@@ -2205,20 +2205,22 @@ static void psys_thread_create_path(ParticleTask *task, struct ChildParticle *cp
 
 		/* modify weights to create parting */
 		if (p_fac > 0.f) {
+			const ParticleCacheKey *key_0_last = pcache_key_segment_endpoint_safe(key[0]);
 			for (w = 0; w < 4; w++) {
-				if (w && weight[w] > 0.f) {
+				if (w && (weight[w] > 0.f)) {
+					const ParticleCacheKey *key_w_last = pcache_key_segment_endpoint_safe(key[w]);
 					float d;
 					if (part->flag & PART_CHILD_LONG_HAIR) {
 						/* For long hair use tip distance/root distance as parting factor instead of root to tip angle. */
 						float d1 = len_v3v3(key[0]->co, key[w]->co);
-						float d2 = len_v3v3((key[0] + key[0]->segments - 1)->co, (key[w] + key[w]->segments - 1)->co);
+						float d2 = len_v3v3(key_0_last->co, key_w_last->co);
 
 						d = d1 > 0.f ? d2 / d1 - 1.f : 10000.f;
 					}
 					else {
 						float v1[3], v2[3];
-						sub_v3_v3v3(v1, (key[0] + key[0]->segments - 1)->co, key[0]->co);
-						sub_v3_v3v3(v2, (key[w] + key[w]->segments - 1)->co, key[w]->co);
+						sub_v3_v3v3(v1, key_0_last->co, key[0]->co);
+						sub_v3_v3v3(v2, key_w_last->co, key[w]->co);
 						normalize_v3(v1);
 						normalize_v3(v2);
 
@@ -2417,7 +2419,9 @@ static void exec_child_path_cache(TaskPool * __restrict UNUSED(pool), void *task
 	}
 }
 
-void psys_cache_child_paths(ParticleSimulationData *sim, float cfra, int editupdate)
+void psys_cache_child_paths(
+        ParticleSimulationData *sim, float cfra,
+        const bool editupdate, const bool use_render_params)
 {
 	TaskScheduler *task_scheduler;
 	TaskPool *task_pool;
@@ -2430,7 +2434,7 @@ void psys_cache_child_paths(ParticleSimulationData *sim, float cfra, int editupd
 		return;
 	
 	/* create a task pool for child path tasks */
-	if (!psys_thread_context_init_path(&ctx, sim, sim->scene, cfra, editupdate))
+	if (!psys_thread_context_init_path(&ctx, sim, sim->scene, cfra, editupdate, use_render_params))
 		return;
 	
 	task_scheduler = BLI_task_scheduler_get();
@@ -2522,7 +2526,7 @@ static void cache_key_incremental_rotation(ParticleCacheKey *key0, ParticleCache
  * - Useful for making use of opengl vertex arrays for super fast strand drawing.
  * - Makes child strands possible and creates them too into the cache.
  * - Cached path data is also used to determine cut position for the editmode tool. */
-void psys_cache_paths(ParticleSimulationData *sim, float cfra)
+void psys_cache_paths(ParticleSimulationData *sim, float cfra, const bool use_render_params)
 {
 	PARTICLE_PSMD;
 	ParticleEditSettings *pset = &sim->scene->toolsettings->particle;
@@ -2546,7 +2550,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	float prev_tangent[3] = {0.0f, 0.0f, 0.0f}, hairmat[4][4];
 	float rotmat[3][3];
 	int k;
-	int segments = (int)pow(2.0, (double)((psys->renderdata || G.is_rendering) ? part->ren_step : part->draw_step));
+	int segments = (int)pow(2.0, (double)((psys->renderdata || use_render_params) ? part->ren_step : part->draw_step));
 	int totpart = psys->totpart;
 	float length, vec[3];
 	float *vg_effector = NULL;
@@ -2725,7 +2729,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	if (vg_length)
 		MEM_freeN(vg_length);
 }
-void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cfra)
+void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cfra, const bool use_render_params)
 {
 	ParticleCacheKey *ca, **cache = edit->pathcache;
 	ParticleEditSettings *pset = &scene->toolsettings->particle;
@@ -2921,7 +2925,7 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 		sim.psys = psys;
 		sim.psmd = psys_get_modifier(ob, psys);
 
-		psys_cache_child_paths(&sim, cfra, 1);
+		psys_cache_child_paths(&sim, cfra, true, use_render_params);
 	}
 
 	/* clear recalc flag if set here */

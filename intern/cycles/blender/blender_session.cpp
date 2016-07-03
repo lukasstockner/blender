@@ -482,7 +482,7 @@ void BlenderSession::render()
 		BL::RenderLayer b_rlay = *b_single_rlay;
 
 		/* add passes */
-		vector<Pass> passes;
+		array<Pass> passes;
 		Pass::add(PASS_COMBINED, passes);
 
 		if(session_params.device.advanced_shading) {

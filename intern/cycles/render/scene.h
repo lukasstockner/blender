@@ -109,10 +109,12 @@ public:
 	device_vector<uint> sobol_directions;
 
 	/* cpu images */
-	device_vector<uchar4> tex_byte4_image[TEX_NUM_BYTE4_IMAGES_CPU];
-	device_vector<float4> tex_float4_image[TEX_NUM_FLOAT4_IMAGES_CPU];
-	device_vector<float> tex_float_image[TEX_NUM_FLOAT_IMAGES_CPU];
-	device_vector<uchar> tex_byte_image[TEX_NUM_BYTE_IMAGES_CPU];
+	device_vector<uchar4> tex_byte4_image[TEX_NUM_BYTE4_CPU];
+	device_vector<float4> tex_float4_image[TEX_NUM_FLOAT4_CPU];
+	device_vector<float> tex_float_image[TEX_NUM_FLOAT_CPU];
+	device_vector<uchar> tex_byte_image[TEX_NUM_BYTE_CPU];
+	device_vector<half4> tex_half4_image[TEX_NUM_HALF4_CPU];
+	device_vector<half> tex_half_image[TEX_NUM_HALF_CPU];
 
 	/* opencl images */
 	device_vector<uchar4> tex_image_byte4_packed;

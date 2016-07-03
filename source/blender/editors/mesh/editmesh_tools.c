@@ -312,9 +312,10 @@ void EMBM_project_snap_verts(bContext *C, ARegion *ar, BMEditMesh *em)
 			if (ED_view3d_project_float_object(ar, eve->co, mval, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
 				if (ED_transform_snap_object_project_view3d_mixed(
 				        snap_context,
+				        SCE_SELECT_FACE,
 				        &(const struct SnapObjectParams){
-				            .snap_select = SNAP_NOT_OBEDIT,
-				            .snap_to_flag = SCE_SELECT_FACE,
+				            .snap_select = SNAP_NOT_ACTIVE,
+				            .use_object_edit_cage = false,
 				        },
 				        mval, NULL, true,
 				        co_proj, NULL))
@@ -2909,7 +2910,7 @@ static int edbm_knife_cut_exec(bContext *C, wmOperator *op)
 			}
 		}
 
-		BMO_elem_flag_set(bm, be, ELE_EDGE_CUT, is_cut);
+		BMO_edge_flag_set(bm, be, ELE_EDGE_CUT, is_cut);
 	}
 
 
@@ -2981,7 +2982,9 @@ static Base *mesh_separate_tagged(Main *bmain, Scene *scene, Base *base_old, BMe
 	Object *obedit = base_old->object;
 	BMesh *bm_new;
 
-	bm_new = BM_mesh_create(&bm_mesh_allocsize_default);
+	bm_new = BM_mesh_create(
+	        &bm_mesh_allocsize_default,
+	        &((struct BMeshCreateParams){.use_toolflags = true,}));
 	BM_mesh_elem_toolflags_ensure(bm_new);  /* needed for 'duplicate' bmo */
 
 	CustomData_copy(&bm_old->vdata, &bm_new->vdata, CD_MASK_BMESH, CD_CALLOC, 0);
@@ -3293,7 +3296,9 @@ static int edbm_separate_exec(bContext *C, wmOperator *op)
 					BMesh *bm_old = NULL;
 					int retval_iter = 0;
 
-					bm_old = BM_mesh_create(&bm_mesh_allocsize_default);
+					bm_old = BM_mesh_create(
+					        &bm_mesh_allocsize_default,
+					        &((struct BMeshCreateParams){.use_toolflags = true,}));
 
 					BM_mesh_bm_from_me(bm_old, me, (&(struct BMeshFromMeshParams){0}));
 
