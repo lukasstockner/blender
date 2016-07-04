@@ -149,6 +149,10 @@ inline DebugFlags& DebugFlags() {
 std::ostream& operator <<(std::ostream &os,
                           DebugFlagsConstRef debug_flags);
 
+#ifdef WITH_CYCLES_DEBUG_FILTER
+bool debug_write_pfm(const char *name, float *data, int w, int h, int pixelstride, int linestride);
+#endif
+
 CCL_NAMESPACE_END
 
 #endif /* __UTIL_DEBUG_H__ */

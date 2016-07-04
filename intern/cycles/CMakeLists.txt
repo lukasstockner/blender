@@ -192,6 +192,10 @@ if(WITH_CYCLES_DEBUG)
 	add_definitions(-DWITH_CYCLES_DEBUG)
 endif()
 
+if(WITH_CYCLES_DEBUG_FILTER)
+	add_definitions(-DWITH_CYCLES_DEBUG_FILTER)
+endif()
+
 include_directories(
 	SYSTEM
 	${BOOST_INCLUDE_DIR}

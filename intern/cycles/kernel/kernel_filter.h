@@ -254,6 +254,8 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	float *bandwidth_factor = &storage->bandwidth[0];
 	for(int i = 0; i < rank; i++)
 		bandwidth_factor[i] = sqrtf(2.0f * average(fabs(XtY[1+rank+i])) + 0.16f);
+	for(int i = rank; i < DENOISE_FEATURES; i++)
+		bandwidth_factor[i] = 0.0f;
 
 
 
@@ -423,6 +425,11 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float **
 
 		math_add_gramian(XtX, matrix_size, design_row, weight);
 	} END_FOR_PIXEL_WINDOW
+
+#ifdef WITH_CYCLES_DEBUG_FILTER
+	storage->filtered_global_bandwidth = global_bandwidth;
+	storage->sum_weight = XtX[0];
+#endif
 
 	math_matrix_add_diagonal(XtX, matrix_size, 1e-4f); /* Improve the numerical stability. */
 	math_cholesky(XtX, matrix_size);

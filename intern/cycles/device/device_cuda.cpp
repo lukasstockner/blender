@@ -828,6 +828,17 @@ public:
 
 		cuda_assert(cuCtxSynchronize());
 
+#ifdef WITH_CYCLES_DEBUG_FILTER
+		FilterStorage *host_storage = new FilterStorage[filter_w*filter_h];
+		cuMemcpyDtoH(host_storage, d_storage, sizeof(host_storage));
+		for(int i = 0; i < DENOISE_FEATURES; i++)
+			debug_write_pfm(string_printf("debug_%dx%d_bandwidth_%d.pfm", rtile.x, rtile.y, i).c_str(), &host_storage[0].bandwidth[i], filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
+		debug_write_pfm(string_printf("debug_%dx%d_global_bandwidth.pfm", rtile.x, rtile.y).c_str(), &host_storage[0].global_bandwidth, filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
+		debug_write_pfm(string_printf("debug_%dx%d_filtered_global_bandwidth.pfm", rtile.x, rtile.y).c_str(), &host_storage[0].filtered_global_bandwidth, filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
+		debug_write_pfm(string_printf("debug_%dx%d_sum_weight.pfm", rtile.x, rtile.y).c_str(), &host_storage[0].sum_weight, filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
+		delete[] host_storage;
+#endif
+
 		cuda_assert(cuMemFree(d_storage));
 
 		cuda_pop_context();

@@ -344,6 +344,14 @@ public:
 						filter_final_pass_kernel(&kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, filter_rect);
 					}
 				}
+#ifdef WITH_CYCLES_DEBUG_FILTER
+				for(int i = 0; i < DENOISE_FEATURES; i++)
+					debug_write_pfm(string_printf("debug_%dx%d_bandwidth_%d.pfm", tile.x, tile.y, i).c_str(), &storages[0].bandwidth[i], tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
+				debug_write_pfm(string_printf("debug_%dx%d_global_bandwidth.pfm", tile.x, tile.y).c_str(), &storages[0].global_bandwidth, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
+				debug_write_pfm(string_printf("debug_%dx%d_filtered_global_bandwidth.pfm", tile.x, tile.y).c_str(), &storages[0].filtered_global_bandwidth, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
+				debug_write_pfm(string_printf("debug_%dx%d_sum_weight.pfm", tile.x, tile.y).c_str(), &storages[0].sum_weight, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
+#endif
+				tile.sample = sample;
 			}
 
 			task.release_tile(tile);

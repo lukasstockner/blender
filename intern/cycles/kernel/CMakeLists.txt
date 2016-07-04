@@ -232,6 +232,10 @@ if(WITH_CYCLES_CUDA_BINARIES)
 			set(cuda_debug_flags "")
 		endif()
 
+		if(WITH_CYCLES_DEBUG_FILTER)
+			set(cuda_debug_flags "${cuda_debug_flags} -DWITH_CYCLES_DEBUG_FILTER")
+		endif()
+
 		set(cuda_version_flags "-D__KERNEL_CUDA_VERSION__=${CUDA_VERSION}")
 		set(cuda_math_flags "--use_fast_math")
 

@@ -1281,6 +1281,10 @@ typedef struct FilterStorage {
 	float bandwidth[DENOISE_FEATURES];
 	int rank;
 	float global_bandwidth;
+#ifdef WITH_CYCLES_DEBUG_FILTER
+	float filtered_global_bandwidth;
+	float sum_weight;
+#endif
 } FilterStorage;
 
 CCL_NAMESPACE_END

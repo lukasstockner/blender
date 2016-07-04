@@ -18,6 +18,10 @@
 
 #include <stdlib.h>
 
+#ifdef WITH_CYCLES_DEBUG_FILTER
+#include <stdio.h>
+#endif
+
 #include "util_logging.h"
 #include "util_string.h"
 
@@ -178,5 +182,19 @@ std::ostream& operator <<(std::ostream &os,
 	   << "\n";
 	return os;
 }
+
+#ifdef WITH_CYCLES_DEBUG_FILTER
+bool debug_write_pfm(const char *name, float *data, int w, int h, int pixelstride, int linestride)
+{
+	FILE* f = fopen(name, "wb");
+	if(!f) return false;
+	fprintf(f, "Pf\n%d %d\n-1\n", w, h);
+	for(int y = 0; y < h; y++, data += linestride*pixelstride)
+		for(int x = 0; x < w; x++)
+			fwrite(data+x*pixelstride, sizeof(float), 1, f);
+	fclose(f);
+	return true;
+}
+#endif
 
 CCL_NAMESPACE_END
