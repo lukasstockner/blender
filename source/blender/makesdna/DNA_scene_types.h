@@ -268,15 +268,15 @@ typedef enum ScenePassType {
 } ScenePassType;
 
 typedef enum SceneExtendedPassType {
-	SCE_PASS_DENOISE_NORMAL           = (1UL << 32),
-	SCE_PASS_DENOISE_NORMAL_VAR       = (1UL << 33),
-	SCE_PASS_DENOISE_ALBEDO           = (1UL << 34),
-	SCE_PASS_DENOISE_ALBEDO_VAR       = (1UL << 35),
-	SCE_PASS_DENOISE_DEPTH            = (1UL << 36),
-	SCE_PASS_DENOISE_DEPTH_VAR        = (1UL << 37),
-	SCE_PASS_DENOISE_NOISY            = (1UL << 38), /* The original noisy image (only the components that are denoised). */
-	SCE_PASS_DENOISE_NOISY_VAR        = (1UL << 39),
-	SCE_PASS_DENOISE_CLEAN            = (1UL << 40), /* If present, these image components are added to the denoised image. */
+	SCE_PASS_DENOISE_NORMAL           = (((uint64_t) 1) << 32),
+	SCE_PASS_DENOISE_NORMAL_VAR       = (((uint64_t) 1) << 33),
+	SCE_PASS_DENOISE_ALBEDO           = (((uint64_t) 1) << 34),
+	SCE_PASS_DENOISE_ALBEDO_VAR       = (((uint64_t) 1) << 35),
+	SCE_PASS_DENOISE_DEPTH            = (((uint64_t) 1) << 36),
+	SCE_PASS_DENOISE_DEPTH_VAR        = (((uint64_t) 1) << 37),
+	SCE_PASS_DENOISE_NOISY            = (((uint64_t) 1) << 38), /* The original noisy image (only the components that are denoised). */
+	SCE_PASS_DENOISE_NOISY_VAR        = (((uint64_t) 1) << 39),
+	SCE_PASS_DENOISE_CLEAN            = (((uint64_t) 1) << 40), /* If present, these image components are added to the denoised image. */
 } SceneExtendedPassType;
 
 /* note, srl->passflag is treestore element 'nr' in outliner, short still... */
