@@ -506,12 +506,16 @@ void Session::get_neighbor_tiles(RenderTile *tiles)
 {
 	int center_idx = tiles[4].tile_index;
 	assert(tile_manager.state.tiles[center_idx].state == Tile::DENOISE);
-	int width = tile_manager.params.width, height = tile_manager.params.height;
+	BufferParams buffer_params = tile_manager.params;
+	int4 image_region = make_int4(buffer_params.full_x, buffer_params.full_y,
+	                              buffer_params.full_x + buffer_params.width, buffer_params.full_y + buffer_params.height);
+
 	for(int dy = -1, i = 0; dy <= 1; dy++) {
 		for(int dx = -1; dx <= 1; dx++, i++) {
 			int px = tiles[4].x + dx*params.tile_size.x;
 			int py = tiles[4].y + dy*params.tile_size.y;
-			if(px >= 0 && py >= 0 && px < width && py < height) {
+			if(px >= image_region.x && py >= image_region.y &&
+			   px <  image_region.z && py <  image_region.w) {
 				int tile_index = center_idx + dy*tile_manager.state.tile_stride + dx;
 				Tile *tile = &tile_manager.state.tiles[tile_index];
 				assert(tile->buffers);
@@ -522,7 +526,6 @@ void Session::get_neighbor_tiles(RenderTile *tiles)
 				tiles[i].w = tile->w;
 				tiles[i].h = tile->h;
 
-				BufferParams buffer_params = tile_manager.params;
 				buffer_params.full_x = tiles[i].x;
 				buffer_params.full_y = tiles[i].y;
 				buffer_params.width  = tiles[i].w;
@@ -532,8 +535,8 @@ void Session::get_neighbor_tiles(RenderTile *tiles)
 			}
 			else {
 				tiles[i].buffer = (device_ptr)NULL;
-				tiles[i].x = clamp(px, 0, width);
-				tiles[i].y = clamp(py, 0, height);
+				tiles[i].x = clamp(px, image_region.x, image_region.z);
+				tiles[i].y = clamp(py, image_region.y, image_region.w);
 				tiles[i].w = tiles[i].h = 0;
 			}
 		}
