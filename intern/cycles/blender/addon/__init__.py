@@ -93,7 +93,7 @@ class CyclesRender(bpy.types.RenderEngine):
         return engine.can_postprocess(result)
 
     def postprocess(self, scene, result):
-        engine.postprocess(scene, result);
+        engine.postprocess(self, scene, result);
 
 
 def engine_exit():

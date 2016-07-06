@@ -3697,13 +3697,15 @@ static int postprocess_exec(bContext *C, wmOperator *UNUSED(op))
 	Scene *scene = CTX_data_scene(C);
 	Image *ima = CTX_data_edit_image(C);
 	RenderResult *rr = BKE_image_acquire_renderresult(scene, ima);
-	RenderEngineType *type = RE_engines_find(scene->r.engine);
-	RenderEngine *engine = RE_engine_create(type);
 
-	type->postprocess(engine, scene, rr);
+	RE_engine_postprocess(scene, rr);
 
 	BKE_image_release_renderresult(scene, ima);
-	RE_engine_free(engine);
+
+	BKE_image_multilayer_index(rr, &CTX_wm_space_image(C)->iuser);
+	WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, NULL);
+
+	ED_region_tag_redraw(CTX_wm_region(C));
 
 	return OPERATOR_FINISHED;
 }

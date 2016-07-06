@@ -94,6 +94,30 @@ BlenderSession::BlenderSession(BL::RenderEngine& b_engine,
 	start_resize_time = 0.0;
 }
 
+BlenderSession::BlenderSession(BL::RenderEngine& b_engine,
+                               BL::UserPreferences& b_userpref,
+                               BL::Scene& b_scene)
+: b_engine(b_engine),
+  b_userpref(b_userpref),
+  b_data(PointerRNA_NULL),
+  b_render(PointerRNA_NULL),
+  b_scene(b_scene),
+  b_v3d(PointerRNA_NULL),
+  b_rv3d(PointerRNA_NULL),
+  python_thread_state(NULL)
+{
+	width = 0;
+	height = 0;
+
+	sync = NULL;
+	session = NULL;
+	scene = NULL;
+
+	background = true;
+	last_redraw_time = 0.0;
+	start_resize_time = 0.0;
+}
+
 BlenderSession::~BlenderSession()
 {
 	free_session();
@@ -1323,6 +1347,49 @@ void BlenderSession::update_resumable_tile_manager(int num_samples)
 
 	session->tile_manager.range_start_sample = range_start_sample;
 	session->tile_manager.range_num_samples = range_num_samples;
+}
+
+void BlenderSession::denoise(BL::RenderResult& b_rr)
+{
+	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
+
+	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, true);
+	session_params.only_denoise = true;
+	session_params.progressive_refine = false;
+	session_params.progressive = false;
+	session_params.samples = 1;
+	session_params.start_resolution = 1;
+	session = new Session(session_params);
+	session->set_pause(false);
+
+	session->write_render_tile_cb = function_bind(&BlenderSession::write_render_tile, this, _1);
+	session->update_render_tile_cb = function_bind(&BlenderSession::update_render_tile, this, _1, _2);
+
+	BL::RenderResult::layers_iterator b_layer_iter;
+	for(b_rr.layers.begin(b_layer_iter); b_layer_iter != b_rr.layers.end(); ++b_layer_iter) {
+		/* Search corresponding scene layer to get the half window. */
+		BL::RenderSettings r = b_scene.render();
+		BL::RenderSettings::layers_iterator b_s_layer_iter;
+		int half_window = -1;
+		for(r.layers.begin(b_s_layer_iter); b_s_layer_iter != r.layers.end(); ++b_s_layer_iter) {
+			if(b_s_layer_iter->name() == b_layer_iter->name()) {
+				half_window = b_s_layer_iter->half_window();
+				break;
+			}
+		}
+		assert(half_window != -1);
+
+		session->params.half_window = half_window;
+		session->params.samples = get_int(cscene, "samples");
+
+		session->buffers = BlenderSync::get_render_buffer(session->device, *b_layer_iter, b_rr, session->params.samples);
+
+		session->start_denoise();
+		session->wait();
+
+		delete session->buffers;
+		session->buffers = NULL;
+	}
 }
 
 bool can_denoise_render_result(BL::RenderResult& b_rr)

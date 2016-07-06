@@ -194,6 +194,8 @@ def can_postprocess(result):
     import _cycles
     return _cycles.can_postprocess(result.as_pointer())
 
-def postprocess(scene, result):
+def postprocess(engine, scene, result):
+    import bpy
     import _cycles
-    _cycles.postprocess(scene.as_pointer(), result.as_pointer())
+    userpref = bpy.context.user_preferences.as_pointer()
+    _cycles.postprocess(engine.as_pointer(), userpref, scene.as_pointer(), result.as_pointer())
