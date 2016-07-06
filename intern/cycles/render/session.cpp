@@ -46,7 +46,7 @@ Session::Session(const SessionParams& params_)
 : params(params_),
   tile_manager(params.progressive, params.samples, params.tile_size, params.start_resolution,
        params.background == false || params.progressive_refine, params.background, params.tile_order,
-       max(params.device.multi_devices.size(), 1)),
+       max(params.device.multi_devices.size(), 1), params.only_denoise),
   stats()
 {
 	device_use_gl = ((params.device.type != DEVICE_CPU) && !params.background);
@@ -131,6 +131,11 @@ Session::~Session()
 void Session::start()
 {
 	session_thread = new thread(function_bind(&Session::run, this));
+}
+
+void Session::start_denoise()
+{
+	session_thread = new thread(function_bind(&Session::run_denoise, this));
 }
 
 bool Session::ready_to_reset()
@@ -407,19 +412,17 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 		return true;
 	}
 
-	/* fill buffer parameters */
-	BufferParams buffer_params = tile_manager.params;
-	buffer_params.full_x = rtile.x;
-	buffer_params.full_y = rtile.y;
-	buffer_params.width = rtile.w;
-	buffer_params.height = rtile.h;
-	buffer_params.overscan = overscan;
-	buffer_params.final_width = rtile.w - 2*overscan;
-	buffer_params.final_height = rtile.h - 2*overscan;
-
-	buffer_params.get_offset_stride(rtile.offset, rtile.stride);
-
 	if(tile->buffers == NULL) {
+		/* fill buffer parameters */
+		BufferParams buffer_params = tile_manager.params;
+		buffer_params.full_x = rtile.x;
+		buffer_params.full_y = rtile.y;
+		buffer_params.width = rtile.w;
+		buffer_params.height = rtile.h;
+		buffer_params.overscan = overscan;
+		buffer_params.final_width = rtile.w - 2*overscan;
+		buffer_params.final_height = rtile.h - 2*overscan;
+
 		/* allocate buffers */
 		if(params.progressive_refine) {
 			tile_lock.lock();
@@ -448,6 +451,8 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 			tile->buffers->reset(tile_device, buffer_params);
 		}
 	}
+
+	tile->buffers->params.get_offset_stride(rtile.offset, rtile.stride);
 
 	rtile.buffer = tile->buffers->buffer.device_pointer;
 	rtile.rng_state = tile->buffers->rng_state.device_pointer;
@@ -526,12 +531,7 @@ void Session::get_neighbor_tiles(RenderTile *tiles)
 				tiles[i].w = tile->w;
 				tiles[i].h = tile->h;
 
-				buffer_params.full_x = tiles[i].x;
-				buffer_params.full_y = tiles[i].y;
-				buffer_params.width  = tiles[i].w;
-				buffer_params.height = tiles[i].h;
-
-				buffer_params.get_offset_stride(tiles[i].offset, tiles[i].stride);
+				tile->buffers->params.get_offset_stride(tiles[i].offset, tiles[i].stride);
 			}
 			else {
 				tiles[i].buffer = (device_ptr)NULL;
@@ -541,6 +541,8 @@ void Session::get_neighbor_tiles(RenderTile *tiles)
 			}
 		}
 	}
+
+	assert(tiles[4].buffers);
 }
 
 void Session::run_cpu()
@@ -754,6 +756,56 @@ void Session::run()
 	}
 
 	/* progress update */
+	if(progress.get_cancel())
+		progress.set_status("Cancel", progress.get_cancel_message());
+	else
+		progress.set_update();
+}
+
+void Session::run_denoise()
+{
+	if(!progress.get_cancel()) {
+		progress.reset_sample();
+		tile_manager.reset(buffers->params, params.samples);
+		tile_manager.state.global_buffers = buffers;
+		start_time = time_dt();
+		progress.set_render_start_time(start_time);
+
+		/* Set up KernelData. */
+		KernelData kernel_data;
+		kernel_data.integrator.half_window = params.half_window;
+		kernel_data.film.pass_stride = buffers->params.get_passes_size();
+		kernel_data.film.pass_denoising = buffers->params.get_denoise_offset();
+		kernel_data.film.pass_no_denoising = buffers->params.selective_denoising? kernel_data.film.pass_denoising+20 : 0;
+		device->const_copy_to("__data", &kernel_data, sizeof(kernel_data));
+
+		/* Generate tiles. */
+		tile_manager.next();
+		{
+			thread_scoped_lock buffers_lock(buffers_mutex);
+
+			if(!device->error_message().empty())
+				progress.set_error(device->error_message());
+
+			/* update status and timing */
+			update_status_time();
+
+			/* render */
+			render();
+
+			/* update status and timing */
+			update_status_time();
+
+
+			if(!device->error_message().empty())
+				progress.set_error(device->error_message());
+		}
+
+		device->task_wait();
+
+		progress.set_update();
+	}
+
 	if(progress.get_cancel())
 		progress.set_status("Cancel", progress.get_cancel_message());
 	else
@@ -986,7 +1038,7 @@ void Session::render()
 	task.update_tile_sample = function_bind(&Session::update_tile_sample, this, _1);
 	task.update_progress_sample = function_bind(&Session::update_progress_sample, this);
 	task.need_finish_queue = params.progressive_refine;
-	task.integrator_branched = scene->integrator->method == Integrator::BRANCHED_PATH;
+	task.integrator_branched = !params.only_denoise && (scene->integrator->method == Integrator::BRANCHED_PATH);
 	task.requested_tile_size = params.tile_size;
 
 	device->task_add(task);

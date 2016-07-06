@@ -1300,7 +1300,7 @@ public:
 					}
 				}
 				else if(tile.task == RenderTile::DENOISE) {
-					assert(!"Explicitly scheduling tiles for denoising isn't supported on GPUs!");
+					assert(!"Explicitly scheduling tiles for denoising isn't supported on GPUs yet!");
 				}
 
 				task->release_tile(tile);

@@ -88,7 +88,7 @@ enum SpiralDirection {
 }  /* namespace */
 
 TileManager::TileManager(bool progressive_, int num_samples_, int2 tile_size_, int start_resolution_,
-                         bool preserve_tile_device_, bool background_, TileOrder tile_order_, int num_devices_)
+                         bool preserve_tile_device_, bool background_, TileOrder tile_order_, int num_devices_, bool only_denoise_)
 {
 	progressive = progressive_;
 	tile_size = tile_size_;
@@ -99,6 +99,7 @@ TileManager::TileManager(bool progressive_, int num_samples_, int2 tile_size_, i
 	preserve_tile_device = preserve_tile_device_;
 	background = background_;
 	schedule_denoising = false;
+	only_denoise = only_denoise_;
 
 	range_start_sample = 0;
 	range_num_samples = -1;
@@ -130,6 +131,7 @@ void TileManager::reset(BufferParams& params_, int num_samples_)
 	num_samples = num_samples_;
 
 	state.buffer = BufferParams();
+	state.global_buffers = NULL;
 	state.sample = range_start_sample - 1;
 	state.num_tiles = 0;
 	state.num_rendered_tiles = 0;
@@ -168,7 +170,11 @@ int TileManager::gen_tiles(bool sliced)
 	state.render_tiles.resize(num);
 	state.denoise_tiles.resize(num);
 	state.tile_stride = tile_w;
-	vector<list<int> >::iterator tile_list = state.render_tiles.begin();
+	vector<list<int> >::iterator tile_list;
+	if(only_denoise)
+		tile_list = state.denoise_tiles.begin();
+	else
+		tile_list = state.render_tiles.begin();
 
 	if(tile_order == TILE_HILBERT_SPIRAL) {
 		assert(!sliced);
@@ -215,7 +221,7 @@ int TileManager::gen_tiles(bool sliced)
 					int h = min(tile_size.y, image_h - pos.y);
 					int2 ipos = pos / tile_size;
 					int idx = ipos.y*tile_w + ipos.x;
-					state.tiles[idx] = Tile(idx, pos.x, pos.y, w, h, cur_device);
+					state.tiles[idx] = Tile(idx, pos.x, pos.y, w, h, cur_device, only_denoise? Tile::DENOISE : Tile::RENDER, state.global_buffers);
 					tile_list->push_front(idx);
 					cur_tiles++;
 
@@ -281,7 +287,7 @@ int TileManager::gen_tiles(bool sliced)
 				int h = (tile_y == tile_slice_h-1)? slice_h - y: tile_size.y;
 
 				int idx = tile_y*tile_w + tile_x;
-				state.tiles[idx] = Tile(idx, x, y + slice_y, w, h, sliced? slice: cur_device);
+				state.tiles[idx] = Tile(idx, x, y + slice_y, w, h, sliced? slice: cur_device, only_denoise? Tile::DENOISE : Tile::RENDER, state.global_buffers);
 				tile_list->push_back(idx);
 
 				if(!sliced) {
@@ -339,6 +345,8 @@ bool TileManager::return_tile(int index, bool &delete_tile)
 	switch(state.tiles[index].state) {
 		case Tile::RENDER:
 		{
+			assert(!only_denoise);
+
 			if(!schedule_denoising) {
 				state.tiles[index].state = Tile::DONE;
 				delete_tile = true;
@@ -373,6 +381,11 @@ bool TileManager::return_tile(int index, bool &delete_tile)
 		}
 		case Tile::DENOISE:
 		{
+			if(only_denoise) {
+				state.tiles[index].state = Tile::DONE;
+				delete_tile = false;
+				return true;
+			}
 			state.tiles[index].state = Tile::DENOISED;
 			/* For each neighbor and the tile itself, check whether all of its neighbors have been denoised. If yes, it can be freed. */
 			for(int n = 0; n < 9; n++) {
@@ -425,6 +438,8 @@ bool TileManager::next_tile(Tile* &tile, int device)
 		int idx = state.denoise_tiles[logical_device].front();
 		state.denoise_tiles[logical_device].pop_front();
 		tile = &state.tiles[idx];
+		if(only_denoise)
+			state.num_rendered_tiles++;
 		return true;
 	}
 

@@ -59,6 +59,9 @@ public:
 
 	bool display_buffer_linear;
 
+	bool only_denoise;
+	int half_window;
+
 	double cancel_timeout;
 	double reset_timeout;
 	double text_timeout;
@@ -83,6 +86,9 @@ public:
 
 		display_buffer_linear = false;
 
+		only_denoise = false;
+		half_window = 8;
+
 		cancel_timeout = 0.1;
 		reset_timeout = 0.1;
 		text_timeout = 1.0;
@@ -105,6 +111,8 @@ public:
 		&& start_resolution == params.start_resolution
 		&& threads == params.threads
 		&& denoise_result == params.denoise_result
+		&& only_denoise == params.only_denoise
+		&& half_window == params.half_window
 		&& display_buffer_linear == params.display_buffer_linear
 		&& cancel_timeout == params.cancel_timeout
 		&& reset_timeout == params.reset_timeout
@@ -138,6 +146,7 @@ public:
 	~Session();
 
 	void start();
+	void start_denoise();
 	bool draw(BufferParams& params, DeviceDrawParams& draw_params);
 	void wait();
 
@@ -160,6 +169,7 @@ protected:
 	} delayed_reset;
 
 	void run();
+	void run_denoise();
 
 	void update_status_time(bool show_pause = false, bool show_done = false);
 
