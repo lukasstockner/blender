@@ -421,7 +421,7 @@ static void ui_imageuser_pass_menu(bContext *UNUSED(C), uiLayout *layout, void *
 	RenderPass *rpass;
 	const char *fake_name;
 	int nr;
-	int passflag = 0;
+	uint64_t passflag = 0;
 
 	/* may have been freed since drawing */
 	rr = BKE_image_acquire_renderresult(scene, image);

@@ -647,7 +647,7 @@ static RenderPass *render_layer_add_debug_pass(RenderResult *rr,
 {
 	const char *name = RE_debug_pass_name_get(debug_type);
 	int channels = RE_debug_pass_num_channels_get(debug_type);
-	RenderPass *rpass = render_layer_add_pass(rr, rl, channels, pass_type, view);
+	RenderPass *rpass = render_layer_add_pass(rr, rl, channels, (unsigned int) pass_type, view);
 	if (rpass == NULL) {
 		return NULL;
 	}
@@ -756,7 +756,7 @@ RenderResult *render_result_new(Render *re, rcti *partrct, int crop, int savebuf
 
 #define RENDER_LAYER_ADD_PASS_SAFE(rr, rl, channels, passtype, viewname) \
 			do { \
-				if (render_layer_add_pass(rr, rl, channels, passtype, viewname) == NULL) { \
+				if (render_layer_add_pass(rr, rl, channels, (unsigned int) (passtype), viewname) == NULL) { \
 					render_result_free(rr); \
 					return NULL; \
 				} \
