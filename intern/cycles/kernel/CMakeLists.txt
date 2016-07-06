@@ -233,7 +233,9 @@ if(WITH_CYCLES_CUDA_BINARIES)
 		endif()
 
 		if(WITH_CYCLES_DEBUG_FILTER)
-			set(cuda_debug_flags "${cuda_debug_flags} -DWITH_CYCLES_DEBUG_FILTER")
+			set(cuda_filter_debug_flags "-DWITH_CYCLES_DEBUG_FILTER")
+		else()
+			set(cuda_filter_debug_flags "")
 		endif()
 
 		set(cuda_version_flags "-D__KERNEL_CUDA_VERSION__=${CUDA_VERSION}")
@@ -253,6 +255,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
 					${cuda_math_flags}
 					${cuda_extra_flags}
 					${cuda_debug_flags}
+					${cuda_filter_debug_flags}
 					-I${CMAKE_CURRENT_SOURCE_DIR}/../util
 					-I${CMAKE_CURRENT_SOURCE_DIR}/svm
 					-DCCL_NAMESPACE_BEGIN=

@@ -830,12 +830,13 @@ public:
 
 #ifdef WITH_CYCLES_DEBUG_FILTER
 		FilterStorage *host_storage = new FilterStorage[filter_w*filter_h];
-		cuMemcpyDtoH(host_storage, d_storage, sizeof(host_storage));
+		cuda_assert(cuMemcpyDtoH(host_storage, d_storage, sizeof(FilterStorage)*filter_w*filter_h));
+		std::string prefix = string_printf("debug_%dx%d_cuda", rtile.x+rtile.buffers->params.overscan, rtile.y+rtile.buffers->params.overscan);
 		for(int i = 0; i < DENOISE_FEATURES; i++)
-			debug_write_pfm(string_printf("debug_%dx%d_bandwidth_%d.pfm", rtile.x, rtile.y, i).c_str(), &host_storage[0].bandwidth[i], filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
-		debug_write_pfm(string_printf("debug_%dx%d_global_bandwidth.pfm", rtile.x, rtile.y).c_str(), &host_storage[0].global_bandwidth, filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
-		debug_write_pfm(string_printf("debug_%dx%d_filtered_global_bandwidth.pfm", rtile.x, rtile.y).c_str(), &host_storage[0].filtered_global_bandwidth, filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
-		debug_write_pfm(string_printf("debug_%dx%d_sum_weight.pfm", rtile.x, rtile.y).c_str(), &host_storage[0].sum_weight, filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
+			debug_write_pfm(string_printf("%s_bandwidth_%d.pfm", prefix.c_str(), i).c_str(), &host_storage[0].bandwidth[i], filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
+		debug_write_pfm(string_printf("%s_global_bandwidth.pfm", prefix.c_str()).c_str(), &host_storage[0].global_bandwidth, filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
+		debug_write_pfm(string_printf("%s_filtered_global_bandwidth.pfm", prefix.c_str()).c_str(), &host_storage[0].filtered_global_bandwidth, filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
+		debug_write_pfm(string_printf("%s_sum_weight.pfm", prefix.c_str()).c_str(), &host_storage[0].sum_weight, filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
 		delete[] host_storage;
 #endif
 
