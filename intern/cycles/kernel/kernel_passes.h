@@ -129,6 +129,9 @@ ccl_device_inline void kernel_write_denoising_passes(KernelGlobals *kg, ccl_glob
 		for(int i = 0; i < ccl_fetch(sd, num_closure); i++) {
 			ShaderClosure *sc = ccl_fetch_array(sd, closure, i);
 
+			if(!CLOSURE_IS_BSDF_OR_BSSRDF(sc->type))
+				continue;
+
 			normal += sc->N * sc->sample_weight;
 			albedo += sc->weight;
 			sum_weight += sc->sample_weight;
