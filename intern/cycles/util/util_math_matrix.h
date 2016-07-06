@@ -257,6 +257,45 @@ ccl_device_inline double math_lsq_solve(double *lsq)
 	return (lsq[2]*lsq[3] - lsq[1]*lsq[4]) / (lsq[0]*lsq[2] - lsq[1]*lsq[1] + 1e-4);
 }
 
+ccl_device float math_largest_eigenvalue(float *A, int n, float *vec, float *tmp)
+{
+	/* Matrix-Vector-Multiplication that only accesses the lower triangular part of A. */
+	float fac = 0.0f;
+	float eigval = 1.0f;
+
+	for(int r = 0; r < n; r++)
+		fac += vec[r]*vec[r];
+	fac = 1.0f / sqrtf(fac);
+	for(int r = 0; r < n; r++)
+		vec[r] *= fac;
+
+	for(int i = 0; i < 100; i++) {
+		fac = 0.0f;
+		for(int r = 0; r < n; r++) {
+			tmp[r] = 0.0f;
+			int c;
+			for(c = 0; c <= r; c++)
+				tmp[r] += MAT(A, n, r, c)*vec[c];
+			for(; c < n; c++)
+				tmp[r] += MAT(A, n, c, r)*vec[c];
+			fac += tmp[r]*tmp[r];
+		}
+
+		if(fac < 1e-10f) return 0.0f;
+		float new_eigval = sqrtf(fac);
+
+		fac = 1.0f / sqrtf(fac);
+		for(int r = 0; r < n; r++) {
+			vec[r] = tmp[r]*fac;
+		}
+
+		if(fabsf(new_eigval - eigval)/max(new_eigval, 1e-7f) < 1e-6f)
+			return new_eigval;
+		eigval = new_eigval;
+	}
+
+	return 0.0f;
+}
 
 /* TODO(lukas): Fix new code and remove this. */
 ccl_device int svd(float *A, float *V, float *S2, int n)

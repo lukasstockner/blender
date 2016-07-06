@@ -345,8 +345,14 @@ public:
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
-				for(int i = 0; i < DENOISE_FEATURES; i++)
+				for(int i = 0; i < DENOISE_FEATURES; i++) {
+					debug_write_pfm(string_printf("debug_%dx%d_mean_%d.pfm", tile.x, tile.y, i).c_str(), &storages[0].means[i], tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
+					debug_write_pfm(string_printf("debug_%dx%d_scale_%d.pfm", tile.x, tile.y, i).c_str(), &storages[0].scales[i], tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
+					debug_write_pfm(string_printf("debug_%dx%d_singular_%d.pfm", tile.x, tile.y, i).c_str(), &storages[0].singular[i], tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
 					debug_write_pfm(string_printf("debug_%dx%d_bandwidth_%d.pfm", tile.x, tile.y, i).c_str(), &storages[0].bandwidth[i], tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
+				}
+				debug_write_pfm(string_printf("debug_%dx%d_singular_threshold.pfm", tile.x, tile.y).c_str(), &storages[0].singular_threshold, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
+				debug_write_pfm(string_printf("debug_%dx%d_feature_matrix_norm.pfm", tile.x, tile.y).c_str(), &storages[0].feature_matrix_norm, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
 				debug_write_pfm(string_printf("debug_%dx%d_global_bandwidth.pfm", tile.x, tile.y).c_str(), &storages[0].global_bandwidth, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
 				debug_write_pfm(string_printf("debug_%dx%d_filtered_global_bandwidth.pfm", tile.x, tile.y).c_str(), &storages[0].filtered_global_bandwidth, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
 				debug_write_pfm(string_printf("debug_%dx%d_sum_weight.pfm", tile.x, tile.y).c_str(), &storages[0].sum_weight, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);

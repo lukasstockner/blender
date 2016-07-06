@@ -1284,6 +1284,8 @@ typedef struct FilterStorage {
 #ifdef WITH_CYCLES_DEBUG_FILTER
 	float filtered_global_bandwidth;
 	float sum_weight;
+	float means[DENOISE_FEATURES], scales[DENOISE_FEATURES], singular[DENOISE_FEATURES];
+	float singular_threshold, feature_matrix_norm;
 #endif
 } FilterStorage;
 

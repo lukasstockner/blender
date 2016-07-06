@@ -1,0 +1,43 @@
+--- intern/cycles/kernel/kernel_filter.h
++++ intern/cycles/kernel/kernel_filter.h
+@@ -185,9 +185,8 @@
+        /* === Generate the feature transformation. ===
+         * This transformation maps the DENOISE_FEATURES-dimentional feature space to a reduced feature (r-feature) space
+         * which generally has fewer dimensions. This mainly helps to prevent overfitting. */
+-       float *feature_matrix = tempmatrix, *perturbation_matrix = tempmatrix + DENOISE_FEATURES*DENOISE_FEATURES;
++       float* feature_matrix = tempmatrix, feature_matrix_norm = 0.0f;
+        math_matrix_zero_lower(feature_matrix, DENOISE_FEATURES);
+-       math_matrix_zero_lower(perturbation_matrix, DENOISE_FEATURES);
+        FOR_PIXEL_WINDOW {
+                filter_get_features(px, py, buffer, sample, features, feature_means);
+                for(int i = 0; i < FEATURE_PASSES; i++)
+@@ -195,26 +194,14 @@
+                math_add_gramian(feature_matrix, DENOISE_FEATURES, features, 1.0f);
+ 
+                filter_get_feature_variance(px, py, buffer, sample, features, feature_scale);
+-               math_add_gramian(perturbation_matrix, DENOISE_FEATURES, features, 1.0f);
++               for(int i = 0; i < FEATURE_PASSES; i++)
++                       feature_matrix_norm += features[i];
+        } END_FOR_PIXEL_WINDOW
+        math_lower_tri_to_full(feature_matrix, DENOISE_FEATURES);
+ 
+        float *feature_transform = &storage->transform[0], *singular = tempvector + DENOISE_FEATURES;
+        int rank = svd(feature_matrix, feature_transform, singular, DENOISE_FEATURES);
+-
+-       float *eigenvector_guess = tempvector + DENOISE_FEATURES;
+-       for(int i = 0; i < DENOISE_FEATURES; i++)
+-               eigenvector_guess[i] = 1.0f;
+-       float singular_threshold = 0.01f + 2.0f * sqrtf(math_largest_eigenvalue(perturbation_matrix, DENOISE_FEATURES, eigenvector_guess, tempvector + 2*DENOISE_FEATURES));
+-       if (x%100== 0 && y%100 == 0) {
+-               for(int r = 0; r < DENOISE_FEATURES; r++) {
+-                       int c;
+-                       for(c = 0; c <= r; c++) printf("%f ", (double) perturbation_matrix[r*DENOISE_FEATURES+c]);
+-                       for(; c < DENOISE_FEATURES; c++) printf("%f ", (double) perturbation_matrix[c*DENOISE_FEATURES+r]);
+-                       printf("\n");
+-               }
+-               printf("Singular val: %f\n", (double) (0.5f*(singular_threshold - 0.01f)));
+-       }
++       float singular_threshold = 0.01f + 2.0f * (sqrtf(feature_matrix_norm) / (sqrtf(rank) * 0.5f));
+ 
+        rank = 0;
+        for(int i = 0; i < DENOISE_FEATURES; i++, rank++) {
