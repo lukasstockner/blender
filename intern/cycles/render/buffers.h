@@ -112,11 +112,12 @@ public:
 	void reset(Device *device, BufferParams& params);
 
 	bool copy_from_device();
-	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels);
-	bool get_denoising_rect(int denoising_pass, float exposure, int sample, int components, float *pixels);
+	bool get_pass_rect(PassType type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels = false);
+	bool get_denoising_rect(int denoising_pass, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels = false);
 
 protected:
 	void device_free();
+	int4 rect_to_local(int4 rect);
 
 	Device *device;
 };

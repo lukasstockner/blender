@@ -390,10 +390,10 @@ static void add_pass(BL::RenderEngine& b_engine,
 void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only, bool highlight)
 {
 	BufferParams& params = rtile.buffers->params;
-	int x = params.full_x + params.overscan - session->tile_manager.params.full_x;
-	int y = params.full_y + params.overscan - session->tile_manager.params.full_y;
-	int w = params.final_width;
-	int h = params.final_height;
+	int x = rtile.x + params.overscan;
+	int y = rtile.y + params.overscan;
+	int w = rtile.w - 2*params.overscan;
+	int h = rtile.h - 2*params.overscan;
 
 	/* get render result */
 	BL::RenderResult b_rr = begin_render_result(b_engine, x, y, w, h, b_rlay_name.c_str(), b_rview_name.c_str());
@@ -761,7 +761,10 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 	BufferParams& params = buffers->params;
 	float exposure = scene->film->exposure;
 
-	vector<float> pixels(params.final_width*params.final_height*4);
+	int4 rect = make_int4(rtile.x + params.overscan, rtile.y + params.overscan,
+	                      rtile.x+rtile.w - params.overscan, rtile.y+rtile.h - params.overscan);
+
+	vector<float> pixels((rect.w-rect.y)*(rect.z-rect.x)*4);
 
 	/* Adjust absolute sample number to the range. */
 	int sample = rtile.sample;
@@ -782,14 +785,14 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 
 			/* copy pixels */
 			if(extended_type) {
-				if(!buffers->get_denoising_rect(extended_type, exposure, sample, components, &pixels[0]))
+				if(!buffers->get_denoising_rect(extended_type, exposure, sample, components, rect, &pixels[0]))
 					memset(&pixels[0], 0, pixels.size()*sizeof(float));
 			}
 			else {
 				/* find matching pass type */
 				PassType pass_type = get_pass_type(b_pass);
 
-				if(!buffers->get_pass_rect(pass_type, exposure, sample, components, &pixels[0]))
+				if(!buffers->get_pass_rect(pass_type, exposure, sample, components, rect, &pixels[0]))
 					memset(&pixels[0], 0, pixels.size()*sizeof(float));
 			}
 
@@ -799,7 +802,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 	else {
 		/* copy combined pass */
 		BL::RenderPass b_combined_pass(b_rlay.passes.find_by_type(BL::RenderPass::type_COMBINED, b_rview_name.c_str()));
-		if(buffers->get_pass_rect(PASS_COMBINED, exposure, sample, 4, &pixels[0]))
+		if(buffers->get_pass_rect(PASS_COMBINED, exposure, sample, 4, rect, &pixels[0]))
 			b_combined_pass.rect(&pixels[0]);
 	}
 

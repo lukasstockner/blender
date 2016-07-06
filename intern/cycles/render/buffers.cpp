@@ -181,7 +181,26 @@ bool RenderBuffers::copy_from_device()
 	return true;
 }
 
-bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int components, float *pixels)
+/* When calling from the BlenderSession, rect is in final image coordinates.
+ * To make addressing the buffer easier, rect is brought to "buffer coordinates"
+ * where the buffer starts at (0, 0) and ends at (width, height). */
+int4 RenderBuffers::rect_to_local(int4 rect) {
+	rect.x -= params.full_x;
+	rect.y -= params.full_y;
+	rect.z -= params.full_x;
+	rect.w -= params.full_y;
+	assert(rect.x >= 0 && rect.y >= 0 && rect.z <= params.width && rect.w <= params.height);
+	return rect;
+}
+
+/* Helper macro that loops over all the pixels in the rect.
+ * First, the buffer pointer is shifted to the starting point of the rect.
+ * Then, after each line, the buffer pointer is shifted to the start of the next one. */
+#define FOREACH_PIXEL in += (rect.y*params.width + rect.x)*pass_stride; \
+                      for(int y = rect.y; y < rect.w; y++, in += (params.width + rect.x - rect.z)*pass_stride) \
+                          for(int x = rect.x; x < rect.z; x++, in += pass_stride, pixels += components)
+
+bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels)
 {
 	if(!params.denoising_passes)
 		/* The RenderBuffer doesn't have denoising passes. */
@@ -189,6 +208,8 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 	if(!(type & EX_TYPE_DENOISE_ALL))
 		/* The type doesn't correspond to any denoising pass. */
 		return false;
+
+	rect = rect_to_local(rect);
 
 	float scale = 1.0f;
 	int type_offset = 0;
@@ -210,10 +231,6 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 	float *in = (float*)buffer.data_pointer + pass_offset;
 	int pass_stride = params.get_passes_size();
 
-#define FOREACH_PIXEL in += (params.overscan*(params.width + 1))*pass_stride; \
-                      for(int y = params.overscan; y < params.height - params.overscan; y++, in += 2*params.overscan*pass_stride) \
-                          for(int x = params.overscan; x < params.width - params.overscan; x++, in += pass_stride, pixels += components)
-
 	if(components == 1) {
 		assert(type & (EX_TYPE_DENOISE_DEPTH | EX_TYPE_DENOISE_DEPTH_VAR));
 		FOREACH_PIXEL
@@ -233,8 +250,10 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 	return true;
 }
 
-bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels)
+bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels)
 {
+	rect = rect_to_local(rect);
+
 	int pass_offset = 0;
 
 	for(size_t j = 0; j < params.passes.size(); j++) {
