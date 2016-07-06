@@ -226,6 +226,10 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 		case EX_TYPE_DENOISE_CLEAN:      type_offset = 20; scale = exposure/sample; break;
 	}
 
+	if(read_pixels) {
+		scale = sample;
+	}
+
 	int pass_offset = params.get_denoise_offset() + type_offset;
 
 	float *in = (float*)buffer.data_pointer + pass_offset;
@@ -233,17 +237,32 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 
 	if(components == 1) {
 		assert(type & (EX_TYPE_DENOISE_DEPTH | EX_TYPE_DENOISE_DEPTH_VAR));
-		FOREACH_PIXEL
-			pixels[0] = *in;
+		if(read_pixels) {
+			FOREACH_PIXEL
+				in[0] = pixels[0] * scale;
+		}
+		else {
+			FOREACH_PIXEL
+				pixels[0] = in[0] * scale;
+		}
 	}
 	else {
 		assert(components == 3);
 		assert(!(type & (EX_TYPE_DENOISE_DEPTH | EX_TYPE_DENOISE_DEPTH_VAR)));
 
-		FOREACH_PIXEL {
-			pixels[0] = in[0] * scale;
-			pixels[1] = in[1] * scale;
-			pixels[2] = in[2] * scale;
+		if(read_pixels) {
+			FOREACH_PIXEL {
+				in[0] = pixels[0] * scale;
+				in[1] = pixels[1] * scale;
+				in[2] = pixels[2] * scale;
+			}
+		}
+		else {
+			FOREACH_PIXEL {
+				pixels[0] = in[0] * scale;
+				pixels[1] = in[1] * scale;
+				pixels[2] = in[2] * scale;
+			}
 		}
 	}
 
@@ -270,40 +289,54 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 		float scale = (pass.filter)? 1.0f/(float)sample: 1.0f;
 		float scale_exposure = (pass.exposure)? scale*exposure: scale;
 
+		if(read_pixels) {
+			scale = scale_exposure = sample;
+		}
+
 		if(components == 1) {
 			assert(pass.components == components);
 
 			/* scalar */
 			if(type == PASS_DEPTH) {
-				FOREACH_PIXEL {
-					float f = *in;
-					pixels[0] = (f == 0.0f)? 1e10f: f*scale_exposure;
+				if(read_pixels) {
+					FOREACH_PIXEL
+						in[0] = (pixels[0] == 1e10f)? 0.0f: pixels[0]*scale_exposure;
+				}
+				else {
+					FOREACH_PIXEL
+						pixels[0] = (in[0] == 0.0f)? 1e10f: in[0]*scale_exposure;
 				}
 			}
 			else if(type == PASS_MIST) {
-				FOREACH_PIXEL {
-					float f = *in;
-					pixels[0] = saturate(f*scale_exposure);
+				if(read_pixels) {
+					FOREACH_PIXEL
+						in[0] = pixels[0]*scale_exposure;
+				}
+				else {
+					FOREACH_PIXEL
+						pixels[0] = saturate(in[0]*scale_exposure);
 				}
 			}
 #ifdef WITH_CYCLES_DEBUG
-			else if(type == PASS_BVH_TRAVERSAL_STEPS) {
-				FOREACH_PIXEL {
-					float f = *in;
-					pixels[0] = f*scale;
+			else if(type == PASS_BVH_TRAVERSAL_STEPS || type == PASS_RAY_BOUNCES) {
+				if(read_pixels) {
+					FOREACH_PIXEL
+						in[0] = pixels[0]*scale;
 				}
-			}
-			else if(type == PASS_RAY_BOUNCES) {
-				FOREACH_PIXEL {
-					float f = *in;
-					pixels[0] = f*scale;
+				else {
+					FOREACH_PIXEL
+						pixels[0] = in[0]*scale;
 				}
 			}
 #endif
 			else {
-				FOREACH_PIXEL {
-					float f = *in;
-					pixels[0] = f*scale_exposure;
+				if(read_pixels) {
+					FOREACH_PIXEL
+						in[0] = pixels[0]*scale_exposure;
+				}
+				else {
+					FOREACH_PIXEL
+						pixels[0] = in[0]*scale_exposure;
 				}
 			}
 		}
@@ -312,13 +345,23 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 			/* RGBA */
 			if(type == PASS_SHADOW) {
-				FOREACH_PIXEL {
-					float4 f = make_float4(in[0], in[1], in[2], in[3]);
-					float invw = (f.w > 0.0f)? 1.0f/f.w: 1.0f;
+				if(read_pixels) {
+					FOREACH_PIXEL {
+						in[0] = pixels[0];
+						in[1] = pixels[1];
+						in[2] = pixels[2];
+						in[3] = 1.0f;
+					}
+				}
+				else {
+					FOREACH_PIXEL {
+						float w = in[3];
+						float invw = (w > 0.0f)? 1.0f/w: 1.0f;
 
-					pixels[0] = f.x*invw;
-					pixels[1] = f.y*invw;
-					pixels[2] = f.z*invw;
+						pixels[0] = in[0]*invw;
+						pixels[1] = in[1]*invw;
+						pixels[2] = in[2]*invw;
+					}
 				}
 			}
 			else if(pass.divide_type != PASS_NONE) {
@@ -331,25 +374,41 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 					divide_offset += color_pass.components;
 				}
 
-				FOREACH_PIXEL {
-					float3 f = make_float3(in[0], in[1], in[2]);
-					float3 f_divide = make_float3(in[divide_offset], in[divide_offset+1], in[divide_offset+2]);
+				if(read_pixels) {
+					FOREACH_PIXEL {
+						in[0] = pixels[0] * pixels[divide_offset];
+						in[1] = pixels[1] * pixels[divide_offset + 1];
+						in[2] = pixels[2] * pixels[divide_offset + 2];
+					}
+				}
+				else {
+					FOREACH_PIXEL {
+						float3 f = make_float3(in[0], in[1], in[2]);
+						float3 f_divide = make_float3(in[divide_offset], in[divide_offset+1], in[divide_offset+2]);
 
-					f = safe_divide_even_color(f*exposure, f_divide);
+						f = safe_divide_even_color(f*exposure, f_divide);
 
-					pixels[0] = f.x;
-					pixels[1] = f.y;
-					pixels[2] = f.z;
+						pixels[0] = f.x;
+						pixels[1] = f.y;
+						pixels[2] = f.z;
+					}
 				}
 			}
 			else {
 				/* RGB/vector */
-				FOREACH_PIXEL {
-					float3 f = make_float3(in[0], in[1], in[2]);
-
-					pixels[0] = f.x*scale_exposure;
-					pixels[1] = f.y*scale_exposure;
-					pixels[2] = f.z*scale_exposure;
+				if(read_pixels) {
+					FOREACH_PIXEL {
+						in[0] = pixels[0]*scale_exposure;
+						in[1] = pixels[1]*scale_exposure;
+						in[2] = pixels[2]*scale_exposure;
+					}
+				}
+				else {
+					FOREACH_PIXEL {
+						pixels[0] = in[0]*scale_exposure;
+						pixels[1] = in[1]*scale_exposure;
+						pixels[2] = in[2]*scale_exposure;
+					}
 				}
 			}
 		}
@@ -358,14 +417,24 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 			/* RGBA */
 			if(type == PASS_SHADOW) {
-				FOREACH_PIXEL {
-					float4 f = make_float4(in[0], in[1], in[2], in[3]);
-					float invw = (f.w > 0.0f)? 1.0f/f.w: 1.0f;
+				if(read_pixels) {
+					FOREACH_PIXEL {
+						in[0] = pixels[0];
+						in[1] = pixels[1];
+						in[2] = pixels[2];
+						in[3] = 1.0f;
+					}
+				}
+				else {
+					FOREACH_PIXEL {
+						float w = in[3];
+						float invw = (w > 0.0f)? 1.0f/w: 1.0f;
 
-					pixels[0] = f.x*invw;
-					pixels[1] = f.y*invw;
-					pixels[2] = f.z*invw;
-					pixels[3] = 1.0f;
+						pixels[0] = in[0]*invw;
+						pixels[1] = in[1]*invw;
+						pixels[2] = in[2]*invw;
+						pixels[3] = 1.0f;
+					}
 				}
 			}
 			else if(type == PASS_MOTION) {
@@ -378,27 +447,45 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 					weight_offset += color_pass.components;
 				}
 
-				FOREACH_PIXEL {
-					float4 f = make_float4(in[0], in[1], in[2], in[3]);
-					float w = in[weight_offset];
-					float invw = (w > 0.0f)? 1.0f/w: 0.0f;
+				if(read_pixels) {
+					FOREACH_PIXEL {
+						float w = in[weight_offset];
+						in[0] = pixels[0]*w;
+						in[1] = pixels[1]*w;
+						in[2] = pixels[2]*w;
+						in[3] = pixels[3]*w;
+					}
+				}
+				else {
+					FOREACH_PIXEL {
+						float w = in[weight_offset];
+						float invw = (w > 0.0f)? 1.0f/w: 0.0f;
 
-					pixels[0] = f.x*invw;
-					pixels[1] = f.y*invw;
-					pixels[2] = f.z*invw;
-					pixels[3] = f.w*invw;
+						pixels[0] = in[0]*invw;
+						pixels[1] = in[1]*invw;
+						pixels[2] = in[2]*invw;
+						pixels[3] = in[3]*invw;
+					}
 				}
 			}
 			else {
-				FOREACH_PIXEL {
-					float4 f = make_float4(in[0], in[1], in[2], in[3]);
+				if(read_pixels) {
+					FOREACH_PIXEL {
+						in[0] = pixels[0]*scale_exposure;
+						in[1] = pixels[1]*scale_exposure;
+						in[2] = pixels[2]*scale_exposure;
+						in[3] = pixels[3]*scale;
+					}
+				}
+				else {
+					FOREACH_PIXEL {
+						pixels[0] = in[0]*scale_exposure;
+						pixels[1] = in[1]*scale_exposure;
+						pixels[2] = in[2]*scale_exposure;
 
-					pixels[0] = f.x*scale_exposure;
-					pixels[1] = f.y*scale_exposure;
-					pixels[2] = f.z*scale_exposure;
-
-					/* clamp since alpha might be > 1.0 due to russian roulette */
-					pixels[3] = saturate(f.w*scale);
+						/* clamp since alpha might be > 1.0 due to russian roulette */
+						pixels[3] = saturate(in[3]*scale);
+					}
 				}
 			}
 		}

@@ -24,6 +24,7 @@
 
 #include "blender_util.h"
 
+#include "film.h"
 #include "scene.h"
 #include "session.h"
 
@@ -91,6 +92,12 @@ public:
 	                                      BL::RegionView3D& b_rv3d,
 	                                      Camera *cam,
 	                                      int width, int height);
+
+	static RenderBuffers* get_render_buffer(Device *device,
+	                                        BL::RenderLayer& b_rl,
+	                                        BL::RenderResult& b_rr,
+                                                int samples);
+	static PassType get_pass_type(BL::RenderPass& b_pass);
 
 private:
 	/* sync */
