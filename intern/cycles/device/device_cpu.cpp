@@ -329,8 +329,8 @@ public:
 					offsets[i] = rtiles[i].offset;
 					strides[i] = rtiles[i].stride;
 				}
-				int tile_x[4] = {rtiles[0].x, rtiles[1].x, rtiles[2].x, rtiles[2].x+rtiles[2].w};
-				int tile_y[4] = {rtiles[0].y, rtiles[3].y, rtiles[6].y, rtiles[6].y+rtiles[6].h};
+				int tile_x[4] = {rtiles[3].x, rtiles[4].x, rtiles[5].x, rtiles[5].x+rtiles[5].w};
+				int tile_y[4] = {rtiles[1].y, rtiles[4].y, rtiles[7].y, rtiles[7].y+rtiles[7].h};
 				FilterStorage *storages = new FilterStorage[tile.w*tile.h];
 
 				int4 filter_rect = make_int4(tile.x, tile.y, tile.x + tile.w, tile.y + tile.h);
