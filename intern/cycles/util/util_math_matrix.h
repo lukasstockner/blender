@@ -254,7 +254,8 @@ ccl_device_inline void math_lsq_add(double *lsq, double x, double y)
 /* Returns the first-order coefficient a of the fitted function. */
 ccl_device_inline double math_lsq_solve(double *lsq)
 {
-	return (lsq[2]*lsq[3] - lsq[1]*lsq[4]) / (lsq[0]*lsq[2] - lsq[1]*lsq[1] + 1e-4);
+	double inv_det = 1.0 / (lsq[0]*lsq[2] - lsq[1]*lsq[1] + 1e-4);
+	return (lsq[0]*lsq[4] - lsq[1]*lsq[3]) * inv_det;
 }
 
 ccl_device float math_largest_eigenvalue(float *A, int n, float *vec, float *tmp)
