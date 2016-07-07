@@ -831,13 +831,22 @@ public:
 #ifdef WITH_CYCLES_DEBUG_FILTER
 		FilterStorage *host_storage = new FilterStorage[filter_w*filter_h];
 		cuda_assert(cuMemcpyDtoH(host_storage, d_storage, sizeof(FilterStorage)*filter_w*filter_h));
-		std::string prefix = string_printf("debug_%dx%d_cuda", rtile.x+rtile.buffers->params.overscan, rtile.y+rtile.buffers->params.overscan);
-		for(int i = 0; i < DENOISE_FEATURES; i++)
-			debug_write_pfm(string_printf("%s_bandwidth_%d.pfm", prefix.c_str(), i).c_str(), &host_storage[0].bandwidth[i], filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
-		debug_write_pfm(string_printf("%s_global_bandwidth.pfm", prefix.c_str()).c_str(), &host_storage[0].global_bandwidth, filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
-		debug_write_pfm(string_printf("%s_filtered_global_bandwidth.pfm", prefix.c_str()).c_str(), &host_storage[0].filtered_global_bandwidth, filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
-		debug_write_pfm(string_printf("%s_sum_weight.pfm", prefix.c_str()).c_str(), &host_storage[0].sum_weight, filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
+#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_cuda_%s.pfm", rtile.x+rtile.buffers->params.overscan, rtile.y+rtile.buffers->params.overscan, name).c_str(), &host_storage[0].var, filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
+		for(int i = 0; i < DENOISE_FEATURES; i++) {
+			WRITE_DEBUG(string_printf("mean_%d.pfm", i).c_str(), means[i]);
+			WRITE_DEBUG(string_printf("scale_%d.pfm", i).c_str(), scales[i]);
+			WRITE_DEBUG(string_printf("singular_%d.pfm", i).c_str(), singular[i]);
+			WRITE_DEBUG(string_printf("bandwidth_%d.pfm", i).c_str(), bandwidth[i]);
+		}
+		WRITE_DEBUG("singular_threshold", singular_threshold);
+		WRITE_DEBUG("singular_threshold.pfm", singular_threshold);
+		WRITE_DEBUG("feature_matrix_norm.pfm", feature_matrix_norm);
+		WRITE_DEBUG("global_bandwidth.pfm", global_bandwidth);
+		WRITE_DEBUG("filtered_global_bandwidth.pfm", filtered_global_bandwidth);
+		WRITE_DEBUG("sum_weight.pfm", sum_weight);
+		WRITE_DEBUG("log_rmse_per_sample.pfm", log_rmse_per_sample);
 		delete[] host_storage;
+#undef WRITE_DEBUG
 #endif
 
 		cuda_assert(cuMemFree(d_storage));

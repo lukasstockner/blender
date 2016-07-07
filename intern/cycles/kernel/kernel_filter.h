@@ -363,12 +363,21 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 
 
 	/* === Estimate optimal global bandwidth. === */
-	double bias_coef = math_lsq_solve(lsq_bias);
-	double variance_coef = math_lsq_solve(lsq_variance);
+	double bias_coef = math_lsq_solve(lsq_bias, NULL);
+	double variance_zeroth;
+	double variance_coef = math_lsq_solve(lsq_variance, &variance_zeroth);
+	if(variance_coef < 0.0) {
+		variance_coef = -variance_coef;
+		variance_zeroth = 0.0;
+	}
 	float optimal_bw = (float) pow((rank * variance_coef) / (4.0 * bias_coef*bias_coef * sample), 1.0 / (rank + 4));
 
-
-
+#ifdef WITH_CYCLES_DEBUG_FILTER
+	double h2 = ((double) optimal_bw) * ((double) optimal_bw);
+	double bias = bias_coef*h2;
+	double variance = (variance_zeroth + variance_coef*pow(optimal_bw, -rank)) / sample;
+	storage->log_rmse_per_sample = ( (float) log(max(bias*bias + variance, 1e-20)) - 4.0f*logf(sample)/(rank + 4) );
+#endif
 
 	/* === Store the calculated data for the second kernel. === */
 	storage->rank = rank;
@@ -504,6 +513,10 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float **
 	center_buffer[0] = final_color.x;
 	center_buffer[1] = final_color.y;
 	center_buffer[2] = final_color.z;
+
+#ifdef WITH_CYCLES_DEBUG_FILTER
+	storage->log_rmse_per_sample -= 2.0f * logf(linear_rgb_to_gray(final_color) + 0.001f);
+#endif
 }
 
 CCL_NAMESPACE_END

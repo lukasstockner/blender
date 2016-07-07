@@ -345,17 +345,21 @@ public:
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
+#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", tile.x, tile.y, name).c_str(), &storages[0].var, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
 				for(int i = 0; i < DENOISE_FEATURES; i++) {
-					debug_write_pfm(string_printf("debug_%dx%d_mean_%d.pfm", tile.x, tile.y, i).c_str(), &storages[0].means[i], tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
-					debug_write_pfm(string_printf("debug_%dx%d_scale_%d.pfm", tile.x, tile.y, i).c_str(), &storages[0].scales[i], tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
-					debug_write_pfm(string_printf("debug_%dx%d_singular_%d.pfm", tile.x, tile.y, i).c_str(), &storages[0].singular[i], tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
-					debug_write_pfm(string_printf("debug_%dx%d_bandwidth_%d.pfm", tile.x, tile.y, i).c_str(), &storages[0].bandwidth[i], tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
+					WRITE_DEBUG(string_printf("mean_%d.pfm", i).c_str(), means[i]);
+					WRITE_DEBUG(string_printf("scale_%d.pfm", i).c_str(), scales[i]);
+					WRITE_DEBUG(string_printf("singular_%d.pfm", i).c_str(), singular[i]);
+					WRITE_DEBUG(string_printf("bandwidth_%d.pfm", i).c_str(), bandwidth[i]);
 				}
-				debug_write_pfm(string_printf("debug_%dx%d_singular_threshold.pfm", tile.x, tile.y).c_str(), &storages[0].singular_threshold, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
-				debug_write_pfm(string_printf("debug_%dx%d_feature_matrix_norm.pfm", tile.x, tile.y).c_str(), &storages[0].feature_matrix_norm, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
-				debug_write_pfm(string_printf("debug_%dx%d_global_bandwidth.pfm", tile.x, tile.y).c_str(), &storages[0].global_bandwidth, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
-				debug_write_pfm(string_printf("debug_%dx%d_filtered_global_bandwidth.pfm", tile.x, tile.y).c_str(), &storages[0].filtered_global_bandwidth, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
-				debug_write_pfm(string_printf("debug_%dx%d_sum_weight.pfm", tile.x, tile.y).c_str(), &storages[0].sum_weight, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
+				WRITE_DEBUG("singular_threshold", singular_threshold);
+				WRITE_DEBUG("singular_threshold.pfm", singular_threshold);
+				WRITE_DEBUG("feature_matrix_norm.pfm", feature_matrix_norm);
+				WRITE_DEBUG("global_bandwidth.pfm", global_bandwidth);
+				WRITE_DEBUG("filtered_global_bandwidth.pfm", filtered_global_bandwidth);
+				WRITE_DEBUG("sum_weight.pfm", sum_weight);
+				WRITE_DEBUG("log_rmse_per_sample.pfm", log_rmse_per_sample);
+#undef WRITE_DEBUG
 #endif
 				tile.sample = sample;
 			}

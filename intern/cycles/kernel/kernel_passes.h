@@ -161,7 +161,7 @@ ccl_device_inline void kernel_write_denoising_passes(KernelGlobals *kg, ccl_glob
 	else {
 		kernel_write_pass_float3_var(buffer, sample, make_float3(0.0f, 0.0f, 0.0f));
 		kernel_write_pass_float3_var(buffer + 6, sample, world_albedo);
-		kernel_write_pass_float_var(buffer + 12, sample, 1e10f);
+		kernel_write_pass_float_var(buffer + 12, sample, 0.0f);
 	}
 
 	state->flag |= PATH_RAY_DENOISING_PASS_DONE;
