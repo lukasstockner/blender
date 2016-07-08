@@ -181,6 +181,16 @@ bool RenderBuffers::copy_from_device()
 	return true;
 }
 
+bool RenderBuffers::copy_to_device()
+{
+	if(!buffer.device_pointer)
+		return false;
+
+	device->mem_copy_to(buffer);
+
+	return true;
+}
+
 /* When calling from the BlenderSession, rect is in final image coordinates.
  * To make addressing the buffer easier, rect is brought to "buffer coordinates"
  * where the buffer starts at (0, 0) and ends at (width, height). */

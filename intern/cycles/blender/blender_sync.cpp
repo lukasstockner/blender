@@ -814,6 +814,8 @@ RenderBuffers* BlenderSync::get_render_buffer(Device *device,
 			buffer->get_pass_rect(type, 1.0f, samples, b_pass->channels(), rect, b_rect.data, true);
 	}
 
+	buffer->copy_to_device();
+
 	return buffer;
 }
 

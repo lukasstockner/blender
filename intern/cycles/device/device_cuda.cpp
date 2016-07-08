@@ -1310,7 +1310,9 @@ public:
 					}
 				}
 				else if(tile.task == RenderTile::DENOISE) {
-					assert(!"Explicitly scheduling tiles for denoising isn't supported on GPUs yet!");
+					int sample = tile.start_sample + tile.num_samples;
+					denoise(tile, sample);
+					tile.sample = sample;
 				}
 
 				task->release_tile(tile);

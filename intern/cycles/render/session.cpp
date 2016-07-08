@@ -765,6 +765,24 @@ void Session::run()
 void Session::run_denoise()
 {
 	if(!progress.get_cancel()) {
+		if(!kernels_loaded) {
+			progress.set_status("Loading render kernels (may take a few minutes the first time)");
+
+			DeviceRequestedFeatures requested_features;
+			if(!device->load_kernels(requested_features)) {
+				string message = device->error_message();
+				if(message.empty())
+					message = "Failed loading render kernel, see console for errors";
+
+				progress.set_error(message);
+				progress.set_status("Error", message);
+				progress.set_update();
+				return;
+			}
+
+			kernels_loaded = true;
+		}
+
 		progress.reset_sample();
 		tile_manager.reset(buffers->params, params.samples);
 		tile_manager.state.global_buffers = buffers;
