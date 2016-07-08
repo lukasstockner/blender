@@ -267,17 +267,16 @@ typedef enum ScenePassType {
 	SCE_PASS_DEBUG                    = (1 << 31),  /* This is a virtual pass. */
 } ScenePassType;
 
-typedef enum SceneExtendedPassType {
-	SCE_PASS_DENOISE_NORMAL           = (((uint64_t) 1) << 32),
-	SCE_PASS_DENOISE_NORMAL_VAR       = (((uint64_t) 1) << 33),
-	SCE_PASS_DENOISE_ALBEDO           = (((uint64_t) 1) << 34),
-	SCE_PASS_DENOISE_ALBEDO_VAR       = (((uint64_t) 1) << 35),
-	SCE_PASS_DENOISE_DEPTH            = (((uint64_t) 1) << 36),
-	SCE_PASS_DENOISE_DEPTH_VAR        = (((uint64_t) 1) << 37),
-	SCE_PASS_DENOISE_NOISY            = (((uint64_t) 1) << 38), /* The original noisy image (only the components that are denoised). */
-	SCE_PASS_DENOISE_NOISY_VAR        = (((uint64_t) 1) << 39),
-	SCE_PASS_DENOISE_CLEAN            = (((uint64_t) 1) << 40), /* If present, these image components are added to the denoised image. */
-} SceneExtendedPassType;
+/* MSVC doesn't like 64-bit enum values. */
+#define SCE_PASS_DENOISE_NORMAL           (((uint64_t) 1) << 32)
+#define SCE_PASS_DENOISE_NORMAL_VAR       (((uint64_t) 1) << 33)
+#define SCE_PASS_DENOISE_ALBEDO           (((uint64_t) 1) << 34)
+#define SCE_PASS_DENOISE_ALBEDO_VAR       (((uint64_t) 1) << 35)
+#define SCE_PASS_DENOISE_DEPTH            (((uint64_t) 1) << 36)
+#define SCE_PASS_DENOISE_DEPTH_VAR        (((uint64_t) 1) << 37)
+#define SCE_PASS_DENOISE_NOISY            (((uint64_t) 1) << 38) /* The original noisy image (only the components that are denoised). */
+#define SCE_PASS_DENOISE_NOISY_VAR        (((uint64_t) 1) << 39)
+#define SCE_PASS_DENOISE_CLEAN            (((uint64_t) 1) << 40) /* If present, these image components are added to the denoised image. */
 
 /* note, srl->passflag is treestore element 'nr' in outliner, short still... */
 
