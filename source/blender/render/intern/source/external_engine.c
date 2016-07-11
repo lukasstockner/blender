@@ -598,17 +598,23 @@ static bool render_layer_exclude_animated(Scene *scene, SceneRenderLayer *srl)
 	return RNA_property_animated(&ptr, prop);
 }
 
-void RE_engine_postprocess(Scene *scene, RenderResult *rr)
+void RE_engine_postprocess(Scene *scene, Render *re, RenderResult *rr)
 {
 	RenderEngineType *type = RE_engines_find(scene->r.engine);
 	RenderEngine *engine = RE_engine_create(type);
 
-	Render *re = RE_NewRender(scene->id.name);
-
 	engine->re = re;
 	engine->re->result = rr;
-	engine->tile_x = scene->r.tilex;
-	engine->tile_y = scene->r.tiley;
+	engine->re->r = scene->r;
+	engine->re->rectx = rr->rectx;
+	engine->re->recty = rr->recty;
+	engine->re->disprect.xmin = 0;
+	engine->re->disprect.xmin = 0;
+	engine->re->disprect.xmax = rr->rectx;
+	engine->re->disprect.xmax = rr->recty;
+	RE_parts_init(engine->re, false);
+	engine->tile_x = engine->re->partx;
+	engine->tile_y = engine->re->party;
 
 	type->postprocess(engine, scene, rr);
 

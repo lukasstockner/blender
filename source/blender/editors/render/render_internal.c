@@ -119,133 +119,6 @@ typedef struct RenderJob {
 	bool interface_locked;
 } RenderJob;
 
-/* called inside thread! */
-static void image_buffer_rect_update(RenderJob *rj, RenderResult *rr, ImBuf *ibuf, ImageUser *iuser, volatile rcti *renrect, const char *viewname)
-{
-	Scene *scene = rj->scene;
-	const float *rectf = NULL;
-	int ymin, ymax, xmin, xmax;
-	int rymin, rxmin;
-	int linear_stride, linear_offset_x, linear_offset_y;
-	ColorManagedViewSettings *view_settings;
-	ColorManagedDisplaySettings *display_settings;
-
-	/* Exception for exr tiles -- display buffer conversion happens here,
-	 * NOT in the color management pipeline.
-	 */
-	if (ibuf->userflags & IB_DISPLAY_BUFFER_INVALID &&
-	    rr->do_exr_tile == false)
-	{
-		/* The whole image buffer it so be color managed again anyway. */
-		return;
-	}
-
-	/* if renrect argument, we only refresh scanlines */
-	if (renrect) {
-		/* if (ymax == recty), rendering of layer is ready, we should not draw, other things happen... */
-		if (rr->renlay == NULL || renrect->ymax >= rr->recty)
-			return;
-
-		/* xmin here is first subrect x coord, xmax defines subrect width */
-		xmin = renrect->xmin + rr->crop;
-		xmax = renrect->xmax - xmin + rr->crop;
-		if (xmax < 2)
-			return;
-
-		ymin = renrect->ymin + rr->crop;
-		ymax = renrect->ymax - ymin + rr->crop;
-		if (ymax < 2)
-			return;
-		renrect->ymin = renrect->ymax;
-
-	}
-	else {
-		xmin = ymin = rr->crop;
-		xmax = rr->rectx - 2 * rr->crop;
-		ymax = rr->recty - 2 * rr->crop;
-	}
-
-	/* xmin ymin is in tile coords. transform to ibuf */
-	rxmin = rr->tilerect.xmin + xmin;
-	if (rxmin >= ibuf->x) return;
-	rymin = rr->tilerect.ymin + ymin;
-	if (rymin >= ibuf->y) return;
-
-	if (rxmin + xmax > ibuf->x)
-		xmax = ibuf->x - rxmin;
-	if (rymin + ymax > ibuf->y)
-		ymax = ibuf->y - rymin;
-
-	if (xmax < 1 || ymax < 1) return;
-
-	/* The thing here is, the logic below (which was default behavior
-	 * of how rectf is acquiring since forever) gives float buffer for
-	 * composite output only. This buffer can not be used for other
-	 * passes obviously.
-	 *
-	 * We might try finding corresponding for pass buffer in render result
-	 * (which is actually missing when rendering with Cycles, who only
-	 * writes all the passes when the tile is finished) or use float
-	 * buffer from image buffer as reference, which is easier to use and
-	 * contains all the data we need anyway.
-	 *                                              - sergey -
-	 */
-	/* TODO(sergey): Need to check has_combined here? */
-	if (iuser->pass == 0) {
-		RenderView *rv;
-		const int view_id = BKE_scene_multiview_view_id_get(&scene->r, viewname);
-		rv = RE_RenderViewGetById(rr, view_id);
-
-		/* find current float rect for display, first case is after composite... still weak */
-		if (rv->rectf)
-			rectf = rv->rectf;
-		else {
-			if (rv->rect32) {
-				/* special case, currently only happens with sequencer rendering,
-				 * which updates the whole frame, so we can only mark display buffer
-				 * as invalid here (sergey)
-				 */
-				ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
-				return;
-			}
-			else {
-				if (rr->renlay == NULL) return;
-				rectf = RE_RenderLayerGetPass(rr->renlay, SCE_PASS_COMBINED, viewname);
-			}
-		}
-		if (rectf == NULL) return;
-
-		rectf += 4 * (rr->rectx * ymin + xmin);
-		linear_stride = rr->rectx;
-		linear_offset_x = rxmin;
-		linear_offset_y = rymin;
-	}
-	else {
-		rectf = ibuf->rect_float;
-		linear_stride = ibuf->x;
-		linear_offset_x = 0;
-		linear_offset_y = 0;
-	}
-
-	if (rr->do_exr_tile) {
-		/* We don't support changing color management settings during rendering
-		 * when using Save Buffers option.
-		 */
-		view_settings = &rj->view_settings;
-		display_settings = &rj->display_settings;
-	}
-	else {
-		view_settings = &scene->view_settings;
-		display_settings = &scene->display_settings;
-	}
-
-	IMB_partial_display_buffer_update(ibuf, rectf, NULL,
-	                                  linear_stride, linear_offset_x, linear_offset_y,
-	                                  view_settings, display_settings,
-	                                  rxmin, rymin, rxmin + xmax, rymin + ymax,
-	                                  rr->do_exr_tile);
-}
-
 /* ****************************** render invoking ***************** */
 
 /* set callbacks, exported to sequence render too.
@@ -572,7 +445,9 @@ static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrec
 		    ibuf->channels == 1 ||
 		    U.image_draw_method != IMAGE_DRAW_METHOD_GLSL)
 		{
-			image_buffer_rect_update(rj, rr, ibuf, &rj->iuser, renrect, viewname);
+			image_buffer_rect_update(rj->scene, rr, ibuf, &rj->iuser, renrect, viewname,
+				rr->do_exr_tile? &rj->view_settings : &rj->scene->view_settings,
+				rr->do_exr_tile? &rj->display_settings : &rj->scene->display_settings);
 		}
 		
 		/* make jobs timer to send notifier */

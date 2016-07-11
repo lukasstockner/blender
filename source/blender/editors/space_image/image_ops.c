@@ -3665,11 +3665,19 @@ void IMAGE_OT_clear_render_border(wmOperatorType *ot)
 
 typedef struct PostprocessJob {
 	RenderResult *rr;
-	float *progress;
+	Render *re;
 
+	float *progress;
+	short *do_update;
+	short *stop;
+	bool image_outdated;
+	int last_layer;
+
+	ScrArea *sa;
 	Scene *scene;
 	Image *ima;
 	ImageUser *iuser;
+	Main *main;
 } PostprocessJob;
 
 static int postprocess_poll(bContext *C)
@@ -3706,8 +3714,9 @@ static int postprocess_exec(bContext *C, wmOperator *UNUSED(op))
 	Scene *scene = CTX_data_scene(C);
 	Image *ima = CTX_data_edit_image(C);
 	RenderResult *rr = BKE_image_acquire_renderresult(scene, ima);
+	Render *re = RE_NewRender(scene->id.name);
 
-	RE_engine_postprocess(scene, rr);
+	RE_engine_postprocess(scene, re, rr);
 
 	BKE_image_release_renderresult(scene, ima);
 
@@ -3723,22 +3732,25 @@ static void postprocess_startjob(void *pj, short *stop, short *do_update, float 
 {
 	PostprocessJob *job = pj;
 	job->progress = progress;
+	job->do_update = do_update;
+	job->stop = stop;
 
-	RE_engine_postprocess(job->scene, job->rr);
+	RE_engine_postprocess(job->scene, job->re, job->rr);
 }
 
 static void postprocess_endjob(void *pj) {
 	PostprocessJob *job = pj;
-	void *lock;
-	ImBuf *ibuf;
 
 	WM_main_add_notifier(NC_SCENE | ND_RENDER_RESULT, NULL);
 
-	ibuf = BKE_image_acquire_ibuf(job->ima, job->iuser, &lock);
+	if (job->image_outdated) {
+		void *lock;
+		ImBuf *ibuf = BKE_image_acquire_ibuf(job->ima, job->iuser, &lock);
 
-	if (ibuf)
-		ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
-	BKE_image_release_ibuf(job->ima, ibuf, lock);
+		if (ibuf)
+			ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
+		BKE_image_release_ibuf(job->ima, ibuf, lock);
+	}
 }
 
 static void postprocess_freejob(void *pj)
@@ -3749,6 +3761,240 @@ static void postprocess_freejob(void *pj)
 	MEM_freeN(pj);
 }
 
+static int postprocess_breakjob(void *pj)
+{
+	PostprocessJob *job = pj;
+
+	if (G.is_break)
+		return 1;
+	if (job->stop && *(job->stop))
+		return 1;
+	return 0;
+}
+
+static void postprocess_progress_update(void *pj, float progress)
+{
+	PostprocessJob *job = pj;
+
+	if (job->progress && *job->progress != progress) {
+		*job->progress = progress;
+
+		/* make jobs timer to send notifier */
+		*(job->do_update) = true;
+	}
+}
+
+void image_buffer_rect_update(Scene *scene, RenderResult *rr, ImBuf *ibuf, ImageUser *iuser, volatile rcti *renrect, const char *viewname,
+	ColorManagedViewSettings *view_settings, ColorManagedDisplaySettings *display_settings)
+{
+	const float *rectf = NULL;
+	int ymin, ymax, xmin, xmax;
+	int rymin, rxmin;
+	int linear_stride, linear_offset_x, linear_offset_y;
+
+	/* Exception for exr tiles -- display buffer conversion happens here,
+	 * NOT in the color management pipeline.
+	 */
+	if (ibuf->userflags & IB_DISPLAY_BUFFER_INVALID &&
+	    rr->do_exr_tile == false)
+	{
+		/* The whole image buffer it so be color managed again anyway. */
+		return;
+	}
+
+	/* if renrect argument, we only refresh scanlines */
+	if (renrect) {
+		/* if (ymax == recty), rendering of layer is ready, we should not draw, other things happen... */
+		if (rr->renlay == NULL || renrect->ymax >= rr->recty)
+			return;
+
+		/* xmin here is first subrect x coord, xmax defines subrect width */
+		xmin = renrect->xmin + rr->crop;
+		xmax = renrect->xmax - xmin + rr->crop;
+		if (xmax < 2)
+			return;
+
+		ymin = renrect->ymin + rr->crop;
+		ymax = renrect->ymax - ymin + rr->crop;
+		if (ymax < 2)
+			return;
+		renrect->ymin = renrect->ymax;
+
+	}
+	else {
+		xmin = ymin = rr->crop;
+		xmax = rr->rectx - 2 * rr->crop;
+		ymax = rr->recty - 2 * rr->crop;
+	}
+
+	/* xmin ymin is in tile coords. transform to ibuf */
+	rxmin = rr->tilerect.xmin + xmin;
+	if (rxmin >= ibuf->x) return;
+	rymin = rr->tilerect.ymin + ymin;
+	if (rymin >= ibuf->y) return;
+
+	if (rxmin + xmax > ibuf->x)
+		xmax = ibuf->x - rxmin;
+	if (rymin + ymax > ibuf->y)
+		ymax = ibuf->y - rymin;
+
+	if (xmax < 1 || ymax < 1) return;
+
+	/* The thing here is, the logic below (which was default behavior
+	 * of how rectf is acquiring since forever) gives float buffer for
+	 * composite output only. This buffer can not be used for other
+	 * passes obviously.
+	 *
+	 * We might try finding corresponding for pass buffer in render result
+	 * (which is actually missing when rendering with Cycles, who only
+	 * writes all the passes when the tile is finished) or use float
+	 * buffer from image buffer as reference, which is easier to use and
+	 * contains all the data we need anyway.
+	 *                                              - sergey -
+	 */
+	/* TODO(sergey): Need to check has_combined here? */
+	if (iuser->pass == 0) {
+		RenderView *rv;
+		const int view_id = BKE_scene_multiview_view_id_get(&scene->r, viewname);
+		rv = RE_RenderViewGetById(rr, view_id);
+
+		/* find current float rect for display, first case is after composite... still weak */
+		if (rv->rectf)
+			rectf = rv->rectf;
+		else {
+			if (rv->rect32) {
+				/* special case, currently only happens with sequencer rendering,
+				 * which updates the whole frame, so we can only mark display buffer
+				 * as invalid here (sergey)
+				 */
+				ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
+				return;
+			}
+			else {
+				if (rr->renlay == NULL) return;
+				rectf = RE_RenderLayerGetPass(rr->renlay, SCE_PASS_COMBINED, viewname);
+			}
+		}
+		if (rectf == NULL) return;
+
+		rectf += 4 * (rr->rectx * ymin + xmin);
+		linear_stride = rr->rectx;
+		linear_offset_x = rxmin;
+		linear_offset_y = rymin;
+	}
+	else {
+		rectf = ibuf->rect_float;
+		linear_stride = ibuf->x;
+		linear_offset_x = 0;
+		linear_offset_y = 0;
+	}
+
+	IMB_partial_display_buffer_update(ibuf, rectf, NULL,
+	                                  linear_stride, linear_offset_x, linear_offset_y,
+	                                  view_settings, display_settings,
+	                                  rxmin, rymin, rxmin + xmax, rymin + ymax,
+	                                  rr->do_exr_tile);
+}
+
+static void postprocess_image_update_pass_and_layer(PostprocessJob *job, RenderResult *rr, ImageUser *iuser)
+{
+	wmWindowManager *wm;
+	ScrArea *first_sa = NULL, *matched_sa = NULL;
+
+	/* image window, compo node users */
+	for (wm = job->main->wm.first; wm && matched_sa == NULL; wm = wm->id.next) { /* only 1 wm */
+		wmWindow *win;
+		for (win = wm->windows.first; win && matched_sa == NULL; win = win->next) {
+			ScrArea *sa;
+			for (sa = win->screen->areabase.first; sa; sa = sa->next) {
+				if (sa->spacetype == SPACE_IMAGE) {
+					SpaceImage *sima = sa->spacedata.first;
+					// sa->spacedata might be empty when toggling fullscreen mode.
+					if (sima != NULL && sima->image == job->ima) {
+						if (first_sa == NULL) {
+							first_sa = sa;
+						}
+						if (sa == job->sa) {
+							matched_sa = sa;
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (matched_sa == NULL) {
+		matched_sa = first_sa;
+	}
+
+	if (matched_sa) {
+		SpaceImage *sima = matched_sa->spacedata.first;
+
+		/* TODO(sergey): is there faster way to get the layer index? */
+		if (rr->renlay) {
+			int layer = BLI_findstringindex(&job->rr->layers,
+			                                (char *)rr->renlay->name,
+			                                offsetof(RenderLayer, name));
+			if (layer != job->last_layer) {
+				sima->iuser.layer = layer;
+				job->last_layer = layer;
+			}
+		}
+
+		iuser->pass = sima->iuser.pass;
+		iuser->layer = sima->iuser.layer;
+	}
+}
+
+static void postprocess_image_rect_update(void *pj, RenderResult *rr, volatile rcti *renrect)
+{
+	PostprocessJob *job = pj;
+	Image *ima = job->ima;
+	ImBuf *ibuf;
+	void *lock;
+	const char *viewname = RE_GetActiveRenderView(job->re);
+
+	/* only update if we are displaying the slot being rendered */
+	if (ima->render_slot != ima->last_render_slot) {
+		job->image_outdated = true;
+		return;
+	}
+	else if (job->image_outdated) {
+		/* update entire render */
+		job->image_outdated = false;
+		BKE_image_signal(ima, NULL, IMA_SIGNAL_COLORMANAGE);
+		*(job->do_update) = true;
+		return;
+	}
+	
+	if (rr == NULL)
+		return;
+	
+	/* update part of render */
+	postprocess_image_update_pass_and_layer(job, rr, job->iuser);
+	ibuf = BKE_image_acquire_ibuf(ima, job->iuser, &lock);
+	if (ibuf) {
+		/* Don't waste time on CPU side color management if
+		 * image will be displayed using GLSL.
+		 *
+		 * Need to update rect if Save Buffers enabled because in
+		 * this case GLSL doesn't have original float buffer to
+		 * operate with.
+		 */
+		if (ibuf->channels == 1 ||
+		    U.image_draw_method != IMAGE_DRAW_METHOD_GLSL)
+		{
+			image_buffer_rect_update(job->scene, rr, ibuf, job->iuser, renrect, viewname,
+				&job->scene->view_settings, &job->scene->display_settings);
+		}
+		
+		/* make jobs timer to send notifier */
+		*(job->do_update) = true;
+	}
+	BKE_image_release_ibuf(ima, ibuf, lock);
+}
+
 static int postprocess_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	wmJob *wm_job;
@@ -3756,6 +4002,7 @@ static int postprocess_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	Scene *scene = CTX_data_scene(C);
 	Image *ima = CTX_data_edit_image(C);
 	RenderResult *rr = BKE_image_acquire_renderresult(scene, ima);
+	Render *re = RE_NewRender(scene->id.name);
 
 	if (WM_jobs_test(CTX_wm_manager(C), rr, WM_JOB_TYPE_POSTPROCESS))
 		return OPERATOR_CANCELLED;
@@ -3768,11 +4015,20 @@ static int postprocess_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	job->scene = scene;
 	job->ima = ima;
 	job->iuser = &CTX_wm_space_image(C)->iuser;
+	job->image_outdated = true;
+	job->main = CTX_data_main(C);
+	job->last_layer = 0;
+	job->sa = render_view_open(C, event->x, event->y, op->reports);
 
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), rr, "Postprocess", WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS, WM_JOB_TYPE_POSTPROCESS);
 	WM_jobs_customdata_set(wm_job, job, postprocess_freejob);
 	WM_jobs_timer(wm_job, 0.2, NC_SCENE | ND_RENDER_RESULT, 0);
 	WM_jobs_callbacks(wm_job, postprocess_startjob, NULL, NULL, postprocess_endjob);
+
+	job->re = re;
+	RE_test_break_cb(re, job, postprocess_breakjob);
+	RE_display_update_cb(re, job, postprocess_image_rect_update);
+	RE_progress_cb(re, job, postprocess_progress_update);
 
 	op->customdata = rr;
 

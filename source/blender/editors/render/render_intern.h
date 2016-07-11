@@ -102,5 +102,9 @@ void RENDER_OT_view_cancel(struct wmOperatorType *ot);
 /* render_opengl.c */
 void RENDER_OT_opengl(struct wmOperatorType *ot);
 
+/* space_image */
+void image_buffer_rect_update(struct Scene *scene, struct RenderResult *rr, struct ImBuf *ibuf, struct ImageUser *iuser, volatile rcti *renrect, const char *viewname,
+	struct ColorManagedViewSettings *view_settings, struct ColorManagedDisplaySettings *display_settings);
+
 #endif /* __RENDER_INTERN_H__ */
 

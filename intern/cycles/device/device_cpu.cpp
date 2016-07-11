@@ -365,6 +365,8 @@ public:
 #endif
 				delete[] storages;
 				tile.sample = sample;
+
+				task.update_progress(&tile);
 			}
 
 			task.release_tile(tile);

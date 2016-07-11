@@ -1362,6 +1362,9 @@ void BlenderSession::denoise(BL::RenderResult& b_rr)
 	session = new Session(session_params);
 	session->set_pause(false);
 
+	b_engine.use_highlight_tiles(true);
+	session->progress.set_update_callback(function_bind(&BlenderSession::tag_redraw, this));
+	session->progress.set_cancel_callback(function_bind(&BlenderSession::test_cancel, this));
 	session->write_render_tile_cb = function_bind(&BlenderSession::write_render_tile, this, _1);
 	session->update_render_tile_cb = function_bind(&BlenderSession::update_render_tile, this, _1, _2);
 

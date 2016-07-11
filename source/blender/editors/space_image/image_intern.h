@@ -94,11 +94,17 @@ void IMAGE_OT_clear_render_border(struct wmOperatorType *ot);
 
 void IMAGE_OT_postprocess(struct wmOperatorType *ot);
 
+void image_buffer_rect_update(struct Scene *scene, struct RenderResult *rr, struct ImBuf *ibuf, struct ImageUser *iuser, volatile rcti *renrect, const char *viewname,
+	struct ColorManagedViewSettings *view_settings, struct ColorManagedDisplaySettings *display_settings);
+
 /* image_panels.c */
 struct ImageUser *ntree_get_active_iuser(struct bNodeTree *ntree);
 void image_buttons_register(struct ARegionType *art);
 void IMAGE_OT_properties(struct wmOperatorType *ot);
 void IMAGE_OT_toolshelf(struct wmOperatorType *ot);
+
+/* render */
+struct ScrArea *render_view_open(struct bContext *C, int mx, int my, struct ReportList *reports);
 
 #endif /* __IMAGE_INTERN_H__ */
 
