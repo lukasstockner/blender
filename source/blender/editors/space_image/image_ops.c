@@ -3663,6 +3663,15 @@ void IMAGE_OT_clear_render_border(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+typedef struct PostprocessJob {
+	RenderResult *rr;
+	float *progress;
+
+	Scene *scene;
+	Image *ima;
+	ImageUser *iuser;
+} PostprocessJob;
+
 static int postprocess_poll(bContext *C)
 {
 	Scene *scene = CTX_data_scene(C);
@@ -3710,6 +3719,94 @@ static int postprocess_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
+static void postprocess_startjob(void *pj, short *stop, short *do_update, float *progress)
+{
+	PostprocessJob *job = pj;
+	job->progress = progress;
+
+	RE_engine_postprocess(job->scene, job->rr);
+}
+
+static void postprocess_endjob(void *pj) {
+	PostprocessJob *job = pj;
+	void *lock;
+	ImBuf *ibuf;
+
+	WM_main_add_notifier(NC_SCENE | ND_RENDER_RESULT, NULL);
+
+	ibuf = BKE_image_acquire_ibuf(job->ima, job->iuser, &lock);
+
+	if (ibuf)
+		ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
+	BKE_image_release_ibuf(job->ima, ibuf, lock);
+}
+
+static void postprocess_freejob(void *pj)
+{
+	PostprocessJob *job = pj;
+
+	BKE_image_release_renderresult(job->scene, job->ima);
+	MEM_freeN(pj);
+}
+
+static int postprocess_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	wmJob *wm_job;
+	PostprocessJob *job;
+	Scene *scene = CTX_data_scene(C);
+	Image *ima = CTX_data_edit_image(C);
+	RenderResult *rr = BKE_image_acquire_renderresult(scene, ima);
+
+	if (WM_jobs_test(CTX_wm_manager(C), rr, WM_JOB_TYPE_POSTPROCESS))
+		return OPERATOR_CANCELLED;
+
+	WM_jobs_kill_all_except(CTX_wm_manager(C), CTX_wm_screen(C));
+	WM_cursor_wait(1);
+
+	job = MEM_callocN(sizeof(PostprocessJob), "postprocess job");
+	job->rr = rr;
+	job->scene = scene;
+	job->ima = ima;
+	job->iuser = &CTX_wm_space_image(C)->iuser;
+
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), rr, "Postprocess", WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS, WM_JOB_TYPE_POSTPROCESS);
+	WM_jobs_customdata_set(wm_job, job, postprocess_freejob);
+	WM_jobs_timer(wm_job, 0.2, NC_SCENE | ND_RENDER_RESULT, 0);
+	WM_jobs_callbacks(wm_job, postprocess_startjob, NULL, NULL, postprocess_endjob);
+
+	op->customdata = rr;
+
+	WM_jobs_start(CTX_wm_manager(C), wm_job);
+
+	WM_cursor_wait(0);
+
+	WM_event_add_modal_handler(C, op);
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static int postprocess_modal(bContext *C, wmOperator *op, const wmEvent *event) {
+	RenderResult *rr = (RenderResult*) op->customdata;
+
+	if (0 == WM_jobs_test(CTX_wm_manager(C), rr, WM_JOB_TYPE_POSTPROCESS)) {
+		return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
+	}
+
+	switch (event->type) {
+		case ESCKEY:
+			return OPERATOR_RUNNING_MODAL;
+	}
+	return OPERATOR_PASS_THROUGH;
+}
+
+static void postprocess_cancel(bContext *C, wmOperator *op)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+	RenderResult *rr = (RenderResult*) op->customdata;
+
+	WM_jobs_kill_type(wm, rr, WM_JOB_TYPE_POSTPROCESS);
+}
+
 void IMAGE_OT_postprocess(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -3719,6 +3816,9 @@ void IMAGE_OT_postprocess(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = postprocess_exec;
+	ot->invoke = postprocess_invoke;
+	ot->modal = postprocess_modal;
+	ot->cancel = postprocess_cancel;
 	ot->poll = postprocess_poll;
 
 	/* flags */

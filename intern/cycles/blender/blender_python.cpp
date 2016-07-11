@@ -717,7 +717,12 @@ static PyObject *postprocess_func(PyObject * /*self*/, PyObject *args)
 	BL::RenderResult b_rr(resultptr);
 
 	BlenderSession session(engine, userpref, scene);
+
+	python_thread_state_save(&session.python_thread_state);
+
 	session.denoise(b_rr);
+
+	python_thread_state_restore(&session.python_thread_state);
 
 	Py_RETURN_NONE;
 }
