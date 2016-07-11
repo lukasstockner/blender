@@ -314,6 +314,8 @@ public:
 							filter_final_pass_kernel(&kg, end_sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, filter_rect);
 						}
 					}
+
+					delete[] storages;
 				}
 			}
 			else if(tile.task == RenderTile::DENOISE) {
@@ -361,6 +363,7 @@ public:
 				WRITE_DEBUG("log_rmse_per_sample.pfm", log_rmse_per_sample);
 #undef WRITE_DEBUG
 #endif
+				delete[] storages;
 				tile.sample = sample;
 			}
 
