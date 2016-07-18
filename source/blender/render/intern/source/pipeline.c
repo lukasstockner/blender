@@ -1852,6 +1852,7 @@ static void render_result_uncrop(Render *re)
 
 			rres = render_result_new(re, &re->disprect, 0, RR_USE_MEM, RR_ALL_LAYERS, RR_ALL_VIEWS);
 
+			render_result_clone_passes(re, rres, NULL);
 			render_result_merge(rres, re->result);
 			render_result_free(re->result);
 			re->result = rres;
