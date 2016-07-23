@@ -79,9 +79,9 @@ int BufferParams::get_passes_size()
 		size += passes[i].components;
 
 	if(denoising_passes) {
-		/* Feature passes: 7 Channels (3 Color, 3 Normal, 1 Depth) + 7 Variance
+		/* Feature passes: 11 Channels (3 Color, 3 Normal, 1 Depth, 4 Shadow) + 9 Variance
 		 * Color passes: 3 Noisy (RGB) + 3 Variance [+ 3 Skip (RGB)] */
-		size += selective_denoising? 23: 20;
+		size += selective_denoising? 29: 26;
 	}
 
 	return align_up(size, 4);
@@ -231,9 +231,11 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 		case EX_TYPE_DENOISE_ALBEDO_VAR: type_offset =  9; scale = 1.0f/sample; break;
 		case EX_TYPE_DENOISE_DEPTH:      type_offset = 12; scale = 1.0f/sample; break;
 		case EX_TYPE_DENOISE_DEPTH_VAR:  type_offset = 13; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_NOISY:      type_offset = 14; scale = exposure/sample; break;
-		case EX_TYPE_DENOISE_NOISY_VAR:  type_offset = 17; scale = exposure*exposure/sample; break;
-		case EX_TYPE_DENOISE_CLEAN:      type_offset = 20; scale = exposure/sample; break;
+		case EX_TYPE_DENOISE_SHADOW_A:   type_offset = 14; scale = 1.0f/sample; break;
+		case EX_TYPE_DENOISE_SHADOW_B:   type_offset = 17; scale = 1.0f/sample; break;
+		case EX_TYPE_DENOISE_NOISY:      type_offset = 20; scale = exposure/sample; break;
+		case EX_TYPE_DENOISE_NOISY_VAR:  type_offset = 23; scale = exposure*exposure/sample; break;
+		case EX_TYPE_DENOISE_CLEAN:      type_offset = 26; scale = exposure/sample; break;
 	}
 
 	if(read_pixels) {

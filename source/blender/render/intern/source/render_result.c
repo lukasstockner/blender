@@ -380,6 +380,18 @@ static const char *name_from_passtype(uint64_t passtype, int channel)
 		if (channel == 1) return "DenoiseAlbedoVar.G";
 		return "DenoiseAlbedoVar.B";
 	}
+	if (passtype == SCE_PASS_DENOISE_SHADOW_A) {
+		if (channel == -1) return "DenoiseShadowA";
+		if (channel == 0) return "DenoiseShadowA.R";
+		if (channel == 1) return "DenoiseShadowA.G";
+		return "DenoiseShadowA.B";
+	}
+	if (passtype == SCE_PASS_DENOISE_SHADOW_B) {
+		if (channel == -1) return "DenoiseShadowB";
+		if (channel == 0) return "DenoiseShadowB.R";
+		if (channel == 1) return "DenoiseShadowB.G";
+		return "DenoiseShadowB.B";
+	}
 	if (passtype == SCE_PASS_DENOISE_DEPTH) {
 		if (channel == -1) return "DenoiseDepth";
 		return "DenoiseDepth.Z";
@@ -527,6 +539,12 @@ static uint64_t passtype_from_name(const char *str, uint64_t passflag)
 
 	if (STRPREFIX(str, "DenoiseDepthVar"))
 		return SCE_PASS_DENOISE_DEPTH_VAR;
+
+	if (STRPREFIX(str, "DenoiseShadowA"))
+		return SCE_PASS_DENOISE_SHADOW_A;
+
+	if (STRPREFIX(str, "DenoiseShadowB"))
+		return SCE_PASS_DENOISE_SHADOW_B;
 
 	if (STRPREFIX(str, "DenoiseNoisy"))
 		return SCE_PASS_DENOISE_NOISY;

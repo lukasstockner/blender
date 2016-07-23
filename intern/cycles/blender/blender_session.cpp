@@ -476,6 +476,8 @@ void BlenderSession::render()
 			add_pass(b_engine, SCE_PASS_DENOISE_ALBEDO_VAR, 3, b_rlay_name.c_str(), NULL);
 			add_pass(b_engine, SCE_PASS_DENOISE_DEPTH, 1, b_rlay_name.c_str(), NULL);
 			add_pass(b_engine, SCE_PASS_DENOISE_DEPTH_VAR, 1, b_rlay_name.c_str(), NULL);
+			add_pass(b_engine, SCE_PASS_DENOISE_SHADOW_A, 3, b_rlay_name.c_str(), NULL);
+			add_pass(b_engine, SCE_PASS_DENOISE_SHADOW_B, 3, b_rlay_name.c_str(), NULL);
 			add_pass(b_engine, SCE_PASS_DENOISE_NOISY, 3, b_rlay_name.c_str(), NULL);
 			add_pass(b_engine, SCE_PASS_DENOISE_NOISY_VAR, 3, b_rlay_name.c_str(), NULL);
 			if(buffer_params.selective_denoising) {

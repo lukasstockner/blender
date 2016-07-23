@@ -274,9 +274,11 @@ typedef enum ScenePassType {
 #define SCE_PASS_DENOISE_ALBEDO_VAR       (((uint64_t) 1) << 35)
 #define SCE_PASS_DENOISE_DEPTH            (((uint64_t) 1) << 36)
 #define SCE_PASS_DENOISE_DEPTH_VAR        (((uint64_t) 1) << 37)
-#define SCE_PASS_DENOISE_NOISY            (((uint64_t) 1) << 38) /* The original noisy image (only the components that are denoised). */
-#define SCE_PASS_DENOISE_NOISY_VAR        (((uint64_t) 1) << 39)
-#define SCE_PASS_DENOISE_CLEAN            (((uint64_t) 1) << 40) /* If present, these image components are added to the denoised image. */
+#define SCE_PASS_DENOISE_SHADOW_A         (((uint64_t) 1) << 38)
+#define SCE_PASS_DENOISE_SHADOW_B         (((uint64_t) 1) << 39)
+#define SCE_PASS_DENOISE_NOISY            (((uint64_t) 1) << 40) /* The original noisy image (only the components that are denoised). */
+#define SCE_PASS_DENOISE_NOISY_VAR        (((uint64_t) 1) << 41)
+#define SCE_PASS_DENOISE_CLEAN            (((uint64_t) 1) << 42) /* If present, these image components are added to the denoised image. */
 
 /* note, srl->passflag is treestore element 'nr' in outliner, short still... */
 

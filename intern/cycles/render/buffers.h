@@ -38,9 +38,11 @@ typedef enum DenoiseExtendedTypes {
 	EX_TYPE_DENOISE_ALBEDO_VAR        = (1 << 3),
 	EX_TYPE_DENOISE_DEPTH             = (1 << 4),
 	EX_TYPE_DENOISE_DEPTH_VAR         = (1 << 5),
-	EX_TYPE_DENOISE_NOISY             = (1 << 6),
-	EX_TYPE_DENOISE_NOISY_VAR         = (1 << 7),
-	EX_TYPE_DENOISE_CLEAN             = (1 << 8),
+	EX_TYPE_DENOISE_SHADOW_A          = (1 << 6),
+	EX_TYPE_DENOISE_SHADOW_B          = (1 << 7),
+	EX_TYPE_DENOISE_NOISY             = (1 << 8),
+	EX_TYPE_DENOISE_NOISY_VAR         = (1 << 9),
+	EX_TYPE_DENOISE_CLEAN             = (1 << 10),
 
 	EX_TYPE_DENOISE_REQUIRED = (EX_TYPE_DENOISE_NORMAL
 	                          | EX_TYPE_DENOISE_NORMAL_VAR
@@ -48,6 +50,8 @@ typedef enum DenoiseExtendedTypes {
 	                          | EX_TYPE_DENOISE_ALBEDO_VAR
 	                          | EX_TYPE_DENOISE_DEPTH
 	                          | EX_TYPE_DENOISE_DEPTH_VAR
+	                          | EX_TYPE_DENOISE_SHADOW_A
+	                          | EX_TYPE_DENOISE_SHADOW_B
 	                          | EX_TYPE_DENOISE_NOISY
 	                          | EX_TYPE_DENOISE_NOISY_VAR),
 	EX_TYPE_DENOISE_ALL = EX_TYPE_DENOISE_REQUIRED | EX_TYPE_DENOISE_CLEAN,

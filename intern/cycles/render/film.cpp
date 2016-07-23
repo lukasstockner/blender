@@ -444,7 +444,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 
 	if(denoising_passes) {
 		kfilm->pass_denoising = kfilm->pass_stride;
-		kfilm->pass_stride += 20;
+		kfilm->pass_stride += 26;
 		kfilm->denoise_flag = denoise_flags;
 		if(selective_denoising) {
 			kfilm->pass_no_denoising = kfilm->pass_stride;

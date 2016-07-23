@@ -77,13 +77,13 @@ ccl_device_inline void filter_get_feature_variance(int x, int y, float *buffer, 
 ccl_device_inline float3 filter_get_pixel_color(float *buffer, float sample)
 {
 	float sample_scale = 1.0f/sample;
-	return make_float3(buffer[14], buffer[15], buffer[16]) * sample_scale;
+	return make_float3(buffer[20], buffer[21], buffer[22]) * sample_scale;
 }
 
 ccl_device_inline float filter_get_pixel_variance(float *buffer, float sample)
 {
 	float sample_scale_var = 1.0f/(sample * (sample - 1.0f));
-	return average(make_float3(buffer[17], buffer[18], buffer[19])) * sample_scale_var;
+	return average(make_float3(buffer[23], buffer[24], buffer[25])) * sample_scale_var;
 }
 
 ccl_device_inline float filter_fill_design_row(float *features, int rank, float *design_row, float *feature_transform, float *bandwidth_factor)
@@ -133,8 +133,8 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 
 	/* === Get center pixel color and variance. === */
 	float *center_buffer = buffers[4] + (offset[4] + y*stride[4] + x)*kernel_data.film.pass_stride + kernel_data.film.pass_denoising;
-	float3 center_color    = make_float3(center_buffer[14], center_buffer[15], center_buffer[16]) / sample;
-	float sqrt_center_variance = sqrtf(average(make_float3(center_buffer[17], center_buffer[18], center_buffer[19])) / (sample * (sample - 1.0f)));
+	float3 center_color  = filter_get_pixel_color(center_buffer, sample);
+	float sqrt_center_variance = sqrtf(filter_get_pixel_variance(center_buffer, sample));
 
 
 
@@ -389,8 +389,8 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float **
 
 	/* === Get center pixel. === */
 	float *center_buffer = buffers[4] + (offset[4] + y*stride[4] + x)*kernel_data.film.pass_stride + kernel_data.film.pass_denoising;
-	float3 center_color    = make_float3(center_buffer[14], center_buffer[15], center_buffer[16]) / sample;
-	float sqrt_center_variance = sqrtf(average(make_float3(center_buffer[17], center_buffer[18], center_buffer[19])) / (sample * (sample - 1.0f)));
+	float3 center_color  = filter_get_pixel_color(center_buffer, sample);
+	float sqrt_center_variance = sqrtf(filter_get_pixel_variance(center_buffer, sample));
 	float feature_means[DENOISE_FEATURES];
 	filter_get_features(x, y, center_buffer, sample, feature_means, NULL);
 
