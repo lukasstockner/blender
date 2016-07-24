@@ -32,23 +32,23 @@ CCL_NAMESPACE_BEGIN
 ccl_device_inline void filter_get_features(int x, int y, float *buffer, float sample, float *features, float *mean)
 {
 	float sample_scale = 1.0f/sample;
-	features[0] = buffer[0] * sample_scale;
-	features[1] = buffer[1] * sample_scale;
-	features[2] = buffer[2] * sample_scale;
-	features[3] = buffer[6] * sample_scale;
-	features[4] = buffer[7] * sample_scale;
-	features[5] = buffer[8] * sample_scale;
-	features[6] = buffer[12] * sample_scale;
-	features[7] = x;
-	features[8] = y;
+	features[0] = x;
+	features[1] = y;
+	features[2] = buffer[12] * sample_scale;
+	features[3] = buffer[0] * sample_scale;
+	features[4] = buffer[1] * sample_scale;
+	features[5] = buffer[2] * sample_scale;
+	features[6] = buffer[6] * sample_scale;
+	features[7] = buffer[7] * sample_scale;
+	features[8] = buffer[8] * sample_scale;
 	if(mean) {
 		for(int i = 0; i < DENOISE_FEATURES; i++)
 			features[i] -= mean[i];
 	}
 #ifdef DENOISE_SECOND_ORDER_SCREEN
-	features[9] = features[7]*features[7];
-	features[10] = features[8]*features[8];
-	features[11] = features[7]*features[8];
+	features[9] = features[0]*features[0];
+	features[10] = features[1]*features[1];
+	features[11] = features[0]*features[1];
 #endif
 }
 
@@ -56,15 +56,15 @@ ccl_device_inline void filter_get_feature_variance(int x, int y, float *buffer, 
 {
 	float sample_scale = 1.0f/sample;
 	float sample_scale_var = 1.0f/(sample - 1.0f);
-	features[0] = saturate(buffer[3] * sample_scale_var) * sample_scale;
-	features[1] = saturate(buffer[4] * sample_scale_var) * sample_scale;
-	features[2] = saturate(buffer[5] * sample_scale_var) * sample_scale;
-	features[3] = saturate(buffer[9] * sample_scale_var) * sample_scale;
-	features[4] = saturate(buffer[10] * sample_scale_var) * sample_scale;
-	features[5] = saturate(buffer[11] * sample_scale_var) * sample_scale;
-	features[6] = saturate(buffer[13] * sample_scale_var) * sample_scale;
-	features[7] = 0.0f;
-	features[8] = 0.0f;
+	features[0] = 0.0f;
+	features[1] = 0.0f;
+	features[2] = saturate(buffer[13] * sample_scale_var) * sample_scale;
+	features[3] = saturate(buffer[3] * sample_scale_var) * sample_scale;
+	features[4] = saturate(buffer[4] * sample_scale_var) * sample_scale;
+	features[5] = saturate(buffer[5] * sample_scale_var) * sample_scale;
+	features[6] = saturate(buffer[9] * sample_scale_var) * sample_scale;
+	features[7] = saturate(buffer[10] * sample_scale_var) * sample_scale;
+	features[8] = saturate(buffer[11] * sample_scale_var) * sample_scale;
 #ifdef DENOISE_SECOND_ORDER_SCREEN
 	features[9] = 0.0f;
 	features[10] = 0.0f;
@@ -152,15 +152,13 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	float feature_means[DENOISE_FEATURES] = {0.0f};
 	FOR_PIXEL_WINDOW {
 		filter_get_features(px, py, buffer, sample, features, NULL);
-		for(int i = 0; i < FEATURE_PASSES; i++)
+		for(int i = 0; i < DENOISE_FEATURES; i++)
 			feature_means[i] += features[i];
 	} END_FOR_PIXEL_WINDOW
 
 	float pixel_scale = 1.0f / ((high.y - low.y) * (high.x - low.x));
-	for(int i = 0; i < FEATURE_PASSES; i++)
+	for(int i = 0; i < DENOISE_FEATURES; i++)
 		feature_means[i] *= pixel_scale;
-	feature_means[7] = x;
-	feature_means[8] = y;
 
 	/* === Scale the shifted feature passes to a range of [-1; 1], will be baked into the transform later. === */
 	float *feature_scale = tempvector;
@@ -168,16 +166,12 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 
 	FOR_PIXEL_WINDOW {
 		filter_get_features(px, py, buffer, sample, features, feature_means);
-		for(int i = 0; i < FEATURE_PASSES; i++)
+		for(int i = 0; i < DENOISE_FEATURES; i++)
 			feature_scale[i] = max(feature_scale[i], fabsf(features[i]));
 	} END_FOR_PIXEL_WINDOW
 
-	for(int i = 0; i < FEATURE_PASSES; i++)
+	for(int i = 0; i < DENOISE_FEATURES; i++)
 		feature_scale[i] = 1.0f / max(feature_scale[i], 0.01f);
-	feature_scale[7] = feature_scale[8] = 1.0f / kernel_data.integrator.half_window;
-#ifdef DENOISE_SECOND_ORDER_SCREEN
-	feature_scale[9] = feature_scale[10] = feature_scale[11] = 1.0f / (kernel_data.integrator.half_window*kernel_data.integrator.half_window);
-#endif
 
 
 
@@ -189,17 +183,17 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	math_matrix_zero_lower(feature_matrix, DENOISE_FEATURES);
 #ifdef FULL_EIGENVALUE_NORM
 	float *perturbation_matrix = tempmatrix + DENOISE_FEATURES*DENOISE_FEATURES;
-	math_matrix_zero_lower(perturbation_matrix, DENOISE_FEATURES);
+	math_matrix_zero_lower(perturbation_matrix, FEATURE_PASSES);
 #endif
 	FOR_PIXEL_WINDOW {
 		filter_get_features(px, py, buffer, sample, features, feature_means);
-		for(int i = 0; i < FEATURE_PASSES; i++)
+		for(int i = 0; i < DENOISE_FEATURES; i++)
 			features[i] *= feature_scale[i];
 		math_add_gramian(feature_matrix, DENOISE_FEATURES, features, 1.0f);
 
 		filter_get_feature_variance(px, py, buffer, sample, features, feature_scale);
 #ifdef FULL_EIGENVALUE_NORM
-		math_add_gramian(perturbation_matrix, DENOISE_FEATURES, features, 1.0f);
+		math_add_gramian(perturbation_matrix, FEATURE_PASSES, features, 1.0f);
 #else
 		for(int i = 0; i < FEATURE_PASSES; i++)
 			feature_matrix_norm += features[i];
@@ -214,7 +208,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	float *eigenvector_guess = tempvector + 2*DENOISE_FEATURES;
 	for(int i = 0; i < DENOISE_FEATURES; i++)
 		eigenvector_guess[i] = 1.0f;
-	float singular_threshold = 0.01f + 2.0f * sqrtf(math_largest_eigenvalue(perturbation_matrix, DENOISE_FEATURES, eigenvector_guess, tempvector + 3*DENOISE_FEATURES));
+	float singular_threshold = 0.01f + 2.0f * sqrtf(math_largest_eigenvalue(perturbation_matrix, FEATURE_PASSES, eigenvector_guess, tempvector + 3*DENOISE_FEATURES));
 #else
 	float singular_threshold = 0.01f + 2.0f * (sqrtf(feature_matrix_norm) / (sqrtf(rank) * 0.5f));
 #endif
