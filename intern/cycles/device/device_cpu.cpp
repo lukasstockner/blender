@@ -315,6 +315,22 @@ public:
 						}
 					}
 
+#ifdef WITH_CYCLES_DEBUG_FILTER
+#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", tile.x, tile.y, name).c_str(), &storages[0].var, tile.buffers->params.final_width, tile.buffers->params.final_height, sizeof(FilterStorage)/sizeof(float), tile.buffers->params.final_width);
+					for(int i = 0; i < DENOISE_FEATURES; i++) {
+						WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
+						WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);
+						WRITE_DEBUG(string_printf("singular_%d", i).c_str(), singular[i]);
+						WRITE_DEBUG(string_printf("bandwidth_%d", i).c_str(), bandwidth[i]);
+					}
+					WRITE_DEBUG("singular_threshold", singular_threshold);
+					WRITE_DEBUG("feature_matrix_norm", feature_matrix_norm);
+					WRITE_DEBUG("global_bandwidth", global_bandwidth);
+					WRITE_DEBUG("filtered_global_bandwidth", filtered_global_bandwidth);
+					WRITE_DEBUG("sum_weight", sum_weight);
+					WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
+#undef WRITE_DEBUG
+#endif
 					delete[] storages;
 				}
 			}
@@ -349,18 +365,17 @@ public:
 #ifdef WITH_CYCLES_DEBUG_FILTER
 #define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", tile.x, tile.y, name).c_str(), &storages[0].var, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
 				for(int i = 0; i < DENOISE_FEATURES; i++) {
-					WRITE_DEBUG(string_printf("mean_%d.pfm", i).c_str(), means[i]);
-					WRITE_DEBUG(string_printf("scale_%d.pfm", i).c_str(), scales[i]);
-					WRITE_DEBUG(string_printf("singular_%d.pfm", i).c_str(), singular[i]);
-					WRITE_DEBUG(string_printf("bandwidth_%d.pfm", i).c_str(), bandwidth[i]);
+					WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
+					WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);
+					WRITE_DEBUG(string_printf("singular_%d", i).c_str(), singular[i]);
+					WRITE_DEBUG(string_printf("bandwidth_%d", i).c_str(), bandwidth[i]);
 				}
 				WRITE_DEBUG("singular_threshold", singular_threshold);
-				WRITE_DEBUG("singular_threshold.pfm", singular_threshold);
-				WRITE_DEBUG("feature_matrix_norm.pfm", feature_matrix_norm);
-				WRITE_DEBUG("global_bandwidth.pfm", global_bandwidth);
-				WRITE_DEBUG("filtered_global_bandwidth.pfm", filtered_global_bandwidth);
-				WRITE_DEBUG("sum_weight.pfm", sum_weight);
-				WRITE_DEBUG("log_rmse_per_sample.pfm", log_rmse_per_sample);
+				WRITE_DEBUG("feature_matrix_norm", feature_matrix_norm);
+				WRITE_DEBUG("global_bandwidth", global_bandwidth);
+				WRITE_DEBUG("filtered_global_bandwidth", filtered_global_bandwidth);
+				WRITE_DEBUG("sum_weight", sum_weight);
+				WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
 #undef WRITE_DEBUG
 #endif
 				delete[] storages;

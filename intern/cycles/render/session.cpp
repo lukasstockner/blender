@@ -386,7 +386,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	rtile.task = (tile->state == Tile::DENOISE)? RenderTile::DENOISE: RenderTile::PATH_TRACE;
 
 	int overscan = 0;
-	const bool is_gpu = params.device.type == DEVICE_CUDA || params.device.type == DEVICE_OPENCL;
+	const bool is_gpu = params.device.type == DEVICE_CUDA || params.device.type == DEVICE_OPENCL || getenv("CPU_OVERSCAN");
 	if(params.denoise_result && is_gpu) {
 		overscan = scene->integrator->half_window;
 		rtile.x -= overscan;
