@@ -227,7 +227,7 @@ void EDBM_mesh_normals_update(struct BMEditMesh *em) RET_NONE
 void *g_system;
 bool EDBM_mtexpoly_check(struct BMEditMesh *em) RET_ZERO
 
-float *RE_RenderLayerGetPass(volatile struct RenderLayer *rl, int passtype, const char *viewname) RET_NULL
+float *RE_RenderLayerGetPass(volatile struct RenderLayer *rl, uint64_t passtype, const char *viewname) RET_NULL
 float RE_filter_value(int type, float x) RET_ZERO
 struct RenderLayer *RE_GetRenderLayer(struct RenderResult *rr, const char *name) RET_NULL
 void RE_texture_rng_init() RET_NONE
@@ -241,8 +241,9 @@ float RE_engine_get_camera_shift_x(struct RenderEngine *engine, struct Object *c
 int RE_engine_get_spherical_stereo(struct RenderEngine *engine, struct Object *camera) RET_ZERO
 void RE_SetActiveRenderView(struct Render *re, const char *viewname) {STUB_ASSERT(0);}
 
-struct RenderPass *RE_pass_find_by_type(volatile struct RenderLayer *rl, int passtype, const char *viewname) RET_NULL
+struct RenderPass *RE_pass_find_by_type(volatile struct RenderLayer *rl, uint64_t passtype, const char *viewname) RET_NULL
 bool RE_HasFakeLayer(RenderResult *res) RET_ZERO
+void RE_engine_add_pass(RenderEngine *engine, int passtype, int channels, const char *layername, const char *viewname) RET_NONE
 
 /* zbuf.c stub */
 void antialias_tagbuf(int xsize, int ysize, char *rectmove) RET_NONE
