@@ -202,6 +202,7 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 						sc.data1 = bsdf->sc.data1;
 						sc.data2 = bsdf->sc.data2;
 						sc.prim = bsdf->sc.prim;
+						sc.roughness = bsdf->sc.roughness;
 						if(shaderdata_flag & SD_BSDF_HAS_CUSTOM) {
 							sc.custom1 = bsdf->sc.custom1;
 							sc.custom2 = bsdf->sc.custom2;
