@@ -334,8 +334,9 @@ static void add_pass(BL::RenderEngine& b_engine,
 void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only, bool highlight)
 {
 	BufferParams& params = rtile.buffers->params;
-	int x = rtile.x + params.overscan;
-	int y = rtile.y + params.overscan;
+	BufferParams& full_params = session->tile_manager.state.buffer;
+	int x = rtile.x + params.overscan - full_params.full_x;
+	int y = rtile.y + params.overscan - full_params.full_y;
 	int w = rtile.w - 2*params.overscan;
 	int h = rtile.h - 2*params.overscan;
 
