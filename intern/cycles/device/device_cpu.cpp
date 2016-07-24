@@ -208,6 +208,148 @@ public:
 		}
 	};
 
+	float2* denoise_prefilter(int4 prefilter_rect, RenderTile &tile, KernelGlobals *kg, int sample, float** buffers, int* tile_x, int* tile_y, int *offsets, int *strides)
+	{
+		void(*filter_divide_shadow)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, float*, float*, float*, float*, int4);
+		void(*filter_non_local_means)(int, int, float*, float*, float*, float*, int4, int, int, float, float);
+		void(*filter_combine_halves)(int, int, float*, float*, float*, float*, int, int4);
+
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
+		if(system_cpu_support_avx2()) {
+			filter_divide_shadow = kernel_cpu_avx2_filter_divide_shadow;
+			filter_non_local_means = kernel_cpu_avx2_filter_non_local_means;
+			filter_combine_halves = kernel_cpu_avx2_filter_combine_halves;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
+		if(system_cpu_support_avx()) {
+			filter_divide_shadow = kernel_cpu_avx_filter_divide_shadow;
+			filter_non_local_means = kernel_cpu_avx_filter_non_local_means;
+			filter_combine_halves = kernel_cpu_avx_filter_combine_halves;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
+		if(system_cpu_support_sse41()) {
+			filter_divide_shadow = kernel_cpu_sse41_filter_divide_shadow;
+			filter_non_local_means = kernel_cpu_sse41_filter_non_local_means;
+			filter_combine_halves = kernel_cpu_sse41_filter_combine_halves;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
+		if(system_cpu_support_sse3()) {
+			filter_divide_shadow = kernel_cpu_sse3_filter_divide_shadow;
+			filter_non_local_means = kernel_cpu_sse3_filter_non_local_means;
+			filter_combine_halves = kernel_cpu_sse3_filter_combine_halves;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
+		if(system_cpu_support_sse2()) {
+			filter_divide_shadow = kernel_cpu_sse2_filter_divide_shadow;
+			filter_non_local_means = kernel_cpu_sse2_filter_non_local_means;
+			filter_combine_halves = kernel_cpu_sse2_filter_combine_halves;
+		}
+		else
+#endif
+		{
+			filter_divide_shadow = kernel_cpu_filter_divide_shadow;
+			filter_non_local_means = kernel_cpu_filter_non_local_means;
+			filter_combine_halves = kernel_cpu_filter_combine_halves;
+		}
+
+		int w = (prefilter_rect.z - prefilter_rect.x), h = (prefilter_rect.w - prefilter_rect.y);
+		float2 *prefiltered = new float2[w*h];
+		float *unfiltered = new float[2*w*h], *sampleV = ((float*) prefiltered), *sampleVV = new float[w*h], *bufferV = ((float*) prefiltered) + w*h, *cleanV = new float[w*h];
+
+
+
+		/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
+		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
+			for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
+				filter_divide_shadow(kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, unfiltered, sampleV, sampleVV, bufferV, prefilter_rect);
+			}
+		}
+#ifdef WITH_CYCLES_DEBUG_FILTER
+#define WRITE_DEBUG(name, var, stride) debug_write_pfm(string_printf("debug_%dx%d_shadow_%s.pfm", tile.x, tile.y, name).c_str(), var, w, h, stride, w)
+		WRITE_DEBUG("unfilteredA", unfiltered, 1);
+		WRITE_DEBUG("unfilteredB", unfiltered + w*h, 1);
+		WRITE_DEBUG("bufferV", bufferV, 1);
+		WRITE_DEBUG("sampleV", sampleV, 1);
+		WRITE_DEBUG("sampleVV", sampleVV, 1);
+#endif
+
+
+
+		/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
+		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
+			for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
+				//filter_prefilter_features(&kg, sample, x, y, filteredA, filteredB, prefilter_rect);
+				filter_non_local_means(x, y, bufferV, sampleV, sampleVV, cleanV, prefilter_rect, 3, 1, 4, 1.0f);
+			}
+		}
+#ifdef WITH_CYCLES_DEBUG_FILTER
+		WRITE_DEBUG("cleanV", cleanV, 1);
+#endif
+
+
+
+		/* Use the smoothed variance to filter the two shadow half images using each other for weight calculation. */
+		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
+			for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
+				filter_non_local_means(x, y, unfiltered, unfiltered + w*h, cleanV, sampleV, prefilter_rect, 5, 3, 1, 0.25f);
+				filter_non_local_means(x, y, unfiltered + w*h, unfiltered, cleanV, bufferV, prefilter_rect, 5, 3, 1, 0.25f);
+			}
+		}
+		delete[] cleanV;
+#ifdef WITH_CYCLES_DEBUG_FILTER
+		WRITE_DEBUG("filteredA", sampleV, 1);
+		WRITE_DEBUG("filteredB", bufferV, 1);
+#endif
+
+
+
+		/* Estimate the residual variance between the two filtered halves. */
+		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
+			for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
+				filter_combine_halves(x, y, NULL, sampleVV, sampleV, bufferV, 1, prefilter_rect);
+			}
+		}
+#ifdef WITH_CYCLES_DEBUG_FILTER
+		WRITE_DEBUG("residualV", sampleVV, 1);
+#endif
+
+		/* Use the residual variance for a second filter pass. */
+		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
+			for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
+				filter_non_local_means(x, y, sampleV, bufferV, sampleVV, unfiltered      , prefilter_rect, 4, 2, 1, 0.25f);
+				filter_non_local_means(x, y, bufferV, sampleV, sampleVV, unfiltered + w*h, prefilter_rect, 4, 2, 1, 0.25f);
+			}
+		}
+		delete[] sampleVV;
+#ifdef WITH_CYCLES_DEBUG_FILTER
+		WRITE_DEBUG("finalA", unfiltered, 1);
+		WRITE_DEBUG("finalB", unfiltered + w*h, 1);
+#endif
+
+		/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
+		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
+			for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
+				filter_combine_halves(x, y, (float*) prefiltered, ((float*) prefiltered)+1, unfiltered, unfiltered + w*h, 2, prefilter_rect);
+			}
+		}
+		delete[] unfiltered;
+#ifdef WITH_CYCLES_DEBUG_FILTER
+		WRITE_DEBUG("final", (float*) prefiltered, 2);
+		WRITE_DEBUG("finalV", ((float*) prefiltered) + 1, 2);
+#undef WRITE_DEBUG
+#endif
+
+		return prefiltered;
+	}
+
 	void thread_render(DeviceTask& task)
 	{
 		if(task_pool.canceled()) {

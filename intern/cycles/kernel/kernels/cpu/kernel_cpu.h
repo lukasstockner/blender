@@ -49,6 +49,38 @@ void KERNEL_FUNCTION_FULL_NAME(shader)(KernelGlobals *kg,
                                        int offset,
                                        int sample);
 
+void KERNEL_FUNCTION_FULL_NAME(filter_divide_shadow)(KernelGlobals *kg,
+                                                     int sample,
+                                                     float** buffers,
+                                                     int x,
+                                                     int y,
+                                                     int *tile_x,
+                                                     int *tile_y,
+                                                     int *offset,
+                                                     int *stride,
+                                                     float *unfiltered,
+                                                     float *sampleV,
+                                                     float *sampleVV,
+                                                     float *bufferV,
+                                                     int4 prefilter_rect);
+
+void KERNEL_FUNCTION_FULL_NAME(filter_non_local_means)(int x, int y,
+                                                       float *noisyImage,
+                                                       float *weightImage,
+                                                       float *variance,
+                                                       float *filteredImage,
+                                                       int4 rect,
+                                                       int r, int f,
+                                                       float a, float k_2);
+
+void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
+                                                      float *mean,
+                                                      float *variance,
+                                                      float *a,
+                                                      float *b,
+                                                      int stride,
+                                                      int4 prefilter_rect);
+
 void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
                                                        int sample,
                                                        float** buffers,

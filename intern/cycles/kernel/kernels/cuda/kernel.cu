@@ -208,6 +208,44 @@ kernel_cuda_bake(uint4 *input, float4 *output, int type, int filter, int sx, int
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter_divide_shadow(int sample, float* buffers, int sx, int sy, int w, int h, int offset, int stride, float *unfiltered, float *sampleVariance, float *sampleVarianceV, float *bufferVariance, int4 prefilter_rect)
+{
+	int x = prefilter_rect.x + blockDim.x*blockIdx.x + threadIdx.x;
+	int y = prefilter_rect.y + blockDim.y*blockIdx.y + threadIdx.y;
+	if(x < prefilter_rect.z && y < prefilter_rect.w) {
+		int tile_x[4] = {sx, sx, sx+w, sx+w};
+		int tile_y[4] = {sy, sy, sy+h, sy+h};
+		float *tile_buffers[9] = {NULL, NULL, NULL, NULL, buffers, NULL, NULL, NULL, NULL};
+		int tile_offset[9] = {0, 0, 0, 0, offset, 0, 0, 0, 0};
+		int tile_stride[9] = {0, 0, 0, 0, stride, 0, 0, 0, 0};
+		kernel_filter_divide_shadow(NULL, sample, tile_buffers, x, y, tile_x, tile_y, tile_offset, tile_stride, unfiltered, sampleVariance, sampleVarianceV, bufferVariance, prefilter_rect);
+	}
+}
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter_non_local_means(float *noisyImage, float *weightImage, float *variance, float *filteredImage, int4 prefilter_rect, int r, int f, float a, float k_2)
+{
+	int x = prefilter_rect.x + blockDim.x*blockIdx.x + threadIdx.x;
+	int y = prefilter_rect.y + blockDim.y*blockIdx.y + threadIdx.y;
+	if(x < prefilter_rect.z && y < prefilter_rect.w) {
+		kernel_filter_non_local_means(x, y, noisyImage, weightImage, variance, filteredImage, prefilter_rect, r, f, a, k_2);
+	}
+}
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter_combine_halves(float *mean, float *variance, float *a, float *b, int stride, int4 prefilter_rect)
+{
+	int x = prefilter_rect.x + blockDim.x*blockIdx.x + threadIdx.x;
+	int y = prefilter_rect.y + blockDim.y*blockIdx.y + threadIdx.y;
+	if(x < prefilter_rect.z && y < prefilter_rect.w) {
+		kernel_filter_combine_halves(x, y, mean, variance, a, b, stride, prefilter_rect);
+	}
+}
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_filter_estimate_params(int sample, float* buffers, int sx, int sy, int w, int h, int overscan, int offset, int stride, void *storage)
 {
 	int4 filter_rect = make_int4(sx + overscan, sy + overscan, sx+w - overscan, sy+h - overscan);
