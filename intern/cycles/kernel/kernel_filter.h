@@ -215,7 +215,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 
 	rank = 0;
 	for(int i = 0; i < DENOISE_FEATURES; i++, rank++) {
-		float s = sqrtf(singular[i]);
+		float s = sqrtf(fabsf(singular[i]));
 		if(i >= 2 && s < singular_threshold)
 			break;
 		/* Bake the feature scaling into the transformation matrix. */
@@ -288,7 +288,8 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	for(int g = 0; g < 6; g++) {
 		float g_bandwidth_factor[DENOISE_FEATURES];
 		for(int i = 0; i < rank; i++)
-			g_bandwidth_factor[i] = candidate_bw[g]*bandwidth_factor[i];
+			/* Divide by the candidate bandwidth since the bandwidth_factor actually is the inverse of the bandwidth. */
+			g_bandwidth_factor[i] = bandwidth_factor[i]/candidate_bw[g];
 
 		matrix_size = rank+1;
 		math_matrix_zero_lower(XtX, matrix_size);
@@ -436,7 +437,8 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float **
 	/* === Calculate the final pixel color. === */
 	float XtX[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)], design_row[DENOISE_FEATURES+1];
 	for(int i = 0; i < rank; i++)
-		bandwidth_factor[i] *= global_bandwidth;
+		/* Same as above, divide by the bandwidth since the bandwidth_factor actually is the inverse of the bandwidth. */
+		bandwidth_factor[i] /= global_bandwidth;
 
 	int matrix_size = rank+1;
 	math_matrix_zero_lower(XtX, matrix_size);
