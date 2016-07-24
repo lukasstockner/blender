@@ -106,15 +106,39 @@ ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sa
 #endif // __SPLIT_KERNEL__ && __WORK_STEALING__
 }
 
-ccl_device_inline void kernel_write_denoising_passes(KernelGlobals *kg, ccl_global float *buffer,
-	ccl_addr_space PathState *state, ShaderData *sd, int sample, float3 world_albedo)
+ccl_device_inline void kernel_write_denoising_shadow(KernelGlobals *kg, ccl_global float *buffer,
+	int sample, float2 shadow_info)
 {
 	if(kernel_data.film.pass_denoising == 0)
 		return;
+
+	if(sample & 1) buffer += 3;
+	buffer += kernel_data.film.pass_denoising + 14;
+
+	if(sample < 2) {
+		buffer[0] = shadow_info.x; /* Unoccluded lighting */
+		buffer[1] = shadow_info.y; /* Occluded lighting */
+		buffer[2] = 0.0f; /* Sample variance */
+	}
+	else {
+		float old_shadowing = buffer[1] / max(buffer[0], 1e-7f);
+		buffer[0] += shadow_info.x;
+		buffer[1] += shadow_info.y;
+		float new_shadowing = buffer[1] / max(buffer[0], 1e-7f);
+		float cur_shadowing = shadow_info.y / max(shadow_info.x, 1e-7f);
+		buffer[2] += (cur_shadowing - old_shadowing) * (cur_shadowing - new_shadowing);
+	}
+}
+
+ccl_device_inline bool kernel_write_denoising_passes(KernelGlobals *kg, ccl_global float *buffer,
+	ccl_addr_space PathState *state, ShaderData *sd, int sample, float3 world_albedo)
+{
+	if(kernel_data.film.pass_denoising == 0)
+		return false;
 	buffer += kernel_data.film.pass_denoising;
 
 	if(state->flag & PATH_RAY_DENOISING_PASS_DONE)
-		return;
+		return false;
 
 	/* Can also be called if the ray misses the scene, sd is NULL in that case. */
 	if(sd) {
@@ -151,7 +175,7 @@ ccl_device_inline void kernel_write_denoising_passes(KernelGlobals *kg, ccl_glob
 			ShaderClosure *max_sc = ccl_fetch_array(sd, closure, max_weight_closure);
 			if(max_sc->roughness <= 0.075f) {
 				/* This bounce is almost specular, so don't write the data yet. */
-				return;
+				return false;
 			}
 			kernel_write_pass_float3_var(buffer, sample, normal/sum_weight);
 			kernel_write_pass_float3_var(buffer + 6, sample, albedo);
@@ -165,6 +189,7 @@ ccl_device_inline void kernel_write_denoising_passes(KernelGlobals *kg, ccl_glob
 	}
 
 	state->flag |= PATH_RAY_DENOISING_PASS_DONE;
+	return true;
 }
 
 ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L,

@@ -121,6 +121,18 @@ ccl_device_inline void bsdf_eval_mul(BsdfEval *eval, float3 value)
 #endif
 }
 
+ccl_device_inline float3 bsdf_eval_sum(BsdfEval *eval, bool use_light_pass)
+{
+#ifdef __PASSES__
+	if(use_light_pass)
+		return eval->diffuse + eval->glossy + eval->transmission + eval->transparent + eval->subsurface + eval->scatter;
+	else
+		return eval->diffuse;
+#else
+	return *eval;
+#endif
+}
+
 /* Path Radiance
  *
  * We accumulate different render passes separately. After summing at the end

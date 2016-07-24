@@ -186,7 +186,7 @@ ccl_device bool kernel_branched_path_surface_bounce(KernelGlobals *kg, RNG *rng,
 /* path tracing: connect path directly to position on a light and add it to L */
 ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg, ccl_addr_space RNG *rng,
 	ShaderData *sd, ShaderData *emission_sd, float3 throughput, ccl_addr_space PathState *state,
-	PathRadiance *L)
+	PathRadiance *L, float2 *shadow_info)
 {
 #ifdef __EMISSION__
 	if(!(kernel_data.integrator.use_direct_light && (ccl_fetch(sd, flag) & SD_BSDF_HAS_EVAL)))
@@ -211,11 +211,18 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg, ccl_
 	if(direct_emission(kg, sd, emission_sd, &ls, state, &light_ray, &L_light, &is_lamp)) {
 		/* trace shadow ray */
 		float3 shadow;
+		float3 light_unoccluded;
+		if(shadow_info) {
+			light_unoccluded = throughput * bsdf_eval_sum(&L_light, L->use_light_pass);
+			shadow_info->x = average(light_unoccluded);
+		}
 
 		if(!shadow_blocked(kg, emission_sd, state, &light_ray, &shadow)) {
 			/* accumulate */
 			path_radiance_accum_light(L, throughput, &L_light, shadow, 1.0f, state->bounce, is_lamp);
+			if(shadow_info) shadow_info->y = average(light_unoccluded*shadow);
 		}
+		else if(shadow_info) shadow_info->y = 0.0f;
 	}
 #endif
 }
