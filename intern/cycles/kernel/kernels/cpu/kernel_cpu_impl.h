@@ -180,9 +180,11 @@ void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
                                                        int *offset,
                                                        int *stride,
                                                        void *storage,
-                                                       int4 filter_rect)
+                                                       float2 *prefiltered,
+                                                       int4 filter_rect,
+                                                       int4 prefilter_rect)
 {
-	kernel_filter_estimate_params(kg, sample, buffers, x, y, tile_x, tile_y, offset, stride, (FilterStorage*) storage, filter_rect);
+	kernel_filter_estimate_params(kg, sample, buffers, x, y, tile_x, tile_y, offset, stride, (FilterStorage*) storage, prefiltered, filter_rect, prefilter_rect);
 }
 
 void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
@@ -195,9 +197,11 @@ void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
                                                   int *offset,
                                                   int *stride,
                                                   void *storage,
-                                                  int4 filter_rect)
+                                                  float2 *prefiltered,
+                                                  int4 filter_rect,
+                                                  int4 prefilter_rect)
 {
-	kernel_filter_final_pass(kg, sample, buffers, x, y, tile_x, tile_y, offset, stride, (FilterStorage*) storage, filter_rect);
+	kernel_filter_final_pass(kg, sample, buffers, x, y, tile_x, tile_y, offset, stride, (FilterStorage*) storage, prefiltered, filter_rect, prefilter_rect);
 }
 
 CCL_NAMESPACE_END

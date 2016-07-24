@@ -361,8 +361,8 @@ public:
 		RenderTile tile;
 
 		void(*path_trace_kernel)(KernelGlobals*, float*, unsigned int*, int, int, int, int, int);
-		void(*filter_estimate_params_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*, int4);
-		void(*filter_final_pass_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*, int4);
+		void(*filter_estimate_params_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*, float2*, int4, int4);
+		void(*filter_final_pass_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*, float2*, int4, int4);
 
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
 		if(system_cpu_support_avx2()) {
@@ -442,21 +442,26 @@ public:
 					int offsets[9] = {0, 0, 0, 0, tile.offset, 0, 0, 0, 0};
 					int strides[9] = {0, 0, 0, 0, tile.stride, 0, 0, 0, 0};
 					float *buffers[9] = {NULL, NULL, NULL, NULL, (float*) tile.buffer, NULL, NULL, NULL, NULL};
-					FilterStorage *storages = new FilterStorage[tile.buffers->params.final_width*tile.buffers->params.final_height];
 
 					int overscan = tile.buffers->params.overscan;
 					int4 filter_rect = make_int4(tile.x + overscan, tile.y + overscan, tile.x + tile.w - overscan, tile.y + tile.h - overscan);
+					int4 prefilter_rect = make_int4(tile.x, tile.y, tile.x + tile.w, tile.y + tile.h);
+
+					float2* prefiltered = denoise_prefilter(prefilter_rect, tile, &kg, end_sample, buffers, tile_x, tile_y, offsets, strides);
+					FilterStorage *storages = new FilterStorage[tile.buffers->params.final_width*tile.buffers->params.final_height];
+
 					for(int y = filter_rect.y; y < filter_rect.w; y++) {
 						for(int x = filter_rect.x; x < filter_rect.z; x++) {
-							filter_estimate_params_kernel(&kg, end_sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, filter_rect);
+							filter_estimate_params_kernel(&kg, end_sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, prefiltered, filter_rect, prefilter_rect);
 						}
 					}
 					for(int y = filter_rect.y; y < filter_rect.w; y++) {
 						for(int x = filter_rect.x; x < filter_rect.z; x++) {
-							filter_final_pass_kernel(&kg, end_sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, filter_rect);
+							filter_final_pass_kernel(&kg, end_sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, prefiltered, filter_rect, prefilter_rect);
 						}
 					}
 
+					delete[] prefiltered;
 #ifdef WITH_CYCLES_DEBUG_FILTER
 #define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", tile.x, tile.y, name).c_str(), &storages[0].var, tile.buffers->params.final_width, tile.buffers->params.final_height, sizeof(FilterStorage)/sizeof(float), tile.buffers->params.final_width);
 					for(int i = 0; i < DENOISE_FEATURES; i++) {
@@ -494,16 +499,25 @@ public:
 				FilterStorage *storages = new FilterStorage[tile.w*tile.h];
 
 				int4 filter_rect = make_int4(tile.x, tile.y, tile.x + tile.w, tile.y + tile.h);
+				int hw = kg.__data.integrator.half_window;
+				int4 prefilter_rect = make_int4(max(tile.x - hw, tile_x[0]), max(tile.y - hw, tile_y[0]), min(tile.x + tile.w + hw+1, tile_x[3]), min(tile.y + tile.h + hw+1, tile_y[3]));
+
+				float2* prefiltered = denoise_prefilter(prefilter_rect, tile, &kg, sample, buffers, tile_x, tile_y, offsets, strides);
+
 				for(int y = filter_rect.y; y < filter_rect.w; y++) {
 					for(int x = filter_rect.x; x < filter_rect.z; x++) {
-						filter_estimate_params_kernel(&kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, filter_rect);
+						filter_estimate_params_kernel(&kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, prefiltered, filter_rect, prefilter_rect);
 					}
 				}
 				for(int y = filter_rect.y; y < filter_rect.w; y++) {
 					for(int x = filter_rect.x; x < filter_rect.z; x++) {
-						filter_final_pass_kernel(&kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, filter_rect);
+						filter_final_pass_kernel(&kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, prefiltered, filter_rect, prefilter_rect);
 					}
 				}
+				delete[] prefiltered;
+
+
+
 #ifdef WITH_CYCLES_DEBUG_FILTER
 #define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", tile.x, tile.y, name).c_str(), &storages[0].var, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
 				for(int i = 0; i < DENOISE_FEATURES; i++) {

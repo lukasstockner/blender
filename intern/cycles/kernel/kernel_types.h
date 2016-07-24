@@ -1274,9 +1274,9 @@ enum RayState {
 #undef DENOISE_SECOND_ORDER_SCREEN
 
 #ifdef DENOISE_SECOND_ORDER_SCREEN
-#define DENOISE_FEATURES 12 /* The amount of denoising features: Normal, Albedo, Depth and screen position (x, y, x^2, y^2, x*y) */
+#define DENOISE_FEATURES 13 /* The amount of denoising features: Normal, Albedo, Depth, Shadow and screen position (x, y, x^2, y^2, x*y) */
 #else
-#define DENOISE_FEATURES 9 /* The amount of denoising features: Normal, Albedo, Depth and screen position (x, y)*/
+#define DENOISE_FEATURES 10 /* The amount of denoising features: Normal, Albedo, Depth, Shadow and screen position (x, y)*/
 #endif
 
 typedef struct FilterStorage {
