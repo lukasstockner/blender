@@ -411,6 +411,9 @@ public:
 		}
 		
 		while(task.acquire_tile(this, tile)) {
+#ifdef WITH_CYCLES_DEBUG_FPE
+			scoped_fpe fpe(FPE_ENABLED);
+#endif
 			float *render_buffer = (float*)tile.buffer;
 
 			if(tile.task == RenderTile::PATH_TRACE) {

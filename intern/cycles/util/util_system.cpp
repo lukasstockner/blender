@@ -33,6 +33,12 @@
 #  include <unistd.h>
 #endif
 
+#ifdef __GNUC__
+#  include <fenv.h>
+#elif defined(_MSC_VER)
+#  include <float.h>
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 int system_cpu_group_count()
@@ -275,6 +281,54 @@ bool system_cpu_support_avx2()
 }
 
 #endif
+
+static void system_enable_fpe()
+{
+#ifdef __GNUC__
+	feenableexcept(FE_INVALID | FE_OVERFLOW | FE_DIVBYZERO);
+#elif defined(_MSC_VER)
+	_controlfp(0, _EM_INVALID | _EM_OVERFLOW | _EM_ZERODIVIDE);
+#endif
+}
+
+static void system_disable_fpe()
+{
+#ifdef __GNUC__
+	fedisableexcept(FE_INVALID | FE_OVERFLOW | FE_DIVBYZERO);
+#elif defined(_MSC_VER)
+	_controlfp(0xffffffff, _EM_INVALID | _EM_OVERFLOW | _EM_ZERODIVIDE);
+#endif
+}
+
+static bool system_check_fpe()
+{
+#ifdef __GNUC__
+	return fegetexcept() & FE_INVALID;
+#elif
+	return !(_controlfp(0, 0) & _EM_INVALID);
+#endif
+}
+
+scoped_fpe::scoped_fpe(FPEState state)
+{
+	was_enabled = system_check_fpe();
+	if(state == FPE_ENABLED) {
+		system_enable_fpe();
+	}
+	else {
+		system_disable_fpe();
+	}
+}
+
+scoped_fpe::~scoped_fpe()
+{
+	if(was_enabled) {
+		system_enable_fpe();
+	}
+	else {
+		system_disable_fpe();
+	}
+}
 
 CCL_NAMESPACE_END
 

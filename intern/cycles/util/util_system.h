@@ -38,6 +38,21 @@ bool system_cpu_support_sse41();
 bool system_cpu_support_avx();
 bool system_cpu_support_avx2();
 
+typedef enum FPEState
+{
+	FPE_ENABLED,
+	FPE_DISABLED,
+} FPEState;
+
+class scoped_fpe
+{
+public:
+	explicit scoped_fpe(FPEState state);
+	~scoped_fpe();
+private:
+	bool was_enabled;
+};
+
 CCL_NAMESPACE_END
 
 #endif /* __UTIL_SYSTEM_H__ */

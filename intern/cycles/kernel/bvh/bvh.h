@@ -213,6 +213,10 @@ ccl_device_intersect bool scene_intersect(KernelGlobals *kg,
                                           float difl,
                                           float extmax)
 {
+#ifdef WITH_CYCLES_DEBUG_FPE
+	scoped_fpe fpe(FPE_DISABLED);
+#endif
+
 #ifdef __OBJECT_MOTION__
 	if(kernel_data.bvh.have_motion) {
 #  ifdef __HAIR__
@@ -256,6 +260,10 @@ ccl_device_intersect void scene_intersect_subsurface(KernelGlobals *kg,
                                                      uint *lcg_state,
                                                      int max_hits)
 {
+#ifdef WITH_CYCLES_DEBUG_FPE
+	scoped_fpe fpe(FPE_DISABLED);
+#endif
+
 #ifdef __OBJECT_MOTION__
 	if(kernel_data.bvh.have_motion) {
 		return bvh_intersect_subsurface_motion(kg,
@@ -278,6 +286,10 @@ ccl_device_intersect void scene_intersect_subsurface(KernelGlobals *kg,
 #ifdef __SHADOW_RECORD_ALL__
 ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals *kg, const Ray *ray, Intersection *isect, uint max_hits, uint *num_hits)
 {
+#ifdef WITH_CYCLES_DEBUG_FPE
+	scoped_fpe fpe(FPE_DISABLED);
+#endif
+
 #  ifdef __OBJECT_MOTION__
 	if(kernel_data.bvh.have_motion) {
 #    ifdef __HAIR__
@@ -309,6 +321,10 @@ ccl_device_intersect bool scene_intersect_volume(KernelGlobals *kg,
                                                  Intersection *isect,
                                                  const uint visibility)
 {
+#ifdef WITH_CYCLES_DEBUG_FPE
+	scoped_fpe fpe(FPE_DISABLED);
+#endif
+
 #  ifdef __OBJECT_MOTION__
 	if(kernel_data.bvh.have_motion) {
 		return bvh_intersect_volume_motion(kg, ray, isect, visibility);
@@ -337,6 +353,10 @@ ccl_device_intersect uint scene_intersect_volume_all(KernelGlobals *kg,
                                                      const uint max_hits,
                                                      const uint visibility)
 {
+#ifdef WITH_CYCLES_DEBUG_FPE
+	scoped_fpe fpe(FPE_DISABLED);
+#endif
+
 #  ifdef __OBJECT_MOTION__
 	if(kernel_data.bvh.have_motion) {
 		return bvh_intersect_volume_all_motion(kg, ray, isect, max_hits, visibility);
