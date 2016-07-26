@@ -318,9 +318,10 @@ static BL::RenderResult begin_render_result(BL::RenderEngine& b_engine,
 static void end_render_result(BL::RenderEngine& b_engine,
                               BL::RenderResult& b_rr,
                               bool cancel,
+                              bool highlight,
                               bool do_merge_results)
 {
-	b_engine.end_result(b_rr, (int)cancel, (int)do_merge_results);
+	b_engine.end_result(b_rr, (int)cancel, (int) highlight, (int)do_merge_results);
 }
 
 static void add_pass(BL::RenderEngine& b_engine,
@@ -368,12 +369,12 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_upda
 			update_render_result(b_rr, b_rlay, rtile);
 		}
 
-		end_render_result(b_engine, b_rr, highlight, true);
+		end_render_result(b_engine, b_rr, true, highlight, true);
 	}
 	else {
 		/* write result */
 		write_render_result(b_rr, b_rlay, rtile);
-		end_render_result(b_engine, b_rr, false, true);
+		end_render_result(b_engine, b_rr, false, false, true);
 	}
 }
 
@@ -420,7 +421,7 @@ void BlenderSession::render()
 
 		/* layer will be missing if it was disabled in the UI */
 		if(b_single_rlay == b_rr.layers.end()) {
-			end_render_result(b_engine, b_rr, true, false);
+			end_render_result(b_engine, b_rr, true, true, false);
 			continue;
 		}
 
@@ -526,7 +527,7 @@ void BlenderSession::render()
 		}
 
 		/* free result without merging */
-		end_render_result(b_engine, b_rr, true, false);
+		end_render_result(b_engine, b_rr, true, true, false);
 
 		if(session->progress.get_cancel())
 			break;

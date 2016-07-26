@@ -580,7 +580,8 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	RNA_def_function_ui_description(func, "All pixels in the render result have been set and are final");
 	prop = RNA_def_pointer(func, "result", "RenderResult", "Result", "");
 	RNA_def_property_flag(prop, PROP_REQUIRED);
-	RNA_def_boolean(func, "cancel", 0, "Cancel", "Don't mark tile as done, don't merge results unless forced");
+	RNA_def_boolean(func, "cancel", 0, "Cancel", "Don't merge results unless forced");
+	RNA_def_boolean(func, "highlight", 0, "Highlight", "Don't mark tile as done yet");
 	RNA_def_boolean(func, "do_merge_results", 0, "Merge Results", "Merge results even if cancel=true");
 
 	func = RNA_def_function(srna, "add_pass", "RE_engine_add_pass");
