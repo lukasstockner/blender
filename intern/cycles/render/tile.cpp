@@ -112,6 +112,16 @@ TileManager::~TileManager()
 {
 }
 
+void TileManager::free_device()
+{
+	if(schedule_denoising) {
+		for(int i = 0; i < state.tiles.size(); i++) {
+			delete state.tiles[i].buffers;
+			state.tiles[i].buffers = NULL;
+		}
+	}
+}
+
 void TileManager::reset(BufferParams& params_, int num_samples_)
 {
 	params = params_;

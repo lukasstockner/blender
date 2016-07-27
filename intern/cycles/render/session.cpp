@@ -119,6 +119,7 @@ Session::~Session()
 	/* clean up */
 	foreach(RenderBuffers *buffers, tile_buffers)
 		delete buffers;
+	tile_manager.free_device();
 
 	delete buffers;
 	delete display;
@@ -493,8 +494,7 @@ void Session::release_tile(RenderTile& rtile)
 			write_render_tile_cb(rtile);
 			if(delete_tile) {
 				delete rtile.buffers;
-				/* TODO(lukas): Set buffers in tile_manager.state.tiles[] to zero.
-				 * Shoudn't matter in theory since the tile won't be used again, but it's more error-proof. */
+				tile_manager.state.tiles[rtile.tile_index].buffers = NULL;
 			}
 		}
 	}
@@ -1129,6 +1129,7 @@ void Session::device_free()
 
 	foreach(RenderBuffers *buffers, tile_buffers)
 		delete buffers;
+	tile_manager.free_device();
 
 	tile_buffers.clear();
 

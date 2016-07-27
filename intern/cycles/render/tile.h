@@ -88,6 +88,7 @@ public:
 	            bool preserve_tile_device, bool background, TileOrder tile_order, int num_devices = 1, bool only_denoise = false);
 	~TileManager();
 
+	void free_device();
 	void reset(BufferParams& params, int num_samples);
 	void set_samples(int num_samples);
 	bool next();
