@@ -54,8 +54,13 @@ ccl_device void svm_node_set_bump(KernelGlobals *kg, ShaderData *sd, float *stac
 	strength = max(strength, 0.0f);
 
 	/* compute and output perturbed normal */
-	float3 normal_out = normalize(absdet*normal_in - distance*signf(det)*surfgrad);
-	normal_out = normalize(strength*normal_out + (1.0f - strength)*normal_in);
+	float3 normal_out = safe_normalize(absdet*normal_in - distance*signf(det)*surfgrad);
+	if(is_zero(normal_out)) {
+		normal_out = normal_in;
+	}
+	else {
+		normal_out = normalize(strength*normal_out + (1.0f - strength)*normal_in);
+	}
 	stack_store_float3(stack, node.w, normal_out);
 #endif
 }
