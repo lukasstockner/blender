@@ -64,6 +64,21 @@ void KERNEL_FUNCTION_FULL_NAME(filter_divide_shadow)(KernelGlobals *kg,
                                                      float *bufferV,
                                                      int4 prefilter_rect);
 
+void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(KernelGlobals *kg,
+                                                   int sample,
+                                                   float** buffers,
+                                                   int m_offset,
+                                                   int v_offset,
+                                                   int x,
+                                                   int y,
+                                                   int *tile_x,
+                                                   int *tile_y,
+                                                   int *offset,
+                                                   int *stride,
+                                                   float *mean,
+                                                   float *variance,
+                                                   int4 prefilter_rect);
+
 void KERNEL_FUNCTION_FULL_NAME(filter_non_local_means)(int x, int y,
                                                        float *noisyImage,
                                                        float *weightImage,
@@ -78,7 +93,6 @@ void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
                                                       float *variance,
                                                       float *a,
                                                       float *b,
-                                                      int stride,
                                                       int4 prefilter_rect);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
@@ -91,7 +105,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
                                                        int *offset,
                                                        int *stride,
                                                        void *storage,
-                                                       float2 *prefiltered,
+                                                       float *prefiltered,
                                                        int4 filter_rect,
                                                        int4 prefilter_rect);
 
@@ -105,7 +119,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
                                                   int *offset,
                                                   int *stride,
                                                   void *storage,
-                                                  float2 *prefiltered,
+                                                  float *prefiltered,
                                                   int4 filter_rect,
                                                   int4 prefilter_rect);
 

@@ -778,16 +778,18 @@ public:
 
 		cuda_push_context();
 
-		CUfunction cuFilterDivideShadow, cuFilterNonLocalMeans, cuFilterCombineHalves, cuFilterEstimateParams, cuFilterFinalPass;
+		CUfunction cuFilterDivideShadow, cuFilterGetFeature, cuFilterNonLocalMeans, cuFilterCombineHalves, cuFilterEstimateParams, cuFilterFinalPass;
 		CUdeviceptr d_buffer = cuda_device_ptr(rtile.buffer);
 
 		cuda_assert(cuModuleGetFunction(&cuFilterDivideShadow, cuModule, "kernel_cuda_filter_divide_shadow"));
+		cuda_assert(cuModuleGetFunction(&cuFilterGetFeature, cuModule, "kernel_cuda_filter_get_feature"));
 		cuda_assert(cuModuleGetFunction(&cuFilterNonLocalMeans, cuModule, "kernel_cuda_filter_non_local_means"));
 		cuda_assert(cuModuleGetFunction(&cuFilterCombineHalves, cuModule, "kernel_cuda_filter_combine_halves"));
 		cuda_assert(cuModuleGetFunction(&cuFilterEstimateParams, cuModule, "kernel_cuda_filter_estimate_params"));
 		cuda_assert(cuModuleGetFunction(&cuFilterFinalPass, cuModule, "kernel_cuda_filter_final_pass"));
 
 		cuda_assert(cuFuncSetCacheConfig(cuFilterDivideShadow, CU_FUNC_CACHE_PREFER_L1));
+		cuda_assert(cuFuncSetCacheConfig(cuFilterGetFeature, CU_FUNC_CACHE_PREFER_L1));
 		cuda_assert(cuFuncSetCacheConfig(cuFilterNonLocalMeans, CU_FUNC_CACHE_PREFER_L1));
 		cuda_assert(cuFuncSetCacheConfig(cuFilterCombineHalves, CU_FUNC_CACHE_PREFER_L1));
 		cuda_assert(cuFuncSetCacheConfig(cuFilterEstimateParams, CU_FUNC_CACHE_PREFER_L1));
@@ -804,22 +806,53 @@ public:
 		int threads_per_block;
 		cuda_assert(cuFuncGetAttribute(&threads_per_block, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, cuFilterEstimateParams));
 
-		CUdeviceptr d_prefiltered, d_unfiltered, d_sampleVV, d_cleanV, d_sampleV, d_bufferV, d_unfilteredA, d_unfilteredB, d_null, d_prefiltered1;
-		cuda_assert(cuMemAlloc(&d_prefiltered, rtile.w*rtile.h*sizeof(float2)));
-		cuda_assert(cuMemAlloc(&d_unfiltered, rtile.w*rtile.h*2*sizeof(float)));
-		cuda_assert(cuMemAlloc(&d_sampleVV, rtile.w*rtile.h*sizeof(float)));
-		cuda_assert(cuMemAlloc(&d_cleanV, rtile.w*rtile.h*sizeof(float)));
-		d_sampleV = d_prefiltered;
-		d_bufferV = (CUdeviceptr) (((float*) d_prefiltered) + rtile.w*rtile.h);
-		d_unfilteredA = d_unfiltered;
-		d_unfilteredB = (CUdeviceptr) (((float*) d_unfiltered) + rtile.w*rtile.h);
-		d_null = (CUdeviceptr) NULL;
-		d_prefiltered1 = (CUdeviceptr) (((float*) d_prefiltered) + 1);
-
 		int xthreads = (int)sqrt((float)threads_per_block);
 		int ythreads = (int)sqrt((float)threads_per_block);
 		int xblocks = (rtile.w + xthreads - 1)/xthreads;
 		int yblocks = (rtile.h + ythreads - 1)/ythreads;
+
+		CUdeviceptr d_prefiltered, d_unfiltered, d_sampleVV, d_cleanV, d_sampleV, d_bufferV, d_unfilteredA, d_unfilteredB, d_null, d_prefiltered1;
+		cuda_assert(cuMemAlloc(&d_prefiltered, 16*rtile.w*rtile.h*sizeof(float)));
+		cuda_assert(cuMemAlloc(&d_unfiltered, rtile.w*rtile.h*2*sizeof(float)));
+
+		int m_offsets[] = {0, 1, 2, 6, 7, 8, 12};
+		int variances[] = {3, 4, 5, 9, 10, 11, 13};
+		for(int i = 0; i < 7; i++) {
+			CUdeviceptr d_prefiltered_mean = (CUdeviceptr) (((float*) d_prefiltered) + 2*i*rtile.w*rtile.h);
+			CUdeviceptr d_prefiltered_var  = (CUdeviceptr) (((float*) d_prefiltered) + (2*i+1)*rtile.w*rtile.h);
+
+			void *get_feature_args[] = {&sample, &d_buffer, &m_offsets[i], &variances[i],
+			                            &rtile.x, &rtile.y, &rtile.w, &rtile.h,
+			                            &rtile.offset, &rtile.stride,
+			                            &d_unfiltered, &d_prefiltered_var,
+			                            &prefilter_rect};
+			cuda_assert(cuLaunchKernel(cuFilterGetFeature,
+			                           xblocks , yblocks, 1, /* blocks */
+			                           xthreads, ythreads, 1, /* threads */
+			                           0, 0, get_feature_args, 0));
+
+			/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
+			float a = 1.0f, k_2 = 0.25f;
+			int r = 4, f = 2;
+			void *filter_variance_args[] = {&d_unfiltered, &d_unfiltered, &d_prefiltered_var, &d_prefiltered_mean,
+			                                &prefilter_rect,
+			                                &r, &f, &a, &k_2};
+			cuda_assert(cuLaunchKernel(cuFilterNonLocalMeans,
+			                           xblocks , yblocks, 1, /* blocks */
+			                           xthreads, ythreads, 1, /* threads */
+			                           0, 0, filter_variance_args, 0));
+		}
+
+
+		cuda_assert(cuMemAlloc(&d_sampleVV, rtile.w*rtile.h*sizeof(float)));
+		cuda_assert(cuMemAlloc(&d_cleanV, rtile.w*rtile.h*sizeof(float)));
+		d_unfilteredA = d_unfiltered;
+		d_unfilteredB = (CUdeviceptr) (((float*) d_unfiltered) + rtile.w*rtile.h);
+		d_null = (CUdeviceptr) NULL;
+		CUdeviceptr d_prefiltered_mean = (CUdeviceptr) (((float*) d_prefiltered) + 14*rtile.w*rtile.h);
+		CUdeviceptr d_prefiltered_var  = (CUdeviceptr) (((float*) d_prefiltered) + 15*rtile.w*rtile.h);
+		d_sampleV = d_prefiltered_mean; /* Reuse memory since they're not both needed at the same time. */
+		d_bufferV = d_prefiltered_var;
 
 		/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
 		void *divide_args[] = {&sample, &d_buffer,
@@ -865,9 +898,8 @@ public:
 		cuda_assert(cuMemFree(d_cleanV));
 
 		/* Estimate the residual variance between the two filtered halves. */
-		int stride = 1;
 		void *residual_variance_args[] = {&d_null, &d_sampleVV, &d_sampleV, &d_bufferV,
-		                                  &stride, &prefilter_rect};
+		                                  &prefilter_rect};
 		cuda_assert(cuLaunchKernel(cuFilterCombineHalves,
 		                           xblocks , yblocks, 1, /* blocks */
 		                           xthreads, ythreads, 1, /* threads */
@@ -894,9 +926,9 @@ public:
 		cuda_assert(cuMemFree(d_sampleVV));
 
 		/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
-		stride = 2;
-		void *final_prefiltered_args[] = {&d_prefiltered, &d_prefiltered1, &d_unfilteredA, &d_unfilteredB,
-		                                  &stride, &prefilter_rect};
+		void *final_prefiltered_args[] = {&d_prefiltered_mean, &d_prefiltered_var,
+		                                  &d_unfilteredA, &d_unfilteredB,
+		                                  &prefilter_rect};
 		cuda_assert(cuLaunchKernel(cuFilterCombineHalves,
 		                           xblocks , yblocks, 1, /* blocks */
 		                           xthreads, ythreads, 1, /* threads */

@@ -32,19 +32,26 @@ CCL_NAMESPACE_BEGIN
 
 #define FEATURE_PASSES 8 /* Normals, Albedo, Depth */
 
-ccl_device_inline void filter_get_features(int x, int y, float *buffer, float2 *pre_buffer, float sample, float *features, float *mean)
+ccl_device_inline void filter_get_features(int x, int y, float *buffer, float *pre_buffer, float sample, float *features, float *mean, int pre_stride)
 {
-	float sample_scale = 1.0f/sample;
 	features[0] = x;
 	features[1] = y;
-	features[2] = buffer[12] * sample_scale;
+	features[2] = pre_buffer[ 0*pre_stride];
+	features[3] = pre_buffer[ 2*pre_stride];
+	features[4] = pre_buffer[ 4*pre_stride];
+	features[5] = pre_buffer[12*pre_stride];
+	features[5] = pre_buffer[14*pre_stride];
+	features[6] = pre_buffer[ 6*pre_stride];
+	features[7] = pre_buffer[ 8*pre_stride];
+	features[8] = pre_buffer[10*pre_stride];
+/*	features[2] = buffer[12] * sample_scale;
 	features[3] = buffer[0] * sample_scale;
 	features[4] = buffer[1] * sample_scale;
 	features[5] = buffer[2] * sample_scale;
 	features[6] = pre_buffer->x;
 	features[7] = buffer[6] * sample_scale;
 	features[8] = buffer[7] * sample_scale;
-	features[9] = buffer[8] * sample_scale;
+	features[9] = buffer[8] * sample_scale;*/
 	if(mean) {
 		for(int i = 0; i < DENOISE_FEATURES; i++)
 			features[i] -= mean[i];
@@ -56,20 +63,26 @@ ccl_device_inline void filter_get_features(int x, int y, float *buffer, float2 *
 #endif
 }
 
-ccl_device_inline void filter_get_feature_variance(int x, int y, float *buffer, float2 *pre_buffer, float sample, float *features, float *scale)
+ccl_device_inline void filter_get_feature_variance(int x, int y, float *buffer, float *pre_buffer, float sample, float *features, float *scale, int pre_stride)
 {
-	float sample_scale = 1.0f/sample;
-	float sample_scale_var = 1.0f/(sample - 1.0f);
 	features[0] = 0.0f;
 	features[1] = 0.0f;
-	features[2] = saturate(buffer[13] * sample_scale_var) * sample_scale;
+	features[2] = pre_buffer[ 1*pre_stride];
+	features[3] = pre_buffer[ 3*pre_stride];
+	features[4] = pre_buffer[ 5*pre_stride];
+	features[5] = pre_buffer[13*pre_stride];
+	features[5] = pre_buffer[15*pre_stride];
+	features[6] = pre_buffer[ 7*pre_stride];
+	features[7] = pre_buffer[ 9*pre_stride];
+	features[8] = pre_buffer[11*pre_stride];
+/*	features[2] = saturate(buffer[13] * sample_scale_var) * sample_scale;
 	features[3] = saturate(buffer[3] * sample_scale_var) * sample_scale;
 	features[4] = saturate(buffer[4] * sample_scale_var) * sample_scale;
 	features[5] = saturate(buffer[5] * sample_scale_var) * sample_scale;
 	features[6] = saturate(pre_buffer->y);
 	features[7] = saturate(buffer[9] * sample_scale_var) * sample_scale;
 	features[8] = saturate(buffer[10] * sample_scale_var) * sample_scale;
-	features[9] = saturate(buffer[11] * sample_scale_var) * sample_scale;
+	features[9] = saturate(buffer[11] * sample_scale_var) * sample_scale;*/
 #ifdef DENOISE_SECOND_ORDER_SCREEN
 	features[10] = 0.0f;
 	features[11] = 0.0f;
@@ -212,13 +225,24 @@ ccl_device void kernel_filter_divide_shadow(KernelGlobals *kg, int sample, float
 	bufferVariance[idx] = 0.5f * (unfiltered[idx] - unfiltered[idx+Bofs]) * (unfiltered[idx] - unfiltered[idx+Bofs]);
 }
 
-ccl_device void kernel_filter_combine_halves(int x, int y, float *mean, float *variance, float *a, float *b, int stride, int4 prefilter_rect)
+ccl_device void kernel_filter_get_feature(KernelGlobals *kg, int sample, float **buffers, int m_offset, int v_offset, int x, int y, int *tile_x, int *tile_y, int *offset, int *stride, float *mean, float *variance, int4 prefilter_rect)
+{
+	int xtile = (x < tile_x[1])? 0: ((x < tile_x[2])? 1: 2);
+	int ytile = (y < tile_y[1])? 0: ((y < tile_y[2])? 1: 2);
+	int tile = ytile*3+xtile;
+	float *center_buffer = buffers[tile] + (offset[tile] + y*stride[tile] + x)*kernel_data.film.pass_stride + kernel_data.film.pass_denoising;
+
+	int idx = (y-prefilter_rect.y)*(prefilter_rect.z-prefilter_rect.x) + (x - prefilter_rect.x);
+	mean[idx] = center_buffer[m_offset] / sample;
+	variance[idx] = center_buffer[v_offset] / (sample * (sample-1));
+}
+
+ccl_device void kernel_filter_combine_halves(int x, int y, float *mean, float *variance, float *a, float *b, int4 prefilter_rect)
 {
 	int idx = (y-prefilter_rect.y)*(prefilter_rect.z-prefilter_rect.x) + (x - prefilter_rect.x);
-	int oidx = idx*stride;
 
-	if(mean)     mean[oidx] = 0.5f * (a[idx]+b[idx]);
-	if(variance) variance[oidx] = 0.5f * (a[idx]-b[idx])*(a[idx]-b[idx]);
+	if(mean)     mean[idx] = 0.5f * (a[idx]+b[idx]);
+	if(variance) variance[idx] = 0.5f * (a[idx]-b[idx])*(a[idx]-b[idx]);
 }
 
 /* Since the filtering may be performed across tile edged, all the neighboring tiles have to be passed along as well.
@@ -229,19 +253,20 @@ ccl_device void kernel_filter_combine_halves(int x, int y, float *mean, float *v
  * - Start of the next upper/right neighbor (not accessed)
  * buffers contains the nine buffer pointers (y-major ordering, starting with the lower left tile), offset and stride the respective parameters of the tile.
  */
-ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, float **buffers, int x, int y, int *tile_x, int *tile_y, int *offset, int *stride, FilterStorage *storage, float2 *prefiltered, int4 filter_rect, int4 prefilter_rect)
+ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, float **buffers, int x, int y, int *tile_x, int *tile_y, int *offset, int *stride, FilterStorage *storage, float *prefiltered, int4 filter_rect, int4 prefilter_rect)
 {
 	storage += (y-filter_rect.y)*(filter_rect.z-filter_rect.x) + (x-filter_rect.x);
 	int prefilter_w = (prefilter_rect.z - prefilter_rect.x);
+	int pre_stride = (prefilter_rect.w - prefilter_rect.y) * (prefilter_rect.z - prefilter_rect.x);
 
 	/* Temporary storage, used in different steps of the algorithm. */
 	float tempmatrix[(2*DENOISE_FEATURES+1)*(2*DENOISE_FEATURES+1)], tempvector[4*DENOISE_FEATURES+1];
 	float *buffer, features[DENOISE_FEATURES];
-	float2 *pre_buffer;
+	float *pre_buffer;
 
 	/* === Get center pixel color and variance. === */
 	float *center_buffer = buffers[4] + (offset[4] + y*stride[4] + x)*kernel_data.film.pass_stride + kernel_data.film.pass_denoising;
-	float2 *center_pre_buffer = prefiltered + (y - prefilter_rect.y)*prefilter_w + (x - prefilter_rect.x);
+	float *center_pre_buffer = prefiltered + (y - prefilter_rect.y)*prefilter_w + (x - prefilter_rect.x);
 	float3 center_color  = filter_get_pixel_color(center_buffer, sample);
 	float sqrt_center_variance = sqrtf(filter_get_pixel_variance(center_buffer, sample));
 
@@ -260,7 +285,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	/* === Shift feature passes to have mean 0. === */
 	float feature_means[DENOISE_FEATURES] = {0.0f};
 	FOR_PIXEL_WINDOW {
-		filter_get_features(px, py, buffer, pre_buffer, sample, features, NULL);
+		filter_get_features(px, py, buffer, pre_buffer, sample, features, NULL, pre_stride);
 		for(int i = 0; i < DENOISE_FEATURES; i++)
 			feature_means[i] += features[i];
 	} END_FOR_PIXEL_WINDOW
@@ -274,7 +299,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	math_vector_zero(feature_scale, DENOISE_FEATURES);
 
 	FOR_PIXEL_WINDOW {
-		filter_get_features(px, py, buffer, pre_buffer, sample, features, feature_means);
+		filter_get_features(px, py, buffer, pre_buffer, sample, features, feature_means, pre_stride);
 		for(int i = 0; i < DENOISE_FEATURES; i++)
 			feature_scale[i] = max(feature_scale[i], fabsf(features[i]));
 	} END_FOR_PIXEL_WINDOW
@@ -295,12 +320,12 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	math_matrix_zero_lower(perturbation_matrix, FEATURE_PASSES);
 #endif
 	FOR_PIXEL_WINDOW {
-		filter_get_features(px, py, buffer, pre_buffer, sample, features, feature_means);
+		filter_get_features(px, py, buffer, pre_buffer, sample, features, feature_means, pre_stride);
 		for(int i = 0; i < DENOISE_FEATURES; i++)
 			features[i] *= feature_scale[i];
 		math_add_gramian(feature_matrix, DENOISE_FEATURES, features, 1.0f);
 
-		filter_get_feature_variance(px, py, buffer, pre_buffer, sample, features, feature_scale);
+		filter_get_feature_variance(px, py, buffer, pre_buffer, sample, features, feature_scale, pre_stride);
 #ifdef FULL_EIGENVALUE_NORM
 		math_add_gramian(perturbation_matrix, FEATURE_PASSES, features, 1.0f);
 #else
@@ -343,7 +368,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 #endif
 
 	/* From here on, the mean of the features will be shifted to the central pixel's values. */
-	filter_get_features(x, y, center_buffer, center_pre_buffer, sample, feature_means, NULL);
+	filter_get_features(x, y, center_buffer, center_pre_buffer, sample, feature_means, NULL, pre_stride);
 
 
 
@@ -360,7 +385,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	math_matrix_zero_lower(XtX, matrix_size);
 	math_vec3_zero(XtY, matrix_size);
 	FOR_PIXEL_WINDOW {
-		filter_get_features(px, py, buffer, pre_buffer, sample, features, feature_means);
+		filter_get_features(px, py, buffer, pre_buffer, sample, features, feature_means, pre_stride);
 		float weight = filter_fill_design_row(features, rank, design_row, feature_transform, NULL);
 	
 		if(weight == 0.0f) continue;
@@ -408,7 +433,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 			float variance = filter_get_pixel_variance(buffer, sample);
 			if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
 
-			filter_get_features(px, py, buffer, pre_buffer, sample, features, feature_means);
+			filter_get_features(px, py, buffer, pre_buffer, sample, features, feature_means, pre_stride);
 			float weight = filter_fill_design_row(features, rank, design_row, feature_transform, g_bandwidth_factor);
 
 			if(weight == 0.0f) continue;
@@ -436,7 +461,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 			float variance = filter_get_pixel_variance(buffer, sample);
 			if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
 
-			filter_get_features(px, py, buffer, pre_buffer, sample, features, feature_means);
+			filter_get_features(px, py, buffer, pre_buffer, sample, features, feature_means, pre_stride);
 			float weight = filter_fill_design_row(features, rank, design_row, feature_transform, g_bandwidth_factor);
 
 			if(weight == 0.0f) continue;
@@ -491,20 +516,21 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 
 
 
-ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float **buffers, int x, int y, int *tile_x, int *tile_y, int *offset, int *stride, FilterStorage *storage, float2 *prefiltered, int4 filter_rect, int4 prefilter_rect)
+ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float **buffers, int x, int y, int *tile_x, int *tile_y, int *offset, int *stride, FilterStorage *storage, float *prefiltered, int4 filter_rect, int4 prefilter_rect)
 {
 	storage += (y-filter_rect.y)*(filter_rect.z-filter_rect.x) + (x-filter_rect.x);
 	int prefilter_w = (prefilter_rect.z - prefilter_rect.x);
+	int pre_stride = (prefilter_rect.w - prefilter_rect.y) * (prefilter_rect.z - prefilter_rect.x);
 	float *buffer, features[DENOISE_FEATURES];
-	float2 *pre_buffer;
+	float *pre_buffer;
 
 	/* === Get center pixel. === */
 	float *center_buffer = buffers[4] + (offset[4] + y*stride[4] + x)*kernel_data.film.pass_stride + kernel_data.film.pass_denoising;
 	float3 center_color  = filter_get_pixel_color(center_buffer, sample);
-	float2 *center_pre_buffer = prefiltered + (y - prefilter_rect.y)*prefilter_w + (x - prefilter_rect.x);
+	float *center_pre_buffer = prefiltered + (y - prefilter_rect.y)*prefilter_w + (x - prefilter_rect.x);
 	float sqrt_center_variance = sqrtf(filter_get_pixel_variance(center_buffer, sample));
 	float feature_means[DENOISE_FEATURES];
-	filter_get_features(x, y, center_buffer, center_pre_buffer, sample, feature_means, NULL);
+	filter_get_features(x, y, center_buffer, center_pre_buffer, sample, feature_means, NULL, pre_stride);
 
 
 
@@ -560,7 +586,7 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float **
 		float variance = filter_get_pixel_variance(buffer, sample);
 		if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
 
-		filter_get_features(px, py, buffer, pre_buffer, sample, features, feature_means);
+		filter_get_features(px, py, buffer, pre_buffer, sample, features, feature_means, pre_stride);
 		float weight = filter_fill_design_row(features, rank, design_row, feature_transform, bandwidth_factor);
 
 		if(weight == 0.0f) continue;
@@ -592,7 +618,7 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float **
 		float variance = filter_get_pixel_variance(buffer, sample);
 		if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
 
-		filter_get_features(px, py, buffer, pre_buffer, sample, features, feature_means);
+		filter_get_features(px, py, buffer, pre_buffer, sample, features, feature_means, pre_stride);
 		float weight = filter_fill_design_row(features, rank, design_row, feature_transform, bandwidth_factor);
 
 		if(weight == 0.0f) continue;

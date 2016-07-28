@@ -208,15 +208,17 @@ public:
 		}
 	};
 
-	float2* denoise_prefilter(int4 prefilter_rect, RenderTile &tile, KernelGlobals *kg, int sample, float** buffers, int* tile_x, int* tile_y, int *offsets, int *strides)
+	float* denoise_prefilter(int4 prefilter_rect, RenderTile &tile, KernelGlobals *kg, int sample, float** buffers, int* tile_x, int* tile_y, int *offsets, int *strides)
 	{
 		void(*filter_divide_shadow)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, float*, float*, float*, float*, int4);
+		void(*filter_get_feature)(KernelGlobals*, int, float**, int, int, int, int, int*, int*, int*, int*, float*, float*, int4);
 		void(*filter_non_local_means)(int, int, float*, float*, float*, float*, int4, int, int, float, float);
-		void(*filter_combine_halves)(int, int, float*, float*, float*, float*, int, int4);
+		void(*filter_combine_halves)(int, int, float*, float*, float*, float*, int4);
 
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
 		if(system_cpu_support_avx2()) {
 			filter_divide_shadow = kernel_cpu_avx2_filter_divide_shadow;
+			filter_get_feature = kernel_cpu_avx2_filter_get_feature;
 			filter_non_local_means = kernel_cpu_avx2_filter_non_local_means;
 			filter_combine_halves = kernel_cpu_avx2_filter_combine_halves;
 		}
@@ -225,6 +227,7 @@ public:
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
 		if(system_cpu_support_avx()) {
 			filter_divide_shadow = kernel_cpu_avx_filter_divide_shadow;
+			filter_get_feature = kernel_cpu_avx_filter_get_feature;
 			filter_non_local_means = kernel_cpu_avx_filter_non_local_means;
 			filter_combine_halves = kernel_cpu_avx_filter_combine_halves;
 		}
@@ -233,6 +236,7 @@ public:
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
 		if(system_cpu_support_sse41()) {
 			filter_divide_shadow = kernel_cpu_sse41_filter_divide_shadow;
+			filter_get_feature = kernel_cpu_sse41_filter_get_feature;
 			filter_non_local_means = kernel_cpu_sse41_filter_non_local_means;
 			filter_combine_halves = kernel_cpu_sse41_filter_combine_halves;
 		}
@@ -241,6 +245,7 @@ public:
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
 		if(system_cpu_support_sse3()) {
 			filter_divide_shadow = kernel_cpu_sse3_filter_divide_shadow;
+			filter_get_feature = kernel_cpu_sse3_filter_get_feature;
 			filter_non_local_means = kernel_cpu_sse3_filter_non_local_means;
 			filter_combine_halves = kernel_cpu_sse3_filter_combine_halves;
 		}
@@ -249,6 +254,7 @@ public:
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
 		if(system_cpu_support_sse2()) {
 			filter_divide_shadow = kernel_cpu_sse2_filter_divide_shadow;
+			filter_get_feature = kernel_cpu_sse2_filter_get_feature;
 			filter_non_local_means = kernel_cpu_sse2_filter_non_local_means;
 			filter_combine_halves = kernel_cpu_sse2_filter_combine_halves;
 		}
@@ -256,15 +262,51 @@ public:
 #endif
 		{
 			filter_divide_shadow = kernel_cpu_filter_divide_shadow;
+			filter_get_feature = kernel_cpu_filter_get_feature;
 			filter_non_local_means = kernel_cpu_filter_non_local_means;
 			filter_combine_halves = kernel_cpu_filter_combine_halves;
 		}
 
 		int w = (prefilter_rect.z - prefilter_rect.x), h = (prefilter_rect.w - prefilter_rect.y);
-		float2 *prefiltered = new float2[w*h];
-		float *unfiltered = new float[2*w*h], *sampleV = ((float*) prefiltered), *sampleVV = new float[w*h], *bufferV = ((float*) prefiltered) + w*h, *cleanV = new float[w*h];
+		float *prefiltered = new float[16*w*h];
+		float *unfiltered = new float[2*w*h];
 
 
+
+		/* Prefilter general features. */
+		int m_offsets[] = {0, 1, 2, 6, 7, 8, 12};
+		int variances[] = {3, 4, 5, 9, 10, 11, 13};
+		for(int i = 0; i < 7; i++) {
+			for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
+				for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
+					filter_get_feature(kg, sample, buffers, m_offsets[i], variances[i], x, y, tile_x, tile_y, offsets, strides, unfiltered, prefiltered + (2*i+1)*w*h, prefilter_rect);
+				}
+			}
+			for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
+				for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
+					filter_non_local_means(x, y, unfiltered, unfiltered, prefiltered + (2*i+1)*w*h, prefiltered + 2*i*w*h, prefilter_rect, 2, 2, 1, 0.25f);
+				}
+			}
+#ifdef WITH_CYCLES_DEBUG_FILTER
+#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_feature%d_%s.pfm", tile.x, tile.y, i, name).c_str(), var, w, h, 1, w)
+			WRITE_DEBUG("unfiltered", unfiltered);
+			WRITE_DEBUG("sampleV", prefiltered + (2*i+1)*w*h);
+			WRITE_DEBUG("filtered", prefiltered + 2*i*w*h);
+#undef WRITE_DEBUG
+#endif
+		}
+
+
+
+
+
+
+
+
+
+
+
+		float *sampleV = prefiltered + 14*w*h, *sampleVV = new float[w*h], *bufferV = prefiltered + 15*w*h, *cleanV = new float[w*h];
 
 		/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
 		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
@@ -273,12 +315,12 @@ public:
 			}
 		}
 #ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, var, stride) debug_write_pfm(string_printf("debug_%dx%d_shadow_%s.pfm", tile.x, tile.y, name).c_str(), var, w, h, stride, w)
-		WRITE_DEBUG("unfilteredA", unfiltered, 1);
-		WRITE_DEBUG("unfilteredB", unfiltered + w*h, 1);
-		WRITE_DEBUG("bufferV", bufferV, 1);
-		WRITE_DEBUG("sampleV", sampleV, 1);
-		WRITE_DEBUG("sampleVV", sampleVV, 1);
+#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_shadow_%s.pfm", tile.x, tile.y, name).c_str(), var, w, h, 1, w)
+		WRITE_DEBUG("unfilteredA", unfiltered);
+		WRITE_DEBUG("unfilteredB", unfiltered + w*h);
+		WRITE_DEBUG("bufferV", bufferV);
+		WRITE_DEBUG("sampleV", sampleV);
+		WRITE_DEBUG("sampleVV", sampleVV);
 #endif
 
 
@@ -291,7 +333,7 @@ public:
 			}
 		}
 #ifdef WITH_CYCLES_DEBUG_FILTER
-		WRITE_DEBUG("cleanV", cleanV, 1);
+		WRITE_DEBUG("cleanV", cleanV);
 #endif
 
 
@@ -305,8 +347,8 @@ public:
 		}
 		delete[] cleanV;
 #ifdef WITH_CYCLES_DEBUG_FILTER
-		WRITE_DEBUG("filteredA", sampleV, 1);
-		WRITE_DEBUG("filteredB", bufferV, 1);
+		WRITE_DEBUG("filteredA", sampleV);
+		WRITE_DEBUG("filteredB", bufferV);
 #endif
 
 
@@ -314,11 +356,11 @@ public:
 		/* Estimate the residual variance between the two filtered halves. */
 		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
 			for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
-				filter_combine_halves(x, y, NULL, sampleVV, sampleV, bufferV, 1, prefilter_rect);
+				filter_combine_halves(x, y, NULL, sampleVV, sampleV, bufferV, prefilter_rect);
 			}
 		}
 #ifdef WITH_CYCLES_DEBUG_FILTER
-		WRITE_DEBUG("residualV", sampleVV, 1);
+		WRITE_DEBUG("residualV", sampleVV);
 #endif
 
 		/* Use the residual variance for a second filter pass. */
@@ -330,20 +372,20 @@ public:
 		}
 		delete[] sampleVV;
 #ifdef WITH_CYCLES_DEBUG_FILTER
-		WRITE_DEBUG("finalA", unfiltered, 1);
-		WRITE_DEBUG("finalB", unfiltered + w*h, 1);
+		WRITE_DEBUG("finalA", unfiltered);
+		WRITE_DEBUG("finalB", unfiltered + w*h);
 #endif
 
 		/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
 		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
 			for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
-				filter_combine_halves(x, y, (float*) prefiltered, ((float*) prefiltered)+1, unfiltered, unfiltered + w*h, 2, prefilter_rect);
+				filter_combine_halves(x, y, prefiltered + 14*w*h, prefiltered + 15*w*h, unfiltered, unfiltered + w*h, prefilter_rect);
 			}
 		}
 		delete[] unfiltered;
 #ifdef WITH_CYCLES_DEBUG_FILTER
-		WRITE_DEBUG("final", (float*) prefiltered, 2);
-		WRITE_DEBUG("finalV", ((float*) prefiltered) + 1, 2);
+		WRITE_DEBUG("final", prefiltered + 14*w*h);
+		WRITE_DEBUG("finalV", prefiltered + 15*w*h);
 #undef WRITE_DEBUG
 #endif
 
@@ -361,8 +403,8 @@ public:
 		RenderTile tile;
 
 		void(*path_trace_kernel)(KernelGlobals*, float*, unsigned int*, int, int, int, int, int);
-		void(*filter_estimate_params_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*, float2*, int4, int4);
-		void(*filter_final_pass_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*, float2*, int4, int4);
+		void(*filter_estimate_params_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*, float*, int4, int4);
+		void(*filter_final_pass_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*, float*, int4, int4);
 
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
 		if(system_cpu_support_avx2()) {
@@ -450,7 +492,7 @@ public:
 					int4 filter_rect = make_int4(tile.x + overscan, tile.y + overscan, tile.x + tile.w - overscan, tile.y + tile.h - overscan);
 					int4 prefilter_rect = make_int4(tile.x, tile.y, tile.x + tile.w, tile.y + tile.h);
 
-					float2* prefiltered = denoise_prefilter(prefilter_rect, tile, &kg, end_sample, buffers, tile_x, tile_y, offsets, strides);
+					float* prefiltered = denoise_prefilter(prefilter_rect, tile, &kg, end_sample, buffers, tile_x, tile_y, offsets, strides);
 					FilterStorage *storages = new FilterStorage[tile.buffers->params.final_width*tile.buffers->params.final_height];
 
 					for(int y = filter_rect.y; y < filter_rect.w; y++) {
@@ -505,7 +547,7 @@ public:
 				int hw = kg.__data.integrator.half_window;
 				int4 prefilter_rect = make_int4(max(tile.x - hw, tile_x[0]), max(tile.y - hw, tile_y[0]), min(tile.x + tile.w + hw+1, tile_x[3]), min(tile.y + tile.h + hw+1, tile_y[3]));
 
-				float2* prefiltered = denoise_prefilter(prefilter_rect, tile, &kg, sample, buffers, tile_x, tile_y, offsets, strides);
+				float* prefiltered = denoise_prefilter(prefilter_rect, tile, &kg, sample, buffers, tile_x, tile_y, offsets, strides);
 
 				for(int y = filter_rect.y; y < filter_rect.w; y++) {
 					for(int x = filter_rect.x; x < filter_rect.z; x++) {
