@@ -146,7 +146,7 @@ ccl_device_inline void microfacet_ggx_sample_slopes(
 	/* sample slope_x */
 	const float A = 2.0f*randu*G1_inv - 1.0f;
 	const float AA = A*A;
-	const float tmp = 1.0f/(AA - 1.0f);
+	const float tmp = 1.0f/max(AA - 1.0f, 1e-7f);
 	const float B = tan_theta_i;
 	const float BB = B*B;
 	const float D = safe_sqrtf(BB*(tmp*tmp) - (AA - BB)*tmp);

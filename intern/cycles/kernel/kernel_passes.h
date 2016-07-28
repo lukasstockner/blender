@@ -16,6 +16,20 @@
 
 CCL_NAMESPACE_BEGIN
 
+ccl_device_inline float3 ensure_finite3(float3 a)
+{
+	if(!isfinite(a.x)) a.x = 0.0f;
+	if(!isfinite(a.y)) a.y = 0.0f;
+	if(!isfinite(a.z)) a.z = 0.0f;
+	return a;
+}
+
+ccl_device_inline float ensure_finite(float a)
+{
+	if(!isfinite(a)) return 0.0f;
+	return a;
+}
+
 ccl_device_inline void kernel_write_pass_float(ccl_global float *buffer, int sample, float value)
 {
 	ccl_global float *buf = buffer;
@@ -177,9 +191,9 @@ ccl_device_inline bool kernel_write_denoising_passes(KernelGlobals *kg, ccl_glob
 				/* This bounce is almost specular, so don't write the data yet. */
 				return false;
 			}
-			kernel_write_pass_float3_var(buffer, sample, normal/sum_weight);
-			kernel_write_pass_float3_var(buffer + 6, sample, albedo);
-			kernel_write_pass_float_var(buffer + 12, sample, state->path_length);
+			kernel_write_pass_float3_var(buffer, sample, ensure_finite3(normal/sum_weight));
+			kernel_write_pass_float3_var(buffer + 6, sample, ensure_finite3(albedo));
+			kernel_write_pass_float_var(buffer + 12, sample, ensure_finite(state->path_length));
 		}
 	}
 	else {
