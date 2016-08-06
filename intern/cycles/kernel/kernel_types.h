@@ -1144,6 +1144,7 @@ typedef struct KernelIntegrator {
 
 	/* denoiser */
 	int half_window;
+	float filter_strength;
 } KernelIntegrator;
 
 typedef struct KernelBVH {

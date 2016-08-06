@@ -77,6 +77,7 @@ NODE_DEFINE(Integrator)
 	SOCKET_ENUM(sampling_pattern, "Sampling Pattern", sampling_pattern_enum, SAMPLING_PATTERN_SOBOL);
 
 	SOCKET_INT(half_window, "Half Window", 8);
+	SOCKET_FLOAT(filter_strength, "Filter Strength", 0.0f);
 
 	return type;
 }
@@ -198,6 +199,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 	}
 
 	kintegrator->half_window = half_window;
+	kintegrator->filter_strength = filter_strength;
 
 	need_update = false;
 }

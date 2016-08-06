@@ -327,10 +327,10 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 
 		filter_get_feature_variance(px, py, buffer, pre_buffer, sample, features, feature_scale, pre_stride);
 #ifdef FULL_EIGENVALUE_NORM
-		math_add_gramian(perturbation_matrix, FEATURE_PASSES, features, 1.0f);
+		math_add_gramian(perturbation_matrix, FEATURE_PASSES, features, kernel_data.integrator.filter_strength);
 #else
 		for(int i = 0; i < FEATURE_PASSES; i++)
-			feature_matrix_norm += features[i];
+			feature_matrix_norm += features[i]*kernel_data.integrator.filter_strength;
 #endif
 	} END_FOR_PIXEL_WINDOW
 	math_lower_tri_to_full(feature_matrix, DENOISE_FEATURES);
