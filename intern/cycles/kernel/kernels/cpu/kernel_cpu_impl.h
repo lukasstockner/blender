@@ -190,36 +190,28 @@ void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
 
 void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
                                                        int sample,
-                                                       float** buffers,
+                                                       float* buffer,
                                                        int x,
                                                        int y,
-                                                       int *tile_x,
-                                                       int *tile_y,
-                                                       int *offset,
-                                                       int *stride,
                                                        void *storage,
-                                                       float *prefiltered,
-                                                       int4 filter_rect,
-                                                       int4 prefilter_rect)
+                                                       int4 rect)
 {
-	kernel_filter_estimate_params(kg, sample, buffers, x, y, tile_x, tile_y, offset, stride, (FilterStorage*) storage, prefiltered, filter_rect, prefilter_rect);
+	kernel_filter_estimate_params(kg, sample, buffer, x, y, (FilterStorage*) storage, rect);
 }
 
 void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
                                                   int sample,
-                                                  float** buffers,
+                                                  float* buffer,
                                                   int x,
                                                   int y,
-                                                  int *tile_x,
-                                                  int *tile_y,
-                                                  int *offset,
-                                                  int *stride,
+                                                  int offset,
+                                                  int stride,
+                                                  float *buffers,
                                                   void *storage,
-                                                  float *prefiltered,
-                                                  int4 filter_rect,
-                                                  int4 prefilter_rect)
+                                                  int4 filter_area,
+                                                  int4 rect)
 {
-	kernel_filter_final_pass(kg, sample, buffers, x, y, tile_x, tile_y, offset, stride, (FilterStorage*) storage, prefiltered, filter_rect, prefilter_rect);
+	kernel_filter_final_pass(kg, sample, buffer, x, y, offset, stride, buffers, (FilterStorage*) storage, filter_area, rect);
 }
 
 CCL_NAMESPACE_END

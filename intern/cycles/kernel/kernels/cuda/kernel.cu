@@ -262,35 +262,25 @@ kernel_cuda_filter_combine_halves(float *mean, float *variance, float *a, float 
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
-kernel_cuda_filter_estimate_params(int sample, float* buffers, int sx, int sy, int w, int h, int overscan, int offset, int stride, void *storage, float *prefiltered, int4 prefilter_rect)
+kernel_cuda_filter_estimate_params(int sample, float* buffer, void *storage, int4 filter_area, int4 rect)
 {
-	int4 filter_rect = make_int4(sx + overscan, sy + overscan, sx+w - overscan, sy+h - overscan);
-	int x = filter_rect.x + blockDim.x*blockIdx.x + threadIdx.x;
-	int y = filter_rect.y + blockDim.y*blockIdx.y + threadIdx.y;
-	if(x < filter_rect.z && y < filter_rect.w) {
-		int tile_x[4] = {sx, sx, sx+w, sx+w};
-		int tile_y[4] = {sy, sy, sy+h, sy+h};
-		float *tile_buffers[9] = {NULL, NULL, NULL, NULL, buffers, NULL, NULL, NULL, NULL};
-		int tile_offset[9] = {0, 0, 0, 0, offset, 0, 0, 0, 0};
-		int tile_stride[9] = {0, 0, 0, 0, stride, 0, 0, 0, 0};
-		kernel_filter_estimate_params(NULL, sample, tile_buffers, x, y, tile_x, tile_y, tile_offset, tile_stride, (FilterStorage*) storage, prefiltered, filter_rect, prefilter_rect);
+	int x = blockDim.x*blockIdx.x + threadIdx.x;
+	int y = blockDim.y*blockIdx.y + threadIdx.y;
+	if(x < filter_area.z && y < filter_area.w) {
+		FilterStorage *l_storage = ((FilterStorage*) storage) + y*filter_area.z + x;
+		kernel_filter_estimate_params(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, l_storage, rect);
 	}
 }
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
-kernel_cuda_filter_final_pass(int sample, float* buffers, int sx, int sy, int w, int h, int overscan, int offset, int stride, void *storage, float *prefiltered, int4 prefilter_rect)
+kernel_cuda_filter_final_pass(int sample, float* buffer, int offset, int stride, void *storage, float *buffers, int4 filter_area, int4 rect)
 {
-	int4 filter_rect = make_int4(sx + overscan, sy + overscan, sx+w - overscan, sy+h - overscan);
-	int x = filter_rect.x + blockDim.x*blockIdx.x + threadIdx.x;
-	int y = filter_rect.y + blockDim.y*blockIdx.y + threadIdx.y;
-	if(x < filter_rect.z && y < filter_rect.w) {
-		int tile_x[4] = {sx, sx, sx+w, sx+w};
-		int tile_y[4] = {sy, sy, sy+h, sy+h};
-		float *tile_buffers[9] = {NULL, NULL, NULL, NULL, buffers, NULL, NULL, NULL, NULL};
-		int tile_offset[9] = {0, 0, 0, 0, offset, 0, 0, 0, 0};
-		int tile_stride[9] = {0, 0, 0, 0, stride, 0, 0, 0, 0};
-		kernel_filter_final_pass(NULL, sample, tile_buffers, x, y, tile_x, tile_y, tile_offset, tile_stride, (FilterStorage*) storage, prefiltered, filter_rect, prefilter_rect);
+	int x = blockDim.x*blockIdx.x + threadIdx.x;
+	int y = blockDim.y*blockIdx.y + threadIdx.y;
+	if(x < filter_area.z && y < filter_area.w) {
+		FilterStorage *l_storage = ((FilterStorage*) storage) + y*filter_area.z + x;
+		kernel_filter_final_pass(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, l_storage, filter_area, rect);
 	}
 }
 

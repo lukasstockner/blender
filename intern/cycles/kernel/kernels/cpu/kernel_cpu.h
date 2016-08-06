@@ -97,30 +97,22 @@ void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
 
 void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
                                                        int sample,
-                                                       float** buffers,
+                                                       float* buffer,
                                                        int x,
                                                        int y,
-                                                       int *tile_x,
-                                                       int *tile_y,
-                                                       int *offset,
-                                                       int *stride,
                                                        void *storage,
-                                                       float *prefiltered,
-                                                       int4 filter_rect,
-                                                       int4 prefilter_rect);
+                                                       int4 rect);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
                                                   int sample,
-                                                  float** buffers,
+                                                  float* buffer,
                                                   int x,
                                                   int y,
-                                                  int *tile_x,
-                                                  int *tile_y,
-                                                  int *offset,
-                                                  int *stride,
+                                                  int offset,
+                                                  int stride,
+                                                  float* buffers,
                                                   void *storage,
-                                                  float *prefiltered,
-                                                  int4 filter_rect,
-                                                  int4 prefilter_rect);
+                                                  int4 filter_area,
+                                                  int4 rect);
 
 #undef KERNEL_ARCH

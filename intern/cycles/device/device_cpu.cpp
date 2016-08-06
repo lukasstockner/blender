@@ -208,7 +208,7 @@ public:
 		}
 	};
 
-	float* denoise_prefilter(int4 prefilter_rect, RenderTile &tile, KernelGlobals *kg, int sample, float** buffers, int* tile_x, int* tile_y, int *offsets, int *strides)
+	float* denoise_fill_buffer(KernelGlobals *kg, int sample, int4 rect, float** buffers, int* tile_x, int* tile_y, int *offsets, int *strides)
 	{
 		void(*filter_divide_shadow)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, float*, float*, float*, float*, int4);
 		void(*filter_get_feature)(KernelGlobals*, int, float**, int, int, int, int, int*, int*, int*, int*, float*, float*, int4);
@@ -267,129 +267,221 @@ public:
 			filter_combine_halves = kernel_cpu_filter_combine_halves;
 		}
 
-		int w = (prefilter_rect.z - prefilter_rect.x), h = (prefilter_rect.w - prefilter_rect.y);
-		float *prefiltered = new float[16*w*h];
-		float *unfiltered = new float[2*w*h];
+		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
+		float *filter_buffer = new float[22*w*h];
 
 
 
-		/* Prefilter general features. */
-		int m_offsets[] = {0, 1, 2, 6, 7, 8, 12};
-		int variances[] = {3, 4, 5, 9, 10, 11, 13};
-		for(int i = 0; i < 7; i++) {
-			for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
-				for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
-					filter_get_feature(kg, sample, buffers, m_offsets[i], variances[i], x, y, tile_x, tile_y, offsets, strides, unfiltered, prefiltered + (2*i+1)*w*h, prefilter_rect);
+		/* ==== Step 1: Prefilter general features. ==== */
+		{
+			float *unfiltered = filter_buffer + 16*w*h;
+			/* Order in render buffers:
+			 *   Normal[X, Y, Z] NormalVar[X, Y, Z] Albedo[R, G, B] AlbedoVar[R, G, B ] Depth DepthVar
+			 *          0  1  2            3  4  5         6  7  8            9  10 11  12    13
+			 *
+			 * Order in denoise buffer:
+			 *   Normal[X, XVar, Y, YVar, Z, ZVar] Depth DepthVar Shadow ShadowVar Albedo[R, RVar, G, GVar, B, BVar] Color[R, RVar, G, GVar, B, BVar]
+			 *          0  1     2  3     4  5     6     7        8      9                10 11    12 13    14 15          16 17    18 19    20 21
+			 *
+			 * Order of processing: |NormalXYZ|Depth|AlbedoXYZ |
+			 *                      |         |     |          | */
+			int mean_from[]      = { 0, 1, 2,   6,    7,  8, 12 };
+			int variance_from[]  = { 3, 4, 5,   9,   10, 11, 13 };
+			int offset_to[]      = { 0, 2, 4,  10,   12, 14,  6 };
+			for(int i = 0; i < 7; i++) {
+				for(int y = rect.y; y < rect.w; y++) {
+					for(int x = rect.x; x < rect.z; x++) {
+						filter_get_feature(kg, sample, buffers, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, unfiltered, filter_buffer + (offset_to[i]+1)*w*h, rect);
+					}
 				}
-			}
-			for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
-				for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
-					filter_non_local_means(x, y, unfiltered, unfiltered, prefiltered + (2*i+1)*w*h, prefiltered + 2*i*w*h, prefilter_rect, 2, 2, 1, 0.25f);
+				for(int y = rect.y; y < rect.w; y++) {
+					for(int x = rect.x; x < rect.z; x++) {
+						filter_non_local_means(x, y, unfiltered, unfiltered, filter_buffer + (offset_to[i]+1)*w*h, filter_buffer + offset_to[i]*w*h, rect, 2, 2, 1, 0.25f);
+					}
 				}
-			}
 #ifdef WITH_CYCLES_DEBUG_FILTER
 #define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_feature%d_%s.pfm", tile.x, tile.y, i, name).c_str(), var, w, h, 1, w)
-			WRITE_DEBUG("unfiltered", unfiltered);
-			WRITE_DEBUG("sampleV", prefiltered + (2*i+1)*w*h);
-			WRITE_DEBUG("filtered", prefiltered + 2*i*w*h);
+				WRITE_DEBUG("unfiltered", unfiltered);
+				WRITE_DEBUG("sampleV", filter_buffer + (offset_to[i]+1)*w*h);
+				WRITE_DEBUG("filtered", filter_buffer + offset_to[i]*w*h);
 #undef WRITE_DEBUG
 #endif
-		}
-
-
-
-
-
-
-
-
-
-
-
-		float *sampleV = prefiltered + 14*w*h, *sampleVV = new float[w*h], *bufferV = prefiltered + 15*w*h, *cleanV = new float[w*h];
-
-		/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
-		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
-			for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
-				filter_divide_shadow(kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, unfiltered, sampleV, sampleVV, bufferV, prefilter_rect);
 			}
 		}
+
+
+
+		/* ==== Step 2: Prefilter shadow feature. ==== */
+		{
+			/* Reuse some passes of the filter_buffer for temporary storage. */
+			float *sampleV = filter_buffer + 16*w*h, *sampleVV = filter_buffer + 17*w*h, *bufferV = filter_buffer + 18*w*h, *cleanV = filter_buffer + 19*w*h;
+			float *unfiltered = filter_buffer + 20*w*h;
+
+			/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
+			for(int y = rect.y; y < rect.w; y++) {
+				for(int x = rect.x; x < rect.z; x++) {
+					filter_divide_shadow(kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, unfiltered, sampleV, sampleVV, bufferV, rect);
+				}
+			}
 #ifdef WITH_CYCLES_DEBUG_FILTER
 #define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_shadow_%s.pfm", tile.x, tile.y, name).c_str(), var, w, h, 1, w)
-		WRITE_DEBUG("unfilteredA", unfiltered);
-		WRITE_DEBUG("unfilteredB", unfiltered + w*h);
-		WRITE_DEBUG("bufferV", bufferV);
-		WRITE_DEBUG("sampleV", sampleV);
-		WRITE_DEBUG("sampleVV", sampleVV);
+			WRITE_DEBUG("unfilteredA", unfiltered);
+			WRITE_DEBUG("unfilteredB", unfiltered + w*h);
+			WRITE_DEBUG("bufferV", bufferV);
+			WRITE_DEBUG("sampleV", sampleV);
+			WRITE_DEBUG("sampleVV", sampleVV);
 #endif
 
-
-
-		/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
-		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
-			for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
-				//filter_prefilter_features(&kg, sample, x, y, filteredA, filteredB, prefilter_rect);
-				filter_non_local_means(x, y, bufferV, sampleV, sampleVV, cleanV, prefilter_rect, 3, 1, 4, 1.0f);
+			/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
+			for(int y = rect.y; y < rect.w; y++) {
+				for(int x = rect.x; x < rect.z; x++) {
+					filter_non_local_means(x, y, bufferV, sampleV, sampleVV, cleanV, rect, 3, 1, 4, 1.0f);
+				}
 			}
-		}
 #ifdef WITH_CYCLES_DEBUG_FILTER
 		WRITE_DEBUG("cleanV", cleanV);
 #endif
 
-
-
-		/* Use the smoothed variance to filter the two shadow half images using each other for weight calculation. */
-		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
-			for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
-				filter_non_local_means(x, y, unfiltered, unfiltered + w*h, cleanV, sampleV, prefilter_rect, 5, 3, 1, 0.25f);
-				filter_non_local_means(x, y, unfiltered + w*h, unfiltered, cleanV, bufferV, prefilter_rect, 5, 3, 1, 0.25f);
+			/* Use the smoothed variance to filter the two shadow half images using each other for weight calculation. */
+			for(int y = rect.y; y < rect.w; y++) {
+				for(int x = rect.x; x < rect.z; x++) {
+					filter_non_local_means(x, y, unfiltered, unfiltered + w*h, cleanV, sampleV, rect, 5, 3, 1, 0.25f);
+					filter_non_local_means(x, y, unfiltered + w*h, unfiltered, cleanV, bufferV, rect, 5, 3, 1, 0.25f);
+				}
 			}
-		}
-		delete[] cleanV;
 #ifdef WITH_CYCLES_DEBUG_FILTER
-		WRITE_DEBUG("filteredA", sampleV);
-		WRITE_DEBUG("filteredB", bufferV);
+			WRITE_DEBUG("filteredA", sampleV);
+			WRITE_DEBUG("filteredB", bufferV);
 #endif
 
-
-
-		/* Estimate the residual variance between the two filtered halves. */
-		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
-			for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
-				filter_combine_halves(x, y, NULL, sampleVV, sampleV, bufferV, prefilter_rect);
+			/* Estimate the residual variance between the two filtered halves. */
+			for(int y = rect.y; y < rect.w; y++) {
+				for(int x = rect.x; x < rect.z; x++) {
+					filter_combine_halves(x, y, NULL, sampleVV, sampleV, bufferV, rect);
+				}
 			}
-		}
 #ifdef WITH_CYCLES_DEBUG_FILTER
-		WRITE_DEBUG("residualV", sampleVV);
+			WRITE_DEBUG("residualV", sampleVV);
 #endif
 
-		/* Use the residual variance for a second filter pass. */
-		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
-			for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
-				filter_non_local_means(x, y, sampleV, bufferV, sampleVV, unfiltered      , prefilter_rect, 4, 2, 1, 0.25f);
-				filter_non_local_means(x, y, bufferV, sampleV, sampleVV, unfiltered + w*h, prefilter_rect, 4, 2, 1, 0.25f);
+			/* Use the residual variance for a second filter pass. */
+			for(int y = rect.y; y < rect.w; y++) {
+				for(int x = rect.x; x < rect.z; x++) {
+					filter_non_local_means(x, y, sampleV, bufferV, sampleVV, unfiltered      , rect, 4, 2, 1, 0.25f);
+					filter_non_local_means(x, y, bufferV, sampleV, sampleVV, unfiltered + w*h, rect, 4, 2, 1, 0.25f);
+				}
 			}
-		}
-		delete[] sampleVV;
 #ifdef WITH_CYCLES_DEBUG_FILTER
-		WRITE_DEBUG("finalA", unfiltered);
-		WRITE_DEBUG("finalB", unfiltered + w*h);
+			WRITE_DEBUG("finalA", unfiltered);
+			WRITE_DEBUG("finalB", unfiltered + w*h);
 #endif
 
-		/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
-		for(int y = prefilter_rect.y; y < prefilter_rect.w; y++) {
-			for(int x = prefilter_rect.x; x < prefilter_rect.z; x++) {
-				filter_combine_halves(x, y, prefiltered + 14*w*h, prefiltered + 15*w*h, unfiltered, unfiltered + w*h, prefilter_rect);
+			/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
+			for(int y = rect.y; y < rect.w; y++) {
+				for(int x = rect.x; x < rect.z; x++) {
+					filter_combine_halves(x, y, filter_buffer + 8*w*h, filter_buffer + 9*w*h, unfiltered, unfiltered + w*h, rect);
+				}
 			}
-		}
-		delete[] unfiltered;
 #ifdef WITH_CYCLES_DEBUG_FILTER
-		WRITE_DEBUG("final", prefiltered + 14*w*h);
-		WRITE_DEBUG("finalV", prefiltered + 15*w*h);
+			WRITE_DEBUG("final", filter_buffer + 8*w*h);
+			WRITE_DEBUG("finalV", filter_buffer + 9*w*h);
 #undef WRITE_DEBUG
 #endif
+		}
 
-		return prefiltered;
+
+
+		/* ==== Step 3: Copy combined color pass. ==== */
+		{
+			int mean_from[]      = {20, 21, 22};
+			int variance_from[]  = {23, 24, 25};
+			int offset_to[]      = {16, 18, 20};
+			for(int i = 0; i < 3; i++) {
+				for(int y = rect.y; y < rect.w; y++) {
+					for(int x = rect.x; x < rect.z; x++) {
+						filter_get_feature(kg, sample, buffers, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, filter_buffer + offset_to[i]*w*h, filter_buffer + (offset_to[i]+1)*w*h, rect);
+					}
+				}
+			}
+		}
+
+		return filter_buffer;
+	}
+
+	void denoise_run(KernelGlobals *kg, int sample, float *filter_buffer, int4 filter_area, int4 rect, int offset, int stride, float *buffers)
+	{
+		void(*filter_estimate_params_kernel)(KernelGlobals*, int, float*, int, int, void*, int4);
+		void(*filter_final_pass_kernel)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, int4, int4);
+
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
+		if(system_cpu_support_avx2()) {
+			filter_estimate_params_kernel = kernel_cpu_avx2_filter_estimate_params;
+			filter_final_pass_kernel = kernel_cpu_avx2_filter_final_pass;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
+		if(system_cpu_support_avx()) {
+			filter_estimate_params_kernel = kernel_cpu_avx_filter_estimate_params;
+			filter_final_pass_kernel = kernel_cpu_avx_filter_final_pass;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
+		if(system_cpu_support_sse41()) {
+			filter_estimate_params_kernel = kernel_cpu_sse41_filter_estimate_params;
+			filter_final_pass_kernel = kernel_cpu_sse41_filter_final_pass;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
+		if(system_cpu_support_sse3()) {
+			filter_estimate_params_kernel = kernel_cpu_sse3_filter_estimate_params;
+			filter_final_pass_kernel = kernel_cpu_sse3_filter_final_pass;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
+		if(system_cpu_support_sse2()) {
+			filter_estimate_params_kernel = kernel_cpu_sse2_filter_estimate_params;
+			filter_final_pass_kernel = kernel_cpu_sse2_filter_final_pass;
+		}
+		else
+#endif
+		{
+			filter_estimate_params_kernel = kernel_cpu_filter_estimate_params;
+			filter_final_pass_kernel = kernel_cpu_filter_final_pass;
+		}
+
+		FilterStorage *storages = new FilterStorage[filter_area.z*filter_area.w];
+
+		for(int y = 0; y < filter_area.w; y++) {
+			for(int x = 0; x < filter_area.z; x++) {
+				filter_estimate_params_kernel(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storages + y*filter_area.z + x, rect);
+			}
+		}
+		for(int y = 0; y < filter_area.w; y++) {
+			for(int x = 0; x < filter_area.z; x++) {
+				filter_final_pass_kernel(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storages + y*filter_area.z + x, filter_area, rect);
+			}
+		}
+
+#ifdef WITH_CYCLES_DEBUG_FILTER
+#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", tile.x, tile.y, name).c_str(), &storages[0].var, filter_area.z, filter_area.w, sizeof(FilterStorage)/sizeof(float), filter_area.z);
+			for(int i = 0; i < DENOISE_FEATURES; i++) {
+			WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
+			WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);
+			WRITE_DEBUG(string_printf("singular_%d", i).c_str(), singular[i]);
+			WRITE_DEBUG(string_printf("bandwidth_%d", i).c_str(), bandwidth[i]);
+		}
+		WRITE_DEBUG("singular_threshold", singular_threshold);
+		WRITE_DEBUG("feature_matrix_norm", feature_matrix_norm);
+		WRITE_DEBUG("global_bandwidth", global_bandwidth);
+		WRITE_DEBUG("filtered_global_bandwidth", filtered_global_bandwidth);
+		WRITE_DEBUG("sum_weight", sum_weight);
+		WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
+#undef WRITE_DEBUG
+#endif
 	}
 
 	void thread_render(DeviceTask& task)
@@ -403,53 +495,39 @@ public:
 		RenderTile tile;
 
 		void(*path_trace_kernel)(KernelGlobals*, float*, unsigned int*, int, int, int, int, int);
-		void(*filter_estimate_params_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*, float*, int4, int4);
-		void(*filter_final_pass_kernel)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, void*, float*, int4, int4);
 
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
 		if(system_cpu_support_avx2()) {
 			path_trace_kernel = kernel_cpu_avx2_path_trace;
-			filter_estimate_params_kernel = kernel_cpu_avx2_filter_estimate_params;
-			filter_final_pass_kernel = kernel_cpu_avx2_filter_final_pass;
 		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
 		if(system_cpu_support_avx()) {
 			path_trace_kernel = kernel_cpu_avx_path_trace;
-			filter_estimate_params_kernel = kernel_cpu_avx_filter_estimate_params;
-			filter_final_pass_kernel = kernel_cpu_avx_filter_final_pass;
 		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
 		if(system_cpu_support_sse41()) {
 			path_trace_kernel = kernel_cpu_sse41_path_trace;
-			filter_estimate_params_kernel = kernel_cpu_sse41_filter_estimate_params;
-			filter_final_pass_kernel = kernel_cpu_sse41_filter_final_pass;
 		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
 		if(system_cpu_support_sse3()) {
 			path_trace_kernel = kernel_cpu_sse3_path_trace;
-			filter_estimate_params_kernel = kernel_cpu_sse3_filter_estimate_params;
-			filter_final_pass_kernel = kernel_cpu_sse3_filter_final_pass;
 		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
 		if(system_cpu_support_sse2()) {
 			path_trace_kernel = kernel_cpu_sse2_path_trace;
-			filter_estimate_params_kernel = kernel_cpu_sse2_filter_estimate_params;
-			filter_final_pass_kernel = kernel_cpu_sse2_filter_final_pass;
 		}
 		else
 #endif
 		{
 			path_trace_kernel = kernel_cpu_path_trace;
-			filter_estimate_params_kernel = kernel_cpu_filter_estimate_params;
-			filter_final_pass_kernel = kernel_cpu_filter_final_pass;
 		}
 		
 		while(task.acquire_tile(this, tile)) {
@@ -489,41 +567,12 @@ public:
 					float *buffers[9] = {NULL, NULL, NULL, NULL, (float*) tile.buffer, NULL, NULL, NULL, NULL};
 
 					int overscan = tile.buffers->params.overscan;
-					int4 filter_rect = make_int4(tile.x + overscan, tile.y + overscan, tile.x + tile.w - overscan, tile.y + tile.h - overscan);
-					int4 prefilter_rect = make_int4(tile.x, tile.y, tile.x + tile.w, tile.y + tile.h);
+					int4 filter_area = make_int4(tile.x + overscan, tile.y + overscan, tile.w - 2*overscan, tile.h - 2*overscan);
+					int4 rect = make_int4(tile.x, tile.y, tile.x + tile.w, tile.y + tile.h);
 
-					float* prefiltered = denoise_prefilter(prefilter_rect, tile, &kg, end_sample, buffers, tile_x, tile_y, offsets, strides);
-					FilterStorage *storages = new FilterStorage[tile.buffers->params.final_width*tile.buffers->params.final_height];
-
-					for(int y = filter_rect.y; y < filter_rect.w; y++) {
-						for(int x = filter_rect.x; x < filter_rect.z; x++) {
-							filter_estimate_params_kernel(&kg, end_sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, prefiltered, filter_rect, prefilter_rect);
-						}
-					}
-					for(int y = filter_rect.y; y < filter_rect.w; y++) {
-						for(int x = filter_rect.x; x < filter_rect.z; x++) {
-							filter_final_pass_kernel(&kg, end_sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, prefiltered, filter_rect, prefilter_rect);
-						}
-					}
-
-					delete[] prefiltered;
-#ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", tile.x, tile.y, name).c_str(), &storages[0].var, tile.buffers->params.final_width, tile.buffers->params.final_height, sizeof(FilterStorage)/sizeof(float), tile.buffers->params.final_width);
-					for(int i = 0; i < DENOISE_FEATURES; i++) {
-						WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
-						WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);
-						WRITE_DEBUG(string_printf("singular_%d", i).c_str(), singular[i]);
-						WRITE_DEBUG(string_printf("bandwidth_%d", i).c_str(), bandwidth[i]);
-					}
-					WRITE_DEBUG("singular_threshold", singular_threshold);
-					WRITE_DEBUG("feature_matrix_norm", feature_matrix_norm);
-					WRITE_DEBUG("global_bandwidth", global_bandwidth);
-					WRITE_DEBUG("filtered_global_bandwidth", filtered_global_bandwidth);
-					WRITE_DEBUG("sum_weight", sum_weight);
-					WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
-#undef WRITE_DEBUG
-#endif
-					delete[] storages;
+					float* filter_buffer = denoise_fill_buffer(&kg, end_sample, rect, buffers, tile_x, tile_y, offsets, strides);
+					denoise_run(&kg, end_sample, filter_buffer, filter_area, rect, tile.offset, tile.stride, (float*) tile.buffer);
+					delete[] filter_buffer;
 				}
 			}
 			else if(tile.task == RenderTile::DENOISE) {
@@ -541,47 +590,16 @@ public:
 				}
 				int tile_x[4] = {rtiles[3].x, rtiles[4].x, rtiles[5].x, rtiles[5].x+rtiles[5].w};
 				int tile_y[4] = {rtiles[1].y, rtiles[4].y, rtiles[7].y, rtiles[7].y+rtiles[7].h};
-				FilterStorage *storages = new FilterStorage[tile.w*tile.h];
 
-				int4 filter_rect = make_int4(tile.x, tile.y, tile.x + tile.w, tile.y + tile.h);
 				int hw = kg.__data.integrator.half_window;
-				int4 prefilter_rect = make_int4(max(tile.x - hw, tile_x[0]), max(tile.y - hw, tile_y[0]), min(tile.x + tile.w + hw+1, tile_x[3]), min(tile.y + tile.h + hw+1, tile_y[3]));
+				int4 filter_area = make_int4(tile.x, tile.y, tile.w, tile.h);
+				int4 rect = make_int4(max(tile.x - hw, tile_x[0]), max(tile.y - hw, tile_y[0]), min(tile.x + tile.w + hw+1, tile_x[3]), min(tile.y + tile.h + hw+1, tile_y[3]));
 
-				float* prefiltered = denoise_prefilter(prefilter_rect, tile, &kg, sample, buffers, tile_x, tile_y, offsets, strides);
+				float* filter_buffer = denoise_fill_buffer(&kg, sample, rect, buffers, tile_x, tile_y, offsets, strides);
+				denoise_run(&kg, sample, filter_buffer, filter_area, rect, tile.offset, tile.stride, (float*) tile.buffer);
+				delete[] filter_buffer;
 
-				for(int y = filter_rect.y; y < filter_rect.w; y++) {
-					for(int x = filter_rect.x; x < filter_rect.z; x++) {
-						filter_estimate_params_kernel(&kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, prefiltered, filter_rect, prefilter_rect);
-					}
-				}
-				for(int y = filter_rect.y; y < filter_rect.w; y++) {
-					for(int x = filter_rect.x; x < filter_rect.z; x++) {
-						filter_final_pass_kernel(&kg, sample, buffers, x, y, tile_x, tile_y, offsets, strides, storages, prefiltered, filter_rect, prefilter_rect);
-					}
-				}
-				delete[] prefiltered;
-
-
-
-#ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", tile.x, tile.y, name).c_str(), &storages[0].var, tile.w, tile.h, sizeof(FilterStorage)/sizeof(float), tile.w);
-				for(int i = 0; i < DENOISE_FEATURES; i++) {
-					WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
-					WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);
-					WRITE_DEBUG(string_printf("singular_%d", i).c_str(), singular[i]);
-					WRITE_DEBUG(string_printf("bandwidth_%d", i).c_str(), bandwidth[i]);
-				}
-				WRITE_DEBUG("singular_threshold", singular_threshold);
-				WRITE_DEBUG("feature_matrix_norm", feature_matrix_norm);
-				WRITE_DEBUG("global_bandwidth", global_bandwidth);
-				WRITE_DEBUG("filtered_global_bandwidth", filtered_global_bandwidth);
-				WRITE_DEBUG("sum_weight", sum_weight);
-				WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
-#undef WRITE_DEBUG
-#endif
-				delete[] storages;
 				tile.sample = sample;
-
 				task.update_progress(&tile);
 			}
 
