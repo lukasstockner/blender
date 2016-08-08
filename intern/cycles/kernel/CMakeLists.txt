@@ -57,6 +57,7 @@ set(SRC_HEADERS
 	kernel_film.h
 	kernel_filter.h
 	kernel_filter_pre.h
+	kernel_filter_util.h
 	kernel_globals.h
 	kernel_jitter.h
 	kernel_light.h
