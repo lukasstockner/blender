@@ -114,6 +114,9 @@ ccl_device void kernel_filter_non_local_means(int x, int y, float *noisyImage, f
 	int w = align_up(rect.z - rect.x, 4);
 	int p_idx = (y-rect.y)*w + (x - rect.x);
 	int q_idx = (low.y-rect.y)*w + (low.x-rect.x);
+#ifdef __KERNEL_SSE41__
+	__m128 a_sse = _mm_set1_ps(a), k_2_sse = _mm_set1_ps(k_2);
+#endif
 	/* Loop over the q's, center pixels of all relevant patches. */
 	for(int qy = low.y; qy < high.y; qy++) {
 		for(int qx = low.x; qx < high.x; qx++, q_idx++) {
@@ -123,6 +126,22 @@ ccl_device void kernel_filter_non_local_means(int x, int y, float *noisyImage, f
 			/* Loop over the pixels in the patch.
 			 * Note that the patch must be small enough to be fully inside the rect, both at p and q.
 			 * Do avoid doing all the coordinate calculations twice, the code here computes both weights at once. */
+#ifdef __KERNEL_SSE41__
+			__m128 dI_sse = _mm_setzero_ps();
+			__m128 highX_sse = _mm_set1_ps(high_dPatch.x);
+			for(int dy = low_dPatch.y; dy < high_dPatch.y; dy++) {
+				int dx;
+				for(dx = low_dPatch.x; dx < high_dPatch.x; dx+=4, dIdx+=4) {
+					__m128 diff = _mm_sub_ps(_mm_loadu_ps(weightImage + p_idx + dIdx), _mm_loadu_ps(weightImage + q_idx + dIdx));
+					__m128 pvar = _mm_loadu_ps(variance + p_idx + dIdx);
+					__m128 qvar = _mm_loadu_ps(variance + q_idx + dIdx);
+					__m128 d = _mm_mul_ps(_mm_sub_ps(_mm_mul_ps(diff, diff), _mm_mul_ps(a_sse, _mm_add_ps(pvar, _mm_min_ps(pvar, qvar)))), _mm_rcp_ps(_mm_add_ps(_mm_set1_ps(1e-7f), _mm_mul_ps(k_2_sse, _mm_add_ps(pvar, qvar)))));
+					dI_sse = _mm_add_ps(dI_sse, _mm_mask_ps(d, _mm_cmplt_ps(_mm_add_ps(_mm_set1_ps(dx), _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f)), highX_sse)));
+				}
+				dIdx += w-(dx - low_dPatch.x);
+			}
+			float dI = _mm_hsum_ss(dI_sse);
+#else
 			float dI = 0.0f;
 			for(int dy = low_dPatch.y; dy < high_dPatch.y; dy++) {
 				for(int dx = low_dPatch.x; dx < high_dPatch.x; dx++, dIdx++) {
@@ -131,6 +150,7 @@ ccl_device void kernel_filter_non_local_means(int x, int y, float *noisyImage, f
 				}
 				dIdx += w-(high_dPatch.x - low_dPatch.x);
 			}
+#endif
 			dI *= 1.0f / ((high_dPatch.x - low_dPatch.x) * (high_dPatch.y - low_dPatch.y));
 
 			float wI = fast_expf(-max(0.0f, dI));
