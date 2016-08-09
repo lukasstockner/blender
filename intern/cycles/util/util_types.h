@@ -285,6 +285,8 @@ ccl_device_inline int align_up(int offset, int alignment)
 	return (offset + alignment - 1) & ~(alignment - 1);
 }
 
+#define ALIGN_UP(offset, alignment) ((offset + alignment - 1) & ~(alignment - 1))
+
 #ifndef __KERNEL_GPU__
 
 /* Vector Type Constructors
