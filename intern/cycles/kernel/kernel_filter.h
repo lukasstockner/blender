@@ -18,6 +18,10 @@
 
 CCL_NAMESPACE_BEGIN
 
+/* Not all features are included in the matrix norm. */
+#define NORM_FEATURE_OFFSET 2
+#define NORM_FEATURE_NUM 8
+
 #define ccl_get_feature(pass) buffer[(pass)*pass_stride]
 
 #define FOR_PIXEL_WINDOW     pixel_buffer = buffer + (low.y - rect.y)*buffer_w + (low.x - rect.x); \
@@ -304,7 +308,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	math_matrix_zero_lower(feature_matrix, DENOISE_FEATURES);
 #ifdef FULL_EIGENVALUE_NORM
 	float *perturbation_matrix = tempmatrix + DENOISE_FEATURES*DENOISE_FEATURES;
-	math_matrix_zero_lower(perturbation_matrix, FEATURE_PASSES);
+	math_matrix_zero_lower(perturbation_matrix, NORM_FEATURE_NUM);
 #endif
 	FOR_PIXEL_WINDOW {
 		filter_get_features(px, py, pixel_buffer, features, feature_means, pass_stride);
@@ -314,10 +318,10 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 
 		filter_get_feature_variance(px, py, pixel_buffer, features, feature_scale, pass_stride);
 #ifdef FULL_EIGENVALUE_NORM
-		math_add_gramian(perturbation_matrix, FEATURE_PASSES, features, kernel_data.integrator.filter_strength);
+		math_add_gramian(perturbation_matrix, NORM_FEATURE_NUM, features, kernel_data.integrator.filter_strength);
 #else
-		for(int i = 0; i < FEATURE_PASSES; i++)
-			feature_matrix_norm += features[i]*kernel_data.integrator.filter_strength;
+		for(int i = 0; i < NORM_FEATURE_NUM; i++)
+			feature_matrix_norm += features[i + NORM_FEATURE_OFFSET]*kernel_data.integrator.filter_strength;
 #endif
 	} END_FOR_PIXEL_WINDOW
 	math_lower_tri_to_full(feature_matrix, DENOISE_FEATURES);
@@ -329,7 +333,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	float *eigenvector_guess = tempvector + 2*DENOISE_FEATURES;
 	for(int i = 0; i < DENOISE_FEATURES; i++)
 		eigenvector_guess[i] = 1.0f;
-	float singular_threshold = 0.01f + 2.0f * sqrtf(math_largest_eigenvalue(perturbation_matrix, FEATURE_PASSES, eigenvector_guess, tempvector + 3*DENOISE_FEATURES));
+	float singular_threshold = 0.01f + 2.0f * sqrtf(math_largest_eigenvalue(perturbation_matrix, NORM_FEATURE_NUM, eigenvector_guess, tempvector + 3*DENOISE_FEATURES));
 #else
 	float singular_threshold = 0.01f + 2.0f * (sqrtf(feature_matrix_norm) / (sqrtf(rank) * 0.5f));
 #endif
