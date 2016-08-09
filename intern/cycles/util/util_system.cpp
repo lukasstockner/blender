@@ -304,7 +304,7 @@ static bool system_check_fpe()
 {
 #ifdef __GNUC__
 	return fegetexcept() & FE_INVALID;
-#elif
+#elif defined(_MSC_VER)
 	return !(_controlfp(0, 0) & _EM_INVALID);
 #endif
 }
