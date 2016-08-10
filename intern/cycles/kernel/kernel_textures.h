@@ -76,6 +76,7 @@ KERNEL_TEX(float, texture_float, __lookup_table)
 
 /* sobol */
 KERNEL_TEX(uint, texture_uint, __sobol_directions)
+KERNEL_TEX(float2, texture_float2, __sobol_dither)
 
 /* ies lights */
 KERNEL_TEX(float, texture_float, __ies)
@@ -181,7 +182,6 @@ KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_085)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_086)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_087)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_088)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_089)
 
 #  else
 /* bindless textures */
