@@ -25,6 +25,17 @@ CCL_NAMESPACE_BEGIN
  * path termination */
 #define SOBOL_SKIP 64
 
+/* The MSB of RNG stores whether dithering should be used.
+ * If it is set, RNG[0:14] stores the x pixel coordinate and RNG[15:29] the y coordinate, RNG[30] is unused.
+ * If it isn't set, RNG[0:15] and RNG[16:30] are directly used for scrambling (note that the second one only has 15 bits).
+ *
+ * This distinction is needed because some parts of the code hash the RNG to get multiple decorrelated samples (mainly branched path tracing).
+ * That operation isn't well defined for the dithered scrambling, so the code falls back to the regular scrambling (see path_rng_hash).
+ */
+#define DITHER_MASK 0x80000000
+#define DITHER_COORD_MASK 0x7fff
+#define DITHER_Y_SHIFT 15
+
 /* High Dimensional Sobol */
 
 /* van der corput radical inverse */
@@ -120,11 +131,20 @@ ccl_device_forceinline float path_rng_1D(KernelGlobals *kg, RNG *rng, int sample
 	/* Cranly-Patterson rotation using rng seed */
 	float shift;
 
-	/* Hash rng with dimension to solve correlation issues.
-	 * See T38710, T50116.
-	 */
-	RNG tmp_rng = cmj_hash_simple(dimension, *rng);
-	shift = tmp_rng * (1.0f/(float)0xFFFFFFFF);
+	if(*rng & DITHER_MASK) {
+		kernel_assert(kernel_data.integrator.dither_size > 0);
+		int size = kernel_data.integrator.dither_size;
+		/* Extract the pixel coordinates from rng and wrap them into the dither matrix. */
+		int x = (*rng & DITHER_COORD_MASK) % size;
+		int y = ((*rng >> DITHER_Y_SHIFT) & DITHER_COORD_MASK) % size;
+		float2 shifts = kernel_tex_fetch(__sobol_dither, y*size + x);
+		shift = (dimension & 1)? shifts.y: shifts.x;
+	}
+	else {
+		/* Directly scramble using rng. */
+		RNG tmp_rng = cmj_hash_simple(dimension, *rng);
+		shift = tmp_rng * (1.0f/(float)0xFFFFFFFF);
+	}
 
 	return r + shift - floorf(r + shift);
 #endif
@@ -154,10 +174,13 @@ ccl_device_inline void path_rng_init(KernelGlobals *kg, ccl_global uint *rng_sta
 	uint bits = 16; /* limits us to 65536x65536 and 65536 samples */
 	uint size = 1 << bits;
 	uint frame = sample;
-
-	*rng = sobol_lookup(bits, frame, x, y, &px, &py);
-
-	*rng ^= kernel_data.integrator.seed;
+	if(kernel_data.integrator.dither_size > 0) {
+		*rng = ((y & DITHER_COORD_MASK) << DITHER_Y_SHIFT) | (x & DITHER_COORD_MASK) | DITHER_MASK;
+	}
+	else {
+		*rng = sobol_lookup(bits, frame, x, y, &px, &py);
+		*rng = (*rng ^ kernel_data.integrator.seed) & (~DITHER_MASK);
+	}
 
 	if(sample == 0) {
 		*fx = 0.5f;
@@ -168,9 +191,13 @@ ccl_device_inline void path_rng_init(KernelGlobals *kg, ccl_global uint *rng_sta
 		*fy = size * (float)py * (1.0f/(float)0xFFFFFFFF) - y;
 	}
 #else
-	*rng = *rng_state;
 
-	*rng ^= kernel_data.integrator.seed;
+	if(kernel_data.integrator.dither_size > 0) {
+		*rng = ((y & DITHER_COORD_MASK) << DITHER_Y_SHIFT) | (x & DITHER_COORD_MASK) | DITHER_MASK;
+	}
+	else {
+		*rng = (*rng_state ^ kernel_data.integrator.seed) & (~DITHER_MASK);
+	}
 
 	if(sample == 0) {
 		*fx = 0.5f;
@@ -334,6 +361,12 @@ ccl_device float lcg_step_float_addrspace(ccl_addr_space uint *rng)
 	/* implicit mod 2^32 */
 	*rng = (1103515245*(*rng) + 12345);
 	return (float)*rng * (1.0f/(float)0xFFFFFFFF);
+}
+
+ccl_device_inline RNG path_rng_hash(RNG rng, int i)
+{
+	/* Fall back to the regular scrambling after hashing. */
+	return cmj_hash(rng, i) & (~DITHER_MASK);
 }
 
 CCL_NAMESPACE_END

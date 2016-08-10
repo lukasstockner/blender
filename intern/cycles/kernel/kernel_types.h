@@ -1240,6 +1240,7 @@ typedef struct KernelIntegrator {
 	/* sampler */
 	int sampling_pattern;
 	int aa_samples;
+	int dither_size;
 
 	/* volume render */
 	int use_volumes;
@@ -1250,7 +1251,7 @@ typedef struct KernelIntegrator {
 	int start_sample;
 
 	int ies_stride;
-	int pad1, pad2;
+	int pad1;
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 

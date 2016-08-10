@@ -109,7 +109,7 @@ ccl_device_noinline void kernel_branched_path_surface_indirect_light(KernelGloba
 		num_samples = ceil_to_int(num_samples_adjust*num_samples);
 
 		float num_samples_inv = num_samples_adjust/num_samples;
-		RNG bsdf_rng = cmj_hash(*rng, i);
+		RNG bsdf_rng = path_rng_hash(*rng, i);
 
 		for(int j = 0; j < num_samples; j++) {
 			PathState ps = *state;
@@ -170,7 +170,7 @@ ccl_device void kernel_branched_path_subsurface_scatter(KernelGlobals *kg,
 		uint lcg_state = lcg_state_init(rng, state->rng_offset, state->sample, 0x68bc21eb);
 		int num_samples = kernel_data.integrator.subsurface_samples;
 		float num_samples_inv = 1.0f/num_samples;
-		RNG bssrdf_rng = cmj_hash(*rng, i);
+		RNG bssrdf_rng = path_rng_hash(*rng, i);
 
 		/* do subsurface scatter step with copy of shader data, this will
 		 * replace the BSSRDF with a diffuse BSDF closure */
@@ -355,7 +355,7 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 					/* workaround to fix correlation bug in T38710, can find better solution
 					 * in random number generator later, for now this is done here to not impact
 					 * performance of rendering without volumes */
-					RNG tmp_rng = cmj_hash(*rng, state.rng_offset);
+					RNG tmp_rng = path_rng_hash(*rng, state.rng_offset);
 
 					PathState ps = state;
 					Ray pray = ray;
