@@ -22,6 +22,19 @@ CCL_NAMESPACE_BEGIN
 
 /* Loop over the pixels in the range [low.x, high.x) x [low.y, high.y).
  * pixel_buffer always points to the current pixel in the first pass. */
+#ifdef DENOISE_TEMPORAL
+#define FOR_PIXEL_WINDOW     pixel_buffer = buffer + (low.y - rect.y)*buffer_w + (low.x - rect.x); \
+                             for(int t = 0; t < num_frames; t++) { \
+                                 int pt = (t == 0)? 0: ((t <= prev_frames)? (t-prev_frames-1): (t - prev_frames)); \
+	                             for(int py = low.y; py < high.y; py++) { \
+	                                 for(int px = low.x; px < high.x; px++, pixel_buffer++) {
+
+#define END_FOR_PIXEL_WINDOW         } \
+                                     pixel_buffer += buffer_w - (high.x - low.x); \
+                                 } \
+                                 pixel_buffer += buffer_w * (buffer_h - (high.y - low.y)); \
+                             }
+#else
 #define FOR_PIXEL_WINDOW     pixel_buffer = buffer + (low.y - rect.y)*buffer_w + (low.x - rect.x); \
                              for(int py = low.y; py < high.y; py++) { \
                                  for(int px = low.x; px < high.x; px++, pixel_buffer++) {
@@ -29,19 +42,24 @@ CCL_NAMESPACE_BEGIN
 #define END_FOR_PIXEL_WINDOW     } \
                                  pixel_buffer += buffer_w - (high.x - low.x); \
                              }
+#endif
 
-ccl_device_inline void filter_get_features(int x, int y, float *buffer, float *features, float *mean, int pass_stride)
+ccl_device_inline void filter_get_features(int x, int y, int t, float *buffer, float *features, float *mean, int pass_stride)
 {
-	features[0] = x;
-	features[1] = y;
-	features[2] = ccl_get_feature(0);
-	features[3] = ccl_get_feature(2);
-	features[4] = ccl_get_feature(4);
-	features[5] = ccl_get_feature(6);
-	features[6] = ccl_get_feature(8);
-	features[7] = ccl_get_feature(10);
-	features[8] = ccl_get_feature(12);
-	features[9] = ccl_get_feature(14);
+	float *feature = features;
+	*(feature++) = x;
+	*(feature++) = y;
+#ifdef DENOISE_TEMPORAL
+	*(feature++) = t;
+#endif
+	*(feature++) = ccl_get_feature(0);
+	*(feature++) = ccl_get_feature(2);
+	*(feature++) = ccl_get_feature(4);
+	*(feature++) = ccl_get_feature(6);
+	*(feature++) = ccl_get_feature(8);
+	*(feature++) = ccl_get_feature(10);
+	*(feature++) = ccl_get_feature(12);
+	*(feature++) = ccl_get_feature(14);
 	if(mean) {
 		for(int i = 0; i < DENOISE_FEATURES; i++)
 			features[i] -= mean[i];
@@ -55,16 +73,20 @@ ccl_device_inline void filter_get_features(int x, int y, float *buffer, float *f
 
 ccl_device_inline void filter_get_feature_variance(int x, int y, float *buffer, float *features, float *scale, int pass_stride)
 {
-	features[0] = 0.0f;
-	features[1] = 0.0f;
-	features[2] = ccl_get_feature(1);
-	features[3] = ccl_get_feature(3);
-	features[4] = ccl_get_feature(5);
-	features[5] = ccl_get_feature(7);
-	features[6] = ccl_get_feature(9);
-	features[7] = ccl_get_feature(11);
-	features[8] = ccl_get_feature(13);
-	features[9] = ccl_get_feature(15);
+	float *feature = features;
+	*(feature++) = 0.0f;
+	*(feature++) = 0.0f;
+#ifdef DENOISE_TEMPORAL
+	*(feature++) = 0.0f;
+#endif
+	*(feature++) = ccl_get_feature(1);
+	*(feature++) = ccl_get_feature(3);
+	*(feature++) = ccl_get_feature(5);
+	*(feature++) = ccl_get_feature(7);
+	*(feature++) = ccl_get_feature(9);
+	*(feature++) = ccl_get_feature(11);
+	*(feature++) = ccl_get_feature(13);
+	*(feature++) = ccl_get_feature(15);
 #ifdef DENOISE_SECOND_ORDER_SCREEN
 	features[10] = 0.0f;
 	features[11] = 0.0f;
@@ -121,6 +143,24 @@ ccl_device_inline bool filter_firefly_rejection(float3 pixel_color, float pixel_
 /* Loop over the pixels in the range [low.x, high.x) x [low.y, high.y), 4 at a time.
  * pixel_buffer always points to the first of the 4 current pixel in the first pass.
  * x4 and y4 contain the coordinates of the four pixels, active_pixels contains a mask that's set for all pixels within the window. */
+
+#ifdef DENOISE_TEMPORAL
+#define FOR_PIXEL_WINDOW_SSE pixel_buffer = buffer + (low.y - rect.y)*buffer_w + (low.x - rect.x); \
+                             for(int t = 0; t < num_frames; t++) { \
+                                 __m128 t4 = _mm_set1_ps((t == 0)? 0: ((t <= prev_frames)? (t-prev_frames-1): (t - prev_frames))); \
+                                 for(int py = low.y; py < high.y; py++) { \
+                                     __m128 y4 = _mm_set1_ps(py); \
+                                     int px; \
+                                     for(px = low.x; px < high.x; px += 4, pixel_buffer += 4) { \
+                                         __m128 x4 = _mm_add_ps(_mm_set1_ps(px), _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f)); \
+                                         __m128 active_pixels = _mm_cmplt_ps(x4, _mm_set1_ps(high.x));
+
+#define END_FOR_PIXEL_WINDOW_SSE     } \
+                                     pixel_buffer += buffer_w - (px - low.x); \
+                                 } \
+                                 pixel_buffer += buffer_w * (buffer_h - (high.y - low.y)); \
+                             }
+#else
 #define FOR_PIXEL_WINDOW_SSE     pixel_buffer = buffer + (low.y - rect.y)*buffer_w + (low.x - rect.x); \
                                  for(int py = low.y; py < high.y; py++) { \
                                      __m128 y4 = _mm_set1_ps(py); \
@@ -132,19 +172,24 @@ ccl_device_inline bool filter_firefly_rejection(float3 pixel_color, float pixel_
 #define END_FOR_PIXEL_WINDOW_SSE     } \
                                      pixel_buffer += buffer_w - (px - low.x); \
                                  }
+#endif
 
-ccl_device_inline void filter_get_features_sse(__m128 x, __m128 y, __m128 active_pixels, float *buffer, __m128 *features, __m128 *mean, int pass_stride)
+ccl_device_inline void filter_get_features_sse(__m128 x, __m128 y, __m128 t, __m128 active_pixels, float *buffer, __m128 *features, __m128 *mean, int pass_stride)
 {
-	features[0] = x;
-	features[1] = y;
-	features[2] = ccl_get_feature_sse( 0);
-	features[3] = ccl_get_feature_sse( 2);
-	features[4] = ccl_get_feature_sse( 4);
-	features[5] = ccl_get_feature_sse( 6);
-	features[6] = ccl_get_feature_sse( 8);
-	features[7] = ccl_get_feature_sse(10);
-	features[8] = ccl_get_feature_sse(12);
-	features[9] = ccl_get_feature_sse(14);
+	__m128 *feature = features;
+	*(feature++) = x;
+	*(feature++) = y;
+#ifdef DENOISE_TEMPORAL
+	*(feature++) = t;
+#endif
+	*(feature++) = ccl_get_feature_sse(0);
+	*(feature++) = ccl_get_feature_sse(2);
+	*(feature++) = ccl_get_feature_sse(4);
+	*(feature++) = ccl_get_feature_sse(6);
+	*(feature++) = ccl_get_feature_sse(8);
+	*(feature++) = ccl_get_feature_sse(10);
+	*(feature++) = ccl_get_feature_sse(12);
+	*(feature++) = ccl_get_feature_sse(14);
 	if(mean) {
 		for(int i = 0; i < DENOISE_FEATURES; i++)
 			features[i] = _mm_mask_ps(_mm_sub_ps(features[i], mean[i]), active_pixels);
@@ -162,16 +207,20 @@ ccl_device_inline void filter_get_features_sse(__m128 x, __m128 y, __m128 active
 
 ccl_device_inline void filter_get_feature_variance_sse(__m128 x, __m128 y, __m128 active_pixels, float *buffer, __m128*features, __m128 *scale, int pass_stride)
 {
-	features[0] = _mm_setzero_ps();
-	features[1] = _mm_setzero_ps();
-	features[2] = _mm_mask_ps(ccl_get_feature_sse( 1), active_pixels);
-	features[3] = _mm_mask_ps(ccl_get_feature_sse( 3), active_pixels);
-	features[4] = _mm_mask_ps(ccl_get_feature_sse( 5), active_pixels);
-	features[5] = _mm_mask_ps(ccl_get_feature_sse( 7), active_pixels);
-	features[6] = _mm_mask_ps(ccl_get_feature_sse( 9), active_pixels);
-	features[7] = _mm_mask_ps(ccl_get_feature_sse(11), active_pixels);
-	features[8] = _mm_mask_ps(ccl_get_feature_sse(13), active_pixels);
-	features[9] = _mm_mask_ps(ccl_get_feature_sse(15), active_pixels);
+	__m128 *feature = features;
+	*(feature++) = _mm_setzero_ps();
+	*(feature++) = _mm_setzero_ps();
+#ifdef DENOISE_TEMPORAL
+	*(feature++) = _mm_setzero_ps();
+#endif
+	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 1), active_pixels);
+	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 3), active_pixels);
+	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 5), active_pixels);
+	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 7), active_pixels);
+	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 9), active_pixels);
+	*(feature++) = _mm_mask_ps(ccl_get_feature_sse(11), active_pixels);
+	*(feature++) = _mm_mask_ps(ccl_get_feature_sse(13), active_pixels);
+	*(feature++) = _mm_mask_ps(ccl_get_feature_sse(15), active_pixels);
 #ifdef DENOISE_SECOND_ORDER_SCREEN
 	features[10] = _mm_setzero_ps();
 	features[11] = _mm_setzero_ps();

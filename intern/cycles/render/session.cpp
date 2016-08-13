@@ -798,6 +798,8 @@ void Session::run_denoise()
 		kernel_data.film.pass_denoising = buffers->params.get_denoise_offset();
 		kernel_data.film.pass_no_denoising = buffers->params.selective_denoising? kernel_data.film.pass_denoising+20 : 0;
 		kernel_data.film.exposure = 1.0f;
+		kernel_data.film.num_frames = buffers->params.frames;
+		kernel_data.film.prev_frames = params.prev_frames;
 		device->const_copy_to("__data", &kernel_data, sizeof(kernel_data));
 
 		/* Generate tiles. */

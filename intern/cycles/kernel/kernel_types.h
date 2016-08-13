@@ -1053,7 +1053,12 @@ typedef struct KernelFilm {
 	int pass_denoising;
 	int pass_no_denoising;
 	int denoise_flag;
-	int pass_pad5;
+	int frames;
+
+	int num_frames;
+	int prev_frames;
+	int pass_pad1;
+	int pass_pad4;
 
 #ifdef __KERNEL_DEBUG__
 	int pass_bvh_traversal_steps;
@@ -1272,9 +1277,12 @@ enum RayState {
 
 /* Enabling second-order screen features will preserve shadow edges better, but currently may cause artifacts in smooth areas. */
 #undef DENOISE_SECOND_ORDER_SCREEN
+#define DENOISE_TEMPORAL
 
 #ifdef DENOISE_SECOND_ORDER_SCREEN
 #define DENOISE_FEATURES 13 /* The amount of denoising features: Normal, Albedo, Depth, Shadow and screen position (x, y, x^2, y^2, x*y) */
+#elif defined(DENOISE_TEMPORAL)
+#define DENOISE_FEATURES 11 /* The amount of denoising features: Normal, Albedo, Depth, Shadow, screen position (x, y) and frame*/
 #else
 #define DENOISE_FEATURES 10 /* The amount of denoising features: Normal, Albedo, Depth, Shadow and screen position (x, y)*/
 #endif
