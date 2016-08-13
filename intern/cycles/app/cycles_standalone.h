@@ -33,7 +33,6 @@ struct Options {
 	SessionParams session_params;
 	bool quiet;
 	bool show_help, interactive, pause;
-	int half_window;
 	int denoise_frame;
 };
 

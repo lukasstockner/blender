@@ -327,7 +327,6 @@ static void options_parse(int argc, const char **argv)
 	options.filepaths.clear();
 	options.session = NULL;
 	options.quiet = false;
-	options.half_window = 8;
 	options.denoise_frame = 0;
 
 	/* device names */
@@ -366,8 +365,8 @@ static void options_parse(int argc, const char **argv)
 		"--background", &options.session_params.background, "Render in background, without user interface",
 		"--quiet", &options.quiet, "In background mode, don't print progress messages",
 		"--denoise", &denoise, "Denoise the given input file instead of rendering it",
-		"--half-window %d", &options.half_window, "Size of the denoising window",
 		"--denoise-frame %d", &options.denoise_frame, "Which frame to denoise (first frame is 0)",
+		"--half-window %d", &options.session_params.half_window, "Size of the denoising window",
 		"--samples %d", &options.session_params.samples, "Number of samples to render",
 		"--output %s", &options.session_params.output_path, "File path to write output image",
 		"--threads %d", &options.session_params.threads, "CPU Rendering Threads",
