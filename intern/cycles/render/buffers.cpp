@@ -518,6 +518,7 @@ DisplayBuffer::DisplayBuffer(Device *device_, bool linear)
 	draw_height = 0;
 	transparent = true; /* todo: determine from background */
 	half_float = linear;
+	flip_image = true;
 }
 
 DisplayBuffer::~DisplayBuffer()
@@ -588,8 +589,7 @@ void DisplayBuffer::write(Device *device, const string& filename)
 	if(w == 0 || h == 0)
 		return;
 	
-	if(half_float)
-		return;
+	TypeDesc output_format = half_float? TypeDesc::HALF : TypeDesc::UINT8;
 
 	/* read buffer from device */
 	device_memory& rgba = rgba_data();
@@ -597,16 +597,22 @@ void DisplayBuffer::write(Device *device, const string& filename)
 
 	/* write image */
 	ImageOutput *out = ImageOutput::create(filename);
-	ImageSpec spec(w, h, 4, TypeDesc::UINT8);
-	int scanlinesize = w*4*sizeof(uchar);
+	ImageSpec spec(w, h, 4, output_format);
+	int scanlinesize = w*spec.pixel_bytes();
 
 	out->open(filename, spec);
 
+	uchar *pixels = (uchar*)rgba.data_pointer;
 	/* conversion for different top/bottom convention */
-	out->write_image(TypeDesc::UINT8,
-		(uchar*)rgba.data_pointer + (h-1)*scanlinesize,
+	if(flip_image) {
+		pixels += (h-1)*scanlinesize;
+		scanlinesize = -scanlinesize;
+	}
+
+	out->write_image(output_format,
+		pixels,
 		AutoStride,
-		-scanlinesize,
+		scanlinesize,
 		AutoStride);
 
 	out->close();

@@ -108,7 +108,8 @@ Session::~Session()
 		/* tonemap and write out image if requested */
 		delete display;
 
-		display = new DisplayBuffer(device, false);
+		display = new DisplayBuffer(device, params.output_half_float);
+		display->flip_image = params.flip_output;
 		display->reset(device, buffers->params);
 		tonemap(params.samples);
 

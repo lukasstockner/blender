@@ -369,6 +369,7 @@ static void options_parse(int argc, const char **argv)
 		"--half-window %d", &options.session_params.half_window, "Size of the denoising window",
 		"--samples %d", &options.session_params.samples, "Number of samples to render",
 		"--output %s", &options.session_params.output_path, "File path to write output image",
+		"--output-half", &options.session_params.output_half_float, "Write output image in half float format",
 		"--threads %d", &options.session_params.threads, "CPU Rendering Threads",
 		"--width  %d", &options.width, "Window width in pixel",
 		"--height %d", &options.height, "Window height in pixel",

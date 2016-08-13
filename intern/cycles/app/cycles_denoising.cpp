@@ -203,6 +203,7 @@ bool cycles_denoising_session()
 	options.session_params.progressive = false;
 	options.session_params.background = true;
 	options.session_params.tile_order = TILE_BOTTOM_TO_TOP;
+	options.session_params.flip_output = false;
 
 	options.session = new Session(options.session_params);
 	options.session->progress.set_update_callback(function_bind(&session_print_status));

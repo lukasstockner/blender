@@ -147,6 +147,8 @@ public:
 	/* byte buffer for converted result */
 	device_vector<uchar4> rgba_byte;
 	device_vector<half4> rgba_half;
+	/* flip the image while writing? */
+	bool flip_image;
 
 	DisplayBuffer(Device *device, bool linear = false);
 	~DisplayBuffer();
