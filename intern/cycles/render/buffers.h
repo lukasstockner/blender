@@ -70,6 +70,9 @@ public:
 	int width;
 	int height;
 
+	/* number of frames stored in this buffer (used for standalone denoising) */
+	int frames;
+
 	/* offset into and width/height of the full buffer */
 	int full_x;
 	int full_y;
@@ -117,8 +120,8 @@ public:
 
 	bool copy_from_device();
 	bool copy_to_device();
-	bool get_pass_rect(PassType type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels = false);
-	bool get_denoising_rect(int denoising_pass, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels = false);
+	bool get_pass_rect(PassType type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels = false, int frame = 0);
+	bool get_denoising_rect(int denoising_pass, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels = false, int frame = 0);
 
 protected:
 	void device_free();

@@ -33,7 +33,7 @@ struct Options {
 	SessionParams session_params;
 	bool quiet;
 	bool show_help, interactive, pause;
-	int denoise_frame;
+	int2 frame_range;
 };
 
 extern Options options;

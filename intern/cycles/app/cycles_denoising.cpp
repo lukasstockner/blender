@@ -81,17 +81,24 @@ static int find_channel(string channels, string channel)
 	return pos;
 }
 
-static RenderBuffers* load_frame(string file, Device *device)
+static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buffers, int framenum)
 {
-	RenderBuffers *buffers = NULL;
-
 	ImageInput *frame = ImageInput::open(file);
 	if(!frame) {
-		printf("Couldn't open frame %s!\n", file.c_str());
+		printf("ERROR: Frame %s: Couldn't open file!\n", file.c_str());
+		delete buffers;
 		return NULL;
 	}
 
 	const ImageSpec &spec = frame->spec();
+
+	if(buffers) {
+		if(spec.width != buffers->params.width || spec.height != buffers->params.height) {
+			printf("ERROR: Frame %s: Has different size!\n", file.c_str());
+			delete buffers;
+			return NULL;
+		}
+	}
 
 	/* Find a single RenderLayer to load. */
 	string renderlayer = "";
@@ -133,61 +140,77 @@ static RenderBuffers* load_frame(string file, Device *device)
 			}
 		}
 
-		if((~passes & EX_TYPE_DENOISE_REQUIRED) == 0) {
-			printf("Found all needed passes in the frame!\n");
+		/* The frame always needs to include all the required denoising passes.
+		 * If the primary frame also included a clean pass, all the secondary frames need to do so as well. */
+		if((~passes & EX_TYPE_DENOISE_REQUIRED) == 0 && !(buffers && buffers->params.selective_denoising && !(passes & EX_TYPE_DENOISE_CLEAN))) {
+			printf("Frame %s: Found all needed passes!\n", file.c_str());
 
-			BufferParams params;
-			params.width  = params.full_width  = params.final_width  = spec.width;
-			params.height = params.full_height = params.final_height = spec.height;
-			params.full_x = params.full_y = 0;
-			params.denoising_passes = true;
-			params.selective_denoising = (passes & EX_TYPE_DENOISE_CLEAN);
+			if(buffers == NULL) {
+				BufferParams params;
+				params.width  = params.full_width  = params.final_width  = spec.width;
+				params.height = params.full_height = params.final_height = spec.height;
+				params.full_x = params.full_y = 0;
+				params.denoising_passes = true;
+				params.selective_denoising = (passes & EX_TYPE_DENOISE_CLEAN);
+				params.frames = options.filepaths.size();
 
-			buffers = new RenderBuffers(device);
-			buffers->reset(device, params);
+				buffers = new RenderBuffers(device);
+				buffers->reset(device, params);
+			}
 
-			int4 rect = make_int4(0, 0, params.width, params.height);
+			int4 rect = make_int4(0, 0, buffers->params.width, buffers->params.height);
+			float *pass_data = new float[4*buffers->params.width*buffers->params.height];
 
-			float *pass_data = new float[4*params.width*params.height];
 			/* Read all the passes from the file. */
 			for(map<PassTypeInfo, int3>::iterator i = channel_ids.begin(); i != channel_ids.end(); i++)
 			{
 				for(int c = 0; c < i->first.num_channels; c++) {
 					int xstride = i->first.num_channels*sizeof(float);
-					int ystride = params.width * xstride;
+					int ystride = spec.width * xstride;
 					printf("Reading pass %s!            \r", spec.channelnames[i->second[c]].c_str());
 					fflush(stdout);
 					frame->read_image(i->second[c], i->second[c]+1, TypeDesc::FLOAT, pass_data + c, xstride, ystride);
 				}
-				buffers->get_denoising_rect(i->first.type, 1.0f, options.session_params.samples, i->first.num_channels, rect, pass_data, true);
+				buffers->get_denoising_rect(i->first.type, 1.0f, options.session_params.samples, i->first.num_channels, rect, pass_data, true, framenum);
 			}
 
-			/* Read combined channel. */
+			/* Read combined pass. */
+			int read_combined = 0;
 			for(int i = 0; i < spec.nchannels; i++) {
 				if(!split_channel(spec.channelnames[i], layer, pass, channel)) continue;
 				if(layer != renderlayer || pass != "Combined") continue;
 
 				size_t channel_id = find_channel("RGBA", channel);
-				if(channel_id != 1) {
+				if(channel_id != -1) {
 					int xstride = 4*sizeof(float);
-					int ystride = params.width * xstride;
-					printf("Reading pass %s!            \r", spec.channelnames[i].c_str());
+					int ystride = spec.width * xstride;
+					printf("Reading pass %s!            \n", spec.channelnames[i].c_str());
 					fflush(stdout);
 					frame->read_image(i, i+1, TypeDesc::FLOAT, pass_data + channel_id, xstride, ystride);
+					read_combined++;
 				}
 			}
-			buffers->get_pass_rect(PASS_COMBINED, 1.0f, options.session_params.samples, 4, rect, pass_data, true);
+			if(read_combined < 4) {
+				printf("ERROR: Frame %s: Missing combined pass!\n", file.c_str());
+				delete buffers;
+				delete[] pass_data;
+				return NULL;
+			}
+
+			buffers->get_pass_rect(PASS_COMBINED, 1.0f, options.session_params.samples, 4, rect, pass_data, true, framenum);
 
 			delete[] pass_data;
-
-			buffers->copy_to_device();
 		}
 		else {
-			printf("The frame is missing some pass!\n");
+			printf("ERROR: Frame %s: Missing some pass!\n", file.c_str());
+			delete buffers;
+			return NULL;
 		}
 	}
 	else {
-		printf("Didn't fine a suitable RenderLayer!\n");
+		printf("ERROR: Frame %s: Didn't fine a suitable RenderLayer!\n", file.c_str());
+		delete buffers;
+		return NULL;
 	}
 
 	frame->close();
@@ -205,14 +228,44 @@ bool cycles_denoising_session()
 	options.session_params.tile_order = TILE_BOTTOM_TO_TOP;
 	options.session_params.flip_output = false;
 
+	if(options.frame_range.y >= options.frame_range.x) {
+		string pattern = options.filepaths[0];
+		size_t pos = pattern.find("%");
+		if(options.filepaths.size() != 1 || pos == string::npos || pattern.size() <= pos+3 ||!isdigit(pattern[pos+1]) || pattern[pos+2] != 'd') {
+			printf("ERROR: When using the frame range option, specify the image file as a single filename including %%Xd, there X is the length of the frame numbers.");
+			delete options.session;
+			return false;
+		}
+
+		char pad_length = pattern[pos+1];
+		vector<string> new_filepaths;
+		for(int frame = options.frame_range.x; frame <= options.frame_range.y; frame++) {
+
+			string name = pattern.substr(0, pos);
+			name += string_printf(string_printf("%%0%cd", pad_length).c_str(), frame);
+			name += pattern.substr(pos+3);
+			new_filepaths.push_back(name);
+		}
+
+		options.filepaths.swap(new_filepaths);
+
+		options.session_params.prev_frames -= options.frame_range.x;
+	}
+
 	options.session = new Session(options.session_params);
 	options.session->progress.set_update_callback(function_bind(&session_print_status));
 	options.session->set_pause(false);
 
-	RenderBuffers *buffers = load_frame(options.filepaths[0], options.session->device);
-	if(!buffers) {
-		return false;
+	RenderBuffers *buffers = NULL;
+	for(int f = 0; f < options.filepaths.size(); f++) {
+		buffers = load_frame(options.filepaths[f], options.session->device, buffers, f);
+		if(!buffers) {
+			delete options.session;
+			return false;
+		}
 	}
+	buffers->copy_to_device();
+
 	options.session->buffers = buffers;
 
 	options.session->start_denoise();

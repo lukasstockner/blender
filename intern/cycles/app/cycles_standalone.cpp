@@ -327,7 +327,8 @@ static void options_parse(int argc, const char **argv)
 	options.filepaths.clear();
 	options.session = NULL;
 	options.quiet = false;
-	options.denoise_frame = 0;
+	options.frame_range.x = -1;
+	options.frame_range.y = -2;
 
 	/* device names */
 	string device_names = "";
@@ -365,8 +366,9 @@ static void options_parse(int argc, const char **argv)
 		"--background", &options.session_params.background, "Render in background, without user interface",
 		"--quiet", &options.quiet, "In background mode, don't print progress messages",
 		"--denoise", &denoise, "Denoise the given input file instead of rendering it",
-		"--denoise-frame %d", &options.denoise_frame, "Which frame to denoise (first frame is 0)",
 		"--half-window %d", &options.session_params.half_window, "Size of the denoising window",
+		"--denoise-frame %d", &options.session_params.prev_frames, "Which frame to denoise (together with --frame-range)",
+		"--frame-range %d %d", &options.frame_range.x, &options.frame_range.y, "Frame Range that's used for denoising",
 		"--samples %d", &options.session_params.samples, "Number of samples to render",
 		"--output %s", &options.session_params.output_path, "File path to write output image",
 		"--output-half", &options.session_params.output_half_float, "Write output image in half float format",

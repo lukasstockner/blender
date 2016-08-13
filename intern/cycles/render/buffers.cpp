@@ -36,6 +36,7 @@ BufferParams::BufferParams()
 {
 	width = 0;
 	height = 0;
+	frames = 1;
 
 	full_x = 0;
 	full_y = 0;
@@ -63,6 +64,7 @@ bool BufferParams::modified(const BufferParams& params)
 		&& full_y == params.full_y
 		&& width == params.width
 		&& height == params.height
+	        && frames == params.frames
 		&& full_width == params.full_width
 		&& full_height == params.full_height
 		&& final_width == params.final_width
@@ -153,7 +155,7 @@ void RenderBuffers::reset(Device *device, BufferParams& params_)
 	device_free();
 	
 	/* allocate buffer */
-	buffer.resize(params.width*params.height*params.get_passes_size());
+	buffer.resize(params.width*params.height*params.frames*params.get_passes_size());
 	device->mem_alloc(buffer, MEM_READ_WRITE);
 	device->mem_zero(buffer);
 
@@ -176,7 +178,9 @@ bool RenderBuffers::copy_from_device()
 	if(!buffer.device_pointer)
 		return false;
 
-	device->mem_copy_from(buffer, 0, params.width, params.height, params.get_passes_size()*sizeof(float));
+	for(int f = 0; f < params.frames; f++) {
+		device->mem_copy_from(buffer, f*params.height, params.width, params.height, params.get_passes_size()*sizeof(float));
+	}
 
 	return true;
 }
@@ -210,7 +214,7 @@ int4 RenderBuffers::rect_to_local(int4 rect) {
                       for(int y = rect.y; y < rect.w; y++, in += (params.width + rect.x - rect.z)*pass_stride) \
                           for(int x = rect.x; x < rect.z; x++, in += pass_stride, pixels += components)
 
-bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels)
+bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels, int frame)
 {
 	if(!params.denoising_passes)
 		/* The RenderBuffer doesn't have denoising passes. */
@@ -246,6 +250,7 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 
 	float *in = (float*)buffer.data_pointer + pass_offset;
 	int pass_stride = params.get_passes_size();
+	in += params.width*params.height*pass_stride * frame;
 
 	if(components == 1) {
 		assert(type & (EX_TYPE_DENOISE_DEPTH | EX_TYPE_DENOISE_DEPTH_VAR));
@@ -281,7 +286,7 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 	return true;
 }
 
-bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels)
+bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels, int frame)
 {
 	rect = rect_to_local(rect);
 
@@ -297,6 +302,7 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 		float *in = (float*)buffer.data_pointer + pass_offset;
 		int pass_stride = params.get_passes_size();
+		in += params.width*params.height*pass_stride * frame;
 
 		float scale = (pass.filter)? 1.0f/(float)sample: 1.0f;
 		float scale_exposure = (pass.exposure)? scale*exposure: scale;
