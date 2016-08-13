@@ -531,6 +531,7 @@ void Session::get_neighbor_tiles(RenderTile *tiles)
 				tiles[i].y = tile_manager.state.buffer.full_y + tile->y;
 				tiles[i].w = tile->w;
 				tiles[i].h = tile->h;
+				tiles[i].buffers = tile->buffers;
 
 				tile->buffers->params.get_offset_stride(tiles[i].offset, tiles[i].stride);
 			}
