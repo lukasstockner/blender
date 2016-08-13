@@ -489,6 +489,7 @@ public:
 		WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
 #undef WRITE_DEBUG
 #endif
+		delete[] storages;
 	}
 
 	void thread_render(DeviceTask& task)
