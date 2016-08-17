@@ -306,7 +306,7 @@ public:
 						}
 					}
 #ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_feature%d_%s.pfm", tile.x, tile.y, i, name).c_str(), var, w, h, 1, w)
+#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_feature%d_%s.pfm", tile_x[1], tile_y[1], i, name).c_str(), var, (rect.z - rect.x), h, 1, w)
 					WRITE_DEBUG("unfiltered", unfiltered);
 					WRITE_DEBUG("sampleV", filter_buffer + (offset_to[i]+1)*pass_stride);
 					WRITE_DEBUG("filtered", filter_buffer + offset_to[i]*pass_stride);
@@ -330,7 +330,7 @@ public:
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_shadow_%s.pfm", tile.x, tile.y, name).c_str(), var, w, h, 1, w)
+#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_shadow_%s.pfm", tile_x[1], tile_y[1], name).c_str(), var, w, h, 1, w)
 				WRITE_DEBUG("unfilteredA", unfiltered);
 				WRITE_DEBUG("unfilteredB", unfiltered + pass_stride);
 				WRITE_DEBUG("bufferV", bufferV);
@@ -474,7 +474,7 @@ public:
 		}
 
 #ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", tile.x, tile.y, name).c_str(), &storages[0].var, filter_area.z, filter_area.w, sizeof(FilterStorage)/sizeof(float), filter_area.z);
+#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", filter_area.x, filter_area.y, name).c_str(), &storages[0].var, filter_area.z, filter_area.w, sizeof(FilterStorage)/sizeof(float), filter_area.z);
 			for(int i = 0; i < DENOISE_FEATURES; i++) {
 			WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
 			WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);

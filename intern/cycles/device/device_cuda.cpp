@@ -1046,9 +1046,9 @@ public:
 		cuda_assert(cuCtxSynchronize());
 
 #ifdef WITH_CYCLES_DEBUG_FILTER
-		FilterStorage *host_storage = new FilterStorage[filter_w*filter_h];
-		cuda_assert(cuMemcpyDtoH(host_storage, d_storage, sizeof(FilterStorage)*filter_w*filter_h));
-#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_cuda_%s.pfm", rtile.x+rtile.buffers->params.overscan, rtile.y+rtile.buffers->params.overscan, name).c_str(), &host_storage[0].var, filter_w, filter_h, sizeof(FilterStorage)/sizeof(float), filter_w);
+		FilterStorage *host_storage = new FilterStorage[filter_area.z*filter_area.w];
+		cuda_assert(cuMemcpyDtoH(host_storage, d_storage, sizeof(FilterStorage)*filter_area.z*filter_area.w));
+#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_cuda_%s.pfm", rtile.x+rtile.buffers->params.overscan, rtile.y+rtile.buffers->params.overscan, name).c_str(), &host_storage[0].var, filter_area.z, filter_area.w, sizeof(FilterStorage)/sizeof(float), filter_area.z);
 		for(int i = 0; i < DENOISE_FEATURES; i++) {
 			WRITE_DEBUG(string_printf("mean_%d.pfm", i).c_str(), means[i]);
 			WRITE_DEBUG(string_printf("scale_%d.pfm", i).c_str(), scales[i]);
