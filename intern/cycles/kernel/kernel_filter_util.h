@@ -44,7 +44,7 @@ CCL_NAMESPACE_BEGIN
                              }
 #endif
 
-ccl_device_inline void filter_get_features(int x, int y, int t, float *buffer, float *features, float *mean, int pass_stride)
+ccl_device_inline void filter_get_features(int x, int y, int t, float const* __restrict__ buffer, float *features, float *mean, int pass_stride)
 {
 	float *feature = features;
 	*(feature++) = x;
@@ -71,7 +71,7 @@ ccl_device_inline void filter_get_features(int x, int y, int t, float *buffer, f
 #endif
 }
 
-ccl_device_inline void filter_get_feature_variance(int x, int y, float *buffer, float *features, float *scale, int pass_stride)
+ccl_device_inline void filter_get_feature_variance(int x, int y, float const* __restrict__ buffer, float *features, float *scale, int pass_stride)
 {
 	float *feature = features;
 	*(feature++) = 0.0f;
@@ -96,12 +96,12 @@ ccl_device_inline void filter_get_feature_variance(int x, int y, float *buffer, 
 		features[i] *= scale[i]*scale[i];
 }
 
-ccl_device_inline float3 filter_get_pixel_color(float *buffer, int pass_stride)
+ccl_device_inline float3 filter_get_pixel_color(float const* __restrict__ buffer, int pass_stride)
 {
 	return make_float3(ccl_get_feature(16), ccl_get_feature(18), ccl_get_feature(20));
 }
 
-ccl_device_inline float filter_get_pixel_variance(float *buffer, int pass_stride)
+ccl_device_inline float filter_get_pixel_variance(float const* __restrict__ buffer, int pass_stride)
 {
 	return average(make_float3(ccl_get_feature(17), ccl_get_feature(19), ccl_get_feature(21)));
 }
@@ -174,7 +174,7 @@ ccl_device_inline bool filter_firefly_rejection(float3 pixel_color, float pixel_
                                  }
 #endif
 
-ccl_device_inline void filter_get_features_sse(__m128 x, __m128 y, __m128 t, __m128 active_pixels, float *buffer, __m128 *features, __m128 *mean, int pass_stride)
+ccl_device_inline void filter_get_features_sse(__m128 x, __m128 y, __m128 t, __m128 active_pixels, float const* __restrict__ buffer, __m128 *features, __m128 *mean, int pass_stride)
 {
 	__m128 *feature = features;
 	*(feature++) = x;
@@ -205,7 +205,7 @@ ccl_device_inline void filter_get_features_sse(__m128 x, __m128 y, __m128 t, __m
 #endif
 }
 
-ccl_device_inline void filter_get_feature_variance_sse(__m128 x, __m128 y, __m128 active_pixels, float *buffer, __m128*features, __m128 *scale, int pass_stride)
+ccl_device_inline void filter_get_feature_variance_sse(__m128 x, __m128 y, __m128 active_pixels, float const* __restrict__ buffer, __m128*features, __m128 *scale, int pass_stride)
 {
 	__m128 *feature = features;
 	*(feature++) = _mm_setzero_ps();
@@ -230,14 +230,14 @@ ccl_device_inline void filter_get_feature_variance_sse(__m128 x, __m128 y, __m12
 		features[i] = _mm_mul_ps(features[i], _mm_mul_ps(scale[i], scale[i]));
 }
 
-ccl_device_inline void filter_get_pixel_color_sse(float *buffer, __m128 active_pixels, __m128 *color, int pass_stride)
+ccl_device_inline void filter_get_pixel_color_sse(float const* __restrict__ buffer, __m128 active_pixels, __m128 *color, int pass_stride)
 {
 	color[0] = _mm_mask_ps(ccl_get_feature_sse(16), active_pixels);
 	color[1] = _mm_mask_ps(ccl_get_feature_sse(18), active_pixels);
 	color[2] = _mm_mask_ps(ccl_get_feature_sse(20), active_pixels);
 }
 
-ccl_device_inline __m128 filter_get_pixel_variance_sse(float *buffer, __m128 active_pixels, int pass_stride)
+ccl_device_inline __m128 filter_get_pixel_variance_sse(float const* __restrict__ buffer, __m128 active_pixels, int pass_stride)
 {
 	return _mm_mask_ps(_mm_mul_ps(_mm_set1_ps(1.0f/3.0f), _mm_add_ps(_mm_add_ps(ccl_get_feature_sse(17), ccl_get_feature_sse(19)), ccl_get_feature_sse(21))), active_pixels);
 }
@@ -262,6 +262,30 @@ ccl_device_inline __m128 filter_firefly_rejection_sse(__m128 *pixel_color, __m12
 	__m128 color_diff = _mm_mul_ps(_mm_set1_ps(1.0f/9.0f), _mm_add_ps(_mm_add_ps(_mm_fabs_ps(_mm_sub_ps(pixel_color[0], center_color[0])), _mm_fabs_ps(_mm_sub_ps(pixel_color[1], center_color[1]))), _mm_fabs_ps(_mm_sub_ps(pixel_color[2], center_color[2]))));
 	__m128 variance = _mm_add_ps(_mm_add_ps(sqrt_center_variance, _mm_sqrt_ps(pixel_variance)), _mm_set1_ps(0.005f));
 	return _mm_cmple_ps(color_diff, variance);;
+}
+#endif
+
+#ifdef __KERNEL_CUDA__
+ccl_device_inline float filter_fill_design_row_cuda(float *features, int rank, float *design_row, float const* __restrict__ feature_transform, int transform_stride, float *bandwidth_factor)
+{
+	design_row[0] = 1.0f;
+	float weight = 1.0f;
+	for(int d = 0; d < rank; d++) {
+		float x = math_dot_cuda(features, feature_transform + d*DENOISE_FEATURES*transform_stride, transform_stride, DENOISE_FEATURES);
+		float x2 = x*x;
+		if(bandwidth_factor) x2 *= bandwidth_factor[d]*bandwidth_factor[d];
+		if(x2 < 1.0f) {
+			/* Pixels are weighted by Epanechnikov kernels. */
+			weight *= 0.75f * (1.0f - x2);
+		}
+		else {
+			weight = 0.0f;
+			break;
+		}
+		design_row[1+d] = x;
+		if(!bandwidth_factor) design_row[1+rank+d] = x2;
+	}
+	return weight;
 }
 #endif
 
