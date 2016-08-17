@@ -856,8 +856,9 @@ public:
 		int yblocks = (rtile.h + ythreads - 1)/ythreads;
 
 		CUdeviceptr d_denoise_buffer;
-		cuda_assert(cuMemAlloc(&d_denoise_buffer, 22*rtile.w*rtile.h*sizeof(float)));
-		int pass_stride = rtile.w*rtile.h;
+		int w = align_up(rtile.w, 4);
+		int pass_stride = w*rtile.h;
+		cuda_assert(cuMemAlloc(&d_denoise_buffer, 22*pass_stride*sizeof(float)));
 #define CUDA_PTR_ADD(ptr, x) ((CUdeviceptr) (((float*) (ptr)) + (x)))
 
 		/* ==== Step 1: Prefilter general features. ==== */
