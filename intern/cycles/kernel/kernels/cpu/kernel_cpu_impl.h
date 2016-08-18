@@ -183,9 +183,10 @@ void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
                                                       float *variance,
                                                       float *a,
                                                       float *b,
-                                                      int4 prefilter_rect)
+                                                      int4 prefilter_rect,
+                                                      int r)
 {
-	kernel_filter_combine_halves(x, y, mean, variance, a, b, prefilter_rect);
+	kernel_filter_combine_halves(x, y, mean, variance, a, b, prefilter_rect, r);
 }
 
 void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,

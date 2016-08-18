@@ -251,12 +251,12 @@ kernel_cuda_filter_non_local_means(float *noisyImage, float *weightImage, float 
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
-kernel_cuda_filter_combine_halves(float *mean, float *variance, float *a, float *b, int4 prefilter_rect)
+kernel_cuda_filter_combine_halves(float *mean, float *variance, float *a, float *b, int4 prefilter_rect, int r)
 {
 	int x = prefilter_rect.x + blockDim.x*blockIdx.x + threadIdx.x;
 	int y = prefilter_rect.y + blockDim.y*blockIdx.y + threadIdx.y;
 	if(x < prefilter_rect.z && y < prefilter_rect.w) {
-		kernel_filter_combine_halves(x, y, mean, variance, a, b, prefilter_rect);
+		kernel_filter_combine_halves(x, y, mean, variance, a, b, prefilter_rect, r);
 	}
 }
 

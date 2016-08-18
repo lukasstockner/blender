@@ -69,13 +69,35 @@ ccl_device void kernel_filter_get_feature(KernelGlobals *kg, int sample, float *
 
 /* Combine A/B buffers.
  * Calculates the combined mean and the buffer variance. */
-ccl_device void kernel_filter_combine_halves(int x, int y, float *mean, float *variance, float *a, float *b, int4 rect)
+ccl_device void kernel_filter_combine_halves(int x, int y, float *mean, float *variance, float *a, float *b, int4 rect, int r)
 {
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);
 
 	if(mean)     mean[idx] = 0.5f * (a[idx]+b[idx]);
-	if(variance) variance[idx] = 0.5f * (a[idx]-b[idx])*(a[idx]-b[idx]);
+	if(variance) {
+		if(r == 0) variance[idx] = 0.5f * (a[idx]-b[idx])*(a[idx]-b[idx]);
+		else {
+			variance[idx] = 0.0f;
+			float values[25];
+			int numValues = 0;
+			for(int py = max(y-r, rect.y); py < min(y+r+1, rect.w); py++) {
+				for(int px = max(x-r, rect.x); px < min(x+r+1, rect.z); px++) {
+					int pidx = (py-rect.y)*buffer_w + (px-rect.x);
+					values[numValues++] = 0.5f * (a[pidx]-b[pidx])*(a[pidx]-b[pidx]);
+				}
+			}
+			/* Insertion-sort the variances (fast enough for 25 elements). */
+			for(int i = 1; i < numValues; i++) {
+				float v = values[i];
+				int j;
+				for(j = i-1; j >= 0 && values[j] > v; j--)
+					values[j+1] = values[j];
+				values[j+1] = v;
+			}
+			variance[idx] = values[(7*numValues)/8];
+		}
+	}
 }
 
 /* General Non-Local Means filter implementation.

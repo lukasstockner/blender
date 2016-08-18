@@ -93,7 +93,8 @@ void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
                                                       float *variance,
                                                       float *a,
                                                       float *b,
-                                                      int4 prefilter_rect);
+                                                      int4 prefilter_rect,
+                                                      int r);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
                                                        int sample,

@@ -928,8 +928,8 @@ public:
 			                           0, 0, divide_args, 0));
 
 			/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
-			float a = 4.0f, k_2 = 1.0f;
-			int r = 3, f = 1;
+			float a = 2.0f, k_2 = 2.0f;
+			int r = 6, f = 3;
 			void *filter_variance_args[] = {&d_bufferV, &d_sampleV, &d_sampleVV, &d_cleanV,
 			                                &rect,
 			                                &r, &f, &a, &k_2};
@@ -959,8 +959,9 @@ public:
 			cuda_assert(cuCtxSynchronize());
 
 			/* Estimate the residual variance between the two filtered halves. */
+			int var_r = 2;
 			void *residual_variance_args[] = {&d_null, &d_sampleVV, &d_sampleV, &d_bufferV,
-			                                  &rect};
+			                                  &rect, &var_r};
 			cuda_assert(cuLaunchKernel(cuFilterCombineHalves,
 			                           xblocks , yblocks, 1, /* blocks */
 			                           xthreads, ythreads, 1, /* threads */
@@ -968,6 +969,7 @@ public:
 
 			/* Use the residual variance for a second filter pass. */
 			r = 4; f = 2;
+			k_2 = 1.0f;
 			void *filter_filteredA_args[] = {&d_sampleV, &d_bufferV, &d_sampleVV, &d_unfilteredA,
 			                                 &rect,
 			                                 &r, &f, &a, &k_2};
@@ -986,9 +988,10 @@ public:
 			cuda_assert(cuCtxSynchronize());
 
 			/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
+			var_r = 0;
 			void *final_prefiltered_args[] = {&d_mean, &d_variance,
 			                                  &d_unfilteredA, &d_unfilteredB,
-			                                  &rect};
+			                                  &rect, &var_r};
 			cuda_assert(cuLaunchKernel(cuFilterCombineHalves,
 			                           xblocks , yblocks, 1, /* blocks */
 			                           xthreads, ythreads, 1, /* threads */

@@ -213,7 +213,7 @@ public:
 		void(*filter_divide_shadow)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, float*, float*, float*, float*, int4);
 		void(*filter_get_feature)(KernelGlobals*, int, float**, int, int, int, int, int*, int*, int*, int*, float*, float*, int4);
 		void(*filter_non_local_means)(int, int, float*, float*, float*, float*, int4, int, int, float, float);
-		void(*filter_combine_halves)(int, int, float*, float*, float*, float*, int4);
+		void(*filter_combine_halves)(int, int, float*, float*, float*, float*, int4, int);
 
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
 		if(system_cpu_support_avx2()) {
@@ -341,7 +341,7 @@ public:
 				/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_non_local_means(x, y, bufferV, sampleV, sampleVV, cleanV, rect, 3, 1, 4, 1.0f);
+						filter_non_local_means(x, y, bufferV, sampleV, sampleVV, cleanV, rect, 6, 3, 4, 1.0f);
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -363,7 +363,7 @@ public:
 				/* Estimate the residual variance between the two filtered halves. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_combine_halves(x, y, NULL, sampleVV, sampleV, bufferV, rect);
+						filter_combine_halves(x, y, NULL, sampleVV, sampleV, bufferV, rect, 2);
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -373,8 +373,8 @@ public:
 				/* Use the residual variance for a second filter pass. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_non_local_means(x, y, sampleV, bufferV, sampleVV, unfiltered      , rect, 4, 2, 1, 0.25f);
-						filter_non_local_means(x, y, bufferV, sampleV, sampleVV, unfiltered + pass_stride, rect, 4, 2, 1, 0.25f);
+						filter_non_local_means(x, y, sampleV, bufferV, sampleVV, unfiltered              , rect, 4, 2, 1, 0.5f);
+						filter_non_local_means(x, y, bufferV, sampleV, sampleVV, unfiltered + pass_stride, rect, 4, 2, 1, 0.5f);
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -385,7 +385,7 @@ public:
 				/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_combine_halves(x, y, filter_buffer + 8*pass_stride, filter_buffer + 9*pass_stride, unfiltered, unfiltered + pass_stride, rect);
+						filter_combine_halves(x, y, filter_buffer + 8*pass_stride, filter_buffer + 9*pass_stride, unfiltered, unfiltered + pass_stride, rect, 0);
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
