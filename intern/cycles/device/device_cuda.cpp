@@ -843,11 +843,13 @@ public:
 		cuda_assert(cuFuncSetCacheConfig(cuFilterNonLocalMeans, CU_FUNC_CACHE_PREFER_L1));
 		cuda_assert(cuFuncSetCacheConfig(cuFilterCombineHalves, CU_FUNC_CACHE_PREFER_L1));
 
-		cuda_assert(cuFuncSetCacheConfig(cuFilterConstructTransform, CU_FUNC_CACHE_PREFER_SHARED));
-		cuda_assert(cuFuncSetCacheConfig(cuFilterEstimateBandwidths, CU_FUNC_CACHE_PREFER_SHARED));
-		cuda_assert(cuFuncSetCacheConfig(cuFilterEstimateBiasVariance, CU_FUNC_CACHE_PREFER_SHARED));
-		cuda_assert(cuFuncSetCacheConfig(cuFilterCalculateBandwidth, CU_FUNC_CACHE_PREFER_SHARED));
-		cuda_assert(cuFuncSetCacheConfig(cuFilterFinalPass, CU_FUNC_CACHE_PREFER_SHARED));
+		bool l1 = false;
+		if(getenv("CYCLES_DENOISE_PREFER_L1")) l1 = true;
+		cuda_assert(cuFuncSetCacheConfig(cuFilterConstructTransform, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
+		cuda_assert(cuFuncSetCacheConfig(cuFilterEstimateBandwidths, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
+		cuda_assert(cuFuncSetCacheConfig(cuFilterEstimateBiasVariance, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
+		cuda_assert(cuFuncSetCacheConfig(cuFilterCalculateBandwidth, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
+		cuda_assert(cuFuncSetCacheConfig(cuFilterFinalPass, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
 
 		if(have_error())
 			return;
