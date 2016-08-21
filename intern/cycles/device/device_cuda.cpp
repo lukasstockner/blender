@@ -928,6 +928,17 @@ public:
 			                           xblocks , yblocks, 1, /* blocks */
 			                           xthreads, ythreads, 1, /* threads */
 			                           0, 0, divide_args, 0));
+#ifdef WITH_CYCLES_DEBUG_FILTER
+#define WRITE_DEBUG(name, ptr) debug_write_pfm(string_printf("debug_%dx%d_cuda_shadow_%s.pfm", rtile.x+rtile.buffers->params.overscan, rtile.y+rtile.buffers->params.overscan, name).c_str(), ptr, rtile.w, rtile.h, 1, w)
+			float *temp = new float[pass_stride*6];
+			cuda_assert(cuMemcpyDtoH(temp, d_sampleV, 6*pass_stride*sizeof(float)));
+
+			WRITE_DEBUG("unfilteredA", temp + 4*pass_stride);
+			WRITE_DEBUG("unfilteredB", temp + 5*pass_stride);
+			WRITE_DEBUG("bufferV", temp + 2*pass_stride);
+			WRITE_DEBUG("sampleV", temp + 0*pass_stride);
+			WRITE_DEBUG("sampleVV", temp + 1*pass_stride);
+#endif
 
 			/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
 			float a = 2.0f, k_2 = 2.0f;
@@ -939,6 +950,10 @@ public:
 			                           xblocks , yblocks, 1, /* blocks */
 			                           xthreads, ythreads, 1, /* threads */
 			                           0, 0, filter_variance_args, 0));
+#ifdef WITH_CYCLES_DEBUG_FILTER
+			cuda_assert(cuMemcpyDtoH(temp, d_cleanV, pass_stride*sizeof(float)));
+			WRITE_DEBUG("cleanV", temp);
+#endif
 
 			/* Use the smoothed variance to filter the two shadow half images using each other for weight calculation. */
 			a = 1.0f; k_2 = 0.25f;
@@ -959,6 +974,11 @@ public:
 			                           xthreads, ythreads, 1, /* threads */
 			                           0, 0, filter_unfilteredB_args, 0));
 			cuda_assert(cuCtxSynchronize());
+#ifdef WITH_CYCLES_DEBUG_FILTER
+			cuda_assert(cuMemcpyDtoH(temp, d_sampleV, 3*pass_stride*sizeof(float)));
+			WRITE_DEBUG("filteredA", temp);
+			WRITE_DEBUG("filteredB", temp + 2*pass_stride);
+#endif
 
 			/* Estimate the residual variance between the two filtered halves. */
 			int var_r = 2;
@@ -968,6 +988,10 @@ public:
 			                           xblocks , yblocks, 1, /* blocks */
 			                           xthreads, ythreads, 1, /* threads */
 			                           0, 0, residual_variance_args, 0));
+#ifdef WITH_CYCLES_DEBUG_FILTER
+			cuda_assert(cuMemcpyDtoH(temp, d_sampleVV, pass_stride*sizeof(float)));
+			WRITE_DEBUG("residualV", temp);
+#endif
 
 			/* Use the residual variance for a second filter pass. */
 			r = 4; f = 2;
@@ -988,6 +1012,11 @@ public:
 			                           xthreads, ythreads, 1, /* threads */
 			                           0, 0, filter_filteredB_args, 0));
 			cuda_assert(cuCtxSynchronize());
+#ifdef WITH_CYCLES_DEBUG_FILTER
+			cuda_assert(cuMemcpyDtoH(temp, d_unfilteredA, 2*pass_stride*sizeof(float)));
+			WRITE_DEBUG("finalA", temp);
+			WRITE_DEBUG("finalB", temp + 1*pass_stride);
+#endif
 
 			/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
 			var_r = 0;
@@ -999,6 +1028,13 @@ public:
 			                           xthreads, ythreads, 1, /* threads */
 			                           0, 0, final_prefiltered_args, 0));
 			cuda_assert(cuCtxSynchronize());
+#ifdef WITH_CYCLES_DEBUG_FILTER
+			cuda_assert(cuMemcpyDtoH(temp, d_mean, 2*pass_stride*sizeof(float)));
+			WRITE_DEBUG("final", temp);
+			WRITE_DEBUG("finalV", temp + 1*pass_stride);
+			delete[] temp;
+#undef WRITE_DEBUG
+#endif
 		}
 
 		/* ==== Step 3: Copy combined color pass. ==== */
