@@ -467,15 +467,10 @@ public:
 				filter_estimate_params_kernel(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storages + y*filter_area.z + x, rect);
 			}
 		}
-		for(int y = 0; y < filter_area.w; y++) {
-			for(int x = 0; x < filter_area.z; x++) {
-				filter_final_pass_kernel(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storages + y*filter_area.z + x, filter_area, rect);
-			}
-		}
 
 #ifdef WITH_CYCLES_DEBUG_FILTER
 #define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", filter_area.x, filter_area.y, name).c_str(), &storages[0].var, filter_area.z, filter_area.w, sizeof(FilterStorage)/sizeof(float), filter_area.z);
-			for(int i = 0; i < DENOISE_FEATURES; i++) {
+		for(int i = 0; i < DENOISE_FEATURES; i++) {
 			WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
 			WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);
 			WRITE_DEBUG(string_printf("singular_%d", i).c_str(), singular[i]);
@@ -484,6 +479,13 @@ public:
 		WRITE_DEBUG("singular_threshold", singular_threshold);
 		WRITE_DEBUG("feature_matrix_norm", feature_matrix_norm);
 		WRITE_DEBUG("global_bandwidth", global_bandwidth);
+#endif
+		for(int y = 0; y < filter_area.w; y++) {
+			for(int x = 0; x < filter_area.z; x++) {
+				filter_final_pass_kernel(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storages + y*filter_area.z + x, filter_area, rect);
+			}
+		}
+#ifdef WITH_CYCLES_DEBUG_FILTER
 		WRITE_DEBUG("filtered_global_bandwidth", filtered_global_bandwidth);
 		WRITE_DEBUG("sum_weight", sum_weight);
 		WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);

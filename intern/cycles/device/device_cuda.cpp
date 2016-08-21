@@ -1063,7 +1063,7 @@ public:
 #define WRITE_DEBUG(name, pass) debug_write_pfm(string_printf("debug_%dx%d_cuda_feature%d_%s.pfm", rtile.x+rtile.buffers->params.overscan, rtile.y+rtile.buffers->params.overscan, i, name).c_str(), host_denoise_buffer+pass*pass_stride, rtile.w, rtile.h, 1, w)
 		float *host_denoise_buffer = new float[22*pass_stride];
 		cuda_assert(cuMemcpyDtoH(host_denoise_buffer, d_denoise_buffer, 22*pass_stride*sizeof(float)));
-		for(int i = 0; i < 11; i++) {
+		for(int i = 0; i < 8; i++) {
 			WRITE_DEBUG("filtered", 2*i);
 			WRITE_DEBUG("variance", 2*i+1);
 		}
@@ -1140,18 +1140,17 @@ public:
 		cuda_assert(cuMemcpyDtoH(host_storage, d_storage, sizeof(FilterStorage)*filter_area.z*filter_area.w));
 #define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_cuda_%s.pfm", rtile.x+rtile.buffers->params.overscan, rtile.y+rtile.buffers->params.overscan, name).c_str(), &host_storage[0].var, filter_area.z, filter_area.w, sizeof(FilterStorage)/sizeof(float), filter_area.z);
 		for(int i = 0; i < DENOISE_FEATURES; i++) {
-			WRITE_DEBUG(string_printf("mean_%d.pfm", i).c_str(), means[i]);
-			WRITE_DEBUG(string_printf("scale_%d.pfm", i).c_str(), scales[i]);
-			WRITE_DEBUG(string_printf("singular_%d.pfm", i).c_str(), singular[i]);
-			WRITE_DEBUG(string_printf("bandwidth_%d.pfm", i).c_str(), bandwidth[i]);
+			WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
+			WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);
+			WRITE_DEBUG(string_printf("singular_%d", i).c_str(), singular[i]);
+			WRITE_DEBUG(string_printf("bandwidth_%d", i).c_str(), bandwidth[i]);
 		}
 		WRITE_DEBUG("singular_threshold", singular_threshold);
-		WRITE_DEBUG("singular_threshold.pfm", singular_threshold);
-		WRITE_DEBUG("feature_matrix_norm.pfm", feature_matrix_norm);
-		WRITE_DEBUG("global_bandwidth.pfm", global_bandwidth);
-		WRITE_DEBUG("filtered_global_bandwidth.pfm", filtered_global_bandwidth);
-		WRITE_DEBUG("sum_weight.pfm", sum_weight);
-		WRITE_DEBUG("log_rmse_per_sample.pfm", log_rmse_per_sample);
+		WRITE_DEBUG("feature_matrix_norm", feature_matrix_norm);
+		WRITE_DEBUG("global_bandwidth", global_bandwidth);
+		WRITE_DEBUG("filtered_global_bandwidth", filtered_global_bandwidth);
+		WRITE_DEBUG("sum_weight", sum_weight);
+		WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
 		delete[] host_storage;
 #undef WRITE_DEBUG
 #endif

@@ -318,10 +318,7 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float co
 	filter_get_features(x, y, 0, center_buffer, feature_means, NULL, pass_stride);
 
 
-
-
 	/* === Fetch stored data from the previous kernel. === */
-	float *bandwidth_factor = &storage->bandwidth[0];
 	int rank = storage->rank;
 	/* Apply a median filter to the 3x3 window aroung the current pixel. */
 	int sort_idx = 0;
@@ -343,6 +340,12 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float co
 	}
 	float global_bandwidth = global_bandwidths[sort_idx/2];
 
+	float bandwidth_factor[DENOISE_FEATURES];
+	for(int i = 0; i < rank; i++) {
+		/* Same as above, divide by the bandwidth since the bandwidth_factor actually is the inverse of the bandwidth. */
+		bandwidth_factor[i] = storage->bandwidth[i] / global_bandwidth;
+	}
+
 
 
 
@@ -353,9 +356,6 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float co
 
 	/* === Calculate the final pixel color. === */
 	float XtX[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)], design_row[DENOISE_FEATURES+1];
-	for(int i = 0; i < rank; i++)
-		/* Same as above, divide by the bandwidth since the bandwidth_factor actually is the inverse of the bandwidth. */
-		bandwidth_factor[i] /= global_bandwidth;
 
 	int matrix_size = rank+1;
 	math_matrix_zero_lower(XtX, matrix_size);
@@ -507,6 +507,16 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 			feature_transform_sse[rank*DENOISE_FEATURES + j] = _mm_set1_ps(feature_transform[rank*DENOISE_FEATURES + j]);
 		}
 	}
+
+#ifdef WITH_CYCLES_DEBUG_FILTER
+	storage->feature_matrix_norm = _mm_hsum_ss(feature_matrix_norm);
+	storage->singular_threshold = singular_threshold;
+	for(int i = 0; i < DENOISE_FEATURES; i++) {
+		storage->means[i] = _mm_cvtss_f32(feature_means[i]);
+		storage->scales[i] = _mm_cvtss_f32(feature_scale[i]);
+		storage->singular[i] = sqrtf(fabsf(singular[i]));
+	}
+#endif
 
 	/* From here on, the mean of the features will be shifted to the central pixel's values. */
 	float feature_means_scalar[DENOISE_FEATURES];
