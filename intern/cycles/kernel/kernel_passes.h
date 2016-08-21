@@ -187,9 +187,15 @@ ccl_device_inline bool kernel_write_denoising_passes(KernelGlobals *kg, ccl_glob
 		}
 		else {
 			ShaderClosure *max_sc = ccl_fetch_array(sd, closure, max_weight_closure);
-			if(max_sc->roughness <= 0.075f) {
-				/* This bounce is almost specular, so don't write the data yet. */
+			if(max_sc->type == CLOSURE_BSDF_TRANSPARENT_ID) {
 				return false;
+			}
+			if(CLOSURE_IS_BSDF_MICROFACET(max_sc->type)) {
+				/* Check for roughness, almost specular surfaces don't write data. */
+				MicrofacetBsdf *bsdf = (MicrofacetBsdf*) max_sc;
+				if(bsdf->alpha_x*bsdf->alpha_y <= 0.075f*0.075f) {
+					return false;
+				}
 			}
 			kernel_write_pass_float3_var(buffer, sample, ensure_finite3(normal/sum_weight));
 			kernel_write_pass_float3_var(buffer + 6, sample, ensure_finite3(albedo));

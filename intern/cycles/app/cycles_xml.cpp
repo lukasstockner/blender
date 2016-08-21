@@ -35,7 +35,6 @@
 #include "shader.h"
 #include "scene.h"
 
-#include "subd_mesh.h"
 #include "subd_patch.h"
 #include "subd_split.h"
 
@@ -58,14 +57,12 @@ struct XMLReadState : public XMLReader {
 	Shader *shader;		/* current shader */
 	string base;		/* base path to current file*/
 	float dicing_rate;	/* current dicing rate */
-	Mesh::DisplacementMethod displacement_method;
 
 	XMLReadState()
 	  : scene(NULL),
 	    smooth(false),
 	    shader(NULL),
-	    dicing_rate(0.0f),
-	    displacement_method(Mesh::DISPLACE_BUMP)
+	    dicing_rate(0.0f)
 	{
 		tfm = transform_identity();
 	}
@@ -406,8 +403,6 @@ static void xml_read_mesh(const XMLReadState& state, pugi::xml_node node)
 	int shader = 0;
 	bool smooth = state.smooth;
 
-	mesh->displacement_method = state.displacement_method;
-
 	/* read vertices and polygons, RIB style */
 	vector<float3> P;
 	vector<float> UV;
@@ -417,6 +412,7 @@ static void xml_read_mesh(const XMLReadState& state, pugi::xml_node node)
 	xml_read_int_array(verts, node, "verts");
 	xml_read_int_array(nverts, node, "nverts");
 
+#if 0
 	if(xml_equal_string(node, "subdivision", "catmull-clark")) {
 		/* create subd mesh */
 		SubdMesh sdmesh;
@@ -460,7 +456,9 @@ static void xml_read_mesh(const XMLReadState& state, pugi::xml_node node)
 		DiagSplit dsplit(sdparams);
 		sdmesh.tessellate(&dsplit);
 	}
-	else {
+	else
+#endif
+	{
 		/* create vertices */
 		mesh->verts = P;
 
@@ -568,7 +566,7 @@ static void xml_read_patch(const XMLReadState& state, pugi::xml_node node)
 		mesh->used_shaders.push_back(state.shader);
 
 		/* split */
-		SubdParams sdparams(mesh, 0, state.smooth);
+		SubdParams sdparams(mesh);
 		xml_read_float(&sdparams.dicing_rate, node, "dicing_rate");
 
 		DiagSplit dsplit(sdparams);
@@ -651,14 +649,6 @@ static void xml_read_state(XMLReadState& state, pugi::xml_node node)
 		state.smooth = true;
 	else if(xml_equal_string(node, "interpolation", "flat"))
 		state.smooth = false;
-
-	/* read displacement method */
-	if(xml_equal_string(node, "displacement_method", "true"))
-		state.displacement_method = Mesh::DISPLACE_TRUE;
-	else if(xml_equal_string(node, "displacement_method", "bump"))
-		state.displacement_method = Mesh::DISPLACE_BUMP;
-	else if(xml_equal_string(node, "displacement_method", "both"))
-		state.displacement_method = Mesh::DISPLACE_BOTH;
 }
 
 /* Scene */

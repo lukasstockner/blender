@@ -58,6 +58,7 @@
 #include "BKE_animsys.h"
 #include "BKE_displist.h"
 #include "BKE_global.h"
+#include "BKE_depsgraph.h"
 #include "BKE_icons.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
@@ -247,10 +248,7 @@ Material *BKE_material_copy(Main *bmain, Material *ma)
 
 	BLI_listbase_clear(&man->gpumaterial);
 
-	if (ID_IS_LINKED_DATABLOCK(ma)) {
-		BKE_id_expand_local(&man->id);
-		BKE_id_lib_local_paths(bmain, ma->id.lib, &man->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &ma->id, &man->id);
 
 	return man;
 }
@@ -401,7 +399,7 @@ static void material_data_index_clear_id(ID *id)
 	}
 }
 
-void BKE_material_resize_id(struct ID *id, short totcol, bool do_id_user)
+void BKE_material_resize_id(Main *bmain, ID *id, short totcol, bool do_id_user)
 {
 	Material ***matar = give_matarar_id(id);
 	short *totcolp = give_totcolp_id(id);
@@ -427,9 +425,11 @@ void BKE_material_resize_id(struct ID *id, short totcol, bool do_id_user)
 		*matar = MEM_recallocN(*matar, sizeof(void *) * totcol);
 	}
 	*totcolp = totcol;
+
+	DAG_relations_tag_update(bmain);
 }
 
-void BKE_material_append_id(ID *id, Material *ma)
+void BKE_material_append_id(Main *bmain, ID *id, Material *ma)
 {
 	Material ***matar;
 	if ((matar = give_matarar_id(id))) {
@@ -442,11 +442,12 @@ void BKE_material_append_id(ID *id, Material *ma)
 		(*matar)[(*totcol)++] = ma;
 
 		id_us_plus((ID *)ma);
-		test_all_objects_materials(G.main, id);
+		test_all_objects_materials(bmain, id);
+		DAG_relations_tag_update(bmain);
 	}
 }
 
-Material *BKE_material_pop_id(ID *id, int index_i, bool update_data)
+Material *BKE_material_pop_id(Main *bmain, ID *id, int index_i, bool update_data)
 {
 	short index = (short)index_i;
 	Material *ret = NULL;
@@ -475,13 +476,15 @@ Material *BKE_material_pop_id(ID *id, int index_i, bool update_data)
 				/* decrease mat_nr index */
 				material_data_index_remove_id(id, index);
 			}
+
+			DAG_relations_tag_update(bmain);
 		}
 	}
 	
 	return ret;
 }
 
-void BKE_material_clear_id(struct ID *id, bool update_data)
+void BKE_material_clear_id(Main *bmain, ID *id, bool update_data)
 {
 	Material ***matar;
 	if ((matar = give_matarar_id(id))) {
@@ -500,6 +503,8 @@ void BKE_material_clear_id(struct ID *id, bool update_data)
 			/* decrease mat_nr index */
 			material_data_index_clear_id(id);
 		}
+
+		DAG_relations_tag_update(bmain);
 	}
 }
 
@@ -556,7 +561,7 @@ Material *give_node_material(Material *ma)
 	return NULL;
 }
 
-void BKE_material_resize_object(Object *ob, const short totcol, bool do_id_user)
+void BKE_material_resize_object(Main *bmain, Object *ob, const short totcol, bool do_id_user)
 {
 	Material **newmatar;
 	char *newmatbits;
@@ -593,6 +598,8 @@ void BKE_material_resize_object(Object *ob, const short totcol, bool do_id_user)
 	ob->totcol = totcol;
 	if (ob->totcol && ob->actcol == 0) ob->actcol = 1;
 	if (ob->actcol > ob->totcol) ob->actcol = ob->totcol;
+
+	DAG_relations_tag_update(bmain);
 }
 
 void test_object_materials(Object *ob, ID *id)
@@ -604,7 +611,7 @@ void test_object_materials(Object *ob, ID *id)
 		return;
 	}
 
-	BKE_material_resize_object(ob, *totcol, false);
+	BKE_material_resize_object(G.main, ob, *totcol, false);
 }
 
 void test_all_objects_materials(Main *bmain, ID *id)
@@ -620,7 +627,7 @@ void test_all_objects_materials(Main *bmain, ID *id)
 	BKE_main_lock(bmain);
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
 		if (ob->data == id) {
-			BKE_material_resize_object(ob, *totcol, false);
+			BKE_material_resize_object(bmain, ob, *totcol, false);
 		}
 	}
 	BKE_main_unlock(bmain);
@@ -745,17 +752,18 @@ void assign_material(Object *ob, Material *ma, short act, int assign_type)
 		if (mao)
 			id_us_min(&mao->id);
 		ob->mat[act - 1] = ma;
+		test_object_materials(ob, ob->data);
 	}
 	else {  /* in data */
 		mao = (*matarar)[act - 1];
 		if (mao)
 			id_us_min(&mao->id);
 		(*matarar)[act - 1] = ma;
+		test_all_objects_materials(G.main, ob->data);  /* Data may be used by several objects... */
 	}
 
 	if (ma)
 		id_us_plus(&ma->id);
-	test_object_materials(ob, ob->data);
 }
 
 
@@ -1883,7 +1891,7 @@ static short mesh_getmaterialnumber(Mesh *me, Material *ma)
 /* append material */
 static short mesh_addmaterial(Mesh *me, Material *ma)
 {
-	BKE_material_append_id(&me->id, NULL);
+	BKE_material_append_id(G.main, &me->id, NULL);
 	me->mat[me->totcol - 1] = ma;
 
 	id_us_plus(&ma->id);
@@ -2022,7 +2030,7 @@ static void convert_tfacematerial(Main *main, Material *ma)
 		/* remove material from mesh */
 		for (a = 0; a < me->totcol; ) {
 			if (me->mat[a] == ma) {
-				BKE_material_pop_id(&me->id, a, true);
+				BKE_material_pop_id(main, &me->id, a, true);
 			}
 			else {
 				a++;
