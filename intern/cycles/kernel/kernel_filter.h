@@ -20,7 +20,7 @@
 CCL_NAMESPACE_BEGIN
 
 /* Not all features are included in the matrix norm. */
-#define NORM_FEATURE_OFFSET 2
+#define NORM_FEATURE_OFFSET 3
 #define NORM_FEATURE_NUM 8
 
 #ifdef __KERNEL_CUDA__
