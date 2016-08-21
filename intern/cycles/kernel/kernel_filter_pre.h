@@ -39,7 +39,7 @@ ccl_device void kernel_filter_divide_shadow(KernelGlobals *kg, int sample, float
 	unfiltered[idx+Bofs] = center_buffer[18] / max(center_buffer[17], 1e-7f);
 	float varFac = 1.0f / (sample * (sample-1));
 	sampleVariance[idx] = (center_buffer[16] + center_buffer[19]) * varFac;
-	sampleVarianceV[idx] = 0.5f * (center_buffer[16] - center_buffer[19]) * (center_buffer[16] - center_buffer[19]) * varFac;
+	sampleVarianceV[idx] = 0.5f * (center_buffer[16] - center_buffer[19]) * (center_buffer[16] - center_buffer[19]) * varFac * varFac;
 	bufferVariance[idx] = 0.5f * (unfiltered[idx] - unfiltered[idx+Bofs]) * (unfiltered[idx] - unfiltered[idx+Bofs]);
 }
 
