@@ -567,7 +567,7 @@ public:
 					task.update_progress(&tile);
 				}
 
-				if(tile.buffers->params.overscan) {
+				if(tile.buffers->params.overscan && !task.get_cancel()) {
 					int tile_x[4] = {tile.x, tile.x, tile.x+tile.w, tile.x+tile.w};
 					int tile_y[4] = {tile.y, tile.y, tile.y+tile.h, tile.y+tile.h};
 					int offsets[9] = {0, 0, 0, 0, tile.offset, 0, 0, 0, 0};

@@ -1576,7 +1576,7 @@ public:
 						task->update_progress(&tile);
 					}
 
-					if(tile.buffers->params.overscan) { /* TODO(lukas) Works, but seems hacky? */
+					if(tile.buffers->params.overscan && !task->get_cancel()) { /* TODO(lukas) Works, but seems hacky? */
 						denoise(tile, end_sample);
 					}
 				}
