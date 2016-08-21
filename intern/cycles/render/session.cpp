@@ -805,6 +805,9 @@ void Session::run_denoise()
 		kernel_data.film.exposure = 1.0f;
 		kernel_data.film.num_frames = buffers->params.frames;
 		kernel_data.film.prev_frames = params.prev_frames;
+		if(scene == NULL) {
+			kernel_data.integrator.filter_strength = 1.0f;
+		}
 		device->const_copy_to("__data", &kernel_data, sizeof(kernel_data));
 
 		/* Generate tiles. */
