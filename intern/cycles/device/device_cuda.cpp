@@ -1097,7 +1097,7 @@ public:
 		                           xthreads, ythreads, 1, /* threads */
 		                           0, 0, transform_args, 0));
 
-		for(int g = 0; g < 5; g++) {
+		for(int g = 0; g < 6; g++) {
 			void *bias_variance_args[] = {&sample,
 			                              &d_denoise_buffer,
 			                              &d_transforms,

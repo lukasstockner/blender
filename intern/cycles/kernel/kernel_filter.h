@@ -203,7 +203,7 @@ ccl_device void kernel_filter_estimate_bias_variance(KernelGlobals *kg, int samp
 
 
 	float g_bandwidth_factor[DENOISE_FEATURES];
-	const float candidate_bw[5] = {0.05f, 0.1f, 0.25f, 0.5f, 1.0f};
+	const float candidate_bw[6] = {0.05f, 0.1f, 0.25f, 0.5f, 1.0f, 2.0f};
 	for(int i = 0; i < rank; i++)
 		/* Divide by the candidate bandwidth since the bandwidth_factor actually is the inverse of the bandwidth. */
 		g_bandwidth_factor[i] = storage->bandwidth[i]/candidate_bw[candidate];
@@ -278,8 +278,8 @@ ccl_device void kernel_filter_calculate_bandwidth(KernelGlobals *kg, int sample,
 	math_lsq_init(lsq_bias);
 	math_lsq_init(lsq_variance);
 
-	const float candidate_bw[5] = {0.05f, 0.1f, 0.25f, 0.5f, 1.0f};
-	for(int g = 0; g < 5; g++) {
+	const float candidate_bw[6] = {0.05f, 0.1f, 0.25f, 0.5f, 1.0f, 2.0f};
+	for(int g = 0; g < 6; g++) {
 		math_lsq_add(lsq_bias, (double) (candidate_bw[g]*candidate_bw[g]), (double) storage->est_bias[g]);
 		math_lsq_add(lsq_variance, pow(candidate_bw[g], -storage->rank), max(sample*storage->est_variance[g], 0.0f));
 	}
