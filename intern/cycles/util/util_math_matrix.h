@@ -314,32 +314,6 @@ ccl_device_inline void math_inverse_lower_tri_inplace(float *L, int n)
 	}
 }
 
-#define LSQ_SIZE 5
-/* Utility functions for least-squares-fitting a one-dimensional linear function: f(x) = a*x+b. */
-ccl_device_inline void math_lsq_init(double *lsq)
-{
-	for(int i = 0; i < 5; i++)
-		lsq[i] = 0.0;
-}
-
-ccl_device_inline void math_lsq_add(double *lsq, double x, double y)
-{
-	lsq[0] += 1.0;
-	lsq[1] += x;
-	lsq[2] += x*x;
-	lsq[3] += y;
-	lsq[4] += x*y;
-}
-
-/* Returns the first-order coefficient a of the fitted function. */
-ccl_device_inline double math_lsq_solve(double *lsq, double *zeroth)
-{
-	double inv_det = 1.0 / (lsq[0]*lsq[2] - lsq[1]*lsq[1] + 1e-4);
-	if(zeroth)
-		*zeroth = (lsq[2]*lsq[3] - lsq[1]*lsq[3]) * inv_det;
-	return (lsq[0]*lsq[4] - lsq[1]*lsq[3]) * inv_det;
-}
-
 ccl_device float math_largest_eigenvalue(float *A, int n, float *vec, float *tmp)
 {
 	/* Matrix-Vector-Multiplication that only accesses the lower triangular part of A. */

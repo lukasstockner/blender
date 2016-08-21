@@ -576,9 +576,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	__m128 sqrt_center_variance_sse = _mm_set1_ps(sqrt_center_variance);
 
 	const float candidate_bw[6] = {0.05f, 0.1f, 0.25f, 0.5f, 1.0f, 2.0f};
-	double lsq_bias[LSQ_SIZE], lsq_variance[LSQ_SIZE];
-	math_lsq_init(lsq_bias);
-	math_lsq_init(lsq_variance);
+	double bias_XtX = 0.0, bias_XtY = 0.0, var_XtX = 0.0, var_XtY = 0.0;
 	for(int g = 0; g < 6; g++) {
 		__m128 g_bandwidth_factor[DENOISE_FEATURES];
 		for(int i = 0; i < rank; i++)
@@ -658,27 +656,26 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 			est_variance_scalar = _mm_hsum_ss(est_pos_variance) * fac*fac;
 		}
 
-		math_lsq_add(lsq_bias, (double) (candidate_bw[g]*candidate_bw[g]), (double) average(est_color_scalar - center_color));
-		math_lsq_add(lsq_variance, pow(candidate_bw[g], -rank), max(sample*est_variance_scalar, 0.0f));
+		double bias_x = (double) (candidate_bw[g]*candidate_bw[g]);
+		bias_XtX += bias_x*bias_x;
+		bias_XtY += bias_x * (double) average(est_color_scalar - center_color);
+		double var_x = 1.0 / (pow(candidate_bw[g], rank) * sample);
+		var_XtX += var_x*var_x;
+		var_XtY += var_x * (double) est_variance_scalar;
 	}
 
 
 
 
 	/* === Estimate optimal global bandwidth. === */
-	double bias_coef = math_lsq_solve(lsq_bias, NULL);
-	double variance_zeroth;
-	double variance_coef = math_lsq_solve(lsq_variance, &variance_zeroth);
-	if(variance_coef < 0.0) {
-		variance_coef = -variance_coef;
-		variance_zeroth = 0.0;
-	}
+	double bias_coef = bias_XtY / bias_XtX;
+	double variance_coef = var_XtY / var_XtX;
 	float optimal_bw = (float) pow((rank * variance_coef) / (4.0 * bias_coef*bias_coef * sample), 1.0 / (rank + 4));
 
 #ifdef WITH_CYCLES_DEBUG_FILTER
 	double h2 = ((double) optimal_bw) * ((double) optimal_bw);
 	double bias = bias_coef*h2;
-	double variance = (variance_zeroth + variance_coef*pow(optimal_bw, -rank)) / sample;
+	double variance = (variance_coef*pow(optimal_bw, -rank)) / sample;
 	storage->log_rmse_per_sample = ( (float) log(max(bias*bias + variance, 1e-20)) - 4.0f*logf(sample)/(rank + 4) );
 #endif
 
@@ -855,9 +852,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 
 	/* === Estimate bias and variance for different candidate global bandwidths. === */
 	const float candidate_bw[6] = {0.05f, 0.1f, 0.25f, 0.5f, 1.0f, 2.0f};
-	double lsq_bias[LSQ_SIZE], lsq_variance[LSQ_SIZE];
-	math_lsq_init(lsq_bias);
-	math_lsq_init(lsq_variance);
+	double bias_XtX = 0.0, bias_XtY = 0.0, var_XtX = 0.0, var_XtY = 0.0;
 	for(int g = 0; g < 6; g++) {
 		float g_bandwidth_factor[DENOISE_FEATURES];
 		for(int i = 0; i < rank; i++)
@@ -923,27 +918,39 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 			est_variance = est_pos_variance * fac*fac;
 		}
 
-		math_lsq_add(lsq_bias, (double) (candidate_bw[g]*candidate_bw[g]), (double) average(est_color - center_color));
-		math_lsq_add(lsq_variance, pow(candidate_bw[g], -rank), max(sample*est_variance, 0.0f));
+		/* The estimation here uses a simple 1-parameter Least-Squares approach:
+		 * X is the column vector containing the design values, y the column vector that contains the function values.
+		 * Then, the Least-Squares solution (X^t*X)^-1 * X^t*y turns into dot(X, y) / dot(X, X).
+		 *
+		 * The models that are used are:
+		 * Bias: b(h) = a*h^2, where a is the parameter
+		 * Variance: v(h) = b/(n*h^k), where b is the parameter, n is the number of samples, and k is the rank.
+		 * Therefore, the design value for bias is h^2, while for variance it is 1.0/(n*h^k).
+		 */
+		double bias_x = (double) (candidate_bw[g]*candidate_bw[g]);
+		bias_XtX += bias_x*bias_x;
+		bias_XtY += bias_x * (double) average(est_color - center_color);
+		double var_x = 1.0 / (pow(candidate_bw[g], rank) * sample);
+		var_XtX += var_x*var_x;
+		var_XtY += var_x * (double) est_variance;
 	}
 
 
 
 
 	/* === Estimate optimal global bandwidth. === */
-	double bias_coef = math_lsq_solve(lsq_bias, NULL);
-	double variance_zeroth;
-	double variance_coef = math_lsq_solve(lsq_variance, &variance_zeroth);
-	if(variance_coef < 0.0) {
-		variance_coef = -variance_coef;
-		variance_zeroth = 0.0;
-	}
+	double bias_coef = bias_XtY / bias_XtX;
+	double variance_coef = var_XtY / var_XtX;
+	/* Since MSE is defined as bias^2 + variance, from the models above it follows that MSE(h) = a^2*h^4 + b/(n*h^k).
+	 * Minimizing that term w.r.t h gives h_min = (k*b / (4*a^2*n))^(1/k+4).
+	 * Note that this is the term that is given in the paper as well, but they incorrectly use different models for bias and variance.
+	 */
 	float optimal_bw = (float) pow((rank * variance_coef) / (4.0 * bias_coef*bias_coef * sample), 1.0 / (rank + 4));
 
 #ifdef WITH_CYCLES_DEBUG_FILTER
 	double h2 = ((double) optimal_bw) * ((double) optimal_bw);
 	double bias = bias_coef*h2;
-	double variance = (variance_zeroth + variance_coef*pow(optimal_bw, -rank)) / sample;
+	double variance = (variance_coef*pow(optimal_bw, -rank)) / sample;
 	storage->log_rmse_per_sample = ( (float) log(max(bias*bias + variance, 1e-20)) - 4.0f*logf(sample)/(rank + 4) );
 #endif
 
