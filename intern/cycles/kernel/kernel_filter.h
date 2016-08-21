@@ -117,8 +117,8 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 
 ccl_device void kernel_filter_estimate_bandwidths(KernelGlobals *kg, int sample, float const* __restrict__ buffer, int x, int y, float const* __restrict__ transform, FilterStorage *storage, int4 rect, int transform_stride, int localIdx)
 {
-	__shared__ float shared_design_row[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
-	float *design_row = shared_design_row + localIdx*DENOISE_FEATURES;
+	__shared__ float shared_features[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
+	float *features = shared_features + localIdx*DENOISE_FEATURES;
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int buffer_h = (rect.w - rect.y);
@@ -144,19 +144,20 @@ ccl_device void kernel_filter_estimate_bandwidths(KernelGlobals *kg, int sample,
 	 * both the r-feature vector z as well as z^T*z and using the resulting parameter for
 	 * that dimension of the z^T*z vector times two as the derivative. */
 	int matrix_size = 2*rank + 1; /* Constant term (1 dim) + z (rank dims) + z^T*z (rank dims) */
-	float XtX[(2*DENOISE_FEATURES+1)*(2*DENOISE_FEATURES+1)];
+	float XtX[(2*DENOISE_FEATURES+1)*(2*DENOISE_FEATURES+1)], design_row[2*DENOISE_FEATURES+1];
 	float3 XtY[2*DENOISE_FEATURES+1];
 
 	math_matrix_zero_lower(XtX, matrix_size);
 	math_vec3_zero(XtY, matrix_size);
 	FOR_PIXEL_WINDOW {
-		float weight = filter_fill_design_row_cuda(design_row, rank, transform, transform_stride, NULL, px, py, pt, pixel_buffer, feature_means, pass_stride);
+		filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
+		float weight = filter_fill_design_row_cuda(features, rank, design_row, transform, transform_stride, NULL);
 	
 		if(weight == 0.0f) continue;
 		weight /= max(1.0f, filter_get_pixel_variance(pixel_buffer, pass_stride));
 
-		math_add_gramian_one_sqr(XtX, matrix_size, design_row, weight);
-		math_add_vec3_one_sqr(XtY, matrix_size, design_row, weight * filter_get_pixel_color(pixel_buffer, pass_stride));
+		math_add_gramian(XtX, matrix_size, design_row, weight);
+		math_add_vec3(XtY, matrix_size, design_row, weight * filter_get_pixel_color(pixel_buffer, pass_stride));
 	} END_FOR_PIXEL_WINDOW
 
 	/* Solve the normal equation of the linear least squares system: Decompose A = X^T*X into L
@@ -177,8 +178,8 @@ ccl_device void kernel_filter_estimate_bandwidths(KernelGlobals *kg, int sample,
 
 ccl_device void kernel_filter_estimate_bias_variance(KernelGlobals *kg, int sample, float const* __restrict__ buffer, int x, int y, float const* __restrict__ transform, FilterStorage *storage, int4 rect, int candidate, int transform_stride, int localIdx)
 {
-	__shared__ float shared_design_row[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
-	float *design_row = shared_design_row + localIdx*DENOISE_FEATURES;
+	__shared__ float shared_features[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
+	float *features = shared_features + DENOISE_FEATURES*localIdx;
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int buffer_h = (rect.w - rect.y);
@@ -208,7 +209,7 @@ ccl_device void kernel_filter_estimate_bias_variance(KernelGlobals *kg, int samp
 		g_bandwidth_factor[i] = storage->bandwidth[i]/candidate_bw[candidate];
 
 	int matrix_size = rank+1;
-	float XtX[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)];
+	float XtX[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)], design_row[DENOISE_FEATURES+1];
 	math_matrix_zero_lower(XtX, matrix_size);
 
 	FOR_PIXEL_WINDOW {
@@ -216,12 +217,13 @@ ccl_device void kernel_filter_estimate_bias_variance(KernelGlobals *kg, int samp
 		float variance = filter_get_pixel_variance(pixel_buffer, pass_stride);
 		if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
 
-		float weight = filter_fill_design_row_cuda(design_row, rank, transform, transform_stride, g_bandwidth_factor, px, py, pt, pixel_buffer, feature_means, pass_stride);
+		filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
+		float weight = filter_fill_design_row_cuda(features, rank, design_row, transform, transform_stride, g_bandwidth_factor);
 
 		if(weight == 0.0f) continue;
 		weight /= max(1.0f, variance);
 
-		math_add_gramian_one(XtX, matrix_size, design_row, weight);
+		math_add_gramian(XtX, matrix_size, design_row, weight);
 	} END_FOR_PIXEL_WINDOW
 
 	math_matrix_add_diagonal(XtX, matrix_size, 1e-4f); /* Improve the numerical stability. */
@@ -243,11 +245,12 @@ ccl_device void kernel_filter_estimate_bias_variance(KernelGlobals *kg, int samp
 		float variance = filter_get_pixel_variance(pixel_buffer, pass_stride);
 		if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
 
-		float weight = filter_fill_design_row_cuda(design_row, rank, transform, transform_stride, g_bandwidth_factor, px, py, pt, pixel_buffer, feature_means, pass_stride);
+		filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
+		float weight = filter_fill_design_row_cuda(features, rank, design_row, transform, transform_stride, g_bandwidth_factor);
 
 		if(weight == 0.0f) continue;
 		weight /= max(1.0f, variance);
-		weight *= math_dot_one(r_feature_weight, design_row, matrix_size);
+		weight *= math_dot(design_row, r_feature_weight, matrix_size);
 
 		est_color += weight * color;
 		est_variance += weight*weight * max(variance, 0.0f);
@@ -290,8 +293,8 @@ ccl_device void kernel_filter_calculate_bandwidth(KernelGlobals *kg, int sample,
 
 ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float const* __restrict__ buffer, int x, int y, int offset, int stride, float *buffers, float const* __restrict__ transform, FilterStorage *storage, int4 filter_area, int4 rect, int transform_stride, int localIdx)
 {
-	__shared__ float shared_design_row[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
-	float *design_row = shared_design_row + localIdx*DENOISE_FEATURES;
+	__shared__ float shared_features[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
+	float *features = shared_features + DENOISE_FEATURES*localIdx;
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int buffer_h = (rect.w - rect.y);
@@ -350,7 +353,7 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float co
 
 
 	/* === Calculate the final pixel color. === */
-	float XtX[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)];
+	float XtX[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)], design_row[DENOISE_FEATURES+1];
 
 	int matrix_size = rank+1;
 	math_matrix_zero_lower(XtX, matrix_size);
@@ -360,12 +363,13 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float co
 		float variance = filter_get_pixel_variance(pixel_buffer, pass_stride);
 		if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
 
-		float weight = filter_fill_design_row_cuda(design_row, rank, transform, transform_stride, bandwidth_factor, px, py, pt, pixel_buffer, feature_means, pass_stride);
+		filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
+		float weight = filter_fill_design_row_cuda(features, rank, design_row, transform, transform_stride, bandwidth_factor);
 
 		if(weight == 0.0f) continue;
 		weight /= max(1.0f, variance);
 
-		math_add_gramian_one(XtX, matrix_size, design_row, weight);
+		math_add_gramian(XtX, matrix_size, design_row, weight);
 	} END_FOR_PIXEL_WINDOW
 
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -391,11 +395,12 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float co
 		float variance = filter_get_pixel_variance(pixel_buffer, pass_stride);
 		if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
 
-		float weight = filter_fill_design_row_cuda(design_row, rank, transform, transform_stride, bandwidth_factor, px, py, pt, pixel_buffer, feature_means, pass_stride);
+		filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
+		float weight = filter_fill_design_row_cuda(features, rank, design_row, transform, transform_stride, bandwidth_factor);
 
 		if(weight == 0.0f) continue;
 		weight /= max(1.0f, variance);
-		weight *= math_dot_one(r_feature_weight, design_row, matrix_size);
+		weight *= math_dot(design_row, r_feature_weight, matrix_size);
 
 		final_color += weight * color;
 
