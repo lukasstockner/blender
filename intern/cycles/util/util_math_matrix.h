@@ -156,10 +156,71 @@ ccl_device_inline void math_add_gramian(float *A, int n, float *v, float weight)
 			MAT(A, n, row, col) += v[row]*v[col]*weight;
 }
 
+/* This function does the same as the one above it, except that it also considers an implicit one as the first element of the vector. */
+ccl_device_inline void math_add_gramian_one(float *A, int n, float *v, float weight)
+{
+	MAT(A, n, 0, 0) += weight;
+	for(int row = 1; row < n; row++) {
+		float rowf = v[row-1]*weight;
+		MAT(A, n, row, 0) += rowf;
+		for(int col = 1; col <= row; col++)
+			MAT(A, n, row, col) += rowf*v[col-1];
+	}
+}
+
+/* This function does the same as the one above it, except that it also considers an implicit one as the first element of the vector and appends the squared vector.
+ * => If v is (a, b, c), then the function will add the gramian of (1, a, b, c, a^2, b^2, c^2).*/
+ccl_device_inline void math_add_gramian_one_sqr(float *A, int n, float *v, float weight)
+{
+	int v_elem = (n-1)/2;
+	/* The gramian can be split into 9 sections:
+	 * [1  *1] [1  *v] [1  *v^2]
+	 * [v  *1] [v  *v] [v  *v^2]
+	 * [v^2*1] [v^2*v] [v^2*v^2]
+	 * 3 can be ignored completely since we only compute the lower triangular part.
+	 */
+
+	/* Calculate [1*1] element. */
+	MAT(A, n, 0, 0) += weight;
+
+	for(int row = 1; row <= v_elem; row++) {
+		/* Calculate [v*1] element. */
+		float rowf = v[row-1]*weight;
+		MAT(A, n, row, 0) += rowf;
+		/* Calculate [v*v] element. */
+		for(int col = 1; col <= row; col++)
+			MAT(A, n, row, col) += rowf*v[col-1];
+	}
+	for(int row = v_elem+1; row < n; row++) {
+		/* Calculate [v^2*1] element. */
+		int vrow = row-v_elem-1;
+		float rowf = v[vrow]*v[vrow]*weight;
+		MAT(A, n, row, 0) += rowf;
+		/* Calculate [v^2*v] element. */
+		for(int col = 1; col <= v_elem; col++)
+			MAT(A, n, row, col) += rowf*v[col-1];
+		/* Calculate [v^2*v^2] element. */
+		for(int col = 1+v_elem; col <= row; col++)
+			MAT(A, n, row, col) += rowf*v[col-v_elem-1]*v[col-v_elem-1];
+	}
+}
+
 ccl_device_inline void math_add_vec3(float3 *v, int n, float *x, float3 w)
 {
 	for(int i = 0; i < n; i++)
 		v[i] += w*x[i];
+}
+
+/* This function does the same as the one above it, except that it also considers an implicit one as the first element of the vector and appends the squared vector.
+ * => If x is (a, b, c), then the function will add the product with (1, a, b, c, a^2, b^2, c^2).*/
+ccl_device_inline void math_add_vec3_one_sqr(float3 *v, int n, float *x, float3 w)
+{
+	int v_elem = (n-1)/2;
+	v[0] += w;
+	for(int i = 1; i <= v_elem; i++)
+		v[i] += w*x[i-1];
+	for(int i = v_elem+1; i < n; i++)
+		v[i] += w*x[i-v_elem-1]*x[i-v_elem-1];
 }
 
 ccl_device_inline void math_lower_tri_to_full(float *A, int n)
@@ -174,6 +235,15 @@ ccl_device_inline float math_dot(float *a, float *b, int n)
 	float d = 0.0f;
 	for(int i = 0; i < n; i++)
 		d += a[i]*b[i];
+	return d;
+}
+
+/* This function does the same as the one above it, except that it also considers an implicit one as the first element of b. */
+ccl_device_inline float math_dot_one(float *a, float *b, int n)
+{
+	float d = a[0];
+	for(int i = 1; i < n; i++)
+		d += a[i]*b[i-1];
 	return d;
 }
 

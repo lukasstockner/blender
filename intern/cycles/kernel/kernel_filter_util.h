@@ -266,24 +266,36 @@ ccl_device_inline __m128 filter_firefly_rejection_sse(__m128 *pixel_color, __m12
 #endif
 
 #ifdef __KERNEL_CUDA__
-ccl_device_inline float filter_fill_design_row_cuda(float *features, int rank, float *design_row, float const* __restrict__ feature_transform, int transform_stride, float *bandwidth_factor)
+ccl_device_inline void filter_add_feature(float *features, float feature, int feature_id, int rank, float const* __restrict__ feature_transform, int transform_stride)
 {
-	design_row[0] = 1.0f;
+	for(int d = 0; d < rank; d++) {
+		features[d] += feature_transform[(d*DENOISE_FEATURES + feature_id)*transform_stride] * feature;
+	}
+}
+
+ccl_device_inline float filter_fill_design_row_cuda(float *design_row, int rank, float const* __restrict__ feature_transform, int transform_stride, float *bandwidth_factor, int x, int y, int t, float const* __restrict__ buffer, float *mean, int pass_stride)
+{
+	for(int i = 0; i < rank; i++)
+		design_row[i] = 0.0f;
+	filter_add_feature(design_row, x                   - mean[ 0],  0, rank, feature_transform, transform_stride);
+	filter_add_feature(design_row, y                   - mean[ 1],  1, rank, feature_transform, transform_stride);
+	filter_add_feature(design_row, t                   - mean[ 2],  2, rank, feature_transform, transform_stride);
+	filter_add_feature(design_row, ccl_get_feature( 0) - mean[ 3],  3, rank, feature_transform, transform_stride);
+	filter_add_feature(design_row, ccl_get_feature( 2) - mean[ 4],  4, rank, feature_transform, transform_stride);
+	filter_add_feature(design_row, ccl_get_feature( 4) - mean[ 5],  5, rank, feature_transform, transform_stride);
+	filter_add_feature(design_row, ccl_get_feature( 6) - mean[ 6],  6, rank, feature_transform, transform_stride);
+	filter_add_feature(design_row, ccl_get_feature( 8) - mean[ 7],  7, rank, feature_transform, transform_stride);
+	filter_add_feature(design_row, ccl_get_feature(10) - mean[ 8],  8, rank, feature_transform, transform_stride);
+	filter_add_feature(design_row, ccl_get_feature(12) - mean[ 9],  9, rank, feature_transform, transform_stride);
+	filter_add_feature(design_row, ccl_get_feature(14) - mean[10], 10, rank, feature_transform, transform_stride);
+
 	float weight = 1.0f;
 	for(int d = 0; d < rank; d++) {
-		float x = math_dot_cuda(features, feature_transform + d*DENOISE_FEATURES*transform_stride, transform_stride, DENOISE_FEATURES);
-		float x2 = x*x;
-		if(bandwidth_factor) x2 *= bandwidth_factor[d]*bandwidth_factor[d];
-		if(x2 < 1.0f) {
-			/* Pixels are weighted by Epanechnikov kernels. */
-			weight *= 0.75f * (1.0f - x2);
-		}
-		else {
-			weight = 0.0f;
-			break;
-		}
-		design_row[1+d] = x;
-		if(!bandwidth_factor) design_row[1+rank+d] = x2;
+		float x2 = design_row[d];
+		if(bandwidth_factor) x2 *= bandwidth_factor[d];
+		x2 *= x2;
+		if(x2 >= 1.0f) return 0.0f;
+		weight *= 0.75 * (1.0f - x2);
 	}
 	return weight;
 }
