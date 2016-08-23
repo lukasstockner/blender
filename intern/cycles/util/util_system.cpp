@@ -282,6 +282,7 @@ bool system_cpu_support_avx2()
 
 #endif
 
+#ifdef WITH_CYCLES_DEBUG_FPE
 static void system_enable_fpe()
 {
 #ifdef __GNUC__
@@ -329,6 +330,8 @@ scoped_fpe::~scoped_fpe()
 		system_disable_fpe();
 	}
 }
+
+#endif
 
 CCL_NAMESPACE_END
 
