@@ -30,7 +30,7 @@ ccl_device void kernel_filter_divide_shadow(KernelGlobals *kg, int sample, float
 	int xtile = (x < tile_x[1])? 0: ((x < tile_x[2])? 1: 2);
 	int ytile = (y < tile_y[1])? 0: ((y < tile_y[2])? 1: 2);
 	int tile = ytile*3+xtile;
-	float *center_buffer = buffers[tile] + (offset[tile] + y*stride[tile] + x)*kernel_data.film.pass_stride + kernel_data.film.pass_denoising;
+	float ccl_readonly_ptr center_buffer = buffers[tile] + (offset[tile] + y*stride[tile] + x)*kernel_data.film.pass_stride + kernel_data.film.pass_denoising;
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);
@@ -124,7 +124,7 @@ ccl_device void kernel_filter_combine_halves(int x, int y, float *mean, float *v
  * - a: Can be tweaked to account for noisy variance, generally a=1
  * - k_2: Squared k parameter of the NLM filter, general strength control (higher k => smoother image)
  */
-ccl_device void kernel_filter_non_local_means(int x, int y, float *noisyImage, float *weightImage, float *variance, float *filteredImage, int4 rect, int r, int f, float a, float k_2)
+ccl_device void kernel_filter_non_local_means(int x, int y, float ccl_readonly_ptr noisyImage, float ccl_readonly_ptr weightImage, float ccl_readonly_ptr variance, float *filteredImage, int4 rect, int r, int f, float a, float k_2)
 {
 	int2 low  = make_int2(max(rect.x, x - r),
 	                      max(rect.y, y - r));

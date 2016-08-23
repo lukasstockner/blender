@@ -24,7 +24,7 @@ CCL_NAMESPACE_BEGIN
 #define NORM_FEATURE_NUM 8
 
 #ifdef __KERNEL_CUDA__
-ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample, float const* __restrict__ buffer, int x, int y, float *transform, FilterStorage *storage, int4 rect, int transform_stride, int localIdx)
+ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, float *transform, FilterStorage *storage, int4 rect, int transform_stride, int localIdx)
 {
 	__shared__ float shared_features[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
 	float *features = shared_features + localIdx*DENOISE_FEATURES;
@@ -39,7 +39,7 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 	                      max(rect.y, y - kernel_data.integrator.half_window));
 	int2 high = make_int2(min(rect.z, x + kernel_data.integrator.half_window + 1),
 	                      min(rect.w, y + kernel_data.integrator.half_window + 1));
-	float const* __restrict__ pixel_buffer;
+	float ccl_readonly_ptr pixel_buffer;
 
 
 
@@ -115,7 +115,7 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 #endif
 }
 
-ccl_device void kernel_filter_estimate_bandwidths(KernelGlobals *kg, int sample, float const* __restrict__ buffer, int x, int y, float const* __restrict__ transform, FilterStorage *storage, int4 rect, int transform_stride, int localIdx)
+ccl_device void kernel_filter_estimate_bandwidths(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, float ccl_readonly_ptr transform, FilterStorage *storage, int4 rect, int transform_stride, int localIdx)
 {
 	__shared__ float shared_features[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
 	float *features = shared_features + localIdx*DENOISE_FEATURES;
@@ -130,8 +130,8 @@ ccl_device void kernel_filter_estimate_bandwidths(KernelGlobals *kg, int sample,
 	                      max(rect.y, y - kernel_data.integrator.half_window));
 	int2 high = make_int2(min(rect.z, x + kernel_data.integrator.half_window + 1),
 	                      min(rect.w, y + kernel_data.integrator.half_window + 1));
-	float const* __restrict__ pixel_buffer;
-	float const* __restrict__ center_buffer = buffer + (y - rect.y) * buffer_w + (x - rect.x);
+	float ccl_readonly_ptr pixel_buffer;
+	float ccl_readonly_ptr center_buffer = buffer + (y - rect.y) * buffer_w + (x - rect.x);
 
 	int rank = storage->rank;
 
@@ -176,7 +176,7 @@ ccl_device void kernel_filter_estimate_bandwidths(KernelGlobals *kg, int sample,
 		storage->bandwidth[i] = 0.0f;
 }
 
-ccl_device void kernel_filter_estimate_bias_variance(KernelGlobals *kg, int sample, float const* __restrict__ buffer, int x, int y, float const* __restrict__ transform, FilterStorage *storage, int4 rect, int candidate, int transform_stride, int localIdx)
+ccl_device void kernel_filter_estimate_bias_variance(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, float ccl_readonly_ptr transform, FilterStorage *storage, int4 rect, int candidate, int transform_stride, int localIdx)
 {
 	__shared__ float shared_features[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
 	float *features = shared_features + DENOISE_FEATURES*localIdx;
@@ -191,8 +191,8 @@ ccl_device void kernel_filter_estimate_bias_variance(KernelGlobals *kg, int samp
 	                      max(rect.y, y - kernel_data.integrator.half_window));
 	int2 high = make_int2(min(rect.z, x + kernel_data.integrator.half_window + 1),
 	                      min(rect.w, y + kernel_data.integrator.half_window + 1));
-	float const* __restrict__ pixel_buffer;
-	float const* __restrict__ center_buffer = buffer + (y - rect.y) * buffer_w + (x - rect.x);
+	float ccl_readonly_ptr pixel_buffer;
+	float ccl_readonly_ptr center_buffer = buffer + (y - rect.y) * buffer_w + (x - rect.x);
 	float3 center_color  = filter_get_pixel_color(center_buffer, pass_stride);
 	float sqrt_center_variance = sqrtf(filter_get_pixel_variance(center_buffer, pass_stride));
 
@@ -291,7 +291,7 @@ ccl_device void kernel_filter_calculate_bandwidth(KernelGlobals *kg, int sample,
 	storage->global_bandwidth = (float) pow((storage->rank * variance_coef) / (4.0 * bias_coef*bias_coef * sample), 1.0 / (storage->rank + 4));
 }
 
-ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float const* __restrict__ buffer, int x, int y, int offset, int stride, float *buffers, float const* __restrict__ transform, FilterStorage *storage, int4 filter_area, int4 rect, int transform_stride, int localIdx)
+ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, int offset, int stride, float *buffers, float ccl_readonly_ptr transform, FilterStorage *storage, int4 filter_area, int4 rect, int transform_stride, int localIdx)
 {
 	__shared__ float shared_features[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
 	float *features = shared_features + DENOISE_FEATURES*localIdx;
@@ -306,9 +306,9 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float co
 	                      max(rect.y, y - kernel_data.integrator.half_window));
 	int2 high = make_int2(min(rect.z, x + kernel_data.integrator.half_window + 1),
 	                      min(rect.w, y + kernel_data.integrator.half_window + 1));
-	float const* __restrict__ pixel_buffer;
+	float ccl_readonly_ptr pixel_buffer;
 	/* === Get center pixel. === */
-	float const* __restrict__ center_buffer = buffer + (y - rect.y) * buffer_w + (x - rect.x);
+	float ccl_readonly_ptr center_buffer = buffer + (y - rect.y) * buffer_w + (x - rect.x);
 	float3 center_color  = filter_get_pixel_color(center_buffer, pass_stride);
 	float sqrt_center_variance = sqrtf(filter_get_pixel_variance(center_buffer, pass_stride));
 
@@ -433,7 +433,7 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float co
 #else
 
 #  ifdef __KERNEL_SSE3__
-ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, float *buffer, int x, int y, FilterStorage *storage, int4 rect)
+ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, FilterStorage *storage, int4 rect)
 {
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int buffer_h = (rect.w - rect.y);
@@ -442,7 +442,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	int prev_frames = kernel_data.film.prev_frames;
 
 	__m128 features[DENOISE_FEATURES];
-	float *pixel_buffer;
+	float ccl_readonly_ptr pixel_buffer;
 
 	int2 low  = make_int2(max(rect.x, x - kernel_data.integrator.half_window),
 	                      max(rect.y, y - kernel_data.integrator.half_window));
@@ -518,7 +518,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 
 	/* From here on, the mean of the features will be shifted to the central pixel's values. */
 	float feature_means_scalar[DENOISE_FEATURES];
-	float const* __restrict__ center_buffer = buffer + (y - rect.y) * buffer_w + (x - rect.x);
+	float ccl_readonly_ptr center_buffer = buffer + (y - rect.y) * buffer_w + (x - rect.x);
 	filter_get_features(x, y, 0, center_buffer, feature_means_scalar, NULL, pass_stride);
 	for(int i = 0; i < DENOISE_FEATURES; i++)
 		feature_means[i] = _mm_set1_ps(feature_means_scalar[i]);
@@ -691,7 +691,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 
 #  else
 
-ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, float const* __restrict__ buffer, int x, int y, FilterStorage *storage, int4 rect)
+ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, FilterStorage *storage, int4 rect)
 {
 	float features[DENOISE_FEATURES];
 
@@ -704,10 +704,10 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	/* Temporary storage, used in different steps of the algorithm. */
 	float tempmatrix[(2*DENOISE_FEATURES+1)*(2*DENOISE_FEATURES+1)];
 	float tempvector[2*DENOISE_FEATURES+1];
-	float const* __restrict__ pixel_buffer;
+	float ccl_readonly_ptr pixel_buffer;
 
 	/* === Get center pixel color and variance. === */
-	float const* __restrict__ center_buffer = buffer + (y - rect.y) * buffer_w + (x - rect.x);
+	float ccl_readonly_ptr center_buffer = buffer + (y - rect.y) * buffer_w + (x - rect.x);
 	float3 center_color  = filter_get_pixel_color(center_buffer, pass_stride);
 	float sqrt_center_variance = sqrtf(filter_get_pixel_variance(center_buffer, pass_stride));
 
@@ -966,7 +966,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 
 #  endif // __KERNEL_SSE3__
 
-ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float *buffer, int x, int y, int offset, int stride, float *buffers, FilterStorage *storage, int4 filter_area, int4 rect)
+ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, int offset, int stride, float *buffers, FilterStorage *storage, int4 filter_area, int4 rect)
 {
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int buffer_h = (rect.w - rect.y);
@@ -975,10 +975,10 @@ ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float *b
 	int prev_frames = kernel_data.film.prev_frames;
 
 	float features[DENOISE_FEATURES];
-	float *pixel_buffer;
+	float ccl_readonly_ptr pixel_buffer;
 
 	/* === Get center pixel. === */
-	float *center_buffer = buffer + (y - rect.y) * buffer_w + (x - rect.x);
+	float ccl_readonly_ptr center_buffer = buffer + (y - rect.y) * buffer_w + (x - rect.x);
 	float3 center_color  = filter_get_pixel_color(center_buffer, pass_stride);
 	float sqrt_center_variance = sqrtf(filter_get_pixel_variance(center_buffer, pass_stride));
 
