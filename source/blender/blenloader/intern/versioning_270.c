@@ -91,9 +91,6 @@ static void migrate_single_rot_stabilization_track_settings(MovieTrackingStabili
 		}
 	}
 	stab->rot_track = NULL; /* this field is now ignored */
-
-	/* by default show the track lists expanded, to improve "discoverability" */
-	stab->flag |= TRACKING_SHOW_STAB_TRACKS;
 }
 
 static void do_version_constraints_radians_degrees_270_1(ListBase *lb)
@@ -1386,13 +1383,20 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			for (clip = main->movieclip.first; clip != NULL; clip = clip->id.next) {
 				if (clip->tracking.stabilization.rot_track) {
 					migrate_single_rot_stabilization_track_settings(&clip->tracking.stabilization);
-					if (!clip->tracking.stabilization.scale) {
-						/* ensure init.
-						 * Was previously used for autoscale only,
-						 * now used always (as "target scale") */
-						clip->tracking.stabilization.scale = 1.0f;
-					}
 				}
+				if (clip->tracking.stabilization.scale == 0.0f) {
+					/* ensure init.
+					 * Was previously used for autoscale only,
+					 * now used always (as "target scale") */
+					clip->tracking.stabilization.scale = 1.0f;
+				}
+				/* blender prefers 1-based frame counting;
+				 * thus using frame 1 as reference typically works best */
+				clip->tracking.stabilization.anchor_frame = 1;
+				/* by default show the track lists expanded, to improve "discoverability" */
+				clip->tracking.stabilization.flag |= TRACKING_SHOW_STAB_TRACKS;
+				/* deprecated, not used anymore */
+				clip->tracking.stabilization.ok = false;
 			}
 		}
 	}
