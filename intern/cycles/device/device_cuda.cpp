@@ -1078,7 +1078,7 @@ public:
 		/* Use the prefiltered feature to denoise the image. */
 		int4 filter_area = make_int4(rtile.x + overscan, rtile.y + overscan, rtile.w - 2*overscan, rtile.h - 2*overscan);
 		CUdeviceptr d_storage, d_transforms;
-		cuda_assert(cuMemAlloc(&d_storage, filter_area.z*filter_area.w*sizeof(FilterStorage)));
+		cuda_assert(cuMemAlloc(&d_storage, filter_area.z*filter_area.w*sizeof(CUDAFilterStorage)));
 		cuda_assert(cuMemAlloc(&d_transforms, filter_area.z*filter_area.w*sizeof(float)*DENOISE_FEATURES*DENOISE_FEATURES));
 
 		xthreads = (int)sqrt((float)threads_per_block);
@@ -1140,9 +1140,9 @@ public:
 		cuda_assert(cuCtxSynchronize());
 
 #ifdef WITH_CYCLES_DEBUG_FILTER
-		FilterStorage *host_storage = new FilterStorage[filter_area.z*filter_area.w];
-		cuda_assert(cuMemcpyDtoH(host_storage, d_storage, sizeof(FilterStorage)*filter_area.z*filter_area.w));
-#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_cuda_%s.pfm", rtile.x+rtile.buffers->params.overscan, rtile.y+rtile.buffers->params.overscan, name).c_str(), &host_storage[0].var, filter_area.z, filter_area.w, sizeof(FilterStorage)/sizeof(float), filter_area.z);
+		CUDAFilterStorage *host_storage = new CUDAFilterStorage[filter_area.z*filter_area.w];
+		cuda_assert(cuMemcpyDtoH(host_storage, d_storage, sizeof(CUDAFilterStorage)*filter_area.z*filter_area.w));
+#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_cuda_%s.pfm", rtile.x+rtile.buffers->params.overscan, rtile.y+rtile.buffers->params.overscan, name).c_str(), &host_storage[0].var, filter_area.z, filter_area.w, sizeof(CUDAFilterStorage)/sizeof(float), filter_area.z);
 		for(int i = 0; i < DENOISE_FEATURES; i++) {
 			WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
 			WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);

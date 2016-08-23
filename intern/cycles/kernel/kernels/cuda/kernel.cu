@@ -267,7 +267,7 @@ kernel_cuda_filter_construct_transform(int sample, float const* __restrict__ buf
 	int x = blockDim.x*blockIdx.x + threadIdx.x;
 	int y = blockDim.y*blockIdx.y + threadIdx.y;
 	if(x < filter_area.z && y < filter_area.w) {
-		FilterStorage *l_storage = ((FilterStorage*) storage) + y*filter_area.z + x;
+		CUDAFilterStorage *l_storage = ((CUDAFilterStorage*) storage) + y*filter_area.z + x;
 		float *l_transform = transform + y*filter_area.z + x;
 		kernel_filter_construct_transform(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, l_transform, l_storage, rect, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x);
 	}
@@ -280,7 +280,7 @@ kernel_cuda_filter_estimate_bandwidths(int sample, float const* __restrict__ buf
 	int x = blockDim.x*blockIdx.x + threadIdx.x;
 	int y = blockDim.y*blockIdx.y + threadIdx.y;
 	if(x < filter_area.z && y < filter_area.w) {
-		FilterStorage *l_storage = ((FilterStorage*) storage) + y*filter_area.z + x;
+		CUDAFilterStorage *l_storage = ((CUDAFilterStorage*) storage) + y*filter_area.z + x;
 		float const* __restrict__ l_transform = transform + y*filter_area.z + x;
 		kernel_filter_estimate_bandwidths(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, l_transform, l_storage, rect, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x);
 	}
@@ -293,7 +293,7 @@ kernel_cuda_filter_estimate_bias_variance(int sample, float const* __restrict__ 
 	int x = blockDim.x*blockIdx.x + threadIdx.x;
 	int y = blockDim.y*blockIdx.y + threadIdx.y;
 	if(x < filter_area.z && y < filter_area.w) {
-		FilterStorage *l_storage = ((FilterStorage*) storage) + y*filter_area.z + x;
+		CUDAFilterStorage *l_storage = ((CUDAFilterStorage*) storage) + y*filter_area.z + x;
 		float const* __restrict__ l_transform = transform + y*filter_area.z + x;
 		kernel_filter_estimate_bias_variance(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, l_transform, l_storage, rect, candidate, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x);
 	}
@@ -306,7 +306,7 @@ kernel_cuda_filter_calculate_bandwidth(int sample, void *storage, int4 filter_ar
 	int x = blockDim.x*blockIdx.x + threadIdx.x;
 	int y = blockDim.y*blockIdx.y + threadIdx.y;
 	if(x < filter_area.z && y < filter_area.w) {
-		FilterStorage *l_storage = ((FilterStorage*) storage) + y*filter_area.z + x;
+		CUDAFilterStorage *l_storage = ((CUDAFilterStorage*) storage) + y*filter_area.z + x;
 		kernel_filter_calculate_bandwidth(NULL, sample, l_storage);
 	}
 }
@@ -318,7 +318,7 @@ kernel_cuda_filter_final_pass(int sample, float* buffer, int offset, int stride,
 	int x = blockDim.x*blockIdx.x + threadIdx.x;
 	int y = blockDim.y*blockIdx.y + threadIdx.y;
 	if(x < filter_area.z && y < filter_area.w) {
-		FilterStorage *l_storage = ((FilterStorage*) storage) + y*filter_area.z + x;
+		CUDAFilterStorage *l_storage = ((CUDAFilterStorage*) storage) + y*filter_area.z + x;
 		float const* __restrict__ l_transform = transform + y*filter_area.z + x;
 		kernel_filter_final_pass(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, l_transform, l_storage, filter_area, rect, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x);
 	}

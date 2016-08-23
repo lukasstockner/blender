@@ -24,7 +24,7 @@ CCL_NAMESPACE_BEGIN
 #define NORM_FEATURE_NUM 8
 
 #ifdef __KERNEL_CUDA__
-ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, float *transform, FilterStorage *storage, int4 rect, int transform_stride, int localIdx)
+ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, float *transform, CUDAFilterStorage *storage, int4 rect, int transform_stride, int localIdx)
 {
 	__shared__ float shared_features[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
 	float *features = shared_features + localIdx*DENOISE_FEATURES;
@@ -115,7 +115,7 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 #endif
 }
 
-ccl_device void kernel_filter_estimate_bandwidths(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, float ccl_readonly_ptr transform, FilterStorage *storage, int4 rect, int transform_stride, int localIdx)
+ccl_device void kernel_filter_estimate_bandwidths(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, float ccl_readonly_ptr transform, CUDAFilterStorage *storage, int4 rect, int transform_stride, int localIdx)
 {
 	__shared__ float shared_features[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
 	float *features = shared_features + localIdx*DENOISE_FEATURES;
@@ -176,7 +176,7 @@ ccl_device void kernel_filter_estimate_bandwidths(KernelGlobals *kg, int sample,
 		storage->bandwidth[i] = 0.0f;
 }
 
-ccl_device void kernel_filter_estimate_bias_variance(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, float ccl_readonly_ptr transform, FilterStorage *storage, int4 rect, int candidate, int transform_stride, int localIdx)
+ccl_device void kernel_filter_estimate_bias_variance(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, float ccl_readonly_ptr transform, CUDAFilterStorage *storage, int4 rect, int candidate, int transform_stride, int localIdx)
 {
 	__shared__ float shared_features[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
 	float *features = shared_features + DENOISE_FEATURES*localIdx;
@@ -272,7 +272,7 @@ ccl_device void kernel_filter_estimate_bias_variance(KernelGlobals *kg, int samp
 	storage->est_variance[candidate] = est_variance;
 }
 
-ccl_device void kernel_filter_calculate_bandwidth(KernelGlobals *kg, int sample, FilterStorage *storage)
+ccl_device void kernel_filter_calculate_bandwidth(KernelGlobals *kg, int sample, CUDAFilterStorage *storage)
 {
 	const float candidate_bw[6] = {0.05f, 0.1f, 0.25f, 0.5f, 1.0f, 2.0f};
 	double bias_XtX = 0.0, bias_XtY = 0.0, var_XtX = 0.0, var_XtY = 0.0;
@@ -291,7 +291,7 @@ ccl_device void kernel_filter_calculate_bandwidth(KernelGlobals *kg, int sample,
 	storage->global_bandwidth = (float) pow((storage->rank * variance_coef) / (4.0 * bias_coef*bias_coef * sample), 1.0 / (storage->rank + 4));
 }
 
-ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, int offset, int stride, float *buffers, float ccl_readonly_ptr transform, FilterStorage *storage, int4 filter_area, int4 rect, int transform_stride, int localIdx)
+ccl_device void kernel_filter_final_pass(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, int offset, int stride, float *buffers, float ccl_readonly_ptr transform, CUDAFilterStorage *storage, int4 filter_area, int4 rect, int transform_stride, int localIdx)
 {
 	__shared__ float shared_features[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
 	float *features = shared_features + DENOISE_FEATURES*localIdx;
