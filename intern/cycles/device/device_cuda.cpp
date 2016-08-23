@@ -1159,6 +1159,7 @@ public:
 #undef WRITE_DEBUG
 #endif
 		cuda_assert(cuMemFree(d_storage));
+		cuda_assert(cuMemFree(d_transforms));
 		cuda_assert(cuMemFree(d_denoise_buffers));
 
 		cuda_pop_context();
