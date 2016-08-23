@@ -34,7 +34,7 @@ ccl_device void kernel_filter_divide_shadow(KernelGlobals *kg, int sample, float
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);
-	int Bofs = (rect.w - rect.y)*buffer_w;
+	int Bofs = (rect.w - rect.y)*buffer_w*kernel_data.film.num_frames;
 	unfiltered[idx] = center_buffer[15] / max(center_buffer[14], 1e-7f);
 	unfiltered[idx+Bofs] = center_buffer[18] / max(center_buffer[17], 1e-7f);
 	float varFac = 1.0f / (sample * (sample-1));
