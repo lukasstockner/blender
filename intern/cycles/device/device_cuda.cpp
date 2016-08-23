@@ -89,6 +89,7 @@ public:
 	int cuDevId;
 	int cuDevArchitecture;
 	bool first_error;
+	KernelData kernel_globals;
 
 	struct PixelMem {
 		GLuint cuPBO;
@@ -523,6 +524,9 @@ public:
 
 		cuda_push_context();
 		cuda_assert(cuModuleGetGlobal(&mem, &bytes, cuModule, name));
+		if(strcmp(name, "__data") == 0) {
+			kernel_globals = *(KernelData*) host;
+		}
 		//assert(bytes == size);
 		cuda_assert(cuMemcpyHtoD(mem, host, size));
 		cuda_pop_context();
@@ -856,24 +860,31 @@ public:
 
 		int overscan = rtile.buffers->params.overscan;
 
-		int4 rect = make_int4(rtile.x, rtile.y, rtile.x + rtile.w, rtile.y + rtile.h);
+		int hw = kernel_globals.integrator.half_window;
+		int4 filter_area = make_int4(rtile.x + overscan, rtile.y + overscan, rtile.w - 2*overscan, rtile.h - 2*overscan);
+		int4 buffer_area = make_int4(rtile.buffers->params.full_x, rtile.buffers->params.full_y, rtile.buffers->params.width, rtile.buffers->params.height);
+		int4 rect = make_int4(max(filter_area.x - hw, buffer_area.x),
+		                      max(filter_area.y - hw, buffer_area.y),
+		                      min(filter_area.x + filter_area.z + hw, buffer_area.x + buffer_area.z),
+		                      min(filter_area.y + filter_area.w + hw, buffer_area.y + buffer_area.w));
 
 		int threads_per_block;
 		cuda_assert(cuFuncGetAttribute(&threads_per_block, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, cuFilterFinalPass));
 
 		int xthreads = (int)sqrt((float)threads_per_block);
 		int ythreads = (int)sqrt((float)threads_per_block);
-		int xblocks = (rtile.w + xthreads - 1)/xthreads;
-		int yblocks = (rtile.h + ythreads - 1)/ythreads;
+		int xblocks = (buffer_area.z + xthreads - 1)/xthreads;
+		int yblocks = (buffer_area.w + ythreads - 1)/ythreads;
 
 		CUdeviceptr d_denoise_buffers;
-		int w = align_up(rtile.w, 4);
-		int pass_stride = w*rtile.h*rtile.buffers->params.frames;
+		int w = align_up(rect.z - rect.x, 4);
+		int frame_stride = w*(rect.w - rect.y);
+		int pass_stride = frame_stride*rtile.buffers->params.frames;
 		cuda_assert(cuMemAlloc(&d_denoise_buffers, 22*pass_stride*sizeof(float)));
 #define CUDA_PTR_ADD(ptr, x) ((CUdeviceptr) (((float*) (ptr)) + (x)))
 
 		for(int frame = 0; frame < rtile.buffers->params.frames; frame++) {
-			CUdeviceptr d_denoise_buffer = CUDA_PTR_ADD(d_denoise_buffers, w*rtile.h*frame);
+			CUdeviceptr d_denoise_buffer = CUDA_PTR_ADD(d_denoise_buffers, frame_stride*frame);
 			CUdeviceptr d_buffer = CUDA_PTR_ADD(d_buffers, frame*rtile.buffers->params.width*rtile.buffers->params.height*rtile.buffers->params.get_passes_size());
 			/* ==== Step 1: Prefilter general features. ==== */
 			{
@@ -886,7 +897,7 @@ public:
 					CUdeviceptr d_unfiltered = CUDA_PTR_ADD(d_denoise_buffer, 16*pass_stride);
 
 					void *get_feature_args[] = {&sample, &d_buffer, &mean_from[i], &variance_from[i],
-					                            &rtile.x, &rtile.y, &rtile.w, &rtile.h,
+					                            &buffer_area,
 					                            &rtile.offset, &rtile.stride,
 					                            &d_unfiltered, &d_variance,
 					                            &rect};
@@ -923,7 +934,7 @@ public:
 				CUdeviceptr d_null = (CUdeviceptr) 0;
 				/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
 				void *divide_args[] = {&sample, &d_buffer,
-				                       &rtile.x, &rtile.y, &rtile.w, &rtile.h,
+					                   &buffer_area,
 				                       &rtile.offset, &rtile.stride,
 				                       &d_unfiltered, &d_sampleV, &d_sampleVV, &d_bufferV,
 				                       &rect};
@@ -1050,7 +1061,7 @@ public:
 					CUdeviceptr d_variance = CUDA_PTR_ADD(d_denoise_buffer, (offset_to[i]+1)*pass_stride);
 
 					void *get_feature_args[] = {&sample, &d_buffer, &mean_from[i], &variance_from[i],
-					                            &rtile.x, &rtile.y, &rtile.w, &rtile.h,
+					                            &buffer_area,
 					                            &rtile.offset, &rtile.stride,
 					                            &d_mean, &d_variance,
 					                            &rect};
@@ -1076,7 +1087,6 @@ public:
 #endif
 
 		/* Use the prefiltered feature to denoise the image. */
-		int4 filter_area = make_int4(rtile.x + overscan, rtile.y + overscan, rtile.w - 2*overscan, rtile.h - 2*overscan);
 		CUdeviceptr d_storage, d_transforms;
 		cuda_assert(cuMemAlloc(&d_storage, filter_area.z*filter_area.w*sizeof(CUDAFilterStorage)));
 		cuda_assert(cuMemAlloc(&d_transforms, filter_area.z*filter_area.w*sizeof(float)*DENOISE_FEATURES*DENOISE_FEATURES));
