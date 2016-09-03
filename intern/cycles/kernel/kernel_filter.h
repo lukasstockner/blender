@@ -61,13 +61,12 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 	math_vector_zero(feature_scale, DENOISE_FEATURES);
 
 	FOR_PIXEL_WINDOW {
-		filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
+		filter_get_feature_scales(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
 		for(int i = 0; i < DENOISE_FEATURES; i++)
-			feature_scale[i] = max(feature_scale[i], fabsf(features[i]));
+			feature_scale[i] = max(feature_scale[i], features[i]);
 	} END_FOR_PIXEL_WINDOW
 
-	for(int i = 0; i < DENOISE_FEATURES; i++)
-		feature_scale[i] = 1.0f / max(feature_scale[i], 0.01f);
+	filter_calculate_scale(feature_scale);
 
 
 
@@ -92,6 +91,7 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 	int rank = svd_cuda(feature_matrix, transform, transform_stride, singular, DENOISE_FEATURES);
 
 	float singular_threshold = 0.01f + 2.0f * (sqrtf(feature_matrix_norm) / (sqrtf(rank) * 0.5f));
+	singular_threshold *= singular_threshold;
 
 	rank = 0;
 	for(int i = 0; i < DENOISE_FEATURES; i++, rank++) {
@@ -462,13 +462,12 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 
 	__m128 feature_scale[DENOISE_FEATURES] = {_mm_setzero_ps()};
 	FOR_PIXEL_WINDOW_SSE {
-		filter_get_features_sse(x4, y4, t4, active_pixels, pixel_buffer, features, feature_means, pass_stride);
+		filter_get_feature_scales_sse(x4, y4, t4, active_pixels, pixel_buffer, features, feature_means, pass_stride);
 		for(int i = 0; i < DENOISE_FEATURES; i++)
-			feature_scale[i] = _mm_max_ps(feature_scale[i], _mm_fabs_ps(features[i]));
+			feature_scale[i] = _mm_max_ps(feature_scale[i], features[i]);
 	} END_FOR_PIXEL_WINDOW_SSE
 
-	for(int i = 0; i < DENOISE_FEATURES; i++)
-		feature_scale[i] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(feature_scale[i]), _mm_set1_ps(0.01f)));
+	filter_calculate_scale_sse(feature_scale);
 
 	__m128 feature_matrix_sse[DENOISE_FEATURES*DENOISE_FEATURES];
 	__m128 feature_matrix_norm = _mm_setzero_ps();
@@ -493,6 +492,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	__m128 feature_transform_sse[DENOISE_FEATURES*DENOISE_FEATURES];
 	int rank = svd(feature_matrix, feature_transform, singular, DENOISE_FEATURES);
 	float singular_threshold = 0.01f + 2.0f * (sqrtf(_mm_hsum_ss(feature_matrix_norm)) / (sqrtf(rank) * 0.5f));
+	singular_threshold *= singular_threshold;
 
 	rank = 0;
 	for(int i = 0; i < DENOISE_FEATURES; i++, rank++) {
@@ -740,13 +740,12 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	math_vector_zero(feature_scale, DENOISE_FEATURES);
 
 	FOR_PIXEL_WINDOW {
-		filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
+		filter_get_feature_scales(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
 		for(int i = 0; i < DENOISE_FEATURES; i++)
-			feature_scale[i] = max(feature_scale[i], fabsf(features[i]));
+			feature_scale[i] = max(feature_scale[i], features[i]);
 	} END_FOR_PIXEL_WINDOW
 
-	for(int i = 0; i < DENOISE_FEATURES; i++)
-		feature_scale[i] = 1.0f / max(feature_scale[i], 0.01f);
+	filter_calculate_scale(feature_scale);
 
 
 
@@ -786,6 +785,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	float singular_threshold = 0.01f + 2.0f * sqrtf(math_largest_eigenvalue(perturbation_matrix, NORM_FEATURE_NUM, tempvector_2, tempvector_2 + DENOISE_FEATURES));
 #else
 	float singular_threshold = 0.01f + 2.0f * (sqrtf(feature_matrix_norm) / (sqrtf(rank) * 0.5f));
+	singular_threshold *= singular_threshold;
 #endif
 
 	rank = 0;

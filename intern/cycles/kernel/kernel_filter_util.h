@@ -52,10 +52,10 @@ ccl_device_inline void filter_get_features(int x, int y, int t, float ccl_readon
 #ifdef DENOISE_TEMPORAL
 	*(feature++) = t;
 #endif
+	*(feature++) = ccl_get_feature(6);
 	*(feature++) = ccl_get_feature(0);
 	*(feature++) = ccl_get_feature(2);
 	*(feature++) = ccl_get_feature(4);
-	*(feature++) = ccl_get_feature(6);
 	*(feature++) = ccl_get_feature(8);
 	*(feature++) = ccl_get_feature(10);
 	*(feature++) = ccl_get_feature(12);
@@ -79,11 +79,11 @@ ccl_device_inline void filter_get_feature_variance(int x, int y, float ccl_reado
 #ifdef DENOISE_TEMPORAL
 	*(feature++) = 0.0f;
 #endif
+	*(feature++) = ccl_get_feature(7);
 	*(feature++) = ccl_get_feature(1);
 	*(feature++) = ccl_get_feature(3);
 	*(feature++) = ccl_get_feature(5);
-	*(feature++) = ccl_get_feature(7);
-	*(feature++) = ccl_get_feature(9);
+	*(feature++) = 0.0f;//ccl_get_feature(9);
 	*(feature++) = ccl_get_feature(11);
 	*(feature++) = ccl_get_feature(13);
 	*(feature++) = ccl_get_feature(15);
@@ -94,6 +94,54 @@ ccl_device_inline void filter_get_feature_variance(int x, int y, float ccl_reado
 #endif
 	for(int i = 0; i < DENOISE_FEATURES; i++)
 		features[i] *= scale[i]*scale[i];
+}
+
+ccl_device_inline void filter_get_feature_scales(int x, int y, int t, float ccl_readonly_ptr buffer, float *scales, float *mean, int pass_stride)
+{
+	*(scales++) = fabsf(x - *(mean++)); //X
+	*(scales++) = fabsf(y - *(mean++)); //Y
+#ifdef DENOISE_TEMPORAL
+	*(scales++) = fabsf(t - *(mean++)); //T
+#endif
+
+	*(scales++) = fabsf(ccl_get_feature(6) - *(mean++)); //Depth
+
+	float normalS = len_squared(make_float3(ccl_get_feature(0) - mean[0], ccl_get_feature(2) - mean[1], ccl_get_feature(4) - mean[2]));
+	mean += 3;
+	*(scales++) = normalS; //NormalX
+	*(scales++) = normalS; //NormalY
+	*(scales++) = normalS; //NormalZ
+
+	*(scales++) = fabsf(ccl_get_feature(8) - *(mean++)); //Shadow
+
+	float normalT = len_squared(make_float3(ccl_get_feature(10) - mean[0], ccl_get_feature(12) - mean[1], ccl_get_feature(14) - mean[2]));
+	mean += 3;
+	*(scales++) = normalT; //AlbedoR
+	*(scales++) = normalT; //AlbedoG
+	*(scales++) = normalT; //AlbedoB
+}
+
+ccl_device_inline void filter_calculate_scale(float *scale)
+{
+	scale[0] = 1.0f/max(scale[0], 0.01f); //X
+	scale[1] = 1.0f/max(scale[1], 0.01f); //Y
+	scale += 2;
+#ifdef DENOISE_TEMPORAL
+	scale[0] = 1.0f/max(scale[0], 0.01f); //T
+	scale++;
+#endif
+	
+	scale[0] = 1.0f/max(scale[0], 0.01f); //Depth
+
+	scale[1] = 1.0f/max(sqrtf(scale[1]), 0.01f); //NormalX
+	scale[2] = 1.0f/max(sqrtf(scale[2]), 0.01f); //NormalY
+	scale[3] = 1.0f/max(sqrtf(scale[3]), 0.01f); //NormalZ
+	
+	scale[4] = 1.0f/max(scale[4], 0.01f); //Shadow
+
+	scale[5] = 1.0f/max(sqrtf(scale[5]), 0.01f); //AlbedoR
+	scale[6] = 1.0f/max(sqrtf(scale[6]), 0.01f); //AlbedoG
+	scale[7] = 1.0f/max(sqrtf(scale[7]), 0.01f); //AlbedoB
 }
 
 ccl_device_inline float3 filter_get_pixel_color(float ccl_readonly_ptr buffer, int pass_stride)
@@ -182,10 +230,10 @@ ccl_device_inline void filter_get_features_sse(__m128 x, __m128 y, __m128 t, __m
 #ifdef DENOISE_TEMPORAL
 	*(feature++) = t;
 #endif
+	*(feature++) = ccl_get_feature_sse(6);
 	*(feature++) = ccl_get_feature_sse(0);
 	*(feature++) = ccl_get_feature_sse(2);
 	*(feature++) = ccl_get_feature_sse(4);
-	*(feature++) = ccl_get_feature_sse(6);
 	*(feature++) = ccl_get_feature_sse(8);
 	*(feature++) = ccl_get_feature_sse(10);
 	*(feature++) = ccl_get_feature_sse(12);
@@ -205,7 +253,65 @@ ccl_device_inline void filter_get_features_sse(__m128 x, __m128 y, __m128 t, __m
 #endif
 }
 
-ccl_device_inline void filter_get_feature_variance_sse(__m128 x, __m128 y, __m128 active_pixels, float ccl_readonly_ptr buffer, __m128*features, __m128 *scale, int pass_stride)
+ccl_device_inline void filter_get_feature_scales_sse(__m128 x, __m128 y, __m128 t, __m128 active_pixels, float ccl_readonly_ptr buffer, __m128 *scales, __m128 *mean, int pass_stride)
+{
+	*(scales++) = _mm_mask_ps(_mm_fabs_ps(_mm_sub_ps(x, *(mean++))), active_pixels); //X
+	*(scales++) = _mm_mask_ps(_mm_fabs_ps(_mm_sub_ps(y, *(mean++))), active_pixels); //Y
+#ifdef DENOISE_TEMPORAL
+	*(scales++) = _mm_mask_ps(_mm_fabs_ps(_mm_sub_ps(t, *(mean++))), active_pixels); //T
+#endif
+
+	*(scales++) = _mm_mask_ps(_mm_fabs_ps(_mm_sub_ps(ccl_get_feature_sse(6), *(mean++))), active_pixels); //Depth
+
+	__m128 diff = _mm_sub_ps(ccl_get_feature_sse(0), mean[0]);
+	__m128 scale3 = _mm_mul_ps(diff, diff);
+	diff = _mm_sub_ps(ccl_get_feature_sse(2), mean[1]);
+	scale3 = _mm_add_ps(scale3, _mm_mul_ps(diff, diff));
+	diff = _mm_sub_ps(ccl_get_feature_sse(4), mean[2]);
+	scale3 = _mm_add_ps(scale3, _mm_mul_ps(diff, diff));
+	mean += 3;
+	*(scales++) = _mm_mask_ps(scale3, active_pixels); //NormalX
+	*(scales++) = _mm_mask_ps(scale3, active_pixels); //NormalY
+	*(scales++) = _mm_mask_ps(scale3, active_pixels); //NormalZ
+
+	*(scales++) = _mm_mask_ps(_mm_fabs_ps(_mm_sub_ps(ccl_get_feature_sse(8), *(mean++))), active_pixels); //Shadow
+
+	diff = _mm_sub_ps(ccl_get_feature_sse(10), mean[0]);
+	scale3 = _mm_mul_ps(diff, diff);
+	diff = _mm_sub_ps(ccl_get_feature_sse(12), mean[1]);
+	scale3 = _mm_add_ps(scale3, _mm_mul_ps(diff, diff));
+	diff = _mm_sub_ps(ccl_get_feature_sse(14), mean[2]);
+	scale3 = _mm_add_ps(scale3, _mm_mul_ps(diff, diff));
+	mean += 3;
+	*(scales++) = _mm_mask_ps(scale3, active_pixels); //AlbedoR
+	*(scales++) = _mm_mask_ps(scale3, active_pixels); //AlbedoG
+	*(scales++) = _mm_mask_ps(scale3, active_pixels); //AlbedoB
+}
+
+ccl_device_inline void filter_calculate_scale_sse(__m128 *scale)
+{
+	scale[0] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(scale[0]), _mm_set1_ps(0.01f))); //X
+	scale[1] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(scale[1]), _mm_set1_ps(0.01f))); //Y
+	scale += 2;
+#ifdef DENOISE_TEMPORAL
+	scale[0] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(scale[0]), _mm_set1_ps(0.01f))); //T
+	scale++;
+#endif
+	
+	scale[0] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(scale[0]), _mm_set1_ps(0.01f))); //Depth
+
+	scale[1] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(_mm_sqrt_ps(scale[1])), _mm_set1_ps(0.01f))); //NormalX
+	scale[2] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(_mm_sqrt_ps(scale[2])), _mm_set1_ps(0.01f))); //NormalY
+	scale[3] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(_mm_sqrt_ps(scale[3])), _mm_set1_ps(0.01f))); //NormalZ
+	
+	scale[4] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(scale[4]), _mm_set1_ps(0.01f))); //Shadow
+
+	scale[5] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(_mm_sqrt_ps(scale[5])), _mm_set1_ps(0.01f))); //AlbedoR
+	scale[6] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(_mm_sqrt_ps(scale[6])), _mm_set1_ps(0.01f))); //AlbedoG
+	scale[7] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(_mm_sqrt_ps(scale[7])), _mm_set1_ps(0.01f))); //AlbedoB
+}
+
+ccl_device_inline void filter_get_feature_variance_sse(__m128 x, __m128 y, __m128 active_pixels, float ccl_readonly_ptr buffer, __m128 *features, __m128 *scale, int pass_stride)
 {
 	__m128 *feature = features;
 	*(feature++) = _mm_setzero_ps();
@@ -213,11 +319,11 @@ ccl_device_inline void filter_get_feature_variance_sse(__m128 x, __m128 y, __m12
 #ifdef DENOISE_TEMPORAL
 	*(feature++) = _mm_setzero_ps();
 #endif
+	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 7), active_pixels);
 	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 1), active_pixels);
 	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 3), active_pixels);
 	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 5), active_pixels);
-	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 7), active_pixels);
-	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 9), active_pixels);
+	*(feature++) = _mm_setzero_ps();//_mm_mask_ps(ccl_get_feature_sse( 9), active_pixels);
 	*(feature++) = _mm_mask_ps(ccl_get_feature_sse(11), active_pixels);
 	*(feature++) = _mm_mask_ps(ccl_get_feature_sse(13), active_pixels);
 	*(feature++) = _mm_mask_ps(ccl_get_feature_sse(15), active_pixels);
