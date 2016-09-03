@@ -17,6 +17,8 @@
 #include "kernel_filter_pre.h"
 #include "kernel_filter_util.h"
 
+#include "kernel_filter_old.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Not all features are included in the matrix norm. */

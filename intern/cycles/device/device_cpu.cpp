@@ -419,11 +419,15 @@ public:
 	{
 		void(*filter_estimate_params_kernel)(KernelGlobals*, int, float*, int, int, void*, int4);
 		void(*filter_final_pass_kernel)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, int4, int4);
+		void(*filter_old_1)(KernelGlobals*, float*, int, int, int, int, float, float*, int4);
+		void(*filter_old_2)(KernelGlobals*, float*, float*, int, int, int, int, int, int, float, float*, int4, int4);
 
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
 		if(system_cpu_support_avx2()) {
 			filter_estimate_params_kernel = kernel_cpu_avx2_filter_estimate_params;
 			filter_final_pass_kernel = kernel_cpu_avx2_filter_final_pass;
+			filter_old_1 = kernel_cpu_avx2_filter_old_1;
+			filter_old_2 = kernel_cpu_avx2_filter_old_2;
 		}
 		else
 #endif
@@ -431,6 +435,8 @@ public:
 		if(system_cpu_support_avx()) {
 			filter_estimate_params_kernel = kernel_cpu_avx_filter_estimate_params;
 			filter_final_pass_kernel = kernel_cpu_avx_filter_final_pass;
+			filter_old_1 = kernel_cpu_avx_filter_old_1;
+			filter_old_2 = kernel_cpu_avx_filter_old_2;
 		}
 		else
 #endif
@@ -438,6 +444,8 @@ public:
 		if(system_cpu_support_sse41()) {
 			filter_estimate_params_kernel = kernel_cpu_sse41_filter_estimate_params;
 			filter_final_pass_kernel = kernel_cpu_sse41_filter_final_pass;
+			filter_old_1 = kernel_cpu_sse41_filter_old_1;
+			filter_old_2 = kernel_cpu_sse41_filter_old_2;
 		}
 		else
 #endif
@@ -445,6 +453,8 @@ public:
 		if(system_cpu_support_sse3()) {
 			filter_estimate_params_kernel = kernel_cpu_sse3_filter_estimate_params;
 			filter_final_pass_kernel = kernel_cpu_sse3_filter_final_pass;
+			filter_old_1 = kernel_cpu_sse3_filter_old_1;
+			filter_old_2 = kernel_cpu_sse3_filter_old_2;
 		}
 		else
 #endif
@@ -452,46 +462,83 @@ public:
 		if(system_cpu_support_sse2()) {
 			filter_estimate_params_kernel = kernel_cpu_sse2_filter_estimate_params;
 			filter_final_pass_kernel = kernel_cpu_sse2_filter_final_pass;
+			filter_old_1 = kernel_cpu_sse2_filter_old_1;
+			filter_old_2 = kernel_cpu_sse2_filter_old_2;
 		}
 		else
 #endif
 		{
 			filter_estimate_params_kernel = kernel_cpu_filter_estimate_params;
 			filter_final_pass_kernel = kernel_cpu_filter_final_pass;
+			filter_old_1 = kernel_cpu_filter_old_1;
+			filter_old_2 = kernel_cpu_filter_old_2;
 		}
 
-		FilterStorage *storages = new FilterStorage[filter_area.z*filter_area.w];
+		bool old_filter = getenv("OLD_FILTER");
 
-		for(int y = 0; y < filter_area.w; y++) {
-			for(int x = 0; x < filter_area.z; x++) {
-				filter_estimate_params_kernel(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storages + y*filter_area.z + x, rect);
+		FilterStorage *storage = new FilterStorage[filter_area.z*filter_area.w];
+		int hw = kg->__data.integrator.half_window;
+
+		if(old_filter) {
+			for(int y = 0; y < filter_area.w; y++) {
+				for(int x = 0; x < filter_area.z; x++) {
+					filter_old_1(kg, filter_buffer, x + filter_area.x, y + filter_area.y, sample, hw, 1.0f, ((float*) (storage + y*filter_area.z + x)), rect);
+				}
 			}
-		}
-
 #ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", filter_area.x, filter_area.y, name).c_str(), &storages[0].var, filter_area.z, filter_area.w, sizeof(FilterStorage)/sizeof(float), filter_area.z);
-		for(int i = 0; i < DENOISE_FEATURES; i++) {
-			WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
-			WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);
-			WRITE_DEBUG(string_printf("singular_%d", i).c_str(), singular[i]);
-			WRITE_DEBUG(string_printf("bandwidth_%d", i).c_str(), bandwidth[i]);
-		}
-		WRITE_DEBUG("singular_threshold", singular_threshold);
-		WRITE_DEBUG("feature_matrix_norm", feature_matrix_norm);
-		WRITE_DEBUG("global_bandwidth", global_bandwidth);
+#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", filter_area.x, filter_area.y, name).c_str(), &storage[0].var, filter_area.z, filter_area.w, sizeof(FilterStorage)/sizeof(float), filter_area.z);
+			for(int i = 0; i < DENOISE_FEATURES; i++) {
+				WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
+				WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);
+				WRITE_DEBUG(string_printf("singular_%d", i).c_str(), singular[i]);
+				WRITE_DEBUG(string_printf("bandwidth_%d", i).c_str(), bandwidth[i]);
+			}
+			WRITE_DEBUG("singular_threshold", singular_threshold);
+			WRITE_DEBUG("feature_matrix_norm", feature_matrix_norm);
+			WRITE_DEBUG("global_bandwidth", global_bandwidth);
 #endif
-		for(int y = 0; y < filter_area.w; y++) {
-			for(int x = 0; x < filter_area.z; x++) {
-				filter_final_pass_kernel(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storages + y*filter_area.z + x, filter_area, rect);
+			for(int y = 0; y < filter_area.w; y++) {
+				for(int x = 0; x < filter_area.z; x++) {
+					filter_old_2(kg, buffers, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, sample, hw, 1.0f, ((float*) (storage + y*filter_area.z + x)), rect, filter_area);
+				}
 			}
-		}
 #ifdef WITH_CYCLES_DEBUG_FILTER
-		WRITE_DEBUG("filtered_global_bandwidth", filtered_global_bandwidth);
-		WRITE_DEBUG("sum_weight", sum_weight);
-		WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
+			WRITE_DEBUG("filtered_global_bandwidth", filtered_global_bandwidth);
+			WRITE_DEBUG("sum_weight", sum_weight);
+			WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
 #undef WRITE_DEBUG
 #endif
-		delete[] storages;
+		} else {
+			for(int y = 0; y < filter_area.w; y++) {
+				for(int x = 0; x < filter_area.z; x++) {
+					filter_estimate_params_kernel(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, rect);
+				}
+			}
+#ifdef WITH_CYCLES_DEBUG_FILTER
+#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", filter_area.x, filter_area.y, name).c_str(), &storage[0].var, filter_area.z, filter_area.w, sizeof(FilterStorage)/sizeof(float), filter_area.z);
+			for(int i = 0; i < DENOISE_FEATURES; i++) {
+				WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
+				WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);
+				WRITE_DEBUG(string_printf("singular_%d", i).c_str(), singular[i]);
+				WRITE_DEBUG(string_printf("bandwidth_%d", i).c_str(), bandwidth[i]);
+			}
+			WRITE_DEBUG("singular_threshold", singular_threshold);
+			WRITE_DEBUG("feature_matrix_norm", feature_matrix_norm);
+			WRITE_DEBUG("global_bandwidth", global_bandwidth);
+#endif
+			for(int y = 0; y < filter_area.w; y++) {
+				for(int x = 0; x < filter_area.z; x++) {
+					filter_final_pass_kernel(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storage + y*filter_area.z + x, filter_area, rect);
+				}
+			}
+#ifdef WITH_CYCLES_DEBUG_FILTER
+			WRITE_DEBUG("filtered_global_bandwidth", filtered_global_bandwidth);
+			WRITE_DEBUG("sum_weight", sum_weight);
+			WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
+#undef WRITE_DEBUG
+#endif
+		}
+		free(storage);
 	}
 
 	void thread_render(DeviceTask& task)

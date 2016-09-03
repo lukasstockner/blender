@@ -215,4 +215,31 @@ void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
 	kernel_filter_final_pass(kg, sample, buffer, x, y, offset, stride, buffers, (FilterStorage*) storage, filter_area, rect);
 }
 
+void KERNEL_FUNCTION_FULL_NAME(filter_old_1)(KernelGlobals *kg,
+                                             float *denoise_data,
+                                             int x, int y,
+                                             int samples,
+                                             int halfWindow,
+                                             float bandwidthFactor,
+                                             float *storage,
+                                             int4 rect)
+{
+  kernel_filter1_pixel(kg, denoise_data, x, y, samples, halfWindow, bandwidthFactor, storage, rect);
+}
+
+void KERNEL_FUNCTION_FULL_NAME(filter_old_2)(KernelGlobals *kg,
+                                             float* buffer,
+                                             float *denoise_data,
+                                             int x, int y,
+                                             int offset, int stride,
+                                             int samples,
+                                             int halfWindow,
+                                             float bandwidthFactor,
+                                             float *storage,
+                                             int4 rect,
+                                             int4 tile)
+{
+  kernel_filter2_pixel(kg, buffer, denoise_data, x, y, offset, stride, samples, halfWindow, bandwidthFactor, storage, rect, tile);
+}
+
 CCL_NAMESPACE_END
