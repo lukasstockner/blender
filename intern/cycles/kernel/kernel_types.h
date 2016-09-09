@@ -1153,13 +1153,13 @@ typedef struct KernelIntegrator {
 	int sampling_pattern;
 	int aa_samples;
 	int dither_size;
+	float scrambling_distance;
 
 	/* volume render */
 	int use_volumes;
 	int volume_max_steps;
 	float volume_step_size;
 	int volume_samples;
-
 	/* denoiser */
 	int half_window;
 	float filter_strength;
@@ -1168,7 +1168,7 @@ typedef struct KernelIntegrator {
 	int use_nlm_weights;
 
 	int ies_stride;
-	int pad1, pad2;
+	int pad1;
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 
