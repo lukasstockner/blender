@@ -1241,13 +1241,13 @@ typedef struct KernelIntegrator {
 	int sampling_pattern;
 	int aa_samples;
 	int dither_size;
+	float scrambling_distance;
 
 	/* volume render */
 	int use_volumes;
 	int volume_max_steps;
 	float volume_step_size;
 	int volume_samples;
-
 	int start_sample;
 
 	int ies_stride;

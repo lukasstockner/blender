@@ -204,7 +204,10 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
             sub.prop(cscene, "volume_samples", text="Volume")
 
         if not (use_opencl(context) and cscene.feature_set != 'EXPERIMENTAL'):
-            layout.row().prop(cscene, "sampling_pattern", text="Pattern")
+            col = layout.row().column()
+            col.prop(cscene, "sampling_pattern", text="Pattern")
+            col.prop(cscene, "scrambling_distance")
+
 
         for rl in scene.render.layers:
             if rl.samples > 0:
