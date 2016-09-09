@@ -64,6 +64,7 @@ public:
 
 	bool only_denoise;
 	int half_window;
+	float filter_strength;
 	int prev_frames;
 
 	double cancel_timeout;
@@ -95,6 +96,7 @@ public:
 
 		only_denoise = false;
 		half_window = 8;
+		filter_strength = 1.0f;
 		prev_frames = 0;
 
 		cancel_timeout = 0.1;
@@ -123,6 +125,7 @@ public:
 		&& denoise_result == params.denoise_result
 		&& only_denoise == params.only_denoise
 		&& half_window == params.half_window
+		&& filter_strength == params.filter_strength
 		&& prev_frames == params.prev_frames
 		&& display_buffer_linear == params.display_buffer_linear
 		&& cancel_timeout == params.cancel_timeout

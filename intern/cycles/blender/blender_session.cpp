@@ -1379,9 +1379,11 @@ void BlenderSession::denoise(BL::RenderResult& b_rr)
 		BL::RenderSettings r = b_scene.render();
 		BL::RenderSettings::layers_iterator b_s_layer_iter;
 		int half_window = -1;
+		float filter_strength = 0.0f;
 		for(r.layers.begin(b_s_layer_iter); b_s_layer_iter != r.layers.end(); ++b_s_layer_iter) {
 			if(b_s_layer_iter->name() == b_layer_iter->name()) {
 				half_window = b_s_layer_iter->half_window();
+				filter_strength = b_s_layer_iter->filter_strength();
 				break;
 			}
 		}
@@ -1389,6 +1391,7 @@ void BlenderSession::denoise(BL::RenderResult& b_rr)
 
 		session->params.half_window = half_window;
 		session->params.samples = get_int(cscene, "samples");
+		session->params.filter_strength = powf(2.0f, filter_strength);
 
 		session->buffers = BlenderSync::get_render_buffer(session->device, *b_layer_iter, b_rr, session->params.samples);
 
