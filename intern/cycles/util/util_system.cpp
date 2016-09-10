@@ -321,7 +321,7 @@ scoped_fpe::scoped_fpe(FPEState state)
 	}
 }
 
-scoped_fpe::~scoped_fpe()
+void scoped_fpe::restore()
 {
 	if(was_enabled) {
 		system_enable_fpe();
@@ -329,6 +329,11 @@ scoped_fpe::~scoped_fpe()
 	else {
 		system_disable_fpe();
 	}
+}
+
+scoped_fpe::~scoped_fpe()
+{
+	restore();
 }
 
 #endif

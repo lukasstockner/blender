@@ -796,7 +796,7 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 
 		/* blurring of bsdf after bounces, for rays that have a small likelihood
 		 * of following this particular path (diffuse, rough glossy) */
-		if(kernel_data.integrator.filter_glossy != FLT_MAX) {
+		if(kernel_data.integrator.filter_glossy != FLT_MAX && state.min_ray_pdf < 1e10f) {
 			float blur_pdf = kernel_data.integrator.filter_glossy*state.min_ray_pdf;
 
 			if(blur_pdf < 1.0f) {

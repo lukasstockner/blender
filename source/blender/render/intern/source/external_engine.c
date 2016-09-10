@@ -255,7 +255,7 @@ void RE_engine_add_pass(RenderEngine *engine, int passtype, int channels, const 
 		return;
 	}
 
-	render_result_add_pass(re->result, 1UL << passtype, channels, layername, viewname);
+	render_result_add_pass(re->result, ((uint64_t)1)<<passtype, channels, layername, viewname);
 }
 
 void RE_engine_end_result(RenderEngine *engine, RenderResult *result, int cancel, int highlight, int merge_results)

@@ -49,6 +49,7 @@ class scoped_fpe
 {
 public:
 	explicit scoped_fpe(FPEState state);
+	void restore();
 	~scoped_fpe();
 private:
 	bool was_enabled;
