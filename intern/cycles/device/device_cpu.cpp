@@ -291,8 +291,12 @@ public:
 			for(int i = 0; i < 9; i++) {
 				buffer[i] = buffers[i] + frame_strides[i]*frame;
 			}
+#ifdef WITH_CYCLES_DEBUG_FILTER
+			DenoiseDebug debug((rect.z - rect.x), h, 34);
+#endif
 			/* ==== Step 1: Prefilter general features. ==== */
 			{
+
 				float *unfiltered = filter_buffer + 16*pass_stride;
 				/* Order in render buffers:
 				 *   Normal[X, Y, Z] NormalVar[X, Y, Z] Albedo[R, G, B] AlbedoVar[R, G, B ] Depth DepthVar
@@ -319,7 +323,7 @@ public:
 						}
 					}
 #ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_feature%d_%s.pfm", tile_x[1], tile_y[1], i, name).c_str(), var, (rect.z - rect.x), h, 1, w)
+#define WRITE_DEBUG(name, var) debug.add_pass(string_printf("f%d_%s", i, name), var, 1, w);
 					WRITE_DEBUG("unfiltered", unfiltered);
 					WRITE_DEBUG("sampleV", filter_buffer + (offset_to[i]+1)*pass_stride);
 					WRITE_DEBUG("filtered", filter_buffer + offset_to[i]*pass_stride);
@@ -343,7 +347,7 @@ public:
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_shadow_%s.pfm", tile_x[1], tile_y[1], name).c_str(), var, w, h, 1, w)
+#define WRITE_DEBUG(name, var) debug.add_pass(string_printf("shadow_%s", name), var, 1, w);
 				WRITE_DEBUG("unfilteredA", unfiltered);
 				WRITE_DEBUG("unfilteredB", unfiltered + pass_stride);
 				WRITE_DEBUG("bufferV", bufferV);
@@ -403,7 +407,8 @@ public:
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
 				WRITE_DEBUG("final", filter_buffer + 8*pass_stride);
-				WRITE_DEBUG("finalV", filter_buffer + 9*pass_stride);
+				WRITE_DEBUG("finalV", filter_buffer + 9 * pass_stride);
+				debug.write(string_printf("debugf_%dx%d.exr", tile_x[1], tile_y[1]));
 #undef WRITE_DEBUG
 #endif
 			}
@@ -492,12 +497,14 @@ public:
 				}
 			}
 #ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", filter_area.x, filter_area.y, name).c_str(), &storage[0].var, filter_area.z, filter_area.w, sizeof(FilterStorage)/sizeof(float), filter_area.z);
+			DenoiseDebug debug(filter_area.z, filter_area.w, 4 * DENOISE_FEATURES + 6);
+
+#define WRITE_DEBUG(name, var) debug.add_pass(name, &storage[0].var, sizeof(FilterStorage)/sizeof(float), filter_area.z);
 			for(int i = 0; i < DENOISE_FEATURES; i++) {
-				WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
-				WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);
-				WRITE_DEBUG(string_printf("singular_%d", i).c_str(), singular[i]);
-				WRITE_DEBUG(string_printf("bandwidth_%d", i).c_str(), bandwidth[i]);
+				WRITE_DEBUG(string_printf("mean_%d", i), means[i]);
+				WRITE_DEBUG(string_printf("scale_%d", i), scales[i]);
+				WRITE_DEBUG(string_printf("singular_%d", i), singular[i]);
+				WRITE_DEBUG(string_printf("bandwidth_%d", i), bandwidth[i]);
 			}
 			WRITE_DEBUG("singular_threshold", singular_threshold);
 			WRITE_DEBUG("feature_matrix_norm", feature_matrix_norm);
@@ -512,6 +519,7 @@ public:
 			WRITE_DEBUG("filtered_global_bandwidth", filtered_global_bandwidth);
 			WRITE_DEBUG("sum_weight", sum_weight);
 			WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
+			debug.write(string_printf("debug_%dx%d.exr", filter_area.x, filter_area.y));
 #undef WRITE_DEBUG
 #endif
 		}
