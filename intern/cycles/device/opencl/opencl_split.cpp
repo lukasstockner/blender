@@ -290,15 +290,9 @@ public:
 		return sizeof(KernelGlobals);
 	}
 
-	bool load_kernels(const DeviceRequestedFeatures& requested_features)
+	virtual void load_kernels(const DeviceRequestedFeatures& requested_features,
+	                          vector<OpenCLProgram*> &programs)
 	{
-		/* Get Shader, bake and film_convert kernels.
-		 * It'll also do verification of OpenCL actually initialized.
-		 */
-		if(!OpenCLDeviceBase::load_kernels(requested_features)) {
-			return false;
-		}
-
 		string build_options = "-D__SPLIT_KERNEL__ ";
 #ifdef __WORK_STEALING__
 		build_options += "-D__WORK_STEALING__ ";
@@ -322,12 +316,7 @@ public:
 	do { \
 		GLUE(program_, name) = OpenCLProgram(this, "split_" #name, "kernel_" #name ".cl", build_options); \
 		GLUE(program_, name).add_kernel(ustring("path_trace_" #name)); \
-		GLUE(program_, name).load(); \
-		VLOG(2) << GLUE(program_, name).get_log(); \
-		if(!GLUE(program_, name).is_loaded()) { \
-			GLUE(program_, name).report_error(); \
-			return false; \
-		} \
+		programs.push_back(&GLUE(program_, name)); \
 	} while(false)
 
 		LOAD_KERNEL(data_init);
@@ -346,8 +335,6 @@ public:
 #undef GLUE
 
 		current_max_closure = requested_features.max_closure;
-
-		return true;
 	}
 
 	~OpenCLDeviceSplitKernel()

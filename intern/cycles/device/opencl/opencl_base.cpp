@@ -205,14 +205,25 @@ bool OpenCLDeviceBase::load_kernels(const DeviceRequestedFeatures& requested_fea
 	base_program.add_kernel(ustring("shader"));
 	base_program.add_kernel(ustring("bake"));
 
-	base_program.load();
+	vector<OpenCLProgram*> programs;
+	programs.push_back(&base_program);
+	/* Call actual class to fill the vector with its programs. */
+	load_kernels(requested_features, programs);
 
-	VLOG(2) << base_program.get_log();
-
-	if(!base_program.is_loaded()) {
-		base_program.report_error();
-		return false;
+	TaskPool task_pool;
+	foreach(OpenCLProgram *program, programs) {
+		task_pool.push(function_bind(&OpenCLProgram::load, program));
 	}
+	task_pool.wait_work();
+
+	foreach(OpenCLProgram *program, programs) {
+		VLOG(2) << program->get_log();
+		if(!program->is_loaded()) {
+			program->report_error();
+			return false;
+		}
+	}
+
 	return true;
 }
 

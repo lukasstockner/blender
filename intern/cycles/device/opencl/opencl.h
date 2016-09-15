@@ -287,6 +287,11 @@ public:
 	string device_md5_hash(string kernel_custom_build_options = "");
 	bool load_kernels(const DeviceRequestedFeatures& requested_features);
 
+	/* Has to be implemented by the real device classes.
+	 * The base device will then load all these programs. */
+	virtual void load_kernels(const DeviceRequestedFeatures& requested_features,
+	                          vector<OpenCLProgram*> &programs) = 0;
+
 	void mem_alloc(device_memory& mem, MemoryType type);
 	void mem_copy_to(device_memory& mem);
 	void mem_copy_from(device_memory& mem, int y, int w, int h, int elem);

@@ -39,26 +39,11 @@ public:
 	{
 	}
 
-	bool load_kernels(const DeviceRequestedFeatures& requested_features)
+	virtual void load_kernels(const DeviceRequestedFeatures& /*requested_features*/,
+	                          vector<OpenCLProgram*> &programs)
 	{
-		/* Get Shader, bake and film convert kernels.
-		 * It'll also do verification of OpenCL actually initialized.
-		 */
-		if(!OpenCLDeviceBase::load_kernels(requested_features)) {
-			return false;
-		}
-
 		path_trace_program.add_kernel(ustring("path_trace"));
-
-		path_trace_program.load();
-
-		VLOG(2) << path_trace_program.get_log();
-
-		if(!path_trace_program.is_loaded()) {
-			path_trace_program.report_error();
-			return false;
-		}
-		return true;
+		programs.push_back(&path_trace_program);
 	}
 
 	~OpenCLDeviceMegaKernel()
