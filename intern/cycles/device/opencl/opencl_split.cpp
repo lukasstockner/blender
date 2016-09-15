@@ -89,30 +89,17 @@ class OpenCLDeviceSplitKernel : public OpenCLDeviceBase
 {
 public:
 	/* Kernel declaration. */
-	cl_kernel ckPathTraceKernel_data_init;
-	cl_kernel ckPathTraceKernel_scene_intersect;
-	cl_kernel ckPathTraceKernel_lamp_emission;
-	cl_kernel ckPathTraceKernel_queue_enqueue;
-	cl_kernel ckPathTraceKernel_background_buffer_update;
-	cl_kernel ckPathTraceKernel_shader_eval;
-	cl_kernel ckPathTraceKernel_holdout_emission_blurring_pathtermination_ao;
-	cl_kernel ckPathTraceKernel_direct_lighting;
-	cl_kernel ckPathTraceKernel_shadow_blocked;
-	cl_kernel ckPathTraceKernel_next_iteration_setup;
-	cl_kernel ckPathTraceKernel_sum_all_radiance;
-
-	/* cl_program declaration. */
-	cl_program data_init_program;
-	cl_program scene_intersect_program;
-	cl_program lamp_emission_program;
-	cl_program queue_enqueue_program;
-	cl_program background_buffer_update_program;
-	cl_program shader_eval_program;
-	cl_program holdout_emission_blurring_pathtermination_ao_program;
-	cl_program direct_lighting_program;
-	cl_program shadow_blocked_program;
-	cl_program next_iteration_setup_program;
-	cl_program sum_all_radiance_program;
+	OpenCLProgram program_data_init;
+	OpenCLProgram program_scene_intersect;
+	OpenCLProgram program_lamp_emission;
+	OpenCLProgram program_queue_enqueue;
+	OpenCLProgram program_background_buffer_update;
+	OpenCLProgram program_shader_eval;
+	OpenCLProgram program_holdout_emission_blurring_pathtermination_ao;
+	OpenCLProgram program_direct_lighting;
+	OpenCLProgram program_shadow_blocked;
+	OpenCLProgram program_next_iteration_setup;
+	OpenCLProgram program_sum_all_radiance;
 
 	/* Global memory variables [porting]; These memory is used for
 	 * co-operation between different kernels; Data written by one
@@ -199,32 +186,6 @@ public:
 	{
 		background = background_;
 
-		/* Initialize kernels. */
-		ckPathTraceKernel_data_init = NULL;
-		ckPathTraceKernel_scene_intersect = NULL;
-		ckPathTraceKernel_lamp_emission = NULL;
-		ckPathTraceKernel_background_buffer_update = NULL;
-		ckPathTraceKernel_shader_eval = NULL;
-		ckPathTraceKernel_holdout_emission_blurring_pathtermination_ao = NULL;
-		ckPathTraceKernel_direct_lighting = NULL;
-		ckPathTraceKernel_shadow_blocked = NULL;
-		ckPathTraceKernel_next_iteration_setup = NULL;
-		ckPathTraceKernel_sum_all_radiance = NULL;
-		ckPathTraceKernel_queue_enqueue = NULL;
-
-		/* Initialize program. */
-		data_init_program = NULL;
-		scene_intersect_program = NULL;
-		lamp_emission_program = NULL;
-		queue_enqueue_program = NULL;
-		background_buffer_update_program = NULL;
-		shader_eval_program = NULL;
-		holdout_emission_blurring_pathtermination_ao_program = NULL;
-		direct_lighting_program = NULL;
-		shadow_blocked_program = NULL;
-		next_iteration_setup_program = NULL;
-		sum_all_radiance_program = NULL;
-
 		/* Initialize cl_mem variables. */
 		kgbuffer = NULL;
 		sd = NULL;
@@ -286,73 +247,6 @@ public:
 		}
 	}
 
-	/* TODO(sergey): Seems really close to load_kernel(),
-	 * could it be de-duplicated?
-	 */
-	bool load_split_kernel(const string& kernel_name,
-	                       const string& device_md5,
-	                       const string& kernel_path,
-	                       const string& kernel_init_source,
-	                       const string& clbin,
-	                       const string& custom_kernel_build_options,
-	                       cl_program *program,
-	                       const string *debug_src = NULL)
-	{
-		ustring cache_key = ustring(kernel_name + "_" + device_md5);
-
-		/* Try to use cached kernel. */
-		thread_scoped_lock cache_locker;
-		*program = OpenCLCache::get_program(cpPlatform,
-		                                    cdDevice,
-		                                    cache_key,
-		                                    cache_locker);
-
-		if(*program == NULL) {
-			if(!opencl_version_check()) {
-				return false;
-			}
-
-			string cache_clbin = path_cache_get(path_join("kernels", clbin));
-
-			/* If exists already, try use it. */
-			if(path_exists(cache_clbin) && load_binary(kernel_path,
-			                                           cache_clbin,
-			                                           custom_kernel_build_options,
-			                                           program,
-			                                           debug_src))
-			{
-				/* Kernel loaded from binary. */
-			}
-			else {
-				/* If does not exist or loading binary failed, compile kernel. */
-				if(!compile_kernel(kernel_name,
-				                   kernel_path,
-				                   kernel_init_source,
-				                   custom_kernel_build_options,
-				                   program,
-				                   debug_src))
-				{
-					return false;
-				}
-				/* Save binary for reuse. */
-				if(!save_binary(program, cache_clbin)) {
-					return false;
-				}
-			}
-
-			/* Cache the program. */
-			OpenCLCache::store_program(cpPlatform,
-			                           cdDevice,
-			                           *program,
-			                           cache_key,
-			                           cache_locker);
-		}
-		else {
-			VLOG(2) << "Found cached OpenCL split kernel " << cache_key << ".";
-		}
-		return true;
-	}
-
 	/* Split kernel utility functions. */
 	size_t get_tex_size(const char *tex_name)
 	{
@@ -405,13 +299,6 @@ public:
 			return false;
 		}
 
-		string kernel_path = path_get("kernel");
-		string kernel_md5 = path_files_md5_hash(kernel_path);
-		string device_md5;
-		string kernel_init_source;
-		string clbin;
-		string clsrc, *debug_src = NULL;
-
 		string build_options = "-D__SPLIT_KERNEL__ ";
 #ifdef __WORK_STEALING__
 		build_options += "-D__WORK_STEALING__ ";
@@ -433,27 +320,12 @@ public:
 #define GLUE(a, b) a ## b
 #define LOAD_KERNEL(name) \
 	do { \
-		kernel_init_source = "#include \"kernels/opencl/kernel_" #name ".cl\" // " + \
-		                     kernel_md5 + "\n"; \
-		device_md5 = device_md5_hash(build_options); \
-		clbin = string_printf("cycles_kernel_%s_%s_" #name ".clbin", \
-		                      device_md5.c_str(), kernel_md5.c_str()); \
-		if(opencl_kernel_use_debug()) { \
-			clsrc = string_printf("cycles_kernel_%s_%s_" #name ".cl", \
-			                      device_md5.c_str(), kernel_md5.c_str()); \
-			clsrc = path_cache_get(path_join("kernels", clsrc)); \
-			debug_src = &clsrc; \
-		} \
-		if(!load_split_kernel(#name, \
-		                      device_md5, \
-		                      kernel_path, \
-		                      kernel_init_source, \
-		                      clbin, \
-		                      build_options, \
-		                      &GLUE(name, _program), \
-		                      debug_src)) \
-		{ \
-			fprintf(stderr, "Faled to compile %s\n", #name); \
+		GLUE(program_, name) = OpenCLProgram(this, "split_" #name, "kernel_" #name ".cl", build_options); \
+		GLUE(program_, name).add_kernel(ustring("path_trace_" #name)); \
+		GLUE(program_, name).load(); \
+		VLOG(2) << GLUE(program_, name).get_log(); \
+		if(!GLUE(program_, name).is_loaded()) { \
+			GLUE(program_, name).report_error(); \
 			return false; \
 		} \
 	} while(false)
@@ -470,30 +342,6 @@ public:
 		LOAD_KERNEL(next_iteration_setup);
 		LOAD_KERNEL(sum_all_radiance);
 
-#undef LOAD_KERNEL
-
-#define FIND_KERNEL(name) \
-	do { \
-		GLUE(ckPathTraceKernel_, name) = \
-			clCreateKernel(GLUE(name, _program), \
-			               "kernel_ocl_path_trace_"  #name, &ciErr); \
-		if(opencl_error(ciErr)) { \
-			fprintf(stderr,"Missing kernel kernel_ocl_path_trace_%s\n", #name); \
-			return false; \
-		} \
-	} while(false)
-
-		FIND_KERNEL(data_init);
-		FIND_KERNEL(scene_intersect);
-		FIND_KERNEL(lamp_emission);
-		FIND_KERNEL(queue_enqueue);
-		FIND_KERNEL(background_buffer_update);
-		FIND_KERNEL(shader_eval);
-		FIND_KERNEL(holdout_emission_blurring_pathtermination_ao);
-		FIND_KERNEL(direct_lighting);
-		FIND_KERNEL(shadow_blocked);
-		FIND_KERNEL(next_iteration_setup);
-		FIND_KERNEL(sum_all_radiance);
 #undef FIND_KERNEL
 #undef GLUE
 
@@ -507,17 +355,17 @@ public:
 		task_pool.stop();
 
 		/* Release kernels */
-		release_kernel_safe(ckPathTraceKernel_data_init);
-		release_kernel_safe(ckPathTraceKernel_scene_intersect);
-		release_kernel_safe(ckPathTraceKernel_lamp_emission);
-		release_kernel_safe(ckPathTraceKernel_queue_enqueue);
-		release_kernel_safe(ckPathTraceKernel_background_buffer_update);
-		release_kernel_safe(ckPathTraceKernel_shader_eval);
-		release_kernel_safe(ckPathTraceKernel_holdout_emission_blurring_pathtermination_ao);
-		release_kernel_safe(ckPathTraceKernel_direct_lighting);
-		release_kernel_safe(ckPathTraceKernel_shadow_blocked);
-		release_kernel_safe(ckPathTraceKernel_next_iteration_setup);
-		release_kernel_safe(ckPathTraceKernel_sum_all_radiance);
+		program_data_init.release();
+		program_scene_intersect.release();
+		program_lamp_emission.release();
+		program_queue_enqueue.release();
+		program_background_buffer_update.release();
+		program_shader_eval.release();
+		program_holdout_emission_blurring_pathtermination_ao.release();
+		program_direct_lighting.release();
+		program_shadow_blocked.release();
+		program_next_iteration_setup.release();
+		program_sum_all_radiance.release();
 
 		/* Release global memory */
 		release_mem_object_safe(rng_coop);
@@ -549,19 +397,6 @@ public:
 		release_mem_object_safe(work_pool_wgs);
 #endif
 		release_mem_object_safe(per_sample_output_buffers);
-
-		/* Release programs */
-		release_program_safe(data_init_program);
-		release_program_safe(scene_intersect_program);
-		release_program_safe(lamp_emission_program);
-		release_program_safe(queue_enqueue_program);
-		release_program_safe(background_buffer_update_program);
-		release_program_safe(shader_eval_program);
-		release_program_safe(holdout_emission_blurring_pathtermination_ao_program);
-		release_program_safe(direct_lighting_program);
-		release_program_safe(shadow_blocked_program);
-		release_program_safe(next_iteration_setup_program);
-		release_program_safe(sum_all_radiance_program);
 
 		if(hostRayStateArray != NULL) {
 			free(hostRayStateArray);
@@ -694,7 +529,7 @@ public:
 		cl_int dQueue_size = global_size[0] * global_size[1];
 
 		cl_uint start_arg_index =
-			kernel_set_args(ckPathTraceKernel_data_init,
+			kernel_set_args(program_data_init(),
 			                0,
 			                kgbuffer,
 			                sd_DL_shadow,
@@ -712,12 +547,12 @@ public:
 
 /* TODO(sergey): Avoid map lookup here. */
 #define KERNEL_TEX(type, ttype, name) \
-	set_kernel_arg_mem(ckPathTraceKernel_data_init, &start_arg_index, #name);
+	set_kernel_arg_mem(program_data_init(), &start_arg_index, #name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
 
 		start_arg_index +=
-			kernel_set_args(ckPathTraceKernel_data_init,
+			kernel_set_args(program_data_init(),
 			                start_arg_index,
 			                start_sample,
 			                d_x,
@@ -743,7 +578,7 @@ public:
 #endif
 			                num_parallel_samples);
 
-		kernel_set_args(ckPathTraceKernel_scene_intersect,
+		kernel_set_args(program_scene_intersect(),
 		                0,
 		                kgbuffer,
 		                d_data,
@@ -763,7 +598,7 @@ public:
 #endif
 		                num_parallel_samples);
 
-		kernel_set_args(ckPathTraceKernel_lamp_emission,
+		kernel_set_args(program_lamp_emission(),
 		                0,
 		                kgbuffer,
 		                d_data,
@@ -781,14 +616,14 @@ public:
 		                use_queues_flag,
 		                num_parallel_samples);
 
-		kernel_set_args(ckPathTraceKernel_queue_enqueue,
+		kernel_set_args(program_queue_enqueue(),
 		                0,
 		                Queue_data,
 		                Queue_index,
 		                ray_state,
 		                dQueue_size);
 
-		kernel_set_args(ckPathTraceKernel_background_buffer_update,
+		kernel_set_args(program_background_buffer_update(),
 		                 0,
 		                 kgbuffer,
 		                 d_data,
@@ -824,7 +659,7 @@ public:
 #endif
 		                 num_parallel_samples);
 
-		kernel_set_args(ckPathTraceKernel_shader_eval,
+		kernel_set_args(program_shader_eval(),
 		                0,
 		                kgbuffer,
 		                d_data,
@@ -838,7 +673,7 @@ public:
 		                Queue_index,
 		                dQueue_size);
 
-		kernel_set_args(ckPathTraceKernel_holdout_emission_blurring_pathtermination_ao,
+		kernel_set_args(program_holdout_emission_blurring_pathtermination_ao(),
 		                0,
 		                kgbuffer,
 		                d_data,
@@ -868,7 +703,7 @@ public:
 #endif
 		                num_parallel_samples);
 
-		kernel_set_args(ckPathTraceKernel_direct_lighting,
+		kernel_set_args(program_direct_lighting(),
 		                0,
 		                kgbuffer,
 		                d_data,
@@ -883,7 +718,7 @@ public:
 		                Queue_index,
 		                dQueue_size);
 
-		kernel_set_args(ckPathTraceKernel_shadow_blocked,
+		kernel_set_args(program_shadow_blocked(),
 		                0,
 		                kgbuffer,
 		                d_data,
@@ -895,7 +730,7 @@ public:
 		                Queue_index,
 		                dQueue_size);
 
-		kernel_set_args(ckPathTraceKernel_next_iteration_setup,
+		kernel_set_args(program_next_iteration_setup(),
 		                0,
 		                kgbuffer,
 		                d_data,
@@ -917,7 +752,7 @@ public:
 		                dQueue_size,
 		                use_queues_flag);
 
-		kernel_set_args(ckPathTraceKernel_sum_all_radiance,
+		kernel_set_args(program_sum_all_radiance(),
 		                0,
 		                d_data,
 		                d_buffer,
@@ -936,8 +771,8 @@ public:
 #define ENQUEUE_SPLIT_KERNEL(kernelName, globalSize, localSize) \
 		{ \
 			ciErr = clEnqueueNDRangeKernel(cqCommandQueue, \
-			                               GLUE(ckPathTraceKernel_, \
-			                                    kernelName), \
+			                               GLUE(program_, \
+			                                    kernelName)(), \
 			                               2, \
 			                               NULL, \
 			                               globalSize, \
@@ -1451,26 +1286,6 @@ protected:
 	}
 
 	/* ** Those guys are for workign around some compiler-specific bugs ** */
-
-	cl_program load_cached_kernel(
-	        const DeviceRequestedFeatures& /*requested_features*/,
-	        OpenCLCache::ProgramName /*program_name*/,
-	        thread_scoped_lock /*cache_locker*/)
-	{
-		VLOG(2) << "Skip loading kernel from cache, "
-		        << "not supported by split kernel.";
-		return NULL;
-	}
-
-	void store_cached_kernel(cl_platform_id /*platform*/,
-	                         cl_device_id /*device*/,
-	                         cl_program /*program*/,
-	                         OpenCLCache::ProgramName /*program_name*/,
-	                         thread_scoped_lock& /*slot_locker*/)
-	{
-		VLOG(2) << "Skip storing kernel in cache, "
-		        << "not supported by split kernel.";
-	}
 
 	string build_options_for_base_program(
 	        const DeviceRequestedFeatures& requested_features)

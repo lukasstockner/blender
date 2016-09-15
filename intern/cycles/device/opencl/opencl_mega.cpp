@@ -31,14 +31,12 @@ CCL_NAMESPACE_BEGIN
 class OpenCLDeviceMegaKernel : public OpenCLDeviceBase
 {
 public:
-	cl_kernel ckPathTraceKernel;
-	cl_program path_trace_program;
+	OpenCLProgram path_trace_program;
 
 	OpenCLDeviceMegaKernel(DeviceInfo& info, Stats &stats, bool background_)
-	: OpenCLDeviceBase(info, stats, background_)
+	: OpenCLDeviceBase(info, stats, background_),
+	  path_trace_program(this, "megakernel", "kernel.cl", "-D__COMPILE_ONLY_MEGAKERNEL__ ")
 	{
-		ckPathTraceKernel = NULL;
-		path_trace_program = NULL;
 	}
 
 	bool load_kernels(const DeviceRequestedFeatures& requested_features)
@@ -50,89 +48,23 @@ public:
 			return false;
 		}
 
-		/* Try to use cached kernel. */
-		thread_scoped_lock cache_locker;
-		path_trace_program = OpenCLCache::get_program(cpPlatform,
-		                                              cdDevice,
-		                                              ustring("mega"),
-		                                              cache_locker);
+		path_trace_program.add_kernel(ustring("path_trace"));
 
-		if(!path_trace_program) {
-			/* Verify we have right opencl version. */
-			if(!opencl_version_check())
-				return false;
+		path_trace_program.load();
 
-			/* Calculate md5 hash to detect changes. */
-			string kernel_path = path_get("kernel");
-			string kernel_md5 = path_files_md5_hash(kernel_path);
-			string custom_kernel_build_options = "-D__COMPILE_ONLY_MEGAKERNEL__ ";
-			string device_md5 = device_md5_hash(custom_kernel_build_options);
+		VLOG(2) << path_trace_program.get_log();
 
-			/* Path to cached binary. */
-			string clbin = string_printf("cycles_kernel_%s_%s.clbin",
-			                             device_md5.c_str(),
-			                             kernel_md5.c_str());
-			clbin = path_cache_get(path_join("kernels", clbin));
-
-			/* Path to preprocessed source for debugging. */
-			string clsrc, *debug_src = NULL;
-			if(opencl_kernel_use_debug()) {
-				clsrc = string_printf("cycles_kernel_%s_%s.cl",
-				                      device_md5.c_str(),
-				                      kernel_md5.c_str());
-				clsrc = path_cache_get(path_join("kernels", clsrc));
-				debug_src = &clsrc;
-			}
-
-			/* If exists already, try use it. */
-			if(path_exists(clbin) && load_binary(kernel_path,
-			                                     clbin,
-			                                     custom_kernel_build_options,
-			                                     &path_trace_program,
-			                                     debug_src))
-			{
-				/* Kernel loaded from binary, nothing to do. */
-			}
-			else {
-				string init_kernel_source = "#include \"kernels/opencl/kernel.cl\" // " +
-				                            kernel_md5 + "\n";
-				/* If does not exist or loading binary failed, compile kernel. */
-				if(!compile_kernel("mega_kernel",
-				                   kernel_path,
-				                   init_kernel_source,
-				                   custom_kernel_build_options,
-				                   &path_trace_program,
-				                   debug_src))
-				{
-					return false;
-				}
-				/* Save binary for reuse. */
-				if(!save_binary(&path_trace_program, clbin)) {
-					return false;
-				}
-			}
-			/* Cache the program. */
-			OpenCLCache::store_program(cpPlatform,
-			                           cdDevice,
-			                           path_trace_program,
-			                           ustring("mega"),
-			                           cache_locker);
-		}
-
-		/* Find kernels. */
-		ckPathTraceKernel = clCreateKernel(path_trace_program,
-		                                   "kernel_ocl_path_trace",
-		                                   &ciErr);
-		if(opencl_error(ciErr))
+		if(!path_trace_program.is_loaded()) {
+			path_trace_program.report_error();
 			return false;
+		}
 		return true;
 	}
 
 	~OpenCLDeviceMegaKernel()
 	{
 		task_pool.stop();
-		release_kernel_safe(ckPathTraceKernel);
-		release_program_safe(path_trace_program);
+		path_trace_program.release();
 	}
 
 	void path_trace(RenderTile& rtile, int sample)
@@ -150,6 +82,8 @@ public:
 
 		/* Sample arguments. */
 		cl_int d_sample = sample;
+
+		cl_kernel ckPathTraceKernel = path_trace_program(ustring("path_trace"));
 
 		cl_uint start_arg_index =
 			kernel_set_args(ckPathTraceKernel,

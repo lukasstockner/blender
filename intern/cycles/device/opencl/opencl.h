@@ -136,7 +136,11 @@ class OpenCLCache
 	typedef map<PlatformDevicePair, Slot> CacheMap;
 	CacheMap cache;
 
+	/* MD5 hash of the kernel source. */
+	string kernel_md5;
+
 	thread_mutex cache_lock;
+	thread_mutex kernel_md5_lock;
 
 	/* lazy instantiate */
 	static OpenCLCache &global_instance()
@@ -189,6 +193,8 @@ public:
 	                          cl_program program,
 	                          ustring key,
 	                          thread_scoped_lock& slot_locker);
+
+	static string get_kernel_md5();
 };
 
 #define opencl_assert(stmt) \
@@ -211,12 +217,50 @@ public:
 	cl_command_queue cqCommandQueue;
 	cl_platform_id cpPlatform;
 	cl_device_id cdDevice;
-	cl_program cpProgram;
-	cl_kernel ckFilmConvertByteKernel;
-	cl_kernel ckFilmConvertHalfFloatKernel;
-	cl_kernel ckShaderKernel;
-	cl_kernel ckBakeKernel;
 	cl_int ciErr;
+
+	class OpenCLProgram {
+	public:
+		OpenCLProgram() : loaded(false), device(NULL) {}
+		OpenCLProgram(OpenCLDeviceBase *device,
+		              string program_name,
+		              string kernel_name,
+		              string kernel_build_options);
+		~OpenCLProgram();
+
+		void add_kernel(ustring name);
+		void load();
+
+		bool is_loaded()    { return loaded; }
+		string get_log()    { return log; }
+		void report_error();
+
+		cl_kernel operator()();
+		cl_kernel operator()(ustring name);
+
+		void release();
+
+	private:
+		bool build_kernel(const string *debug_src);
+		bool compile_kernel(const string *debug_src);
+		bool load_binary(const string& clbin, const string *debug_src = NULL);
+		bool save_binary(const string& clbin);
+
+		bool loaded;
+		cl_program program;
+		OpenCLDeviceBase *device;
+
+		/* Used for the OpenCLCache key. */
+		string program_name;
+
+		string kernel_file, kernel_build_options, device_md5;
+		string error_msg, output_msg;
+		string log;
+
+		map<ustring, cl_kernel> kernels;
+	};
+
+	OpenCLProgram base_program;
 
 	typedef map<string, device_vector<uchar>*> ConstMemMap;
 	typedef map<string, device_ptr> MemMap;
@@ -241,21 +285,6 @@ public:
 	bool opencl_version_check();
 
 	string device_md5_hash(string kernel_custom_build_options = "");
-	bool load_binary(const string& /*kernel_path*/,
-	                 const string& clbin,
-	                 const string& custom_kernel_build_options,
-	                 cl_program *program,
-	                 const string *debug_src = NULL);
-	bool save_binary(cl_program *program, const string& clbin);
-	bool build_kernel(cl_program *kernel_program,
-	                  const string& custom_kernel_build_options,
-	                  const string *debug_src = NULL);
-	bool compile_kernel(const string& kernel_name,
-	                    const string& kernel_path,
-	                    const string& source,
-	                    const string& custom_kernel_build_options,
-	                    cl_program *kernel_program,
-	                    const string *debug_src = NULL);
 	bool load_kernels(const DeviceRequestedFeatures& requested_features);
 
 	void mem_alloc(device_memory& mem, MemoryType type);
@@ -377,13 +406,10 @@ protected:
 	/* ** Those guys are for workign around some compiler-specific bugs ** */
 
 	virtual cl_program load_cached_kernel(
-	        const DeviceRequestedFeatures& /*requested_features*/,
 	        ustring key,
 	        thread_scoped_lock& cache_locker);
 
 	virtual void store_cached_kernel(
-	        cl_platform_id platform,
-	        cl_device_id device,
 	        cl_program program,
 	        ustring key,
 	        thread_scoped_lock& cache_locker);

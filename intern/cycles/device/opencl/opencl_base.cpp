@@ -66,11 +66,6 @@ OpenCLDeviceBase::OpenCLDeviceBase(DeviceInfo& info, Stats &stats, bool backgrou
 	cdDevice = NULL;
 	cxContext = NULL;
 	cqCommandQueue = NULL;
-	cpProgram = NULL;
-	ckFilmConvertByteKernel = NULL;
-	ckFilmConvertHalfFloatKernel = NULL;
-	ckShaderKernel = NULL;
-	ckBakeKernel = NULL;
 	null_mem = 0;
 	device_initialized = false;
 
@@ -140,16 +135,7 @@ OpenCLDeviceBase::~OpenCLDeviceBase()
 		delete mt->second;
 	}
 
-	if(ckFilmConvertByteKernel)
-		clReleaseKernel(ckFilmConvertByteKernel);
-	if(ckFilmConvertHalfFloatKernel)
-		clReleaseKernel(ckFilmConvertHalfFloatKernel);
-	if(ckShaderKernel)
-		clReleaseKernel(ckShaderKernel);
-	if(ckBakeKernel)
-		clReleaseKernel(ckBakeKernel);
-	if(cpProgram)
-		clReleaseProgram(cpProgram);
+	base_program.release();
 	if(cqCommandQueue)
 		clReleaseCommandQueue(cqCommandQueue);
 	if(cxContext)
@@ -176,141 +162,6 @@ bool OpenCLDeviceBase::opencl_version_check()
 		opencl_error(error);
 		return false;
 	}
-	return true;
-}
-
-bool OpenCLDeviceBase::load_binary(const string& /*kernel_path*/,
-                 const string& clbin,
-                 const string& custom_kernel_build_options,
-                 cl_program *program,
-                 const string *debug_src)
-{
-	/* read binary into memory */
-	vector<uint8_t> binary;
-
-	if(!path_read_binary(clbin, binary)) {
-		opencl_error(string_printf("OpenCL failed to read cached binary %s.", clbin.c_str()));
-		return false;
-	}
-
-	/* create program */
-	cl_int status;
-	size_t size = binary.size();
-	const uint8_t *bytes = &binary[0];
-
-	*program = clCreateProgramWithBinary(cxContext, 1, &cdDevice,
-		&size, &bytes, &status, &ciErr);
-
-	if(opencl_error(status) || opencl_error(ciErr)) {
-		opencl_error(string_printf("OpenCL failed create program from cached binary %s.", clbin.c_str()));
-		return false;
-	}
-
-	if(!build_kernel(program, custom_kernel_build_options, debug_src))
-		return false;
-
-	return true;
-}
-
-bool OpenCLDeviceBase::save_binary(cl_program *program, const string& clbin)
-{
-	size_t size = 0;
-	clGetProgramInfo(*program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &size, NULL);
-
-	if(!size)
-		return false;
-
-	vector<uint8_t> binary(size);
-	uint8_t *bytes = &binary[0];
-
-	clGetProgramInfo(*program, CL_PROGRAM_BINARIES, sizeof(uint8_t*), &bytes, NULL);
-
-	if(!path_write_binary(clbin, binary)) {
-		opencl_error(string_printf("OpenCL failed to write cached binary %s.", clbin.c_str()));
-		return false;
-	}
-
-	return true;
-}
-
-bool OpenCLDeviceBase::build_kernel(cl_program *kernel_program,
-                  const string& custom_kernel_build_options,
-                  const string *debug_src)
-{
-	string build_options;
-	build_options = kernel_build_options(debug_src) + custom_kernel_build_options;
-
-	ciErr = clBuildProgram(*kernel_program, 0, NULL, build_options.c_str(), NULL, NULL);
-
-	/* show warnings even if build is successful */
-	size_t ret_val_size = 0;
-
-	clGetProgramBuildInfo(*kernel_program, cdDevice, CL_PROGRAM_BUILD_LOG, 0, NULL, &ret_val_size);
-
-	if(ret_val_size > 1) {
-		vector<char> build_log(ret_val_size + 1);
-		clGetProgramBuildInfo(*kernel_program, cdDevice, CL_PROGRAM_BUILD_LOG, ret_val_size, &build_log[0], NULL);
-
-		build_log[ret_val_size] = '\0';
-		/* Skip meaningless empty output from the NVidia compiler. */
-		if(!(ret_val_size == 2 && build_log[0] == '\n')) {
-			fprintf(stderr, "OpenCL kernel build output:\n");
-			fprintf(stderr, "%s\n", &build_log[0]);
-		}
-	}
-
-	if(ciErr != CL_SUCCESS) {
-		opencl_error("OpenCL build failed: errors in console");
-		fprintf(stderr, "Build error: %s\n", clewErrorString(ciErr));
-		return false;
-	}
-
-	return true;
-}
-
-bool OpenCLDeviceBase::compile_kernel(const string& kernel_name,
-                    const string& kernel_path,
-                    const string& source,
-                    const string& custom_kernel_build_options,
-                    cl_program *kernel_program,
-                    const string *debug_src)
-{
-	/* We compile kernels consisting of many files. unfortunately OpenCL
-	 * kernel caches do not seem to recognize changes in included files.
-	 * so we force recompile on changes by adding the md5 hash of all files.
-	 */
-	string inlined_source = path_source_replace_includes(source,
-	                                                     kernel_path);
-
-	if(debug_src) {
-		path_write_text(*debug_src, inlined_source);
-	}
-
-	size_t source_len = inlined_source.size();
-	const char *source_str = inlined_source.c_str();
-
-	*kernel_program = clCreateProgramWithSource(cxContext,
-	                                            1,
-	                                            &source_str,
-	                                            &source_len,
-	                                            &ciErr);
-
-	if(opencl_error(ciErr)) {
-		return false;
-	}
-
-	double starttime = time_dt();
-	printf("Compiling %s OpenCL kernel ...\n", kernel_name.c_str());
-	/* TODO(sergey): Report which kernel is being compiled
-	 * as well (megakernel or which of split kernels etc..).
-	 */
-	printf("Build flags: %s\n", custom_kernel_build_options.c_str());
-
-	if(!build_kernel(kernel_program, custom_kernel_build_options, debug_src))
-		return false;
-
-	printf("Kernel compilation finished in %.2lfs.\n", time_dt() - starttime);
-
 	return true;
 }
 
@@ -344,103 +195,24 @@ bool OpenCLDeviceBase::load_kernels(const DeviceRequestedFeatures& requested_fea
 		return false;
 	}
 
-	/* Try to use cached kernel. */
-	thread_scoped_lock cache_locker;
-	cpProgram = load_cached_kernel(requested_features,
-	                               ustring("base"),
-	                               cache_locker);
+	/* Verify we have right opencl version. */
+	if(!opencl_version_check())
+		return false;
 
-	if(!cpProgram) {
-		VLOG(2) << "No cached OpenCL kernel.";
+	base_program = OpenCLProgram(this, "base", "kernel.cl", build_options_for_base_program(requested_features));
+	base_program.add_kernel(ustring("convert_to_byte"));
+	base_program.add_kernel(ustring("convert_to_half_float"));
+	base_program.add_kernel(ustring("shader"));
+	base_program.add_kernel(ustring("bake"));
 
-		/* Verify we have right opencl version. */
-		if(!opencl_version_check())
-			return false;
+	base_program.load();
 
-		string build_flags = build_options_for_base_program(requested_features);
+	VLOG(2) << base_program.get_log();
 
-		/* Calculate md5 hashes to detect changes. */
-		string kernel_path = path_get("kernel");
-		string kernel_md5 = path_files_md5_hash(kernel_path);
-		string device_md5 = device_md5_hash(build_flags);
-
-		/* Path to cached binary.
-		 *
-		 * TODO(sergey): Seems we could de-duplicate all this string_printf()
-		 * calls with some utility function which will give file name for a
-		 * given hashes..
-		 */
-		string clbin = string_printf("cycles_kernel_%s_%s.clbin",
-		                             device_md5.c_str(),
-		                             kernel_md5.c_str());
-		clbin = path_cache_get(path_join("kernels", clbin));
-
-		/* path to preprocessed source for debugging */
-		string clsrc, *debug_src = NULL;
-
-		if(opencl_kernel_use_debug()) {
-			clsrc = string_printf("cycles_kernel_%s_%s.cl",
-			                      device_md5.c_str(),
-			                      kernel_md5.c_str());
-			clsrc = path_cache_get(path_join("kernels", clsrc));
-			debug_src = &clsrc;
-		}
-
-		/* If binary kernel exists already, try use it. */
-		if(path_exists(clbin) && load_binary(kernel_path,
-		                                     clbin,
-		                                     build_flags,
-		                                     &cpProgram))
-		{
-			/* Kernel loaded from binary, nothing to do. */
-			VLOG(2) << "Loaded kernel from " << clbin << ".";
-		}
-		else {
-			VLOG(2) << "Kernel file " << clbin << " either doesn't exist or failed to be loaded by driver.";
-			string init_kernel_source = "#include \"kernels/opencl/kernel.cl\" // " + kernel_md5 + "\n";
-
-			/* If does not exist or loading binary failed, compile kernel. */
-			if(!compile_kernel("base_kernel",
-			                   kernel_path,
-			                   init_kernel_source,
-			                   build_flags,
-			                   &cpProgram,
-			                   debug_src))
-			{
-				return false;
-			}
-
-			/* Save binary for reuse. */
-			if(!save_binary(&cpProgram, clbin)) {
-				return false;
-			}
-		}
-
-		/* Cache the program. */
-		store_cached_kernel(cpPlatform,
-		                    cdDevice,
-		                    cpProgram,
-		                    ustring("base"),
-		                    cache_locker);
+	if(!base_program.is_loaded()) {
+		base_program.report_error();
+		return false;
 	}
-	else {
-		VLOG(2) << "Found cached OpenCL kernel.";
-	}
-
-	/* Find kernels. */
-#define FIND_KERNEL(kernel_var, kernel_name) \
-	do { \
-		kernel_var = clCreateKernel(cpProgram, "kernel_ocl_" kernel_name, &ciErr); \
-		if(opencl_error(ciErr)) \
-			return false; \
-	} while(0)
-
-	FIND_KERNEL(ckFilmConvertByteKernel, "convert_to_byte");
-	FIND_KERNEL(ckFilmConvertHalfFloatKernel, "convert_to_half_float");
-	FIND_KERNEL(ckShaderKernel, "shader");
-	FIND_KERNEL(ckBakeKernel, "bake");
-
-#undef FIND_KERNEL
 	return true;
 }
 
@@ -651,7 +423,7 @@ void OpenCLDeviceBase::film_convert(DeviceTask& task, device_ptr buffer, device_
 	cl_int d_stride = task.stride;
 
 
-	cl_kernel ckFilmConvertKernel = (rgba_byte)? ckFilmConvertByteKernel: ckFilmConvertHalfFloatKernel;
+	cl_kernel ckFilmConvertKernel = (rgba_byte)? base_program(ustring("convert_to_byte")): base_program(ustring("convert_to_half_float"));
 
 	cl_uint start_arg_index =
 		kernel_set_args(ckFilmConvertKernel,
@@ -694,9 +466,9 @@ void OpenCLDeviceBase::shader(DeviceTask& task)
 	cl_kernel kernel;
 
 	if(task.shader_eval_type >= SHADER_EVAL_BAKE)
-		kernel = ckBakeKernel;
+		kernel = base_program(ustring("shader"));
 	else
-		kernel = ckShaderKernel;
+		kernel = base_program(ustring("bake"));
 
 	cl_uint start_arg_index =
 		kernel_set_args(kernel,
@@ -905,7 +677,6 @@ void OpenCLDeviceBase::release_program_safe(cl_program program)
 /* ** Those guys are for workign around some compiler-specific bugs ** */
 
 cl_program OpenCLDeviceBase::load_cached_kernel(
-        const DeviceRequestedFeatures& /*requested_features*/,
         ustring key,
         thread_scoped_lock& cache_locker)
 {
@@ -916,14 +687,12 @@ cl_program OpenCLDeviceBase::load_cached_kernel(
 }
 
 void OpenCLDeviceBase::store_cached_kernel(
-        cl_platform_id platform,
-        cl_device_id device,
         cl_program program,
         ustring key,
         thread_scoped_lock& cache_locker)
 {
-	OpenCLCache::store_program(platform,
-	                           device,
+	OpenCLCache::store_program(cpPlatform,
+	                           cdDevice,
 	                           program,
 	                           key,
 	                           cache_locker);
