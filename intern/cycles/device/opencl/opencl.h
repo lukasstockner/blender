@@ -23,6 +23,7 @@
 #include "util_foreach.h"
 #include "util_logging.h"
 #include "util_map.h"
+#include "util_param.h"
 #include "util_string.h"
 #include "util_thread.h"
 
@@ -85,40 +86,46 @@ bool opencl_device_version_check(cl_device_id device,
 void opencl_get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices);
 
 /* Thread safe cache for contexts and programs.
- *
- * TODO(sergey): Make it more generous, so it can contain any type of program
- * without hardcoding possible program types in the slot.
  */
 class OpenCLCache
 {
 	struct Slot
 	{
-		thread_mutex *mutex;
-		cl_context context;
-		/* cl_program for shader, bake, film_convert kernels (used in OpenCLDeviceBase) */
-		cl_program ocl_dev_base_program;
-		/* cl_program for megakernel (used in OpenCLDeviceMegaKernel) */
-		cl_program ocl_dev_megakernel_program;
+		struct ProgramEntry
+		{
+			ProgramEntry()
+			    : program(NULL),
+			      mutex(NULL) {}
+			ProgramEntry(const ProgramEntry& rhs)
+			    : program(rhs.program),
+			      mutex(NULL) {}
+			~ProgramEntry()
+			{
+				delete mutex;
+				mutex = NULL;
+			}
+			cl_program program;
+			thread_mutex *mutex;
+		};
 
-		Slot() : mutex(NULL),
-		         context(NULL),
-		         ocl_dev_base_program(NULL),
-		         ocl_dev_megakernel_program(NULL) {}
+		thread_mutex *context_mutex;
+		cl_context context;
+		typedef map<ustring, ProgramEntry> EntryMap;
+		EntryMap programs;
+
+		Slot()
+		    : context_mutex(NULL),
+		      context(NULL) {}
 
 		Slot(const Slot& rhs)
-		    : mutex(rhs.mutex),
-		      context(rhs.context),
-		      ocl_dev_base_program(rhs.ocl_dev_base_program),
-		      ocl_dev_megakernel_program(rhs.ocl_dev_megakernel_program)
-		{
-			/* copy can only happen in map insert, assert that */
-			assert(mutex == NULL);
-		}
+		    : context_mutex(NULL),
+		      context(NULL),
+		      programs(rhs.programs) {}
 
 		~Slot()
 		{
-			delete mutex;
-			mutex = NULL;
+			delete context_mutex;
+			context_mutex = NULL;
 		}
 	};
 
@@ -152,22 +159,6 @@ class OpenCLCache
 		//flush();
 	}
 
-	/* lookup something in the cache. If this returns NULL, slot_locker
-	 * will be holding a lock for the cache. slot_locker should refer to a
-	 * default constructed thread_scoped_lock */
-	template<typename T>
-	static T get_something(cl_platform_id platform,
-	                       cl_device_id device,
-	                       T Slot::*member,
-	                       thread_scoped_lock& slot_locker);
-	/* store something in the cache. you MUST have tried to get the item before storing to it */
-	template<typename T>
-	static void store_something(cl_platform_id platform,
-	                            cl_device_id device,
-	                            T thing,
-	                            T Slot::*member,
-	                            thread_scoped_lock& slot_locker);
-
 public:
 
 	enum ProgramName {
@@ -175,28 +166,29 @@ public:
 		OCL_DEV_MEGAKERNEL_PROGRAM,
 	};
 
-	/* see get_something comment */
+	/* Lookup context in the cache. If this returns NULL, slot_locker
+	 * will be holding a lock for the cache. slot_locker should refer to a
+	 * default constructed thread_scoped_lock. */
 	static cl_context get_context(cl_platform_id platform,
 	                              cl_device_id device,
 	                              thread_scoped_lock& slot_locker);
-	/* see get_something comment */
+	/* Same as above. */
 	static cl_program get_program(cl_platform_id platform,
 	                              cl_device_id device,
-	                              ProgramName program_name,
+	                              ustring key,
 	                              thread_scoped_lock& slot_locker);
-	/* see store_something comment */
+
+	/* Store context in the cache. You MUST have tried to get the item before storing to it. */
 	static void store_context(cl_platform_id platform,
 	                          cl_device_id device,
 	                          cl_context context,
 	                          thread_scoped_lock& slot_locker);
-	/* see store_something comment */
+	/* Same as above. */
 	static void store_program(cl_platform_id platform,
 	                          cl_device_id device,
 	                          cl_program program,
-	                          ProgramName program_name,
+	                          ustring key,
 	                          thread_scoped_lock& slot_locker);
-	/* Discard all cached contexts and programs.  */
-	static void flush();
 };
 
 #define opencl_assert(stmt) \
@@ -386,14 +378,14 @@ protected:
 
 	virtual cl_program load_cached_kernel(
 	        const DeviceRequestedFeatures& /*requested_features*/,
-	        OpenCLCache::ProgramName program_name,
+	        ustring key,
 	        thread_scoped_lock& cache_locker);
 
 	virtual void store_cached_kernel(
 	        cl_platform_id platform,
 	        cl_device_id device,
 	        cl_program program,
-	        OpenCLCache::ProgramName program_name,
+	        ustring key,
 	        thread_scoped_lock& cache_locker);
 
 	virtual string build_options_for_base_program(

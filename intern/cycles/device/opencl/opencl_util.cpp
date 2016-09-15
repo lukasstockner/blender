@@ -20,14 +20,9 @@
 
 CCL_NAMESPACE_BEGIN
 
-/* lookup something in the cache. If this returns NULL, slot_locker
- * will be holding a lock for the cache. slot_locker should refer to a
- * default constructed thread_scoped_lock */
-template<typename T>
-T OpenCLCache::get_something(cl_platform_id platform,
-                       cl_device_id device,
-                       T Slot::*member,
-                       thread_scoped_lock& slot_locker)
+cl_context OpenCLCache::get_context(cl_platform_id platform,
+                                    cl_device_id device,
+                                    thread_scoped_lock& slot_locker)
 {
 	assert(platform != NULL);
 
@@ -41,17 +36,17 @@ T OpenCLCache::get_something(cl_platform_id platform,
 	Slot &slot = ins.first->second;
 
 	/* create slot lock only while holding cache lock */
-	if(!slot.mutex)
-		slot.mutex = new thread_mutex;
+	if(!slot.context_mutex)
+		slot.context_mutex = new thread_mutex;
 
 	/* need to unlock cache before locking slot, to allow store to complete */
 	cache_lock.unlock();
 
 	/* lock the slot */
-	slot_locker = thread_scoped_lock(*slot.mutex);
+	slot_locker = thread_scoped_lock(*slot.context_mutex);
 
 	/* If the thing isn't cached */
-	if(slot.*member == NULL) {
+	if(slot.context == NULL) {
 		/* return with the caller's lock holder holding the slot lock */
 		return NULL;
 	}
@@ -59,29 +54,68 @@ T OpenCLCache::get_something(cl_platform_id platform,
 	/* the item was already cached, release the slot lock */
 	slot_locker.unlock();
 
-	return slot.*member;
+	cl_int ciErr = clRetainContext(slot.context);
+	assert(ciErr == CL_SUCCESS);
+	(void)ciErr;
+
+	return slot.context;
 }
 
-template cl_context OpenCLCache::get_something<cl_context>(cl_platform_id platform,
-                                                                  cl_device_id device,
-                                                                  cl_context Slot::*member,
-                                                                  thread_scoped_lock& slot_locker);
-template cl_program OpenCLCache::get_something<cl_program>(cl_platform_id platform,
-                                                                  cl_device_id device,
-                                                                  cl_program Slot::*member,
-                                                                  thread_scoped_lock& slot_locker);
+cl_program OpenCLCache::get_program(cl_platform_id platform,
+                                    cl_device_id device,
+                                    ustring key,
+                                    thread_scoped_lock& slot_locker)
+{
+	assert(platform != NULL);
 
-/* store something in the cache. you MUST have tried to get the item before storing to it */
-template<typename T>
-void OpenCLCache::store_something(cl_platform_id platform,
-                                         cl_device_id device,
-                                         T thing,
-                                         T Slot::*member,
-                                         thread_scoped_lock& slot_locker)
+	OpenCLCache& self = global_instance();
+
+	thread_scoped_lock cache_lock(self.cache_lock);
+
+	pair<CacheMap::iterator,bool> ins = self.cache.insert(
+		CacheMap::value_type(PlatformDevicePair(platform, device), Slot()));
+
+	Slot &slot = ins.first->second;
+
+	pair<Slot::EntryMap::iterator,bool> ins2 = slot.programs.insert(
+		Slot::EntryMap::value_type(key, Slot::ProgramEntry()));
+
+	Slot::ProgramEntry &entry = ins2.first->second;
+
+	/* create slot lock only while holding cache lock */
+	if(!entry.mutex)
+		entry.mutex = new thread_mutex;
+
+	/* need to unlock cache before locking slot, to allow store to complete */
+	cache_lock.unlock();
+
+	/* lock the slot */
+	slot_locker = thread_scoped_lock(*entry.mutex);
+
+	/* If the thing isn't cached */
+	if(entry.program == NULL) {
+		/* return with the caller's lock holder holding the slot lock */
+		return NULL;
+	}
+
+	/* the item was already cached, release the slot lock */
+	slot_locker.unlock();
+
+	cl_int ciErr = clRetainProgram(entry.program);
+	assert(ciErr == CL_SUCCESS);
+	(void)ciErr;
+
+	return entry.program;
+}
+
+void OpenCLCache::store_context(cl_platform_id platform,
+                                cl_device_id device,
+                                cl_context context,
+                                thread_scoped_lock& slot_locker)
 {
 	assert(platform != NULL);
 	assert(device != NULL);
-	assert(thing != NULL);
+	assert(context != NULL);
 
 	OpenCLCache &self = global_instance();
 
@@ -93,95 +127,12 @@ void OpenCLCache::store_something(cl_platform_id platform,
 
 	/* sanity check */
 	assert(i != self.cache.end());
-	assert(slot.*member == NULL);
+	assert(slot.context == NULL);
 
-	slot.*member = thing;
+	slot.context = context;
 
 	/* unlock the slot */
 	slot_locker.unlock();
-}
-
-template void OpenCLCache::store_something<cl_context>(cl_platform_id platform,
-                                                              cl_device_id device,
-                                                              cl_context thing,
-                                                              cl_context Slot::*member,
-                                                              thread_scoped_lock& slot_locker);
-template void OpenCLCache::store_something<cl_program>(cl_platform_id platform,
-                                                              cl_device_id device,
-                                                              cl_program thing,
-                                                              cl_program Slot::*member,
-                                                              thread_scoped_lock& slot_locker);
-
-/* see get_something comment */
-cl_context OpenCLCache::get_context(cl_platform_id platform,
-                                           cl_device_id device,
-                                           thread_scoped_lock& slot_locker)
-{
-	cl_context context = get_something<cl_context>(platform,
-	                                               device,
-	                                               &Slot::context,
-	                                               slot_locker);
-
-	if(!context)
-		return NULL;
-
-	/* caller is going to release it when done with it, so retain it */
-	cl_int ciErr = clRetainContext(context);
-	assert(ciErr == CL_SUCCESS);
-	(void)ciErr;
-
-	return context;
-}
-
-/* see get_something comment */
-cl_program OpenCLCache::get_program(cl_platform_id platform,
-                                           cl_device_id device,
-                                           ProgramName program_name,
-                                           thread_scoped_lock& slot_locker)
-{
-	cl_program program = NULL;
-
-	switch(program_name) {
-		case OCL_DEV_BASE_PROGRAM:
-			/* Get program related to OpenCLDeviceBase */
-			program = get_something<cl_program>(platform,
-			                                    device,
-			                                    &Slot::ocl_dev_base_program,
-			                                    slot_locker);
-			break;
-		case OCL_DEV_MEGAKERNEL_PROGRAM:
-			/* Get program related to megakernel */
-			program = get_something<cl_program>(platform,
-			                                    device,
-			                                    &Slot::ocl_dev_megakernel_program,
-			                                    slot_locker);
-			break;
-	default:
-		assert(!"Invalid program name");
-	}
-
-	if(!program)
-		return NULL;
-
-	/* caller is going to release it when done with it, so retain it */
-	cl_int ciErr = clRetainProgram(program);
-	assert(ciErr == CL_SUCCESS);
-	(void)ciErr;
-
-	return program;
-}
-
-/* see store_something comment */
-void OpenCLCache::store_context(cl_platform_id platform,
-                                       cl_device_id device,
-                                       cl_context context,
-                                       thread_scoped_lock& slot_locker)
-{
-	store_something<cl_context>(platform,
-	                            device,
-	                            context,
-	                            &Slot::context,
-	                            slot_locker);
 
 	/* increment reference count in OpenCL.
 	 * The caller is going to release the object when done with it. */
@@ -190,32 +141,36 @@ void OpenCLCache::store_context(cl_platform_id platform,
 	(void)ciErr;
 }
 
-/* see store_something comment */
 void OpenCLCache::store_program(cl_platform_id platform,
-                                       cl_device_id device,
-                                       cl_program program,
-                                       ProgramName program_name,
-                                       thread_scoped_lock& slot_locker)
+                                cl_device_id device,
+                                cl_program program,
+                                ustring key,
+                                thread_scoped_lock& slot_locker)
 {
-	switch(program_name) {
-		case OCL_DEV_BASE_PROGRAM:
-			store_something<cl_program>(platform,
-			                            device,
-			                            program,
-			                            &Slot::ocl_dev_base_program,
-			                            slot_locker);
-			break;
-		case OCL_DEV_MEGAKERNEL_PROGRAM:
-			store_something<cl_program>(platform,
-			                            device,
-			                            program,
-			                            &Slot::ocl_dev_megakernel_program,
-			                            slot_locker);
-			break;
-		default:
-			assert(!"Invalid program name\n");
-			return;
-	}
+	assert(platform != NULL);
+	assert(device != NULL);
+	assert(program != NULL);
+
+	OpenCLCache &self = global_instance();
+
+	thread_scoped_lock cache_lock(self.cache_lock);
+
+	CacheMap::iterator i = self.cache.find(PlatformDevicePair(platform, device));
+	assert(i != self.cache.end());
+	Slot &slot = i->second;
+
+	Slot::EntryMap::iterator i2 = slot.programs.find(key);
+	assert(i2 != slot.programs.end());
+	Slot::ProgramEntry &entry = i2->second;
+
+	assert(entry.program == NULL);
+
+	cache_lock.unlock();
+
+	entry.program = program;
+
+	/* unlock the slot */
+	slot_locker.unlock();
 
 	/* Increment reference count in OpenCL.
 	 * The caller is going to release the object when done with it.
@@ -223,24 +178,6 @@ void OpenCLCache::store_program(cl_platform_id platform,
 	cl_int ciErr = clRetainProgram(program);
 	assert(ciErr == CL_SUCCESS);
 	(void)ciErr;
-}
-
-/* Discard all cached contexts and programs.  */
-void OpenCLCache::flush()
-{
-	OpenCLCache &self = global_instance();
-	thread_scoped_lock cache_lock(self.cache_lock);
-
-	foreach(CacheMap::value_type &item, self.cache) {
-		if(item.second.ocl_dev_base_program != NULL)
-			clReleaseProgram(item.second.ocl_dev_base_program);
-		if(item.second.ocl_dev_megakernel_program != NULL)
-			clReleaseProgram(item.second.ocl_dev_megakernel_program);
-		if(item.second.context != NULL)
-			clReleaseContext(item.second.context);
-	}
-
-	self.cache.clear();
 }
 
 CCL_NAMESPACE_END

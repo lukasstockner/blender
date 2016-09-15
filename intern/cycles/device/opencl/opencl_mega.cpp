@@ -54,7 +54,7 @@ public:
 		thread_scoped_lock cache_locker;
 		path_trace_program = OpenCLCache::get_program(cpPlatform,
 		                                              cdDevice,
-		                                              OpenCLCache::OCL_DEV_MEGAKERNEL_PROGRAM,
+		                                              ustring("mega"),
 		                                              cache_locker);
 
 		if(!path_trace_program) {
@@ -115,7 +115,7 @@ public:
 			OpenCLCache::store_program(cpPlatform,
 			                           cdDevice,
 			                           path_trace_program,
-			                           OpenCLCache::OCL_DEV_MEGAKERNEL_PROGRAM,
+			                           ustring("mega"),
 			                           cache_locker);
 		}
 

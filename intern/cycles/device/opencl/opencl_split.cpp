@@ -290,6 +290,7 @@ public:
 	 * could it be de-duplicated?
 	 */
 	bool load_split_kernel(const string& kernel_name,
+	                       const string& device_md5,
 	                       const string& kernel_path,
 	                       const string& kernel_init_source,
 	                       const string& clbin,
@@ -297,36 +298,57 @@ public:
 	                       cl_program *program,
 	                       const string *debug_src = NULL)
 	{
-		if(!opencl_version_check()) {
-			return false;
-		}
+		ustring cache_key = ustring(kernel_name + "_" + device_md5);
 
-		string cache_clbin = path_cache_get(path_join("kernels", clbin));
+		/* Try to use cached kernel. */
+		thread_scoped_lock cache_locker;
+		*program = OpenCLCache::get_program(cpPlatform,
+		                                    cdDevice,
+		                                    cache_key,
+		                                    cache_locker);
 
-		/* If exists already, try use it. */
-		if(path_exists(cache_clbin) && load_binary(kernel_path,
-		                                           cache_clbin,
-		                                           custom_kernel_build_options,
-		                                           program,
-		                                           debug_src))
-		{
-			/* Kernel loaded from binary. */
+		if(*program == NULL) {
+			if(!opencl_version_check()) {
+				return false;
+			}
+
+			string cache_clbin = path_cache_get(path_join("kernels", clbin));
+
+			/* If exists already, try use it. */
+			if(path_exists(cache_clbin) && load_binary(kernel_path,
+			                                           cache_clbin,
+			                                           custom_kernel_build_options,
+			                                           program,
+			                                           debug_src))
+			{
+				/* Kernel loaded from binary. */
+			}
+			else {
+				/* If does not exist or loading binary failed, compile kernel. */
+				if(!compile_kernel(kernel_name,
+				                   kernel_path,
+				                   kernel_init_source,
+				                   custom_kernel_build_options,
+				                   program,
+				                   debug_src))
+				{
+					return false;
+				}
+				/* Save binary for reuse. */
+				if(!save_binary(program, cache_clbin)) {
+					return false;
+				}
+			}
+
+			/* Cache the program. */
+			OpenCLCache::store_program(cpPlatform,
+			                           cdDevice,
+			                           *program,
+			                           cache_key,
+			                           cache_locker);
 		}
 		else {
-			/* If does not exist or loading binary failed, compile kernel. */
-			if(!compile_kernel(kernel_name,
-			                   kernel_path,
-			                   kernel_init_source,
-			                   custom_kernel_build_options,
-			                   program,
-			                   debug_src))
-			{
-				return false;
-			}
-			/* Save binary for reuse. */
-			if(!save_binary(program, cache_clbin)) {
-				return false;
-			}
+			VLOG(2) << "Found cached OpenCL split kernel " << cache_key << ".";
 		}
 		return true;
 	}
@@ -423,6 +445,7 @@ public:
 			debug_src = &clsrc; \
 		} \
 		if(!load_split_kernel(#name, \
+		                      device_md5, \
 		                      kernel_path, \
 		                      kernel_init_source, \
 		                      clbin, \

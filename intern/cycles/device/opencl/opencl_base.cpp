@@ -347,7 +347,7 @@ bool OpenCLDeviceBase::load_kernels(const DeviceRequestedFeatures& requested_fea
 	/* Try to use cached kernel. */
 	thread_scoped_lock cache_locker;
 	cpProgram = load_cached_kernel(requested_features,
-	                               OpenCLCache::OCL_DEV_BASE_PROGRAM,
+	                               ustring("base"),
 	                               cache_locker);
 
 	if(!cpProgram) {
@@ -420,7 +420,7 @@ bool OpenCLDeviceBase::load_kernels(const DeviceRequestedFeatures& requested_fea
 		store_cached_kernel(cpPlatform,
 		                    cdDevice,
 		                    cpProgram,
-		                    OpenCLCache::OCL_DEV_BASE_PROGRAM,
+		                    ustring("base"),
 		                    cache_locker);
 	}
 	else {
@@ -906,12 +906,12 @@ void OpenCLDeviceBase::release_program_safe(cl_program program)
 
 cl_program OpenCLDeviceBase::load_cached_kernel(
         const DeviceRequestedFeatures& /*requested_features*/,
-        OpenCLCache::ProgramName program_name,
+        ustring key,
         thread_scoped_lock& cache_locker)
 {
 	return OpenCLCache::get_program(cpPlatform,
 	                                cdDevice,
-	                                program_name,
+	                                key,
 	                                cache_locker);
 }
 
@@ -919,13 +919,13 @@ void OpenCLDeviceBase::store_cached_kernel(
         cl_platform_id platform,
         cl_device_id device,
         cl_program program,
-        OpenCLCache::ProgramName program_name,
+        ustring key,
         thread_scoped_lock& cache_locker)
 {
 	OpenCLCache::store_program(platform,
 	                           device,
 	                           program,
-	                           program_name,
+	                           key,
 	                           cache_locker);
 }
 
