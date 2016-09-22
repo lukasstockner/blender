@@ -165,9 +165,9 @@ bool opencl_device_version_check(cl_device_id device,
 	return true;
 }
 
-void opencl_get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices)
+void opencl_get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices, bool force_all)
 {
-	const bool force_all_platforms =
+	const bool force_all_platforms = force_all ||
 		(DebugFlags().opencl.kernel_type != DebugFlags::OpenCL::KERNEL_DEFAULT);
 	const cl_device_type device_type = opencl_device_type();
 	static bool first_time = true;

@@ -31,6 +31,8 @@
 #  include <sys/types.h>
 #else
 #  include <unistd.h>
+#  include <sys/types.h>
+#  include <sys/wait.h>
 #endif
 
 CCL_NAMESPACE_BEGIN
@@ -275,6 +277,40 @@ bool system_cpu_support_avx2()
 }
 
 #endif
+
+bool call_self(vector<string> args)
+{
+	int status;
+	char exe[1024];
+	ssize_t len = readlink("/proc/self/exe", exe, sizeof(exe));
+	if(len <= 0 || len == sizeof(exe)) return false;
+	exe[len] = '\0';
+
+/*	pid_t pid = fork();
+	if(pid < 0) return false;
+
+	if(pid == 0) {
+		char *argv[16];
+		argv[0] = NULL;
+		for(int i = 0; i < args.size(); i++) {
+			argv[i+1] = new char[args[i].size()+1];
+			strcpy(argv[i+1], args[i].c_str());
+		}
+		argv[args.size()+1] = NULL;
+		char *const env[] = {NULL};
+		execve(exe, argv, env);
+	}
+
+	waitpid(pid, &status, 0);*/
+	char call[10240];
+	strcpy(call, exe);
+	for(int i = 0; i < args.size(); i++) {
+		strcat(call, " ");
+		strcat(call, args[i].c_str());
+	}
+	status = system(call);
+	return WIFEXITED(status);
+}
 
 CCL_NAMESPACE_END
 

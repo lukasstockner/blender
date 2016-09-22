@@ -28,6 +28,10 @@
 #include "util_path.h"
 #include "util_types.h"
 
+#ifdef WITH_OPENCL
+#include "opencl/opencl.h"
+#endif
+
 #ifdef WITH_OSL
 #include "osl.h"
 
@@ -600,6 +604,22 @@ static PyObject *opencl_disable_func(PyObject * /*self*/, PyObject * /*value*/)
 	DebugFlags().opencl.device_type = DebugFlags::OpenCL::DEVICE_NONE;
 	Py_RETURN_NONE;
 }
+
+static PyObject *opencl_compile_func(PyObject * /*self*/, PyObject *args)
+{
+	int force_all_platforms, device_platform_id;
+	const char *device, *platform, *build_options, *kernel_file, *binary_path;
+	if(!PyArg_ParseTuple(args, "pisssss", &force_all_platforms, &device_platform_id, &device, &platform, &build_options, &kernel_file, &binary_path)) {
+		Py_RETURN_FALSE;
+	}
+
+	if(opencl_build_kernel(force_all_platforms, device_platform_id, string(device), string(platform), string(build_options), string(kernel_file), string(binary_path))) {
+		Py_RETURN_TRUE;
+	}
+	else {
+		Py_RETURN_FALSE;
+	}
+}
 #endif
 
 static PyObject *debug_flags_update_func(PyObject * /*self*/, PyObject *args)
@@ -693,6 +713,7 @@ static PyMethodDef methods[] = {
 	{"system_info", system_info_func, METH_NOARGS, ""},
 #ifdef WITH_OPENCL
 	{"opencl_disable", opencl_disable_func, METH_NOARGS, ""},
+	{"opencl_compile", opencl_compile_func, METH_VARARGS, ""},
 #endif
 
 	/* Debugging routines */

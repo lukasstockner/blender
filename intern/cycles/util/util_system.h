@@ -18,6 +18,7 @@
 #define __UTIL_SYSTEM_H__
 
 #include "util_string.h"
+#include "util_vector.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -37,6 +38,8 @@ bool system_cpu_support_sse3();
 bool system_cpu_support_sse41();
 bool system_cpu_support_avx();
 bool system_cpu_support_avx2();
+
+bool call_self(vector<string> args);
 
 CCL_NAMESPACE_END
 

@@ -20,6 +20,7 @@
 
 #include "util_path.h"
 #include "util_time.h"
+#include "util_system.h"
 
 using std::cerr;
 using std::endl;
@@ -304,6 +305,21 @@ bool OpenCLDeviceBase::OpenCLProgram::compile_kernel(const string *debug_src)
 	return true;
 }
 
+bool OpenCLDeviceBase::OpenCLProgram::build_process(const string& clbin)
+{
+	vector<string> args;
+	args.push_back("-b");
+	args.push_back("--python-expr");
+
+	args.push_back(string_printf("'import _cycles; _cycles.opencl_compile(%s, %d, \"%s\", \"%s\", \"%s\", \"%s\", \"%s\")'",
+	                             (DebugFlags().opencl.kernel_type != DebugFlags::OpenCL::KERNEL_DEFAULT)? "True" : "False",
+                                     device->device_num, device->device_name.c_str(), device->platform_name.c_str(),
+	                             (device->kernel_build_options(NULL) + kernel_build_options).c_str(),
+	                             kernel_file.c_str(), clbin.c_str()));
+
+	return call_self(args);
+}
+
 bool OpenCLDeviceBase::OpenCLProgram::load_binary(const string& clbin,
                                                   const string *debug_src)
 {
@@ -385,16 +401,21 @@ void OpenCLDeviceBase::OpenCLProgram::load()
 			log += "Loaded program from " + clbin + ".\n";
 		}
 		else {
-			log += "Kernel file " + clbin + " either doesn't exist or failed to be loaded by driver.\n";
-
-			/* If does not exist or loading binary failed, compile kernel. */
-			if(!compile_kernel(debug_src)) {
-				return;
+			if(!path_exists(clbin) && build_process(clbin) && path_exists(clbin) && load_binary(clbin)) {
+				log += "Build and loded program from " + clbin + ".\n";
 			}
+			else {
+				log += "Kernel file " + clbin + " either doesn't exist or failed to be loaded by driver.\n";
 
-			/* Save binary for reuse. */
-			if(!save_binary(clbin)) {
-				log += "Saving compiled OpenCL kernel to " + clbin + " failed!";
+				/* If does not exist or loading binary failed, compile kernel. */
+				if(!compile_kernel(debug_src)) {
+					return;
+				}
+
+				/* Save binary for reuse. */
+				if(!save_binary(clbin)) {
+					log += "Saving compiled OpenCL kernel to " + clbin + " failed!";
+				}
 			}
 		}
 
@@ -434,7 +455,7 @@ void OpenCLDeviceBase::OpenCLProgram::report_error()
 
 cl_kernel OpenCLDeviceBase::OpenCLProgram::operator()()
 {
-	assert(kernels.count(name) == 1);
+	assert(kernels.size() == 1);
 	return kernels.begin()->second;
 }
 
@@ -442,6 +463,58 @@ cl_kernel OpenCLDeviceBase::OpenCLProgram::operator()(ustring name)
 {
 	assert(kernels.count(name));
 	return kernels[name];
+}
+
+bool opencl_build_kernel(bool force_all_platforms, int device_platform_id, string device_name, string platform_name, string build_options, string kernel_file, string binary_path)
+{
+	bool result = false;
+
+	if(clewInit() != CLEW_SUCCESS) return false;
+
+	vector<OpenCLPlatformDevice> usable_devices;
+	opencl_get_usable_devices(&usable_devices, force_all_platforms);
+	if(device_platform_id >= usable_devices.size()) return false;
+
+	OpenCLPlatformDevice& platform_device = usable_devices[device_platform_id];
+	if(platform_device.platform_name != platform_name ||
+	   platform_device.device_name != device_name) {
+		return false;
+	}
+
+	cl_platform_id platform = platform_device.platform_id;
+	cl_device_id device = platform_device.device_id;
+	const cl_context_properties context_props[] = {
+		CL_CONTEXT_PLATFORM, (cl_context_properties) platform,
+		0, 0
+	};
+
+	cl_int err;
+	cl_context context = clCreateContext(context_props, 1, &device, NULL, NULL, &err);
+	if(err != CL_SUCCESS) return false;
+
+	string source = "#include \"kernels/opencl/" + kernel_file + "\" // " + path_files_md5_hash(path_get("kernel")) + "\n";
+	source = path_source_replace_includes(source, path_get("kernel"));
+	size_t source_len = source.size();
+	const char *source_str = source.c_str();
+	cl_program program = clCreateProgramWithSource(context, 1, &source_str, &source_len, &err);
+	if(err == CL_SUCCESS) {
+		err = clBuildProgram(program, 0, NULL, build_options.c_str(), NULL, NULL);
+		if(err == CL_SUCCESS) {
+			size_t size = 0;
+			clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &size, NULL);
+			if(size > 0) {
+				vector<uint8_t> binary(size);
+				uint8_t *bytes = &binary[0];
+				clGetProgramInfo(program, CL_PROGRAM_BINARIES, sizeof(uint8_t*), &bytes, NULL);
+				result = path_write_binary(binary_path, binary);
+			}
+		}
+		clReleaseProgram(program);
+	}
+
+	clReleaseContext(context);
+
+	return result;
 }
 
 CCL_NAMESPACE_END

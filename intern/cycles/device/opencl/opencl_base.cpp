@@ -77,12 +77,14 @@ OpenCLDeviceBase::OpenCLDeviceBase(DeviceInfo& info, Stats &stats, bool backgrou
 	}
 	assert(info.num < usable_devices.size());
 	OpenCLPlatformDevice& platform_device = usable_devices[info.num];
+	device_num = info.num;
 	cpPlatform = platform_device.platform_id;
 	cdDevice = platform_device.device_id;
 	platform_name = platform_device.platform_name;
+	device_name = platform_device.device_name;
 	VLOG(2) << "Creating new Cycles device for OpenCL platform "
 	        << platform_name << ", device "
-	        << platform_device.device_name << ".";
+	        << device_name << ".";
 
 	{
 		/* try to use cached context */

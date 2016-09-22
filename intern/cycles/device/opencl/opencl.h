@@ -83,7 +83,15 @@ bool opencl_platform_version_check(cl_platform_id platform,
                                    string *error = NULL);
 bool opencl_device_version_check(cl_device_id device,
                                  string *error = NULL);
-void opencl_get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices);
+void opencl_get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices,
+                               bool force_all = false);
+bool opencl_build_kernel(bool force_all_platforms,
+                         int device_platform_id,
+                         string device_name,
+                         string platform_name,
+                         string build_options,
+                         string kernel_file,
+                         string binary_path);
 
 /* Thread safe cache for contexts and programs.
  */
@@ -218,6 +226,7 @@ public:
 	cl_platform_id cpPlatform;
 	cl_device_id cdDevice;
 	cl_int ciErr;
+	int device_num;
 
 	class OpenCLProgram {
 	public:
@@ -241,6 +250,7 @@ public:
 		void release();
 
 	private:
+		bool build_process(const string& clbin);
 		bool build_kernel(const string *debug_src);
 		bool compile_kernel(const string *debug_src);
 		bool load_binary(const string& clbin, const string *debug_src = NULL);
@@ -270,7 +280,7 @@ public:
 	device_ptr null_mem;
 
 	bool device_initialized;
-	string platform_name;
+	string platform_name, device_name;
 
 	bool opencl_error(cl_int err);
 	void opencl_error(const string& message);
