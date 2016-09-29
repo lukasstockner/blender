@@ -367,7 +367,7 @@ static void options_parse(int argc, const char **argv)
 		"--quiet", &options.quiet, "In background mode, don't print progress messages",
 		"--denoise", &denoise, "Denoise the given input file instead of rendering it",
 		"--half-window %d", &options.session_params.half_window, "Size of the denoising window",
-		"--denoise-frame %d", &options.session_params.prev_frames, "Which frame to denoise (together with --frame-range)",
+		"--denoise-frame %d", &options.denoise_frame, "Which frame to denoise (together with --frame-range)",
 		"--frame-range %d %d", &options.frame_range.x, &options.frame_range.y, "Frame Range that's used for denoising",
 		"--samples %d", &options.session_params.samples, "Number of samples to render",
 		"--output %s", &options.session_params.output_path, "File path to write output image",

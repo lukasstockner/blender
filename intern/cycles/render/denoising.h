@@ -1,7 +1,8 @@
 /*
- * Copyright 2011-2016 Blender Foundation
+ * Copyright 2011-2014 Blender Foundation
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
+ * Licensed under the Apache License,
+ Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -14,32 +15,17 @@
  * limitations under the License.
  */
 
-#ifndef __CYCLES_STANDALONE_H__
-#define __CYCLES_STANDALONE_H__
+#ifndef __DENOISING_H__
+#define __DENOISING_H__
 
-#include "scene.h"
 #include "session.h"
-
-#include "util_vector.h"
 
 CCL_NAMESPACE_BEGIN
 
-struct Options {
-	Session *session;
-	Scene *scene;
-	vector<string> filepaths;
-	int width, height;
-	SceneParams scene_params;
-	SessionParams session_params;
-	bool quiet;
-	bool show_help, interactive, pause;
-	int2 frame_range;
-	int denoise_frame;
-};
-
-extern Options options;
-void session_print_status();
+bool denoise_standalone(SessionParams &session_params,
+                        vector<string> &frames,
+                        int mid_frame);
 
 CCL_NAMESPACE_END
 
-#endif /* __CYCLES_STANDALONE_H__ */
+#endif /* __DENOISING_H__ */
