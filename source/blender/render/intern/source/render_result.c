@@ -430,6 +430,62 @@ static const char *name_from_passtype(uint64_t passtype, int channel)
 		if (channel == 1) return "DenoiseNoisyBVar.G";
 		return "DenoiseNoisyBVar.B";
 	}
+	if (passtype == SCE_PASS_LIGHT_GROUP_1) {
+		if (channel == -1) return "LightGroup1";
+		if (channel == 0) return "LightGroup1.R";
+		if (channel == 1) return "LightGroup1.G";
+		if (channel == 2) return "LightGroup1.B";
+		return "LightGroup1.A";
+	}
+	if (passtype == SCE_PASS_LIGHT_GROUP_2) {
+		if (channel == -1) return "LightGroup2";
+		if (channel == 0) return "LightGroup2.R";
+		if (channel == 1) return "LightGroup2.G";
+		if (channel == 2) return "LightGroup2.B";
+		return "LightGroup2.A";
+	}
+	if (passtype == SCE_PASS_LIGHT_GROUP_3) {
+		if (channel == -1) return "LightGroup3";
+		if (channel == 0) return "LightGroup3.R";
+		if (channel == 1) return "LightGroup3.G";
+		if (channel == 2) return "LightGroup3.B";
+		return "LightGroup3.A";
+	}
+	if (passtype == SCE_PASS_LIGHT_GROUP_4) {
+		if (channel == -1) return "LightGroup4";
+		if (channel == 0) return "LightGroup4.R";
+		if (channel == 1) return "LightGroup4.G";
+		if (channel == 2) return "LightGroup4.B";
+		return "LightGroup4.A";
+	}
+	if (passtype == SCE_PASS_LIGHT_GROUP_5) {
+		if (channel == -1) return "LightGroup5";
+		if (channel == 0) return "LightGroup5.R";
+		if (channel == 1) return "LightGroup5.G";
+		if (channel == 2) return "LightGroup5.B";
+		return "LightGroup5.A";
+	}
+	if (passtype == SCE_PASS_LIGHT_GROUP_6) {
+		if (channel == -1) return "LightGroup6";
+		if (channel == 0) return "LightGroup6.R";
+		if (channel == 1) return "LightGroup6.G";
+		if (channel == 2) return "LightGroup6.B";
+		return "LightGroup6.A";
+	}
+	if (passtype == SCE_PASS_LIGHT_GROUP_7) {
+		if (channel == -1) return "LightGroup7";
+		if (channel == 0) return "LightGroup7.R";
+		if (channel == 1) return "LightGroup7.G";
+		if (channel == 2) return "LightGroup7.B";
+		return "LightGroup7.A";
+	}
+	if (passtype == SCE_PASS_LIGHT_GROUP_8) {
+		if (channel == -1) return "LightGroup8";
+		if (channel == 0) return "LightGroup8.R";
+		if (channel == 1) return "LightGroup8.G";
+		if (channel == 2) return "LightGroup8.B";
+		return "LightGroup8.A";
+	}
 
 	return "Unknown";
 }
@@ -566,6 +622,30 @@ static uint64_t passtype_from_name(const char *str, uint64_t passflag)
 
 	if (STRPREFIX(str, "DenoiseClean"))
 		RETURN_PASS(SCE_PASS_DENOISE_CLEAN);
+
+	if (STRPREFIX(str, "LightGroup1"))
+		return SCE_PASS_LIGHT_GROUP_1;
+
+	if (STRPREFIX(str, "LightGroup2"))
+		return SCE_PASS_LIGHT_GROUP_2;
+
+	if (STRPREFIX(str, "LightGroup3"))
+		return SCE_PASS_LIGHT_GROUP_3;
+
+	if (STRPREFIX(str, "LightGroup4"))
+		return SCE_PASS_LIGHT_GROUP_4;
+
+	if (STRPREFIX(str, "LightGroup5"))
+		return SCE_PASS_LIGHT_GROUP_5;
+
+	if (STRPREFIX(str, "LightGroup6"))
+		return SCE_PASS_LIGHT_GROUP_6;
+
+	if (STRPREFIX(str, "LightGroup7"))
+		return SCE_PASS_LIGHT_GROUP_7;
+
+	if (STRPREFIX(str, "LightGroup8"))
+		return SCE_PASS_LIGHT_GROUP_8;
 
 	if (STRPREFIX(str, "DenoiseNoisyB"))
 		return SCE_PASS_DENOISE_NOISY_B;

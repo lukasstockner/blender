@@ -23,6 +23,7 @@ __kernel void kernel_ocl_path_trace_direct_lighting(
         ccl_global uint *rng_coop,              /* Required for direct lighting */
         ccl_global PathState *PathState_coop,   /* Required for direct lighting */
         ccl_global int *ISLamp_coop,            /* Required for direct lighting */
+        ccl_global int *light_groups_coop,      /* Required for direct lighting */
         ccl_global Ray *LightRay_coop,          /* Required for direct lighting */
         ccl_global BsdfEval *BSDFEval_coop,     /* Required for direct lighting */
         ccl_global char *ray_state,             /* Denotes the state of each ray */

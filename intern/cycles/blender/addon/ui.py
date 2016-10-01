@@ -464,7 +464,9 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
         rd = scene.render
         rl = rd.layers.active
 
-        split = layout.split()
+        hlrow = layout.column()
+
+        split = hlrow.split()
 
         col = split.column()
         col.prop(rl, "use_pass_combined")
@@ -511,6 +513,14 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
 
         if hasattr(rd, "debug_pass_type"):
             layout.prop(rd, "debug_pass_type")
+
+        hlrow.label(text="Light Groups:")
+        split = hlrow.split()
+        col = split.column()
+        for i in range(8):
+            row = col.row()
+            row.prop(rl, "light_group_"+str(i+1), text="")
+            row.prop(rl, "light_group_"+str(i+1)+"_world")
 
 
 class CyclesRender_PT_views(CyclesButtonsPanel, Panel):

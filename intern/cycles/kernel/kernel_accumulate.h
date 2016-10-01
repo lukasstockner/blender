@@ -152,11 +152,17 @@ ccl_device_inline float3 bsdf_eval_sum(BsdfEval *eval)
  * visible as the first non-transparent hit, while indirectly visible are the
  * bounces after that. */
 
-ccl_device_inline void path_radiance_init(PathRadiance *L, int use_light_pass)
+ccl_device_inline void path_radiance_init(PathRadiance *L, int use_light_pass, int use_light_groups)
 {
 	/* clear all */
 #ifdef __PASSES__
 	L->use_light_pass = use_light_pass;
+	L->use_light_groups = use_light_groups;
+
+	if(use_light_groups) {
+		for(int i = 0; i < 8; i++)
+			L->light_groups[i] = make_float3(0.0f, 0.0f, 0.0f);
+	}
 
 	if(use_light_pass) {
 		L->indirect = make_float3(0.0f, 0.0f, 0.0f);
@@ -234,9 +240,18 @@ ccl_device_inline void path_radiance_bsdf_bounce(PathRadiance *L, ccl_addr_space
 	}
 }
 
-ccl_device_inline void path_radiance_accum_emission(PathRadiance *L, float3 throughput, float3 value, int bounce)
+ccl_device_inline void path_radiance_accum_emission(PathRadiance *L, float3 throughput, float3 value, int bounce, int light_groups)
 {
 #ifdef __PASSES__
+	if(L->use_light_groups) {
+		float3 val = throughput*value;
+		for(int i = 0; i < 8; i++) {
+			if(light_groups & (1 << i)) {
+				L->light_groups[i] += val;
+			}
+		}
+	}
+
 	if(L->use_light_pass) {
 		if(bounce == 0)
 			L->emission += throughput*value;
@@ -273,9 +288,18 @@ ccl_device_inline void path_radiance_accum_ao(PathRadiance *L, float3 throughput
 	}
 }
 
-ccl_device_inline void path_radiance_accum_light(PathRadiance *L, float3 throughput, BsdfEval *bsdf_eval, float3 shadow, float shadow_fac, int bounce, bool is_lamp)
+ccl_device_inline void path_radiance_accum_light(PathRadiance *L, float3 throughput, BsdfEval *bsdf_eval, float3 shadow, float shadow_fac, int bounce, bool is_lamp, int light_groups)
 {
 #ifdef __PASSES__
+	if(L->use_light_groups) {
+		float3 val = throughput*bsdf_eval->diffuse*shadow;
+		for(int i = 0; i < 8; i++) {
+			if(light_groups & (1 << i)) {
+				L->light_groups[i] += val;
+			}
+		}
+	}
+
 	if(L->use_light_pass) {
 		if(bounce == 0) {
 			/* directly visible lighting */
@@ -303,9 +327,18 @@ ccl_device_inline void path_radiance_accum_light(PathRadiance *L, float3 through
 	}
 }
 
-ccl_device_inline void path_radiance_accum_background(PathRadiance *L, float3 throughput, float3 value, int bounce)
+ccl_device_inline void path_radiance_accum_background(KernelGlobals *kg, PathRadiance *L, float3 throughput, float3 value, int bounce)
 {
 #ifdef __PASSES__
+	if(L->use_light_groups) {
+		float3 val = throughput*value;
+		for(int i = 0; i < 8; i++) {
+			if(kernel_data.film.world_light_groups & (1 << i)) {
+				L->light_groups[i] += val;
+			}
+		}
+	}
+
 	if(L->use_light_pass) {
 		if(bounce == 0)
 			L->background += throughput*value;
@@ -453,6 +486,19 @@ ccl_device_inline float3 path_radiance_clamp_and_sum(KernelGlobals *kg, PathRadi
 
 			/* Sum again, after clamping */
 			L_sum = L_direct + L_indirect;
+		}
+
+		if(L->use_light_groups) {
+			/* Light groups don't separate direct and indirect, so we have to be conservative here. */
+			float lg_clamp = max(clamp_direct, clamp_indirect);
+			if(lg_clamp < 1e10f) {
+				for(int i = 0; i < 8; i++) {
+					float lg_sum = L->light_groups[i].x + L->light_groups[i].y + L->light_groups[i].z;
+					if(lg_sum > lg_clamp) {
+						L->light_groups[i] *= lg_clamp/lg_sum;
+					}
+				}
+			}
 		}
 #endif
 

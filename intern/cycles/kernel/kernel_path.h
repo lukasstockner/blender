@@ -130,13 +130,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 			light_ray.dP = ray->dP;
 
 			/* intersect with lamp */
-			float3 emission;
-			if(indirect_lamp_emission(kg, emission_sd, state, &light_ray, &emission)) {
-				path_radiance_accum_emission(L,
-				                             throughput,
-				                             emission,
-				                             state->bounce);
-			}
+			indirect_lamp_emission(kg, L, emission_sd, state, throughput, &light_ray);
 		}
 #endif  /* __LAMP_MIS__ */
 
@@ -177,7 +171,8 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 					path_radiance_accum_emission(L,
 					                             throughput,
 					                             volume_segment.accum_emission,
-					                             state->bounce);
+					                             state->bounce,
+					                             0);
 				}
 
 				/* scattering */
@@ -280,7 +275,8 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 #ifdef __BACKGROUND__
 			/* sample background shader */
 			float3 L_background = indirect_background(kg, emission_sd, state, ray);
-			path_radiance_accum_background(L,
+			path_radiance_accum_background(kg,
+			                               L,
 			                               throughput,
 			                               L_background,
 			                               state->bounce);
@@ -314,12 +310,14 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 #ifdef __EMISSION__
 		/* emission */
 		if(sd->flag & SD_EMISSION) {
+			int light_groups = 0;
 			float3 emission = indirect_primitive_emission(kg,
 			                                              sd,
 			                                              isect.t,
 			                                              state->flag,
-			                                              state->ray_pdf);
-			path_radiance_accum_emission(L, throughput, emission, state->bounce);
+			                                              state->ray_pdf,
+			                                              &light_groups);
+			path_radiance_accum_emission(L, throughput, emission, state->bounce, light_groups);
 		}
 #endif  /* __EMISSION__ */
 
@@ -476,7 +474,7 @@ bool kernel_path_subsurface_scatter(
 
 			hit_state->rng_offset += PRNG_BOUNCE_NUM;
 
-			path_radiance_init(hit_L, kernel_data.film.use_light_pass);
+			path_radiance_init(hit_L, kernel_data.film.use_light_pass, kernel_data.film.light_groups);
 			hit_L->direct_throughput = L->direct_throughput;
 			path_radiance_copy_indirect(hit_L, L);
 
@@ -580,7 +578,7 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 	float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
 	float L_transparent = 0.0f;
 
-	path_radiance_init(L, kernel_data.film.use_light_pass);
+	path_radiance_init(L, kernel_data.film.use_light_pass, kernel_data.film.light_groups);
 
 	/* shader data memory used for both volumes and surfaces, saves stack space */
 	ShaderData sd;
@@ -650,10 +648,7 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 			light_ray.dP = ray.dP;
 
 			/* intersect with lamp */
-			float3 emission;
-
-			if(indirect_lamp_emission(kg, &emission_sd, &state, &light_ray, &emission))
-				path_radiance_accum_emission(L, throughput, emission, state.bounce);
+			indirect_lamp_emission(kg, L, &emission_sd, &state, throughput, &light_ray);
 		}
 #endif  /* __LAMP_MIS__ */
 
@@ -681,7 +676,7 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 
 				/* emission */
 				if(volume_segment.closure_flag & SD_EMISSION)
-					path_radiance_accum_emission(L, throughput, volume_segment.accum_emission, state.bounce);
+					path_radiance_accum_emission(L, throughput, volume_segment.accum_emission, state.bounce, 0);
 
 				/* scattering */
 				VolumeIntegrateResult result = VOLUME_PATH_ATTENUATED;
@@ -755,7 +750,7 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 #ifdef __BACKGROUND__
 			/* sample background shader */
 			float3 L_background = indirect_background(kg, &emission_sd, &state, &ray);
-			path_radiance_accum_background(L, throughput, L_background, state.bounce);
+			path_radiance_accum_background(kg, L, throughput, L_background, state.bounce);
 			kernel_write_denoising_passes(kg, buffer, &state, NULL, sample, L_background);
 #else
 			kernel_write_denoising_passes(kg, buffer, &state, NULL, sample, make_float3(0.0f, 0.0f, 0.0f));
@@ -809,8 +804,9 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 		/* emission */
 		if(sd.flag & SD_EMISSION) {
 			/* todo: is isect.t wrong here for transparent surfaces? */
-			float3 emission = indirect_primitive_emission(kg, &sd, isect.t, state.flag, state.ray_pdf);
-			path_radiance_accum_emission(L, throughput, emission, state.bounce);
+			int light_groups = 0;
+			float3 emission = indirect_primitive_emission(kg, &sd, isect.t, state.flag, state.ray_pdf, &light_groups);
+			path_radiance_accum_emission(L, throughput, emission, state.bounce, light_groups);
 		}
 #endif  /* __EMISSION__ */
 

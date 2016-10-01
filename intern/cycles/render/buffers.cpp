@@ -50,6 +50,9 @@ BufferParams::BufferParams()
 	cross_denoising = false;
 	overscan = 0;
 
+	light_groups = 0;
+	num_light_groups = 0;
+
 	Pass::add(PASS_COMBINED, passes);
 }
 
@@ -65,12 +68,14 @@ bool BufferParams::modified(const BufferParams& params)
 		&& full_y == params.full_y
 		&& width == params.width
 		&& height == params.height
-	        && frames == params.frames
+		&& frames == params.frames
 		&& full_width == params.full_width
 		&& full_height == params.full_height
 		&& final_width == params.final_width
 		&& final_height == params.final_height
-	        && overscan == params.overscan
+		&& light_groups == params.light_groups
+		&& num_light_groups == params.num_light_groups
+		&& overscan == params.overscan
 		&& Pass::equals(passes, params.passes));
 }
 
@@ -88,6 +93,7 @@ int BufferParams::get_passes_size()
 		if(selective_denoising) size += 3;
 		if(cross_denoising) size += 6;
 	}
+	size += num_light_groups*3;
 
 	return align_up(size, 4);
 }
@@ -98,6 +104,20 @@ int BufferParams::get_denoise_offset()
 
 	for(size_t i = 0; i < passes.size(); i++)
 		offset += passes[i].components;
+
+	return offset;
+}
+
+int BufferParams::get_light_groups_offset()
+{
+	int offset = 0;
+
+	for(size_t i = 0; i < passes.size(); i++)
+		offset += passes[i].components;
+
+	if(denoising_passes) {
+		offset += selective_denoising? 30: 27;
+	}
 
 	return offset;
 }
@@ -211,76 +231,112 @@ int4 RenderBuffers::rect_to_local(int4 rect) {
 
 bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels, int frame)
 {
-	if(!params.denoising_passes)
-		/* The RenderBuffer doesn't have denoising passes. */
-		return false;
-	if(!(type & EX_TYPE_DENOISE_ALL))
-		/* The type doesn't correspond to any denoising pass. */
-		return false;
-
 	rect = rect_to_local(rect);
 
-	float scale = 1.0f;
-	int type_offset = 0;
-	switch(type) {
-		case EX_TYPE_NONE: assert(0); break;
-		case EX_TYPE_DENOISE_NORMAL:     type_offset =  0; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_NORMAL_VAR: type_offset =  3; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_ALBEDO:     type_offset =  6; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_ALBEDO_VAR: type_offset =  9; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_DEPTH:      type_offset = 12; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_DEPTH_VAR:  type_offset = 13; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_SHADOW_A:   type_offset = 14; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_SHADOW_B:   type_offset = 17; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_NOISY:      type_offset = 20; scale = exposure/sample; break;
-		case EX_TYPE_DENOISE_NOISY_VAR:  type_offset = 23; scale = exposure*exposure/sample; break;
-		case EX_TYPE_DENOISE_NOISY_B:    type_offset = 26; scale = exposure/(sample/2); break;
-		case EX_TYPE_DENOISE_NOISY_B_VAR:type_offset = 29; scale = exposure*exposure/(sample/2); break;
-		case EX_TYPE_DENOISE_CLEAN:      type_offset = params.cross_denoising? 32: 26; scale = exposure/sample; break;
-	}
+	if(type & EX_TYPE_DENOISE_ALL) {
+		if(!params.denoising_passes)
+			/* The RenderBuffer doesn't have denoising passes. */
+			return false;
 
-	if(read_pixels) {
-		scale = sample;
-	}
-
-	int pass_offset = params.get_denoise_offset() + type_offset;
-
-	float *in = (float*)buffer.data_pointer + pass_offset;
-	int pass_stride = params.get_passes_size();
-	in += params.width*params.height*pass_stride * frame;
-
-	if(components == 1) {
-		assert(type & (EX_TYPE_DENOISE_DEPTH | EX_TYPE_DENOISE_DEPTH_VAR));
-		if(read_pixels) {
-			FOREACH_PIXEL
-				in[0] = pixels[0] * scale;
+		float scale = 1.0f;
+		int type_offset = 0;
+		switch(type) {
+			case EX_TYPE_NONE: assert(0); break;
+			case EX_TYPE_DENOISE_NORMAL:     type_offset =  0; scale = 1.0f/sample; break;
+			case EX_TYPE_DENOISE_NORMAL_VAR: type_offset =  3; scale = 1.0f/sample; break;
+			case EX_TYPE_DENOISE_ALBEDO:     type_offset =  6; scale = 1.0f/sample; break;
+			case EX_TYPE_DENOISE_ALBEDO_VAR: type_offset =  9; scale = 1.0f/sample; break;
+			case EX_TYPE_DENOISE_DEPTH:      type_offset = 12; scale = 1.0f/sample; break;
+			case EX_TYPE_DENOISE_DEPTH_VAR:  type_offset = 13; scale = 1.0f/sample; break;
+			case EX_TYPE_DENOISE_SHADOW_A:   type_offset = 14; scale = 1.0f/sample; break;
+			case EX_TYPE_DENOISE_SHADOW_B:   type_offset = 17; scale = 1.0f/sample; break;
+			case EX_TYPE_DENOISE_NOISY:      type_offset = 20; scale = exposure/sample; break;
+			case EX_TYPE_DENOISE_NOISY_VAR:  type_offset = 23; scale = exposure*exposure/sample; break;
+			case EX_TYPE_DENOISE_NOISY_B:    type_offset = 26; scale = exposure/(sample/2); break;
+			case EX_TYPE_DENOISE_NOISY_B_VAR:type_offset = 29; scale = exposure*exposure/(sample/2); break;
+			case EX_TYPE_DENOISE_CLEAN:      type_offset = params.cross_denoising? 32: 26; scale = exposure/sample; break;
 		}
-		else {
-			FOREACH_PIXEL
-				pixels[0] = in[0] * scale;
-		}
-	}
-	else {
-		assert(components == 3);
-		assert(!(type & (EX_TYPE_DENOISE_DEPTH | EX_TYPE_DENOISE_DEPTH_VAR)));
 
 		if(read_pixels) {
-			FOREACH_PIXEL {
-				in[0] = pixels[0] * scale;
-				in[1] = pixels[1] * scale;
-				in[2] = pixels[2] * scale;
+			scale = sample;
+		}
+
+		int pass_offset = params.get_denoise_offset() + type_offset;
+
+		float *in = (float*)buffer.data_pointer + pass_offset;
+		int pass_stride = params.get_passes_size();
+		in += params.width*params.height*pass_stride * frame;
+
+		if(components == 1) {
+			assert(type & (EX_TYPE_DENOISE_DEPTH | EX_TYPE_DENOISE_DEPTH_VAR));
+			if(read_pixels) {
+				FOREACH_PIXEL
+					in[0] = pixels[0] * scale;
+			}
+			else {
+				FOREACH_PIXEL
+					pixels[0] = in[0] * scale;
 			}
 		}
 		else {
-			FOREACH_PIXEL {
-				pixels[0] = in[0] * scale;
-				pixels[1] = in[1] * scale;
-				pixels[2] = in[2] * scale;
+			assert(components == 3);
+			assert(!(type & (EX_TYPE_DENOISE_DEPTH | EX_TYPE_DENOISE_DEPTH_VAR)));
+
+			if(read_pixels) {
+				FOREACH_PIXEL {
+					in[0] = pixels[0] * scale;
+					in[1] = pixels[1] * scale;
+					in[2] = pixels[2] * scale;
+				}
+			}
+			else {
+				FOREACH_PIXEL {
+					pixels[0] = in[0] * scale;
+					pixels[1] = in[1] * scale;
+					pixels[2] = in[2] * scale;
+				}
 			}
 		}
+
+		return true;
+	}
+	else if(type >= EX_TYPE_LIGHT_GROUP_1 && type <= EX_TYPE_LIGHT_GROUP_8)
+	{
+		int index = 0;
+		for(int t = EX_TYPE_LIGHT_GROUP_1; t < type; t <<= 1) index++;
+
+		if(!(params.light_groups & (1 << index))) return false;
+
+		if(read_pixels) return true;
+
+		assert(components == 4);
+
+		float scale = 1.0f / sample;
+		float scale_exposure = scale*exposure;
+
+		float *in = (float*)buffer.data_pointer;
+		int pass_stride = params.get_passes_size();
+		in += params.width*params.height*pass_stride * frame;
+
+		int lg_ofs = params.get_light_groups_offset();
+		for(int i = 0; i < index; i++) {
+			/* SKip previous light groups. */
+			if(params.light_groups & (1 << i)) {
+				lg_ofs += 3;
+			}
+		}
+
+		FOREACH_PIXEL {
+			pixels[0] = in[lg_ofs+0] * scale_exposure;
+			pixels[1] = in[lg_ofs+1] * scale_exposure;
+			pixels[2] = in[lg_ofs+2] * scale_exposure;
+			pixels[3] = saturate(in[3] * scale);
+		}
+
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels, int frame)

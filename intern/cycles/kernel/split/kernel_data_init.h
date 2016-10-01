@@ -205,7 +205,7 @@ ccl_device void kernel_data_init(
 			 */
 			throughput_coop[ray_index] = make_float3(1.0f, 1.0f, 1.0f);
 			L_transparent_coop[ray_index] = 0.0f;
-			path_radiance_init(&PathRadiance_coop[ray_index], kernel_data.film.use_light_pass);
+			path_radiance_init(&PathRadiance_coop[ray_index], kernel_data.film.use_light_pass, kernel_data.film.light_groups);
 			path_state_init(kg,
 			                kg->sd_input,
 			                &PathState_coop[ray_index],

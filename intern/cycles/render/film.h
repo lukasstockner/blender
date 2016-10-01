@@ -76,6 +76,10 @@ public:
 
 	bool need_update;
 
+	int light_groups;
+	int num_light_groups;
+	int world_light_groups;
+
 	Film();
 	~Film();
 

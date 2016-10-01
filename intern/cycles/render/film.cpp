@@ -288,6 +288,10 @@ NODE_DEFINE(Film)
 	SOCKET_BOOLEAN(selective_denoising, "Use Selective Denoising Pass", false);
 	SOCKET_BOOLEAN(cross_denoising, "Use Cross-Denoising Pass", false);
 
+	SOCKET_INT(light_groups, "Light Groups", 0);
+	SOCKET_INT(num_light_groups, "Number of Light Groups", 0);
+	SOCKET_INT(world_light_groups, "Light Groups of the World Background", 0);
+
 	return type;
 }
 
@@ -460,6 +464,17 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 			kfilm->pass_stride += 3;
 			kfilm->use_light_pass = 1;
 		}
+	}
+	if(num_light_groups) {
+		kfilm->pass_light_groups = kfilm->pass_stride;
+		kfilm->light_groups = light_groups;
+		kfilm->pass_stride += num_light_groups*3;
+		kfilm->world_light_groups = world_light_groups;
+	}
+	else {
+		kfilm->pass_light_groups = 0;
+		kfilm->light_groups = 0;
+		kfilm->world_light_groups = 0;
 	}
 
 	kfilm->num_frames = 1;

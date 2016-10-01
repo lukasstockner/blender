@@ -323,6 +323,18 @@ ccl_device_inline uint object_patch_map_offset(KernelGlobals *kg, int object)
 	return __float_as_uint(f.x);
 }
 
+/* Offset to an objects patch map */
+
+ccl_device_inline uint object_light_groups(KernelGlobals *kg, int object)
+{
+	if(object == OBJECT_NONE)
+		return 0;
+
+	int offset = object*OBJECT_SIZE + 12;
+	float4 f = kernel_tex_fetch(__objects, offset);
+	return __float_as_int(f.x);
+}
+
 /* Pass ID for shader */
 
 ccl_device int shader_pass_id(KernelGlobals *kg, const ShaderData *sd)

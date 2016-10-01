@@ -54,6 +54,8 @@ public:
 	bool hide_on_missing_motion;
 	bool use_holdout;
 
+	int light_groups;
+
 	float3 dupli_generated;
 	float2 dupli_uv;
 

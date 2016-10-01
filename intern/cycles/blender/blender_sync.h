@@ -146,6 +146,9 @@ private:
 	                        int width, int height,
 	                        float motion_time);
 
+	void sync_light_group(BL::Group b_group,
+	                      int mask);
+
 	/* particles */
 	bool sync_dupli_particle(BL::Object& b_ob,
 	                         BL::DupliObject& b_dup,
@@ -210,6 +213,7 @@ private:
 		bool use_viewport_visibility;
 		int samples;
 		bool bound_samples;
+		unordered_map<void*, int> light_group_map;
 	} render_layer;
 
 	Progress &progress;

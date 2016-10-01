@@ -59,6 +59,17 @@ typedef enum DenoiseExtendedTypes {
 	EX_TYPE_DENOISE_ALL = EX_TYPE_DENOISE_REQUIRED | EX_TYPE_DENOISE_CLEAN | EX_TYPE_DENOISE_NOISY_B | EX_TYPE_DENOISE_NOISY_B_VAR,
 } DenoiseExtendedTypes;
 
+typedef enum LightGroupExtendedTypes {
+	EX_TYPE_LIGHT_GROUP_1             = (1 << 13),
+	EX_TYPE_LIGHT_GROUP_2             = (1 << 14),
+	EX_TYPE_LIGHT_GROUP_3             = (1 << 15),
+	EX_TYPE_LIGHT_GROUP_4             = (1 << 16),
+	EX_TYPE_LIGHT_GROUP_5             = (1 << 17),
+	EX_TYPE_LIGHT_GROUP_6             = (1 << 18),
+	EX_TYPE_LIGHT_GROUP_7             = (1 << 19),
+	EX_TYPE_LIGHT_GROUP_8             = (1 << 20),
+} LightGroupExtendedTypes;
+
 class Device;
 struct DeviceDrawParams;
 struct float4;
@@ -95,6 +106,9 @@ public:
 	/* On GPUs, tiles are extended in each direction to include all the info required for denoising. */
 	int overscan;
 
+	int light_groups;
+	int num_light_groups;
+
 	/* functions */
 	BufferParams();
 
@@ -103,6 +117,7 @@ public:
 	void add_pass(PassType type);
 	int get_passes_size();
 	int get_denoise_offset();
+	int get_light_groups_offset();
 };
 
 /* Render Buffers */

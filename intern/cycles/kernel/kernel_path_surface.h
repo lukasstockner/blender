@@ -64,7 +64,7 @@ ccl_device_noinline void kernel_branched_path_surface_connect_light(KernelGlobal
 
 						if(!shadow_blocked(kg, emission_sd, state, &light_ray, &shadow)) {
 							/* accumulate */
-							path_radiance_accum_light(L, throughput*num_samples_inv, &L_light, shadow, num_samples_inv, state->bounce, is_lamp);
+							path_radiance_accum_light(L, throughput*num_samples_inv, &L_light, shadow, num_samples_inv, state->bounce, is_lamp, lamp_light_groups(kg, &ls));
 						}
 					}
 				}
@@ -98,7 +98,7 @@ ccl_device_noinline void kernel_branched_path_surface_connect_light(KernelGlobal
 
 						if(!shadow_blocked(kg, emission_sd, state, &light_ray, &shadow)) {
 							/* accumulate */
-							path_radiance_accum_light(L, throughput*num_samples_inv, &L_light, shadow, num_samples_inv, state->bounce, is_lamp);
+							path_radiance_accum_light(L, throughput*num_samples_inv, &L_light, shadow, num_samples_inv, state->bounce, is_lamp, lamp_light_groups(kg, &ls));
 						}
 					}
 				}
@@ -121,7 +121,7 @@ ccl_device_noinline void kernel_branched_path_surface_connect_light(KernelGlobal
 
 				if(!shadow_blocked(kg, emission_sd, state, &light_ray, &shadow)) {
 					/* accumulate */
-					path_radiance_accum_light(L, throughput*num_samples_adjust, &L_light, shadow, num_samples_adjust, state->bounce, is_lamp);
+					path_radiance_accum_light(L, throughput*num_samples_adjust, &L_light, shadow, num_samples_adjust, state->bounce, is_lamp, lamp_light_groups(kg, &ls));
 				}
 			}
 		}
@@ -225,7 +225,7 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg, ccl_
 
 			if(!shadow_blocked(kg, emission_sd, state, &light_ray, &shadow)) {
 				/* accumulate */
-				path_radiance_accum_light(L, throughput, &L_light, shadow, 1.0f, state->bounce, is_lamp);
+				path_radiance_accum_light(L, throughput, &L_light, shadow, 1.0f, state->bounce, is_lamp, lamp_light_groups(kg, &ls));
 				if(shadow_info) shadow_info->y = average(light_unoccluded*shadow);
 			}
 		}

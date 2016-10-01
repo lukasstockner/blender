@@ -185,13 +185,15 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(
 		/* emission */
 		if(ccl_fetch(sd, flag) & SD_EMISSION) {
 			/* TODO(sergey): is isect.t wrong here for transparent surfaces? */
+			int light_groups;
 			float3 emission = indirect_primitive_emission(
 			        kg,
 			        sd,
 			        Intersection_coop[ray_index].t,
 			        state->flag,
-			        state->ray_pdf);
-			path_radiance_accum_emission(L, throughput, emission, state->bounce);
+			        state->ray_pdf,
+			        &light_groups);
+			path_radiance_accum_emission(L, throughput, emission, state->bounce, light_groups);
 		}
 #endif  /* __EMISSION__ */
 

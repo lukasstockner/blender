@@ -900,4 +900,16 @@ ccl_device int light_select_num_samples(KernelGlobals *kg, int index)
 	return __float_as_int(data3.x);
 }
 
+ccl_device_inline int lamp_light_groups(KernelGlobals *kg, LightSample *ls)
+{
+	if(ls->lamp != LAMP_NONE) {
+		return __float_as_int(kernel_tex_fetch(__light_data, ls->lamp*LIGHT_SIZE + 4).y);
+	}
+	int object = ls->object;
+	if(object < 0) {
+		object = ~object;
+	}
+	return object_light_groups(kg, object);
+}
+
 CCL_NAMESPACE_END

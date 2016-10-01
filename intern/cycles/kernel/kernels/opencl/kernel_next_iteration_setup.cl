@@ -27,6 +27,7 @@ __kernel void kernel_ocl_path_trace_next_iteration_setup(
         ccl_global PathState *PathState_coop, /* Required for setting up ray for next iteration */
         ccl_global Ray *LightRay_dl_coop,     /* Required for radiance update - direct lighting */
         ccl_global int *ISLamp_coop,          /* Required for radiance update - direct lighting */
+        ccl_global int *light_groups_coop,    /* Required for radiance update - direct lighting */
         ccl_global BsdfEval *BSDFEval_coop,   /* Required for radiance update - direct lighting */
         ccl_global Ray *LightRay_ao_coop,     /* Required for radiance update - AO */
         ccl_global float3 *AOBSDF_coop,       /* Required for radiance update - AO */
@@ -92,6 +93,7 @@ __kernel void kernel_ocl_path_trace_next_iteration_setup(
 		                                           PathState_coop,
 		                                           LightRay_dl_coop,
 		                                           ISLamp_coop,
+		                                           light_groups_coop,
 		                                           BSDFEval_coop,
 		                                           LightRay_ao_coop,
 		                                           AOBSDF_coop,

@@ -5757,6 +5757,14 @@ static void lib_link_scene(FileData *fd, Main *main)
 					fls->linestyle = newlibadr_us(fd, sce->id.lib, fls->linestyle);
 					fls->group = newlibadr_us(fd, sce->id.lib, fls->group);
 				}
+				srl->light_group_1 = newlibadr_us(fd, sce->id.lib, srl->light_group_1);
+				srl->light_group_2 = newlibadr_us(fd, sce->id.lib, srl->light_group_2);
+				srl->light_group_3 = newlibadr_us(fd, sce->id.lib, srl->light_group_3);
+				srl->light_group_4 = newlibadr_us(fd, sce->id.lib, srl->light_group_4);
+				srl->light_group_5 = newlibadr_us(fd, sce->id.lib, srl->light_group_5);
+				srl->light_group_6 = newlibadr_us(fd, sce->id.lib, srl->light_group_6);
+				srl->light_group_7 = newlibadr_us(fd, sce->id.lib, srl->light_group_7);
+				srl->light_group_8 = newlibadr_us(fd, sce->id.lib, srl->light_group_8);
 			}
 			/*Game Settings: Dome Warp Text*/
 			sce->gm.dome.warptext = newlibadr(fd, sce->id.lib, sce->gm.dome.warptext);

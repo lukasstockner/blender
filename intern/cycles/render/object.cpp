@@ -49,6 +49,8 @@ NODE_DEFINE(Object)
 	SOCKET_POINT(dupli_generated, "Dupli Generated", make_float3(0.0f, 0.0f, 0.0f));
 	SOCKET_POINT2(dupli_uv, "Dupli UV", make_float2(0.0f, 0.0f));
 
+	SOCKET_INT(light_groups, "Light Groups", 0);
+
 	return type;
 }
 
@@ -407,6 +409,7 @@ void ObjectManager::device_update_object_transform(UpdateObejctTransformState *s
 
 	objects[offset+9] = make_float4(ob->dupli_generated[0], ob->dupli_generated[1], ob->dupli_generated[2], __int_as_float(numkeys));
 	objects[offset+10] = make_float4(ob->dupli_uv[0], ob->dupli_uv[1], __int_as_float(numsteps), __int_as_float(numverts));
+	objects[offset+12] = make_float4(__int_as_float(ob->light_groups), 0.0f, 0.0f, 0.0f);
 
 	/* Object flag. */
 	if(ob->use_holdout) {

@@ -144,6 +144,8 @@ NODE_DEFINE(Light)
 	SOCKET_BOOLEAN(is_portal, "Is Portal", false);
 	SOCKET_BOOLEAN(is_enabled, "Is Enabled", true);
 
+	SOCKET_INT(light_groups, "Light Groups", 0);
+
 	SOCKET_NODE(shader, "Shader", &Shader::node_type);
 
 	return type;
@@ -765,7 +767,7 @@ void LightManager::device_update_points(Device *device,
 			light_data[light_index*LIGHT_SIZE + 3] = make_float4(samples, 0.0f, 0.0f, 0.0f);
 		}
 
-		light_data[light_index*LIGHT_SIZE + 4] = make_float4(max_bounces, 0.0f, 0.0f, 0.0f);
+		light_data[light_index*LIGHT_SIZE + 4] = make_float4(max_bounces, __int_as_float(light->light_groups), 0.0f, 0.0f);
 
 		Transform tfm = light->tfm;
 		Transform itfm = transform_inverse(tfm);
@@ -797,7 +799,7 @@ void LightManager::device_update_points(Device *device,
 		light_data[light_index*LIGHT_SIZE + 1] = make_float4(area, axisu.x, axisu.y, axisu.z);
 		light_data[light_index*LIGHT_SIZE + 2] = make_float4(invarea, axisv.x, axisv.y, axisv.z);
 		light_data[light_index*LIGHT_SIZE + 3] = make_float4(-1, dir.x, dir.y, dir.z);
-		light_data[light_index*LIGHT_SIZE + 4] = make_float4(-1, 0.0f, 0.0f, 0.0f);
+		light_data[light_index*LIGHT_SIZE + 4] = make_float4(-1, __int_as_float(0), 0.0f, 0.0f);
 
 		Transform tfm = light->tfm;
 		Transform itfm = transform_inverse(tfm);

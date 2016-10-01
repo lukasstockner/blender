@@ -72,11 +72,7 @@ ccl_device void kernel_lamp_emission(
 			light_ray.dD = ray.dD;
 			light_ray.dP = ray.dP;
 			/* intersect with lamp */
-			float3 emission;
-
-			if(indirect_lamp_emission(kg, kg->sd_input, state, &light_ray, &emission)) {
-				path_radiance_accum_emission(L, throughput, emission, state->bounce);
-			}
+			indirect_lamp_emission(kg, L, kg->sd_input, state, throughput, &light_ray, &emission);
 		}
 #endif  /* __LAMP_MIS__ */
 	}

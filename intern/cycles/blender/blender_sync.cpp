@@ -379,6 +379,17 @@ void BlenderSync::sync_film()
 
 /* Render Layer */
 
+void BlenderSync::sync_light_group(BL::Group b_group,
+                                   int mask)
+{
+	if(!b_group) return;
+	BL::Group::objects_iterator b_ob;
+	for(b_group.objects.begin(b_ob); b_ob != b_group.objects.end(); ++b_ob)
+	{
+		render_layer.light_group_map[*b_ob] |= mask;
+	}
+}
+
 void BlenderSync::sync_render_layers(BL::SpaceView3D& b_v3d, const char *layer)
 {
 	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
@@ -404,6 +415,7 @@ void BlenderSync::sync_render_layers(BL::SpaceView3D& b_v3d, const char *layer)
 			render_layer.use_viewport_visibility = true;
 			render_layer.samples = 0;
 			render_layer.bound_samples = false;
+			render_layer.light_group_map.clear();
 			return;
 		}
 	}
@@ -444,6 +456,23 @@ void BlenderSync::sync_render_layers(BL::SpaceView3D& b_v3d, const char *layer)
 				else
 					render_layer.samples = samples;
 			}
+
+			render_layer.light_group_map.clear();
+			int light_groups_world = 0;
+#define LIGHT_GROUP(i) \
+			sync_light_group(b_rlay->light_group_##i(), 1 << (i - 1)); \
+			if(b_rlay->light_group_##i##_world()) light_groups_world |= (1 << (i - 1));
+
+			LIGHT_GROUP(1);
+			LIGHT_GROUP(2);
+			LIGHT_GROUP(3);
+			LIGHT_GROUP(4);
+			LIGHT_GROUP(5);
+			LIGHT_GROUP(6);
+			LIGHT_GROUP(7);
+			LIGHT_GROUP(8);
+#undef LIGHT_GROUP
+			render_layer.light_group_map[b_scene.world()] = light_groups_world;
 		}
 
 		first_layer = false;

@@ -32,7 +32,7 @@
  * PathState_coop -----------------------------------|                             |--- ISLamp_coop
  * sd -----------------------------------------------|                             |--- LightRay_coop
  * ray_state ----------------------------------------|                             |--- ray_state
- * Queue_data (QUEUE_ACTIVE_AND_REGENERATED_RAYS) ---|                             |
+ * Queue_data (QUEUE_ACTIVE_AND_REGENERATED_RAYS) ---|                             |--- light_groups_coop
  * kg (globals) -------------------------------------|                             |
  * queuesize ----------------------------------------|                             |
  *
@@ -53,6 +53,7 @@ ccl_device char kernel_direct_lighting(
         ccl_global uint *rng_coop,              /* Required for direct lighting */
         ccl_global PathState *PathState_coop,   /* Required for direct lighting */
         ccl_global int *ISLamp_coop,            /* Required for direct lighting */
+        ccl_global int *light_groups_coop,      /* Required for direct lighting */
         ccl_global Ray *LightRay_coop,          /* Required for direct lighting */
         ccl_global BsdfEval *BSDFEval_coop,     /* Required for direct lighting */
         ccl_global char *ray_state,             /* Denotes the state of each ray */
@@ -96,6 +97,7 @@ ccl_device char kernel_direct_lighting(
 					LightRay_coop[ray_index] = light_ray;
 					BSDFEval_coop[ray_index] = L_light;
 					ISLamp_coop[ray_index] = is_lamp;
+				light_groups_coop[ray_index] = lamp_light_groups(kg, &ls);
 					/* Mark ray state for next shadow kernel. */
 					ADD_RAY_FLAG(ray_state, ray_index, RAY_SHADOW_RAY_CAST_DL);
 					enqueue_flag = 1;

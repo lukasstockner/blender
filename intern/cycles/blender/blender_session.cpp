@@ -448,6 +448,30 @@ void BlenderSession::render()
 			}
 		}
 
+		scene->film->light_groups = 0;
+		scene->film->num_light_groups = 0;
+		scene->film->world_light_groups = 0;
+#define LIGHT_GROUP(i) \
+		if(b_layer_iter->light_group_##i() || b_layer_iter->light_group_##i##_world()) { \
+			scene->film->light_groups |= (1 << (i-1)); \
+			scene->film->num_light_groups++; \
+			if(b_layer_iter->light_group_##i##_world()) { \
+				scene->film->world_light_groups |= (1 << (i-1)); \
+			} \
+			add_pass(b_engine, SCE_PASS_LIGHT_GROUP_##i, 4, b_rlay_name.c_str(), NULL); \
+		}
+		LIGHT_GROUP(1);
+		LIGHT_GROUP(2);
+		LIGHT_GROUP(3);
+		LIGHT_GROUP(4);
+		LIGHT_GROUP(5);
+		LIGHT_GROUP(6);
+		LIGHT_GROUP(7);
+		LIGHT_GROUP(8);
+#undef LIGHT_GROUP
+		buffer_params.light_groups = scene->film->light_groups;
+		buffer_params.num_light_groups = scene->film->num_light_groups;
+
 		buffer_params.passes = passes;
 		buffer_params.denoising_passes = b_layer_iter->keep_denoise_data() || b_layer_iter->denoise_result();
 		session->tile_manager.schedule_denoising = (b_layer_iter->denoise_result() && is_cpu) && !getenv("CPU_OVERSCAN");

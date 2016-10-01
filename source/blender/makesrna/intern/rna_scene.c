@@ -5033,6 +5033,28 @@ static void rna_def_scene_render_layer(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_CROSS);
 	RNA_def_property_ui_text(prop, "Use cross-denoising", "Use cross-pass denoising. Improves quality, but increases denoise time and memory requirements");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+#define LIGHT_GROUP(i) \
+	prop = RNA_def_property(srna, "light_group_" #i, PROP_POINTER, PROP_NONE); \
+	RNA_def_property_pointer_sdna(prop, NULL, "light_group_" #i); \
+	RNA_def_property_flag(prop, PROP_EDITABLE); \
+	RNA_def_property_ui_text(prop, "Light Group "#i, "Render a pass containing only lights from this group"); \
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL); \
+	prop = RNA_def_property(srna, "light_group_" #i "_world", PROP_BOOLEAN, PROP_NONE); \
+	RNA_def_property_boolean_sdna(prop, NULL, "light_group_world", (1 << i)); \
+	RNA_def_property_ui_text(prop, "Use World", "Also include World illumination in this pass"); \
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+	LIGHT_GROUP(1);
+	LIGHT_GROUP(2);
+	LIGHT_GROUP(3);
+	LIGHT_GROUP(4);
+	LIGHT_GROUP(5);
+	LIGHT_GROUP(6);
+	LIGHT_GROUP(7);
+	LIGHT_GROUP(8);
+
+#undef LIGHT_GROUP
 }
 
 /* Render Layers */

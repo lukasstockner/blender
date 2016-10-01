@@ -377,6 +377,17 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *
 				}
 			}
 		}
+
+		if(kernel_data.film.light_groups) {
+			int ofs = kernel_data.film.pass_light_groups;
+			for(int i = 0; i < 8; i++) {
+				if(!(kernel_data.film.light_groups & (1 << i))) {
+					continue;
+				}
+				kernel_write_pass_float3_nopad(buffer + ofs, sample, L->light_groups[i]);
+				ofs += 3;
+			}
+		}
 	}
 	else {
 		kernel_write_pass_float4(buffer, sample, make_float4(0.0f, 0.0f, 0.0f, 0.0f));

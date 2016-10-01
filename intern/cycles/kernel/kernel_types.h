@@ -35,7 +35,7 @@
 CCL_NAMESPACE_BEGIN
 
 /* constants */
-#define OBJECT_SIZE 		12
+#define OBJECT_SIZE 		13
 #define OBJECT_VECTOR_SIZE	6
 #define LIGHT_SIZE		11
 #define FILTER_TABLE_SIZE	1024
@@ -408,6 +408,7 @@ typedef enum DenoiseFlag {
 typedef ccl_addr_space struct PathRadiance {
 #ifdef __PASSES__
 	int use_light_pass;
+	int use_light_groups;
 #endif
 
 	float3 emission;
@@ -442,6 +443,8 @@ typedef ccl_addr_space struct PathRadiance {
 	float3 path_transmission;
 	float3 path_subsurface;
 	float3 path_scatter;
+
+	float3 light_groups[8];
 
 	float4 shadow;
 	float mist;
@@ -1052,7 +1055,6 @@ typedef struct KernelFilm {
 	int pass_shadow;
 	float pass_shadow_scale;
 	int filter_table_offset;
-	int pass_pad2;
 
 	int pass_mist;
 	float mist_start;
@@ -1067,7 +1069,10 @@ typedef struct KernelFilm {
 	int num_frames;
 	int prev_frames;
 	int denoise_cross;
-	int pass_pad4;
+	int light_groups;
+	int pass_light_groups;
+	int world_light_groups;
+	int pad1, pad2, pad3;
 
 #ifdef __KERNEL_DEBUG__
 	int pass_bvh_traversal_steps;

@@ -242,7 +242,7 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 	float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
 	float L_transparent = 0.0f;
 
-	path_radiance_init(L, kernel_data.film.use_light_pass);
+	path_radiance_init(L, kernel_data.film.use_light_pass, kernel_data.film.light_groups);
 
 	/* shader data memory used for both volumes and surfaces, saves stack space */
 	ShaderData sd;
@@ -377,7 +377,7 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 
 			/* emission and transmittance */
 			if(volume_segment.closure_flag & SD_EMISSION)
-				path_radiance_accum_emission(L, throughput, volume_segment.accum_emission, state.bounce);
+				path_radiance_accum_emission(L, throughput, volume_segment.accum_emission, state.bounce, 0);
 			throughput *= volume_segment.accum_transmittance;
 
 			/* free cached steps */
@@ -454,7 +454,7 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 #ifdef __BACKGROUND__
 			/* sample background shader */
 			float3 L_background = indirect_background(kg, &emission_sd, &state, &ray);
-			path_radiance_accum_background(L, throughput, L_background, state.bounce);
+			path_radiance_accum_background(kg, L, throughput, L_background, state.bounce);
 			kernel_write_denoising_passes(kg, buffer, &state, NULL, sample, L_background);
 #else
 			kernel_write_denoising_passes(kg, buffer, &state, NULL, sample, make_float3(0.0f, 0.0f, 0.0f));
@@ -496,8 +496,9 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 #ifdef __EMISSION__
 		/* emission */
 		if(sd.flag & SD_EMISSION) {
-			float3 emission = indirect_primitive_emission(kg, &sd, isect.t, state.flag, state.ray_pdf);
-			path_radiance_accum_emission(L, throughput, emission, state.bounce);
+			int light_groups;
+			float3 emission = indirect_primitive_emission(kg, &sd, isect.t, state.flag, state.ray_pdf, &light_groups);
+			path_radiance_accum_emission(L, throughput, emission, state.bounce, light_groups);
 		}
 #endif  /* __EMISSION__ */
 

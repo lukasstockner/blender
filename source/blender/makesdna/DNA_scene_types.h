@@ -231,6 +231,11 @@ typedef struct SceneRenderLayer {
 	int denoise_half_window;
 	float denoise_strength;
 	float denoise_weighting;
+	int pad;
+
+	int light_group_world;
+	struct Group *light_group_1, *light_group_2, *light_group_3, *light_group_4;
+	struct Group *light_group_5, *light_group_6, *light_group_7, *light_group_8;
 
 	int samples;
 	float pass_alpha_threshold;
@@ -321,6 +326,14 @@ typedef enum ScenePassType {
 #define SCE_PASS_DENOISE_CLEAN            (((uint64_t) 1) << 42) /* If present, these image components are added to the denoised image. */
 #define SCE_PASS_DENOISE_NOISY_B          (((uint64_t) 1) << 43)
 #define SCE_PASS_DENOISE_NOISY_B_VAR      (((uint64_t) 1) << 44)
+#define SCE_PASS_LIGHT_GROUP_1            (((uint64_t) 1) << 45)
+#define SCE_PASS_LIGHT_GROUP_2            (((uint64_t) 1) << 46)
+#define SCE_PASS_LIGHT_GROUP_3            (((uint64_t) 1) << 47)
+#define SCE_PASS_LIGHT_GROUP_4            (((uint64_t) 1) << 48)
+#define SCE_PASS_LIGHT_GROUP_5            (((uint64_t) 1) << 49)
+#define SCE_PASS_LIGHT_GROUP_6            (((uint64_t) 1) << 50)
+#define SCE_PASS_LIGHT_GROUP_7            (((uint64_t) 1) << 51)
+#define SCE_PASS_LIGHT_GROUP_8            (((uint64_t) 1) << 52)
 
 /* note, srl->passflag is treestore element 'nr' in outliner, short still... */
 

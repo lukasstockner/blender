@@ -54,6 +54,14 @@ typedef enum BlenderDenoisePasses {
 	SCE_PASS_DENOISE_CLEAN            = 42, /* If present, these image components are added to the denoised image. */
 	SCE_PASS_DENOISE_NOISY_B          = 43,
 	SCE_PASS_DENOISE_NOISY_B_VAR      = 44,
+	SCE_PASS_LIGHT_GROUP_1            = 45,
+	SCE_PASS_LIGHT_GROUP_2            = 46,
+	SCE_PASS_LIGHT_GROUP_3            = 47,
+	SCE_PASS_LIGHT_GROUP_4            = 48,
+	SCE_PASS_LIGHT_GROUP_5            = 49,
+	SCE_PASS_LIGHT_GROUP_6            = 50,
+	SCE_PASS_LIGHT_GROUP_7            = 51,
+	SCE_PASS_LIGHT_GROUP_8            = 52,
 } BlenderDenoisePasses;
 
 void python_thread_state_save(void **python_thread_state);

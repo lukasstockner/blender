@@ -158,7 +158,7 @@ ccl_device char kernel_background_buffer_update(
 #ifdef __BACKGROUND__
 			/* sample background shader */
 			float3 L_background = indirect_background(kg, kg->sd_input, state, ray);
-			path_radiance_accum_background(L, (*throughput), L_background, state->bounce);
+			path_radiance_accum_background(kg, L, (*throughput), L_background, state->bounce);
 #endif
 			ASSIGN_RAY_STATE(ray_state, ray_index, RAY_UPDATE_BUFFER);
 		}
@@ -225,7 +225,7 @@ ccl_device char kernel_background_buffer_update(
 				 */
 				*throughput = make_float3(1.0f, 1.0f, 1.0f);
 				*L_transparent = 0.0f;
-				path_radiance_init(L, kernel_data.film.use_light_pass);
+				path_radiance_init(L, kernel_data.film.use_light_pass, kernel_data.film.light_groups);
 				path_state_init(kg, kg->sd_input, state, rng, sample, ray);
 #ifdef __KERNEL_DEBUG__
 				debug_data_init(debug_data);

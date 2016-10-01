@@ -198,10 +198,14 @@ ccl_device_noinline bool direct_emission(KernelGlobals *kg,
 
 /* Indirect Primitive Emission */
 
-ccl_device_noinline float3 indirect_primitive_emission(KernelGlobals *kg, ShaderData *sd, float t, int path_flag, float bsdf_pdf)
+ccl_device_noinline float3 indirect_primitive_emission(KernelGlobals *kg, ShaderData *sd, float t, int path_flag, float bsdf_pdf, int *light_groups)
 {
 	/* evaluate emissive closure */
 	float3 L = shader_emissive_eval(kg, sd);
+
+	if(light_groups) {
+		*light_groups = object_light_groups(kg, ccl_fetch(sd, object));
+	}
 
 #ifdef __HAIR__
 	if(!(path_flag & PATH_RAY_MIS_SKIP) && (ccl_fetch(sd, flag) & SD_USE_MIS) && (ccl_fetch(sd, type) & PRIMITIVE_ALL_TRIANGLE))
@@ -222,15 +226,16 @@ ccl_device_noinline float3 indirect_primitive_emission(KernelGlobals *kg, Shader
 
 /* Indirect Lamp Emission */
 
-ccl_device_noinline bool indirect_lamp_emission(KernelGlobals *kg,
+ccl_device_noinline void indirect_lamp_emission(KernelGlobals *kg,
+                                                PathRadiance *L,
                                                 ShaderData *emission_sd,
                                                 ccl_addr_space PathState *state,
-                                                Ray *ray,
-                                                float3 *emission)
+                                                float3 throughput,
+                                                Ray *ray)
 {
-	bool hit_lamp = false;
+	float3 emission = make_float3(0.0f, 0.0f, 0.0f);
 
-	*emission = make_float3(0.0f, 0.0f, 0.0f);
+	bool use_light_groups = (kernel_data.film.light_groups != 0);
 
 	for(int lamp = 0; lamp < kernel_data.integrator.num_all_lights; lamp++) {
 		LightSample ls;
@@ -250,14 +255,14 @@ ccl_device_noinline bool indirect_lamp_emission(KernelGlobals *kg,
 		}
 #endif
 
-		float3 L = direct_emissive_eval(kg,
-		                                emission_sd,
-		                                &ls,
-		                                state,
-		                                -ray->D,
-		                                ray->dD,
-		                                ls.t,
-		                                ray->time);
+		float3 lamp_L = direct_emissive_eval(kg,
+		                                     emission_sd,
+		                                     &ls,
+		                                     state,
+		                                     -ray->D,
+		                                     ray->dD,
+		                                     ls.t,
+		                                     ray->time);
 
 #ifdef __VOLUME__
 		if(state->volume_stack[0].shader != SHADER_NONE) {
@@ -266,7 +271,7 @@ ccl_device_noinline bool indirect_lamp_emission(KernelGlobals *kg,
 			volume_ray.t = ls.t;
 			float3 volume_tp = make_float3(1.0f, 1.0f, 1.0f);
 			kernel_volume_shadow(kg, emission_sd, state, &volume_ray, &volume_tp);
-			L *= volume_tp;
+			lamp_L *= volume_tp;
 		}
 #endif
 
@@ -274,14 +279,27 @@ ccl_device_noinline bool indirect_lamp_emission(KernelGlobals *kg,
 			/* multiple importance sampling, get regular light pdf,
 			 * and compute weight with respect to BSDF pdf */
 			float mis_weight = power_heuristic(state->ray_pdf, ls.pdf);
-			L *= mis_weight;
+			lamp_L *= mis_weight;
 		}
 
-		*emission += L;
-		hit_lamp = true;
+		if(use_light_groups) {
+			int light_groups = lamp_light_groups(kg, &ls);
+			path_radiance_accum_emission(L,
+			                             throughput,
+			                             lamp_L,
+			                             state->bounce,
+			                             light_groups);
+		}
+		emission += lamp_L;
 	}
 
-	return hit_lamp;
+	if(!use_light_groups) {
+		path_radiance_accum_emission(L,
+		                             throughput,
+		                             emission,
+		                             state->bounce,
+		                             0);
+	}
 }
 
 /* Indirect Background */
