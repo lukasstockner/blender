@@ -1606,8 +1606,8 @@ def draw_device(self, context):
         layout.prop(cscene, "feature_set")
 
         device_type = context.user_preferences.system.compute_device_type
-        if device_type in {'CUDA', 'OPENCL', 'NETWORK'}:
-            layout.prop(cscene, "device")
+#        if device_type in {'CUDA', 'OPENCL', 'NETWORK'}:
+        layout.prop(cscene, "device")
 
         if engine.with_osl() and use_cpu(context):
             layout.prop(cscene, "shading_system")

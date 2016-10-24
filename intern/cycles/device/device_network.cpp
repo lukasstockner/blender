@@ -20,6 +20,7 @@
 
 #include "util_foreach.h"
 #include "util_logging.h"
+#include "util_queue.h"
 
 #if defined(WITH_NETWORK)
 
@@ -51,27 +52,52 @@ public:
 
 	thread_mutex rpc_lock;
 
+	thread *receive_thread;
+
+	void *mem_copy_from_data;
+	size_t mem_copy_from_size;
+	thread_mutex mem_copy_from_mutex;
+	bool mem_copy_from_finished;
+	thread_condition_variable mem_copy_from_cond;
+
+	bool load_kernels_result;
+	bool load_kernels_finished;
+	thread_mutex load_kernels_mutex;
+	thread_condition_variable load_kernels_cond;
+
+	bool task_wait_finished;
+	thread_mutex task_wait_mutex;
+	thread_condition_variable task_wait_cond;
+
 	NetworkDevice(DeviceInfo& info, Stats &stats, const char *address)
 	: Device(info, stats, true), socket(io_service)
 	{
 		error_func = NetworkError();
-		stringstream portstr;
-		portstr << SERVER_PORT;
-
-		tcp::resolver resolver(io_service);
-		tcp::resolver::query query(address, portstr.str());
-		tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
-		tcp::resolver::iterator end;
 
 		boost::system::error_code error = boost::asio::error::host_not_found;
-		while(error && endpoint_iterator != end)
-		{
-			socket.close();
-			socket.connect(*endpoint_iterator++, error);
+		if(getenv("CYCLES_IP")) {
+			socket.connect(tcp::endpoint(boost::asio::ip::address::from_string(getenv("CYCLES_IP")), SERVER_PORT), error);
+		}
+		else {
+			stringstream portstr;
+			portstr << SERVER_PORT;
+
+			tcp::resolver resolver(io_service);
+			tcp::resolver::query query(address, portstr.str());
+			tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
+			tcp::resolver::iterator end;
+
+			while(error && endpoint_iterator != end)
+			{
+				socket.close();
+				socket.connect(*endpoint_iterator++, error);
+			}
 		}
 
 		if(error)
 			error_func.network_error(error.message());
+
+		receive_thread = new thread(function_bind(&NetworkDevice::receive, this));
 
 		mem_counter = 0;
 	}
@@ -80,6 +106,14 @@ public:
 	{
 		RPCSend snd(socket, &error_func, "stop");
 		snd.write();
+
+		/* Join with the receive thread. */
+		delete receive_thread;
+	}
+
+	bool buffer_copy_needed()
+	{
+		return false;
 	}
 
 	void mem_alloc(device_memory& mem, MemoryType type)
@@ -109,6 +143,7 @@ public:
 	void mem_copy_from(device_memory& mem, int y, int w, int h, int elem)
 	{
 		thread_scoped_lock lock(rpc_lock);
+		thread_scoped_lock mem_copy_from_lock(mem_copy_from_mutex);
 
 		size_t data_size = mem.memory_size();
 
@@ -121,8 +156,15 @@ public:
 		snd.add(elem);
 		snd.write();
 
-		RPCReceive rcv(socket, &error_func);
-		rcv.read_buffer((void*)mem.data_pointer, data_size);
+		lock.unlock();
+
+		/* Set up what that the receiving thread needs to store the data. */
+		mem_copy_from_finished = false;
+		mem_copy_from_data = (void*) mem.data_pointer;
+		mem_copy_from_size = data_size;
+
+		/* Give up lock on the mutex to allow receiving and wait for it to finish. */
+		while(!mem_copy_from_finished) mem_copy_from_cond.wait(mem_copy_from_lock);
 	}
 
 	void mem_zero(device_memory& mem)
@@ -208,6 +250,7 @@ public:
 			return false;
 
 		thread_scoped_lock lock(rpc_lock);
+		thread_scoped_lock load_kernels_lock(load_kernels_mutex);
 
 		RPCSend snd(socket, &error_func, "load_kernels");
 		snd.add(requested_features.experimental);
@@ -216,11 +259,12 @@ public:
 		snd.add(requested_features.nodes_features);
 		snd.write();
 
-		bool result;
-		RPCReceive rcv(socket, &error_func);
-		rcv.read(result);
+		lock.unlock();
 
-		return result;
+		load_kernels_finished = false;
+		while(!load_kernels_finished) load_kernels_cond.wait(load_kernels_lock);
+
+		return load_kernels_result;
 	}
 
 	void task_add(DeviceTask& task)
@@ -234,50 +278,39 @@ public:
 		snd.write();
 	}
 
-	void task_wait()
+	void receive()
 	{
-		thread_scoped_lock lock(rpc_lock);
-
-		RPCSend snd(socket, &error_func, "task_wait");
-		snd.write();
-
-		lock.unlock();
-
+		/* Needed to cache the buffer pointers */
 		TileList the_tiles;
 
-		/* todo: run this threaded for connecting to multiple clients */
 		for(;;) {
-			if(error_func.have_error())
-				break;
-
-			RenderTile tile;
-
-			lock.lock();
 			RPCReceive rcv(socket, &error_func);
 
 			if(rcv.name == "acquire_tile") {
-				lock.unlock();
-
-				/* todo: watch out for recursive calls! */
+				RenderTile tile;
 				if(the_task.acquire_tile(this, tile)) { /* write return as bool */
 					the_tiles.push_back(tile);
 
-					lock.lock();
-					RPCSend snd(socket, &error_func, "acquire_tile");
+					thread_scoped_lock lock(rpc_lock);
+					RPCSend snd(socket, &error_func, "acquire_tile_done");
 					snd.add(tile);
+					device_memory &mem = tile.buffers->buffer;
+					snd.add(mem);
+					snd.add(0);
+					snd.add(tile.buffers->params.width);
+					snd.add(tile.buffers->params.height);
+					snd.add(tile.buffers->params.get_passes_size()*sizeof(float));
 					snd.write();
-					lock.unlock();
 				}
 				else {
-					lock.lock();
+					thread_scoped_lock lock(rpc_lock);
 					RPCSend snd(socket, &error_func, "acquire_tile_none");
 					snd.write();
-					lock.unlock();
 				}
 			}
 			else if(rcv.name == "release_tile") {
+				RenderTile tile;
 				rcv.read(tile);
-				lock.unlock();
 
 				TileList::iterator it = tile_list_find(the_tiles, tile);
 				if(it != the_tiles.end()) {
@@ -285,22 +318,48 @@ public:
 					the_tiles.erase(it);
 				}
 
+				rcv.read_buffer((void*) tile.buffers->buffer.data_pointer, tile.buffers->buffer.memory_size());
+
 				assert(tile.buffers != NULL);
 
 				the_task.release_tile(tile);
-
-				lock.lock();
-				RPCSend snd(socket, &error_func, "release_tile");
-				snd.write();
-				lock.unlock();
+			}
+			else if(rcv.name == "mem_copy_from_done") {
+				thread_scoped_lock mem_copy_from_lock(mem_copy_from_mutex);
+				rcv.read_buffer(mem_copy_from_data, mem_copy_from_size);
+				mem_copy_from_finished = true;
+				mem_copy_from_lock.unlock();
+				mem_copy_from_cond.notify_one();
+			}
+			else if(rcv.name == "load_kernels_done") {
+				thread_scoped_lock load_kernels_lock(load_kernels_mutex);
+				rcv.read(load_kernels_result);
+				load_kernels_finished = true;
+				load_kernels_lock.unlock();
+				load_kernels_cond.notify_one();
 			}
 			else if(rcv.name == "task_wait_done") {
-				lock.unlock();
+				thread_scoped_lock task_wait_lock(task_wait_mutex);
+				task_wait_finished = true;
+				task_wait_lock.unlock();
+				task_wait_cond.notify_one();
+			}
+			else if(rcv.name == "stop_ok") {
 				break;
 			}
-			else
-				lock.unlock();
 		}
+	}
+
+	void task_wait()
+	{
+		thread_scoped_lock lock(rpc_lock);
+		RPCSend snd(socket, &error_func, "task_wait");
+		snd.write();
+		lock.unlock();
+
+		thread_scoped_lock task_wait_lock(task_wait_mutex);
+		task_wait_finished = false;
+		while(!task_wait_finished) task_wait_cond.wait(task_wait_lock);
 	}
 
 	void task_cancel()
@@ -340,7 +399,8 @@ void device_network_info(vector<DeviceInfo>& devices)
 
 class DeviceServer {
 public:
-	thread_mutex rpc_lock;
+	thread_mutex receive_lock;
+	thread_mutex send_lock;
 
 	void network_error(const string &message) {
 		error_func.network_error(message);
@@ -349,7 +409,7 @@ public:
 	bool have_error() { return error_func.have_error(); }
 
 	DeviceServer(Device *device_, tcp::socket& socket_)
-	: device(device_), socket(socket_), stop(false), blocked_waiting(false)
+	: device(device_), socket(socket_), task_wait_thread(NULL)
 	{
 		error_func = NetworkError();
 	}
@@ -357,24 +417,37 @@ public:
 	void listen()
 	{
 		/* receive remote function calls */
-		for(;;) {
-			listen_step();
-
-			if(stop)
-				break;
-		}
+		while(listen_step());
+		task_wait_thread->join();
+		delete task_wait_thread;
+		task_wait_thread = NULL;
 	}
 
 protected:
-	void listen_step()
+
+	struct AcquiredTile {
+		RenderTile tile;
+		bool success;
+	};
+	queue<AcquiredTile> acquired_tiles;
+
+	thread_mutex acquire_tile_mutex;
+	thread_condition_variable acquire_tile_cond;
+
+	bool listen_step()
 	{
-		thread_scoped_lock lock(rpc_lock);
+		thread_scoped_lock lock(receive_lock);
 		RPCReceive rcv(socket, &error_func);
 
-		if(rcv.name == "stop")
-			stop = true;
-		else
-			process(rcv, lock);
+		if(rcv.name == "stop") {
+			thread_scoped_lock lock(send_lock);
+			RPCSend snd(socket, &error_func, "stop_ok");
+			snd.write();
+			return false;
+		}
+
+		process(rcv, lock);
+		return true;
 	}
 
 	/* create a memory buffer for a device buffer and insert it into mem_data */
@@ -445,6 +518,14 @@ protected:
 		mem_data.erase(idata);
 
 		return result;
+	}
+
+	void task_wait()
+	{
+		device->task_wait();
+		thread_scoped_lock lock(send_lock);
+		RPCSend snd(socket, &error_func, "task_wait_done");
+		snd.write();
 	}
 
 	/* note that the lock must be already acquired upon entry.
@@ -526,7 +607,7 @@ protected:
 
 			size_t data_size = mem.memory_size();
 
-			RPCSend snd(socket, &error_func, "mem_copy_from");
+			RPCSend snd(socket, &error_func, "mem_copy_from_done");
 			snd.write();
 			snd.write_buffer((uint8_t*)mem.data_pointer, data_size);
 			lock.unlock();
@@ -624,7 +705,7 @@ protected:
 
 			bool result;
 			result = device->load_kernels(requested_features);
-			RPCSend snd(socket, &error_func, "load_kernels");
+			RPCSend snd(socket, &error_func, "load_kernels_done");
 			snd.add(result);
 			snd.write();
 			lock.unlock();
@@ -665,37 +746,43 @@ protected:
 		else if(rcv.name == "task_wait") {
 			lock.unlock();
 
-			blocked_waiting = true;
-			device->task_wait();
-			blocked_waiting = false;
-
-			lock.lock();
-			RPCSend snd(socket, &error_func, "task_wait_done");
-			snd.write();
-			lock.unlock();
+			delete task_wait_thread;
+			task_wait_thread = new thread(function_bind(&DeviceServer::task_wait, this));
 		}
 		else if(rcv.name == "task_cancel") {
 			lock.unlock();
 			device->task_cancel();
 		}
-		else if(rcv.name == "acquire_tile") {
-			AcquireEntry entry;
-			entry.name = rcv.name;
-			rcv.read(entry.tile);
-			acquire_queue.push_back(entry);
+		else if(rcv.name == "acquire_tile_done") {
+			AcquiredTile res;
+			res.success = true;
+			rcv.read(res.tile);
+			{
+				thread_scoped_lock buffer_map_lock(buffer_map_mutex);
+				RenderBufferMemory &rmem = buffer_map[res.tile.buffer];
+				assert(rmem.mem == NULL);
+				rmem.mem = new network_device_memory;
+				rcv.read(*rmem.mem);
+				rcv.read(rmem.y);
+				rcv.read(rmem.w);
+				rcv.read(rmem.h);
+				rcv.read(rmem.elem);
+			}
 			lock.unlock();
+
+			thread_scoped_lock acquire_tile_lock(acquire_tile_mutex);
+			acquired_tiles.push(res);
+			acquire_tile_cond.notify_one();
 		}
 		else if(rcv.name == "acquire_tile_none") {
-			AcquireEntry entry;
-			entry.name = rcv.name;
-			acquire_queue.push_back(entry);
 			lock.unlock();
-		}
-		else if(rcv.name == "release_tile") {
-			AcquireEntry entry;
-			entry.name = rcv.name;
-			acquire_queue.push_back(entry);
-			lock.unlock();
+
+			AcquiredTile res;
+			res.success = false;
+
+			thread_scoped_lock acquire_tile_lock(acquire_tile_mutex);
+			acquired_tiles.push(res);
+			acquire_tile_cond.notify_one();
 		}
 		else {
 			cout << "Error: unexpected RPC receive call \"" + rcv.name + "\"\n";
@@ -705,43 +792,25 @@ protected:
 
 	bool task_acquire_tile(Device *device, RenderTile& tile)
 	{
-		thread_scoped_lock acquire_lock(acquire_mutex);
-
-		bool result = false;
-
+		thread_scoped_lock lock(send_lock);
 		RPCSend snd(socket, &error_func, "acquire_tile");
 		snd.write();
+		lock.unlock();
 
-		do {
-			if(blocked_waiting)
-				listen_step();
+		thread_scoped_lock acquire_tile_lock(acquire_tile_mutex);
+		while(acquired_tiles.empty()) acquire_tile_cond.wait(acquire_tile_lock);
 
-			/* todo: avoid busy wait loop */
-			thread_scoped_lock lock(rpc_lock);
-
-			if(!acquire_queue.empty()) {
-				AcquireEntry entry = acquire_queue.front();
-				acquire_queue.pop_front();
-
-				if(entry.name == "acquire_tile") {
-					tile = entry.tile;
-
-					if(tile.buffer) tile.buffer = ptr_map[tile.buffer];
-					if(tile.rng_state) tile.rng_state = ptr_map[tile.rng_state];
-
-					result = true;
-					break;
-				}
-				else if(entry.name == "acquire_tile_none") {
-					break;
-				}
-				else {
-					cout << "Error: unexpected acquire RPC receive call \"" + entry.name + "\"\n";
-				}
-			}
-		} while(acquire_queue.empty() && !stop && !have_error());
-
-		return result;
+		if(acquired_tiles.front().success) {
+			tile = acquired_tiles.front().tile;
+			acquired_tiles.pop();
+			if(tile.buffer) tile.buffer = ptr_map[tile.buffer];
+			if(tile.rng_state) tile.rng_state = ptr_map[tile.rng_state];
+			return true;
+		}
+		else {
+			acquired_tiles.pop();
+			return false;
+		}
 	}
 
 	void task_update_progress_sample()
@@ -756,39 +825,33 @@ protected:
 
 	void task_release_tile(RenderTile& tile)
 	{
-		thread_scoped_lock acquire_lock(acquire_mutex);
-
+		device_ptr buffer_ptr = tile.buffer;
 		if(tile.buffer) tile.buffer = ptr_imap[tile.buffer];
 		if(tile.rng_state) tile.rng_state = ptr_imap[tile.rng_state];
 
+		size_t data_size;
+		uint8_t *data;
 		{
-			thread_scoped_lock lock(rpc_lock);
-			RPCSend snd(socket, &error_func, "release_tile");
-			snd.add(tile);
-			snd.write();
-			lock.unlock();
+			/* Copy render buffer from device. */
+			thread_scoped_lock buffer_map_lock(buffer_map_mutex);
+			assert(buffer_map.count(tile.buffer));
+
+			RenderBufferMemory &rmem = buffer_map[tile.buffer];
+			DataVector &data_v = data_vector_find(tile.buffer);
+			rmem.mem->data_pointer = (device_ptr)&(data_v[0]);
+			rmem.mem->device_pointer = buffer_ptr;
+			data_size = rmem.mem->memory_size();
+			data = &data_v[0];
+			device->mem_copy_from(*rmem.mem, rmem.y, rmem.w, rmem.h, rmem.elem);
+			delete rmem.mem;
+			buffer_map.erase(tile.buffer);
 		}
 
-		do {
-			if(blocked_waiting)
-				listen_step();
-
-			/* todo: avoid busy wait loop */
-			thread_scoped_lock lock(rpc_lock);
-
-			if(!acquire_queue.empty()) {
-				AcquireEntry entry = acquire_queue.front();
-				acquire_queue.pop_front();
-
-				if(entry.name == "release_tile") {
-					lock.unlock();
-					break;
-				}
-				else {
-					cout << "Error: unexpected release RPC receive call \"" + entry.name + "\"\n";
-				}
-			}
-		} while(acquire_queue.empty() && !stop);
+		thread_scoped_lock lock(send_lock);
+		RPCSend snd(socket, &error_func, "release_tile");
+		snd.add(tile);
+		snd.write();
+		snd.write_buffer(data, data_size);
 	}
 
 	bool task_get_cancel()
@@ -804,17 +867,22 @@ protected:
 	PtrMap ptr_map;
 	PtrMap ptr_imap;
 	DataMap mem_data;
+	struct RenderBufferMemory {
+		network_device_memory *mem = NULL;
+		int y, w, h, elem;
+	};
+	map<device_ptr, RenderBufferMemory> buffer_map;
+	thread_mutex buffer_map_mutex;
 
-	struct AcquireEntry {
+	/*struct AcquireEntry {
 		string name;
 		RenderTile tile;
 	};
 
 	thread_mutex acquire_mutex;
-	list<AcquireEntry> acquire_queue;
+	list<AcquireEntry> acquire_queue;*/
 
-	bool stop;
-	bool blocked_waiting;
+	thread *task_wait_thread;
 private:
 	NetworkError error_func;
 
@@ -840,7 +908,12 @@ void Device::server_run()
 			printf("Connected to remote client at: %s\n", remote_address.c_str());
 
 			DeviceServer server(this, socket);
-			server.listen();
+			try {
+				server.listen();
+			}
+			catch (std::exception& e) {
+				cout << e.what() << '\n';
+			}
 
 			printf("Disconnected.\n");
 		}

@@ -32,8 +32,8 @@ enum_devices = (
     ('GPU', "GPU Compute", "Use GPU compute device for rendering, configured in user preferences"),
     )
 
-if _cycles.with_network:
-    enum_devices += (('NETWORK', "Networked Device", "Use networked device for rendering"),)
+#if _cycles.with_network:
+enum_devices += (('NETWORK', "Networked Device", "Use networked device for rendering"),)
 
 enum_feature_set = (
     ('SUPPORTED', "Supported", "Only use finished and supported features"),

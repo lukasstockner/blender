@@ -78,6 +78,10 @@ ImageManager::ImageManager(const DeviceInfo& info)
 	else if(device_type == DEVICE_OPENCL) {
 		SET_TEX_IMAGES_LIMITS(OPENCL);
 	}
+	else if(device_type == DEVICE_NETWORK) {
+		/* TODO(lukas): Get actual value. */
+		SET_TEX_IMAGES_LIMITS(CPU);
+	}
 	else {
 		/* Should not happen. */
 		tex_num_images[IMAGE_DATA_TYPE_FLOAT4] = 0;

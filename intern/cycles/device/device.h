@@ -214,6 +214,9 @@ public:
 	DeviceInfo info;
 	virtual const string& error_message() { return error_msg; }
 	bool have_error() { return !error_message().empty(); }
+	/* To avoid nested function calls, the NetworkDevice copies the RenderBuffers automatically
+	 * when a tile is released. */
+	virtual bool buffer_copy_needed() { return true; }
 
 	/* statistics */
 	Stats &stats;

@@ -71,7 +71,7 @@ public:
 	network_device_memory() {}
 	~network_device_memory() { device_pointer = 0; };
 
-	vector<char> local_data;
+	//vector<char> local_data;
 };
 
 /* Common netowrk error function / object for both DeviceNetwork and DeviceServer*/
@@ -134,7 +134,7 @@ public:
 		archive & task.offset & task.stride;
 		archive & task.shader_input & task.shader_output & task.shader_output_luma & task.shader_eval_type;
 		archive & task.shader_x & task.shader_w;
-		archive & task.need_finish_queue;
+		archive & task.need_finish_queue & task.copy_buffer;
 	}
 
 	void add(const RenderTile& tile)
@@ -293,7 +293,7 @@ public:
 		*archive & task.offset & task.stride;
 		*archive & task.shader_input & task.shader_output & task.shader_output_luma & task.shader_eval_type;
 		*archive & task.shader_x & task.shader_w;
-		*archive & task.need_finish_queue;
+		*archive & task.need_finish_queue & task.copy_buffer;
 
 		task.type = (DeviceTask::Type)type;
 	}

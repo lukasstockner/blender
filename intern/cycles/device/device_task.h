@@ -66,6 +66,7 @@ public:
 
 	bool need_finish_queue;
 	bool integrator_branched;
+	bool copy_buffer;
 	int2 requested_tile_size;
 protected:
 	double last_update_time;

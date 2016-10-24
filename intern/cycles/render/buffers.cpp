@@ -151,6 +151,9 @@ bool RenderBuffers::copy_from_device()
 	if(!buffer.device_pointer)
 		return false;
 
+	if(!device->buffer_copy_needed())
+		return true;
+
 	device->mem_copy_from(buffer, 0, params.width, params.height, params.get_passes_size()*sizeof(float));
 
 	return true;

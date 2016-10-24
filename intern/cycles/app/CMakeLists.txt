@@ -117,9 +117,7 @@ if(WITH_CYCLES_STANDALONE)
 		set_target_properties(cycles PROPERTIES INSTALL_RPATH $ORIGIN/lib)
 	endif()
 	unset(SRC)
-endif()
 
-if(WITH_CYCLES_NETWORK)
 	set(SRC
 		cycles_server.cpp
 	)

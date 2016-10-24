@@ -389,7 +389,11 @@ static PyObject *available_devices_func(PyObject * /*self*/, PyObject * /*args*/
 
 	for(size_t i = 0; i < devices.size(); i++) {
 		DeviceInfo& device = devices[i];
-		PyTuple_SET_ITEM(ret, i, PyUnicode_FromString(device.description.c_str()));
+		PyObject *dev = PyTuple_New(3);
+		PyTuple_SET_ITEM(dev, 0, PyUnicode_FromString(device.id.c_str()));
+		PyTuple_SET_ITEM(dev, 1, PyUnicode_FromString(Device::string_from_type(device.type).c_str()));
+		PyTuple_SET_ITEM(dev, 2, PyUnicode_FromString(device.description.c_str()));
+		PyTuple_SET_ITEM(ret, i, dev);
 	}
 
 	return ret;
@@ -594,6 +598,48 @@ static PyObject *system_info_func(PyObject * /*self*/, PyObject * /*value*/)
 	return PyUnicode_FromString(system_info.c_str());
 }
 
+#ifdef WITH_NETWORK
+static PyObject *network_run_server_func(PyObject * /*self*/, PyObject *args, PyObject *keywords)
+{
+	int threads = 0, debug = 0, verbosity = 1;
+	const char* id = "CPU";
+	static const char* keylist[] = {"device", "threads", "debug", "verbosity"};
+	if(!PyArg_ParseTupleAndKeywords(args, keywords, "|sipi", const_cast<char **>(keylist), &id, &threads, &debug, &verbosity)) {
+		return NULL;
+	}
+
+	if(debug) {
+		util_logging_start();
+		util_logging_verbosity_set(verbosity);
+	}
+
+	/* find matching device */
+	vector<DeviceInfo>& devices = Device::available_devices();
+	DeviceInfo device_info;
+
+	foreach(DeviceInfo& device, devices) {
+		if(device.id == id) {
+			device_info = device;
+			break;
+		}
+	}
+
+	TaskScheduler::init(threads);
+
+	while(1) {
+		Stats stats;
+		Device *device = Device::create(device_info, stats, true);
+		printf("Cycles Server with device: %s\n", device->info.description.c_str());
+		device->server_run();
+		delete device;
+	}
+
+	TaskScheduler::exit();
+
+	Py_RETURN_NONE;
+}
+#endif
+
 #ifdef WITH_OPENCL
 static PyObject *opencl_disable_func(PyObject * /*self*/, PyObject * /*value*/)
 {
@@ -692,6 +738,9 @@ static PyMethodDef methods[] = {
 #endif
 	{"available_devices", available_devices_func, METH_NOARGS, ""},
 	{"system_info", system_info_func, METH_NOARGS, ""},
+#ifdef WITH_NETWORK
+	{"network_run_server", (PyCFunction)network_run_server_func, METH_VARARGS|METH_KEYWORDS, ""},
+#endif
 #ifdef WITH_OPENCL
 	{"opencl_disable", opencl_disable_func, METH_NOARGS, ""},
 #endif
