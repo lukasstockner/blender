@@ -528,15 +528,29 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 
 	/* device type */
 	vector<DeviceInfo>& devices = Device::available_devices();
-	
+
 	/* device default CPU */
 	params.device = devices[0];
 
 	if(get_enum(cscene, "device") == 2) {
 		/* find network device */
-		foreach(DeviceInfo& info, devices)
-			if(info.type == DEVICE_NETWORK)
+		bool found = false;
+		foreach(DeviceInfo& info, devices) {
+			if(info.type == DEVICE_MULTI && info.network_servers.size() > 0) {
 				params.device = info;
+				found = true;
+				break;
+			}
+		}
+
+		if(!found) {
+			foreach(DeviceInfo& info, devices) {
+				if(info.type == DEVICE_NETWORK) {
+					params.device = info;
+					break;
+				}
+			}
+		}
 	}
 	else if(get_enum(cscene, "device") == 1) {
 		/* find GPU device with given id */

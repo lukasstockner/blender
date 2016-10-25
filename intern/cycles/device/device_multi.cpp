@@ -51,18 +51,13 @@ public:
 		Device *device;
 
 		foreach(DeviceInfo& subinfo, info.multi_devices) {
+			if(subinfo.type == DEVICE_NETWORK) continue;
 			device = Device::create(subinfo, sub_stats_, background);
 			devices.push_back(SubDevice(device));
 		}
 
 #ifdef WITH_NETWORK
-		/* try to add network devices */
-		ServerDiscovery discovery(true);
-		time_sleep(1.0);
-
-		vector<string> servers = discovery.get_server_list();
-
-		foreach(string& server, servers) {
+		foreach(string& server, info.network_servers) {
 			device = device_network_create(info, stats, server.c_str());
 			if(device)
 				devices.push_back(SubDevice(device));
@@ -449,6 +444,15 @@ static bool device_multi_add(vector<DeviceInfo>& devices, DeviceType type, bool 
 	return true;
 }
 
+void split(const std::string &s, char delim, vector<std::string> &elems) {
+    std::stringstream ss;
+    ss.str(s);
+    std::string item;
+    while (std::getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+}
+
 void device_multi_info(vector<DeviceInfo>& devices)
 {
 	int num = 0;
@@ -463,6 +467,37 @@ void device_multi_info(vector<DeviceInfo>& devices)
 		device_multi_add(devices, DEVICE_OPENCL, false, false, "OPENCL_MULTI_%d", num++);
 	if(!device_multi_add(devices, DEVICE_OPENCL, true, true, "OPENCL_MULTI_%d", num++))
 		device_multi_add(devices, DEVICE_OPENCL, true, false, "OPENCL_MULTI_%d", num++);
+
+#ifdef WITH_NETWORK
+	printf("Hi!\n");
+	/* try to add network devices */
+	ServerDiscovery discovery(true);
+	time_sleep(1.0);
+
+	vector<string> servers = discovery.get_server_list();
+	if(getenv("CYCLES_IP")) {
+		printf("Got env!\n");
+		split(getenv("CYCLES_IP"), ';', servers);
+	}
+	if(servers.size() > 0) {
+		DeviceInfo info;
+		info.type = DEVICE_MULTI;
+		info.description = "Multi Network Device";
+		info.id = "NETWORK_MULTI";
+		info.num = 0;
+		info.network_servers = servers;
+		for(int i = 0; i < servers.size(); i++) {
+			printf("Found server %s!\n", servers[i].c_str());
+			DeviceInfo subinfo;
+			subinfo.type = DEVICE_NETWORK;
+			subinfo.description = "Network Device " + servers[i];
+			subinfo.id = string_printf("NETWORK_MULTI_%d", i);
+			subinfo.num = i;
+			info.multi_devices.push_back(subinfo);
+		}
+		devices.push_back(info);
+	}
+#endif
 }
 
 CCL_NAMESPACE_END

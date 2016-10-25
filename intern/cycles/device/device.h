@@ -57,6 +57,7 @@ public:
 	bool has_bindless_textures; /* flag for GPU and Multi device */
 	bool use_split_kernel; /* Denotes if the device is going to run cycles using split-kernel */
 	vector<DeviceInfo> multi_devices;
+	vector<string> network_servers;
 
 	DeviceInfo()
 	{
@@ -213,7 +214,7 @@ public:
 	/* info */
 	DeviceInfo info;
 	virtual const string& error_message() { return error_msg; }
-	bool have_error() { return !error_message().empty(); }
+	virtual bool have_error() { return !error_message().empty(); }
 	/* To avoid nested function calls, the NetworkDevice copies the RenderBuffers automatically
 	 * when a tile is released. */
 	virtual bool buffer_copy_needed() { return true; }

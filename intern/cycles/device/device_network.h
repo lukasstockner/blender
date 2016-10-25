@@ -85,7 +85,9 @@ public:
 	~NetworkError() {}
 
 	void network_error(const string& message) {
-		error = message;
+		if(error_count == 0) {
+			error = message;
+		}
 		error_count += 1;
 	}
 
@@ -93,8 +95,8 @@ public:
 		return true ? error_count > 0 : false;
 	}
 
-private:
 	string error;
+private:
 	int error_count;
 };
 
@@ -264,6 +266,7 @@ public:
 		*archive & mem.data_width & mem.data_height & mem.data_depth & mem.device_pointer;
 
 		mem.data_pointer = 0;
+		mem.device_size = mem.data_size;
 	}
 
 	template<typename T> void read(T& data)
