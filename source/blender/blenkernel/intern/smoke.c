@@ -360,6 +360,10 @@ static void smokeModifier_freeDomain(SmokeModifierData *smd)
 		BKE_ptcache_free_list(&(smd->domain->ptcaches[0]));
 		smd->domain->point_cache[0] = NULL;
 
+		if (smd->domain->coba) {
+			MEM_freeN(smd->domain->coba);
+		}
+
 		MEM_freeN(smd->domain);
 		smd->domain = NULL;
 	}
@@ -536,6 +540,17 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 #endif
 			smd->domain->data_depth = 0;
 			smd->domain->cache_file_format = PTCACHE_FILE_PTCACHE;
+
+			smd->domain->display_thickness = 1.0f;
+			smd->domain->slice_method = MOD_SMOKE_SLICE_VIEW_ALIGNED;
+			smd->domain->axis_slice_method = AXIS_SLICE_FULL;
+			smd->domain->slice_per_voxel = 5.0f;
+			smd->domain->slice_depth = 0.5f;
+			smd->domain->slice_axis = 0;
+			smd->domain->vector_scale = 1.0f;
+
+			smd->domain->coba = NULL;
+			smd->domain->coba_field = FLUID_FIELD_DENSITY;
 		}
 		else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 		{
@@ -629,6 +644,19 @@ void smokeModifier_copy(struct SmokeModifierData *smd, struct SmokeModifierData 
 		tsmd->domain->openvdb_comp = smd->domain->openvdb_comp;
 		tsmd->domain->data_depth = smd->domain->data_depth;
 		tsmd->domain->cache_file_format = smd->domain->cache_file_format;
+
+		tsmd->domain->slice_method = smd->domain->slice_method;
+		tsmd->domain->axis_slice_method = smd->domain->axis_slice_method;
+		tsmd->domain->slice_per_voxel = smd->domain->slice_per_voxel;
+		tsmd->domain->slice_depth = smd->domain->slice_depth;
+		tsmd->domain->slice_axis = smd->domain->slice_axis;
+		tsmd->domain->draw_velocity = smd->domain->draw_velocity;
+		tsmd->domain->vector_draw_type = smd->domain->vector_draw_type;
+		tsmd->domain->vector_scale = smd->domain->vector_scale;
+
+		if (smd->domain->coba) {
+			tsmd->domain->coba = MEM_dupallocN(smd->domain->coba);
+		}
 	}
 	else if (tsmd->flow) {
 		tsmd->flow->psys = smd->flow->psys;

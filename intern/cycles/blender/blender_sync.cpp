@@ -103,32 +103,6 @@ bool BlenderSync::sync_recalc()
 		if(b_lamp->is_updated() || (b_lamp->node_tree() && b_lamp->node_tree().is_updated()))
 			shader_map.set_recalc(*b_lamp);
 
-	BL::BlendData::objects_iterator b_ob;
-
-	for(b_data.objects.begin(b_ob); b_ob != b_data.objects.end(); ++b_ob) {
-		if(b_ob->is_updated()) {
-			object_map.set_recalc(*b_ob);
-			light_map.set_recalc(*b_ob);
-		}
-
-		if(object_is_mesh(*b_ob)) {
-			if(b_ob->is_updated_data() || b_ob->data().is_updated()) {
-				BL::ID key = BKE_object_is_modified(*b_ob)? *b_ob: b_ob->data();
-				mesh_map.set_recalc(key);
-			}
-		}
-		else if(object_is_light(*b_ob)) {
-			if(b_ob->is_updated_data() || b_ob->data().is_updated())
-				light_map.set_recalc(*b_ob);
-		}
-		
-		if(b_ob->is_updated_data()) {
-			BL::Object::particle_systems_iterator b_psys;
-			for(b_ob->particle_systems.begin(b_psys); b_psys != b_ob->particle_systems.end(); ++b_psys)
-				particle_system_map.set_recalc(*b_ob);
-		}
-	}
-
 	bool dicing_prop_changed = false;
 
 	if(experimental) {
@@ -150,20 +124,41 @@ bool BlenderSync::sync_recalc()
 		}
 	}
 
+	BL::BlendData::objects_iterator b_ob;
+
+	for(b_data.objects.begin(b_ob); b_ob != b_data.objects.end(); ++b_ob) {
+		if(b_ob->is_updated()) {
+			object_map.set_recalc(*b_ob);
+			light_map.set_recalc(*b_ob);
+		}
+
+		if(object_is_mesh(*b_ob)) {
+			if(b_ob->is_updated_data() || b_ob->data().is_updated() ||
+			   (dicing_prop_changed && object_subdivision_type(*b_ob, preview, experimental) != Mesh::SUBDIVISION_NONE))
+			{
+				BL::ID key = BKE_object_is_modified(*b_ob)? *b_ob: b_ob->data();
+				mesh_map.set_recalc(key);
+			}
+		}
+		else if(object_is_light(*b_ob)) {
+			if(b_ob->is_updated_data() || b_ob->data().is_updated())
+				light_map.set_recalc(*b_ob);
+		}
+		
+		if(b_ob->is_updated_data()) {
+			BL::Object::particle_systems_iterator b_psys;
+			for(b_ob->particle_systems.begin(b_psys); b_psys != b_ob->particle_systems.end(); ++b_psys)
+				particle_system_map.set_recalc(*b_ob);
+		}
+	}
+
 	BL::BlendData::meshes_iterator b_mesh;
 
 	for(b_data.meshes.begin(b_mesh); b_mesh != b_data.meshes.end(); ++b_mesh) {
 		if(b_mesh->is_updated()) {
 			mesh_map.set_recalc(*b_mesh);
 		}
-		else if(dicing_prop_changed) {
-			PointerRNA cmesh = RNA_pointer_get(&b_mesh->ptr, "cycles");
-
-			if(RNA_enum_get(&cmesh, "subdivision_type"))
-				mesh_map.set_recalc(*b_mesh);
-		}
 	}
-
 
 	BL::BlendData::worlds_iterator b_world;
 
@@ -260,8 +255,12 @@ void BlenderSync::sync_integrator()
 	integrator->filter_glossy = get_float(cscene, "blur_glossy");
 
 	integrator->seed = get_int(cscene, "seed");
-	if(get_boolean(cscene, "use_animated_seed"))
-		integrator->seed = hash_int_2d(b_scene.frame_current(), get_int(cscene, "seed"));
+	if(get_boolean(cscene, "use_animated_seed")) {
+		integrator->seed = hash_int_2d(b_scene.frame_current(),
+		                               get_int(cscene, "seed")) +
+		                   hash_int_2d((int)(b_scene.frame_subframe() * (float)INT_MAX),
+		                               get_int(cscene, "seed"));
+	}
 
 	integrator->sampling_pattern = (SamplingPattern)get_enum(
 	        cscene,
@@ -289,6 +288,7 @@ void BlenderSync::sync_integrator()
 
 	integrator->sample_all_lights_direct = get_boolean(cscene, "sample_all_lights_direct");
 	integrator->sample_all_lights_indirect = get_boolean(cscene, "sample_all_lights_indirect");
+	integrator->light_sampling_threshold = get_float(cscene, "light_sampling_threshold");
 
 	int diffuse_samples = get_int(cscene, "diffuse_samples");
 	int glossy_samples = get_int(cscene, "glossy_samples");
@@ -535,7 +535,12 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 	vector<DeviceInfo>& devices = Device::available_devices();
 	
 	/* device default CPU */
-	params.device = devices[0];
+	foreach(DeviceInfo& device, devices) {
+		if(device.type == DEVICE_CPU) {
+			params.device = device;
+			break;
+		}
+	}
 
 	if(get_enum(cscene, "device") == 2) {
 		/* find network device */
@@ -544,17 +549,39 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 				params.device = info;
 	}
 	else if(get_enum(cscene, "device") == 1) {
-		/* find GPU device with given id */
-		PointerRNA systemptr = b_userpref.system().ptr;
-		PropertyRNA *deviceprop = RNA_struct_find_property(&systemptr, "compute_device");
-		int device_id = b_userpref.system().compute_device();
+		PointerRNA b_preferences;
 
-		const char *id;
+		BL::UserPreferences::addons_iterator b_addon_iter;
+		for(b_userpref.addons.begin(b_addon_iter); b_addon_iter != b_userpref.addons.end(); ++b_addon_iter) {
+			if(b_addon_iter->module() == "cycles") {
+				b_preferences = b_addon_iter->preferences().ptr;
+				break;
+			}
+		}
 
-		if(RNA_property_enum_identifier(NULL, &systemptr, deviceprop, device_id, &id)) {
-			foreach(DeviceInfo& info, devices)
-				if(info.id == id)
-					params.device = info;
+		int compute_device = get_enum(b_preferences, "compute_device_type");
+
+		if(compute_device != 0) {
+			vector<DeviceInfo> used_devices;
+			RNA_BEGIN(&b_preferences, device, "devices") {
+				if(get_enum(device, "type") == compute_device && get_boolean(device, "use")) {
+					string id = get_string(device, "id");
+					foreach(DeviceInfo& info, devices) {
+						if(info.id == id) {
+							used_devices.push_back(info);
+							break;
+						}
+					}
+				}
+			} RNA_END
+
+			if(used_devices.size() == 1) {
+				params.device = used_devices[0];
+			}
+			else if(used_devices.size() > 1) {
+				params.device = Device::get_multi_device(used_devices);
+			}
+			/* Else keep using the CPU device that was set before. */
 		}
 	}
 

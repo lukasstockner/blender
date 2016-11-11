@@ -22,6 +22,15 @@
 
 #include "abc_util.h"
 
+#include "abc_camera.h"
+#include "abc_curves.h"
+#include "abc_mesh.h"
+#include "abc_nurbs.h"
+#include "abc_points.h"
+#include "abc_transform.h"
+
+#include <Alembic/AbcMaterial/IMaterial.h>
+
 #include <algorithm>
 
 extern "C" {
@@ -201,16 +210,9 @@ void create_transform_matrix(float r_mat[4][4])
 	copy_m4_m4(r_mat, transform_mat);
 }
 
-void create_input_transform(const Alembic::AbcGeom::ISampleSelector &sample_sel,
-                            const Alembic::AbcGeom::IXform &ixform, Object *ob,
-                            float r_mat[4][4], float scale, bool has_alembic_parent)
+void convert_matrix(const Imath::M44d &xform, Object *ob,
+                    float r_mat[4][4], float scale, bool has_alembic_parent)
 {
-
-	const Alembic::AbcGeom::IXformSchema &ixform_schema = ixform.getSchema();
-	Alembic::AbcGeom::XformSample xs;
-	ixform_schema.get(xs, sample_sel);
-	const Imath::M44d &xform = xs.getMatrix();
-
 	for (int i = 0; i < 4; ++i) {
 		for (int j = 0; j < 4; ++j) {
 			r_mat[i][j] = xform[i][j];
@@ -434,4 +436,91 @@ bool has_property(const Alembic::Abc::ICompoundProperty &prop, const std::string
 	}
 
 	return prop.getPropertyHeader(name) != NULL;
+}
+
+typedef std::pair<Alembic::AbcCoreAbstract::index_t, float> index_time_pair_t;
+
+float get_weight_and_index(float time,
+                           const Alembic::AbcCoreAbstract::TimeSamplingPtr &time_sampling,
+                           int samples_number,
+                           Alembic::AbcGeom::index_t &i0,
+                           Alembic::AbcGeom::index_t &i1)
+{
+	samples_number = std::max(samples_number, 1);
+
+	index_time_pair_t t0 = time_sampling->getFloorIndex(time, samples_number);
+	i0 = i1 = t0.first;
+
+	if (samples_number == 1 || (fabs(time - t0.second) < 0.0001f)) {
+		return 0.0f;
+	}
+
+	index_time_pair_t t1 = time_sampling->getCeilIndex(time, samples_number);
+	i1 = t1.first;
+
+	if (i0 == i1) {
+		return 0.0f;
+	}
+
+	const float bias = (time - t0.second) / (t1.second - t0.second);
+
+	if (fabs(1.0f - bias) < 0.0001f) {
+		i0 = i1;
+		return 0.0f;
+	}
+
+	return bias;
+}
+
+//#define USE_NURBS
+
+AbcObjectReader *create_reader(const Alembic::AbcGeom::IObject &object, ImportSettings &settings)
+{
+	AbcObjectReader *reader = NULL;
+
+	const Alembic::AbcGeom::MetaData &md = object.getMetaData();
+
+	if (Alembic::AbcGeom::IXform::matches(md)) {
+		reader = new AbcEmptyReader(object, settings);
+	}
+	else if (Alembic::AbcGeom::IPolyMesh::matches(md)) {
+		reader = new AbcMeshReader(object, settings);
+	}
+	else if (Alembic::AbcGeom::ISubD::matches(md)) {
+		reader = new AbcSubDReader(object, settings);
+	}
+	else if (Alembic::AbcGeom::INuPatch::matches(md)) {
+#ifdef USE_NURBS
+		/* TODO(kevin): importing cyclic NURBS from other software crashes
+		 * at the moment. This is due to the fact that NURBS in other
+		 * software have duplicated points which causes buffer overflows in
+		 * Blender. Need to figure out exactly how these points are
+		 * duplicated, in all cases (cyclic U, cyclic V, and cyclic UV).
+		 * Until this is fixed, disabling NURBS reading. */
+		reader = new AbcNurbsReader(child, settings);
+#endif
+	}
+	else if (Alembic::AbcGeom::ICamera::matches(md)) {
+		reader = new AbcCameraReader(object, settings);
+	}
+	else if (Alembic::AbcGeom::IPoints::matches(md)) {
+		reader = new AbcPointsReader(object, settings);
+	}
+	else if (Alembic::AbcMaterial::IMaterial::matches(md)) {
+		/* Pass for now. */
+	}
+	else if (Alembic::AbcGeom::ILight::matches(md)) {
+		/* Pass for now. */
+	}
+	else if (Alembic::AbcGeom::IFaceSet::matches(md)) {
+		/* Pass, those are handled in the mesh reader. */
+	}
+	else if (Alembic::AbcGeom::ICurves::matches(md)) {
+		reader = new AbcCurveReader(object, settings);
+	}
+	else {
+		assert(false);
+	}
+
+	return reader;
 }

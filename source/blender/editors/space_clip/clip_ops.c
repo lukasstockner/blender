@@ -103,7 +103,7 @@ static void sclip_zoom_set(const bContext *C, float zoom, float location[2])
 		width *= sc->zoom;
 		height *= sc->zoom;
 
-		if ((width < 4) && (height < 4))
+		if ((width < 4) && (height < 4) && sc->zoom < oldzoom)
 			sc->zoom = oldzoom;
 		else if (BLI_rcti_size_x(&ar->winrct) <= sc->zoom)
 			sc->zoom = oldzoom;
@@ -476,7 +476,7 @@ void CLIP_OT_view_pan(wmOperatorType *ot)
 	ot->poll = ED_space_clip_view_clip_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_BLOCKING;
+	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR;
 
 	/* properties */
 	RNA_def_float_vector(ot->srna, "offset", 2, NULL, -FLT_MAX, FLT_MAX,

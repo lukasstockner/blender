@@ -34,6 +34,7 @@ set(SRC_BVH_HEADERS
 	bvh/bvh_shadow_all.h
 	bvh/bvh_subsurface.h
 	bvh/bvh_traversal.h
+	bvh/bvh_types.h
 	bvh/bvh_volume.h
 	bvh/bvh_volume_all.h
 	bvh/qbvh_nodes.h
@@ -59,6 +60,7 @@ set(SRC_HEADERS
 	kernel_filter_pre.h
 	kernel_filter_util.h
 	kernel_globals.h
+	kernel_image_opencl.h
 	kernel_jitter.h
 	kernel_light.h
 	kernel_math.h
@@ -178,6 +180,7 @@ set(SRC_UTIL_HEADERS
 	../util/util_atomic.h
 	../util/util_color.h
 	../util/util_half.h
+	../util/util_hash.h
 	../util/util_math.h
 	../util/util_math_fast.h
 	../util/util_math_matrix.h
@@ -218,11 +221,11 @@ if(WITH_CYCLES_CUDA_BINARIES)
 	set(CUDA_VERSION "${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}")
 
 	# warn for other versions
-	if(CUDA_VERSION MATCHES "75")
+	if(CUDA_VERSION MATCHES "80")
 	else()
 		message(WARNING
 			"CUDA version ${CUDA_VERSION_MAJOR}.${CUDA_VERSION_MINOR} detected, "
-			"build may succeed but only CUDA 7.5 is officially supported")
+			"build may succeed but only CUDA 8.0 is officially supported")
 	endif()
 
 	# build for each arch
@@ -259,11 +262,6 @@ if(WITH_CYCLES_CUDA_BINARIES)
 
 		set(cuda_nvcc_command ${CUDA_NVCC_EXECUTABLE})
 		set(cuda_nvcc_version ${CUDA_VERSION})
-
-		if(DEFINED CUDA_NVCC8_EXECUTABLE  AND ((${arch} STREQUAL "sm_60") OR (${arch} STREQUAL "sm_61")))
-			set(cuda_nvcc_command ${CUDA_NVCC8_EXECUTABLE})
-			set(cuda_nvcc_version "80")
-		endif()
 
 		set(cuda_version_flags "-D__KERNEL_CUDA_VERSION__=${cuda_nvcc_version}")
 		set(cuda_math_flags "--use_fast_math")

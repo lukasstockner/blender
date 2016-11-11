@@ -39,8 +39,6 @@ class AbcMeshWriter : public AbcObjectWriter {
 	Alembic::AbcGeom::OSubDSchema m_subdiv_schema;
 	Alembic::AbcGeom::OSubDSchema::Sample m_subdiv_sample;
 
-	bool m_has_per_face_materials;
-	Alembic::AbcGeom::OFaceSet m_face_set;
 	Alembic::Abc::OArrayProperty m_mat_indices;
 
 	bool m_is_animated;
@@ -87,7 +85,7 @@ private:
 	void getVelocities(DerivedMesh *dm, std::vector<Imath::V3f> &vels);
 
 	template <typename Schema>
-	void writeCommonData(DerivedMesh *dm, Schema &schema);
+	void writeFaceSets(DerivedMesh *dm, Schema &schema);
 };
 
 /* ************************************************************************** */
@@ -103,6 +101,8 @@ public:
 	bool valid() const;
 
 	void readObjectData(Main *bmain, float time);
+
+	DerivedMesh *read_derivedmesh(DerivedMesh *dm, const float time, int read_flag);
 
 private:
 	void readFaceSetsSample(Main *bmain, Mesh *mesh, size_t poly_start,
@@ -128,6 +128,7 @@ public:
 	bool valid() const;
 
 	void readObjectData(Main *bmain, float time);
+	DerivedMesh *read_derivedmesh(DerivedMesh *dm, const float time, int read_flag);
 };
 
 void read_subd_sample(ImportSettings *settings,
@@ -137,16 +138,10 @@ void read_subd_sample(ImportSettings *settings,
 
 /* ************************************************************************** */
 
-namespace utils {
-
-void mesh_add_verts(struct Mesh *mesh, size_t len);
-
-}
-
 void read_mverts(MVert *mverts,
                  const Alembic::AbcGeom::P3fArraySamplePtr &positions,
                  const Alembic::AbcGeom::N3fArraySamplePtr &normals);
 
-CDStreamConfig create_config(Mesh *mesh);
+CDStreamConfig get_config(DerivedMesh *dm);
 
 #endif  /* __ABC_MESH_H__ */

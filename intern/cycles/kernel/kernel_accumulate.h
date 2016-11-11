@@ -48,19 +48,13 @@ ccl_device_inline void bsdf_eval_init(BsdfEval *eval, ClosureType type, float3 v
 			eval->scatter = value;
 	}
 	else
-		eval->diffuse = value;
-#else
-	eval->diffuse = value;
 #endif
+	{
+		eval->diffuse = value;
+	}
 }
 
-/* TODO(sergey): This is just a workaround for annoying 6.5 compiler bug. */
-#if !defined(__KERNEL_CUDA__) || __CUDA_ARCH__ < 500
-ccl_device_inline
-#else
-ccl_device_noinline
-#endif
-void bsdf_eval_accum(BsdfEval *eval, ClosureType type, float3 value)
+ccl_device_inline void bsdf_eval_accum(BsdfEval *eval, ClosureType type, float3 value)
 {
 #ifdef __PASSES__
 	if(eval->use_light_pass) {
@@ -78,10 +72,10 @@ void bsdf_eval_accum(BsdfEval *eval, ClosureType type, float3 value)
 		/* skipping transparent, this function is used by for eval(), will be zero then */
 	}
 	else
-		eval->diffuse += value;
-#else
-	eval->diffuse += value;
 #endif
+	{
+		eval->diffuse += value;
+	}
 }
 
 ccl_device_inline bool bsdf_eval_is_zero(BsdfEval *eval)
@@ -96,13 +90,32 @@ ccl_device_inline bool bsdf_eval_is_zero(BsdfEval *eval)
 			&& is_zero(eval->scatter);
 	}
 	else
-		return is_zero(eval->diffuse);
-#else
-	return is_zero(eval->diffuse);
 #endif
+	{
+		return is_zero(eval->diffuse);
+	}
 }
 
-ccl_device_inline void bsdf_eval_mul(BsdfEval *eval, float3 value)
+ccl_device_inline void bsdf_eval_mul(BsdfEval *eval, float value)
+{
+#ifdef __PASSES__
+	if(eval->use_light_pass) {
+		eval->diffuse *= value;
+		eval->glossy *= value;
+		eval->transmission *= value;
+		eval->subsurface *= value;
+		eval->scatter *= value;
+
+		/* skipping transparent, this function is used by for eval(), will be zero then */
+	}
+	else
+#endif
+	{
+		eval->diffuse *= value;
+	}
+}
+
+ccl_device_inline void bsdf_eval_mul3(BsdfEval *eval, float3 value)
 {
 #ifdef __PASSES__
 	if(eval->use_light_pass) {
@@ -121,16 +134,15 @@ ccl_device_inline void bsdf_eval_mul(BsdfEval *eval, float3 value)
 #endif
 }
 
-ccl_device_inline float3 bsdf_eval_sum(BsdfEval *eval, bool use_light_pass)
+ccl_device_inline float3 bsdf_eval_sum(BsdfEval *eval)
 {
 #ifdef __PASSES__
-	if(use_light_pass)
-		return eval->diffuse + eval->glossy + eval->transmission + eval->transparent + eval->subsurface + eval->scatter;
+	if(eval->use_light_pass) {
+		return eval->diffuse + eval->glossy + eval->transmission + eval->subsurface + eval->scatter;
+	}
 	else
-		return eval->diffuse;
-#else
-	return eval->diffuse;
 #endif
+	return eval->diffuse;
 }
 
 /* Path Radiance
@@ -182,10 +194,10 @@ ccl_device_inline void path_radiance_init(PathRadiance *L, int use_light_pass)
 		L->mist = 0.0f;
 	}
 	else
-		L->emission = make_float3(0.0f, 0.0f, 0.0f);
-#else
-	L->emission = make_float3(0.0f, 0.0f, 0.0f);
 #endif
+	{
+		L->emission = make_float3(0.0f, 0.0f, 0.0f);
+	}
 }
 
 ccl_device_inline void path_radiance_bsdf_bounce(PathRadiance *L, ccl_addr_space float3 *throughput,
@@ -211,16 +223,15 @@ ccl_device_inline void path_radiance_bsdf_bounce(PathRadiance *L, ccl_addr_space
 		}
 		else {
 			/* transparent bounce before first hit, or indirectly visible through BSDF */
-			float3 sum = (bsdf_eval->diffuse + bsdf_eval->glossy + bsdf_eval->transmission + bsdf_eval->transparent +
-						  bsdf_eval->subsurface + bsdf_eval->scatter) * inverse_pdf;
+			float3 sum = (bsdf_eval_sum(bsdf_eval) + bsdf_eval->transparent) * inverse_pdf;
 			*throughput *= sum;
 		}
 	}
 	else
-		*throughput *= bsdf_eval->diffuse*inverse_pdf;
-#else
-	*throughput *= bsdf_eval->diffuse*inverse_pdf;
 #endif
+	{
+		*throughput *= bsdf_eval->diffuse*inverse_pdf;
+	}
 }
 
 ccl_device_inline void path_radiance_accum_emission(PathRadiance *L, float3 throughput, float3 value, int bounce)
@@ -235,10 +246,10 @@ ccl_device_inline void path_radiance_accum_emission(PathRadiance *L, float3 thro
 			L->indirect += throughput*value;
 	}
 	else
-		L->emission += throughput*value;
-#else
-	L->emission += throughput*value;
 #endif
+	{
+		L->emission += throughput*value;
+	}
 }
 
 ccl_device_inline void path_radiance_accum_ao(PathRadiance *L, float3 throughput, float3 alpha, float3 bsdf, float3 ao, int bounce)
@@ -256,10 +267,10 @@ ccl_device_inline void path_radiance_accum_ao(PathRadiance *L, float3 throughput
 		}
 	}
 	else
-		L->emission += throughput*bsdf*ao;
-#else
-	L->emission += throughput*bsdf*ao;
 #endif
+	{
+		L->emission += throughput*bsdf*ao;
+	}
 }
 
 ccl_device_inline void path_radiance_accum_light(PathRadiance *L, float3 throughput, BsdfEval *bsdf_eval, float3 shadow, float shadow_fac, int bounce, bool is_lamp)
@@ -282,15 +293,14 @@ ccl_device_inline void path_radiance_accum_light(PathRadiance *L, float3 through
 		}
 		else {
 			/* indirectly visible lighting after BSDF bounce */
-			float3 sum = bsdf_eval->diffuse + bsdf_eval->glossy + bsdf_eval->transmission + bsdf_eval->subsurface + bsdf_eval->scatter;
-			L->indirect += throughput*sum*shadow;
+			L->indirect += throughput*bsdf_eval_sum(bsdf_eval)*shadow;
 		}
 	}
 	else
-		L->emission += throughput*bsdf_eval->diffuse*shadow;
-#else
-	L->emission += throughput*bsdf_eval->diffuse*shadow;
 #endif
+	{
+		L->emission += throughput*bsdf_eval->diffuse*shadow;
+	}
 }
 
 ccl_device_inline void path_radiance_accum_background(PathRadiance *L, float3 throughput, float3 value, int bounce)
@@ -305,10 +315,10 @@ ccl_device_inline void path_radiance_accum_background(PathRadiance *L, float3 th
 			L->indirect += throughput*value;
 	}
 	else
-		L->emission += throughput*value;
-#else
-	L->emission += throughput*value;
 #endif
+	{
+		L->emission += throughput*value;
+	}
 }
 
 ccl_device_inline void path_radiance_sum_indirect(PathRadiance *L)
@@ -451,10 +461,10 @@ ccl_device_inline float3 path_radiance_clamp_and_sum(KernelGlobals *kg, PathRadi
 
 	/* No Light Passes */
 	else
-		L_sum = L->emission;
-#else
-	L_sum = L->emission;
 #endif
+	{
+		L_sum = L->emission;
+	}
 
 	/* Reject invalid value */
 	float sum = fabsf((L_sum).x) + fabsf((L_sum).y) + fabsf((L_sum).z);
@@ -506,14 +516,12 @@ ccl_device_inline void path_radiance_accum_sample(PathRadiance *L, PathRadiance 
 	L->indirect_subsurface += L_sample->indirect_subsurface*fac;
 	L->indirect_scatter += L_sample->indirect_scatter*fac;
 
-	L->emission += L_sample->emission*fac;
 	L->background += L_sample->background*fac;
 	L->ao += L_sample->ao*fac;
 	L->shadow += L_sample->shadow*fac;
 	L->mist += L_sample->mist*fac;
-#else
-	L->emission += L_sample->emission * fac;
 #endif
+	L->emission += L_sample->emission * fac;
 }
 
 CCL_NAMESPACE_END

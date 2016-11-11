@@ -1504,6 +1504,9 @@ static int gp_stroke_cyclical_set_exec(bContext *C, wmOperator *op)
 	/* loop all selected strokes */
 	CTX_DATA_BEGIN(C, bGPDlayer *, gpl, editable_gpencil_layers)
 	{
+		if (gpl->actframe == NULL)
+			continue;
+			
 		for (bGPDstroke *gps = gpl->actframe->strokes.last; gps; gps = gps->prev) {
 			bGPDpalettecolor *palcolor = gps->palcolor;
 			
@@ -1724,6 +1727,9 @@ static int gp_stroke_join_exec(bContext *C, wmOperator *op)
 	CTX_DATA_BEGIN(C, bGPDlayer *, gpl, editable_gpencil_layers)
 	{
 		bGPDframe *gpf = gpl->actframe;
+		if (gpf == NULL)
+			continue;
+		
 		for (gps = gpf->strokes.first; gps; gps = gpsn) {
 			gpsn = gps->next;
 			if (gps->flag & GP_STROKE_SELECT) {
@@ -1970,6 +1976,125 @@ void GPENCIL_OT_reproject(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+/* ******************* Stroke subdivide ************************** */
+/* helper: Count how many points need to be inserted */
+static int gp_count_subdivision_cuts(bGPDstroke *gps)
+{
+	bGPDspoint *pt;
+	int i;
+	int totnewpoints = 0;
+	for (i = 0, pt = gps->points; i < gps->totpoints && pt; i++, pt++) {
+		if (pt->flag & GP_SPOINT_SELECT) {
+			if (i + 1 < gps->totpoints){
+				if (gps->points[i + 1].flag & GP_SPOINT_SELECT) {
+					++totnewpoints;
+				};
+			}
+		}
+	}
+
+	return totnewpoints;
+}
+static int gp_stroke_subdivide_exec(bContext *C, wmOperator *op)
+{
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	bGPDspoint *temp_points;
+	const int cuts = RNA_int_get(op->ptr, "number_cuts");
+
+	int totnewpoints, oldtotpoints;
+	int i2;
+
+	/* sanity checks */
+	if (ELEM(NULL, gpd))
+		return OPERATOR_CANCELLED;
+
+	/* Go through each editable + selected stroke */
+	GP_EDITABLE_STROKES_BEGIN(C, gpl, gps)
+	{
+		if (gps->flag & GP_STROKE_SELECT) {
+			/* loop as many times as cuts */
+			for (int s = 0; s < cuts; s++) {
+				totnewpoints = gp_count_subdivision_cuts(gps);
+				if (totnewpoints == 0) {
+					continue;
+				}
+				/* duplicate points in a temp area */
+				temp_points = MEM_dupallocN(gps->points);
+				oldtotpoints = gps->totpoints;
+
+				/* resize the points arrys */
+				gps->totpoints += totnewpoints;
+				gps->points = MEM_recallocN(gps->points, sizeof(*gps->points) * gps->totpoints);
+				gps->flag |= GP_STROKE_RECALC_CACHES;
+
+				/* loop and interpolate */
+				i2 = 0;
+				for (int i = 0; i < oldtotpoints; i++) {
+					bGPDspoint *pt = &temp_points[i];
+					bGPDspoint *pt_final = &gps->points[i2];
+
+					/* copy current point */
+					copy_v3_v3(&pt_final->x, &pt->x);
+					pt_final->pressure = pt->pressure;
+					pt_final->strength = pt->strength;
+					pt_final->time = pt->time;
+					pt_final->flag = pt->flag;
+					++i2;
+
+					/* if next point is selected add a half way point */
+					if (pt->flag & GP_SPOINT_SELECT) {
+						if (i + 1 < oldtotpoints){
+							if (temp_points[i + 1].flag & GP_SPOINT_SELECT) {
+								pt_final = &gps->points[i2];
+								/* Interpolate all values */
+								bGPDspoint *next = &temp_points[i + 1];
+								interp_v3_v3v3(&pt_final->x, &pt->x, &next->x, 0.5f);
+								pt_final->pressure = interpf(pt->pressure, next->pressure, 0.5f);
+								pt_final->strength = interpf(pt->strength, next->strength, 0.5f);
+								CLAMP(pt_final->strength, GPENCIL_STRENGTH_MIN, 1.0f);
+								pt_final->time = interpf(pt->time, next->time, 0.5f);
+								pt_final->flag |= GP_SPOINT_SELECT;
+								++i2;
+							};
+						}
+					}
+				}
+				/* free temp memory */
+				MEM_freeN(temp_points);
+			}
+		}
+	}
+	GP_EDITABLE_STROKES_END;
+
+	/* notifiers */
+	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_stroke_subdivide(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+
+	/* identifiers */
+	ot->name = "Subdivide Stroke";
+	ot->idname = "GPENCIL_OT_stroke_subdivide";
+	ot->description = "Subdivide between continuous selected points of the stroke adding a point half way between them";
+
+	/* api callbacks */
+	ot->exec = gp_stroke_subdivide_exec;
+	ot->poll = gp_active_layer_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
+
+	/* properties */
+	prop = RNA_def_int(ot->srna, "number_cuts", 1, 1, 10, "Number of Cuts", "", 1, 5);
+	/* avoid re-using last var because it can cause _very_ high value and annoy users */
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+}
+
 /* =========  Interpolation operators ========================== */
 /* Helper: Update point with interpolation */
 static void gp_interpolate_update_points(bGPDstroke *gps_from, bGPDstroke *gps_to, bGPDstroke *new_stroke, float factor)
@@ -2076,6 +2201,12 @@ static void gp_interpolate_set_points(bContext *C, tGPDinterpolate *tgpi)
 	bGPDstroke *gps_from, *gps_to, *new_stroke;
 	int fFrame;
 
+	/* save initial factor for active layer to define shift limits */
+	tgpi->init_factor = (float)(tgpi->cframe - active_gpl->actframe->framenum) / (active_gpl->actframe->next->framenum - active_gpl->actframe->framenum + 1);
+	/* limits are 100% below 0 and 100% over the 100% */
+	tgpi->low_limit = -1.0f - tgpi->init_factor;
+	tgpi->high_limit = 2.0f - tgpi->init_factor;
+
 	/* set layers */
 	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
 		/* all layers or only active */
@@ -2099,7 +2230,7 @@ static void gp_interpolate_set_points(bContext *C, tGPDinterpolate *tgpi)
 		tgpil->interFrame = MEM_callocN(sizeof(bGPDframe), "bGPDframe");
 		tgpil->interFrame->framenum = tgpi->cframe;
 
-		/* get interpolation factor */
+		/* get interpolation factor by layer (usually must be equal for all layers, but not sure) */
 		tgpil->factor = (float)(tgpi->cframe - tgpil->prevFrame->framenum) / (tgpil->nextFrame->framenum - tgpil->prevFrame->framenum + 1);
 		/* create new strokes data with interpolated points reading original stroke */
 		for (gps_from = tgpil->prevFrame->strokes.first; gps_from; gps_from = gps_from->next) {
@@ -2159,13 +2290,13 @@ static void gpencil_mouse_update_shift(tGPDinterpolate *tgpi, wmOperator *op, co
 	float mid = (float)(tgpi->ar->winx - tgpi->ar->winrct.xmin) / 2.0f;
 	float mpos = event->x - tgpi->ar->winrct.xmin;
 	if (mpos >= mid) {
-		tgpi->shift = (mpos - mid) / mid;
+		tgpi->shift = ((mpos - mid) * tgpi->high_limit) / mid;
 	}
 	else {
-		tgpi->shift = -1.0f * (1.0f - (mpos / mid));
+		tgpi->shift = tgpi->low_limit - ((mpos * tgpi->low_limit) / mid);
 	}
 
-	CLAMP(tgpi->shift, -1.0f, 1.0f);
+	CLAMP(tgpi->shift, tgpi->low_limit, tgpi->high_limit);
 	RNA_float_set(op->ptr, "shift", tgpi->shift);
 }
 
@@ -2185,7 +2316,7 @@ static void gpencil_interpolate_status_indicators(tGPDinterpolate *p)
 		BLI_snprintf(status_str, sizeof(status_str), "%s: %s", msg_str, str_offs);
 	}
 	else {
-		BLI_snprintf(status_str, sizeof(status_str), "%s: %d", msg_str, (int)(p->shift * 100.0f));
+		BLI_snprintf(status_str, sizeof(status_str), "%s: %d %%", msg_str, (int)((p->init_factor + p->shift)  * 100.0f));
 	}
 
 	ED_area_headerprint(p->sa, status_str);
@@ -2343,13 +2474,13 @@ static int gpencil_interpolate_invoke(bContext *C, wmOperator *op, const wmEvent
 
 	/* cannot interpolate if not between 2 frames */
 	if ((gpl->actframe == NULL) || (gpl->actframe->next == NULL)) {
-		BKE_report(op->reports, RPT_ERROR, "Interpolation requires to be between two grease pencil frames");
+		BKE_report(op->reports, RPT_ERROR, "Interpolation requires to be between two grease pencil frames in active layer");
 		return OPERATOR_CANCELLED;
 	}
 
 	/* cannot interpolate in extremes */
 	if ((gpl->actframe->framenum == scene->r.cfra) || (gpl->actframe->next->framenum == scene->r.cfra)) {
-		BKE_report(op->reports, RPT_ERROR, "Interpolation requires to be between two grease pencil frames");
+		BKE_report(op->reports, RPT_ERROR, "Interpolation requires to be between two grease pencil frames in active layer");
 		return OPERATOR_CANCELLED;
 	}
 
@@ -2444,7 +2575,7 @@ static int gpencil_interpolate_modal(bContext *C, wmOperator *op, const wmEvent 
 		case WHEELUPMOUSE:
 		{
 			tgpi->shift = tgpi->shift + 0.01f;
-			CLAMP(tgpi->shift, -1.0f, 1.0f);
+			CLAMP(tgpi->shift, tgpi->low_limit, tgpi->high_limit);
 			RNA_float_set(op->ptr, "shift", tgpi->shift);
 			/* update screen */
 			gpencil_interpolate_update(C, op, tgpi);
@@ -2453,7 +2584,7 @@ static int gpencil_interpolate_modal(bContext *C, wmOperator *op, const wmEvent 
 		case WHEELDOWNMOUSE:
 		{
 			tgpi->shift = tgpi->shift - 0.01f;
-			CLAMP(tgpi->shift, -1.0f, 1.0f);
+			CLAMP(tgpi->shift, tgpi->low_limit, tgpi->high_limit);
 			RNA_float_set(op->ptr, "shift", tgpi->shift);
 			/* update screen */
 			gpencil_interpolate_update(C, op, tgpi);
@@ -2473,13 +2604,16 @@ static int gpencil_interpolate_modal(bContext *C, wmOperator *op, const wmEvent 
 		default:
 			if ((event->val == KM_PRESS) && handleNumInput(C, &tgpi->num, event)) {
 				float value;
+				float factor = tgpi->init_factor;
 
 				/* Grab shift from numeric input, and store this new value (the user see an int) */
-				value = tgpi->shift * 100.0f;
+				value = (factor + tgpi->shift) * 100.0f;
 				applyNumInput(&tgpi->num, &value);
-
 				tgpi->shift = value / 100.0f;
-				CLAMP(tgpi->shift, -1.0f, 1.0f);
+				/* recalculate the shift to get the right value in the frame scale */
+				tgpi->shift = tgpi->shift - factor;
+
+				CLAMP(tgpi->shift, tgpi->low_limit, tgpi->high_limit);
 				RNA_float_set(op->ptr, "shift", tgpi->shift);
 
 				/* update screen */

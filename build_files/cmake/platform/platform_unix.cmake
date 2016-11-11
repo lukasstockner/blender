@@ -344,7 +344,7 @@ if(WITH_LLVM OR WITH_SDL_DYNLOAD)
 	)
 endif()
 
-if(WITH_OPENSUBDIV)
+if(WITH_OPENSUBDIV OR WITH_CYCLES_OPENSUBDIV)
 	find_package_wrapper(OpenSubdiv)
 
 	set(OPENSUBDIV_LIBRARIES ${OPENSUBDIV_LIBRARIES})
@@ -352,6 +352,7 @@ if(WITH_OPENSUBDIV)
 
 	if(NOT OPENSUBDIV_FOUND)
 		set(WITH_OPENSUBDIV OFF)
+		set(WITH_CYCLES_OPENSUBDIV OFF)
 		message(STATUS "OpenSubdiv not found")
 	endif()
 endif()
@@ -383,17 +384,18 @@ add_definitions(-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 if(CMAKE_COMPILER_IS_GNUCC)
 	set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing")
 
-	# use ld.gold linker if available, could make optional
-	execute_process(
-		COMMAND ${CMAKE_C_COMPILER} -fuse-ld=gold -Wl,--version
-		ERROR_QUIET OUTPUT_VARIABLE LD_VERSION)
-	if("${LD_VERSION}" MATCHES "GNU gold")
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
-	else()
-		message(STATUS "GNU gold linker isn't available, using the default system linker.")
+	if(WITH_LINKER_GOLD)
+		execute_process(
+			COMMAND ${CMAKE_C_COMPILER} -fuse-ld=gold -Wl,--version
+			ERROR_QUIET OUTPUT_VARIABLE LD_VERSION)
+		if("${LD_VERSION}" MATCHES "GNU gold")
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
+		else()
+			message(STATUS "GNU gold linker isn't available, using the default system linker.")
+		endif()
+		unset(LD_VERSION)
 	endif()
-	unset(LD_VERSION)
 
 # CLang is the same as GCC for now.
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")

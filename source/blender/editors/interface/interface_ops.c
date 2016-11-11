@@ -113,19 +113,33 @@ static int copy_data_path_button_poll(bContext *C)
 	return 0;
 }
 
-static int copy_data_path_button_exec(bContext *C, wmOperator *UNUSED(op))
+static int copy_data_path_button_exec(bContext *C, wmOperator *op)
 {
 	PointerRNA ptr;
 	PropertyRNA *prop;
 	char *path;
 	int index;
 
+	const bool full_path = RNA_boolean_get(op->ptr, "full_path");
+
 	/* try to create driver using property retrieved from UI */
 	UI_context_active_but_prop_get(C, &ptr, &prop, &index);
 
-	if (ptr.id.data && ptr.data && prop) {
-		path = RNA_path_from_ID_to_property(&ptr, prop);
-		
+	if (ptr.id.data != NULL) {
+
+		if (full_path) {
+
+			if (prop) {
+				path = RNA_path_full_property_py_ex(&ptr, prop, index, true);
+			}
+			else {
+				path = RNA_path_full_struct_py(&ptr);
+			}
+		}
+		else {
+			path = RNA_path_from_ID_to_property(&ptr, prop);
+		}
+
 		if (path) {
 			WM_clipboard_text_set(path, false);
 			MEM_freeN(path);
@@ -138,6 +152,8 @@ static int copy_data_path_button_exec(bContext *C, wmOperator *UNUSED(op))
 
 static void UI_OT_copy_data_path_button(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name = "Copy Data Path";
 	ot->idname = "UI_OT_copy_data_path_button";
@@ -149,6 +165,10 @@ static void UI_OT_copy_data_path_button(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER;
+
+	/* properties */
+	prop = RNA_def_boolean(ot->srna, "full_path", false, "full_path", "Copy full data path");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 static int copy_python_command_button_poll(bContext *C)
@@ -1082,79 +1102,6 @@ static void UI_OT_drop_color(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "gamma", 0, "Gamma Corrected", "The source color is gamma corrected ");
 }
 
-/* ------------------------------------------------------------------------- */
-
-static EnumPropertyItem space_context_cycle_direction[] = {
-	{SPACE_CONTEXT_CYCLE_PREV, "PREV", 0, "Previous", ""},
-	{SPACE_CONTEXT_CYCLE_NEXT, "NEXT", 0, "Next", ""},
-	{0, NULL, 0, NULL, NULL}
-};
-
-static int space_context_cycle_poll(bContext *C)
-{
-	ScrArea *sa = CTX_wm_area(C);
-	return ELEM(sa->spacetype, SPACE_BUTS, SPACE_USERPREF);
-}
-
-/**
- * Helper to get the correct RNA pointer/property pair for changing
- * the display context of active space type in \sa.
- */
-static void context_cycle_prop_get(
-        bScreen *screen, const ScrArea *sa,
-        PointerRNA *r_ptr, PropertyRNA **r_prop)
-{
-	const char *propname;
-
-	switch (sa->spacetype) {
-		case SPACE_BUTS:
-			RNA_pointer_create(&screen->id, &RNA_SpaceProperties, sa->spacedata.first, r_ptr);
-			propname = "context";
-			break;
-		case SPACE_USERPREF:
-			RNA_pointer_create(NULL, &RNA_UserPreferences, &U, r_ptr);
-			propname = "active_section";
-			break;
-	}
-
-	*r_prop = RNA_struct_find_property(r_ptr, propname);
-}
-
-static int space_context_cycle_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
-{
-	const int direction = RNA_enum_get(op->ptr, "direction");
-
-	PointerRNA ptr;
-	PropertyRNA *prop;
-	context_cycle_prop_get(CTX_wm_screen(C), CTX_wm_area(C), &ptr, &prop);
-
-	const int old_context = RNA_property_enum_get(&ptr, prop);
-	const int new_context = RNA_property_enum_step(
-	                  C, &ptr, prop, old_context,
-	                  direction == SPACE_CONTEXT_CYCLE_PREV ? -1 : 1);
-	RNA_property_enum_set(&ptr, prop, new_context);
-	RNA_property_update(C, &ptr, prop);
-
-	return OPERATOR_FINISHED;
-}
-
-static void UI_OT_space_context_cycle(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Cycle Space Context";
-	ot->description = "Cycle through the editor context by activating the next/previous one";
-	ot->idname = "UI_OT_space_context_cycle";
-
-	/* api callbacks */
-	ot->invoke = space_context_cycle_invoke;
-	ot->poll = space_context_cycle_poll;
-
-	ot->flag = 0;
-
-	RNA_def_enum(ot->srna, "direction", space_context_cycle_direction, SPACE_CONTEXT_CYCLE_NEXT, "Direction",
-	             "Direction to cycle through");
-}
-
 
 /* ********************************************************* */
 /* Registration */
@@ -1174,7 +1121,6 @@ void ED_operatortypes_ui(void)
 	WM_operatortype_append(UI_OT_edittranslation_init);
 #endif
 	WM_operatortype_append(UI_OT_reloadtranslation);
-	WM_operatortype_append(UI_OT_space_context_cycle);
 
 	/* external */
 	WM_operatortype_append(UI_OT_eyedropper_color);
@@ -1185,12 +1131,35 @@ void ED_operatortypes_ui(void)
 
 /**
  * \brief User Interface Keymap
- *
- * For now only modal maps here, since UI uses special ui-handlers instead of operators.
  */
 void ED_keymap_ui(wmKeyConfig *keyconf)
 {
-	WM_keymap_find(keyconf, "User Interface", 0, 0);
+	wmKeyMap *keymap = WM_keymap_find(keyconf, "User Interface", 0, 0);
+	wmKeyMapItem *kmi;
+
+	/* eyedroppers - notice they all have the same shortcut, but pass the event
+	 * through until a suitable eyedropper for the active button is found */
+	WM_keymap_add_item(keymap, "UI_OT_eyedropper_color", EKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "UI_OT_eyedropper_id", EKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "UI_OT_eyedropper_depth", EKEY, KM_PRESS, 0, 0);
+
+	/* Copy Data Path */
+	WM_keymap_add_item(keymap, "UI_OT_copy_data_path_button", CKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
+	kmi = WM_keymap_add_item(keymap, "UI_OT_copy_data_path_button", CKEY, KM_PRESS, KM_CTRL | KM_SHIFT | KM_ALT, 0);
+	RNA_boolean_set(kmi->ptr, "full_path", true);
+
+	/* keyframes */
+	WM_keymap_add_item(keymap, "ANIM_OT_keyframe_insert_button", IKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "ANIM_OT_keyframe_delete_button", IKEY, KM_PRESS, KM_ALT, 0);
+	WM_keymap_add_item(keymap, "ANIM_OT_keyframe_clear_button", IKEY, KM_PRESS, KM_SHIFT | KM_ALT, 0);
+
+	/* drivers */
+	WM_keymap_add_item(keymap, "ANIM_OT_driver_button_add", DKEY, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_add_item(keymap, "ANIM_OT_driver_button_remove", DKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
+
+	/* keyingsets */
+	WM_keymap_add_item(keymap, "ANIM_OT_keyingset_button_add", KKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "ANIM_OT_keyingset_button_remove", KKEY, KM_PRESS, KM_ALT, 0);
 
 	eyedropper_modal_keymap(keyconf);
 }

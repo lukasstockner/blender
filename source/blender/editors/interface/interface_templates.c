@@ -453,12 +453,12 @@ static void template_ID(
 		if (id->lib) {
 			if (id->tag & LIB_TAG_INDIRECT) {
 				but = uiDefIconBut(block, UI_BTYPE_BUT, 0, ICON_LIBRARY_DATA_INDIRECT, 0, 0, UI_UNIT_X, UI_UNIT_Y,
-				                   NULL, 0, 0, 0, 0, TIP_("Indirect library datablock, cannot change"));
+				                   NULL, 0, 0, 0, 0, TIP_("Indirect library data-block, cannot change"));
 				UI_but_flag_enable(but, UI_BUT_DISABLED);
 			}
 			else {
 				but = uiDefIconBut(block, UI_BTYPE_BUT, 0, ICON_LIBRARY_DATA_DIRECT, 0, 0, UI_UNIT_X, UI_UNIT_Y,
-				                   NULL, 0, 0, 0, 0, TIP_("Direct linked library datablock, click to make local"));
+				                   NULL, 0, 0, 0, 0, TIP_("Direct linked library data-block, click to make local"));
 				if (!id_make_local(CTX_data_main(C), id, true /* test */, false) || (idfrom && idfrom->lib))
 					UI_but_flag_enable(but, UI_BUT_DISABLED);
 			}
@@ -585,7 +585,7 @@ static void template_ID(
 		else {
 			if ((RNA_property_flag(template->prop) & PROP_NEVER_UNLINK) == 0) {
 				but = uiDefIconBut(block, UI_BTYPE_BUT, 0, ICON_X, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0,
-				                   TIP_("Unlink datablock "
+				                   TIP_("Unlink data-block "
 				                        "(Shift + Click to set users to zero, data will then not be saved)"));
 				UI_but_funcN_set(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_DELETE));
 
@@ -3886,6 +3886,8 @@ void uiTemplateCacheFile(uiLayout *layout, bContext *C, PointerRNA *ptr, const c
 		return;
 	}
 
+	SpaceButs *sbuts = CTX_wm_space_buts(C);
+
 	uiLayout *row = uiLayoutRow(layout, false);
 	uiBlock *block = uiLayoutGetBlock(row);
 	uiDefBut(block, UI_BTYPE_LABEL, 0, IFACE_("File Path:"), 0, 19, 145, 19, NULL, 0, 0, 0, 0, "");
@@ -3911,6 +3913,7 @@ void uiTemplateCacheFile(uiLayout *layout, bContext *C, PointerRNA *ptr, const c
 	uiItemL(row, IFACE_("Manual Transform:"), ICON_NONE);
 
 	row = uiLayoutRow(layout, false);
+	uiLayoutSetEnabled(row, (sbuts->mainb == BCONTEXT_CONSTRAINT));
 	uiItemR(row, &fileptr, "scale", 0, "Scale", ICON_NONE);
 
 	/* TODO: unused for now, so no need to expose. */

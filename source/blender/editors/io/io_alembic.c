@@ -68,6 +68,8 @@
 
 static int wm_alembic_export_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	RNA_boolean_set(op->ptr, "init_scene_frame_range", true);
+
 	if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
 		Main *bmain = CTX_data_main(C);
 		char filepath[FILE_MAX];
@@ -123,8 +125,8 @@ static int wm_alembic_export_exec(bContext *C, wmOperator *op)
 	    .compression_type = RNA_enum_get(op->ptr, "compression_type"),
 	    .packuv = RNA_boolean_get(op->ptr, "packuv"),
 		.triangulate = RNA_boolean_get(op->ptr, "triangulate"),
-		.quad_method = RNA_boolean_get(op->ptr, "quad_method"),
-		.ngon_method = RNA_boolean_get(op->ptr, "ngon_method"),
+		.quad_method = RNA_enum_get(op->ptr, "quad_method"),
+		.ngon_method = RNA_enum_get(op->ptr, "ngon_method"),
 
 	    .global_scale = RNA_float_get(op->ptr, "global_scale"),
 	};
@@ -231,11 +233,22 @@ static void ui_alembic_export_settings(uiLayout *layout, PointerRNA *imfptr)
 	uiItemR(row, imfptr, "ngon_method", 0, NULL, ICON_NONE);
 }
 
-static void wm_alembic_export_draw(bContext *UNUSED(C), wmOperator *op)
+static void wm_alembic_export_draw(bContext *C, wmOperator *op)
 {
 	PointerRNA ptr;
 
 	RNA_pointer_create(NULL, op->type->srna, op->properties, &ptr);
+
+	/* Conveniently set start and end frame to match the scene's frame range. */
+	Scene *scene = CTX_data_scene(C);
+
+	if (scene != NULL && RNA_boolean_get(&ptr, "init_scene_frame_range")) {
+		RNA_int_set(&ptr, "start", SFRA);
+		RNA_int_set(&ptr, "end", EFRA);
+
+		RNA_boolean_set(&ptr, "init_scene_frame_range", false);
+	}
+
 	ui_alembic_export_settings(op->layout, &ptr);
 }
 
@@ -334,6 +347,11 @@ void WM_OT_alembic_export(wmOperatorType *ot)
 
 	RNA_def_enum(ot->srna, "ngon_method", rna_enum_modifier_triangulate_quad_method_items,
 	             MOD_TRIANGULATE_NGON_BEAUTY, "Polygon Method", "Method for splitting the polygons into triangles");
+
+	/* This dummy prop is used to check whether we need to init the start and
+     * end frame values to that of the scene's, otherwise they are reset at
+     * every change, draw update. */
+	RNA_def_boolean(ot->srna, "init_scene_frame_range", false, "", "");
 }
 
 /* ************************************************************************** */

@@ -243,7 +243,7 @@ public:
 	int offset_frequency, squash_frequency;
 
 	float3 color1, color2, mortar;
-	float scale, mortar_size, bias, brick_width, row_height;
+	float scale, mortar_size, mortar_smooth, bias, brick_width, row_height;
 	float3 vector;
 
 	virtual int get_group() { return NODE_GROUP_LEVEL_2; }
@@ -874,6 +874,7 @@ public:
 	}
 
 	bool invert;
+	bool use_object_space;
 	float height;
 	float sample_center;
 	float sample_x;

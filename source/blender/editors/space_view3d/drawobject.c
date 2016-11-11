@@ -3079,7 +3079,7 @@ static DMDrawOption draw_dm_bweights__setDrawOptions(void *userData, int index)
 	if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
 		const float bweight = BM_ELEM_CD_GET_FLOAT(eed, data->cd_layer_offset);
 		if (bweight != 0.0f) {
-			UI_ThemeColorBlend(TH_WIRE_EDIT, TH_EDGE_SELECT, bweight);
+			UI_ThemeColorBlend(TH_WIRE_EDIT, TH_EDGE_BEVEL, bweight);
 			return DM_DRAW_OPTION_NORMAL;
 		}
 	}
@@ -3095,7 +3095,7 @@ static void draw_dm_bweights__mapFunc(void *userData, int index, const float co[
 	if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 		const float bweight = BM_ELEM_CD_GET_FLOAT(eve, data->cd_layer_offset);
 		if (bweight != 0.0f) {
-			UI_ThemeColorBlend(TH_VERTEX, TH_VERTEX_SELECT, bweight);
+			UI_ThemeColorBlend(TH_VERTEX, TH_VERTEX_BEVEL, bweight);
 			glVertex3fv(co);
 		}
 	}
@@ -7912,12 +7912,9 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			}
 
 			/* smoke debug render */
-#ifdef SMOKE_DEBUG_VELOCITY
-			draw_smoke_velocity(smd->domain, ob);
-#endif
-#ifdef SMOKE_DEBUG_HEAT
-			draw_smoke_heat(smd->domain, ob);
-#endif
+			if (!render_override && sds->draw_velocity) {
+				draw_smoke_velocity(sds, viewnormal);
+			}
 		}
 	}
 

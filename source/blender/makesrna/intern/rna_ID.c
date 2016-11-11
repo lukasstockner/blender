@@ -35,6 +35,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_icons.h"
+#include "BKE_object.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -122,7 +123,7 @@ void rna_ID_name_set(PointerRNA *ptr, const char *value)
 	BLI_libblock_ensure_unique_name(G.main, id->name);
 }
 
-static int rna_ID_name_editable(PointerRNA *ptr)
+static int rna_ID_name_editable(PointerRNA *ptr, const char **UNUSED(r_info))
 {
 	ID *id = (ID *)ptr->data;
 	
@@ -346,6 +347,20 @@ static void rna_ID_user_remap(ID *id, Main *bmain, ID *new_id)
 		BKE_libblock_remap(bmain, id, new_id, ID_REMAP_SKIP_INDIRECT_USAGE | ID_REMAP_SKIP_NEVER_NULL_USAGE);
 	}
 }
+
+static struct ID *rna_ID_make_local(struct ID *self, Main *bmain, int clear_proxy)
+{
+	/* Special case, as we can't rely on id_make_local(); it clears proxies. */
+	if (!clear_proxy && GS(self->name) == ID_OB) {
+		BKE_object_make_local_ex(bmain, (Object *)self, false, clear_proxy);
+	}
+	else {
+		id_make_local(bmain, self, false, false);
+	}
+
+	return self->newid ? self->newid : self;
+}
+
 
 static AnimData * rna_ID_animation_data_create(ID *id, Main *bmain)
 {
@@ -821,20 +836,20 @@ static void rna_def_ID_materials(BlenderRNA *brna)
 
 	func = RNA_def_function(srna, "append", "rna_IDMaterials_append_id");
 	RNA_def_function_flag(func, FUNC_USE_MAIN);
-	RNA_def_function_ui_description(func, "Add a new material to the data block");
+	RNA_def_function_ui_description(func, "Add a new material to the data-block");
 	parm = RNA_def_pointer(func, "material", "Material", "", "Material to add");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 
 	func = RNA_def_function(srna, "pop", "rna_IDMaterials_pop_id");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_MAIN);
-	RNA_def_function_ui_description(func, "Remove a material from the data block");
+	RNA_def_function_ui_description(func, "Remove a material from the data-block");
 	parm = RNA_def_int(func, "index", -1, -MAXMAT, MAXMAT, "", "Index of material to remove", 0, MAXMAT);
 	RNA_def_boolean(func, "update_data", 0, "", "Update data by re-adjusting the material slots assigned");
 	parm = RNA_def_pointer(func, "material", "Material", "", "Material to remove");
 	RNA_def_function_return(func, parm);
 
 	func = RNA_def_function(srna, "clear", "rna_IDMaterials_clear_id");
-	RNA_def_function_ui_description(func, "Remove all materials from the data block");
+	RNA_def_function_ui_description(func, "Remove all materials from the data-block");
 	RNA_def_boolean(func, "update_data", 0, "", "Update data by re-adjusting the material slots assigned");
 }
 
@@ -960,12 +975,12 @@ static void rna_def_ID(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "tag", LIB_TAG_ID_RECALC);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Is Updated", "Datablock is tagged for recalculation");
+	RNA_def_property_ui_text(prop, "Is Updated", "Data-block is tagged for recalculation");
 
 	prop = RNA_def_property(srna, "is_updated_data", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "tag", LIB_TAG_ID_RECALC_DATA);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Is Updated Data", "Datablock data is tagged for recalculation");
+	RNA_def_property_ui_text(prop, "Is Updated Data", "Data-block data is tagged for recalculation");
 
 	prop = RNA_def_property(srna, "is_library_indirect", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "tag", LIB_TAG_INDIRECT);
@@ -999,12 +1014,23 @@ static void rna_def_ID(BlenderRNA *brna)
 	parm = RNA_def_pointer(func, "new_id", "ID", "", "New ID to use");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 
+	func = RNA_def_function(srna, "make_local", "rna_ID_make_local");
+	RNA_def_function_ui_description(func, "Make this datablock local, return local one "
+	                                      "(may be a copy of the original, in case it is also indirectly used)");
+	RNA_def_function_flag(func, FUNC_USE_MAIN);
+	RNA_def_boolean(func, "clear_proxy", true, "",
+	                "Whether to clear proxies (the default behavior); can cause proxies to be duplicated"
+	                " when still referred to from another library");
+	RNA_def_property_flag(parm, PROP_PYFUNC_OPTIONAL);
+	parm = RNA_def_pointer(func, "id", "ID", "", "This ID, or the new ID if it was copied");
+	RNA_def_function_return(func, parm);
+
 	func = RNA_def_function(srna, "user_of_id", "BKE_library_ID_use_ID");
 	RNA_def_function_ui_description(func, "Count the number of times that ID uses/references given one");
 	parm = RNA_def_pointer(func, "id", "ID", "", "ID to count usages");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 	parm = RNA_def_int(func, "count", 0, 0, INT_MAX,
-	                   "", "Number of usages/references of given id by current datablock", 0, INT_MAX);
+	                   "", "Number of usages/references of given id by current data-block", 0, INT_MAX);
 	RNA_def_function_return(func, parm);
 
 	func = RNA_def_function(srna, "animation_data_create", "rna_ID_animation_data_create");
@@ -1050,7 +1076,7 @@ static void rna_def_library(BlenderRNA *brna)
 
 	func = RNA_def_function(srna, "reload", "WM_lib_reload");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_CONTEXT);
-	RNA_def_function_ui_description(func, "Reload this library and all its linked datablocks");
+	RNA_def_function_ui_description(func, "Reload this library and all its linked data-blocks");
 }
 void RNA_def_ID(BlenderRNA *brna)
 {

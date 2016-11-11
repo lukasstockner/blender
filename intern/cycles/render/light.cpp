@@ -43,8 +43,8 @@ static void shade_background_pixels(Device *device, DeviceScene *dscene, int res
 
 	for(int y = 0; y < height; y++) {
 		for(int x = 0; x < width; x++) {
-			float u = x/(float)width;
-			float v = y/(float)height;
+			float u = (x + 0.5f)/width;
+			float v = (y + 0.5f)/height;
 
 			uint4 in = make_uint4(__float_as_int(u), __float_as_int(v), 0, 0);
 			d_input_data[x + y*width] = in;
@@ -125,6 +125,8 @@ NODE_DEFINE(Light)
 
 	SOCKET_FLOAT(spot_angle, "Spot Angle", M_PI_4_F);
 	SOCKET_FLOAT(spot_smooth, "Spot Smooth", 0.0f);
+
+	SOCKET_TRANSFORM(tfm, "Transform", transform_identity());
 
 	SOCKET_BOOLEAN(cast_shadow, "Cast Shadow", true);
 	SOCKET_BOOLEAN(use_mis, "Use Mis", false);
@@ -308,9 +310,6 @@ void LightManager::device_update_distribution(Device *device, DeviceScene *dscen
 		Transform tfm = object->tfm;
 		int object_id = j;
 		int shader_flag = 0;
-
-		if(transform_applied)
-			object_id = ~object_id;
 
 		if(!(object->visibility & PATH_RAY_DIFFUSE)) {
 			shader_flag |= SHADER_EXCLUDE_DIFFUSE;
@@ -664,11 +663,6 @@ void LightManager::device_update_points(Device *device,
 			use_light_visibility = true;
 		}
 
-		float3 fixed_emission = make_float3(0.0f, 0.0f, 0.0f);
-		if(shader->is_constant_emission(&fixed_emission)) {
-			shader_id |= SHADER_FIXED_EMISSION;
-		}
-
 		if(light->type == LIGHT_POINT) {
 			shader_id &= ~SHADER_AREA_LIGHT;
 
@@ -768,7 +762,12 @@ void LightManager::device_update_points(Device *device,
 			light_data[light_index*LIGHT_SIZE + 3] = make_float4(samples, 0.0f, 0.0f, 0.0f);
 		}
 
-		light_data[light_index*LIGHT_SIZE + 4] = make_float4(max_bounces, fixed_emission.x, fixed_emission.y, fixed_emission.z);
+		light_data[light_index*LIGHT_SIZE + 4] = make_float4(max_bounces, 0.0f, 0.0f, 0.0f);
+
+		Transform tfm = light->tfm;
+		Transform itfm = transform_inverse(tfm);
+		memcpy(&light_data[light_index*LIGHT_SIZE + 5], &tfm, sizeof(float4)*3);
+		memcpy(&light_data[light_index*LIGHT_SIZE + 8], &itfm, sizeof(float4)*3);
 
 		light_index++;
 	}
@@ -795,6 +794,11 @@ void LightManager::device_update_points(Device *device,
 		light_data[light_index*LIGHT_SIZE + 2] = make_float4(invarea, axisv.x, axisv.y, axisv.z);
 		light_data[light_index*LIGHT_SIZE + 3] = make_float4(-1, dir.x, dir.y, dir.z);
 		light_data[light_index*LIGHT_SIZE + 4] = make_float4(-1, 0.0f, 0.0f, 0.0f);
+
+		Transform tfm = light->tfm;
+		Transform itfm = transform_inverse(tfm);
+		memcpy(&light_data[light_index*LIGHT_SIZE + 5], &tfm, sizeof(float4)*3);
+		memcpy(&light_data[light_index*LIGHT_SIZE + 8], &itfm, sizeof(float4)*3);
 
 		light_index++;
 	}

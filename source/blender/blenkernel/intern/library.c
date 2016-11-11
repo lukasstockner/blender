@@ -73,6 +73,9 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
+#include "BLI_linklist.h"
+#include "BLI_memarena.h"
 
 #include "BLI_threads.h"
 #include "BLT_translation.h"
@@ -125,6 +128,8 @@
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
+
+#include "atomic_ops.h"
 
 /* GS reads the memory pointed at in a specific ordering. 
  * only use this definition, makes little and big endian systems
@@ -259,9 +264,12 @@ void id_fake_user_clear(ID *id)
 }
 
 static int id_expand_local_callback(
-        void *UNUSED(user_data), struct ID *UNUSED(id_self), struct ID **id_pointer, int UNUSED(cd_flag))
+        void *UNUSED(user_data), struct ID *id_self, struct ID **id_pointer, int UNUSED(cd_flag))
 {
-	if (*id_pointer) {
+	/* Can hapen that we get unlinkable ID here, e.g. with shapekey referring to itself (through drivers)...
+	 * Just skip it, shape key can only be either indirectly linked, or fully local, period.
+	 * And let's curse one more time that stupid useless shapekey ID type! */
+	if (*id_pointer && *id_pointer != id_self && BKE_idcode_is_linkable(GS((*id_pointer)->name))) {
 		id_lib_extern(*id_pointer);
 	}
 
@@ -1592,15 +1600,6 @@ void id_clear_lib_data_ex(Main *bmain, ID *id, const bool id_in_mainlist)
 	if ((key = BKE_key_from_id(id))) {
 		id_clear_lib_data_ex(bmain, &key->id, id_in_mainlist);  /* sigh, why are keys in Main? */
 	}
-
-	if (GS(id->name) == ID_OB) {
-		Object *object = (Object *)id;
-		if (object->proxy_from != NULL) {
-			object->proxy_from->proxy = NULL;
-			object->proxy_from->proxy_group = NULL;
-		}
-		object->proxy = object->proxy_from = object->proxy_group = NULL;
-	}
 }
 
 void id_clear_lib_data(Main *bmain, ID *id)
@@ -1647,11 +1646,16 @@ void BKE_main_id_clear_newpoins(Main *bmain)
  * We'll probably need at some point a true dependency graph between datablocks, but for now this should work
  * good enough (performances is not a critical point here anyway).
  */
-void BKE_library_make_local(Main *bmain, const Library *lib, const bool untagged_only, const bool set_fake)
+void BKE_library_make_local(
+        Main *bmain, const Library *lib, GHash *old_to_new_ids, const bool untagged_only, const bool set_fake)
 {
 	ListBase *lbarray[MAX_LIBARRAY];
 	ID *id, *id_next;
 	int a;
+
+	LinkNode *copied_ids = NULL;
+	LinkNode *linked_loop_candidates = NULL;
+	MemArena *linklist_mem = BLI_memarena_new(256 * sizeof(copied_ids), __func__);
 
 	for (a = set_listbasepointers(bmain, lbarray); a--; ) {
 		id = lbarray[a]->first;
@@ -1662,20 +1666,34 @@ void BKE_library_make_local(Main *bmain, const Library *lib, const bool untagged
 
 		for (; id; id = id_next) {
 			id->newid = NULL;
+			id->tag &= ~LIB_TAG_DOIT;
 			id_next = id->next;  /* id is possibly being inserted again */
 
 			/* The check on the second line (LIB_TAG_PRE_EXISTING) is done so its
 			 * possible to tag data you don't want to be made local, used for
 			 * appending data, so any libdata already linked wont become local
-			 * (very nasty to discover all your links are lost after appending)  
-			 * */
+			 * (very nasty to discover all your links are lost after appending).
+			 * Also, never ever make proxified objects local, would not make any sense. */
 			if (!do_skip && id->tag & (LIB_TAG_EXTERN | LIB_TAG_INDIRECT | LIB_TAG_NEW) &&
+			    !(GS(id->name) == ID_OB && ((Object *)id)->proxy_from != NULL) &&
 			    ((untagged_only == false) || !(id->tag & LIB_TAG_PRE_EXISTING)))
 			{
 				if (lib == NULL || id->lib == lib) {
 					if (id->lib) {
 						/* In this specific case, we do want to make ID local even if it has no local usage yet... */
-						id_make_local(bmain, id, false, true);
+						if (GS(id->name) == ID_OB) {
+							/* Special case for objects because we don't want proxy pointers to be
+							 * cleared yet. This will happen down the road in this function.
+							 */
+							BKE_object_make_local_ex(bmain, (Object*)id, true, false);
+						}
+						else {
+							id_make_local(bmain, id, false, true);
+						}
+
+						if (id->newid) {
+							BLI_linklist_prepend_arena(&copied_ids, id, linklist_mem);
+						}
 					}
 					else {
 						id->tag &= ~(LIB_TAG_EXTERN | LIB_TAG_INDIRECT | LIB_TAG_NEW);
@@ -1695,11 +1713,15 @@ void BKE_library_make_local(Main *bmain, const Library *lib, const bool untagged
 	/* We have to remap local usages of old (linked) ID to new (local) id in a second loop, as lbarray ordering is not
 	 * enough to ensure us we did catch all dependencies (e.g. if making local a parent object before its child...).
 	 * See T48907. */
-	for (a = set_listbasepointers(bmain, lbarray); a--; ) {
-		for (id = lbarray[a]->first; id; id = id->next) {
-			if (id->newid) {
-				BKE_libblock_remap(bmain, id, id->newid, ID_REMAP_SKIP_INDIRECT_USAGE);
-			}
+	for (LinkNode *it = copied_ids; it; it = it->next) {
+		id = it->link;
+
+		BLI_assert(id->newid != NULL);
+		BLI_assert(id->lib != NULL);
+
+		BKE_libblock_remap(bmain, id, id->newid, ID_REMAP_SKIP_INDIRECT_USAGE);
+		if (old_to_new_ids) {
+			BLI_ghash_insert(old_to_new_ids, id, id->newid);
 		}
 	}
 
@@ -1708,21 +1730,110 @@ void BKE_library_make_local(Main *bmain, const Library *lib, const bool untagged
 	bool do_loop = true;
 	while (do_loop) {
 		do_loop = false;
-		for (a = set_listbasepointers(bmain, lbarray); a--; ) {
-			for (id = lbarray[a]->first; id; id = id_next) {
-				id_next = id->next;
-				if (id->newid) {
-					bool is_local = false, is_lib = false;
+		for (LinkNode *it = copied_ids; it; it = it->next) {
+			if ((id = it->link) == NULL) {
+				continue;
+			}
 
-					BKE_library_ID_test_usages(bmain, id, &is_local, &is_lib);
-					if (!is_local && !is_lib) {
-						BKE_libblock_free(bmain, id);
-						do_loop = true;
+			bool is_local = false, is_lib = false;
+
+			BKE_library_ID_test_usages(bmain, id, &is_local, &is_lib);
+
+			/* Attempt to re-link copied proxy objects. This allows appending of an entire scene
+			 * from another blend file into this one, even when that blend file contains proxified
+			 * armatures that have local references. Since the proxified object needs to be linked
+			 * (not local), this will only work when the "Localize all" checkbox is disabled.
+			 * TL;DR: this is a dirty hack on top of an already weak feature (proxies). */
+			if (GS(id->name) == ID_OB && ((Object *)id)->proxy != NULL) {
+				Object *ob = (Object *)id;
+				Object *ob_new = (Object *)id->newid;
+
+				/* Proxies only work when the proxified object is linked-in from a library. */
+				if (ob->proxy->id.lib == NULL) {
+					printf("Warning, proxy object %s will loose its link to %s, because the "
+						   "proxified object is local.\n", id->newid->name, ob->proxy->id.name);
+				}
+				/* We can only switch the proxy'ing to a made-local proxy if it is no longer
+				 * referred to from a library. Not checking for local use; if new local proxy
+				 * was not used locally would be a nasty bug! */
+				else if (is_local || is_lib) {
+					printf("Warning, made-local proxy object %s will loose its link to %s, "
+						   "because the linked-in proxy is referenced (is_local=%i, is_lib=%i).\n",
+						   id->newid->name, ob->proxy->id.name, is_local, is_lib);
+				}
+				else {
+					/* we can switch the proxy'ing from the linked-in to the made-local proxy.
+					 * BKE_object_make_proxy() shouldn't be used here, as it allocates memory that
+					 * was already allocated by BKE_object_make_local_ex() (which called BKE_object_copy_ex). */
+					ob_new->proxy = ob->proxy;
+					ob_new->proxy_group = ob->proxy_group;
+					ob_new->proxy_from = ob->proxy_from;
+					ob_new->proxy->proxy_from = ob_new;
+					ob->proxy = ob->proxy_from = ob->proxy_group = NULL;
+				}
+			}
+			/* Special hack for groups... Thing is, since we can't instantiate them here, we need to ensure
+			 * they remain 'alive' (only instantiation is a real group 'user'... *sigh* See T49722. */
+			else if (GS(id->name) == ID_GR && (id->tag & LIB_TAG_INDIRECT) != 0) {
+				id_us_ensure_real(id->newid);
+			}
+
+			if (!is_local) {
+				if (!is_lib) {  /* Not used at all, we can free it! */
+					BKE_libblock_free(bmain, id);
+					it->link = NULL;
+					do_loop = true;
+				}
+				/* Only used by linked data, potential candidate to ugly lib-only dependency cycles... */
+				else if ((id->tag & LIB_TAG_DOIT) == 0) {  /* Check TAG_DOIT to avoid adding same ID several times... */
+					/* Note that we store the node, not directly ID pointer, that way if it->link is set to NULL
+					 * later we can skip it in lib-dependency cycles search later. */
+					BLI_linklist_prepend_arena(&linked_loop_candidates, it, linklist_mem);
+					id->tag |= LIB_TAG_DOIT;
+
+					/* Grrrrrrr... those half-datablocks-stuff... grrrrrrrrrrr...
+					 * Here we have to also tag them as potential candidates, otherwise they would falsy report
+					 * ID they used as 'directly used' in fourth step. */
+					ID *ntree = (ID *)ntreeFromID(id);
+					if (ntree != NULL) {
+						ntree->tag |= LIB_TAG_DOIT;
 					}
 				}
 			}
 		}
 	}
+
+	/* Fourth step: Try to find circle dependencies between indirectly-linked-only datablocks.
+	 * Those are fake 'usages' that prevent their deletion. See T49775 for nice ugly case. */
+	BKE_library_tag_unused_linked_data(bmain, false);
+	for (LinkNode *it = linked_loop_candidates; it; it = it->next) {
+		if (it->link == NULL) {
+			continue;
+		}
+		if ((id = ((LinkNode *)it->link)->link) == NULL) {
+			it->link = NULL;
+			continue;
+		}
+
+		/* Note: in theory here we are only handling datablocks forming exclusive linked dependency-cycles-based
+		 * archipelagos, so no need to check again after we have deleted one, as done in previous step. */
+		if (id->tag & LIB_TAG_DOIT) {
+			/* Note: *in theory* IDs tagged here are fully *outside* of file scope, totally unused, so we can
+			 *       directly wipe them out without caring about clearing their usages.
+			 *       However, this is a highly-risky presumption, and nice crasher in case something goes wrong here.
+			 *       So for 2.78a will keep the safe option, and switch to more efficient one in master later. */
+#if 0
+			BKE_libblock_free_ex(bmain, id, false);
+#else
+			BKE_libblock_unlink(bmain, id, false, false);
+			BKE_libblock_free(bmain, id);
+#endif
+			((LinkNode *)it->link)->link = NULL;  /* Not strictly necessary, but safer (see T49903)... */
+			it->link = NULL;
+		}
+	}
+
+	BLI_memarena_free(linklist_mem);
 }
 
 /**
@@ -1789,4 +1900,14 @@ void BKE_library_filepath_set(Library *lib, const char *filepath)
 		const char *basepath = lib->parent ? lib->parent->filepath : G.main->name;
 		BLI_path_abs(lib->filepath, basepath);
 	}
+}
+
+void BKE_id_tag_set_atomic(ID *id, int tag)
+{
+	atomic_fetch_and_or_uint32((uint32_t *)&id->tag, tag);
+}
+
+void BKE_id_tag_clear_atomic(ID *id, int tag)
+{
+	atomic_fetch_and_and_uint32((uint32_t *)&id->tag, ~tag);
 }
