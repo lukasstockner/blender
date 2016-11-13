@@ -62,7 +62,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_divide_shadow)(KernelGlobals *kg,
                                                      float *sampleV,
                                                      float *sampleVV,
                                                      float *bufferV,
-                                                     int4 prefilter_rect);
+                                                     int* prefilter_rect);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(KernelGlobals *kg,
                                                    int sample,
@@ -77,14 +77,14 @@ void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(KernelGlobals *kg,
                                                    int *stride,
                                                    float *mean,
                                                    float *variance,
-                                                   int4 prefilter_rect);
+                                                   int* prefilter_rect);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_non_local_means)(int x, int y,
                                                        float *noisyImage,
                                                        float *weightImage,
                                                        float *variance,
                                                        float *filteredImage,
-                                                       int4 rect,
+                                                       int* rect,
                                                        int r, int f,
                                                        float a, float k_2);
 
@@ -93,7 +93,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
                                                       float *variance,
                                                       float *a,
                                                       float *b,
-                                                      int4 prefilter_rect,
+                                                      int* prefilter_rect,
                                                       int r);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
@@ -102,7 +102,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
                                                        int x,
                                                        int y,
                                                        void *storage,
-                                                       int4 rect);
+                                                       int* rect);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
                                                   int sample,
@@ -113,8 +113,8 @@ void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
                                                   int stride,
                                                   float* buffers,
                                                   void *storage,
-                                                  int4 filter_area,
-                                                  int4 rect);
+                                                  int* filter_area,
+                                                  int* rect);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_old_1)(KernelGlobals *kg,
                                              float *denoise_data,
@@ -123,7 +123,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_old_1)(KernelGlobals *kg,
                                              int halfWindow,
                                              float bandwidthFactor,
                                              float *storage,
-                                             int4 rect);
+                                             int* rect);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_old_2)(KernelGlobals *kg,
                                              float* buffer,
@@ -134,7 +134,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_old_2)(KernelGlobals *kg,
                                              int halfWindow,
                                              float bandwidthFactor,
                                              float *storage,
-                                             int4 rect,
-                                             int4 tile);
+                                             int* rect,
+                                             int* tile);
 
 #undef KERNEL_ARCH
