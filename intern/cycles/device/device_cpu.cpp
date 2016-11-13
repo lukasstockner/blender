@@ -270,6 +270,7 @@ public:
 		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
 		int pass_stride = w*h*frames;
 		float *filter_buffers = new float[22*pass_stride];
+		memset(filter_buffers, 0, sizeof(float)*22*pass_stride);
 
 
 		for(int frame = 0; frame < frames; frame++) {
@@ -538,7 +539,7 @@ public:
 #undef WRITE_DEBUG
 #endif
 		}
-		free(storage);
+		delete[] storage;
 	}
 
 	void thread_render(DeviceTask& task)
