@@ -5007,6 +5007,12 @@ static void rna_def_scene_render_layer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Filter strength", "Controls feature variance weight for the denoising filter (lower values preserve more detail, but aren't as smooth)");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
+	prop = RNA_def_property(srna, "filter_weighting_adjust", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "denoise_weighting");
+	RNA_def_property_range(prop, -4.0f, 4.0f);
+	RNA_def_property_ui_text(prop, "Filter weighting adjust", "Controls neighbor pixel weighting for the denoising filter (lower values preserve more detail, but aren't as smooth)");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
 	prop = RNA_def_property(srna, "half_window", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "denoise_half_window");
 	RNA_def_property_range(prop, 1, 50);

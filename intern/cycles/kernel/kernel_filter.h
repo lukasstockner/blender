@@ -338,7 +338,7 @@ ccl_device void kernel_filter_final_pass_wlr(KernelGlobals *kg, int sample, floa
 			global_bandwidths[j+1] = global_bandwidths[j];
 		global_bandwidths[j+1] = v;
 	}
-	float global_bandwidth = global_bandwidths[sort_idx/2];
+	float global_bandwidth = global_bandwidths[sort_idx/2] * kernel_data.integrator.weighting_adjust;
 
 	float bandwidth_factor[DENOISE_FEATURES];
 	for(int i = 0; i < rank; i++) {
@@ -482,7 +482,7 @@ ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, floa
 		filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
 		filter_fill_design_row_no_weight_cuda(features, rank, design_row, transform, transform_stride);
 
-		float weight = nlm_weight(x, y, px, py, center_buffer, pixel_buffer, pass_stride, 1.0f, 0.5f, 4, rect);
+		float weight = nlm_weight(x, y, px, py, center_buffer, pixel_buffer, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
 		if(weight == 0.0f) continue;
 		weight /= max(1.0f, variance);
 
@@ -515,7 +515,7 @@ ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, floa
 		filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
 		filter_fill_design_row_no_weight_cuda(features, rank, design_row, transform, transform_stride);
 
-		float weight = nlm_weight(x, y, px, py, center_buffer, pixel_buffer, pass_stride, 1.0f, 0.5f, 4, rect);
+		float weight = nlm_weight(x, y, px, py, center_buffer, pixel_buffer, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
 		if(weight == 0.0f) continue;
 		weight /= max(1.0f, variance);
 		weight *= math_dot(design_row, r_feature_weight, matrix_size);
@@ -1182,7 +1182,7 @@ ccl_device void kernel_filter_final_pass_wlr(KernelGlobals *kg, int sample, floa
 			global_bandwidths[j+1] = global_bandwidths[j];
 		global_bandwidths[j+1] = v;
 	}
-	float global_bandwidth = global_bandwidths[sort_idx/2];
+	float global_bandwidth = global_bandwidths[sort_idx/2] * kernel_data.integrator.weighting_adjust;
 
 
 
@@ -1331,7 +1331,7 @@ ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, floa
 		filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
 		filter_fill_design_row_no_weight(features, rank, design_row, feature_transform);
 
-		float weight = nlm_weight(x, y, px, py, center_buffer, pixel_buffer, pass_stride, 1.0f, 0.5f, 4, rect);
+		float weight = nlm_weight(x, y, px, py, center_buffer, pixel_buffer, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
 		if(weight < 1e-5f) continue;
 		weight /= max(1.0f, variance);
 
@@ -1364,7 +1364,7 @@ ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, floa
 		filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
 		filter_fill_design_row_no_weight(features, rank, design_row, feature_transform);
 
-		float weight = nlm_weight(x, y, px, py, center_buffer, pixel_buffer, pass_stride, 1.0f, 0.5f, 4, rect);
+		float weight = nlm_weight(x, y, px, py, center_buffer, pixel_buffer, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
 		if(weight < 1e-5f) continue;
 		weight /= max(1.0f, variance);
 		weight *= math_dot(design_row, r_feature_weight, matrix_size);

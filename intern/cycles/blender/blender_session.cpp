@@ -465,6 +465,7 @@ void BlenderSession::render()
 		buffer_params.selective_denoising = scene->film->selective_denoising;
 		scene->integrator->half_window = b_layer_iter->half_window();
 		scene->integrator->filter_strength = powf(2.0f, b_layer_iter->filter_strength());
+		scene->integrator->weighting_adjust = powf(2.0f, b_layer_iter->filter_weighting_adjust());
 
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes);

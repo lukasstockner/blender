@@ -230,7 +230,7 @@ typedef struct SceneRenderLayer {
 	int denoiseflag;
 	int denoise_half_window;
 	float denoise_strength;
-	int pad;
+	float denoise_weighting;
 
 	int samples;
 	float pass_alpha_threshold;

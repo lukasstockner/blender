@@ -1162,8 +1162,9 @@ typedef struct KernelIntegrator {
 	/* denoiser */
 	int half_window;
 	float filter_strength;
+	float weighting_adjust;
 
-	int pad1, pad2, pad3;
+	int pad1, pad2;
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 
