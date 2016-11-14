@@ -105,15 +105,23 @@ void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
                                                       int* prefilter_rect,
                                                       int r);
 
-void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
-                                                       int sample,
-                                                       float* buffer,
-                                                       int x,
-                                                       int y,
-                                                       void *storage,
-                                                       int* rect);
+void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(KernelGlobals *kg,
+                                                           int sample,
+                                                           float* buffer,
+                                                           int x,
+                                                           int y,
+                                                           void *storage,
+                                                           int* rect);
 
-void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
+void KERNEL_FUNCTION_FULL_NAME(filter_estimate_wlr_params)(KernelGlobals *kg,
+                                                           int sample,
+                                                           float* buffer,
+                                                           int x,
+                                                           int y,
+                                                           void *storage,
+                                                           int* rect);
+
+void KERNEL_FUNCTION_FULL_NAME(filter_final_pass_wlr)(KernelGlobals *kg,
                                                   int sample,
                                                   float* buffer,
                                                   int x,

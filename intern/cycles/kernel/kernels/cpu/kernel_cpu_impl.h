@@ -210,33 +210,45 @@ void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
 	kernel_filter_combine_halves(x, y, mean, variance, a, b, rect, r);
 }
 
-void KERNEL_FUNCTION_FULL_NAME(filter_estimate_params)(KernelGlobals *kg,
-                                                       int sample,
-                                                       float* buffer,
-                                                       int x,
-                                                       int y,
-                                                       void *storage,
-                                                       int* prefilter_rect)
+void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(KernelGlobals *kg,
+                                                           int sample,
+                                                           float* buffer,
+                                                           int x,
+                                                           int y,
+                                                           void *storage,
+                                                           int* prefilter_rect)
 {
 	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
-	kernel_filter_estimate_params(kg, sample, buffer, x, y, (FilterStorage*) storage, rect);
+	kernel_filter_construct_transform(kg, sample, buffer, x, y, (FilterStorage*) storage, rect);
 }
 
-void KERNEL_FUNCTION_FULL_NAME(filter_final_pass)(KernelGlobals *kg,
-                                                  int sample,
-                                                  float* buffer,
-                                                  int x,
-                                                  int y,
-                                                  int offset,
-                                                  int stride,
-                                                  float *buffers,
-                                                  void *storage,
-                                                  int* filter_area,
-                                                  int* prefilter_rect)
+void KERNEL_FUNCTION_FULL_NAME(filter_estimate_wlr_params)(KernelGlobals *kg,
+                                                           int sample,
+                                                           float* buffer,
+                                                           int x,
+                                                           int y,
+                                                           void *storage,
+                                                           int* prefilter_rect)
+{
+	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
+	kernel_filter_estimate_wlr_params(kg, sample, buffer, x, y, (FilterStorage*) storage, rect);
+}
+
+void KERNEL_FUNCTION_FULL_NAME(filter_final_pass_wlr)(KernelGlobals *kg,
+                                                      int sample,
+                                                      float* buffer,
+                                                      int x,
+                                                      int y,
+                                                      int offset,
+                                                      int stride,
+                                                      float *buffers,
+                                                      void *storage,
+                                                      int* filter_area,
+                                                      int* prefilter_rect)
 {
 	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
 	int4 area = make_int4(filter_area[0], filter_area[1], filter_area[2], filter_area[3]);
-	kernel_filter_final_pass(kg, sample, buffer, x, y, offset, stride, buffers, (FilterStorage*) storage, area, rect);
+	kernel_filter_final_pass_wlr(kg, sample, buffer, x, y, offset, stride, buffers, (FilterStorage*) storage, area, rect);
 }
 
 void KERNEL_FUNCTION_FULL_NAME(filter_old_1)(KernelGlobals *kg,
