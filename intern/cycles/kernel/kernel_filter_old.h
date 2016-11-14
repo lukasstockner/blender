@@ -495,7 +495,6 @@ ccl_device void kernel_filter2_pixel(KernelGlobals *kg, float *buffers, float cc
 
 	int2 lo = make_int2(max(x - halfWindow, rect.x), max(y - halfWindow, rect.y));
 	int2 hi = make_int2(min(x + halfWindow, rect.z-1), min(y + halfWindow, rect.w-1));
-	int num = (hi.x - lo.x + 1) * (hi.y - lo.y + 1);
 	int denoise_stride = align_up(rect.z-rect.x, 4);
 	int pass_stride = (rect.w-rect.y)*denoise_stride;
 
