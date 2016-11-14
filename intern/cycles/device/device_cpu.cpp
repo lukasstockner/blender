@@ -420,6 +420,7 @@ public:
 	{
 		void(*filter_estimate_params_kernel)(KernelGlobals*, int, float*, int, int, void*, int*);
 		void(*filter_final_pass_kernel)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, int*, int*);
+		void(*filter_non_local_means_3)(int, int, float**, float**, float**, float**, int*, int, int, float, float);
 		void(*filter_old_1)(KernelGlobals*, float*, int, int, int, int, float, float*, int*);
 		void(*filter_old_2)(KernelGlobals*, float*, float*, int, int, int, int, int, int, float, float*, int*, int*);
 
@@ -427,6 +428,7 @@ public:
 		if(system_cpu_support_avx2()) {
 			filter_estimate_params_kernel = kernel_cpu_avx2_filter_estimate_params;
 			filter_final_pass_kernel = kernel_cpu_avx2_filter_final_pass;
+			filter_non_local_means_3 = kernel_cpu_avx2_filter_non_local_means_3;
 			filter_old_1 = kernel_cpu_avx2_filter_old_1;
 			filter_old_2 = kernel_cpu_avx2_filter_old_2;
 		}
@@ -436,6 +438,7 @@ public:
 		if(system_cpu_support_avx()) {
 			filter_estimate_params_kernel = kernel_cpu_avx_filter_estimate_params;
 			filter_final_pass_kernel = kernel_cpu_avx_filter_final_pass;
+			filter_non_local_means_3 = kernel_cpu_avx_filter_non_local_means_3;
 			filter_old_1 = kernel_cpu_avx_filter_old_1;
 			filter_old_2 = kernel_cpu_avx_filter_old_2;
 		}
@@ -445,6 +448,7 @@ public:
 		if(system_cpu_support_sse41()) {
 			filter_estimate_params_kernel = kernel_cpu_sse41_filter_estimate_params;
 			filter_final_pass_kernel = kernel_cpu_sse41_filter_final_pass;
+			filter_non_local_means_3 = kernel_cpu_sse41_filter_non_local_means_3;
 			filter_old_1 = kernel_cpu_sse41_filter_old_1;
 			filter_old_2 = kernel_cpu_sse41_filter_old_2;
 		}
@@ -454,6 +458,7 @@ public:
 		if(system_cpu_support_sse3()) {
 			filter_estimate_params_kernel = kernel_cpu_sse3_filter_estimate_params;
 			filter_final_pass_kernel = kernel_cpu_sse3_filter_final_pass;
+			filter_non_local_means_3 = kernel_cpu_sse3_filter_non_local_means_3;
 			filter_old_1 = kernel_cpu_sse3_filter_old_1;
 			filter_old_2 = kernel_cpu_sse3_filter_old_2;
 		}
@@ -463,6 +468,7 @@ public:
 		if(system_cpu_support_sse2()) {
 			filter_estimate_params_kernel = kernel_cpu_sse2_filter_estimate_params;
 			filter_final_pass_kernel = kernel_cpu_sse2_filter_final_pass;
+			filter_non_local_means_3 = kernel_cpu_sse2_filter_non_local_means_3;
 			filter_old_1 = kernel_cpu_sse2_filter_old_1;
 			filter_old_2 = kernel_cpu_sse2_filter_old_2;
 		}
@@ -471,14 +477,19 @@ public:
 		{
 			filter_estimate_params_kernel = kernel_cpu_filter_estimate_params;
 			filter_final_pass_kernel = kernel_cpu_filter_final_pass;
+			filter_non_local_means_3 = kernel_cpu_filter_non_local_means_3;
 			filter_old_1 = kernel_cpu_filter_old_1;
 			filter_old_2 = kernel_cpu_filter_old_2;
 		}
 
 		bool old_filter = getenv("OLD_FILTER");
+		bool nlm_filter = getenv("NLM_FILTER");
 
 		FilterStorage *storage = new FilterStorage[filter_area.z*filter_area.w];
 		int hw = kg->__data.integrator.half_window;
+
+		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
+		int pass_stride = w*h;
 
 		if(old_filter) {
 			for(int y = 0; y < filter_area.w; y++) {
@@ -509,7 +520,29 @@ public:
 			WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
 #undef WRITE_DEBUG
 #endif
-		} else {
+		}
+		else if(nlm_filter) {
+			float *img[3] = {filter_buffer + 16*pass_stride, filter_buffer + 18*pass_stride, filter_buffer + 20*pass_stride};
+			float *var[3] = {filter_buffer + 17*pass_stride, filter_buffer + 19*pass_stride, filter_buffer + 21*pass_stride};
+			float *out[3] = {filter_buffer +  0*pass_stride, filter_buffer +  1*pass_stride, filter_buffer +  2*pass_stride};
+			for(int y = rect.y; y < rect.w; y++) {
+				for(int x = rect.x; x < rect.z; x++) {
+					filter_non_local_means_3(x, y, img, img, var, out, &rect.x, 10, 4, 1, 0.04f);
+				}
+			}
+			for(int y = 0; y < filter_area.w; y++) {
+				int py = y + filter_area.y;
+				for(int x = 0; x < filter_area.z; x++) {
+					int px = x + filter_area.x;
+					int i = (py - rect.y)*w + (px - rect.x);
+					float *loc_buf = buffers + (offset + py*stride + px)*kg->__data.film.pass_stride;
+					loc_buf[0] = sample*filter_buffer[0*pass_stride + i];
+					loc_buf[1] = sample*filter_buffer[1*pass_stride + i];
+					loc_buf[2] = sample*filter_buffer[2*pass_stride + i];
+				}
+			}
+		}
+		else {
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
 					filter_estimate_params_kernel(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);

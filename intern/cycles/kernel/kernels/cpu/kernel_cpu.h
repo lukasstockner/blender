@@ -88,6 +88,15 @@ void KERNEL_FUNCTION_FULL_NAME(filter_non_local_means)(int x, int y,
                                                        int r, int f,
                                                        float a, float k_2);
 
+void KERNEL_FUNCTION_FULL_NAME(filter_non_local_means_3)(int x, int y,
+                                                         float *noisyImage[3],
+                                                         float *weightImage[3],
+                                                         float *variance[3],
+                                                         float *filteredImage[3],
+                                                         int* rect,
+                                                         int r, int f,
+                                                         float a, float k_2);
+
 void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
                                                       float *mean,
                                                       float *variance,

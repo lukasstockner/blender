@@ -185,4 +185,74 @@ ccl_device void kernel_filter_non_local_means(int x, int y, float ccl_readonly_p
 	filteredImage[p_idx] = sum_image / sum_weight;
 }
 
+ccl_device void kernel_filter_non_local_means_3(int x, int y, float ccl_readonly_ptr noisyImage[3], float ccl_readonly_ptr weightImage[3], float ccl_readonly_ptr variance[3], float *filteredImage[3], int4 rect, int r, int f, float a, float k_2)
+{
+	int2 low  = make_int2(max(rect.x, x - r),
+	                      max(rect.y, y - r));
+	int2 high = make_int2(min(rect.z, x + r + 1),
+	                      min(rect.w, y + r + 1));
+
+	float sum_image[3] = {0.0f}, sum_weight = 0.0f;
+
+	int w = align_up(rect.z - rect.x, 4);
+	int p_idx = (y-rect.y)*w + (x - rect.x);
+	int q_idx = (low.y-rect.y)*w + (low.x-rect.x);
+#ifdef __KERNEL_SSE41__
+	__m128 a_sse = _mm_set1_ps(a), k_2_sse = _mm_set1_ps(k_2);
+#endif
+	/* Loop over the q's, center pixels of all relevant patches. */
+	for(int qy = low.y; qy < high.y; qy++) {
+		for(int qx = low.x; qx < high.x; qx++, q_idx++) {
+			int2  low_dPatch = make_int2(max(max(rect.x - qx, rect.x - x),  -f), max(max(rect.y - qy, rect.y - y),  -f));
+			int2 high_dPatch = make_int2(min(min(rect.z - qx, rect.z - x), f+1), min(min(rect.w - qy, rect.w - y), f+1));
+			/* Loop over the pixels in the patch.
+			 * Note that the patch must be small enough to be fully inside the rect, both at p and q.
+			 * Do avoid doing all the coordinate calculations twice, the code here computes both weights at once. */
+#ifdef __KERNEL_SSE41__
+			__m128 dI_sse = _mm_setzero_ps();
+			__m128 highX_sse = _mm_set1_ps(high_dPatch.x);
+			for(int k = 0; k < 3; k++) {
+				int dIdx = low_dPatch.x + low_dPatch.y*w;
+				for(int dy = low_dPatch.y; dy < high_dPatch.y; dy++) {
+					int dx;
+					for(dx = low_dPatch.x; dx < high_dPatch.x; dx+=4, dIdx+=4) {
+						__m128 diff = _mm_sub_ps(_mm_loadu_ps(weightImage[k] + p_idx + dIdx), _mm_loadu_ps(weightImage[k] + q_idx + dIdx));
+						__m128 pvar = _mm_loadu_ps(variance[k] + p_idx + dIdx);
+						__m128 qvar = _mm_loadu_ps(variance[k] + q_idx + dIdx);
+						__m128 d = _mm_mul_ps(_mm_sub_ps(_mm_mul_ps(diff, diff), _mm_mul_ps(a_sse, _mm_add_ps(pvar, _mm_min_ps(pvar, qvar)))), _mm_rcp_ps(_mm_add_ps(_mm_set1_ps(1e-7f), _mm_mul_ps(k_2_sse, _mm_add_ps(pvar, qvar)))));
+						dI_sse = _mm_add_ps(dI_sse, _mm_mask_ps(d, _mm_cmplt_ps(_mm_add_ps(_mm_set1_ps(dx), _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f)), highX_sse)));
+					}
+					dIdx += w-(dx - low_dPatch.x);
+				}
+			}
+			float dI = _mm_hsum_ss(dI_sse);
+#else
+			float dI = 0.0f;
+			for(int k = 0; k < 3; k++) {
+				int dIdx = low_dPatch.x + low_dPatch.y*w;
+				for(int dy = low_dPatch.y; dy < high_dPatch.y; dy++) {
+					for(int dx = low_dPatch.x; dx < high_dPatch.x; dx++, dIdx++) {
+						float diff = weightImage[k][p_idx+dIdx] - weightImage[k][q_idx+dIdx];
+						dI += (diff*diff - a*(variance[k][p_idx+dIdx] + min(variance[k][p_idx+dIdx], variance[k][q_idx+dIdx]))) * (1.0f / (1e-7f + k_2*(variance[k][p_idx+dIdx] + variance[k][q_idx+dIdx])));
+					}
+					dIdx += w-(high_dPatch.x - low_dPatch.x);
+				}
+			}
+#endif
+			dI *= 1.0f / (3.0f * (high_dPatch.x - low_dPatch.x) * (high_dPatch.y - low_dPatch.y));
+
+			float wI = fast_expf(-max(0.0f, dI));
+			sum_image[0] += wI*noisyImage[0][q_idx];
+			sum_image[1] += wI*noisyImage[1][q_idx];
+			sum_image[2] += wI*noisyImage[2][q_idx];
+			sum_weight += wI;
+		}
+		q_idx += w-(high.x-low.x);
+	}
+
+	filteredImage[0][p_idx] = sum_image[0] / sum_weight;
+	filteredImage[1][p_idx] = sum_image[1] / sum_weight;
+	filteredImage[2][p_idx] = sum_image[2] / sum_weight;
+}
+
 CCL_NAMESPACE_END
