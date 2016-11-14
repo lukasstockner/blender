@@ -33,7 +33,7 @@
 
 #ifdef KERNEL_STUB
 #  include "util_debug.h"
-#  define STUB_ASSERT(arch, name) assert(!(name " kernel stub for architecture " #arch " was called!"))
+#  define STUB_ASSERT(arch, name) assert(!(#name " kernel stub for architecture " #arch " was called!"))
 #endif
 
 CCL_NAMESPACE_BEGIN
