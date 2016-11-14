@@ -31,8 +31,10 @@
 
 #include "util_optimization.h"
 
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-#  include "kernel.h"
-#  define KERNEL_ARCH cpu_avx2
-#  include "kernel_cpu_impl.h"
+#ifndef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
+#  define KERNEL_STUB
 #endif  /* WITH_CYCLES_OPTIMIZED_KERNEL_AVX2 */
+
+#include "kernel.h"
+#define KERNEL_ARCH cpu_avx2
+#include "kernel_cpu_impl.h"

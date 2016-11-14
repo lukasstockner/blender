@@ -48,6 +48,77 @@
 
 CCL_NAMESPACE_BEGIN
 
+/* Has to be outside of the class to be shared across template instantiations. */
+static bool logged_architecture = false;
+
+template<typename F>
+class KernelFunctions {
+public:
+	KernelFunctions(F kernel_default,
+	                F kernel_sse2,
+	                F kernel_sse3,
+	                F kernel_sse41,
+	                F kernel_avx,
+	                F kernel_avx2)
+	{
+		string architecture_name = "default";
+		kernel = kernel_default;
+
+		/* Silence potential warnings about unused variables
+		 * when compiling without some architectures. */
+		(void)kernel_sse2;
+		(void)kernel_sse3;
+		(void)kernel_sse41;
+		(void)kernel_avx;
+		(void)kernel_avx2;
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
+		if(system_cpu_support_avx2()) {
+			architecture_name = "AVX2";
+			kernel = kernel_avx2;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
+		if(system_cpu_support_avx()) {
+			architecture_name = "AVX";
+			kernel = kernel_avx;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
+		if(system_cpu_support_sse41()) {
+			architecture_name = "SSE4.1";
+			kernel = kernel_sse41;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
+		if(system_cpu_support_sse3()) {
+			architecture_name = "SSE3";
+			kernel = kernel_sse3;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
+		if(system_cpu_support_sse2()) {
+			architecture_name = "SSE2";
+			kernel = kernel_sse2;
+		}
+#endif
+
+		if(!logged_architecture) {
+			VLOG(1) << "Will be using " << architecture_name << " kernels.";
+			logged_architecture = true;
+		}
+	}
+
+	inline F operator()() const {
+		return kernel;
+	}
+protected:
+	F kernel;
+};
+
 class CPUDevice : public Device
 {
 public:
@@ -57,54 +128,52 @@ public:
 #ifdef WITH_OSL
 	OSLGlobals osl_globals;
 #endif
-	
+
+	KernelFunctions<void(*)(KernelGlobals *, float *, unsigned int *, int, int, int, int, int)>   path_trace_kernel;
+	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)>       convert_to_half_float_kernel;
+	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)>       convert_to_byte_kernel;
+	KernelFunctions<void(*)(KernelGlobals *, uint4 *, float4 *, float*, int, int, int, int, int)> shader_kernel;
+	KernelFunctions<void(*)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, float*, float*, float*, float*, int*)> filter_divide_shadow_kernel;
+	KernelFunctions<void(*)(KernelGlobals*, int, float**, int, int, int, int, int*, int*, int*, int*, float*, float*, int*)>       filter_get_feature_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int, float, float)>                               filter_non_local_means_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                                  filter_combine_halves_kernel;
+	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, void*, int*)>                                      filter_construct_transform_kernel;
+	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, void*, int*)>                                      filter_estimate_wlr_params_kernel;
+	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, int*, int*)>              filter_final_pass_wlr_kernel;
+	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, int*, int*)>              filter_final_pass_nlm_kernel;
+	KernelFunctions<void(*)(int, int, float**, float**, float**, float**, int*, int, int, float, float)>              filter_non_local_means_3_kernel;
+	KernelFunctions<void(*)(KernelGlobals*, float*, int, int, int, int, float, float*, int*)>                         filter_old_1_kernel;
+	KernelFunctions<void(*)(KernelGlobals*, float*, float*, int, int, int, int, int, int, float, float*, int*, int*)> filter_old_2_kernel;
+
+#define KERNEL_FUNCTIONS(name) \
+	      KERNEL_NAME_EVAL(cpu, name), \
+	      KERNEL_NAME_EVAL(cpu_sse2, name), \
+	      KERNEL_NAME_EVAL(cpu_sse3, name), \
+	      KERNEL_NAME_EVAL(cpu_sse41, name), \
+	      KERNEL_NAME_EVAL(cpu_avx, name), \
+	      KERNEL_NAME_EVAL(cpu_avx2, name)
+
 	CPUDevice(DeviceInfo& info, Stats &stats, bool background)
-	: Device(info, stats, background)
+	: Device(info, stats, background),
+	  path_trace_kernel(KERNEL_FUNCTIONS(path_trace)),
+	  convert_to_half_float_kernel(KERNEL_FUNCTIONS(convert_to_half_float)),
+	  convert_to_byte_kernel(KERNEL_FUNCTIONS(convert_to_byte)),
+	  shader_kernel(KERNEL_FUNCTIONS(shader)),
+	  filter_divide_shadow_kernel(KERNEL_FUNCTIONS(filter_divide_shadow)),
+	  filter_get_feature_kernel(KERNEL_FUNCTIONS(filter_get_feature)),
+	  filter_non_local_means_kernel(KERNEL_FUNCTIONS(filter_non_local_means)),
+	  filter_combine_halves_kernel(KERNEL_FUNCTIONS(filter_combine_halves)),
+	  filter_construct_transform_kernel(KERNEL_FUNCTIONS(filter_construct_transform)),
+	  filter_estimate_wlr_params_kernel(KERNEL_FUNCTIONS(filter_estimate_wlr_params)),
+	  filter_final_pass_wlr_kernel(KERNEL_FUNCTIONS(filter_final_pass_wlr)),
+	  filter_final_pass_nlm_kernel(KERNEL_FUNCTIONS(filter_final_pass_nlm)),
+	  filter_non_local_means_3_kernel(KERNEL_FUNCTIONS(filter_non_local_means_3)),
+	  filter_old_1_kernel(KERNEL_FUNCTIONS(filter_old_1)),
+	  filter_old_2_kernel(KERNEL_FUNCTIONS(filter_old_2))
 	{
 #ifdef WITH_OSL
 		kernel_globals.osl = &osl_globals;
 #endif
-
-		/* do now to avoid thread issues */
-		system_cpu_support_sse2();
-		system_cpu_support_sse3();
-		system_cpu_support_sse41();
-		system_cpu_support_avx();
-		system_cpu_support_avx2();
-
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-		if(system_cpu_support_avx2()) {
-			VLOG(1) << "Will be using AVX2 kernels.";
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
-		if(system_cpu_support_avx()) {
-			VLOG(1) << "Will be using AVX kernels.";
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
-		if(system_cpu_support_sse41()) {
-			VLOG(1) << "Will be using SSE4.1 kernels.";
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
-		if(system_cpu_support_sse3()) {
-			VLOG(1) << "Will be using SSE3kernels.";
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
-		if(system_cpu_support_sse2()) {
-			VLOG(1) << "Will be using SSE2 kernels.";
-		}
-		else
-#endif
-		{
-			VLOG(1) << "Will be using regular kernels.";
-		}
 	}
 
 	~CPUDevice()
@@ -210,63 +279,6 @@ public:
 
 	float* denoise_fill_buffer(KernelGlobals *kg, int sample, int4 rect, float** buffers, int* tile_x, int* tile_y, int *offsets, int *strides, int frames, int *frame_strides)
 	{
-		void(*filter_divide_shadow)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, float*, float*, float*, float*, int*);
-		void(*filter_get_feature)(KernelGlobals*, int, float**, int, int, int, int, int*, int*, int*, int*, float*, float*, int*);
-		void(*filter_non_local_means)(int, int, float*, float*, float*, float*, int*, int, int, float, float);
-		void(*filter_combine_halves)(int, int, float*, float*, float*, float*, int*, int);
-
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-		if(system_cpu_support_avx2()) {
-			filter_divide_shadow = kernel_cpu_avx2_filter_divide_shadow;
-			filter_get_feature = kernel_cpu_avx2_filter_get_feature;
-			filter_non_local_means = kernel_cpu_avx2_filter_non_local_means;
-			filter_combine_halves = kernel_cpu_avx2_filter_combine_halves;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
-		if(system_cpu_support_avx()) {
-			filter_divide_shadow = kernel_cpu_avx_filter_divide_shadow;
-			filter_get_feature = kernel_cpu_avx_filter_get_feature;
-			filter_non_local_means = kernel_cpu_avx_filter_non_local_means;
-			filter_combine_halves = kernel_cpu_avx_filter_combine_halves;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
-		if(system_cpu_support_sse41()) {
-			filter_divide_shadow = kernel_cpu_sse41_filter_divide_shadow;
-			filter_get_feature = kernel_cpu_sse41_filter_get_feature;
-			filter_non_local_means = kernel_cpu_sse41_filter_non_local_means;
-			filter_combine_halves = kernel_cpu_sse41_filter_combine_halves;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
-		if(system_cpu_support_sse3()) {
-			filter_divide_shadow = kernel_cpu_sse3_filter_divide_shadow;
-			filter_get_feature = kernel_cpu_sse3_filter_get_feature;
-			filter_non_local_means = kernel_cpu_sse3_filter_non_local_means;
-			filter_combine_halves = kernel_cpu_sse3_filter_combine_halves;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
-		if(system_cpu_support_sse2()) {
-			filter_divide_shadow = kernel_cpu_sse2_filter_divide_shadow;
-			filter_get_feature = kernel_cpu_sse2_filter_get_feature;
-			filter_non_local_means = kernel_cpu_sse2_filter_non_local_means;
-			filter_combine_halves = kernel_cpu_sse2_filter_combine_halves;
-		}
-		else
-#endif
-		{
-			filter_divide_shadow = kernel_cpu_filter_divide_shadow;
-			filter_get_feature = kernel_cpu_filter_get_feature;
-			filter_non_local_means = kernel_cpu_filter_non_local_means;
-			filter_combine_halves = kernel_cpu_filter_combine_halves;
-		}
-
 		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
 		int pass_stride = w*h*frames;
 		float *filter_buffers = new float[22*pass_stride];
@@ -298,12 +310,12 @@ public:
 				for(int i = 0; i < 7; i++) {
 					for(int y = rect.y; y < rect.w; y++) {
 						for(int x = rect.x; x < rect.z; x++) {
-							filter_get_feature(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, unfiltered, filter_buffer + (offset_to[i]+1)*pass_stride, &rect.x);
+							filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, unfiltered, filter_buffer + (offset_to[i]+1)*pass_stride, &rect.x);
 						}
 					}
 					for(int y = rect.y; y < rect.w; y++) {
 						for(int x = rect.x; x < rect.z; x++) {
-							filter_non_local_means(x, y, unfiltered, unfiltered, filter_buffer + (offset_to[i]+1)*pass_stride, filter_buffer + offset_to[i]*pass_stride, &rect.x, 2, 2, 1, 0.25f);
+							filter_non_local_means_kernel()(x, y, unfiltered, unfiltered, filter_buffer + (offset_to[i]+1)*pass_stride, filter_buffer + offset_to[i]*pass_stride, &rect.x, 2, 2, 1, 0.25f);
 						}
 					}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -327,7 +339,7 @@ public:
 				/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_divide_shadow(kg, sample, buffer, x, y, tile_x, tile_y, offsets, strides, unfiltered, sampleV, sampleVV, bufferV, &rect.x);
+						filter_divide_shadow_kernel()(kg, sample, buffer, x, y, tile_x, tile_y, offsets, strides, unfiltered, sampleV, sampleVV, bufferV, &rect.x);
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -342,7 +354,7 @@ public:
 				/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_non_local_means(x, y, bufferV, sampleV, sampleVV, cleanV, &rect.x, 6, 3, 4, 1.0f);
+						filter_non_local_means_kernel()(x, y, bufferV, sampleV, sampleVV, cleanV, &rect.x, 6, 3, 4, 1.0f);
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -352,8 +364,8 @@ public:
 				/* Use the smoothed variance to filter the two shadow half images using each other for weight calculation. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_non_local_means(x, y, unfiltered, unfiltered + pass_stride, cleanV, sampleV, &rect.x, 5, 3, 1, 0.25f);
-						filter_non_local_means(x, y, unfiltered + pass_stride, unfiltered, cleanV, bufferV, &rect.x, 5, 3, 1, 0.25f);
+						filter_non_local_means_kernel()(x, y, unfiltered, unfiltered + pass_stride, cleanV, sampleV, &rect.x, 5, 3, 1, 0.25f);
+						filter_non_local_means_kernel()(x, y, unfiltered + pass_stride, unfiltered, cleanV, bufferV, &rect.x, 5, 3, 1, 0.25f);
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -364,7 +376,7 @@ public:
 				/* Estimate the residual variance between the two filtered halves. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_combine_halves(x, y, NULL, sampleVV, sampleV, bufferV, &rect.x, 2);
+						filter_combine_halves_kernel()(x, y, NULL, sampleVV, sampleV, bufferV, &rect.x, 2);
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -374,8 +386,8 @@ public:
 				/* Use the residual variance for a second filter pass. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_non_local_means(x, y, sampleV, bufferV, sampleVV, unfiltered              , &rect.x, 4, 2, 1, 0.5f);
-						filter_non_local_means(x, y, bufferV, sampleV, sampleVV, unfiltered + pass_stride, &rect.x, 4, 2, 1, 0.5f);
+						filter_non_local_means_kernel()(x, y, sampleV, bufferV, sampleVV, unfiltered              , &rect.x, 4, 2, 1, 0.5f);
+						filter_non_local_means_kernel()(x, y, bufferV, sampleV, sampleVV, unfiltered + pass_stride, &rect.x, 4, 2, 1, 0.5f);
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -386,7 +398,7 @@ public:
 				/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_combine_halves(x, y, filter_buffer + 8*pass_stride, filter_buffer + 9*pass_stride, unfiltered, unfiltered + pass_stride, &rect.x, 0);
+						filter_combine_halves_kernel()(x, y, filter_buffer + 8*pass_stride, filter_buffer + 9*pass_stride, unfiltered, unfiltered + pass_stride, &rect.x, 0);
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -406,7 +418,7 @@ public:
 				for(int i = 0; i < 3; i++) {
 					for(int y = rect.y; y < rect.w; y++) {
 						for(int x = rect.x; x < rect.z; x++) {
-							filter_get_feature(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, filter_buffer + offset_to[i]*pass_stride, filter_buffer + (offset_to[i]+1)*pass_stride, &rect.x);
+							filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, filter_buffer + offset_to[i]*pass_stride, filter_buffer + (offset_to[i]+1)*pass_stride, &rect.x);
 						}
 					}
 				}
@@ -418,70 +430,6 @@ public:
 
 	void denoise_run(KernelGlobals *kg, int sample, float *filter_buffer, int4 filter_area, int4 rect, int offset, int stride, float *buffers)
 	{
-		void(*filter_estimate_params_kernel)(KernelGlobals*, int, float*, int, int, void*, int*);
-		void(*filter_final_pass_kernel)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, int*, int*);
-		void(*filter_non_local_means_3)(int, int, float**, float**, float**, float**, int*, int, int, float, float);
-		void(*filter_old_1)(KernelGlobals*, float*, int, int, int, int, float, float*, int*);
-		void(*filter_old_2)(KernelGlobals*, float*, float*, int, int, int, int, int, int, float, float*, int*, int*);
-
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-		if(system_cpu_support_avx2()) {
-			filter_estimate_params_kernel = kernel_cpu_avx2_filter_estimate_params;
-			filter_final_pass_kernel = kernel_cpu_avx2_filter_final_pass;
-			filter_non_local_means_3 = kernel_cpu_avx2_filter_non_local_means_3;
-			filter_old_1 = kernel_cpu_avx2_filter_old_1;
-			filter_old_2 = kernel_cpu_avx2_filter_old_2;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
-		if(system_cpu_support_avx()) {
-			filter_estimate_params_kernel = kernel_cpu_avx_filter_estimate_params;
-			filter_final_pass_kernel = kernel_cpu_avx_filter_final_pass;
-			filter_non_local_means_3 = kernel_cpu_avx_filter_non_local_means_3;
-			filter_old_1 = kernel_cpu_avx_filter_old_1;
-			filter_old_2 = kernel_cpu_avx_filter_old_2;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
-		if(system_cpu_support_sse41()) {
-			filter_estimate_params_kernel = kernel_cpu_sse41_filter_estimate_params;
-			filter_final_pass_kernel = kernel_cpu_sse41_filter_final_pass;
-			filter_non_local_means_3 = kernel_cpu_sse41_filter_non_local_means_3;
-			filter_old_1 = kernel_cpu_sse41_filter_old_1;
-			filter_old_2 = kernel_cpu_sse41_filter_old_2;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
-		if(system_cpu_support_sse3()) {
-			filter_estimate_params_kernel = kernel_cpu_sse3_filter_estimate_params;
-			filter_final_pass_kernel = kernel_cpu_sse3_filter_final_pass;
-			filter_non_local_means_3 = kernel_cpu_sse3_filter_non_local_means_3;
-			filter_old_1 = kernel_cpu_sse3_filter_old_1;
-			filter_old_2 = kernel_cpu_sse3_filter_old_2;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
-		if(system_cpu_support_sse2()) {
-			filter_estimate_params_kernel = kernel_cpu_sse2_filter_estimate_params;
-			filter_final_pass_kernel = kernel_cpu_sse2_filter_final_pass;
-			filter_non_local_means_3 = kernel_cpu_sse2_filter_non_local_means_3;
-			filter_old_1 = kernel_cpu_sse2_filter_old_1;
-			filter_old_2 = kernel_cpu_sse2_filter_old_2;
-		}
-		else
-#endif
-		{
-			filter_estimate_params_kernel = kernel_cpu_filter_estimate_params;
-			filter_final_pass_kernel = kernel_cpu_filter_final_pass;
-			filter_non_local_means_3 = kernel_cpu_filter_non_local_means_3;
-			filter_old_1 = kernel_cpu_filter_old_1;
-			filter_old_2 = kernel_cpu_filter_old_2;
-		}
-
 		bool old_filter = getenv("OLD_FILTER");
 		bool nlm_filter = getenv("NLM_FILTER");
 
@@ -494,7 +442,7 @@ public:
 		if(old_filter) {
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
-					filter_old_1(kg, filter_buffer, x + filter_area.x, y + filter_area.y, sample, hw, 1.0f, ((float*) (storage + y*filter_area.z + x)), &rect.x);
+					filter_old_1_kernel()(kg, filter_buffer, x + filter_area.x, y + filter_area.y, sample, hw, 1.0f, ((float*) (storage + y*filter_area.z + x)), &rect.x);
 				}
 			}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -511,7 +459,7 @@ public:
 #endif
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
-					filter_old_2(kg, buffers, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, sample, hw, 1.0f, ((float*) (storage + y*filter_area.z + x)), &rect.x, &filter_area.x);
+					filter_old_2_kernel()(kg, buffers, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, sample, hw, 1.0f, ((float*) (storage + y*filter_area.z + x)), &rect.x, &filter_area.x);
 				}
 			}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -527,7 +475,7 @@ public:
 			float *out[3] = {filter_buffer +  0*pass_stride, filter_buffer +  1*pass_stride, filter_buffer +  2*pass_stride};
 			for(int y = rect.y; y < rect.w; y++) {
 				for(int x = rect.x; x < rect.z; x++) {
-					filter_non_local_means_3(x, y, img, img, var, out, &rect.x, 10, 4, 1, 0.04f);
+					filter_non_local_means_3_kernel()(x, y, img, img, var, out, &rect.x, 10, 4, 1, 0.04f);
 				}
 			}
 			for(int y = 0; y < filter_area.w; y++) {
@@ -545,7 +493,8 @@ public:
 		else {
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
-					filter_estimate_params_kernel(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);
+					filter_construct_transform_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);
+					filter_estimate_wlr_params_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);
 				}
 			}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -562,7 +511,7 @@ public:
 #endif
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
-					filter_final_pass_kernel(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storage + y*filter_area.z + x, &filter_area.x, &rect.x);
+					filter_final_pass_wlr_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storage + y*filter_area.z + x, &filter_area.x, &rect.x);
 				}
 			}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -585,42 +534,6 @@ public:
 		KernelGlobals kg = thread_kernel_globals_init();
 		RenderTile tile;
 
-		void(*path_trace_kernel)(KernelGlobals*, float*, unsigned int*, int, int, int, int, int);
-
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-		if(system_cpu_support_avx2()) {
-			path_trace_kernel = kernel_cpu_avx2_path_trace;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
-		if(system_cpu_support_avx()) {
-			path_trace_kernel = kernel_cpu_avx_path_trace;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
-		if(system_cpu_support_sse41()) {
-			path_trace_kernel = kernel_cpu_sse41_path_trace;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
-		if(system_cpu_support_sse3()) {
-			path_trace_kernel = kernel_cpu_sse3_path_trace;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
-		if(system_cpu_support_sse2()) {
-			path_trace_kernel = kernel_cpu_sse2_path_trace;
-		}
-		else
-#endif
-		{
-			path_trace_kernel = kernel_cpu_path_trace;
-		}
-		
 		while(task.acquire_tile(this, tile)) {
 #ifdef WITH_CYCLES_DEBUG_FPE
 			scoped_fpe fpe(FPE_ENABLED);
@@ -640,8 +553,8 @@ public:
 
 					for(int y = tile.y; y < tile.y + tile.h; y++) {
 						for(int x = tile.x; x < tile.x + tile.w; x++) {
-							path_trace_kernel(&kg, render_buffer, rng_state,
-							                  sample, x, y, tile.offset, tile.stride);
+							path_trace_kernel()(&kg, render_buffer, rng_state,
+							                    sample, x, y, tile.offset, tile.stride);
 						}
 					}
 
@@ -720,86 +633,16 @@ public:
 		float sample_scale = 1.0f/(task.sample + 1);
 
 		if(task.rgba_half) {
-			void(*convert_to_half_float_kernel)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int);
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-			if(system_cpu_support_avx2()) {
-				convert_to_half_float_kernel = kernel_cpu_avx2_convert_to_half_float;
-			}
-			else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
-			if(system_cpu_support_avx()) {
-				convert_to_half_float_kernel = kernel_cpu_avx_convert_to_half_float;
-			}
-			else
-#endif	
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41			
-			if(system_cpu_support_sse41()) {
-				convert_to_half_float_kernel = kernel_cpu_sse41_convert_to_half_float;
-			}
-			else
-#endif		
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3		
-			if(system_cpu_support_sse3()) {
-				convert_to_half_float_kernel = kernel_cpu_sse3_convert_to_half_float;
-			}
-			else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
-			if(system_cpu_support_sse2()) {
-				convert_to_half_float_kernel = kernel_cpu_sse2_convert_to_half_float;
-			}
-			else
-#endif
-			{
-				convert_to_half_float_kernel = kernel_cpu_convert_to_half_float;
-			}
-
 			for(int y = task.y; y < task.y + task.h; y++)
 				for(int x = task.x; x < task.x + task.w; x++)
-					convert_to_half_float_kernel(&kernel_globals, (uchar4*)task.rgba_half, (float*)task.buffer,
-						sample_scale, x, y, task.offset, task.stride);
+					convert_to_half_float_kernel()(&kernel_globals, (uchar4*)task.rgba_half, (float*)task.buffer,
+					                               sample_scale, x, y, task.offset, task.stride);
 		}
 		else {
-			void(*convert_to_byte_kernel)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int);
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-			if(system_cpu_support_avx2()) {
-				convert_to_byte_kernel = kernel_cpu_avx2_convert_to_byte;
-			}
-			else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
-			if(system_cpu_support_avx()) {
-				convert_to_byte_kernel = kernel_cpu_avx_convert_to_byte;
-			}
-			else
-#endif		
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41			
-			if(system_cpu_support_sse41()) {
-				convert_to_byte_kernel = kernel_cpu_sse41_convert_to_byte;
-			}
-			else
-#endif			
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
-			if(system_cpu_support_sse3()) {
-				convert_to_byte_kernel = kernel_cpu_sse3_convert_to_byte;
-			}
-			else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
-			if(system_cpu_support_sse2()) {
-				convert_to_byte_kernel = kernel_cpu_sse2_convert_to_byte;
-			}
-			else
-#endif
-			{
-				convert_to_byte_kernel = kernel_cpu_convert_to_byte;
-			}
-
 			for(int y = task.y; y < task.y + task.h; y++)
 				for(int x = task.x; x < task.x + task.w; x++)
-					convert_to_byte_kernel(&kernel_globals, (uchar4*)task.rgba_byte, (float*)task.buffer,
-						sample_scale, x, y, task.offset, task.stride);
+					convert_to_byte_kernel()(&kernel_globals, (uchar4*)task.rgba_byte, (float*)task.buffer,
+					                         sample_scale, x, y, task.offset, task.stride);
 
 		}
 	}
@@ -811,53 +654,17 @@ public:
 #ifdef WITH_OSL
 		OSLShader::thread_init(&kg, &kernel_globals, &osl_globals);
 #endif
-		void(*shader_kernel)(KernelGlobals*, uint4*, float4*, float*, int, int, int, int, int);
-
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-		if(system_cpu_support_avx2()) {
-			shader_kernel = kernel_cpu_avx2_shader;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
-		if(system_cpu_support_avx()) {
-			shader_kernel = kernel_cpu_avx_shader;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41			
-		if(system_cpu_support_sse41()) {
-			shader_kernel = kernel_cpu_sse41_shader;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
-		if(system_cpu_support_sse3()) {
-			shader_kernel = kernel_cpu_sse3_shader;
-		}
-		else
-#endif
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
-		if(system_cpu_support_sse2()) {
-			shader_kernel = kernel_cpu_sse2_shader;
-		}
-		else
-#endif
-		{
-			shader_kernel = kernel_cpu_shader;
-		}
-
 		for(int sample = 0; sample < task.num_samples; sample++) {
 			for(int x = task.shader_x; x < task.shader_x + task.shader_w; x++)
-				shader_kernel(&kg,
-				              (uint4*)task.shader_input,
-				              (float4*)task.shader_output,
-				              (float*)task.shader_output_luma,
-				              task.shader_eval_type,
-				              task.shader_filter,
-				              x,
-				              task.offset,
-				              sample);
+				shader_kernel()(&kg,
+				                (uint4*)task.shader_input,
+				                (float4*)task.shader_output,
+				                (float*)task.shader_output_luma,
+				                task.shader_eval_type,
+				                task.shader_filter,
+				                x,
+				                task.offset,
+				                sample);
 
 			if(task.get_cancel() || task_pool.canceled())
 				break;

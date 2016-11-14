@@ -27,8 +27,10 @@
 
 #include "util_optimization.h"
 
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
-#  include "kernel.h"
-#  define KERNEL_ARCH cpu_sse3
-#  include "kernel_cpu_impl.h"
+#ifndef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
+#  define KERNEL_STUB
 #endif  /* WITH_CYCLES_OPTIMIZED_KERNEL_SSE3 */
+
+#include "kernel.h"
+#define KERNEL_ARCH cpu_sse3
+#include "kernel_cpu_impl.h"

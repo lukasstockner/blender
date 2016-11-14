@@ -48,30 +48,20 @@ void kernel_tex_copy(KernelGlobals *kg,
 #define KERNEL_ARCH cpu
 #include "kernels/cpu/kernel_cpu.h"
 
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
-#  define KERNEL_ARCH cpu_sse2
-#  include "kernels/cpu/kernel_cpu.h"
-#endif  /* WITH_CYCLES_OPTIMIZED_KERNEL_SSE2 */
+#define KERNEL_ARCH cpu_sse2
+#include "kernels/cpu/kernel_cpu.h"
 
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
-#  define KERNEL_ARCH cpu_sse3
-#  include "kernels/cpu/kernel_cpu.h"
-#endif  /* WITH_CYCLES_OPTIMIZED_KERNEL_SSE2 */
+#define KERNEL_ARCH cpu_sse3
+#include "kernels/cpu/kernel_cpu.h"
 
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
-#  define KERNEL_ARCH cpu_sse41
-#  include "kernels/cpu/kernel_cpu.h"
-#endif  /* WITH_CYCLES_OPTIMIZED_KERNEL_SSE41 */
+#define KERNEL_ARCH cpu_sse41
+#include "kernels/cpu/kernel_cpu.h"
 
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
-#  define KERNEL_ARCH cpu_avx
-#  include "kernels/cpu/kernel_cpu.h"
-#endif  /* WITH_CYCLES_OPTIMIZED_KERNEL_AVX */
+#define KERNEL_ARCH cpu_avx
+#include "kernels/cpu/kernel_cpu.h"
 
-#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-#  define KERNEL_ARCH cpu_avx2
-#  include "kernels/cpu/kernel_cpu.h"
-#endif  /* WITH_CYCLES_OPTIMIZED_KERNEL_AVX2 */
+#define KERNEL_ARCH cpu_avx2
+#include "kernels/cpu/kernel_cpu.h"
 
 CCL_NAMESPACE_END
 
