@@ -383,15 +383,26 @@ ccl_device void kernel_filter_final_pass_wlr(KernelGlobals *kg, int sample, floa
 	math_cholesky(XtX, matrix_size);
 	math_inverse_lower_tri_inplace(XtX, matrix_size);
 
-	float r_feature_weight[DENOISE_FEATURES+1];
-	math_vector_zero(r_feature_weight, matrix_size);
-	for(int col = 0; col < matrix_size; col++)
-		for(int row = col; row < matrix_size; row++)
-			r_feature_weight[col] += XtX[row]*XtX[col*matrix_size+row];
+	for(int row = 0; row < matrix_size; row++)
+		for(int col = 0; col < row; col++)
+			XtX[row*matrix_size+col] = 0.0f;
 
-	float3 final_color = make_float3(0.0f, 0.0f, 0.0f);
-	float3 final_pos_color = make_float3(0.0f, 0.0f, 0.0f);
-	float pos_weight = 0.0f;
+	/* When using collaborative filtering, we need to solve for the intercept and gradients.
+	 * Otherwise, just the intercept is enough. */
+	int solution_size = kernel_data.integrator.use_collaborative_filtering? matrix_size : 1;
+	float XtWXinv[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)];
+	if(kernel_data.integrator.use_collaborative_filtering)
+		math_matrix_zero(XtWXinv, matrix_size);
+	else
+		math_vector_zero(XtWXinv, matrix_size);
+	for(int i = 0; i < solution_size; i++)
+		for(int col = 0; col < matrix_size; col++)
+			for(int row = 0; row < matrix_size; row++)
+				XtWXinv[i*matrix_size+col] += XtX[i*matrix_size+row]*XtX[col*matrix_size+row];
+	//math_lower_tri_to_full(XtWXinv, matrix_size);
+
+	float3 solution[DENOISE_FEATURES+1];
+	math_vec3_zero(solution, solution_size);
 	FOR_PIXEL_WINDOW {
 		float3 color = filter_get_pixel_color(pixel_buffer, pass_stride);
 		float variance = filter_get_pixel_variance(pixel_buffer, pass_stride);
@@ -402,34 +413,47 @@ ccl_device void kernel_filter_final_pass_wlr(KernelGlobals *kg, int sample, floa
 
 		if(weight == 0.0f) continue;
 		weight /= max(1.0f, variance);
-		weight *= math_dot(design_row, r_feature_weight, matrix_size);
 
-		final_color += weight * color;
-
-		if(weight >= 0.0f) {
-			final_pos_color += weight * color;
-			pos_weight += weight;
+		for(int i = 0; i < solution_size; i++) {
+			float XtWXinvXt = math_dot(XtWXinv + i*matrix_size, design_row, matrix_size);
+			solution[i] += XtWXinvXt*weight*color;
 		}
 	} END_FOR_PIXEL_WINDOW
 
-	if(final_color.x < 0.0f || final_color.y < 0.0f || final_color.z < 0.0f) {
-		final_color = final_pos_color / max(pos_weight, 1e-5f);
+	if(kernel_data.integrator.use_collaborative_filtering) {
+		FOR_PIXEL_WINDOW {
+			float3 color = filter_get_pixel_color(pixel_buffer, pass_stride);
+			float variance = filter_get_pixel_variance(pixel_buffer, pass_stride);
+			if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
+
+			filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
+			float weight = filter_fill_design_row_cuda(features, rank, design_row, feature_transform, bandwidth_factor);
+			if(weight == 0.0f) continue;
+			weight /= max(1.0f, variance);
+
+			float3 reconstruction = math_dot_vec3(design_row, solution, matrix_size);
+			if(py >= filter_area.y && py < filter_area.y+filter_area.w && px >= filter_area.x && px < filter_area.x+filter_area.z) {
+				float *combined_buffer = buffers + (offset + py*stride + px)*kernel_data.film.pass_stride;
+				combined_buffer[0] += weight*reconstruction.x;
+				combined_buffer[1] += weight*reconstruction.y;
+				combined_buffer[2] += weight*reconstruction.z;
+				combined_buffer[3] += weight;
+			}
+		} END_FOR_PIXEL_WINDOW
 	}
-	final_color *= sample;
+	else {
+		float3 final_color = sample*solution[0];
 
-	float *combined_buffer = buffers + (offset + y*stride + x)*kernel_data.film.pass_stride;
-	if(kernel_data.film.pass_no_denoising)
-		final_color += make_float3(combined_buffer[kernel_data.film.pass_no_denoising],
-		                           combined_buffer[kernel_data.film.pass_no_denoising+1],
-		                           combined_buffer[kernel_data.film.pass_no_denoising+2]);
+		float *combined_buffer = buffers + (offset + y*stride + x)*kernel_data.film.pass_stride;
+		if(kernel_data.film.pass_no_denoising)
+			final_color += make_float3(combined_buffer[kernel_data.film.pass_no_denoising],
+			                           combined_buffer[kernel_data.film.pass_no_denoising+1],
+			                           combined_buffer[kernel_data.film.pass_no_denoising+2]);
 
-	combined_buffer[0] = final_color.x;
-	combined_buffer[1] = final_color.y;
-	combined_buffer[2] = final_color.z;
-
-#ifdef WITH_CYCLES_DEBUG_FILTER
-	storage->log_rmse_per_sample -= 2.0f * logf(linear_rgb_to_gray(final_color) + 0.001f);
-#endif
+		combined_buffer[0] = final_color.x;
+		combined_buffer[1] = final_color.y;
+		combined_buffer[2] = final_color.z;
+	}
 }
 
 ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, int offset, int stride, float *buffers, float ccl_readonly_ptr transform, CUDAFilterStorage *storage, int4 filter_area, int4 rect, int transform_stride, int localIdx)
@@ -498,15 +522,27 @@ ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, floa
 	math_cholesky(XtX, matrix_size);
 	math_inverse_lower_tri_inplace(XtX, matrix_size);
 
-	float r_feature_weight[DENOISE_FEATURES+1];
-	math_vector_zero(r_feature_weight, matrix_size);
-	for(int col = 0; col < matrix_size; col++)
-		for(int row = col; row < matrix_size; row++)
-			r_feature_weight[col] += XtX[row]*XtX[col*matrix_size+row];
 
-	float3 final_color = make_float3(0.0f, 0.0f, 0.0f);
-	float3 final_pos_color = make_float3(0.0f, 0.0f, 0.0f);
-	float pos_weight = 0.0f;
+	for(int row = 0; row < matrix_size; row++)
+		for(int col = 0; col < row; col++)
+			XtX[row*matrix_size+col] = 0.0f;
+
+	/* When using collaborative filtering, we need to solve for the intercept and gradients.
+	 * Otherwise, just the intercept is enough. */
+	int solution_size = kernel_data.integrator.use_collaborative_filtering? matrix_size : 1;
+	float XtWXinv[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)];
+	if(kernel_data.integrator.use_collaborative_filtering)
+		math_matrix_zero(XtWXinv, matrix_size);
+	else
+		math_vector_zero(XtWXinv, matrix_size);
+	for(int i = 0; i < solution_size; i++)
+		for(int col = 0; col < matrix_size; col++)
+			for(int row = 0; row < matrix_size; row++)
+				XtWXinv[i*matrix_size+col] += XtX[i*matrix_size+row]*XtX[col*matrix_size+row];
+	//math_lower_tri_to_full(XtWXinv, matrix_size);
+
+	float3 solution[DENOISE_FEATURES+1];
+	math_vec3_zero(solution, solution_size);
 	FOR_PIXEL_WINDOW {
 		float3 color = filter_get_pixel_color(pixel_buffer, pass_stride);
 		float variance = filter_get_pixel_variance(pixel_buffer, pass_stride);
@@ -518,34 +554,49 @@ ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, floa
 		float weight = nlm_weight(x, y, px, py, center_buffer, pixel_buffer, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
 		if(weight == 0.0f) continue;
 		weight /= max(1.0f, variance);
-		weight *= math_dot(design_row, r_feature_weight, matrix_size);
 
-		final_color += weight * color;
-
-		if(weight >= 0.0f) {
-			final_pos_color += weight * color;
-			pos_weight += weight;
+		for(int i = 0; i < solution_size; i++) {
+			float XtWXinvXt = math_dot(XtWXinv + i*matrix_size, design_row, matrix_size);
+			solution[i] += XtWXinvXt*weight*color;
 		}
 	} END_FOR_PIXEL_WINDOW
 
-	if(final_color.x < 0.0f || final_color.y < 0.0f || final_color.z < 0.0f) {
-		final_color = final_pos_color / max(pos_weight, 1e-5f);
+	if(kernel_data.integrator.use_collaborative_filtering) {
+		FOR_PIXEL_WINDOW {
+			float3 color = filter_get_pixel_color(pixel_buffer, pass_stride);
+			float variance = filter_get_pixel_variance(pixel_buffer, pass_stride);
+			if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
+
+			filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
+			filter_fill_design_row_no_weight_cuda(features, rank, design_row, feature_transform, bandwidth_factor);
+
+			float weight = nlm_weight(x, y, px, py, center_buffer, pixel_buffer, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
+			if(weight == 0.0f) continue;
+			weight /= max(1.0f, variance);
+
+			float3 reconstruction = math_dot_vec3(design_row, solution, matrix_size);
+			if(py >= filter_area.y && py < filter_area.y+filter_area.w && px >= filter_area.x && px < filter_area.x+filter_area.z) {
+			float *combined_buffer = buffers + (offset + py*stride + px)*kernel_data.film.pass_stride;
+				combined_buffer[0] += weight*reconstruction.x;
+				combined_buffer[1] += weight*reconstruction.y;
+				combined_buffer[2] += weight*reconstruction.z;
+				combined_buffer[3] += weight;
+			}
+		} END_FOR_PIXEL_WINDOW
 	}
-	final_color *= sample;
+	else {
+		float3 final_color = sample*solution[0];
 
-	float *combined_buffer = buffers + (offset + y*stride + x)*kernel_data.film.pass_stride;
-	if(kernel_data.film.pass_no_denoising)
-		final_color += make_float3(combined_buffer[kernel_data.film.pass_no_denoising],
-		                           combined_buffer[kernel_data.film.pass_no_denoising+1],
-		                           combined_buffer[kernel_data.film.pass_no_denoising+2]);
+		float *combined_buffer = buffers + (offset + y*stride + x)*kernel_data.film.pass_stride;
+		if(kernel_data.film.pass_no_denoising)
+			final_color += make_float3(combined_buffer[kernel_data.film.pass_no_denoising],
+			                           combined_buffer[kernel_data.film.pass_no_denoising+1],
+			                           combined_buffer[kernel_data.film.pass_no_denoising+2]);
 
-	combined_buffer[0] = final_color.x;
-	combined_buffer[1] = final_color.y;
-	combined_buffer[2] = final_color.z;
-
-#ifdef WITH_CYCLES_DEBUG_FILTER
-	storage->log_rmse_per_sample -= 2.0f * logf(linear_rgb_to_gray(final_color) + 0.001f);
-#endif
+		combined_buffer[0] = final_color.x;
+		combined_buffer[1] = final_color.y;
+		combined_buffer[2] = final_color.z;
+	}
 }
 
 #else
@@ -1229,15 +1280,26 @@ ccl_device void kernel_filter_final_pass_wlr(KernelGlobals *kg, int sample, floa
 	math_cholesky(XtX, matrix_size);
 	math_inverse_lower_tri_inplace(XtX, matrix_size);
 
-	float r_feature_weight[DENOISE_FEATURES+1];
-	math_vector_zero(r_feature_weight, matrix_size);
-	for(int col = 0; col < matrix_size; col++)
-		for(int row = col; row < matrix_size; row++)
-			r_feature_weight[col] += XtX[row]*XtX[col*matrix_size+row];
+	for(int row = 0; row < matrix_size; row++)
+		for(int col = 0; col < row; col++)
+			XtX[row*matrix_size+col] = 0.0f;
 
-	float3 final_color = make_float3(0.0f, 0.0f, 0.0f);
-	float3 final_pos_color = make_float3(0.0f, 0.0f, 0.0f);
-	float pos_weight = 0.0f;
+	/* When using collaborative filtering, we need to solve for the intercept and gradients.
+	 * Otherwise, just the intercept is enough. */
+	int solution_size = kernel_data.integrator.use_collaborative_filtering? matrix_size : 1;
+	float XtWXinv[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)];
+	if(kernel_data.integrator.use_collaborative_filtering)
+		math_matrix_zero(XtWXinv, matrix_size);
+	else
+		math_vector_zero(XtWXinv, matrix_size);
+	for(int i = 0; i < solution_size; i++)
+		for(int col = 0; col < matrix_size; col++)
+			for(int row = 0; row < matrix_size; row++)
+				XtWXinv[i*matrix_size+col] += XtX[i*matrix_size+row]*XtX[col*matrix_size+row];
+	//math_lower_tri_to_full(XtWXinv, matrix_size);
+
+	float3 solution[DENOISE_FEATURES+1];
+	math_vec3_zero(solution, solution_size);
 	FOR_PIXEL_WINDOW {
 		float3 color = filter_get_pixel_color(pixel_buffer, pass_stride);
 		float variance = filter_get_pixel_variance(pixel_buffer, pass_stride);
@@ -1248,34 +1310,48 @@ ccl_device void kernel_filter_final_pass_wlr(KernelGlobals *kg, int sample, floa
 
 		if(weight == 0.0f) continue;
 		weight /= max(1.0f, variance);
-		weight *= math_dot(design_row, r_feature_weight, matrix_size);
 
-		final_color += weight * color;
-
-		if(weight >= 0.0f) {
-			final_pos_color += weight * color;
-			pos_weight += weight;
+		for(int i = 0; i < solution_size; i++) {
+			float XtWXinvXt = math_dot(XtWXinv + i*matrix_size, design_row, matrix_size);
+			solution[i] += XtWXinvXt*weight*color;
 		}
 	} END_FOR_PIXEL_WINDOW
 
-	if(final_color.x < 0.0f || final_color.y < 0.0f || final_color.z < 0.0f) {
-		final_color = final_pos_color / max(pos_weight, 1e-5f);
+	if(kernel_data.integrator.use_collaborative_filtering) {
+		FOR_PIXEL_WINDOW {
+			float3 color = filter_get_pixel_color(pixel_buffer, pass_stride);
+			float variance = filter_get_pixel_variance(pixel_buffer, pass_stride);
+			if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
+
+			filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
+			float weight = filter_fill_design_row(features, rank, design_row, feature_transform, bandwidth_factor);
+			if(weight == 0.0f) continue;
+			weight /= max(1.0f, variance);
+
+			float3 reconstruction = math_dot_vec3(design_row, solution, matrix_size);
+			if(py >= filter_area.y && py < filter_area.y+filter_area.w && px >= filter_area.x && px < filter_area.x+filter_area.z) {
+				float *combined_buffer = buffers + (offset + py*stride + px)*kernel_data.film.pass_stride;
+				combined_buffer[0] += weight*reconstruction.x;
+				combined_buffer[1] += weight*reconstruction.y;
+				combined_buffer[2] += weight*reconstruction.z;
+				combined_buffer[3] += weight;
+			}
+		} END_FOR_PIXEL_WINDOW
 	}
-	final_color *= sample;
+	else {
+		assert(!(solution[0].x < 0.0f || solution[0].y < 0.0f || solution[0].z < 0.0f));
+		float3 final_color = sample*solution[0];
 
-	float *combined_buffer = buffers + (offset + y*stride + x)*kernel_data.film.pass_stride;
-	if(kernel_data.film.pass_no_denoising)
-		final_color += make_float3(combined_buffer[kernel_data.film.pass_no_denoising],
-		                           combined_buffer[kernel_data.film.pass_no_denoising+1],
-		                           combined_buffer[kernel_data.film.pass_no_denoising+2]);
+		float *combined_buffer = buffers + (offset + y*stride + x)*kernel_data.film.pass_stride;
+		if(kernel_data.film.pass_no_denoising)
+			final_color += make_float3(combined_buffer[kernel_data.film.pass_no_denoising],
+			                           combined_buffer[kernel_data.film.pass_no_denoising+1],
+			                           combined_buffer[kernel_data.film.pass_no_denoising+2]);
 
-	combined_buffer[0] = final_color.x;
-	combined_buffer[1] = final_color.y;
-	combined_buffer[2] = final_color.z;
-
-#ifdef WITH_CYCLES_DEBUG_FILTER
-	storage->log_rmse_per_sample -= 2.0f * logf(linear_rgb_to_gray(final_color) + 0.001f);
-#endif
+		combined_buffer[0] = final_color.x;
+		combined_buffer[1] = final_color.y;
+		combined_buffer[2] = final_color.z;
+	}
 }
 
 ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, int offset, int stride, float *buffers, FilterStorage *storage, int4 filter_area, int4 rect)
@@ -1347,15 +1423,25 @@ ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, floa
 	math_cholesky(XtX, matrix_size);
 	math_inverse_lower_tri_inplace(XtX, matrix_size);
 
-	float r_feature_weight[DENOISE_FEATURES+1];
-	math_vector_zero(r_feature_weight, matrix_size);
-	for(int col = 0; col < matrix_size; col++)
-		for(int row = col; row < matrix_size; row++)
-			r_feature_weight[col] += XtX[row]*XtX[col*matrix_size+row];
+	for(int row = 0; row < matrix_size; row++)
+		for(int col = 0; col < row; col++)
+			XtX[row*matrix_size+col] = 0.0f;
 
-	float3 final_color = make_float3(0.0f, 0.0f, 0.0f);
-	float3 final_pos_color = make_float3(0.0f, 0.0f, 0.0f);
-	float pos_weight = 0.0f;
+	int solution_size = kernel_data.integrator.use_collaborative_filtering? matrix_size : 1;
+	float XtWXinv[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)];
+	if(kernel_data.integrator.use_collaborative_filtering)
+		math_matrix_zero(XtWXinv, matrix_size);
+	else
+		math_vector_zero(XtWXinv, matrix_size);
+
+	for(int i = 0; i < solution_size; i++)
+		for(int col = 0; col < matrix_size; col++)
+			for(int row = 0; row < matrix_size; row++)
+				XtWXinv[i*matrix_size+col] += XtX[i*matrix_size+row]*XtX[col*matrix_size+row];
+	//math_lower_tri_to_full(XtWXinv, matrix_size);
+
+	float3 solution[DENOISE_FEATURES+1];
+	math_vec3_zero(solution, matrix_size);
 	FOR_PIXEL_WINDOW {
 		float3 color = filter_get_pixel_color(pixel_buffer, pass_stride);
 		float variance = filter_get_pixel_variance(pixel_buffer, pass_stride);
@@ -1367,34 +1453,49 @@ ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, floa
 		float weight = nlm_weight(x, y, px, py, center_buffer, pixel_buffer, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
 		if(weight < 1e-5f) continue;
 		weight /= max(1.0f, variance);
-		weight *= math_dot(design_row, r_feature_weight, matrix_size);
-
-		final_color += weight * color;
-
-		if(weight >= 0.0f) {
-			final_pos_color += weight * color;
-			pos_weight += weight;
+		for(int i = 0; i < solution_size; i++) {
+			float XtWXinvXt = math_dot(XtWXinv + i*matrix_size, design_row, matrix_size);
+			solution[i] += XtWXinvXt*weight*color;
 		}
 	} END_FOR_PIXEL_WINDOW
 
-	if(final_color.x < 0.0f || final_color.y < 0.0f || final_color.z < 0.0f) {
-		final_color = final_pos_color / max(pos_weight, 1e-5f);
+	if(kernel_data.integrator.use_collaborative_filtering) {
+		FOR_PIXEL_WINDOW {
+			/* TODO: Atomics to be able to collaborate across tiles. */
+			if(py >= filter_area.y && py < filter_area.y+filter_area.w && px >= filter_area.x && px < filter_area.x+filter_area.z) {
+				float3 color = filter_get_pixel_color(pixel_buffer, pass_stride);
+				float variance = filter_get_pixel_variance(pixel_buffer, pass_stride);
+				if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
+
+				filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
+				filter_fill_design_row_no_weight(features, rank, design_row, feature_transform);
+
+				float3 reconstruction = math_dot_vec3(design_row, solution, matrix_size);
+				float weight = nlm_weight(x, y, px, py, center_buffer, pixel_buffer, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
+				if(weight < 1e-5f) continue;
+				weight /= max(1.0f, variance);
+				float *combined_buffer = buffers + (offset + py*stride + px)*kernel_data.film.pass_stride;
+				combined_buffer[0] += weight*reconstruction.x;
+				combined_buffer[1] += weight*reconstruction.y;
+				combined_buffer[2] += weight*reconstruction.z;
+				combined_buffer[3] += weight;
+			}
+		} END_FOR_PIXEL_WINDOW
 	}
-	final_color *= sample;
+	else {
+		assert(!(solution[0].x < 0.0f || solution[0].y < 0.0f || solution[0].z < 0.0f));
+		float3 final_color = sample*solution[0];
 
-	float *combined_buffer = buffers + (offset + y*stride + x)*kernel_data.film.pass_stride;
-	if(kernel_data.film.pass_no_denoising)
-		final_color += make_float3(combined_buffer[kernel_data.film.pass_no_denoising],
-		                           combined_buffer[kernel_data.film.pass_no_denoising+1],
-		                           combined_buffer[kernel_data.film.pass_no_denoising+2]);
+		float *combined_buffer = buffers + (offset + y*stride + x)*kernel_data.film.pass_stride;
+		if(kernel_data.film.pass_no_denoising)
+			final_color += make_float3(combined_buffer[kernel_data.film.pass_no_denoising],
+			                           combined_buffer[kernel_data.film.pass_no_denoising+1],
+			                           combined_buffer[kernel_data.film.pass_no_denoising+2]);
 
-	combined_buffer[0] = final_color.x;
-	combined_buffer[1] = final_color.y;
-	combined_buffer[2] = final_color.z;
-
-#ifdef WITH_CYCLES_DEBUG_FILTER
-	storage->log_rmse_per_sample -= 2.0f * logf(linear_rgb_to_gray(final_color) + 0.001f);
-#endif
+		combined_buffer[0] = final_color.x;
+		combined_buffer[1] = final_color.y;
+		combined_buffer[2] = final_color.z;
+	}
 }
 
 #endif // __KERNEL_CUDA__

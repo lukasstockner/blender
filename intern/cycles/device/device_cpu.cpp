@@ -433,12 +433,24 @@ public:
 		bool old_filter = getenv("OLD_FILTER");
 		bool only_nlm_filter = getenv("ONLY_NLM_FILTER");
 		bool nlm_filter = getenv("NLM_FILTER");
+		bool use_collaborative_filtering = kg->__data.integrator.use_collaborative_filtering;
 
 		FilterStorage *storage = new FilterStorage[filter_area.z*filter_area.w];
 		int hw = kg->__data.integrator.half_window;
 
 		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
 		int pass_stride = w*h;
+
+		if(use_collaborative_filtering) {
+			for(int y = 0; y < filter_area.w; y++) {
+				int py = y + filter_area.y;
+				for(int x = 0; x < filter_area.z; x++) {
+					int px = x + filter_area.x;
+					float *p_buffers = buffers + (offset + py*stride + px)*kg->__data.film.pass_stride;
+					p_buffers[0] = p_buffers[1] = p_buffers[2] = p_buffers[3] = 0.0f;
+				}
+			}
+		}
 
 		if(old_filter) {
 			for(int y = 0; y < filter_area.w; y++) {
@@ -495,10 +507,6 @@ public:
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
 					filter_construct_transform_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);
-				}
-			}
-			for(int y = 0; y < filter_area.w; y++) {
-				for(int x = 0; x < filter_area.z; x++) {
 					filter_final_pass_nlm_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storage + y*filter_area.z + x, &filter_area.x, &rect.x);
 				}
 			}
@@ -534,6 +542,22 @@ public:
 #undef WRITE_DEBUG
 #endif
 		}
+
+		if(use_collaborative_filtering) {
+			for(int y = 0; y < filter_area.w; y++) {
+				int py = y + filter_area.y;
+				for(int x = 0; x < filter_area.z; x++) {
+					int px = x + filter_area.x;
+					float *p_buffers = buffers + (offset + py*stride + px)*kg->__data.film.pass_stride;
+					float fac = sample / p_buffers[3];
+					p_buffers[0] *= fac;
+					p_buffers[1] *= fac;
+					p_buffers[2] *= fac;
+					p_buffers[3] *= fac;
+				}
+			}
+ 		}
+
 		delete[] storage;
 	}
 

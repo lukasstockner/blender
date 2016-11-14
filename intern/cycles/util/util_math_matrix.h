@@ -177,6 +177,14 @@ ccl_device_inline float math_dot(float *a, float *b, int n)
 	return d;
 }
 
+ccl_device_inline float3 math_dot_vec3(float *a, float3 *b, int n)
+{
+	float3 d = make_float3(0.0f, 0.0f, 0.0f);
+	for(int i = 0; i < n; i++)
+		d += a[i]*b[i];
+	return d;
+}
+
 #ifdef __KERNEL_CUDA__
 ccl_device_inline float math_dot_cuda(float *a, float const* __restrict__ b, int bstride, int n)
 {

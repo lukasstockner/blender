@@ -1163,8 +1163,9 @@ typedef struct KernelIntegrator {
 	int half_window;
 	float filter_strength;
 	float weighting_adjust;
+	int use_collaborative_filtering;
 
-	int pad1, pad2;
+	int pad1;
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 

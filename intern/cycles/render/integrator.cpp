@@ -210,6 +210,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 	kintegrator->half_window = half_window;
 	kintegrator->filter_strength = filter_strength;
 	kintegrator->weighting_adjust = weighting_adjust;
+	kintegrator->use_collaborative_filtering = false;
 
 	need_update = false;
 }
