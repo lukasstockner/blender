@@ -153,7 +153,7 @@ ccl_device void kernel_filter_estimate_bandwidths(KernelGlobals *kg, int sample,
 	math_vec3_zero(XtY, matrix_size);
 	FOR_PIXEL_WINDOW {
 		filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
-		float weight = filter_fill_design_row_cuda(features, rank, design_row, transform, transform_stride, NULL);
+		float weight = filter_fill_design_row_quadratic_cuda(features, rank, design_row, transform, transform_stride);
 	
 		if(weight == 0.0f) continue;
 		weight /= max(1.0f, filter_get_pixel_variance(pixel_buffer, pass_stride));
@@ -539,7 +539,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	math_vec3_zero(XtY, matrix_size);
 	FOR_PIXEL_WINDOW_SSE {
 		filter_get_features_sse(x4, y4, t4, active_pixels, pixel_buffer, features, feature_means, pass_stride);
-		__m128 weight = filter_fill_design_row_sse(features, active_pixels, rank, design_row, feature_transform_sse, NULL);
+		__m128 weight = filter_fill_design_row_quadratic_sse(features, active_pixels, rank, design_row, feature_transform_sse);
 		active_pixels = _mm_and_ps(active_pixels, _mm_cmpneq_ps(weight, _mm_setzero_ps()));
 
 		if(!_mm_movemask_ps(active_pixels)) continue;
@@ -829,7 +829,7 @@ ccl_device void kernel_filter_estimate_params(KernelGlobals *kg, int sample, flo
 	math_vec3_zero(XtY, matrix_size);
 	FOR_PIXEL_WINDOW {
 		filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
-		float weight = filter_fill_design_row(features, rank, design_row, feature_transform, NULL);
+		float weight = filter_fill_design_row_quadratic(features, rank, design_row, feature_transform);
 	
 		if(weight == 0.0f) continue;
 		weight /= max(1.0f, filter_get_pixel_variance(pixel_buffer, pass_stride));

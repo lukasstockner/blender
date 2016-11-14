@@ -154,14 +154,16 @@ ccl_device_inline float filter_get_pixel_variance(float ccl_readonly_ptr buffer,
 	return average(make_float3(ccl_get_feature(17), ccl_get_feature(19), ccl_get_feature(21)));
 }
 
+/* Fill design row and compute WLR weight.
+ * Doing both at the same time allows for a nice early-out as soon as the weight is zero. */
 ccl_device_inline float filter_fill_design_row(float *features, int rank, float *design_row, float *feature_transform, float *bandwidth_factor)
 {
 	design_row[0] = 1.0f;
 	float weight = 1.0f;
 	for(int d = 0; d < rank; d++) {
 		float x = math_dot(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
-		float x2 = x*x;
-		if(bandwidth_factor) x2 *= bandwidth_factor[d]*bandwidth_factor[d];
+		float x2 = x*bandwidth_factor[d];
+		x2 *= x2;
 		if(x2 < 1.0f) {
 			/* Pixels are weighted by Epanechnikov kernels. */
 			weight *= 0.75f * (1.0f - x2);
@@ -171,7 +173,29 @@ ccl_device_inline float filter_fill_design_row(float *features, int rank, float 
 			break;
 		}
 		design_row[1+d] = x;
-		if(!bandwidth_factor) design_row[1+rank+d] = x2;
+	}
+	return weight;
+}
+
+/* Fill design row for the quadratic fit and compute WLR weight.
+ * Doing both at the same time allows for a nice early-out as soon as the weight is zero. */
+ccl_device_inline float filter_fill_design_row_quadratic(float *features, int rank, float *design_row, float *feature_transform)
+{
+	design_row[0] = 1.0f;
+	float weight = 1.0f;
+	for(int d = 0; d < rank; d++) {
+		float x = math_dot(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
+		float x2 = x*x;
+		if(x2 < 1.0f) {
+			/* Pixels are weighted by Epanechnikov kernels. */
+			weight *= 0.75f * (1.0f - x2);
+		}
+		else {
+			weight = 0.0f;
+			break;
+		}
+		design_row[1+d] = x;
+		design_row[1+rank+d] = x*x;
 	}
 	return weight;
 }
@@ -354,11 +378,24 @@ ccl_device_inline __m128 filter_fill_design_row_sse(__m128 *features, __m128 act
 	design_row[0] = weight;
 	for(int d = 0; d < rank; d++) {
 		__m128 x = math_dot_sse(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
-		__m128 x2 = _mm_mul_ps(x, x);
-		if(bandwidth_factor) x2 = _mm_mul_ps(x2, _mm_mul_ps(bandwidth_factor[d], bandwidth_factor[d]));
+		__m128 x2 = _mm_mul_ps(x, bandwidth_factor[d]);
+		x2 = _mm_mul_ps(x2, x2);
 		weight = _mm_mask_ps(_mm_mul_ps(weight, _mm_mul_ps(_mm_set1_ps(0.75f), _mm_sub_ps(_mm_set1_ps(1.0f), x2))), _mm_and_ps(_mm_cmplt_ps(x2, _mm_set1_ps(1.0f)), active_pixels));
 		design_row[1+d] = x;
-		if(!bandwidth_factor) design_row[1+rank+d] = x2;
+	}
+	return weight;
+}
+
+ccl_device_inline __m128 filter_fill_design_row_quadratic_sse(__m128 *features, __m128 active_pixels, int rank, __m128 *design_row, __m128 *feature_transform)
+{
+	__m128 weight = _mm_mask_ps(_mm_set1_ps(1.0f), active_pixels);
+	design_row[0] = weight;
+	for(int d = 0; d < rank; d++) {
+		__m128 x = math_dot_sse(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
+		__m128 x2 = _mm_mul_ps(x, x);
+		weight = _mm_mask_ps(_mm_mul_ps(weight, _mm_mul_ps(_mm_set1_ps(0.75f), _mm_sub_ps(_mm_set1_ps(1.0f), x2))), _mm_and_ps(_mm_cmplt_ps(x2, _mm_set1_ps(1.0f)), active_pixels));
+		design_row[1+d] = x;
+		design_row[1+rank+d] = x2;
 	}
 	return weight;
 }
@@ -378,8 +415,8 @@ ccl_device_inline float filter_fill_design_row_cuda(float *features, int rank, f
 	float weight = 1.0f;
 	for(int d = 0; d < rank; d++) {
 		float x = math_dot_cuda(features, feature_transform + d*DENOISE_FEATURES*transform_stride, transform_stride, DENOISE_FEATURES);
-		float x2 = x*x;
-		if(bandwidth_factor) x2 *= bandwidth_factor[d]*bandwidth_factor[d];
+		float x2 = x*bandwidth_factor[d];
+		x2 *= x2;
 		if(x2 < 1.0f) {
 			/* Pixels are weighted by Epanechnikov kernels. */
 			weight *= 0.75f * (1.0f - x2);
@@ -389,7 +426,27 @@ ccl_device_inline float filter_fill_design_row_cuda(float *features, int rank, f
 			break;
 		}
 		design_row[1+d] = x;
-		if(!bandwidth_factor) design_row[1+rank+d] = x2;
+	}
+	return weight;
+}
+
+ccl_device_inline float filter_fill_design_row_quadratic_cuda(float *features, int rank, float *design_row, float ccl_readonly_ptr feature_transform, int transform_stride)
+{
+	design_row[0] = 1.0f;
+	float weight = 1.0f;
+	for(int d = 0; d < rank; d++) {
+		float x = math_dot_cuda(features, feature_transform + d*DENOISE_FEATURES*transform_stride, transform_stride, DENOISE_FEATURES);
+		float x2 = x*x;
+		if(x2 < 1.0f) {
+			/* Pixels are weighted by Epanechnikov kernels. */
+			weight *= 0.75f * (1.0f - x2);
+		}
+		else {
+			weight = 0.0f;
+			break;
+		}
+		design_row[1+d] = x;
+		design_row[1+rank+d] = x2;
 	}
 	return weight;
 }
