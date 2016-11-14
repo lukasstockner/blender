@@ -381,6 +381,13 @@ ccl_device_inline void filter_get_pixel_color_sse(float ccl_readonly_ptr buffer,
 	color[2] = _mm_mask_ps(ccl_get_feature_sse(20), active_pixels);
 }
 
+ccl_device_inline void filter_get_pixel_variance_3_sse(float ccl_readonly_ptr buffer, __m128 active_pixels, __m128 *var, int pass_stride)
+{
+	var[0] = _mm_mask_ps(ccl_get_feature_sse(17), active_pixels);
+	var[1] = _mm_mask_ps(ccl_get_feature_sse(19), active_pixels);
+	var[2] = _mm_mask_ps(ccl_get_feature_sse(21), active_pixels);
+}
+
 ccl_device_inline __m128 filter_get_pixel_variance_sse(float ccl_readonly_ptr buffer, __m128 active_pixels, int pass_stride)
 {
 	return _mm_mask_ps(_mm_mul_ps(_mm_set1_ps(1.0f/3.0f), _mm_add_ps(_mm_add_ps(ccl_get_feature_sse(17), ccl_get_feature_sse(19)), ccl_get_feature_sse(21))), active_pixels);

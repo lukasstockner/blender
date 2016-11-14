@@ -192,8 +192,33 @@ ccl_device float nlm_weight(int px, int py, int qx, int qy, float ccl_readonly_p
 	int2 low_dPatch = make_int2(max(max(rect.x - qx, rect.x - px),  -f), max(max(rect.y - qy, rect.y - py),  -f));
 	int2 high_dPatch = make_int2(min(min(rect.z - qx, rect.z - px), f+1), min(min(rect.w - qy, rect.w - py), f+1));
 
-	float dI = 0.0f;
 	int dIdx = low_dPatch.x + low_dPatch.y*w;
+#ifdef __KERNEL_SSE41__
+	__m128 a_sse = _mm_set1_ps(a), k_2_sse = _mm_set1_ps(k_2);
+	__m128 dI_sse = _mm_setzero_ps();
+	__m128 highX_sse = _mm_set1_ps(high_dPatch.x);
+	for(int dy = low_dPatch.y; dy < high_dPatch.y; dy++) {
+		int dx;
+		for(dx = low_dPatch.x; dx < high_dPatch.x; dx+=4, dIdx+=4) {
+			__m128 active = _mm_cmplt_ps(_mm_add_ps(_mm_set1_ps(dx), _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f)), highX_sse);
+			__m128 p_color[3], q_color[3], p_var[3], q_var[3];
+			filter_get_pixel_color_sse(p_buffer + dIdx, active, p_color, pass_stride);
+			filter_get_pixel_color_sse(q_buffer + dIdx, active, q_color, pass_stride);
+			filter_get_pixel_variance_3_sse(p_buffer + dIdx, active, p_var, pass_stride);
+			filter_get_pixel_variance_3_sse(q_buffer + dIdx, active, q_var, pass_stride);
+
+			__m128 diff = _mm_sub_ps(p_color[0], q_color[0]);
+			dI_sse = _mm_add_ps(dI_sse, _mm_mul_ps(_mm_sub_ps(_mm_mul_ps(diff, diff), _mm_mul_ps(a_sse, _mm_add_ps(p_var[0], _mm_min_ps(p_var[0], q_var[0])))), _mm_rcp_ps(_mm_add_ps(_mm_set1_ps(1e-7f), _mm_mul_ps(k_2_sse, _mm_add_ps(p_var[0], q_var[0]))))));
+			diff = _mm_sub_ps(p_color[1], q_color[1]);
+			dI_sse = _mm_add_ps(dI_sse, _mm_mul_ps(_mm_sub_ps(_mm_mul_ps(diff, diff), _mm_mul_ps(a_sse, _mm_add_ps(p_var[1], _mm_min_ps(p_var[1], q_var[1])))), _mm_rcp_ps(_mm_add_ps(_mm_set1_ps(1e-7f), _mm_mul_ps(k_2_sse, _mm_add_ps(p_var[1], q_var[1]))))));
+			diff = _mm_sub_ps(p_color[2], q_color[2]);
+			dI_sse = _mm_add_ps(dI_sse, _mm_mul_ps(_mm_sub_ps(_mm_mul_ps(diff, diff), _mm_mul_ps(a_sse, _mm_add_ps(p_var[2], _mm_min_ps(p_var[2], q_var[2])))), _mm_rcp_ps(_mm_add_ps(_mm_set1_ps(1e-7f), _mm_mul_ps(k_2_sse, _mm_add_ps(p_var[2], q_var[2]))))));
+		}
+		dIdx += w-(dx - low_dPatch.x);
+	}
+	float dI = _mm_hsum_ss(dI_sse);
+#else
+	float dI = 0.0f;
 	for(int dy = low_dPatch.y; dy < high_dPatch.y; dy++) {
 		for(int dx = low_dPatch.x; dx < high_dPatch.x; dx++, dIdx++) {
 			float3 diff = filter_get_pixel_color(p_buffer + dIdx, pass_stride) - filter_get_pixel_color(q_buffer + dIdx, pass_stride);
@@ -204,6 +229,7 @@ ccl_device float nlm_weight(int px, int py, int qx, int qy, float ccl_readonly_p
 		}
 		dIdx += w-(high_dPatch.x - low_dPatch.x);
 	}
+#endif
 	dI *= 1.0f / (3.0f * (high_dPatch.x - low_dPatch.x) * (high_dPatch.y - low_dPatch.y));
 
 	return fast_expf(-max(0.0f, dI));
