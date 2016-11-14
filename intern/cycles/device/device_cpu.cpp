@@ -431,6 +431,7 @@ public:
 	void denoise_run(KernelGlobals *kg, int sample, float *filter_buffer, int4 filter_area, int4 rect, int offset, int stride, float *buffers)
 	{
 		bool old_filter = getenv("OLD_FILTER");
+		bool only_nlm_filter = getenv("ONLY_NLM_FILTER");
 		bool nlm_filter = getenv("NLM_FILTER");
 
 		FilterStorage *storage = new FilterStorage[filter_area.z*filter_area.w];
@@ -469,7 +470,7 @@ public:
 #undef WRITE_DEBUG
 #endif
 		}
-		else if(nlm_filter) {
+		else if(only_nlm_filter) {
 			float *img[3] = {filter_buffer + 16*pass_stride, filter_buffer + 18*pass_stride, filter_buffer + 20*pass_stride};
 			float *var[3] = {filter_buffer + 17*pass_stride, filter_buffer + 19*pass_stride, filter_buffer + 21*pass_stride};
 			float *out[3] = {filter_buffer +  0*pass_stride, filter_buffer +  1*pass_stride, filter_buffer +  2*pass_stride};
@@ -487,6 +488,18 @@ public:
 					loc_buf[0] = sample*filter_buffer[0*pass_stride + i];
 					loc_buf[1] = sample*filter_buffer[1*pass_stride + i];
 					loc_buf[2] = sample*filter_buffer[2*pass_stride + i];
+				}
+			}
+		}
+		else if(nlm_filter) {
+			for(int y = 0; y < filter_area.w; y++) {
+				for(int x = 0; x < filter_area.z; x++) {
+					filter_construct_transform_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);
+				}
+			}
+			for(int y = 0; y < filter_area.w; y++) {
+				for(int x = 0; x < filter_area.z; x++) {
+					filter_final_pass_nlm_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storage + y*filter_area.z + x, &filter_area.x, &rect.x);
 				}
 			}
 		}
