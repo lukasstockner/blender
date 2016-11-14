@@ -251,6 +251,23 @@ void KERNEL_FUNCTION_FULL_NAME(filter_final_pass_wlr)(KernelGlobals *kg,
 	kernel_filter_final_pass_wlr(kg, sample, buffer, x, y, offset, stride, buffers, (FilterStorage*) storage, area, rect);
 }
 
+void KERNEL_FUNCTION_FULL_NAME(filter_final_pass_nlm)(KernelGlobals *kg,
+                                                      int sample,
+                                                      float* buffer,
+                                                      int x,
+                                                      int y,
+                                                      int offset,
+                                                      int stride,
+                                                      float *buffers,
+                                                      void *storage,
+                                                      int* filter_area,
+                                                      int* prefilter_rect)
+{
+	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
+	int4 area = make_int4(filter_area[0], filter_area[1], filter_area[2], filter_area[3]);
+	kernel_filter_final_pass_nlm(kg, sample, buffer, x, y, offset, stride, buffers, (FilterStorage*) storage, area, rect);
+}
+
 void KERNEL_FUNCTION_FULL_NAME(filter_old_1)(KernelGlobals *kg,
                                              float *denoise_data,
                                              int x, int y,

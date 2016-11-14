@@ -185,6 +185,30 @@ ccl_device void kernel_filter_non_local_means(int x, int y, float ccl_readonly_p
 	filteredImage[p_idx] = sum_image / sum_weight;
 }
 
+ccl_device float nlm_weight(int px, int py, int qx, int qy, float ccl_readonly_ptr p_buffer, float ccl_readonly_ptr q_buffer, int pass_stride, float a, float k_2, int f, int4 rect)
+{
+	int w = align_up(rect.z - rect.x, 4);
+
+	int2 low_dPatch = make_int2(max(max(rect.x - qx, rect.x - px),  -f), max(max(rect.y - qy, rect.y - py),  -f));
+	int2 high_dPatch = make_int2(min(min(rect.z - qx, rect.z - px), f+1), min(min(rect.w - qy, rect.w - py), f+1));
+
+	float dI = 0.0f;
+	int dIdx = low_dPatch.x + low_dPatch.y*w;
+	for(int dy = low_dPatch.y; dy < high_dPatch.y; dy++) {
+		for(int dx = low_dPatch.x; dx < high_dPatch.x; dx++, dIdx++) {
+			float3 diff = filter_get_pixel_color(p_buffer + dIdx, pass_stride) - filter_get_pixel_color(q_buffer + dIdx, pass_stride);
+			float3 pvar = filter_get_pixel_variance3(p_buffer + dIdx, pass_stride);
+			float3 qvar = filter_get_pixel_variance3(q_buffer + dIdx, pass_stride);
+
+			dI += reduce_add((diff*diff - a*(pvar + min(pvar, qvar))) / (make_float3(1e-7f, 1e-7f, 1e-7f) + k_2*(pvar + qvar)));
+		}
+		dIdx += w-(high_dPatch.x - low_dPatch.x);
+	}
+	dI *= 1.0f / (3.0f * (high_dPatch.x - low_dPatch.x) * (high_dPatch.y - low_dPatch.y));
+
+	return fast_expf(-max(0.0f, dI));
+}
+
 ccl_device void kernel_filter_non_local_means_3(int x, int y, float ccl_readonly_ptr noisyImage[3], float ccl_readonly_ptr weightImage[3], float ccl_readonly_ptr variance[3], float *filteredImage[3], int4 rect, int r, int f, float a, float k_2)
 {
 	int2 low  = make_int2(max(rect.x, x - r),

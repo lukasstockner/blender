@@ -149,6 +149,11 @@ ccl_device_inline float3 filter_get_pixel_color(float ccl_readonly_ptr buffer, i
 	return make_float3(ccl_get_feature(16), ccl_get_feature(18), ccl_get_feature(20));
 }
 
+ccl_device_inline float3 filter_get_pixel_variance3(float ccl_readonly_ptr buffer, int pass_stride)
+{
+	return make_float3(ccl_get_feature(17), ccl_get_feature(19), ccl_get_feature(21));
+}
+
 ccl_device_inline float filter_get_pixel_variance(float ccl_readonly_ptr buffer, int pass_stride)
 {
 	return average(make_float3(ccl_get_feature(17), ccl_get_feature(19), ccl_get_feature(21)));
@@ -198,6 +203,15 @@ ccl_device_inline float filter_fill_design_row_quadratic(float *features, int ra
 		design_row[1+rank+d] = x*x;
 	}
 	return weight;
+}
+
+/* Fill the design row without computing the weight. */
+ccl_device_inline void filter_fill_design_row_no_weight(float *features, int rank, float *design_row, float *feature_transform)
+{
+	design_row[0] = 1.0f;
+	for(int d = 0; d < rank; d++) {
+		design_row[1+d] = math_dot(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
+	}
 }
 
 ccl_device_inline bool filter_firefly_rejection(float3 pixel_color, float pixel_variance, float3 center_color, float sqrt_center_variance)
@@ -449,6 +463,15 @@ ccl_device_inline float filter_fill_design_row_quadratic_cuda(float *features, i
 		design_row[1+rank+d] = x2;
 	}
 	return weight;
+}
+
+ccl_device_inline void filter_fill_design_row_no_weight_cuda(float *features, int rank, float *design_row, float ccl_readonly_ptr feature_transform, int transform_stride)
+{
+	design_row[0] = 1.0f;
+	for(int d = 0; d < rank; d++) {
+		float x = math_dot_cuda(features, feature_transform + d*DENOISE_FEATURES*transform_stride, transform_stride, DENOISE_FEATURES);
+		design_row[1+d] = x;
+	}
 }
 #endif
 

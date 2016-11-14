@@ -133,6 +133,18 @@ void KERNEL_FUNCTION_FULL_NAME(filter_final_pass_wlr)(KernelGlobals *kg,
                                                   int* filter_area,
                                                   int* rect);
 
+void KERNEL_FUNCTION_FULL_NAME(filter_final_pass_nlm)(KernelGlobals *kg,
+                                                  int sample,
+                                                  float* buffer,
+                                                  int x,
+                                                  int y,
+                                                  int offset,
+                                                  int stride,
+                                                  float* buffers,
+                                                  void *storage,
+                                                  int* filter_area,
+                                                  int* rect);
+
 void KERNEL_FUNCTION_FULL_NAME(filter_old_1)(KernelGlobals *kg,
                                              float *denoise_data,
                                              int x, int y,
