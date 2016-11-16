@@ -4957,47 +4957,47 @@ static void rna_def_scene_render_layer(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "keep_denoise_data", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASSES);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_STORE_PASSES);
 	RNA_def_property_ui_text(prop, "Keep denoising data", "Store the denoising data so that the image can be denoised later");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "denoise_diffuse_direct", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_DIFFDIR);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_DIFFDIR);
 	RNA_def_property_ui_text(prop, "Diffuse Direct", "Denoise the direct diffuse lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "denoise_diffuse_indirect", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_DIFFIND);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_DIFFIND);
 	RNA_def_property_ui_text(prop, "Diffuse Indirect", "Denoise the indirect diffuse lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "denoise_glossy_direct", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_GLOSSDIR);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_GLOSSDIR);
 	RNA_def_property_ui_text(prop, "Glossy Direct", "Denoise the direct glossy lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "denoise_glossy_indirect", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_GLOSSIND);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_GLOSSIND);
 	RNA_def_property_ui_text(prop, "Glossy Indirect", "Denoise the indirect glossy lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "denoise_transmission_direct", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_TRANSDIR);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_TRANSDIR);
 	RNA_def_property_ui_text(prop, "Transmission Direct", "Denoise the direct transmission lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "denoise_transmission_indirect", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_TRANSIND);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_TRANSIND);
 	RNA_def_property_ui_text(prop, "Transmission Indirect", "Denoise the indirect transmission lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "denoise_subsurface_direct", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_SUBDIR);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_SUBDIR);
 	RNA_def_property_ui_text(prop, "Subsurface Direct", "Denoise the direct subsurface lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "denoise_subsurface_indirect", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_SUBIND);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_SUBIND);
 	RNA_def_property_ui_text(prop, "Subsurface Indirect", "Denoise the indirect subsurface lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
