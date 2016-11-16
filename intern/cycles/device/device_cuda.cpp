@@ -1116,7 +1116,7 @@ public:
 		                           xthreads, ythreads, 1, /* threads */
 		                           0, 0, transform_args, 0));
 
-		if(getenv("NLM_FILTER")) {
+		if(kernel_globals.integrator.use_nlm_weights) {
 			void *final_args[] = {&sample,
 			                      &d_denoise_buffers,
 			                      &rtile.offset,

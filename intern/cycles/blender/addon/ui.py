@@ -578,6 +578,8 @@ class CyclesRender_PT_denoising(CyclesButtonsPanel, Panel):
         sub.prop(rl, "half_window")
         sub.prop(rl, "filter_strength", slider=True)
         sub.prop(rl, "filter_weighting_adjust", slider=True)
+        sub.prop(rl, "filter_collaborative")
+        sub.prop(rl, "filter_use_nlm_weights")
 
         sub = col.column(align=True)
         row = sub.row(align=True)

@@ -266,6 +266,8 @@ typedef enum SceneDenoiseFlag {
 	SCE_DENOISE_TRANSIND              = (1 << 7),
 	SCE_DENOISE_SUBDIR                = (1 << 8),
 	SCE_DENOISE_SUBIND                = (1 << 9),
+	SCE_DENOISE_NLM_WEIGHTS           = (1 << 10),
+	SCE_DENOISE_COLLABORATIVE         = (1 << 11),
 } SceneDenoiseFlag;
 
 /* srl->passflag */
