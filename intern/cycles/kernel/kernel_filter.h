@@ -427,7 +427,7 @@ ccl_device void kernel_filter_final_pass_wlr(KernelGlobals *kg, int sample, floa
 			if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
 
 			filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
-			float weight = filter_fill_design_row_cuda(features, rank, design_row, feature_transform, bandwidth_factor);
+			float weight = filter_fill_design_row_cuda(features, rank, design_row, transform, transform_stride, bandwidth_factor);
 			if(weight == 0.0f) continue;
 			weight /= max(1.0f, variance);
 
@@ -568,7 +568,7 @@ ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, floa
 			if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
 
 			filter_get_features(px, py, pt, pixel_buffer, features, feature_means, pass_stride);
-			filter_fill_design_row_no_weight_cuda(features, rank, design_row, feature_transform, bandwidth_factor);
+			filter_fill_design_row_no_weight_cuda(features, rank, design_row, transform, transform_stride);
 
 			float weight = nlm_weight(x, y, px, py, center_buffer, pixel_buffer, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
 			if(weight == 0.0f) continue;

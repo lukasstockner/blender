@@ -313,14 +313,38 @@ kernel_cuda_filter_calculate_bandwidth(int sample, void *storage, int4 filter_ar
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
-kernel_cuda_filter_final_pass(int sample, float* buffer, int offset, int stride, float const* __restrict__ transform, void *storage, float *buffers, int4 filter_area, int4 rect)
+kernel_cuda_filter_final_pass_wlr(int sample, float* buffer, int offset, int stride, float const* __restrict__ transform, void *storage, float *buffers, int4 filter_area, int4 rect)
 {
 	int x = blockDim.x*blockIdx.x + threadIdx.x;
 	int y = blockDim.y*blockIdx.y + threadIdx.y;
 	if(x < filter_area.z && y < filter_area.w) {
 		CUDAFilterStorage *l_storage = ((CUDAFilterStorage*) storage) + y*filter_area.z + x;
 		float const* __restrict__ l_transform = transform + y*filter_area.z + x;
-		kernel_filter_final_pass(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, l_transform, l_storage, filter_area, rect, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x);
+		kernel_filter_final_pass_wlr(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, l_transform, l_storage, filter_area, rect, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x);
+	}
+}
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter_final_pass_nlm(int sample, float* buffer, int offset, int stride, float const* __restrict__ transform, void *storage, float *buffers, int4 filter_area, int4 rect)
+{
+	int x = blockDim.x*blockIdx.x + threadIdx.x;
+	int y = blockDim.y*blockIdx.y + threadIdx.y;
+	if(x < filter_area.z && y < filter_area.w) {
+		CUDAFilterStorage *l_storage = ((CUDAFilterStorage*) storage) + y*filter_area.z + x;
+		float const* __restrict__ l_transform = transform + y*filter_area.z + x;
+		kernel_filter_final_pass_nlm(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, l_transform, l_storage, filter_area, rect, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x);
+	}
+}
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter_divide_combined(float *buffers, int sample, int offset, int stride, int4 filter_area)
+{
+	int x = blockDim.x*blockIdx.x + threadIdx.x;
+	int y = blockDim.y*blockIdx.y + threadIdx.y;
+	if(x < filter_area.z && y < filter_area.w) {
+		kernel_filter_divide_combined(NULL, x + filter_area.x, y + filter_area.y, sample, buffers, offset, stride);
 	}
 }
 
