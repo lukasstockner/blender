@@ -1132,16 +1132,6 @@ public:
 			                           0, 0, final_args, 0));
 
 			cuda_assert(cuCtxSynchronize());
-
-			void *divide_args[] = {&d_buffers,
-			                       &sample,
-			                       &rtile.offset,
-			                       &rtile.stride,
-			                       &filter_area};
-			cuda_assert(cuLaunchKernel(cuFilterDivideCombined,
-			                           xblocks , yblocks, 1, /* blocks */
-			                           xthreads, ythreads, 1, /* threads */
-			                           0, 0, divide_args, 0));
 		}
 		else {
 			cuda_assert(cuLaunchKernel(cuFilterEstimateBandwidths,
@@ -1186,6 +1176,18 @@ public:
 			                           0, 0, final_args, 0));
 
 			cuda_assert(cuCtxSynchronize());
+		}
+
+		if(kernel_globals.integrator.use_collaborative_filtering) {
+			void *divide_args[] = {&d_buffers,
+			                       &sample,
+			                       &rtile.offset,
+			                       &rtile.stride,
+			                       &filter_area};
+			cuda_assert(cuLaunchKernel(cuFilterDivideCombined,
+			                           xblocks , yblocks, 1, /* blocks */
+			                           xthreads, ythreads, 1, /* threads */
+			                           0, 0, divide_args, 0));
 		}
 
 #ifdef WITH_CYCLES_DEBUG_FILTER
