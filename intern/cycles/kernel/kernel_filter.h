@@ -1500,4 +1500,11 @@ ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, floa
 
 #endif // __KERNEL_CUDA__
 
+ccl_device void kernel_filter_divide_combined(KernelGlobals *kg, int x, int y, int sample, float *buffers, int offset, int stride)
+{
+	float4 *combined_buffer = (float4*) (buffers + (offset + y*stride + x)*kernel_data.film.pass_stride);
+	float fac = sample / combined_buffer->w;
+	*combined_buffer = *combined_buffer * fac;
+}
+
 CCL_NAMESPACE_END

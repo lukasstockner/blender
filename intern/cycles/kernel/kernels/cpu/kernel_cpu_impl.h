@@ -326,6 +326,20 @@ void KERNEL_FUNCTION_FULL_NAME(filter_final_pass_nlm)(KernelGlobals *kg,
 #endif
 }
 
+void KERNEL_FUNCTION_FULL_NAME(filter_divide_combined)(KernelGlobals *kg,
+                                                       int x, int y,
+                                                       int sample,
+                                                       float *buffers,
+                                                       int offset,
+                                                       int stride)
+{
+#ifdef KERNEL_STUB
+	STUB_ASSERT(KERNEL_ARCH, filter_divide_combined);
+#else
+	kernel_filter_divide_combined(kg, x, y, sample, buffers, offset, stride);
+#endif
+}
+
 void KERNEL_FUNCTION_FULL_NAME(filter_old_1)(KernelGlobals *kg,
                                              float *denoise_data,
                                              int x, int y,

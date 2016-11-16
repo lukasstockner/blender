@@ -30,7 +30,12 @@ ccl_device void kernel_filter_divide_shadow(KernelGlobals *kg, int sample, float
 	int xtile = (x < tile_x[1])? 0: ((x < tile_x[2])? 1: 2);
 	int ytile = (y < tile_y[1])? 0: ((y < tile_y[2])? 1: 2);
 	int tile = ytile*3+xtile;
-	float ccl_readonly_ptr center_buffer = buffers[tile] + (offset[tile] + y*stride[tile] + x)*kernel_data.film.pass_stride + kernel_data.film.pass_denoising;
+	float *center_buffer = buffers[tile] + (offset[tile] + y*stride[tile] + x)*kernel_data.film.pass_stride;
+
+	if(kernel_data.integrator.use_collaborative_filtering) {
+		center_buffer[0] = center_buffer[1] = center_buffer[2] = center_buffer[3] = 0.0f;
+	}
+	center_buffer += kernel_data.film.pass_denoising;
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);

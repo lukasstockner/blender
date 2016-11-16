@@ -144,6 +144,7 @@ public:
 	KernelFunctions<void(*)(int, int, float**, float**, float**, float**, int*, int, int, float, float)>              filter_non_local_means_3_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, float*, int, int, int, int, float, float*, int*)>                         filter_old_1_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, float*, float*, int, int, int, int, int, int, float, float*, int*, int*)> filter_old_2_kernel;
+	KernelFunctions<void(*)(KernelGlobals*, int, int, int, float*, int, int)>                                          filter_divide_combined_kernel;
 
 #define KERNEL_FUNCTIONS(name) \
 	      KERNEL_NAME_EVAL(cpu, name), \
@@ -167,6 +168,7 @@ public:
 	  filter_estimate_wlr_params_kernel(KERNEL_FUNCTIONS(filter_estimate_wlr_params)),
 	  filter_final_pass_wlr_kernel(KERNEL_FUNCTIONS(filter_final_pass_wlr)),
 	  filter_final_pass_nlm_kernel(KERNEL_FUNCTIONS(filter_final_pass_nlm)),
+	  filter_divide_combined_kernel(KERNEL_FUNCTIONS(filter_divide_combined)),
 	  filter_non_local_means_3_kernel(KERNEL_FUNCTIONS(filter_non_local_means_3)),
 	  filter_old_1_kernel(KERNEL_FUNCTIONS(filter_old_1)),
 	  filter_old_2_kernel(KERNEL_FUNCTIONS(filter_old_2))
@@ -441,17 +443,6 @@ public:
 		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
 		int pass_stride = w*h;
 
-		if(use_collaborative_filtering) {
-			for(int y = 0; y < filter_area.w; y++) {
-				int py = y + filter_area.y;
-				for(int x = 0; x < filter_area.z; x++) {
-					int px = x + filter_area.x;
-					float *p_buffers = buffers + (offset + py*stride + px)*kg->__data.film.pass_stride;
-					p_buffers[0] = p_buffers[1] = p_buffers[2] = p_buffers[3] = 0.0f;
-				}
-			}
-		}
-
 		if(old_filter) {
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
@@ -545,18 +536,11 @@ public:
 
 		if(use_collaborative_filtering) {
 			for(int y = 0; y < filter_area.w; y++) {
-				int py = y + filter_area.y;
 				for(int x = 0; x < filter_area.z; x++) {
-					int px = x + filter_area.x;
-					float *p_buffers = buffers + (offset + py*stride + px)*kg->__data.film.pass_stride;
-					float fac = sample / p_buffers[3];
-					p_buffers[0] *= fac;
-					p_buffers[1] *= fac;
-					p_buffers[2] *= fac;
-					p_buffers[3] *= fac;
+					filter_divide_combined_kernel()(kg, x + filter_area.x, y + filter_area.y, sample, buffers, offset, stride);
 				}
 			}
- 		}
+		}
 
 		delete[] storage;
 	}
