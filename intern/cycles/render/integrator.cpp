@@ -81,7 +81,7 @@ NODE_DEFINE(Integrator)
 	SOCKET_FLOAT(filter_strength, "Filter Strength", 0.0f);
 	SOCKET_FLOAT(weighting_adjust, "Weighting Adjust", 1.0f);
 	SOCKET_BOOLEAN(use_nlm_weights, "Use NLM weights", true);
-	SOCKET_BOOLEAN(use_collaborative_filtering, "Use Collaborative Filtering", true);
+	SOCKET_BOOLEAN(use_gradients, "Use Gradients for filtering", true);
 
 	return type;
 }
@@ -212,7 +212,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 	kintegrator->half_window = half_window;
 	kintegrator->filter_strength = filter_strength;
 	kintegrator->weighting_adjust = weighting_adjust;
-	kintegrator->use_collaborative_filtering = use_collaborative_filtering;
+	kintegrator->use_gradients = use_gradients;
 	kintegrator->use_nlm_weights = use_nlm_weights;
 
 	need_update = false;

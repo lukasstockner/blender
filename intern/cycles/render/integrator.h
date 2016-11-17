@@ -86,7 +86,7 @@ public:
 	float filter_strength;
 	float weighting_adjust;
 	bool use_nlm_weights;
-	bool use_collaborative_filtering;
+	bool use_gradients;
 
 	Integrator();
 	~Integrator();

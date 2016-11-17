@@ -467,7 +467,8 @@ void BlenderSession::render()
 		scene->integrator->filter_strength = powf(2.0f, b_layer_iter->filter_strength());
 		scene->integrator->weighting_adjust = powf(2.0f, b_layer_iter->filter_weighting_adjust());
 		scene->integrator->use_nlm_weights = b_layer_iter->filter_use_nlm_weights();
-		scene->integrator->use_collaborative_filtering = b_layer_iter->filter_collaborative();
+		if(scene->integrator->use_nlm_weights) scene->integrator->weighting_adjust /= 2.0f;
+		scene->integrator->use_gradients = b_layer_iter->filter_gradients();
 
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes);

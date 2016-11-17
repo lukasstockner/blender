@@ -434,7 +434,7 @@ public:
 	{
 		bool old_filter = getenv("OLD_FILTER");
 		bool only_nlm_filter = getenv("ONLY_NLM_FILTER");
-		bool use_collaborative_filtering = kg->__data.integrator.use_collaborative_filtering;
+		bool use_gradients = kg->__data.integrator.use_gradients;
 		bool nlm_weights = kg->__data.integrator.use_nlm_weights;
 
 		FilterStorage *storage = new FilterStorage[filter_area.z*filter_area.w];
@@ -536,7 +536,7 @@ public:
 #endif
 		}
 
-		if(use_collaborative_filtering) {
+		if(use_gradients) {
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
 					filter_divide_combined_kernel()(kg, x + filter_area.x, y + filter_area.y, sample, buffers, offset, stride);

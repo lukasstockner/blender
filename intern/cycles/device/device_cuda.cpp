@@ -1178,7 +1178,7 @@ public:
 			cuda_assert(cuCtxSynchronize());
 		}
 
-		if(kernel_globals.integrator.use_collaborative_filtering) {
+		if(kernel_globals.integrator.use_gradients) {
 			void *divide_args[] = {&d_buffers,
 			                       &sample,
 			                       &rtile.offset,

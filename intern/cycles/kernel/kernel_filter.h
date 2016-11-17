@@ -387,11 +387,11 @@ ccl_device void kernel_filter_final_pass_wlr(KernelGlobals *kg, int sample, floa
 		for(int col = 0; col < row; col++)
 			XtX[row*matrix_size+col] = 0.0f;
 
-	/* When using collaborative filtering, we need to solve for the intercept and gradients.
+	/* When using gradients for filtering, we need to solve for the intercept and gradients.
 	 * Otherwise, just the intercept is enough. */
-	int solution_size = kernel_data.integrator.use_collaborative_filtering? matrix_size : 1;
+	int solution_size = kernel_data.integrator.use_gradients? matrix_size : 1;
 	float XtWXinv[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)];
-	if(kernel_data.integrator.use_collaborative_filtering)
+	if(kernel_data.integrator.use_gradients)
 		math_matrix_zero(XtWXinv, matrix_size);
 	else
 		math_vector_zero(XtWXinv, matrix_size);
@@ -420,7 +420,7 @@ ccl_device void kernel_filter_final_pass_wlr(KernelGlobals *kg, int sample, floa
 		}
 	} END_FOR_PIXEL_WINDOW
 
-	if(kernel_data.integrator.use_collaborative_filtering) {
+	if(kernel_data.integrator.use_gradients) {
 		FOR_PIXEL_WINDOW {
 			float3 color = filter_get_pixel_color(pixel_buffer, pass_stride);
 			float variance = filter_get_pixel_variance(pixel_buffer, pass_stride);
@@ -537,11 +537,11 @@ ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, floa
 		for(int col = 0; col < row; col++)
 			XtX[row*matrix_size+col] = 0.0f;
 
-	/* When using collaborative filtering, we need to solve for the intercept and gradients.
+	/* When using gradients for filtering, we need to solve for the intercept and gradients.
 	 * Otherwise, just the intercept is enough. */
-	int solution_size = kernel_data.integrator.use_collaborative_filtering? matrix_size : 1;
+	int solution_size = kernel_data.integrator.use_gradients? matrix_size : 1;
 	float XtWXinv[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)];
-	if(kernel_data.integrator.use_collaborative_filtering)
+	if(kernel_data.integrator.use_gradients)
 		math_matrix_zero(XtWXinv, matrix_size);
 	else
 		math_vector_zero(XtWXinv, matrix_size);
@@ -580,7 +580,7 @@ ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, floa
 		}
 	} END_FOR_PIXEL_WINDOW
 
-	if(kernel_data.integrator.use_collaborative_filtering) {
+	if(kernel_data.integrator.use_gradients) {
 		FOR_PIXEL_WINDOW {
 			float weight;
 			if(cache_idx < WEIGHT_CACHE_SIZE) {
@@ -1310,11 +1310,11 @@ ccl_device void kernel_filter_final_pass_wlr(KernelGlobals *kg, int sample, floa
 		for(int col = 0; col < row; col++)
 			XtX[row*matrix_size+col] = 0.0f;
 
-	/* When using collaborative filtering, we need to solve for the intercept and gradients.
+	/* When using gradients for filtering, we need to solve for the intercept and gradients.
 	 * Otherwise, just the intercept is enough. */
-	int solution_size = kernel_data.integrator.use_collaborative_filtering? matrix_size : 1;
+	int solution_size = kernel_data.integrator.use_gradients? matrix_size : 1;
 	float XtWXinv[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)];
-	if(kernel_data.integrator.use_collaborative_filtering)
+	if(kernel_data.integrator.use_gradients)
 		math_matrix_zero(XtWXinv, matrix_size);
 	else
 		math_vector_zero(XtWXinv, matrix_size);
@@ -1343,7 +1343,7 @@ ccl_device void kernel_filter_final_pass_wlr(KernelGlobals *kg, int sample, floa
 		}
 	} END_FOR_PIXEL_WINDOW
 
-	if(kernel_data.integrator.use_collaborative_filtering) {
+	if(kernel_data.integrator.use_gradients) {
 		FOR_PIXEL_WINDOW {
 			float3 color = filter_get_pixel_color(pixel_buffer, pass_stride);
 			float variance = filter_get_pixel_variance(pixel_buffer, pass_stride);
@@ -1460,9 +1460,9 @@ ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, floa
 		for(int col = 0; col < row; col++)
 			XtX[row*matrix_size+col] = 0.0f;
 
-	int solution_size = kernel_data.integrator.use_collaborative_filtering? matrix_size : 1;
+	int solution_size = kernel_data.integrator.use_gradients? matrix_size : 1;
 	float XtWXinv[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)];
-	if(kernel_data.integrator.use_collaborative_filtering)
+	if(kernel_data.integrator.use_gradients)
 		math_matrix_zero(XtWXinv, matrix_size);
 	else
 		math_vector_zero(XtWXinv, matrix_size);
@@ -1489,9 +1489,9 @@ ccl_device void kernel_filter_final_pass_nlm(KernelGlobals *kg, int sample, floa
 		}
 	} END_FOR_PIXEL_WINDOW
 
-	if(kernel_data.integrator.use_collaborative_filtering) {
+	if(kernel_data.integrator.use_gradients) {
 		FOR_PIXEL_WINDOW {
-			/* TODO: Atomics to be able to collaborate across tiles. */
+			/* TODO: Atomics to be able to use gradients across tiles. */
 			if(py >= filter_area.y && py < filter_area.y+filter_area.w && px >= filter_area.x && px < filter_area.x+filter_area.z) {
 				float weight = weight_cache[cache_idx];
 				if(weight == 0.0f) continue;
