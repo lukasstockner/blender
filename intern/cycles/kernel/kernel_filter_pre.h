@@ -32,7 +32,7 @@ ccl_device void kernel_filter_divide_shadow(KernelGlobals *kg, int sample, float
 	int tile = ytile*3+xtile;
 	float *center_buffer = buffers[tile] + (offset[tile] + y*stride[tile] + x)*kernel_data.film.pass_stride;
 
-	if(kernel_data.integrator.use_collaborative_filtering) {
+	if(kernel_data.integrator.use_collaborative_filtering && tile == 4) {
 		center_buffer[0] = center_buffer[1] = center_buffer[2] = center_buffer[3] = 0.0f;
 	}
 	center_buffer += kernel_data.film.pass_denoising;

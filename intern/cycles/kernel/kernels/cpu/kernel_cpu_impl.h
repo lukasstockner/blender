@@ -314,6 +314,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_final_pass_nlm)(KernelGlobals *kg,
                                                       int stride,
                                                       float *buffers,
                                                       void *storage,
+                                                      float *weight_cache,
                                                       int* filter_area,
                                                       int* prefilter_rect)
 {
@@ -322,7 +323,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_final_pass_nlm)(KernelGlobals *kg,
 #else
 	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
 	int4 area = make_int4(filter_area[0], filter_area[1], filter_area[2], filter_area[3]);
-	kernel_filter_final_pass_nlm(kg, sample, buffer, x, y, offset, stride, buffers, (FilterStorage*) storage, area, rect);
+	kernel_filter_final_pass_nlm(kg, sample, buffer, x, y, offset, stride, buffers, (FilterStorage*) storage, weight_cache, area, rect);
 #endif
 }
 

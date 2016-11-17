@@ -21,13 +21,14 @@ CCL_NAMESPACE_BEGIN
 #define ccl_get_feature(pass) buffer[(pass)*pass_stride]
 
 /* Loop over the pixels in the range [low.x, high.x) x [low.y, high.y).
- * pixel_buffer always points to the current pixel in the first pass. */
+ * pixel_buffer always points to the current pixel in the first pass.
+ * cache_idx always points to the same pixel, but only if rect stays the same. */
 #ifdef DENOISE_TEMPORAL
 #define FOR_PIXEL_WINDOW     pixel_buffer = buffer + (low.y - rect.y)*buffer_w + (low.x - rect.x); \
-                             for(int t = 0; t < num_frames; t++) { \
+                             for(int t = 0, cache_idx = 0; t < num_frames; t++) { \
                                  int pt = (t == 0)? 0: ((t <= prev_frames)? (t-prev_frames-1): (t - prev_frames)); \
 	                             for(int py = low.y; py < high.y; py++) { \
-	                                 for(int px = low.x; px < high.x; px++, pixel_buffer++) {
+	                                 for(int px = low.x; px < high.x; px++, pixel_buffer++, cache_idx++) {
 
 #define END_FOR_PIXEL_WINDOW         } \
                                      pixel_buffer += buffer_w - (high.x - low.x); \
@@ -36,8 +37,8 @@ CCL_NAMESPACE_BEGIN
                              }
 #else
 #define FOR_PIXEL_WINDOW     pixel_buffer = buffer + (low.y - rect.y)*buffer_w + (low.x - rect.x); \
-                             for(int py = low.y; py < high.y; py++) { \
-                                 for(int px = low.x; px < high.x; px++, pixel_buffer++) {
+                             for(int py = low.y, cache_idx = 0; py < high.y; py++) { \
+                                 for(int px = low.x; px < high.x; px++, pixel_buffer++, cache_idx++) {
 
 #define END_FOR_PIXEL_WINDOW     } \
                                  pixel_buffer += buffer_w - (high.x - low.x); \

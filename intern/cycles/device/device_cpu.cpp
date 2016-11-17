@@ -140,7 +140,7 @@ public:
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, void*, int*)>                                      filter_construct_transform_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, void*, int*)>                                      filter_estimate_wlr_params_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, int*, int*)>              filter_final_pass_wlr_kernel;
-	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, int*, int*)>              filter_final_pass_nlm_kernel;
+	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, float*, int*, int*)>      filter_final_pass_nlm_kernel;
 	KernelFunctions<void(*)(int, int, float**, float**, float**, float**, int*, int, int, float, float)>              filter_non_local_means_3_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, float*, int, int, int, int, float, float*, int*)>                         filter_old_1_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, float*, float*, int, int, int, int, int, int, float, float*, int*, int*)> filter_old_2_kernel;
@@ -495,12 +495,14 @@ public:
 			}
 		}
 		else if(nlm_weights) {
+			float *weight_cache = new float[(2*hw+1)*(2*hw+1)];
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
 					filter_construct_transform_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);
-					filter_final_pass_nlm_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storage + y*filter_area.z + x, &filter_area.x, &rect.x);
+					filter_final_pass_nlm_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storage + y*filter_area.z + x, weight_cache, &filter_area.x, &rect.x);
 				}
 			}
+			delete[] weight_cache;
 		}
 		else {
 			for(int y = 0; y < filter_area.w; y++) {
