@@ -160,23 +160,30 @@ ccl_device_inline bool kernel_write_denoising_passes(KernelGlobals *kg, ccl_glob
 
 		float3 normal = make_float3(0.0f, 0.0f, 0.0f);
 		float3 albedo = make_float3(0.0f, 0.0f, 0.0f);
-		float sum_weight = 0.0f, max_weight = 0.0f;
-		int max_weight_closure = -1;
+		float sum_weight = 0.0f, sum_nonspecular_weight = 0.0f;
 
-		/* Average normal and albedo, determine the closure with the highest weight for the roughness decision. */
 		for(int i = 0; i < ccl_fetch(sd, num_closure); i++) {
 			ShaderClosure *sc = ccl_fetch_array(sd, closure, i);
 
 			if(!CLOSURE_IS_BSDF_OR_BSSRDF(sc->type))
 				continue;
 
-			normal += sc->N * sc->sample_weight;
-			albedo += sc->weight;
-			sum_weight += sc->sample_weight;
+			/* Classify closures into diffuse-like and specular-like closures.
+			 * This is pretty arbitrary, but some distinction has to be made. */
+			bool is_specular = (sc->type == CLOSURE_BSDF_TRANSPARENT_ID);
+			if(CLOSURE_IS_BSDF_MICROFACET(sc->type)) {
+				MicrofacetBsdf *bsdf = (MicrofacetBsdf*) sc;
+				if(bsdf->alpha_x*bsdf->alpha_y <= 0.075f*0.075f) {
+					is_specular = true;
+				}
+			}
 
-			if(sc->sample_weight > max_weight) {
-				max_weight = sc->sample_weight;
-				max_weight_closure = i;
+			/* All closures contribute to the normal feature, but only diffuse-like ones to the albedo. */
+			normal += sc->N * sc->sample_weight;
+			sum_weight += sc->sample_weight;
+			if(!is_specular) {
+				albedo += sc->weight;
+				sum_nonspecular_weight += sc->sample_weight;
 			}
 		}
 
@@ -186,16 +193,9 @@ ccl_device_inline bool kernel_write_denoising_passes(KernelGlobals *kg, ccl_glob
 			kernel_write_pass_float_var(buffer + 12, sample, 0.0f);
 		}
 		else {
-			ShaderClosure *max_sc = ccl_fetch_array(sd, closure, max_weight_closure);
-			if(max_sc->type == CLOSURE_BSDF_TRANSPARENT_ID) {
+			/* Wait for next bounce if 75% or more sample weight belongs to specular-like closures. */
+			if(sum_nonspecular_weight*4.0f <= sum_weight) {
 				return false;
-			}
-			if(CLOSURE_IS_BSDF_MICROFACET(max_sc->type)) {
-				/* Check for roughness, almost specular surfaces don't write data. */
-				MicrofacetBsdf *bsdf = (MicrofacetBsdf*) max_sc;
-				if(bsdf->alpha_x*bsdf->alpha_y <= 0.075f*0.075f) {
-					return false;
-				}
 			}
 			kernel_write_pass_float3_var(buffer, sample, ensure_finite3(normal/sum_weight));
 			kernel_write_pass_float3_var(buffer + 6, sample, ensure_finite3(albedo));
