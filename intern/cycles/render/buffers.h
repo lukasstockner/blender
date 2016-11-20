@@ -43,6 +43,8 @@ typedef enum DenoiseExtendedTypes {
 	EX_TYPE_DENOISE_NOISY             = (1 << 8),
 	EX_TYPE_DENOISE_NOISY_VAR         = (1 << 9),
 	EX_TYPE_DENOISE_CLEAN             = (1 << 10),
+	EX_TYPE_DENOISE_NOISY_B           = (1 << 11),
+	EX_TYPE_DENOISE_NOISY_B_VAR       = (1 << 12),
 
 	EX_TYPE_DENOISE_REQUIRED = (EX_TYPE_DENOISE_NORMAL
 	                          | EX_TYPE_DENOISE_NORMAL_VAR
@@ -54,7 +56,7 @@ typedef enum DenoiseExtendedTypes {
 	                          | EX_TYPE_DENOISE_SHADOW_B
 	                          | EX_TYPE_DENOISE_NOISY
 	                          | EX_TYPE_DENOISE_NOISY_VAR),
-	EX_TYPE_DENOISE_ALL = EX_TYPE_DENOISE_REQUIRED | EX_TYPE_DENOISE_CLEAN,
+	EX_TYPE_DENOISE_ALL = EX_TYPE_DENOISE_REQUIRED | EX_TYPE_DENOISE_CLEAN | EX_TYPE_DENOISE_NOISY_B | EX_TYPE_DENOISE_NOISY_B_VAR,
 } DenoiseExtendedTypes;
 
 class Device;
@@ -88,6 +90,8 @@ public:
 	bool denoising_passes;
 	/* If only some light path types should be denoised, an additional pass is needed. */
 	bool selective_denoising;
+	/* Generate an additional pass containing only every second sample. */
+	bool cross_denoising;
 	/* On GPUs, tiles are extended in each direction to include all the info required for denoising. */
 	int overscan;
 

@@ -281,10 +281,12 @@ public:
 
 	float* denoise_fill_buffer(KernelGlobals *kg, int sample, int4 rect, float** buffers, int* tile_x, int* tile_y, int *offsets, int *strides, int frames, int *frame_strides)
 	{
+		bool cross_denoise = kg->__data.film.denoise_cross;
 		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
 		int pass_stride = w*h*frames;
-		float *filter_buffers = new float[22*pass_stride];
-		memset(filter_buffers, 0, sizeof(float)*22*pass_stride);
+		int passes = cross_denoise? 28:22;
+		float *filter_buffers = new float[passes*pass_stride];
+		memset(filter_buffers, 0, sizeof(float)*passes*pass_stride);
 
 
 		for(int frame = 0; frame < frames; frame++) {
@@ -414,13 +416,27 @@ public:
 
 			/* ==== Step 3: Copy combined color pass. ==== */
 			{
-				int mean_from[]      = {20, 21, 22};
-				int variance_from[]  = {23, 24, 25};
-				int offset_to[]      = {16, 18, 20};
-				for(int i = 0; i < 3; i++) {
-					for(int y = rect.y; y < rect.w; y++) {
-						for(int x = rect.x; x < rect.z; x++) {
-							filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, filter_buffer + offset_to[i]*pass_stride, filter_buffer + (offset_to[i]+1)*pass_stride, &rect.x);
+				if(cross_denoise) {
+					int mean_from[]      = {20, 21, 22, 26, 27, 28};
+					int variance_from[]  = {23, 24, 25, 29, 30, 31};
+					int offset_to[]      = {16, 18, 20, 22, 24, 26};
+					for(int i = 0; i < 6; i++) {
+						for(int y = rect.y; y < rect.w; y++) {
+							for(int x = rect.x; x < rect.z; x++) {
+								filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, filter_buffer + offset_to[i]*pass_stride, filter_buffer + (offset_to[i]+1)*pass_stride, &rect.x);
+							}
+						}
+					}
+				}
+				else {
+					int mean_from[]      = {20, 21, 22};
+					int variance_from[]  = {23, 24, 25};
+					int offset_to[]      = {16, 18, 20};
+					for(int i = 0; i < 3; i++) {
+						for(int y = rect.y; y < rect.w; y++) {
+							for(int x = rect.x; x < rect.z; x++) {
+								filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, filter_buffer + offset_to[i]*pass_stride, filter_buffer + (offset_to[i]+1)*pass_stride, &rect.x);
+							}
 						}
 					}
 				}

@@ -462,7 +462,9 @@ void BlenderSession::render()
 		if(b_layer_iter->denoise_subsurface_direct()) scene->film->denoise_flags |= DENOISE_SUBSURFACE_DIR;
 		if(b_layer_iter->denoise_subsurface_indirect()) scene->film->denoise_flags |= DENOISE_SUBSURFACE_IND;
 		scene->film->selective_denoising = (scene->film->denoise_flags != DENOISE_ALL);
+		scene->film->cross_denoising = b_layer_iter->filter_cross();
 		buffer_params.selective_denoising = scene->film->selective_denoising;
+		buffer_params.cross_denoising = scene->film->cross_denoising;
 		scene->integrator->half_window = b_layer_iter->half_window();
 		scene->integrator->filter_strength = powf(2.0f, b_layer_iter->filter_strength());
 		scene->integrator->weighting_adjust = powf(2.0f, b_layer_iter->filter_weighting_adjust());
@@ -486,6 +488,10 @@ void BlenderSession::render()
 			add_pass(b_engine, SCE_PASS_DENOISE_SHADOW_B, 3, b_rlay_name.c_str(), NULL);
 			add_pass(b_engine, SCE_PASS_DENOISE_NOISY, 3, b_rlay_name.c_str(), NULL);
 			add_pass(b_engine, SCE_PASS_DENOISE_NOISY_VAR, 3, b_rlay_name.c_str(), NULL);
+			if(buffer_params.cross_denoising) {
+				add_pass(b_engine, SCE_PASS_DENOISE_NOISY_B, 3, b_rlay_name.c_str(), NULL);
+				add_pass(b_engine, SCE_PASS_DENOISE_NOISY_B_VAR, 3, b_rlay_name.c_str(), NULL);
+			}
 			if(buffer_params.selective_denoising) {
 				add_pass(b_engine, SCE_PASS_DENOISE_CLEAN, 3, b_rlay_name.c_str(), NULL);
 			}

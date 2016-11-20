@@ -268,6 +268,7 @@ typedef enum SceneDenoiseFlag {
 	SCE_DENOISE_PASS_SUBIND           = (1 << 9),
 	SCE_DENOISE_NLM_WEIGHTS           = (1 << 10),
 	SCE_DENOISE_GRADIENTS             = (1 << 11),
+	SCE_DENOISE_CROSS                 = (1 << 12),
 } SceneDenoiseFlag;
 
 /* srl->passflag */
@@ -318,6 +319,8 @@ typedef enum ScenePassType {
 #define SCE_PASS_DENOISE_NOISY            (((uint64_t) 1) << 40) /* The original noisy image (only the components that are denoised). */
 #define SCE_PASS_DENOISE_NOISY_VAR        (((uint64_t) 1) << 41)
 #define SCE_PASS_DENOISE_CLEAN            (((uint64_t) 1) << 42) /* If present, these image components are added to the denoised image. */
+#define SCE_PASS_DENOISE_NOISY_B          (((uint64_t) 1) << 43)
+#define SCE_PASS_DENOISE_NOISY_B_VAR      (((uint64_t) 1) << 44)
 
 /* note, srl->passflag is treestore element 'nr' in outliner, short still... */
 

@@ -68,8 +68,22 @@ ccl_device void kernel_filter_get_feature(KernelGlobals *kg, int sample, float *
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);
-	mean[idx] = center_buffer[m_offset] / sample;
-	variance[idx] = center_buffer[v_offset] / (sample * (sample-1));
+
+	/* TODO: This is an ugly hack! */
+	if(m_offset >= 20 && m_offset <= 22 && kernel_data.film.denoise_cross) {
+		int odd_sample = sample/2;
+		mean[idx] = (center_buffer[m_offset] - center_buffer[m_offset+6]) / odd_sample;
+		variance[idx] = center_buffer[v_offset] / (odd_sample * (sample-1));
+	}
+	else if(m_offset >= 26) {
+		int even_sample = (sample+1)/2;
+		mean[idx] = center_buffer[m_offset] / even_sample;
+		variance[idx] = center_buffer[v_offset-6] / (even_sample * (sample-1));
+	}
+	else {
+		mean[idx] = center_buffer[m_offset] / sample;
+		variance[idx] = center_buffer[v_offset] / (sample * (sample-1));
+	}
 }
 
 /* Combine A/B buffers.

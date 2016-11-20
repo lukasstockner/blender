@@ -1066,7 +1066,7 @@ typedef struct KernelFilm {
 
 	int num_frames;
 	int prev_frames;
-	int pass_pad1;
+	int denoise_cross;
 	int pass_pad4;
 
 #ifdef __KERNEL_DEBUG__

@@ -333,7 +333,13 @@ kernel_cuda_filter_final_pass_nlm(int sample, float* buffer, int offset, int str
 	if(x < filter_area.z && y < filter_area.w) {
 		CUDAFilterStorage *l_storage = ((CUDAFilterStorage*) storage) + y*filter_area.z + x;
 		float const* __restrict__ l_transform = transform + y*filter_area.z + x;
-		kernel_filter_final_pass_nlm(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, l_transform, l_storage, filter_area, rect, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x);
+		if(kernel_data.film.denoise_cross) {
+			kernel_filter_final_pass_nlm(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, l_transform, l_storage, filter_area, rect, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x, 0, 6);
+			kernel_filter_final_pass_nlm(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, l_transform, l_storage, filter_area, rect, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x, 6, 0);
+		}
+		else {
+			kernel_filter_final_pass_nlm(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, l_transform, l_storage, filter_area, rect, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x, 0, 0);
+		}
 	}
 }
 

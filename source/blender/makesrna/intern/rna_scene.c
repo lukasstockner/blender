@@ -5028,6 +5028,11 @@ static void rna_def_scene_render_layer(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_GRADIENTS);
 	RNA_def_property_ui_text(prop, "Use gradients for denoising", "Use aditional predictions of neighboring pixels using the fitted gradients to get a cleaner result. Might cause visible tile borders.");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+	prop = RNA_def_property(srna, "filter_cross", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_CROSS);
+	RNA_def_property_ui_text(prop, "Use cross-denoising", "Use cross-pass denoising. Improves quality, but increases denoise time and memory requirements");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 }
 
 /* Render Layers */

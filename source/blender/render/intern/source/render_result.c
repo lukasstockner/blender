@@ -418,6 +418,18 @@ static const char *name_from_passtype(uint64_t passtype, int channel)
 		if (channel == 1) return "DenoiseClean.G";
 		return "DenoiseClean.B";
 	}
+	if (passtype == SCE_PASS_DENOISE_NOISY_B) {
+		if (channel == -1) return "DenoiseNoisyB";
+		if (channel == 0) return "DenoiseNoisyB.R";
+		if (channel == 1) return "DenoiseNoisyB.G";
+		return "DenoiseNoisyB.B";
+	}
+	if (passtype == SCE_PASS_DENOISE_NOISY_B_VAR) {
+		if (channel == -1) return "DenoiseNoisyBVar";
+		if (channel == 0) return "DenoiseNoisyBVar.R";
+		if (channel == 1) return "DenoiseNoisyBVar.G";
+		return "DenoiseNoisyBVar.B";
+	}
 
 	return "Unknown";
 }
@@ -554,6 +566,12 @@ static uint64_t passtype_from_name(const char *str, uint64_t passflag)
 
 	if (STRPREFIX(str, "DenoiseClean"))
 		return SCE_PASS_DENOISE_CLEAN;
+
+	if (STRPREFIX(str, "DenoiseNoisyB"))
+		return SCE_PASS_DENOISE_NOISY_B;
+
+	if (STRPREFIX(str, "DenoiseNoisyBVar"))
+		return SCE_PASS_DENOISE_NOISY_B_VAR;
 
 	return 0;
 

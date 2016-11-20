@@ -47,6 +47,7 @@ BufferParams::BufferParams()
 
 	denoising_passes = false;
 	selective_denoising = false;
+	cross_denoising = false;
 	overscan = 0;
 
 	Pass::add(PASS_COMBINED, passes);
@@ -83,7 +84,9 @@ int BufferParams::get_passes_size()
 	if(denoising_passes) {
 		/* Feature passes: 11 Channels (3 Color, 3 Normal, 1 Depth, 4 Shadow) + 9 Variance
 		 * Color passes: 3 Noisy (RGB) + 3 Variance [+ 3 Skip (RGB)] */
-		size += selective_denoising? 29: 26;
+		size += 26;
+		if(selective_denoising) size += 3;
+		if(cross_denoising) size += 6;
 	}
 
 	return align_up(size, 4);
@@ -231,7 +234,9 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 		case EX_TYPE_DENOISE_SHADOW_B:   type_offset = 17; scale = 1.0f/sample; break;
 		case EX_TYPE_DENOISE_NOISY:      type_offset = 20; scale = exposure/sample; break;
 		case EX_TYPE_DENOISE_NOISY_VAR:  type_offset = 23; scale = exposure*exposure/sample; break;
-		case EX_TYPE_DENOISE_CLEAN:      type_offset = 26; scale = exposure/sample; break;
+		case EX_TYPE_DENOISE_NOISY_B:    type_offset = 26; scale = exposure/(sample/2); break;
+		case EX_TYPE_DENOISE_NOISY_B_VAR:type_offset = 29; scale = exposure*exposure/(sample/2); break;
+		case EX_TYPE_DENOISE_CLEAN:      type_offset = params.cross_denoising? 32: 26; scale = exposure/sample; break;
 	}
 
 	if(read_pixels) {

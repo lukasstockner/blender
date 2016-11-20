@@ -365,10 +365,16 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *
 				float3 noisy, clean;
 				path_radiance_split_denoising(kg, L, &noisy, &clean);
 				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 20, sample, noisy);
+				if(kernel_data.film.denoise_cross && !(sample & 1)) {
+					kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 26, sample, noisy);
+				}
 				kernel_write_pass_float3_nopad(buffer + kernel_data.film.pass_no_denoising, sample, clean);
 			}
 			else {
 				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 20, sample, L_sum);
+				if(kernel_data.film.denoise_cross && !(sample & 1)) {
+					kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 26, sample, L_sum);
+				}
 			}
 		}
 	}
@@ -377,6 +383,9 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *
 
 		if(kernel_data.film.pass_denoising) {
 			kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 20, sample, make_float3(0.0f, 0.0f, 0.0f));
+			if(kernel_data.film.denoise_cross && !(sample & 1)) {
+				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 26, sample, make_float3(0.0f, 0.0f, 0.0f));
+			}
 		}
 		if(kernel_data.film.pass_no_denoising) {
 			kernel_write_pass_float3_nopad(buffer + kernel_data.film.pass_no_denoising, sample, make_float3(0.0f, 0.0f, 0.0f));
