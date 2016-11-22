@@ -61,10 +61,15 @@ ccl_device void math_cholesky(float *A, int n)
 	for(int row = 0; row < n; row++) {
 		for(int col = 0; col <= row; col++) {
 			float sum_col = MAT(A, n, row, col);
-			for(int k = 0; k < col; k++)
+			for(int k = 0; k < col; k++) {
 				sum_col -= MAT(A, n, row, k) * MAT(A, n, col, k);
-			if(row == col) sum_col = sqrtf(sum_col);
-			else           sum_col = sum_col / MAT(A, n, col, col);
+			}
+			if(row == col) {
+				sum_col = sqrtf(max(sum_col, 0.0f));
+			}
+			else {
+				sum_col /= MAT(A, n, col, col);
+			}
 			MAT(A, n, row, col) = sum_col;
 		}
 	}
