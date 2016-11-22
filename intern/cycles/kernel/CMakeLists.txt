@@ -61,9 +61,6 @@ set(SRC_HEADERS
 	kernel_differential.h
 	kernel_emission.h
 	kernel_film.h
-	kernel_filter.h
-	kernel_filter_pre.h
-	kernel_filter_util.h
 	kernel_globals.h
 	kernel_image_opencl.h
 	kernel_jitter.h
@@ -210,7 +207,15 @@ set(SRC_SPLIT_HEADERS
 )
 
 set(SRC_FILTER_HEADERS
+	filter/filter.h
+	filter/filter_features.h
+	filter/filter_features_sse.h
 	filter/filter_final_pass_impl.h
+	filter/filter_nlm.h
+	filter/filter_prefilter.h
+	filter/filter_wlr.h
+	filter/filter_wlr_cuda.h
+	filter/filter_wlr_sse.h
 )
 
 # CUDA module

@@ -93,7 +93,8 @@
 #include "../../kernel_path.h"
 #include "../../kernel_path_branched.h"
 #include "../../kernel_bake.h"
-#include "../../kernel_filter.h"
+
+#include "../../filter/filter.h"
 
 /* compute number of threads per block and minimum blocks per multiprocessor
  * given the maximum number of registers per thread */

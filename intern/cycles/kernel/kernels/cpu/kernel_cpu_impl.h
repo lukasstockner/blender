@@ -29,7 +29,8 @@
 #include "kernel_path.h"
 #include "kernel_path_branched.h"
 #include "kernel_bake.h"
-#include "kernel_filter.h"
+
+#include "filter/filter.h"
 
 #ifdef KERNEL_STUB
 #  include "util_debug.h"
