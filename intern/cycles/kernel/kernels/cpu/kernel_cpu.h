@@ -154,25 +154,4 @@ void KERNEL_FUNCTION_FULL_NAME(filter_divide_combined)(KernelGlobals *kg,
                                                        int offset,
                                                        int stride);
 
-void KERNEL_FUNCTION_FULL_NAME(filter_old_1)(KernelGlobals *kg,
-                                             float *denoise_data,
-                                             int x, int y,
-                                             int samples,
-                                             int halfWindow,
-                                             float bandwidthFactor,
-                                             float *storage,
-                                             int* rect);
-
-void KERNEL_FUNCTION_FULL_NAME(filter_old_2)(KernelGlobals *kg,
-                                             float* buffer,
-                                             float *denoise_data,
-                                             int x, int y,
-                                             int offset, int stride,
-                                             int samples,
-                                             int halfWindow,
-                                             float bandwidthFactor,
-                                             float *storage,
-                                             int* rect,
-                                             int* tile);
-
 #undef KERNEL_ARCH

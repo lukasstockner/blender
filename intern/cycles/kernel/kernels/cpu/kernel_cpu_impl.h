@@ -350,44 +350,6 @@ void KERNEL_FUNCTION_FULL_NAME(filter_divide_combined)(KernelGlobals *kg,
 #endif
 }
 
-void KERNEL_FUNCTION_FULL_NAME(filter_old_1)(KernelGlobals *kg,
-                                             float *denoise_data,
-                                             int x, int y,
-                                             int samples,
-                                             int halfWindow,
-                                             float bandwidthFactor,
-                                             float *storage,
-                                             int* prefilter_rect)
-{
-#ifdef KERNEL_STUB
-	STUB_ASSERT(KERNEL_ARCH, filter_old_1);
-#else
-	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
-	kernel_filter1_pixel(kg, denoise_data, x, y, samples, halfWindow, bandwidthFactor, storage, rect);
-#endif
-}
-
-void KERNEL_FUNCTION_FULL_NAME(filter_old_2)(KernelGlobals *kg,
-                                             float* buffer,
-                                             float *denoise_data,
-                                             int x, int y,
-                                             int offset, int stride,
-                                             int samples,
-                                             int halfWindow,
-                                             float bandwidthFactor,
-                                             float *storage,
-                                             int* prefilter_rect,
-                                             int* filter_area)
-{
-#ifdef KERNEL_STUB
-	STUB_ASSERT(KERNEL_ARCH, filter_old_2);
-#else
-	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
-	int4 area = make_int4(filter_area[0], filter_area[1], filter_area[2], filter_area[3]);
-	kernel_filter2_pixel(kg, buffer, denoise_data, x, y, offset, stride, samples, halfWindow, bandwidthFactor, storage, rect, area);
-#endif
-}
-
 #undef KERNEL_STUB
 #undef STUB_ASSERT
 #undef KERNEL_ARCH

@@ -141,10 +141,8 @@ public:
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, void*, int*)>                                      filter_estimate_wlr_params_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, float*, int*, int*)>      filter_final_pass_wlr_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, float*, int*, int*)>      filter_final_pass_nlm_kernel;
+	KernelFunctions<void(*)(KernelGlobals*, int, int, int, float*, int, int)>                                         filter_divide_combined_kernel;
 	KernelFunctions<void(*)(int, int, float**, float**, float**, float**, int*, int, int, float, float)>              filter_non_local_means_3_kernel;
-	KernelFunctions<void(*)(KernelGlobals*, float*, int, int, int, int, float, float*, int*)>                         filter_old_1_kernel;
-	KernelFunctions<void(*)(KernelGlobals*, float*, float*, int, int, int, int, int, int, float, float*, int*, int*)> filter_old_2_kernel;
-	KernelFunctions<void(*)(KernelGlobals*, int, int, int, float*, int, int)>                                          filter_divide_combined_kernel;
 
 #define KERNEL_FUNCTIONS(name) \
 	      KERNEL_NAME_EVAL(cpu, name), \
@@ -169,9 +167,7 @@ public:
 	  filter_final_pass_wlr_kernel(KERNEL_FUNCTIONS(filter_final_pass_wlr)),
 	  filter_final_pass_nlm_kernel(KERNEL_FUNCTIONS(filter_final_pass_nlm)),
 	  filter_divide_combined_kernel(KERNEL_FUNCTIONS(filter_divide_combined)),
-	  filter_non_local_means_3_kernel(KERNEL_FUNCTIONS(filter_non_local_means_3)),
-	  filter_old_1_kernel(KERNEL_FUNCTIONS(filter_old_1)),
-	  filter_old_2_kernel(KERNEL_FUNCTIONS(filter_old_2))
+	  filter_non_local_means_3_kernel(KERNEL_FUNCTIONS(filter_non_local_means_3))
 	{
 #ifdef WITH_OSL
 		kernel_globals.osl = &osl_globals;
@@ -448,7 +444,6 @@ public:
 
 	void denoise_run(KernelGlobals *kg, int sample, float *filter_buffer, int4 filter_area, int4 rect, int offset, int stride, float *buffers)
 	{
-		bool old_filter = getenv("OLD_FILTER");
 		bool only_nlm_filter = getenv("ONLY_NLM_FILTER");
 		bool use_gradients = kg->__data.integrator.use_gradients;
 		bool nlm_weights = kg->__data.integrator.use_nlm_weights;
@@ -460,37 +455,7 @@ public:
 		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
 		int pass_stride = w*h;
 
-		if(old_filter) {
-			for(int y = 0; y < filter_area.w; y++) {
-				for(int x = 0; x < filter_area.z; x++) {
-					filter_old_1_kernel()(kg, filter_buffer, x + filter_area.x, y + filter_area.y, sample, hw, 1.0f, ((float*) (storage + y*filter_area.z + x)), &rect.x);
-				}
-			}
-#ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_%s.pfm", filter_area.x, filter_area.y, name).c_str(), &storage[0].var, filter_area.z, filter_area.w, sizeof(FilterStorage)/sizeof(float), filter_area.z);
-			for(int i = 0; i < DENOISE_FEATURES; i++) {
-				WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
-				WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);
-				WRITE_DEBUG(string_printf("singular_%d", i).c_str(), singular[i]);
-				WRITE_DEBUG(string_printf("bandwidth_%d", i).c_str(), bandwidth[i]);
-			}
-			WRITE_DEBUG("singular_threshold", singular_threshold);
-			WRITE_DEBUG("feature_matrix_norm", feature_matrix_norm);
-			WRITE_DEBUG("global_bandwidth", global_bandwidth);
-#endif
-			for(int y = 0; y < filter_area.w; y++) {
-				for(int x = 0; x < filter_area.z; x++) {
-					filter_old_2_kernel()(kg, buffers, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, sample, hw, 1.0f, ((float*) (storage + y*filter_area.z + x)), &rect.x, &filter_area.x);
-				}
-			}
-#ifdef WITH_CYCLES_DEBUG_FILTER
-			WRITE_DEBUG("filtered_global_bandwidth", filtered_global_bandwidth);
-			WRITE_DEBUG("sum_weight", sum_weight);
-			WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
-#undef WRITE_DEBUG
-#endif
-		}
-		else if(only_nlm_filter) {
+		if(only_nlm_filter) {
 			float *img[3] = {filter_buffer + 16*pass_stride, filter_buffer + 18*pass_stride, filter_buffer + 20*pass_stride};
 			float *var[3] = {filter_buffer + 17*pass_stride, filter_buffer + 19*pass_stride, filter_buffer + 21*pass_stride};
 			float *out[3] = {filter_buffer +  0*pass_stride, filter_buffer +  1*pass_stride, filter_buffer +  2*pass_stride};
