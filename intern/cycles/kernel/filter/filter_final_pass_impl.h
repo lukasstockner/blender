@@ -214,9 +214,15 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 		} END_FOR_PIXEL_WINDOW
 	}
 	else {
-		float3 final_color = sample*solution[0];
+		float3 final_color = solution[0];
 #ifdef OUTPUT_RENDERBUFFER
 		float *combined_buffer = buffers + (offset + y*stride + x)*kernel_data.film.pass_stride;
+		final_color *= sample;
+		if(kernel_data.film.pass_no_denoising) {
+			final_color.x += combined_buffer[kernel_data.film.pass_no_denoising+0];
+			final_color.y += combined_buffer[kernel_data.film.pass_no_denoising+1];
+			final_color.z += combined_buffer[kernel_data.film.pass_no_denoising+2];
+		}
 		combined_buffer[0] = final_color.x;
 		combined_buffer[1] = final_color.y;
 		combined_buffer[2] = final_color.z;

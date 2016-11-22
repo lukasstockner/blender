@@ -110,9 +110,17 @@ CCL_NAMESPACE_BEGIN
 
 ccl_device void kernel_filter_divide_combined(KernelGlobals *kg, int x, int y, int sample, float *buffers, int offset, int stride)
 {
-	float4 *combined_buffer = (float4*) (buffers + (offset + y*stride + x)*kernel_data.film.pass_stride);
-	float fac = sample / combined_buffer->w;
-	*combined_buffer = *combined_buffer * fac;
+	float *combined_buffer = buffers + (offset + y*stride + x)*kernel_data.film.pass_stride;
+	float fac = sample / combined_buffer[3];
+	combined_buffer[0] *= fac;
+	combined_buffer[1] *= fac;
+	combined_buffer[2] *= fac;
+	combined_buffer[3] *= fac;
+	if(kernel_data.film.pass_no_denoising) {
+		combined_buffer[0] += combined_buffer[kernel_data.film.pass_no_denoising+0];
+		combined_buffer[1] += combined_buffer[kernel_data.film.pass_no_denoising+1];
+		combined_buffer[2] += combined_buffer[kernel_data.film.pass_no_denoising+2];
+	}
 }
 
 CCL_NAMESPACE_END
