@@ -1058,6 +1058,21 @@ ccl_device_inline int2 operator*(const int2 &a, const int2 &b)
 	return make_int2(a.x * b.x, a.y * b.y);
 }
 
+ccl_device_inline int2 operator*(const int2 &a, int b)
+{
+	return make_int2(a.x * b, a.y * b);
+}
+
+ccl_device_inline int2 operator*=(int2& a, const int2& b)
+{
+	return a = a * b;
+}
+
+ccl_device_inline int2 operator*=(int2& a, const int& b)
+{
+	return a = a * b;
+}
+
 ccl_device_inline int2 operator/(const int2 &a, const int2 &b)
 {
 	return make_int2(a.x / b.x, a.y / b.y);

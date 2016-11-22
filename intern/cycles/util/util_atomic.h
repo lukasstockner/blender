@@ -32,6 +32,8 @@ ATOMIC_INLINE void atomic_update_max_z(size_t *maximum_value, size_t value)
 	}
 }
 
+#define atomic_add_and_fetch_float(p, x) atomic_add_and_fetch_fl((p), (x))
+
 #else  /* __KERNEL_GPU__ */
 
 #ifdef __KERNEL_OPENCL__
@@ -59,6 +61,12 @@ ccl_device_inline void atomic_add_and_fetch_float(volatile ccl_global float *sou
 }
 
 #endif  /* __KERNEL_OPENCL__ */
+
+#ifdef __KERNEL_CUDA__
+
+#define atomic_add_and_fetch_float(p, x) atomicAdd((p), (x))
+
+#endif  /* __KERNEL_CUDA__ */
 
 #endif  /* __KERNEL_GPU__ */
 

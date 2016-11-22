@@ -209,6 +209,10 @@ set(SRC_SPLIT_HEADERS
 	split/kernel_sum_all_radiance.h
 )
 
+set(SRC_FILTER_HEADERS
+	filter/filter_final_pass_impl.h
+)
+
 # CUDA module
 
 if(WITH_CYCLES_CUDA_BINARIES)
@@ -346,6 +350,7 @@ add_library(cycles_kernel
 	${SRC_SVM_HEADERS}
 	${SRC_GEOM_HEADERS}
 	${SRC_SPLIT_HEADERS}
+	${SRC_FILTER_HEADERS}
 )
 
 if(WITH_CYCLES_CUDA)
@@ -382,4 +387,5 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_SVM_HEADERS}" ${CYCLES_INSTAL
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_GEOM_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/geom)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_UTIL_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_SPLIT_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/split)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_FILTER_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/filter)
 

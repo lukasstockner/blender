@@ -320,7 +320,8 @@ kernel_cuda_filter_final_pass_wlr(int sample, float* buffer, int offset, int str
 	if(x < filter_area.z && y < filter_area.w) {
 		CUDAFilterStorage *l_storage = ((CUDAFilterStorage*) storage) + y*filter_area.z + x;
 		float const* __restrict__ l_transform = transform + y*filter_area.z + x;
-		kernel_filter_final_pass_wlr(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, l_transform, l_storage, filter_area, rect, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x);
+		float weight_cache[CUDA_WEIGHT_CACHE_SIZE];
+		kernel_filter_final_pass_wlr(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, 0, make_int2(0, 0), l_storage, weight_cache, l_transform, filter_area.z*filter_area.w, filter_area, rect);
 	}
 }
 
@@ -333,12 +334,13 @@ kernel_cuda_filter_final_pass_nlm(int sample, float* buffer, int offset, int str
 	if(x < filter_area.z && y < filter_area.w) {
 		CUDAFilterStorage *l_storage = ((CUDAFilterStorage*) storage) + y*filter_area.z + x;
 		float const* __restrict__ l_transform = transform + y*filter_area.z + x;
+		float weight_cache[CUDA_WEIGHT_CACHE_SIZE];
 		if(kernel_data.film.denoise_cross) {
-			kernel_filter_final_pass_nlm(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, l_transform, l_storage, filter_area, rect, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x, 0, 6);
-			kernel_filter_final_pass_nlm(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, l_transform, l_storage, filter_area, rect, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x, 6, 0);
+			kernel_filter_final_pass_nlm(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, 0, make_int2(0, 6), l_storage, weight_cache, l_transform, filter_area.z*filter_area.w, filter_area, rect);
+			kernel_filter_final_pass_nlm(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, 0, make_int2(6, 0), l_storage, weight_cache, l_transform, filter_area.z*filter_area.w, filter_area, rect);
 		}
 		else {
-			kernel_filter_final_pass_nlm(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, l_transform, l_storage, filter_area, rect, filter_area.z*filter_area.w, threadIdx.y*blockDim.x + threadIdx.x, 0, 0);
+			kernel_filter_final_pass_nlm(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, 0, make_int2(0, 0), l_storage, weight_cache, l_transform, filter_area.z*filter_area.w, filter_area, rect);
 		}
 	}
 }

@@ -26,9 +26,9 @@ CCL_NAMESPACE_BEGIN
 #ifdef DENOISE_TEMPORAL
 #define FOR_PIXEL_WINDOW     pixel_buffer = buffer + (low.y - rect.y)*buffer_w + (low.x - rect.x); \
                              for(int t = 0, cache_idx = 0; t < num_frames; t++) { \
-                                 int pt = (t == 0)? 0: ((t <= prev_frames)? (t-prev_frames-1): (t - prev_frames)); \
-	                             for(int py = low.y; py < high.y; py++) { \
-	                                 for(int px = low.x; px < high.x; px++, pixel_buffer++, cache_idx++) {
+                                 pixel.z = (t == 0)? 0: ((t <= prev_frames)? (t-prev_frames-1): (t - prev_frames)); \
+	                             for(pixel.y = low.y; pixel.y < high.y; pixel.y++) { \
+	                                 for(pixel.x = low.x; pixel.x < high.x; pixel.x++, pixel_buffer++, cache_idx++) {
 
 #define END_FOR_PIXEL_WINDOW         } \
                                      pixel_buffer += buffer_w - (high.x - low.x); \
@@ -37,21 +37,21 @@ CCL_NAMESPACE_BEGIN
                              }
 #else
 #define FOR_PIXEL_WINDOW     pixel_buffer = buffer + (low.y - rect.y)*buffer_w + (low.x - rect.x); \
-                             for(int py = low.y, cache_idx = 0; py < high.y; py++) { \
-                                 for(int px = low.x; px < high.x; px++, pixel_buffer++, cache_idx++) {
+                             for(pixel.y = low.y, cache_idx = 0; pixel.y < high.y; pixel.y++) { \
+                                 for(pixel.x = low.x; pixel.x < high.x; pixel.x++, pixel_buffer++, cache_idx++) {
 
 #define END_FOR_PIXEL_WINDOW     } \
                                  pixel_buffer += buffer_w - (high.x - low.x); \
                              }
 #endif
 
-ccl_device_inline void filter_get_features(int x, int y, int t, float ccl_readonly_ptr buffer, float *features, float *mean, int pass_stride)
+ccl_device_inline void filter_get_features(int3 pixel, float ccl_readonly_ptr buffer, float *features, float *mean, int pass_stride)
 {
 	float *feature = features;
-	*(feature++) = x;
-	*(feature++) = y;
+	*(feature++) = pixel.x;
+	*(feature++) = pixel.y;
 #ifdef DENOISE_TEMPORAL
-	*(feature++) = t;
+	*(feature++) = pixel.z;
 #endif
 	*(feature++) = ccl_get_feature(6);
 	*(feature++) = ccl_get_feature(0);
@@ -72,7 +72,7 @@ ccl_device_inline void filter_get_features(int x, int y, int t, float ccl_readon
 #endif
 }
 
-ccl_device_inline void filter_get_feature_variance(int x, int y, float ccl_readonly_ptr buffer, float *features, float *scale, int pass_stride)
+ccl_device_inline void filter_get_feature_variance(float ccl_readonly_ptr buffer, float *features, float *scale, int pass_stride)
 {
 	float *feature = features;
 	*(feature++) = 0.0f;
@@ -97,12 +97,12 @@ ccl_device_inline void filter_get_feature_variance(int x, int y, float ccl_reado
 		features[i] *= scale[i]*scale[i];
 }
 
-ccl_device_inline void filter_get_feature_scales(int x, int y, int t, float ccl_readonly_ptr buffer, float *scales, float *mean, int pass_stride)
+ccl_device_inline void filter_get_feature_scales(int3 pixel, float ccl_readonly_ptr buffer, float *scales, float *mean, int pass_stride)
 {
-	*(scales++) = fabsf(x - *(mean++)); //X
-	*(scales++) = fabsf(y - *(mean++)); //Y
+	*(scales++) = fabsf(pixel.x - *(mean++)); //X
+	*(scales++) = fabsf(pixel.y - *(mean++)); //Y
 #ifdef DENOISE_TEMPORAL
-	*(scales++) = fabsf(t - *(mean++)); //T
+	*(scales++) = fabsf(pixel.z - *(mean++)); //T
 #endif
 
 	*(scales++) = fabsf(ccl_get_feature(6) - *(mean++)); //Depth
@@ -160,61 +160,6 @@ ccl_device_inline float filter_get_pixel_variance(float ccl_readonly_ptr buffer,
 	return average(make_float3(ccl_get_feature(17), ccl_get_feature(19), ccl_get_feature(21)));
 }
 
-/* Fill design row and compute WLR weight.
- * Doing both at the same time allows for a nice early-out as soon as the weight is zero. */
-ccl_device_inline float filter_fill_design_row(float *features, int rank, float *design_row, float *feature_transform, float *bandwidth_factor)
-{
-	design_row[0] = 1.0f;
-	float weight = 1.0f;
-	for(int d = 0; d < rank; d++) {
-		float x = math_dot(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
-		float x2 = x*bandwidth_factor[d];
-		x2 *= x2;
-		if(x2 < 1.0f) {
-			/* Pixels are weighted by Epanechnikov kernels. */
-			weight *= 0.75f * (1.0f - x2);
-		}
-		else {
-			weight = 0.0f;
-			break;
-		}
-		design_row[1+d] = x;
-	}
-	return weight;
-}
-
-/* Fill design row for the quadratic fit and compute WLR weight.
- * Doing both at the same time allows for a nice early-out as soon as the weight is zero. */
-ccl_device_inline float filter_fill_design_row_quadratic(float *features, int rank, float *design_row, float *feature_transform)
-{
-	design_row[0] = 1.0f;
-	float weight = 1.0f;
-	for(int d = 0; d < rank; d++) {
-		float x = math_dot(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
-		float x2 = x*x;
-		if(x2 < 1.0f) {
-			/* Pixels are weighted by Epanechnikov kernels. */
-			weight *= 0.75f * (1.0f - x2);
-		}
-		else {
-			weight = 0.0f;
-			break;
-		}
-		design_row[1+d] = x;
-		design_row[1+rank+d] = x*x;
-	}
-	return weight;
-}
-
-/* Fill the design row without computing the weight. */
-ccl_device_inline void filter_fill_design_row_no_weight(float *features, int rank, float *design_row, float *feature_transform)
-{
-	design_row[0] = 1.0f;
-	for(int d = 0; d < rank; d++) {
-		design_row[1+d] = math_dot(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
-	}
-}
-
 ccl_device_inline bool filter_firefly_rejection(float3 pixel_color, float pixel_variance, float3 center_color, float sqrt_center_variance)
 {
 	float color_diff = average(fabs(pixel_color - center_color));
@@ -235,29 +180,27 @@ ccl_device_inline bool filter_firefly_rejection(float3 pixel_color, float pixel_
 #define FOR_PIXEL_WINDOW_SSE pixel_buffer = buffer + (low.y - rect.y)*buffer_w + (low.x - rect.x); \
                              for(int t = 0; t < num_frames; t++) { \
                                  __m128 t4 = _mm_set1_ps((t == 0)? 0: ((t <= prev_frames)? (t-prev_frames-1): (t - prev_frames))); \
-                                 for(int py = low.y; py < high.y; py++) { \
-                                     __m128 y4 = _mm_set1_ps(py); \
-                                     int px; \
-                                     for(px = low.x; px < high.x; px += 4, pixel_buffer += 4) { \
-                                         __m128 x4 = _mm_add_ps(_mm_set1_ps(px), _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f)); \
+                                 for(pixel.y = low.y; pixel.y < high.y; pixel.y++) { \
+                                     __m128 y4 = _mm_set1_ps(pixel.y); \
+                                     for(pixel.x = low.x; pixel.x < high.x; pixel.x += 4, pixel_buffer += 4) { \
+                                         __m128 x4 = _mm_add_ps(_mm_set1_ps(pixel.x), _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f)); \
                                          __m128 active_pixels = _mm_cmplt_ps(x4, _mm_set1_ps(high.x));
 
 #define END_FOR_PIXEL_WINDOW_SSE     } \
-                                     pixel_buffer += buffer_w - (px - low.x); \
+                                     pixel_buffer += buffer_w - (pixel.x - low.x); \
                                  } \
                                  pixel_buffer += buffer_w * (buffer_h - (high.y - low.y)); \
                              }
 #else
 #define FOR_PIXEL_WINDOW_SSE     pixel_buffer = buffer + (low.y - rect.y)*buffer_w + (low.x - rect.x); \
-                                 for(int py = low.y; py < high.y; py++) { \
-                                     __m128 y4 = _mm_set1_ps(py); \
-                                     int px; \
-                                     for(px = low.x; px < high.x; px += 4, pixel_buffer += 4) { \
-                                         __m128 x4 = _mm_add_ps(_mm_set1_ps(px), _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f)); \
+                                 for(pixel.y = low.y; pixel.y < high.y; pixel.y++) { \
+                                     __m128 y4 = _mm_set1_ps(pixel.y); \
+                                     for(pixel.x = low.x; pixel.x < high.x; pixel.x += 4, pixel_buffer += 4) { \
+                                         __m128 x4 = _mm_add_ps(_mm_set1_ps(pixel.x), _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f)); \
                                          __m128 active_pixels = _mm_cmplt_ps(x4, _mm_set1_ps(high.x));
 
 #define END_FOR_PIXEL_WINDOW_SSE     } \
-                                     pixel_buffer += buffer_w - (px - low.x); \
+                                     pixel_buffer += buffer_w - (pixel.x - low.x); \
                                  }
 #endif
 
@@ -430,14 +373,21 @@ ccl_device_inline __m128 filter_firefly_rejection_sse(__m128 *pixel_color, __m12
 }
 #endif
 
-#ifdef __KERNEL_CUDA__
-ccl_device_inline float filter_fill_design_row_cuda(float *features, int rank, float *design_row, float ccl_readonly_ptr feature_transform, int transform_stride, float *bandwidth_factor)
+/* Fill design row and compute WLR weight.
+ * Doing both at the same time allows for a nice early-out as soon as the weight is zero. */
+ccl_device_inline float filter_get_design_row_transform_weight(int3 pixel, float ccl_readonly_ptr buffer, float *feature_means, int pass_stride, float *features, int rank, float *design_row, float ccl_readonly_ptr feature_transform, int transform_stride, float *bandwidth_factor)
 {
+	filter_get_features(pixel, buffer, features, feature_means, pass_stride);
 	design_row[0] = 1.0f;
 	float weight = 1.0f;
 	for(int d = 0; d < rank; d++) {
+#ifdef __KERNEL_CUDA__
 		float x = math_dot_cuda(features, feature_transform + d*DENOISE_FEATURES*transform_stride, transform_stride, DENOISE_FEATURES);
-		float x2 = x*bandwidth_factor[d];
+#else
+		float x = math_dot(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
+#endif
+		float x2 = x;
+		if(bandwidth_factor) x2 *= bandwidth_factor[d];
 		x2 *= x2;
 		if(x2 < 1.0f) {
 			/* Pixels are weighted by Epanechnikov kernels. */
@@ -452,35 +402,35 @@ ccl_device_inline float filter_fill_design_row_cuda(float *features, int rank, f
 	return weight;
 }
 
-ccl_device_inline float filter_fill_design_row_quadratic_cuda(float *features, int rank, float *design_row, float ccl_readonly_ptr feature_transform, int transform_stride)
+/* Fill design row with the quadratic elements. */
+ccl_device_inline void filter_extend_design_row_quadratic(int rank, float *design_row)
 {
-	design_row[0] = 1.0f;
-	float weight = 1.0f;
 	for(int d = 0; d < rank; d++) {
-		float x = math_dot_cuda(features, feature_transform + d*DENOISE_FEATURES*transform_stride, transform_stride, DENOISE_FEATURES);
-		float x2 = x*x;
-		if(x2 < 1.0f) {
-			/* Pixels are weighted by Epanechnikov kernels. */
-			weight *= 0.75f * (1.0f - x2);
-		}
-		else {
-			weight = 0.0f;
-			break;
-		}
-		design_row[1+d] = x;
-		design_row[1+rank+d] = x2;
+		design_row[1+rank+d] = design_row[1+d]*design_row[1+d];
 	}
-	return weight;
 }
 
-ccl_device_inline void filter_fill_design_row_no_weight_cuda(float *features, int rank, float *design_row, float ccl_readonly_ptr feature_transform, int transform_stride)
+/* Fill the design row without computing the weight. */
+ccl_device_inline void filter_get_design_row_transform(int3 pixel, float ccl_readonly_ptr buffer, float *feature_means, int pass_stride, float *features, int rank, float *design_row, float ccl_readonly_ptr feature_transform, int transform_stride)
 {
+	filter_get_features(pixel, buffer, features, feature_means, pass_stride);
 	design_row[0] = 1.0f;
 	for(int d = 0; d < rank; d++) {
+#ifdef __KERNEL_CUDA__
 		float x = math_dot_cuda(features, feature_transform + d*DENOISE_FEATURES*transform_stride, transform_stride, DENOISE_FEATURES);
+#else
+		float x = math_dot(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
+#endif
 		design_row[1+d] = x;
 	}
 }
-#endif
+
+ccl_device_inline void filter_get_design_row(int3 pixel, float ccl_readonly_ptr buffer, float *feature_means, float *feature_scales, int pass_stride, float *design_row)
+{
+	design_row[0] = 1.0f;
+	filter_get_features(pixel, buffer, design_row+1, feature_means, pass_stride);
+	for(int d = 0; d < DENOISE_FEATURES; d++)
+		design_row[d+1] *= feature_scales[d];
+}
 
 CCL_NAMESPACE_END

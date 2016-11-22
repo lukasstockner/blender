@@ -130,6 +130,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_final_pass_wlr)(KernelGlobals *kg,
                                                   int stride,
                                                   float* buffers,
                                                   void *storage,
+                                                  float* weight_cache,
                                                   int* filter_area,
                                                   int* rect);
 

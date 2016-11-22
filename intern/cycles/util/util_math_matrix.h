@@ -174,7 +174,7 @@ ccl_device_inline void math_lower_tri_to_full(float *A, int n)
 			MAT(A, n, row, col) = MAT(A, n, col, row);
 }
 
-ccl_device_inline float math_dot(float *a, float *b, int n)
+ccl_device_inline float math_dot(float ccl_readonly_ptr a, float ccl_readonly_ptr b, int n)
 {
 	float d = 0.0f;
 	for(int i = 0; i < n; i++)
@@ -182,7 +182,7 @@ ccl_device_inline float math_dot(float *a, float *b, int n)
 	return d;
 }
 
-ccl_device_inline float3 math_dot_vec3(float *a, float3 *b, int n)
+ccl_device_inline float3 math_dot_vec3(float ccl_readonly_ptr a, float3 ccl_readonly_ptr b, int n)
 {
 	float3 d = make_float3(0.0f, 0.0f, 0.0f);
 	for(int i = 0; i < n; i++)
@@ -191,7 +191,7 @@ ccl_device_inline float3 math_dot_vec3(float *a, float3 *b, int n)
 }
 
 #ifdef __KERNEL_CUDA__
-ccl_device_inline float math_dot_cuda(float *a, float const* __restrict__ b, int bstride, int n)
+ccl_device_inline float math_dot_cuda(float ccl_readonly_ptr a, float ccl_readonly_ptr b, int bstride, int n)
 {
 	float d = 0.0f;
 	for(int i = 0; i < n; i++)

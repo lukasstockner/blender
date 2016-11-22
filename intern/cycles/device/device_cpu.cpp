@@ -139,7 +139,7 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                                  filter_combine_halves_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, void*, int*)>                                      filter_construct_transform_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, void*, int*)>                                      filter_estimate_wlr_params_kernel;
-	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, int*, int*)>              filter_final_pass_wlr_kernel;
+	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, float*, int*, int*)>      filter_final_pass_wlr_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, float*, int*, int*)>      filter_final_pass_nlm_kernel;
 	KernelFunctions<void(*)(int, int, float**, float**, float**, float**, int*, int, int, float, float)>              filter_non_local_means_3_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, float*, int, int, int, int, float, float*, int*)>                         filter_old_1_kernel;
@@ -453,8 +453,9 @@ public:
 		bool use_gradients = kg->__data.integrator.use_gradients;
 		bool nlm_weights = kg->__data.integrator.use_nlm_weights;
 
-		FilterStorage *storage = new FilterStorage[filter_area.z*filter_area.w];
 		int hw = kg->__data.integrator.half_window;
+		FilterStorage *storage = new FilterStorage[filter_area.z*filter_area.w];
+		float *weight_cache = new float[(2*hw+1)*(2*hw+1)];
 
 		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
 		int pass_stride = w*h;
@@ -511,14 +512,12 @@ public:
 			}
 		}
 		else if(nlm_weights) {
-			float *weight_cache = new float[(2*hw+1)*(2*hw+1)];
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
 					filter_construct_transform_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);
 					filter_final_pass_nlm_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storage + y*filter_area.z + x, weight_cache, &filter_area.x, &rect.x);
 				}
 			}
-			delete[] weight_cache;
 		}
 		else {
 			for(int y = 0; y < filter_area.w; y++) {
@@ -541,7 +540,7 @@ public:
 #endif
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
-					filter_final_pass_wlr_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storage + y*filter_area.z + x, &filter_area.x, &rect.x);
+					filter_final_pass_wlr_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storage + y*filter_area.z + x, weight_cache, &filter_area.x, &rect.x);
 				}
 			}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -561,6 +560,7 @@ public:
 		}
 
 		delete[] storage;
+		delete[] weight_cache;
 	}
 
 	void thread_render(DeviceTask& task)
