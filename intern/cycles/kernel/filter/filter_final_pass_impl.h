@@ -82,8 +82,10 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 	 * S = inv(Xt*W*X)*Xt*W*y */
 
 	float XtWX[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)], design_row[DENOISE_FEATURES+1];
+	float3 solution[(DENOISE_FEATURES+1)];
 
 	math_matrix_zero(XtWX, matrix_size);
+	math_vec3_zero(solution, matrix_size);
 	/* Construct Xt*W*X matrix (and fill weight cache, if used). */
 	FOR_PIXEL_WINDOW {
 		float3 color = filter_get_pixel_color(pixel_buffer + color_passes.x, pass_stride);
@@ -118,82 +120,20 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 		weight_cache[cache_idx] = weight;
 
 		math_add_gramian(XtWX, matrix_size, design_row, weight);
+		math_add_vec3(solution, matrix_size, design_row, weight * color);
 	} END_FOR_PIXEL_WINDOW
 
-	/* Invert Xt*W*X. Since it is symmetric and semi-positive-definite by construction, this can be done fairly efficiently.
-	 * Step 1: Apply cholesky decomposition: Find L so that L*Lt = Xt*W*X */
+	/* Solve S = inv(Xt*W*X)*Xt*W*y.
+	 * Instead of explicitly inverting Xt*W*X, we rearrange to:
+	 * (Xt*W*X)*S = Wt*W*y
+	 * Xt*W*X is per definition symmetric positive-semidefinite, so we can apply Cholesky decomposition to find a lower triangular L so that L*Lt = Xt*W*X.
+	 * With, that we get (L*Lt)*S = L*(Lt*S) = L*b = Wt*W*y.
+	 * Since L is lower triangular, finding b (=Lt*S) is relatively easy.
+	 * Then, the remaining problem is Lt*S = b, which also can be solved easily. */
 	math_matrix_add_diagonal(XtWX, matrix_size, 1e-4f); /* Improve the numerical stability. */
-	math_cholesky(XtWX, matrix_size);
-	/* Step 2: Invert L in-place, replacing it with inv(L)t. */
-	math_inverse_lower_tri_inplace(XtWX, matrix_size);
-	for(int row = 0; row < matrix_size; row++)
-		for(int col = 0; col < row; col++)
-			XtWX[row*matrix_size+col] = 0.0f;
-
-	/* Step 3: Find inv(Xt*W*X) = inv(L*Lt) = inv(Lt)*inv(L) = inv(L)t*inv(L).
-	 * If the gradient of the solution isn't used, only the first row is filled. */
-	int solution_size = kernel_data.integrator.use_gradients? matrix_size : 1;
-	float XtWXinv[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)];
-	if(kernel_data.integrator.use_gradients)
-		math_matrix_zero(XtWXinv, matrix_size);
-	else
-		math_vector_zero(XtWXinv, matrix_size);
-	for(int i = 0; i < solution_size; i++)
-		for(int col = 0; col < matrix_size; col++)
-			for(int row = 0; row < matrix_size; row++)
-				XtWXinv[i*matrix_size+col] += XtWX[i*matrix_size+row]*XtWX[col*matrix_size+row];
-
-	/* Compute the full solution vector (if the gradient is used) or its first element (otherwise). */
-	float3 solution[DENOISE_FEATURES+1];
-	math_vec3_zero(solution, solution_size);
-	FOR_PIXEL_WINDOW {
-		float weight;
-		float3 color;
-		/* If we're using CPU weight caching, the weight is always cached - read it, check early-out and fill design row.
-		 * If we're using GPU weight caching, the weight might be cached - if yes, same as above, otherwise recalculate it.
-		 * If we're not using weight caching, always recalculate it. */
-#if defined(WEIGHTING_CACHING_CPU) || defined(WEIGHTING_CACHING_CUDA)
-#  ifdef WEIGHTING_CACHING_CUDA
-		if(cache_idx < CUDA_WEIGHT_CACHE_SIZE)
-#  endif
-		{
-			weight = weight_cache[cache_idx];
-			if(weight == 0.0f) continue;
-			color = filter_get_pixel_color(pixel_buffer + color_passes.x, pass_stride);
-#  ifdef WEIGHTING_NFOR
-			filter_get_design_row(pixel, pixel_buffer, feature_means, feature_scales, pass_stride, design_row);
-#  else
-			filter_get_design_row_transform(pixel, pixel_buffer, feature_means, pass_stride, features, rank, design_row, transform, transform_stride);
-#  endif
-		}
-#  ifdef WEIGHTING_CACHING_CUDA
-		else
-#  endif
-#endif
-#ifndef WEIGHTING_CACHING_CPU
-		{
-			color = filter_get_pixel_color(pixel_buffer + color_passes.x, pass_stride);
-			float variance = filter_get_pixel_variance(pixel_buffer + color_passes.x, pass_stride);
-			if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
-#  ifdef WEIGHTING_WLR
-			weight = filter_get_design_row_transform_weight(pixel, pixel_buffer, feature_means, pass_stride, features, rank, design_row, transform, transform_stride, bandwidth_factor);
-#  elif defined(WEIGHTING_NLM)
-			filter_get_design_row_transform(pixel, pixel_buffer, feature_means, pass_stride, features, rank, design_row, transform, transform_stride);
-			weight = nlm_weight(x, y, pixel.x, pixel.y, center_buffer + color_passes.y, pixel_buffer + color_passes.y, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
-#  else /* WEIGHTING_NFOR */
-			filter_get_design_row(pixel, pixel_buffer, feature_means, feature_scales, pass_stride, design_row);
-			weight = nlm_weight(x, y, pixel.x, pixel.y, center_buffer + color_passes.y, pixel_buffer + color_passes.y, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
-#  endif
-			if(weight == 0.0f) continue;
-			weight /= max(1.0f, variance);
-		}
-#endif
-
-		for(int i = 0; i < solution_size; i++) {
-			float XtWXinvXt = math_dot(XtWXinv + i*matrix_size, design_row, matrix_size);
-			solution[i] += XtWXinvXt*weight*color;
-		}
-	} END_FOR_PIXEL_WINDOW
+	math_cholesky(XtWX, matrix_size); /* Find L so that L*Lt = Xt*W*X. */
+	math_substitute_forward_vec3(XtWX, matrix_size, solution); /* Solve L*b = X^T*y, replacing X^T*y by b. */
+	math_substitute_back_vec3(XtWX, matrix_size, solution); /* Solve L^T*S = b, replacing b by S. */
 
 	if(kernel_data.integrator.use_gradients) {
 		FOR_PIXEL_WINDOW {
