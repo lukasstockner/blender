@@ -282,6 +282,13 @@ bool system_cpu_support_avx2()
 
 #endif
 
+void system_enable_ftz()
+{
+#ifdef _MSC_VER
+	_controlfp(_DN_FLUSH, _MCW_DN);
+#endif
+}
+
 #ifdef WITH_CYCLES_DEBUG_FPE
 static void system_enable_fpe()
 {

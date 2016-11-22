@@ -38,6 +38,8 @@ bool system_cpu_support_sse41();
 bool system_cpu_support_avx();
 bool system_cpu_support_avx2();
 
+void system_enable_ftz();
+
 #ifdef WITH_CYCLES_DEBUG_FPE
 typedef enum FPEState
 {
