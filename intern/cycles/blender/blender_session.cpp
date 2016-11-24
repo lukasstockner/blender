@@ -1397,10 +1397,15 @@ void BlenderSession::denoise(BL::RenderResult& b_rr)
 		BL::RenderSettings::layers_iterator b_s_layer_iter;
 		int half_window = -1;
 		float filter_strength = 0.0f;
+		float weight_adjust = 0.0f;
+		bool filter_nlm, filter_gradient;
 		for(r.layers.begin(b_s_layer_iter); b_s_layer_iter != r.layers.end(); ++b_s_layer_iter) {
 			if(b_s_layer_iter->name() == b_layer_iter->name()) {
 				half_window = b_s_layer_iter->half_window();
 				filter_strength = b_s_layer_iter->filter_strength();
+				weight_adjust = b_s_layer_iter->filter_weighting_adjust();
+				filter_nlm = b_s_layer_iter->filter_use_nlm_weights();
+				filter_gradient = b_s_layer_iter->filter_gradients();
 				break;
 			}
 		}
@@ -1409,6 +1414,10 @@ void BlenderSession::denoise(BL::RenderResult& b_rr)
 		session->params.half_window = half_window;
 		session->params.samples = get_int(cscene, "samples");
 		session->params.filter_strength = powf(2.0f, filter_strength);
+		session->params.filter_weight_adjust = powf(2.0f, weight_adjust);
+		session->params.filter_gradient = filter_gradient;
+		session->params.filter_nlm = filter_nlm;
+		if(filter_nlm) session->params.filter_weight_adjust /= 2.0f;
 
 		session->buffers = BlenderSync::get_render_buffer(session->device, *b_layer_iter, b_rr, session->params.samples);
 

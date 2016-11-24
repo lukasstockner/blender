@@ -65,6 +65,9 @@ public:
 	bool only_denoise;
 	int half_window;
 	float filter_strength;
+	float filter_weight_adjust;
+	bool filter_nlm;
+	bool filter_gradient;
 	int prev_frames;
 
 	double cancel_timeout;
@@ -97,6 +100,9 @@ public:
 		only_denoise = false;
 		half_window = 8;
 		filter_strength = 1.0f;
+		filter_weight_adjust = 1.0f;
+		filter_nlm = false;
+		filter_gradient = false;
 		prev_frames = 0;
 
 		cancel_timeout = 0.1;
@@ -125,6 +131,9 @@ public:
 		&& only_denoise == params.only_denoise
 		&& half_window == params.half_window
 		&& filter_strength == params.filter_strength
+		&& filter_weight_adjust == params.filter_weight_adjust
+		&& filter_nlm == params.filter_nlm
+		&& filter_gradient == params.filter_gradient
 		&& prev_frames == params.prev_frames
 		&& display_buffer_linear == params.display_buffer_linear
 		&& cancel_timeout == params.cancel_timeout
