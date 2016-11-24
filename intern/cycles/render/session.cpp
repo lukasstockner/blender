@@ -459,6 +459,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	rtile.buffer = tile->buffers->buffer.device_pointer;
 	rtile.rng_state = tile->buffers->rng_state.device_pointer;
 	rtile.buffers = tile->buffers;
+	rtile.sample = 0;
 
 	/* this will tag tile as IN PROGRESS in blender-side render pipeline,
 	 * which is needed to highlight currently rendering tile before first
