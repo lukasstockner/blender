@@ -3759,6 +3759,8 @@ static int postprocess_exec(bContext *C, wmOperator *UNUSED(op))
 	RenderResult *rr = BKE_image_acquire_renderresult(scene, ima);
 	Render *re = RE_NewRender(scene->id.name);
 
+	G.is_break = false;
+
 	RE_engine_postprocess(scene, re, rr);
 
 	BKE_image_release_renderresult(scene, ima);
@@ -4074,6 +4076,7 @@ static int postprocess_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	RE_progress_cb(re, job, postprocess_progress_update);
 
 	op->customdata = rr;
+	G.is_break = false;
 
 	WM_jobs_start(CTX_wm_manager(C), wm_job);
 
