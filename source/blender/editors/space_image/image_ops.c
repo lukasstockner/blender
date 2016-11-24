@@ -4049,7 +4049,7 @@ static int postprocess_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	RenderResult *rr = BKE_image_acquire_renderresult(scene, ima);
 	Render *re = RE_NewRender(scene->id.name);
 
-	if (WM_jobs_test(CTX_wm_manager(C), rr, WM_JOB_TYPE_POSTPROCESS))
+	if (WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_POSTPROCESS))
 		return OPERATOR_CANCELLED;
 
 	WM_jobs_kill_all_except(CTX_wm_manager(C), CTX_wm_screen(C));
@@ -4065,7 +4065,7 @@ static int postprocess_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	job->last_layer = 0;
 	job->sa = render_view_open(C, event->x, event->y, op->reports);
 
-	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), rr, "Postprocess", WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS, WM_JOB_TYPE_POSTPROCESS);
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Postprocess", WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS, WM_JOB_TYPE_POSTPROCESS);
 	WM_jobs_customdata_set(wm_job, job, postprocess_freejob);
 	WM_jobs_timer(wm_job, 0.2, NC_SCENE | ND_RENDER_RESULT, 0);
 	WM_jobs_callbacks(wm_job, postprocess_startjob, NULL, NULL, postprocess_endjob);
@@ -4075,7 +4075,7 @@ static int postprocess_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	RE_display_update_cb(re, job, postprocess_image_rect_update);
 	RE_progress_cb(re, job, postprocess_progress_update);
 
-	op->customdata = rr;
+	op->customdata = scene;
 	G.is_break = false;
 
 	WM_jobs_start(CTX_wm_manager(C), wm_job);
@@ -4088,9 +4088,9 @@ static int postprocess_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 }
 
 static int postprocess_modal(bContext *C, wmOperator *op, const wmEvent *event) {
-	RenderResult *rr = (RenderResult*) op->customdata;
+	Scene *scene = (Scene*) op->customdata;
 
-	if (0 == WM_jobs_test(CTX_wm_manager(C), rr, WM_JOB_TYPE_POSTPROCESS)) {
+	if (0 == WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_POSTPROCESS)) {
 		return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
 	}
 
@@ -4104,9 +4104,9 @@ static int postprocess_modal(bContext *C, wmOperator *op, const wmEvent *event) 
 static void postprocess_cancel(bContext *C, wmOperator *op)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
-	RenderResult *rr = (RenderResult*) op->customdata;
+	Scene *scene = (Scene*) op->customdata;
 
-	WM_jobs_kill_type(wm, rr, WM_JOB_TYPE_POSTPROCESS);
+	WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_POSTPROCESS);
 }
 
 void IMAGE_OT_postprocess(wmOperatorType *ot)
