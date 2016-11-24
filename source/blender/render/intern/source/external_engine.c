@@ -604,15 +604,9 @@ void RE_engine_postprocess(Scene *scene, Render *re, RenderResult *rr)
 	RenderEngine *engine = RE_engine_create(type);
 
 	engine->re = re;
-	engine->re->result = rr;
-	engine->re->r = scene->r;
-	engine->re->rectx = rr->rectx;
-	engine->re->recty = rr->recty;
-	engine->re->disprect.xmin = 0;
-	engine->re->disprect.xmin = 0;
-	engine->re->disprect.xmax = rr->rectx;
-	engine->re->disprect.xmax = rr->recty;
 	RE_parts_init(engine->re, false);
+
+	RE_InitState(engine->re, NULL, &scene->r, NULL, rr, rr->rectx, rr->recty, NULL);
 	engine->tile_x = engine->re->partx;
 	engine->tile_y = engine->re->party;
 

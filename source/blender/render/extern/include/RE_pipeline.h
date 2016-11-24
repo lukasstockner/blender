@@ -244,7 +244,7 @@ struct RenderPass *RE_create_gp_pass(struct RenderResult *rr, const char *layern
 
 /* obligatory initialize call, disprect is optional */
 void RE_InitState(struct Render *re, struct Render *source, struct RenderData *rd,
-                  struct SceneRenderLayer *srl,
+                  struct SceneRenderLayer *srl, struct RenderResult *rr,
                   int winx, int winy, rcti *disprect);
 void RE_ChangeResolution(struct Render *re, int winx, int winy, rcti *disprect);
 void RE_ChangeModeFlag(struct Render *re, int flag, bool clear);
