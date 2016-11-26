@@ -502,6 +502,10 @@ bool TileManager::next()
 
 int TileManager::get_num_effective_samples()
 {
+	if(only_denoise) {
+		return 1;
+	}
+
 	return (range_num_samples == -1) ? num_samples
 	                                 : range_num_samples;
 }
