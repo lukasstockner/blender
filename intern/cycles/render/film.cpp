@@ -443,6 +443,9 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 		kfilm->pass_stride += pass.components;
 	}
 
+	kfilm->pass_denoising = 0;
+	kfilm->pass_no_denoising = 0;
+	kfilm->denoise_flag = 0;
 	kfilm->denoise_cross = 0;
 	if(denoising_passes) {
 		kfilm->pass_denoising = kfilm->pass_stride;
@@ -458,6 +461,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 			kfilm->use_light_pass = 1;
 		}
 	}
+
 	kfilm->num_frames = 1;
 	kfilm->prev_frames = 0;
 
