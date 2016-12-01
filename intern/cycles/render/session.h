@@ -242,7 +242,7 @@ protected:
 	double last_update_time;
 	bool update_progressive_refine(bool cancel);
 
-	vector<RenderBuffers *> tile_buffers;
+	vector<RenderTile> tile_buffers;
 
 	DeviceRequestedFeatures get_requested_device_features();
 

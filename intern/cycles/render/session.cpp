@@ -118,8 +118,8 @@ Session::~Session()
 	}
 
 	/* clean up */
-	foreach(RenderBuffers *buffers, tile_buffers)
-		delete buffers;
+	foreach(RenderTile &rtile, tile_buffers)
+		delete rtile.buffers;
 	tile_manager.free_device();
 
 	delete buffers;
@@ -414,6 +414,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 		return true;
 	}
 
+	bool store_rtile = false;
 	if(tile->buffers == NULL) {
 		/* fill buffer parameters */
 		BufferParams buffer_params = tile_manager.params;
@@ -429,23 +430,31 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 		if(params.progressive_refine) {
 			tile_lock.lock();
 
-			if(tile_buffers.size() == 0)
-				tile_buffers.resize(tile_manager.state.num_tiles, NULL);
+			if(tile_buffers.size() == 0) {
+				RenderTile nulltile;
+				nulltile.buffers = NULL;
+				tile_buffers.resize(tile_manager.state.num_tiles, nulltile);
+			}
 
 			/* In certain circumstances number of tiles in the tile manager could
 			 * be changed. This is not supported by the progressive refine feature.
 			 */
 			assert(tile_buffers.size() == tile_manager.state.num_tiles);
 
-			tile->buffers = tile_buffers[tile->index];
-			if(tile->buffers == NULL) {
+			RenderTile &stored_rtile = tile_buffers[tile->index];
+			if(stored_rtile.buffers == NULL) {
 				tile->buffers = new RenderBuffers(tile_device);
-				tile_buffers[tile->index] = tile->buffers;
-
 				tile->buffers->reset(tile_device, buffer_params);
+				store_rtile = true;
 			}
-
-			tile_lock.unlock();
+			else {
+				assert(rtile.x == stored_rtile.x &&
+				       rtile.y == stored_rtile.y &&
+				       rtile.w == stored_rtile.w &&
+				       rtile.h == stored_rtile.h);
+				tile_lock.unlock();
+				tile->buffers = stored_rtile.buffers;
+			}
 		}
 		else {
 			tile->buffers = new RenderBuffers(tile_device);
@@ -460,6 +469,11 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	rtile.rng_state = tile->buffers->rng_state.device_pointer;
 	rtile.buffers = tile->buffers;
 	rtile.sample = 0;
+
+	if(store_rtile) {
+		tile_buffers[tile->index] = rtile;
+		tile_lock.unlock();
+	}
 
 	/* this will tag tile as IN PROGRESS in blender-side render pipeline,
 	 * which is needed to highlight currently rendering tile before first
@@ -885,8 +899,8 @@ void Session::reset(BufferParams& buffer_params, int samples)
 	if(params.progressive_refine) {
 		thread_scoped_lock buffers_lock(buffers_mutex);
 
-		foreach(RenderBuffers *buffers, tile_buffers)
-			delete buffers;
+		foreach(RenderTile &rtile, tile_buffers)
+			delete rtile.buffers;
 
 		tile_buffers.clear();
 	}
@@ -1118,9 +1132,7 @@ bool Session::update_progressive_refine(bool cancel)
 	}
 
 	if(params.progressive_refine) {
-		foreach(RenderBuffers *buffers, tile_buffers) {
-			RenderTile rtile;
-			rtile.buffers = buffers;
+		foreach(RenderTile &rtile, tile_buffers) {
 			rtile.sample = sample;
 
 			if(write) {
@@ -1143,8 +1155,8 @@ void Session::device_free()
 {
 	scene->device_free();
 
-	foreach(RenderBuffers *buffers, tile_buffers)
-		delete buffers;
+	foreach(RenderTile &tile, tile_buffers)
+		delete tile.buffers;
 	tile_manager.free_device();
 
 	tile_buffers.clear();
