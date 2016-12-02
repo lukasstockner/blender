@@ -172,6 +172,7 @@ public:
 #ifdef WITH_OSL
 		kernel_globals.osl = &osl_globals;
 #endif
+		system_enable_ftz();
 	}
 
 	~CPUDevice()
