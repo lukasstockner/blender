@@ -281,7 +281,8 @@ ccl_device void kernel_filter_calculate_bandwidth(KernelGlobals *kg, int sample,
 	/* === Estimate optimal global bandwidth. === */
 	double bias_coef = bias_XtY / bias_XtX;
 	double variance_coef = var_XtY / var_XtX;
-	storage->global_bandwidth = (float) pow((storage->rank * variance_coef) / (4.0 * bias_coef*bias_coef * sample), 1.0 / (storage->rank + 4));
+	float optimal_bw = (float) pow((storage->rank * variance_coef) / (4.0 * bias_coef*bias_coef * sample), 1.0 / (storage->rank + 4));
+	storage->global_bandwidth = clamp(optimal_bw, 0.05f, 2.0f);
 }
 
 CCL_NAMESPACE_END

@@ -315,7 +315,7 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 #endif
 
 	/* === Store the calculated data for the second kernel. === */
-	storage->global_bandwidth = optimal_bw;
+	storage->global_bandwidth = clamp(optimal_bw, 0.05f, 2.0f);
 }
 
 CCL_NAMESPACE_END
