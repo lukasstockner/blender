@@ -75,6 +75,11 @@ public:
 		int resolution_divider;
 		int num_tiles;
 		int num_rendered_tiles;
+
+		/* Total samples over all pixels: Generally num_samples*num_pixels,
+		 * but can be higher due to the initial resolution division for previews. */
+		uint64_t total_pixel_samples;
+
 		/* These lists contain the indices of the tiles to be rendered/denoised and are used
 		 * when acquiring a new tile for the device.
 		 * Each list in each vector is for one logical device. */
@@ -106,7 +111,7 @@ public:
 	/* Number to samples in the rendering range. */
 	int range_num_samples;
 
-	/* get number of actual samples to render. */
+	/* Get number of actual samples to render. */
 	int get_num_effective_samples();
 
 	/* Schedule tiles for denoising after they've been rendered.
