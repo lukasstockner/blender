@@ -2553,6 +2553,13 @@ void node_bsdf_toon(vec4 color, float size, float tsmooth, vec3 N, out vec4 resu
 	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
+void node_bsdf_disney(vec4 base_color, float subsurface, vec3 subsurface_radius, vec4 subsurface_color, float metallic, float specular,
+	float specular_tint, float roughness, float anisotropic, float anisotropic_rotation, float sheen, float sheen_tint, float clearcoat,
+	float clearcoat_gloss, float ior, float transparency, float refraction_roughness, vec3 N, vec3 CN, vec3 T, out vec4 result)
+{
+	node_bsdf_diffuse(base_color, roughness, N, result);
+}
+
 void node_bsdf_translucent(vec4 color, vec3 N, out vec4 result)
 {
 	node_bsdf_diffuse(color, 0.0, N, result);

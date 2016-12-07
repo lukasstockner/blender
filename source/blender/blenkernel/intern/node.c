@@ -3594,6 +3594,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_background();
 	register_node_type_sh_bsdf_anisotropic();
 	register_node_type_sh_bsdf_diffuse();
+	register_node_type_sh_bsdf_disney();
 	register_node_type_sh_bsdf_glossy();
 	register_node_type_sh_bsdf_glass();
 	register_node_type_sh_bsdf_translucent();

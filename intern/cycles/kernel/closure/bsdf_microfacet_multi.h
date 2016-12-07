@@ -338,13 +338,17 @@ ccl_device void bsdf_microfacet_multi_ggx_blur(ShaderClosure *sc, float roughnes
 
 /* Multiscattering GGX Glossy closure */
 
-ccl_device int bsdf_microfacet_multi_ggx_common_setup(MicrofacetBsdf *bsdf)
+ccl_device int bsdf_microfacet_multi_ggx_common_setup(MicrofacetBsdf *bsdf, bool use_fresnel)
 {
 	bsdf->alpha_x = clamp(bsdf->alpha_x, 1e-4f, 1.0f);
 	bsdf->alpha_y = clamp(bsdf->alpha_y, 1e-4f, 1.0f);
 	bsdf->extra->color.x = saturate(bsdf->extra->color.x);
 	bsdf->extra->color.y = saturate(bsdf->extra->color.y);
 	bsdf->extra->color.z = saturate(bsdf->extra->color.z);
+	bsdf->extra->use_fresnel = use_fresnel;
+	bsdf->extra->cspec0.x = saturate(bsdf->extra->cspec0.x);
+	bsdf->extra->cspec0.y = saturate(bsdf->extra->cspec0.y);
+	bsdf->extra->cspec0.z = saturate(bsdf->extra->cspec0.z);
 
 	bsdf->type = CLOSURE_BSDF_MICROFACET_MULTI_GGX_ID;
 
@@ -356,14 +360,36 @@ ccl_device int bsdf_microfacet_multi_ggx_aniso_setup(MicrofacetBsdf *bsdf)
 	if(is_zero(bsdf->T))
 		bsdf->T = make_float3(1.0f, 0.0f, 0.0f);
 
-	return bsdf_microfacet_multi_ggx_common_setup(bsdf);
+	return bsdf_microfacet_multi_ggx_common_setup(bsdf, false);
+}
+
+ccl_device int bsdf_microfacet_multi_ggx_aniso_fresnel_setup(MicrofacetBsdf *bsdf)
+{
+	if(is_zero(bsdf->T))
+		bsdf->T = make_float3(1.0f, 0.0f, 0.0f);
+
+	return bsdf_microfacet_multi_ggx_common_setup(bsdf, true);
 }
 
 ccl_device int bsdf_microfacet_multi_ggx_setup(MicrofacetBsdf *bsdf)
 {
 	bsdf->alpha_y = bsdf->alpha_x;
 
-	return bsdf_microfacet_multi_ggx_common_setup(bsdf);
+	return bsdf_microfacet_multi_ggx_common_setup(bsdf, false);
+}
+
+ccl_device int bsdf_microfacet_multi_ggx_fresnel_setup(MicrofacetBsdf *bsdf)
+{
+	bsdf->alpha_y = bsdf->alpha_x;
+
+	return bsdf_microfacet_multi_ggx_common_setup(bsdf, true);
+}
+
+ccl_device int bsdf_microfacet_multi_ggx_refraction_setup(MicrofacetBsdf *bsdf)
+{
+	bsdf->alpha_y = bsdf->alpha_x;
+
+	return bsdf_microfacet_multi_ggx_common_setup(bsdf, false);
 }
 
 ccl_device float3 bsdf_microfacet_multi_ggx_eval_transmit(const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf, ccl_addr_space uint *lcg_state) {
@@ -393,7 +419,7 @@ ccl_device float3 bsdf_microfacet_multi_ggx_eval_reflect(const ShaderClosure *sc
 		*pdf = mf_ggx_aniso_pdf(localI, localO, make_float2(bsdf->alpha_x, bsdf->alpha_y));
 	else
 		*pdf = mf_ggx_pdf(localI, localO, bsdf->alpha_x);
-	return mf_eval_glossy(localI, localO, true, bsdf->extra->color, bsdf->alpha_x, bsdf->alpha_y, lcg_state, NULL, NULL);
+	return mf_eval_glossy(localI, localO, true, bsdf->extra->color, bsdf->alpha_x, bsdf->alpha_y, lcg_state, NULL, NULL, bsdf->ior, bsdf->extra->use_fresnel, bsdf->extra->cspec0);
 }
 
 ccl_device int bsdf_microfacet_multi_ggx_sample(KernelGlobals *kg, const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf, ccl_addr_space uint *lcg_state)
@@ -419,7 +445,7 @@ ccl_device int bsdf_microfacet_multi_ggx_sample(KernelGlobals *kg, const ShaderC
 	float3 localI = make_float3(dot(I, X), dot(I, Y), dot(I, Z));
 	float3 localO;
 
-	*eval = mf_sample_glossy(localI, &localO, bsdf->extra->color, bsdf->alpha_x, bsdf->alpha_y, lcg_state, NULL, NULL);
+	*eval = mf_sample_glossy(localI, &localO, bsdf->extra->color, bsdf->alpha_x, bsdf->alpha_y, lcg_state, NULL, NULL, bsdf->ior, bsdf->extra->use_fresnel, bsdf->extra->cspec0);
 	if(is_aniso)
 		*pdf = mf_ggx_aniso_pdf(localI, localO, make_float2(bsdf->alpha_x, bsdf->alpha_y));
 	else
@@ -444,6 +470,25 @@ ccl_device int bsdf_microfacet_multi_ggx_glass_setup(MicrofacetBsdf *bsdf)
 	bsdf->extra->color.x = saturate(bsdf->extra->color.x);
 	bsdf->extra->color.y = saturate(bsdf->extra->color.y);
 	bsdf->extra->color.z = saturate(bsdf->extra->color.z);
+	bsdf->extra->use_fresnel = false;
+
+	bsdf->type = CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID;
+
+	return SD_BSDF|SD_BSDF_HAS_EVAL|SD_BSDF_NEEDS_LCG;
+}
+
+ccl_device int bsdf_microfacet_multi_ggx_glass_fresnel_setup(MicrofacetBsdf *bsdf)
+{
+	bsdf->alpha_x = clamp(bsdf->alpha_x, 1e-4f, 1.0f);
+	bsdf->alpha_y = bsdf->alpha_x;
+	bsdf->ior = max(0.0f, bsdf->ior);
+	bsdf->extra->color.x = saturate(bsdf->extra->color.x);
+	bsdf->extra->color.y = saturate(bsdf->extra->color.y);
+	bsdf->extra->color.z = saturate(bsdf->extra->color.z);
+	bsdf->extra->use_fresnel = true;
+	bsdf->extra->cspec0.x = saturate(bsdf->extra->cspec0.x);
+	bsdf->extra->cspec0.y = saturate(bsdf->extra->cspec0.y);
+	bsdf->extra->cspec0.z = saturate(bsdf->extra->cspec0.z);
 
 	bsdf->type = CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID;
 
@@ -465,7 +510,7 @@ ccl_device float3 bsdf_microfacet_multi_ggx_glass_eval_transmit(const ShaderClos
 	float3 localO = make_float3(dot(omega_in, X), dot(omega_in, Y), dot(omega_in, Z));
 
 	*pdf = mf_glass_pdf(localI, localO, bsdf->alpha_x, bsdf->ior);
-	return mf_eval_glass(localI, localO, false, bsdf->extra->color, bsdf->alpha_x, bsdf->alpha_y, lcg_state, bsdf->ior);
+	return mf_eval_glass(localI, localO, false, bsdf->extra->color, bsdf->alpha_x, bsdf->alpha_y, lcg_state, bsdf->ior, false, bsdf->extra->color);
 }
 
 ccl_device float3 bsdf_microfacet_multi_ggx_glass_eval_reflect(const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf, ccl_addr_space uint *lcg_state) {
@@ -483,7 +528,7 @@ ccl_device float3 bsdf_microfacet_multi_ggx_glass_eval_reflect(const ShaderClosu
 	float3 localO = make_float3(dot(omega_in, X), dot(omega_in, Y), dot(omega_in, Z));
 
 	*pdf = mf_glass_pdf(localI, localO, bsdf->alpha_x, bsdf->ior);
-	return mf_eval_glass(localI, localO, true, bsdf->extra->color, bsdf->alpha_x, bsdf->alpha_y, lcg_state, bsdf->ior);
+	return mf_eval_glass(localI, localO, true, bsdf->extra->color, bsdf->alpha_x, bsdf->alpha_y, lcg_state, bsdf->ior, bsdf->extra->use_fresnel, bsdf->extra->cspec0);
 }
 
 ccl_device int bsdf_microfacet_multi_ggx_glass_sample(KernelGlobals *kg, const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf, ccl_addr_space uint *lcg_state)
@@ -530,7 +575,7 @@ ccl_device int bsdf_microfacet_multi_ggx_glass_sample(KernelGlobals *kg, const S
 	float3 localI = make_float3(dot(I, X), dot(I, Y), dot(I, Z));
 	float3 localO;
 
-	*eval = mf_sample_glass(localI, &localO, bsdf->extra->color, bsdf->alpha_x, bsdf->alpha_y, lcg_state, bsdf->ior);
+	*eval = mf_sample_glass(localI, &localO, bsdf->extra->color, bsdf->alpha_x, bsdf->alpha_y, lcg_state, bsdf->ior, bsdf->extra->use_fresnel, bsdf->extra->cspec0);
 	*pdf = mf_glass_pdf(localI, localO, bsdf->alpha_x, bsdf->ior);
 	*eval *= *pdf;
 

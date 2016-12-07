@@ -219,6 +219,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeMixShader"),
         NodeItem("ShaderNodeAddShader"),
         NodeItem("ShaderNodeBsdfDiffuse", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeBsdfDisney", poll=object_shader_nodes_poll),
         NodeItem("ShaderNodeBsdfGlossy", poll=object_shader_nodes_poll),
         NodeItem("ShaderNodeBsdfTransparent", poll=object_shader_nodes_poll),
         NodeItem("ShaderNodeBsdfRefraction", poll=object_shader_nodes_poll),
