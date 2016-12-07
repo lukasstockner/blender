@@ -253,10 +253,13 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg, ccl_
 				if(shadow_info) shadow_info->y = average(light_unoccluded*shadow);
 			}
 		}
+<<<<<<< HEAD
+		else if(shadow_info) shadow_info->y = 0.0f;
+=======
 		else {
 			path_radiance_accum_total_light(L, throughput, &L_light);
-			if(shadow_info) shadow_info->y = 0.0f;
 		}
+>>>>>>> 22ce39d... SC
 	}
 #endif
 }

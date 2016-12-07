@@ -306,9 +306,11 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global f
 #ifdef __PASSES__
 	int flag = kernel_data.film.pass_flag;
 
+//	kernel_write_denoising_shadow(kg, buffer, sample, make_float2(average(L->path_total), average(L->path_total_shaded)));
+
 	if(!kernel_data.film.use_light_pass)
 		return;
-	
+
 	if(flag & PASS_DIFFUSE_INDIRECT)
 		kernel_write_pass_float3(buffer + kernel_data.film.pass_diffuse_indirect, sample, L->indirect_diffuse);
 	if(flag & PASS_GLOSSY_INDIRECT)
@@ -352,7 +354,7 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global f
 }
 
 ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *buffer,
-	int sample, PathRadiance *L, float alpha)
+	int sample, PathRadiance *L, float alpha, float3 L_shadowcatcher)
 {
 	if(L) {
 		float3 L_sum = path_radiance_clamp_and_sum(kg, L);

@@ -50,6 +50,7 @@ NODE_DEFINE(Object)
 	SOCKET_POINT2(dupli_uv, "Dupli UV", make_float2(0.0f, 0.0f));
 
 	SOCKET_INT(light_groups, "Light Groups", 0);
+	SOCKET_BOOLEAN(is_shadow_catcher, "Shadow Catcher", false);
 
 	return type;
 }
@@ -599,6 +600,12 @@ void ObjectManager::device_update_flags(Device *device,
 		}
 		else {
 			object_flag[object_index] &= ~SD_OBJECT_HAS_VOLUME;
+		}
+		if(object->is_shadow_catcher) {
+			object_flag[object_index] |= SD_OBJECT_SHADOW_CATCHER;
+		}
+		else {
+			object_flag[object_index] &= ~SD_OBJECT_SHADOW_CATCHER;
 		}
 
 		if(bounds_valid) {

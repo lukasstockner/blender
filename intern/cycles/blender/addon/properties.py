@@ -1081,6 +1081,12 @@ class CyclesObjectSettings(bpy.types.PropertyGroup):
                 default=1.0,
                 )
 
+        cls.is_shadow_catcher = BoolProperty(
+                name="Shadow Catcher",
+                description="This object is only catching shadows",
+                default=False,
+                )
+
     @classmethod
     def unregister(cls):
         del bpy.types.Object.cycles

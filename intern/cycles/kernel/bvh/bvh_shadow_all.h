@@ -45,6 +45,7 @@ ccl_device_inline
 bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
                                  const Ray *ray,
                                  Intersection *isect_array,
+                                 const int skip_object,
                                  const uint max_hits,
                                  uint *num_hits)
 {
@@ -188,6 +189,16 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 					/* primitive intersection */
 					while(prim_addr < prim_addr2) {
 						kernel_assert(kernel_tex_fetch(__prim_type, prim_addr) == type);
+
+#ifdef __SHADOW_TRICKS__
+						uint tri_object = (object == OBJECT_NONE)
+						        ? kernel_tex_fetch(__prim_object, prim_addr)
+						        : object;
+						if(tri_object == skip_object) {
+							++prim_addr;
+							continue;
+						}
+#endif
 
 						bool hit;
 
@@ -399,6 +410,7 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 ccl_device_inline bool BVH_FUNCTION_NAME(KernelGlobals *kg,
                                          const Ray *ray,
                                          Intersection *isect_array,
+                                         const int skip_object,
                                          const uint max_hits,
                                          uint *num_hits)
 {
@@ -407,6 +419,7 @@ ccl_device_inline bool BVH_FUNCTION_NAME(KernelGlobals *kg,
 		return BVH_FUNCTION_FULL_NAME(QBVH)(kg,
 		                                    ray,
 		                                    isect_array,
+		                                    skip_object,
 		                                    max_hits,
 		                                    num_hits);
 	}
@@ -417,6 +430,7 @@ ccl_device_inline bool BVH_FUNCTION_NAME(KernelGlobals *kg,
 		return BVH_FUNCTION_FULL_NAME(BVH)(kg,
 		                                   ray,
 		                                   isect_array,
+		                                   skip_object,
 		                                   max_hits,
 		                                   num_hits);
 	}

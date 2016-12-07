@@ -55,8 +55,12 @@ ccl_device_inline void kernel_branched_path_ao(KernelGlobals *kg,
 			light_ray.dP = ccl_fetch(sd, dP);
 			light_ray.dD = differential3_zero();
 
-			if(!shadow_blocked(kg, emission_sd, state, &light_ray, &ao_shadow))
+			if(!shadow_blocked(kg, emission_sd, state, &light_ray, &ao_shadow)) {
 				path_radiance_accum_ao(L, throughput*num_samples_inv, ao_alpha, ao_bsdf, ao_shadow, state->bounce);
+			}
+			else {
+				path_radiance_accum_total_ao(L, throughput*num_samples_inv, ao_bsdf);
+			}
 		}
 	}
 }
@@ -205,7 +209,8 @@ ccl_device void kernel_branched_path_subsurface_scatter(KernelGlobals *kg,
 #ifdef __EMISSION__
 				/* direct light */
 				if(kernel_data.integrator.use_direct_light) {
-					int all = kernel_data.integrator.sample_all_lights_direct;
+					int all = (kernel_data.integrator.sample_all_lights_direct) ||
+					          (state->flag & PATH_RAY_SHADOW_CATCHER);
 					kernel_branched_path_surface_connect_light(
 					        kg,
 					        rng,
@@ -236,7 +241,7 @@ ccl_device void kernel_branched_path_subsurface_scatter(KernelGlobals *kg,
 }
 #endif  /* __SUBSURFACE__ */
 
-ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int sample, Ray ray, ccl_global float *buffer, PathRadiance *L)
+ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int sample, Ray ray, ccl_global float *buffer, PathRadiance *L, float3 *L_shadowcatcher)
 {
 	/* initialize */
 	float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
@@ -256,6 +261,10 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 	DebugData debug_data;
 	debug_data_init(&debug_data);
 #endif  /* __KERNEL_DEBUG__ */
+
+#ifdef __SHADOW_TRICKS__
+	float3 shadow_color = make_float3(0.0f, 0.0f, 0.0f);
+#endif
 
 	/* Main Loop
 	 * Here we only handle transparency intersections from the camera ray.
@@ -470,6 +479,20 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 
 		kernel_write_denoising_passes(kg, buffer, &state, &sd, sample, make_float3(0.0f, 0.0f, 0.0f));
 
+#ifdef __SHADOW_TRICKS__
+		if((sd.flag & SD_OBJECT_SHADOW_CATCHER) &&
+		   (state.flag & PATH_RAY_CAMERA))
+		{
+			state.flag |= PATH_RAY_SHADOW_CATCHER;
+			state.catcher_object = sd.object;
+#  ifdef __SHADOW_CATCHER_BACKGROUND__
+			if(!kernel_data.background.transparent) {
+				shadow_color = indirect_background(kg, &emission_sd, &state, &ray);
+			}
+#  endif
+		}
+#endif  /* __SHADOW_TRICKS__ */
+
 		/* holdout */
 #ifdef __HOLDOUT__
 		if(sd.flag & (SD_HOLDOUT|SD_HOLDOUT_MASK)) {
@@ -543,7 +566,8 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 #ifdef __EMISSION__
 			/* direct light */
 			if(kernel_data.integrator.use_direct_light) {
-				int all = kernel_data.integrator.sample_all_lights_direct;
+				int all = (kernel_data.integrator.sample_all_lights_direct) ||
+				          (state.flag & PATH_RAY_SHADOW_CATCHER);
 				kernel_branched_path_surface_connect_light(kg, rng,
 					&sd, &emission_sd, &hit_state, throughput, 1.0f, L, all);
 			}
@@ -580,6 +604,19 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 #endif  /* __VOLUME__ */
 	}
 
+#ifdef __SHADOW_TRICKS__
+	if(state.flag & PATH_RAY_SHADOW_CATCHER) {
+		float shadow = path_radiance_sum_shadow(L);
+		*L_shadowcatcher = shadow_color * shadow;
+#  ifdef __SHADOW_CATCHER_BACKGROUND__
+		if(kernel_data.background.transparent)
+#  endif
+		{
+			L_transparent = shadow;
+		}
+	}
+#endif /* __SHADOW_TRICKS__ */
+
 #ifdef __KERNEL_DEBUG__
 	kernel_write_debug_passes(kg, buffer, &state, &debug_data, sample);
 #endif  /* __KERNEL_DEBUG__ */
@@ -606,13 +643,14 @@ ccl_device void kernel_branched_path_trace(KernelGlobals *kg,
 
 	/* integrate */
 	PathRadiance L;
+	float3 L_shadowcatcher = make_float3(-1.0f, -1.0f, -1.0f);
 
 	if(ray.t != 0.0f) {
-		float alpha = kernel_branched_path_integrate(kg, &rng, sample, ray, buffer, &L);
-		kernel_write_result(kg, buffer, sample, &L, alpha);
+		float alpha = kernel_branched_path_integrate(kg, &rng, sample, ray, buffer, &L, &L_shadowcatcher);
+		kernel_write_result(kg, buffer, sample, &L, alpha, L_shadowcatcher);
 	}
 	else {
-		kernel_write_result(kg, buffer, sample, NULL, 0.0f);
+		kernel_write_result(kg, buffer, sample, NULL, 0.0f, L_shadowcatcher);
 	}
 
 	path_rng_end(kg, rng_state, rng);

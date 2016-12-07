@@ -41,7 +41,11 @@ CCL_NAMESPACE_BEGIN
 
 #define STACK_MAX_HITS 64
 
-ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *shadow_sd, PathState *state, Ray *ray, float3 *shadow)
+ccl_device_inline bool shadow_blocked(KernelGlobals *kg,
+                                      ShaderData *shadow_sd,
+                                      PathState *state,
+                                      Ray *ray,
+                                      float3 *shadow)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 
@@ -50,7 +54,15 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *shadow_sd, 
 	
 	bool blocked;
 
-	if(kernel_data.integrator.transparent_shadows) {
+#ifdef __SHADOW_TRICKS__
+	int skip_object = state->catcher_object;
+#else
+	int skip_object = OBJECT_NONE;
+#endif  /* __SHADOW_TRICKS__ */
+
+	if(kernel_data.integrator.transparent_shadows ||
+	   skip_object != OBJECT_NONE)
+	{
 		/* check transparent bounces here, for volume scatter which can do
 		 * lighting before surface path termination is checked */
 		if(state->transparent_bounce >= kernel_data.integrator.transparent_max_bounce)
@@ -75,7 +87,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *shadow_sd, 
 		}
 
 		uint num_hits;
-		blocked = scene_intersect_shadow_all(kg, ray, hits, max_hits, &num_hits);
+		blocked = scene_intersect_shadow_all(kg, ray, hits, skip_object, max_hits, &num_hits);
 
 		/* if no opaque surface found but we did find transparent hits, shade them */
 		if(!blocked && num_hits > 0) {
@@ -205,11 +217,23 @@ ccl_device_noinline bool shadow_blocked(KernelGlobals *kg,
 	Intersection *isect = &isect_object;
 #endif
 
-	bool blocked = scene_intersect(kg, *ray, PATH_RAY_SHADOW_OPAQUE, isect, NULL, 0.0f, 0.0f);
+#ifdef __SHADOW_TRICKS__
+	int skip_object = state->catcher_object;
+#else
+	int skip_object = OBJECT_NONE;
+#endif  /* __SHADOW_TRICKS__ */
+
+	bool blocked;
+	if(skip_object == OBJECT_NONE) {
+		blocked = scene_intersect(kg, *ray, PATH_RAY_SHADOW_OPAQUE, isect, NULL, 0.0f, 0.0f);
+	}
+	else {
+		blocked = false;
+	}
 
 #ifdef __TRANSPARENT_SHADOWS__
-	if(blocked && kernel_data.integrator.transparent_shadows) {
-		if(shader_transparent_shadow(kg, isect)) {
+	if((blocked && kernel_data.integrator.transparent_shadows) || skip_object != OBJECT_NONE) {
+		if(skip_object != OBJECT_NONE || shader_transparent_shadow(kg, isect)) {
 			float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
 			float3 Pend = ray->P + ray->D*ray->t;
 			int bounce = state->transparent_bounce;
@@ -234,7 +258,17 @@ ccl_device_noinline bool shadow_blocked(KernelGlobals *kg,
 					return false;
 				}
 
-				if(!shader_transparent_shadow(kg, isect)) {
+				bool skip_shadow = false;
+#ifdef __SHADOW_TRICKS__
+				if(skip_object != OBJECT_NONE) {
+					int isect_object = (isect->object == PRIM_NONE)
+					        ? kernel_tex_fetch(__prim_object, isect->prim)
+					        : isect->object;
+					skip_shadow = (isect_object == skip_object);
+				}
+#endif
+
+				if(!shader_transparent_shadow(kg, isect) && !skip_shadow) {
 					return true;
 				}
 
@@ -251,7 +285,7 @@ ccl_device_noinline bool shadow_blocked(KernelGlobals *kg,
 				shader_setup_from_ray(kg, shadow_sd, isect, ray);
 
 				/* attenuation from transparent surface */
-				if(!(ccl_fetch(shadow_sd, flag) & SD_HAS_ONLY_VOLUME)) {
+				if(!(ccl_fetch(shadow_sd, flag) & SD_HAS_ONLY_VOLUME) && !skip_shadow) {
 					path_state_modify_bounce(state, true);
 					shader_eval_surface(kg, shadow_sd, NULL, state, 0.0f, PATH_RAY_SHADOW, SHADER_CONTEXT_SHADOW);
 					path_state_modify_bounce(state, false);

@@ -141,6 +141,11 @@ CCL_NAMESPACE_BEGIN
 #define __CLAMP_SAMPLE__
 #define __PATCH_EVAL__
 
+#ifndef __SPLIT_KERNEL__
+#  define __SHADOW_TRICKS__
+#  define __SHADOW_CATCHER_BACKGROUND__
+#endif
+
 #ifdef __KERNEL_SHADING__
 #  define __SVM__
 #  define __EMISSION__
@@ -297,6 +302,7 @@ enum PathRayFlag {
 	PATH_RAY_DIFFUSE_ANCESTOR    = (1 << 13),
 	PATH_RAY_SINGLE_PASS_DONE    = (1 << 14),
 	PATH_RAY_DENOISING_PASS_DONE = (1 << 15),
+	PATH_RAY_SHADOW_CATCHER      = (1 << 16),
 };
 
 /* Closure Label */
@@ -450,6 +456,17 @@ typedef ccl_addr_space struct PathRadiance {
 	float mist;
 	float transparent;
 #endif
+
+#ifdef __SHADOW_TRICKS__
+	/* Total light reachable across the path, ignoring shadow blocked queries. */
+	float3 path_total;
+	/* Total light reachable across the path with shadow blocked queries
+	 * applied here.
+	 *
+	 * Dividing this figure by path_total will give estimate of shadow pass.
+	 */
+	float3 path_total_shaded;
+#endif
 } PathRadiance;
 
 typedef struct BsdfEval {
@@ -464,6 +481,9 @@ typedef struct BsdfEval {
 	float3 transparent;
 	float3 subsurface;
 	float3 scatter;
+#endif
+#ifdef __SHADOW_TRICKS__
+	float3 sum_no_mis;
 #endif
 } BsdfEval;
 
@@ -759,10 +779,11 @@ enum ShaderDataFlag {
 	SD_OBJECT_HAS_VOLUME        = (1 << 28),  /* object has a volume shader */
 	SD_OBJECT_INTERSECTS_VOLUME = (1 << 29),  /* object intersects AABB of an object with volume shader */
 	SD_OBJECT_HAS_VERTEX_MOTION = (1 << 30),  /* has position for motion vertices */
+	SD_OBJECT_SHADOW_CATCHER    = (1 << 31),  /* object is used to catch shadows */
 
 	SD_OBJECT_FLAGS = (SD_HOLDOUT_MASK|SD_OBJECT_MOTION|SD_TRANSFORM_APPLIED|
 	                   SD_NEGATIVE_SCALE_APPLIED|SD_OBJECT_HAS_VOLUME|
-	                   SD_OBJECT_INTERSECTS_VOLUME)
+	                   SD_OBJECT_INTERSECTS_VOLUME|SD_OBJECT_SHADOW_CATCHER)
 };
 
 #ifdef __SPLIT_KERNEL__
@@ -901,6 +922,10 @@ typedef struct PathState {
 	int volume_bounce;
 	RNG rng_congruential;
 	VolumeStack volume_stack[VOLUME_STACK_SIZE];
+#endif
+
+#ifdef __SHADOW_TRICKS__
+	int catcher_object;
 #endif
 } PathState;
 
