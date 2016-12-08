@@ -498,20 +498,20 @@ ccl_device_inline void math_matrix_zero_lower_sse(__m128 *A, int n)
 /* Add Gramian matrix of v to A.
  * The Gramian matrix of v is v^T*v, so element (i,j) is v[i]*v[j].
  * Obviously, the resulting matrix is symmetric, so only the lower triangluar part is stored. */
-ccl_device_inline void math_add_gramian_sse(__m128 *A, int n, __m128 *v, __m128 weight)
+ccl_device_inline void math_add_gramian_sse(__m128 *A, int n, __m128 ccl_readonly_ptr v, __m128 weight)
 {
 	for(int row = 0; row < n; row++)
 		for(int col = 0; col <= row; col++)
 			MAT(A, n, row, col) = _mm_add_ps(MAT(A, n, row, col), _mm_mul_ps(_mm_mul_ps(v[row], v[col]), weight));
 }
 
-ccl_device_inline void math_add_vector_sse(__m128 *V, int n, __m128 *a)
+ccl_device_inline void math_add_vector_sse(__m128 *V, int n, __m128 ccl_readonly_ptr a)
 {
 	for(int i = 0; i < n; i++)
 		V[i] = _mm_add_ps(V[i], a[i]);
 }
 
-ccl_device_inline void math_mul_vector_sse(__m128 *V, int n, __m128 *a)
+ccl_device_inline void math_mul_vector_sse(__m128 *V, int n, __m128 ccl_readonly_ptr a)
 {
 	for(int i = 0; i < n; i++)
 		V[i] = _mm_mul_ps(V[i], a[i]);
@@ -529,7 +529,7 @@ ccl_device_inline void math_mask_vector_sse(__m128 *V, int n, __m128 mask)
 		V[i] = _mm_mask_ps(V[i], mask);
 }
 
-ccl_device_inline __m128 math_dot_sse(__m128 *a, __m128 *b, int n)
+ccl_device_inline __m128 math_dot_sse(__m128 ccl_readonly_ptr a, __m128 ccl_readonly_ptr b, int n)
 {
 	__m128 d = _mm_setzero_ps();
 	for(int i = 0; i < n; i++)
@@ -537,12 +537,12 @@ ccl_device_inline __m128 math_dot_sse(__m128 *a, __m128 *b, int n)
 	return d;
 }
 
-ccl_device_inline float3 math_sum_float3(__m128 *a)
+ccl_device_inline float3 math_sum_float3(__m128 ccl_readonly_ptr a)
 {
 	return make_float3(_mm_hsum_ss(a[0]), _mm_hsum_ss(a[1]), _mm_hsum_ss(a[2]));
 }
 
-ccl_device_inline void math_hsum_matrix_lower(float *A, int n, __m128 *B)
+ccl_device_inline void math_hsum_matrix_lower(float *A, int n, __m128 ccl_readonly_ptr B)
 {
 	for(int row = 0; row < n; row++)
 		for(int col = 0; col <= row; col++)
