@@ -4940,6 +4940,12 @@ static void rna_def_scene_render_layer(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+	static EnumPropertyItem filter_weights_items[] = {
+		{SCE_DENOISE_WEIGHTS_NLM, "NLM", 0, "NLM", "Use NLM weights"},
+		{SCE_DENOISE_WEIGHTS_WLR, "WLR", 0, "WLR", "Use WLR weights"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "SceneRenderLayer", NULL);
 	RNA_def_struct_ui_text(srna, "Scene Render Layer", "Render layer");
 	RNA_def_struct_ui_icon(srna, ICON_RENDERLAYERS);
@@ -5025,9 +5031,10 @@ static void rna_def_scene_render_layer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Half window", "Size of the filter window (the pixel area used for denoising one pixel). Higher values get rid of more noise, but might lose detail and are slower");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "filter_use_nlm_weights", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_NLM_WEIGHTS);
-	RNA_def_property_ui_text(prop, "Use NLM weights", "Use Non-Local means for weighting the pixels");
+	prop = RNA_def_property(srna, "filter_weights", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "denoise_weights");
+	RNA_def_property_enum_items(prop, filter_weights_items);
+	RNA_def_property_ui_text(prop, "Denoising Weight type", "Weighting algorithm used for denoising");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "filter_gradients", PROP_BOOLEAN, PROP_NONE);

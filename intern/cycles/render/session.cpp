@@ -817,8 +817,9 @@ void Session::run_denoise()
 		kernel_data.film.prev_frames = params.prev_frames;
 		kernel_data.integrator.filter_strength = params.filter_strength;
 		kernel_data.integrator.weighting_adjust = params.filter_weight_adjust;
+		if(params.filter_weights != FILTER_WEIGHTS_WLR) kernel_data.integrator.weighting_adjust *= 0.5f;
 		kernel_data.integrator.use_gradients = params.filter_gradient;
-		kernel_data.integrator.use_nlm_weights = params.filter_nlm;
+		kernel_data.integrator.filter_weights = params.filter_weights;
 		device->const_copy_to("__data", &kernel_data, sizeof(kernel_data));
 
 		/* Generate tiles. */

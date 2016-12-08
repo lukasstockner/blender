@@ -82,8 +82,12 @@ NODE_DEFINE(Integrator)
 	SOCKET_INT(half_window, "Half Window", 8);
 	SOCKET_FLOAT(filter_strength, "Filter Strength", 0.0f);
 	SOCKET_FLOAT(weighting_adjust, "Weighting Adjust", 1.0f);
-	SOCKET_BOOLEAN(use_nlm_weights, "Use NLM weights", true);
 	SOCKET_BOOLEAN(use_gradients, "Use Gradients for filtering", true);
+
+	static NodeEnum weights_enum;
+	weights_enum.insert("wlr", FILTER_WEIGHTS_WLR);
+	weights_enum.insert("nlm", FILTER_WEIGHTS_NLM);
+	SOCKET_ENUM(filter_weights, "Filter weight type", weights_enum, FILTER_WEIGHTS_NLM);
 
 	return type;
 }
@@ -230,8 +234,9 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 	kintegrator->half_window = half_window;
 	kintegrator->filter_strength = filter_strength;
 	kintegrator->weighting_adjust = weighting_adjust;
+	if(filter_weights != FILTER_WEIGHTS_WLR) kintegrator->weighting_adjust *= 0.5f;
 	kintegrator->use_gradients = use_gradients;
-	kintegrator->use_nlm_weights = use_nlm_weights;
+	kintegrator->filter_weights = filter_weights;
 
 	need_update = false;
 }

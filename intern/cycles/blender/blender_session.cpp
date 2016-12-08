@@ -493,8 +493,7 @@ void BlenderSession::render()
 		scene->integrator->half_window = b_layer_iter->half_window();
 		scene->integrator->filter_strength = powf(2.0f, b_layer_iter->filter_strength());
 		scene->integrator->weighting_adjust = powf(2.0f, b_layer_iter->filter_weighting_adjust());
-		scene->integrator->use_nlm_weights = b_layer_iter->filter_use_nlm_weights();
-		if(scene->integrator->use_nlm_weights) scene->integrator->weighting_adjust /= 2.0f;
+		scene->integrator->filter_weights = (FilterWeights) b_layer_iter->filter_weights();
 		scene->integrator->use_gradients = b_layer_iter->filter_gradients();
 
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
@@ -1450,13 +1449,14 @@ void BlenderSession::denoise(BL::RenderResult& b_rr)
 		int half_window = -1;
 		float filter_strength = 0.0f;
 		float weight_adjust = 0.0f;
-		bool filter_nlm, filter_gradient;
+		FilterWeights filter_weights;
+		bool filter_gradient;
 		for(r.layers.begin(b_s_layer_iter); b_s_layer_iter != r.layers.end(); ++b_s_layer_iter) {
 			if(b_s_layer_iter->name() == b_layer_iter->name()) {
 				half_window = b_s_layer_iter->half_window();
 				filter_strength = b_s_layer_iter->filter_strength();
 				weight_adjust = b_s_layer_iter->filter_weighting_adjust();
-				filter_nlm = b_s_layer_iter->filter_use_nlm_weights();
+				filter_weights = (FilterWeights) b_s_layer_iter->filter_weights();
 				filter_gradient = b_s_layer_iter->filter_gradients();
 				break;
 			}
@@ -1468,8 +1468,7 @@ void BlenderSession::denoise(BL::RenderResult& b_rr)
 		session->params.filter_strength = powf(2.0f, filter_strength);
 		session->params.filter_weight_adjust = powf(2.0f, weight_adjust);
 		session->params.filter_gradient = filter_gradient;
-		session->params.filter_nlm = filter_nlm;
-		if(filter_nlm) session->params.filter_weight_adjust /= 2.0f;
+		session->params.filter_weights = filter_weights;
 
 		session->buffers = BlenderSync::get_render_buffer(session->device, *b_layer_iter, b_rr, session->params.samples);
 

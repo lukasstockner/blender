@@ -457,7 +457,7 @@ public:
 	{
 		bool only_nlm_filter = getenv("ONLY_NLM_FILTER");
 		bool use_gradients = kg->__data.integrator.use_gradients;
-		bool nlm_weights = kg->__data.integrator.use_nlm_weights;
+		FilterWeights weight_type = (FilterWeights) kg->__data.integrator.filter_weights;
 
 		int hw = kg->__data.integrator.half_window;
 		FilterStorage *storage = new FilterStorage[filter_area.z*filter_area.w];
@@ -487,7 +487,7 @@ public:
 				}
 			}
 		}
-		else if(nlm_weights) {
+		else if(weight_type == FILTER_WEIGHTS_NLM) {
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
 					filter_construct_transform_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);

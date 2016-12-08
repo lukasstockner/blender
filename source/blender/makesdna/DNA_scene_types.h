@@ -231,7 +231,7 @@ typedef struct SceneRenderLayer {
 	int denoise_half_window;
 	float denoise_strength;
 	float denoise_weighting;
-	int pad;
+	int denoise_weights;
 
 	int light_group_world;
 	struct Group *light_group_1, *light_group_2, *light_group_3, *light_group_4;
@@ -271,10 +271,14 @@ typedef enum SceneDenoiseFlag {
 	SCE_DENOISE_PASS_TRANSIND         = (1 << 7),
 	SCE_DENOISE_PASS_SUBDIR           = (1 << 8),
 	SCE_DENOISE_PASS_SUBIND           = (1 << 9),
-	SCE_DENOISE_NLM_WEIGHTS           = (1 << 10),
 	SCE_DENOISE_GRADIENTS             = (1 << 11),
 	SCE_DENOISE_CROSS                 = (1 << 12),
 } SceneDenoiseFlag;
+
+typedef enum SceneDenoiseWeights {
+	SCE_DENOISE_WEIGHTS_NLM           = 0,
+	SCE_DENOISE_WEIGHTS_WLR           = 1,
+} SceneDenoiseWeights;
 
 /* srl->passflag */
 typedef enum ScenePassType {

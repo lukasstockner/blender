@@ -87,7 +87,7 @@ public:
 	int half_window;
 	float filter_strength;
 	float weighting_adjust;
-	bool use_nlm_weights;
+	FilterWeights filter_weights;
 	bool use_gradients;
 
 	Integrator();

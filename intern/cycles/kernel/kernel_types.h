@@ -1127,6 +1127,11 @@ typedef struct KernelBackground {
 } KernelBackground;
 static_assert_align(KernelBackground, 16);
 
+typedef enum FilterWeights {
+	FILTER_WEIGHTS_NLM    = 0,
+	FILTER_WEIGHTS_WLR    = 1,
+} FilterWeights;
+
 typedef struct KernelIntegrator {
 	/* emission */
 	int use_direct_light;
@@ -1200,7 +1205,7 @@ typedef struct KernelIntegrator {
 	float filter_strength;
 	float weighting_adjust;
 	int use_gradients;
-	int use_nlm_weights;
+	int filter_weights;
 
 	int ies_stride;
 	int pad1;
