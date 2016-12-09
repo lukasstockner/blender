@@ -68,7 +68,7 @@
 static RenderEngineType internal_render_type = {
 	NULL, NULL,
 	"BLENDER_RENDER", N_("Blender Render"), RE_INTERNAL,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	{NULL, NULL, NULL}
 };
 
@@ -77,7 +77,7 @@ static RenderEngineType internal_render_type = {
 static RenderEngineType internal_game_type = {
 	NULL, NULL,
 	"BLENDER_GAME", N_("Blender Game"), RE_INTERNAL | RE_GAME,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	{NULL, NULL, NULL}
 };
 
@@ -189,22 +189,28 @@ RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, 
 	RenderResult *result;
 	rcti disprect;
 
-	/* ensure the coordinates are within the right limits */
-	CLAMP(x, 0, re->result->rectx);
-	CLAMP(y, 0, re->result->recty);
-	CLAMP(w, 0, re->result->rectx);
-	CLAMP(h, 0, re->result->recty);
 
-	if (x + w > re->result->rectx)
-		w = re->result->rectx - x;
-	if (y + h > re->result->recty)
-		h = re->result->recty - y;
+	if (re) {
+		/* ensure the coordinates are within the right limits */
+		CLAMP(x, 0, re->result->rectx);
+		CLAMP(y, 0, re->result->recty);
+		CLAMP(w, 0, re->result->rectx);
+		CLAMP(h, 0, re->result->recty);
+
+		if (x + w > re->result->rectx)
+			w = re->result->rectx - x;
+		if (y + h > re->result->recty)
+			h = re->result->recty - y;
+	}
 
 	/* allocate a render result */
 	disprect.xmin = x;
 	disprect.xmax = x + w;
 	disprect.ymin = y;
 	disprect.ymax = y + h;
+
+	if (!re)
+		return render_result_new_preview(&disprect);
 
 	result = render_result_new(re, &disprect, 0, RR_USE_MEM, layername, viewname);
 

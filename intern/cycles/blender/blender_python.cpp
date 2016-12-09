@@ -31,6 +31,10 @@
 
 #include "denoising.h"
 
+extern "C" {
+#include "bpy_rna.h"
+}
+
 #ifdef WITH_OSL
 #include "osl.h"
 
@@ -678,6 +682,19 @@ static PyObject *set_resumable_chunks_func(PyObject * /*self*/, PyObject *args)
 	Py_RETURN_NONE;
 }
 
+static PyObject *save_preview_func(PyObject * /*self*/, PyObject *value)
+{
+	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(value);
+
+	python_thread_state_save(&session->python_thread_state);
+
+	BL::RenderResult rr = session->save_preview();
+
+	python_thread_state_restore(&session->python_thread_state);
+
+	return pyrna_struct_CreatePyObject(&rr.ptr);
+}
+
 static PyObject *can_postprocess_func(PyObject * /*self*/, PyObject *args)
 {
 	PyObject *pyresult;
@@ -809,6 +826,8 @@ static PyMethodDef methods[] = {
 
 	/* Resumable render */
 	{"set_resumable_chunks", set_resumable_chunks_func, METH_VARARGS, ""},
+
+	{"save_preview", save_preview_func, METH_O, ""},
 
 	/* Compute Device selection */
 	{"get_device_types", get_device_types_func, METH_VARARGS, ""},

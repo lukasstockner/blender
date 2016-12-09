@@ -100,6 +100,7 @@ public:
 	void test_cancel();
 	void update_status_progress();
 	void update_bake_progress();
+	BL::RenderResult save_preview();
 
 	bool background;
 	Session *session;

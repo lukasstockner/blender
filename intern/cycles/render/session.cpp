@@ -264,12 +264,12 @@ void Session::run_gpu()
 				break;
 		}
 
-		if(!no_tiles) {
-			/* buffers mutex is locked entirely while rendering each
-			 * sample, and released/reacquired on each iteration to allow
-			 * reset and draw in between */
-			thread_scoped_lock buffers_lock(buffers_mutex);
+		/* buffers mutex is locked entirely while rendering each
+		 * sample, and released/reacquired on each iteration to allow
+		 * reset and draw in between */
+		thread_scoped_lock buffers_lock(buffers_mutex);
 
+		if(!no_tiles) {
 			/* update status and timing */
 			update_status_time();
 
@@ -306,6 +306,8 @@ void Session::run_gpu()
 			if(progress.get_cancel())
 				break;
 		}
+
+		buffers_sample = tile_manager.state.sample;
 	}
 
 	if(!tiles_written)
@@ -617,12 +619,12 @@ void Session::run_cpu()
 				break;
 		}
 
-		if(!no_tiles) {
-			/* buffers mutex is locked entirely while rendering each
-			 * sample, and released/reacquired on each iteration to allow
-			 * reset and draw in between */
-			thread_scoped_lock buffers_lock(buffers_mutex);
+		/* buffers mutex is locked entirely while rendering each
+		 * sample, and released/reacquired on each iteration to allow
+		 * reset and draw in between */
+		thread_scoped_lock buffers_lock(buffers_mutex);
 
+		if(!no_tiles) {
 			/* update scene */
 			scoped_timer update_timer;
 			update_scene();
@@ -654,7 +656,6 @@ void Session::run_cpu()
 
 		{
 			thread_scoped_lock reset_lock(delayed_reset.mutex);
-			thread_scoped_lock buffers_lock(buffers_mutex);
 			thread_scoped_lock display_lock(display_mutex);
 
 			if(delayed_reset.do_reset) {
@@ -675,6 +676,7 @@ void Session::run_cpu()
 		}
 
 		progress.set_update();
+		buffers_sample = tile_manager.state.sample;
 	}
 
 	if(!tiles_written)

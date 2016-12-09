@@ -63,7 +63,8 @@ struct BakePixel;
 #define RE_USE_TEXTURE_PREVIEW		128
 #define RE_USE_SHADING_NODES_CUSTOM 	256
 #define RE_USE_SPHERICAL_STEREO 512
-#define RE_USE_RESULT_POSTPROCESS	1024
+#define RE_USE_PREVIEW_SAVE		1024
+#define RE_USE_RESULT_POSTPROCESS	2048
 
 /* RenderEngine.flag */
 #define RE_ENGINE_ANIMATION		1
@@ -97,6 +98,8 @@ typedef struct RenderEngineType {
 	void (*view_draw)(struct RenderEngine *engine, const struct bContext *context);
 
 	void (*update_script_node)(struct RenderEngine *engine, struct bNodeTree *ntree, struct bNode *node);
+
+	struct RenderResult * (*save_preview)(struct RenderEngine *engine);
 
 	int (*can_postprocess)(struct RenderEngine *engine, struct RenderResult *result);
 	void (*postprocess)(struct RenderEngine *engine, struct Scene *scene, struct RenderResult *result);
