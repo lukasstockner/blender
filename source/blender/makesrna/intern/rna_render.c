@@ -261,6 +261,29 @@ static void engine_update_script_node(RenderEngine *engine, struct bNodeTree *nt
 	RNA_parameter_list_free(&list);
 }
 
+static RenderResult * engine_save_preview(RenderEngine *engine)
+{
+	extern FunctionRNA rna_RenderEngine_save_preview_func;
+	PointerRNA ptr;
+	ParameterList list;
+	FunctionRNA *func;
+	void *ret;
+	RenderResult *rr;
+
+	RNA_pointer_create(NULL, engine->type->ext.srna, engine, &ptr);
+	func = &rna_RenderEngine_save_preview_func;
+
+	RNA_parameter_list_create(&list, &ptr, func);
+	engine->type->ext.call(NULL, &ptr, func, &list);
+	RNA_parameter_get_lookup(&list, "result", &ret);
+
+	rr = *(struct RenderResult **)ret;
+
+	RNA_parameter_list_free(&list);
+
+	return rr;
+}
+
 /* RenderEngine registration */
 
 static void rna_RenderEngine_unregister(Main *UNUSED(bmain), StructRNA *type)
@@ -281,7 +304,7 @@ static StructRNA *rna_RenderEngine_register(Main *bmain, ReportList *reports, vo
 	RenderEngineType *et, dummyet = {NULL};
 	RenderEngine dummyengine = {NULL};
 	PointerRNA dummyptr;
-	int have_function[6];
+	int have_function[7];
 
 	/* setup dummy engine & engine type to store static properties in */
 	dummyengine.type = &dummyet;
@@ -323,6 +346,7 @@ static StructRNA *rna_RenderEngine_register(Main *bmain, ReportList *reports, vo
 	et->view_update = (have_function[3]) ? engine_view_update : NULL;
 	et->view_draw = (have_function[4]) ? engine_view_draw : NULL;
 	et->update_script_node = (have_function[5]) ? engine_update_script_node : NULL;
+	et->save_preview = (have_function[6]) ? engine_save_preview : NULL;
 
 	BLI_addtail(&R_engines, et);
 
@@ -496,6 +520,13 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	/* tag for update */
 	func = RNA_def_function(srna, "tag_update", "engine_tag_update");
 	RNA_def_function_ui_description(func, "Request update call for viewport rendering");
+
+	/* saving preview render */
+	func = RNA_def_function(srna, "save_preview", NULL);
+	RNA_def_function_ui_description(func, "Save the current preview render as a RenderResult");
+	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
+	parm = RNA_def_pointer(func, "result", "RenderResult", "Result", "");
+	RNA_def_function_return(func, parm);
 
 	func = RNA_def_function(srna, "begin_result", "RE_engine_begin_result");
 	RNA_def_function_ui_description(func, "Create render result to write linear floating point render layers and passes");
@@ -688,6 +719,10 @@ static void rna_def_render_engine(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "bl_use_spherical_stereo", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "type->flag", RE_USE_SPHERICAL_STEREO);
+	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+
+	prop = RNA_def_property(srna, "bl_use_preview_save", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "type->flag", RE_USE_PREVIEW_SAVE);
 	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
 
 	RNA_define_verify_sdna(1);

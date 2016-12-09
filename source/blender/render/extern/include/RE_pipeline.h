@@ -226,6 +226,7 @@ void RE_ReleaseResultImageViews(struct Render *re, struct RenderResult *rr);
 void RE_AcquireResultImage(struct Render *re, struct RenderResult *rr, const int view_id);
 void RE_ReleaseResultImage(struct Render *re);
 void RE_SwapResult(struct Render *re, struct RenderResult **rr);
+void RE_SetResult(struct Render *re, struct RenderResult *rr);
 struct RenderStats *RE_GetStats(struct Render *re);
 
 void RE_ResultGet32(struct Render *re, unsigned int *rect);

@@ -880,6 +880,41 @@ void BlenderSession::synchronize()
 	}
 }
 
+BL::RenderResult BlenderSession::save_preview()
+{
+	thread_scoped_lock buffers_lock(session->buffers_mutex);
+	RenderBuffers *buffers = session->buffers;
+
+	/* copy data from device */
+	assert(buffers->copy_from_device());
+
+	BufferParams& params = buffers->params;
+	float exposure = scene->film->exposure;
+
+	vector<float> pixels(params.width*params.height*4);
+
+	/* Adjust absolute sample number to the range. */
+	int sample = session->buffers_sample + 1;
+	const int range_start_sample = session->tile_manager.range_start_sample;
+	if(range_start_sample != -1) {
+		sample -= range_start_sample;
+	}
+
+	/* copy combined pass */
+	BL::RenderResult b_rr = begin_render_result(b_engine, 0, 0, session->buffers->params.width, session->buffers->params.height, NULL, NULL);
+
+	BL::RenderResult::layers_iterator b_rlay;
+	b_rr.layers.begin(b_rlay);
+
+	BL::RenderPass b_combined_pass(b_rlay->passes.find_by_type(BL::RenderPass::type_COMBINED, ""));
+
+	if(buffers->get_pass_rect(PASS_COMBINED, exposure, sample, 4, &pixels[0])) {
+		b_combined_pass.rect(&pixels[0]);
+	}
+
+	return b_rr;
+}
+
 bool BlenderSession::draw(int w, int h)
 {
 	/* pause in redraw in case update is not being called due to final render */

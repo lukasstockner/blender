@@ -187,6 +187,11 @@ def draw(engine, region, v3d, rv3d):
     _cycles.draw(engine.session, v3d, rv3d)
 
 
+def save_preview(engine):
+    import _cycles
+    return _cycles.save_preview(engine.session)
+
+
 def available_devices():
     import _cycles
     return _cycles.available_devices()

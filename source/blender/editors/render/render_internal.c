@@ -878,7 +878,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
 	// store spare
 
 	/* ensure at least 1 area shows result */
-	sa = render_view_open(C, event->x, event->y, op->reports);
+	sa = render_view_open(C, event->x, event->y, op->reports, NULL);
 
 	jobflag = WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS;
 	

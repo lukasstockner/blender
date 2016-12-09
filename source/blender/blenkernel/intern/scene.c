@@ -2218,6 +2218,12 @@ bool BKE_scene_use_spherical_stereo(Scene *scene)
 	return (type && type->flag & RE_USE_SPHERICAL_STEREO);
 }
 
+bool BKE_scene_use_preview_save(Scene *scene)
+{
+	RenderEngineType *type = RE_engines_find(scene->r.engine);
+	return (type && type->flag & RE_USE_PREVIEW_SAVE);
+}
+
 bool BKE_scene_uses_blender_internal(const  Scene *scene)
 {
 	return STREQ(scene->r.engine, RE_engine_id_BLENDER_RENDER);

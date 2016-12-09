@@ -337,6 +337,14 @@ void RE_SwapResult(Render *re, RenderResult **rr)
 	}
 }
 
+void RE_SetResult(Render *re, RenderResult *rr)
+{
+	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+	render_result_free(re->result);
+	re->result = rr;
+	BLI_rw_mutex_unlock(&re->resultmutex);
+}
+
 
 void RE_ReleaseResult(Render *re)
 {

@@ -171,6 +171,9 @@ public:
 	 * (for example, when rendering with unlimited samples). */
 	float get_progress();
 
+	thread_mutex buffers_mutex;
+	int buffers_sample;
+
 protected:
 	struct DelayedReset {
 		thread_mutex mutex;
@@ -216,7 +219,6 @@ protected:
 	thread_condition_variable pause_cond;
 	thread_mutex pause_mutex;
 	thread_mutex tile_mutex;
-	thread_mutex buffers_mutex;
 	thread_mutex display_mutex;
 
 	bool kernels_loaded;

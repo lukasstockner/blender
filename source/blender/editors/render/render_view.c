@@ -126,7 +126,7 @@ static ScrArea *find_area_image_empty(bContext *C)
 /********************** open image editor for render *************************/
 
 /* new window uses x,y to set position */
-ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
+ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports, ScrArea *skip)
 {
 	wmWindow *win = CTX_wm_window(C);
 	Scene *scene = CTX_data_scene(C);
@@ -166,6 +166,9 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
 	else if (scene->r.displaymode == R_OUTPUT_SCREEN) {
 		sa = CTX_wm_area(C);
 
+		if (skip && sa == skip)
+			return NULL;
+
 		/* if the active screen is already in fullscreen mode, skip this and
 		 * unset the area, so that the fullscreen area is just changed later */
 		if (sa && sa->full) {
@@ -192,6 +195,9 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
 		if (sa == NULL) {
 			/* find largest open non-image area */
 			sa = biggest_non_image_area(C);
+			if (skip && sa == skip)
+				return NULL;
+
 			if (sa) {
 				ED_area_newspace(C, sa, SPACE_IMAGE, true);
 				sima = sa->spacedata.first;
@@ -205,6 +211,9 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
 				}
 			}
 			else {
+				if (skip && sa == skip)
+					return NULL;
+
 				/* use any area of decent size */
 				sa = BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_TYPE_ANY, 0);
 				if (sa->spacetype != SPACE_IMAGE) {
@@ -339,7 +348,7 @@ static int render_view_show_invoke(bContext *C, wmOperator *op, const wmEvent *e
 			}
 		}
 		else {
-			render_view_open(C, event->x, event->y, op->reports);
+			render_view_open(C, event->x, event->y, op->reports, NULL);
 		}
 	}
 

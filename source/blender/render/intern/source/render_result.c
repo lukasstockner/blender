@@ -594,6 +594,49 @@ int RE_debug_pass_type_get(Render *re)
 }
 #endif
 
+RenderResult *render_result_new_preview(rcti *partrct)
+{
+	RenderResult *rr;
+	RenderLayer *rl;
+	int rectx, recty;
+
+	rectx = BLI_rcti_size_x(partrct);
+	recty = BLI_rcti_size_y(partrct);
+
+	if (rectx <= 0 || recty <= 0)
+		return NULL;
+
+	rr = MEM_callocN(sizeof(RenderResult), "new render result");
+	rr->rectx = rectx;
+	rr->recty = recty;
+	rr->renrect.xmin = 0;
+	rr->renrect.xmax = rectx;
+	rr->crop = 0;
+
+	rr->tilerect = *partrct;
+
+	render_result_views_new(rr, NULL);
+
+	rl = MEM_callocN(sizeof(RenderLayer), "new render layer");
+	BLI_strncpy(rl->name, "Preview", sizeof(rl->name));
+	BLI_addtail(&rr->layers, rl);
+
+	rl->rectx = rectx;
+	rl->recty = recty;
+
+	render_layer_add_pass(rr, rl, 4, SCE_PASS_COMBINED, "");
+
+	/* note, this has to be in sync with scene.c */
+	rl->lay = (1 << 20) - 1;
+	rl->layflag = 0x7FFF;    /* solid ztra halo strand */
+	rl->passflag = SCE_PASS_COMBINED;
+
+	rr->xof = 0;
+	rr->yof = 0;
+
+	return rr;
+}
+
 /* called by main render as well for parts */
 /* will read info from Render *re to define layers */
 /* called in threads */
@@ -983,7 +1026,7 @@ void render_result_views_new(RenderResult *rr, RenderData *rd)
 	render_result_views_free(rr);
 
 	/* check renderdata for amount of views */
-	if ((rd->scemode & R_MULTIVIEW)) {
+	if (rd && (rd->scemode & R_MULTIVIEW)) {
 		for (srv = rd->views.first; srv; srv = srv->next) {
 			if (BKE_scene_multiview_is_render_view_active(rd, srv) == false)
 				continue;

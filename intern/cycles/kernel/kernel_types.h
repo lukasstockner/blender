@@ -1248,10 +1248,10 @@ typedef struct KernelIntegrator {
 	int volume_max_steps;
 	float volume_step_size;
 	int volume_samples;
+
 	int start_sample;
 
 	int ies_stride;
-	int pad1;
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 
