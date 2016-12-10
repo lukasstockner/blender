@@ -40,6 +40,9 @@ roles:
   # Non-color data
   data: Non-Color
 
+  xyz: XYZ
+
+
 displays:
   sRGB:
     - !<View> {name: Default, colorspace: sRGB}
