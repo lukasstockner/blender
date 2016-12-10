@@ -74,6 +74,7 @@
 
 /* ** list of all supported color spaces, displays and views */
 static char global_role_scene_linear[MAX_COLORSPACE_NAME];
+static char global_role_xyz[MAX_COLORSPACE_NAME];
 static char global_role_color_picking[MAX_COLORSPACE_NAME];
 static char global_role_texture_painting[MAX_COLORSPACE_NAME];
 static char global_role_default_byte[MAX_COLORSPACE_NAME];
@@ -483,6 +484,7 @@ static void colormanage_load_config(OCIO_ConstConfigRcPtr *config)
 
 	/* get roles */
 	colormanage_role_color_space_name_get(config, global_role_scene_linear, OCIO_ROLE_SCENE_LINEAR, NULL);
+	colormanage_role_color_space_name_get(config, global_role_xyz, OCIO_ROLE_XYZ, NULL);
 	colormanage_role_color_space_name_get(config, global_role_color_picking, OCIO_ROLE_COLOR_PICKING, NULL);
 	colormanage_role_color_space_name_get(config, global_role_texture_painting, OCIO_ROLE_TEXTURE_PAINT, NULL);
 	colormanage_role_color_space_name_get(config, global_role_default_sequencer, OCIO_ROLE_DEFAULT_SEQUENCER, OCIO_ROLE_SCENE_LINEAR);
@@ -1188,6 +1190,8 @@ const char *IMB_colormanagement_role_colorspace_name_get(int role)
 	switch (role) {
 		case COLOR_ROLE_SCENE_LINEAR:
 			return global_role_scene_linear;
+		case COLOR_ROLE_XYZ:
+			return global_role_xyz;
 		case COLOR_ROLE_COLOR_PICKING:
 			return global_role_color_picking;
 		case COLOR_ROLE_TEXTURE_PAINTING:
