@@ -223,6 +223,7 @@ void IMB_colormanagement_finish_glsl_draw(void);
 /* Roles */
 enum {
 	COLOR_ROLE_SCENE_LINEAR = 0,
+	COLOR_ROLE_XYZ,
 	COLOR_ROLE_COLOR_PICKING,
 	COLOR_ROLE_TEXTURE_PAINTING,
 	COLOR_ROLE_DEFAULT_SEQUENCER,

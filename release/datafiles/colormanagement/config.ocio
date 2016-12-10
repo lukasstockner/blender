@@ -31,6 +31,8 @@ roles:
   color_picking: Raw
   texture_paint: Raw
 
+  xyz: XYZ
+
 displays:
   sRGB:
     - !<View> {name: Default, colorspace: sRGB}
