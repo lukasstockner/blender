@@ -28,6 +28,7 @@
 
 #include "util_debug.h"
 #include "util_string.h"
+#include "util_task.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -1179,6 +1180,8 @@ void BlenderSync::sync_materials(bool update_all)
 	/* material loop */
 	BL::BlendData::materials_iterator b_mat;
 
+	TaskPool pool;
+
 	for(b_data.materials.begin(b_mat); b_mat != b_data.materials.end(); ++b_mat) {
 		Shader *shader;
 
@@ -1214,8 +1217,22 @@ void BlenderSync::sync_materials(bool update_all)
 			shader->displacement_method = (experimental) ? get_displacement_method(cmat) : DISPLACE_BUMP;
 
 			shader->set_graph(graph);
+
+			/* By simplifying the shader graph as soon as possible, some shader nodes might be
+			 * removed which can help to skip unneccessary attribures later.
+			 *
+			 * However, since graph simplification also accounts for e.g. mix weight, this would
+			 * cause frequent expensive resyncs in interactive sessions. */
+			if(!preview) {
+				pool.push(function_bind(&ShaderGraph::simplify, shader->graph, scene));
+			}
+
 			shader->tag_update(scene);
 		}
+	}
+
+	if(!preview) {
+		pool.wait_work();
 	}
 }
 
