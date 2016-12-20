@@ -70,16 +70,14 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 	float feature_matrix[DENOISE_FEATURES*DENOISE_FEATURES];
 	math_hsum_matrix_lower(feature_matrix, DENOISE_FEATURES, feature_matrix_sse);
 
-	math_lower_tri_to_full(feature_matrix, DENOISE_FEATURES);
-
-	float *feature_transform = &storage->transform[0], singular[DENOISE_FEATURES];
-	int rank = svd(feature_matrix, feature_transform, singular, DENOISE_FEATURES);
+	float *feature_transform = &storage->transform[0];
+	int rank = math_jacobi_eigendecomposition(feature_matrix, feature_transform, DENOISE_FEATURES, 1);
 	float singular_threshold = 0.01f + 2.0f * (sqrtf(_mm_hsum_ss(feature_matrix_norm)) / (sqrtf(rank) * 0.5f));
 	singular_threshold *= singular_threshold;
 
 	rank = 0;
 	for(int i = 0; i < DENOISE_FEATURES; i++, rank++) {
-		float s = sqrtf(fabsf(singular[i]));
+		float s = feature_matrix[i*DENOISE_FEATURES+i];
 		if(i >= 2 && s < singular_threshold)
 			break;
 		/* Bake the feature scaling into the transformation matrix. */
@@ -94,7 +92,7 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 	for(int i = 0; i < DENOISE_FEATURES; i++) {
 		storage->means[i] = _mm_cvtss_f32(feature_means[i]);
 		storage->scales[i] = _mm_cvtss_f32(feature_scale[i]);
-		storage->singular[i] = sqrtf(fabsf(singular[i]));
+		storage->singular[i] = feature_matrix[i*DENOISE_FEATURES+i];
 	}
 #endif
 

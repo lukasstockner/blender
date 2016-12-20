@@ -78,17 +78,15 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 		for(int i = 0; i < NORM_FEATURE_NUM; i++)
 			feature_matrix_norm += features[i + NORM_FEATURE_OFFSET]*kernel_data.integrator.filter_strength;
 	} END_FOR_PIXEL_WINDOW
-	math_lower_tri_to_full(feature_matrix, DENOISE_FEATURES);
 
-	float singular[DENOISE_FEATURES];
-	int rank = svd_cuda(feature_matrix, transform, transform_stride, singular, DENOISE_FEATURES);
+	int rank = math_jacobi_eigendecomposition(feature_matrix, transform, DENOISE_FEATURES, transform_stride);
 
 	float singular_threshold = 0.01f + 2.0f * (sqrtf(feature_matrix_norm) / (sqrtf(rank) * 0.5f));
 	singular_threshold *= singular_threshold;
 
 	rank = 0;
 	for(int i = 0; i < DENOISE_FEATURES; i++, rank++) {
-		float s = sqrtf(fabsf(singular[i]));
+		float s = feature_matrix[i*DENOISE_FEATURES+i];
 		if(i >= 2 && s < singular_threshold)
 			break;
 		/* Bake the feature scaling into the transformation matrix. */
@@ -103,7 +101,7 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 	for(int i = 0; i < DENOISE_FEATURES; i++) {
 		storage->means[i] = feature_means[i];
 		storage->scales[i] = feature_scale[i];
-		storage->singular[i] = sqrtf(fabsf(singular[i]));
+		storage->singular[i] = feature_matrix[i*DENOISE_FEATURES+i];
 	}
 #endif
 }

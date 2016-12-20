@@ -21,6 +21,13 @@ CCL_NAMESPACE_BEGIN
 
 #define MAT(A, size, row, col) A[(row)*(size)+(col)]
 
+/* Variants that use a constant stride on GPUS. */
+#ifdef __KERNEL_GPU__
+#define MATS(A, n, r, c, s) A[((r)*(n)+(c))*(s)]
+#else
+#define MATS(A, n, r, c, s) MAT(A, n, r, c)
+#endif
+
 ccl_device_inline void math_matrix_zero(float *A, int n)
 {
 	for(int i = 0; i < n*n; i++)
@@ -75,76 +82,6 @@ ccl_device void math_cholesky(float *A, int n)
 	}
 }
 
-/* Perform a Singular Value decomposition on A.
- * Returns the transpose of V and the squared singular values. A is destroyed in the process.
- * Note: Still buggy, therefore the old version from the proof-of-concept implementation is used for now. */
-ccl_device int math_svd(float *A, float *V, float *S2, int n)
-{
-	/* Initialize V to the identity matrix. */
-	for(int row = 0; row < n; row++)
-		for(int col = 0; col < n; col++)
-			MAT(V, n, row, col) = (row == col)? 1.0f: 0.0f;
-
-	const float eps1 = 1e-7f;
-	const float eps2 = 10.0f * n * eps1*eps1;
-	const float eps3 = 0.1f * eps1;
-
-	int estimated_rank = n;
-	for(int rotations = n, i = 0; rotations > 0 && i < 7; i++) {
-		rotations = estimated_rank * (estimated_rank - 1)/2;
-		for(int col1 = 0; col1 < estimated_rank-1; col1++) {
-			for(int col2 = col1+1; col2 < estimated_rank; col2++) {
-				float p = 0.0f, q = 0.0f, r = 0.0f;
-				for(int row = 0; row < n; row++) {
-					float c1 = MAT(A, n, row, col1), c2 = MAT(A, n, row, col2);
-					p += c1*c2;
-					q += c1*c1;
-					r += c2*c2;
-				}
-				S2[col1] = q;
-				S2[col2] = r;
-
-				float x, y;
-				if(q >= r) {
-					if(q < eps2*S2[0] || fabsf(p) < eps3*q) {
-						rotations--;
-						continue;
-					}
-					const float invQ = 1.0f / q;
-					p *= invQ;
-					r = 1.0f - r*invQ;
-					const float pr = p*r;
-					const float invVt = 1.0f / sqrtf(4.0f * pr*pr);
-					x = sqrtf(0.5f * (1.0f + r*invVt));
-					y = p*invVt / x;
-				}
-				else {
-					const float invR = 1.0f / r;
-					p *= invR;
-					q = q*invR - 1.0f;
-					const float pq = p*q;
-					const float invVt = 1.0f / sqrtf(4.0f * pq*pq);
-					y = sqrtf(0.5f * (1.0f - q*invVt));
-					if(p < 0.0f) y = -y;
-					x = p*invVt / y;
-				}
-
-#define ROT(A, n, row1, row2, col1, col2, x, y) { float c1 = MAT(A, n, row1, col1), c2 = MAT(A, n, row2, col2); MAT(A, n, row1, col1) = c1*(x)+c2*(y); MAT(A, n, row2, col2) = -c1*(y)+c2*(x); }
-				for(int row = 0; row < n; row++) {
-					ROT(A, n, row, row, col1, col2, x, y);
-					/* V is stored as its transpose. */
-					ROT(V, n, col1, col2, row, row, x, y);
-				}
-#undef ROT
-			}
-		}
-		while(estimated_rank > 2 && S2[estimated_rank-1] < (S2[0] + eps3)*eps3)
-			estimated_rank--;
-	}
-
-	return estimated_rank;
-}
-
 ccl_device_inline void math_matrix_add_diagonal(float *A, int n, float val)
 {
 	for(int row = 0; row < n; row++)
@@ -165,13 +102,6 @@ ccl_device_inline void math_add_vec3(float3 *v, int n, float *x, float3 w)
 {
 	for(int i = 0; i < n; i++)
 		v[i] += w*x[i];
-}
-
-ccl_device_inline void math_lower_tri_to_full(float *A, int n)
-{
-	for(int row = 0; row < n; row++)
-		for(int col = row+1; col < n; col++)
-			MAT(A, n, row, col) = MAT(A, n, col, row);
 }
 
 ccl_device_inline float math_dot(float ccl_readonly_ptr a, float ccl_readonly_ptr b, int n)
@@ -297,195 +227,138 @@ ccl_device float math_largest_eigenvalue(float *A, int n, float *vec, float *tmp
 	return 0.0f;
 }
 
-/* TODO(lukas): Fix new code and remove this. */
-ccl_device int svd(float *A, float *V, float *S2, int n)
+/* Perform the Jacobi Eigenvalue Methon on matrix A.
+ * A is assumed to be a symmetrical matrix, therefore only the lower-triangular part is ever accessed.
+ * The algorithm overwrites the contents of A.
+ *
+ * After returning, A will be overwritten with D, which is (almost) diagonal,
+ * and V will contain the eigenvectors of the original A in its rows (!),
+ * so that A = V^T*D*V. Therefore, the diagonal elements of D are the (sorted) eigenvalues of A.
+ *
+ * Additionally, the function returns an estimate of the rank of A.
+ */
+ccl_device int math_jacobi_eigendecomposition(float *A, float *V, int n, int v_stride)
 {
-    int  i, j, k, EstColRank = n, RotCount = n, SweepCount = 0;
-    int slimit = 8;
-    float eps = 1e-8f;
-    float e2 = 10.f * n * eps * eps;
-    float tol = 0.1f * eps;
-    float vt, p, x0, y0, q, r, c0, s0, d1, d2;
+	const float epsilon = 1e-7f;
+	const float singular_epsilon = 1e-9f;
 
-    for(int r = 0; r < n; r++)
-        for(int c = 0; c < n; c++)
-            V[r*n+c] = (c == r)? 1.0f: 0.0f;
+	for (int row = 0; row < n; row++)
+		for (int col = 0; col < n; col++)
+			MATS(V, n, row, col, v_stride) = (col == row) ? 1.0f : 0.0f;
 
-    while (RotCount != 0 && SweepCount++ <= slimit) {
-        RotCount = EstColRank * (EstColRank - 1) / 2;
-
-        for (j = 0; j < EstColRank-1; ++j) {
-            for (k = j+1; k < EstColRank; ++k) {
-                p = q = r = 0.0;
-
-                for (i = 0; i < n; ++i) {
-                    x0 = A[i * n + j];
-                    y0 = A[i * n + k];
-                    p += x0 * y0;
-                    q += x0 * x0;
-                    r += y0 * y0;
-                }
-
-                S2[j] = q;
-                S2[k] = r;
-
-                if (q >= r) {
-                    if (q <= e2 * S2[0] || fabsf(p) <= tol * q)
-                        RotCount--;
-                    else {
-                        p /= q;
-                        r = 1.f - r/q;
-                        vt = sqrtf(4.0f * p * p + r * r);
-                        c0 = sqrtf(0.5f * (1.f + r / vt));
-                        s0 = p / (vt*c0);
-
-                        // Rotation
-                        for (i = 0; i < n; ++i) {
-                            d1 = A[i * n + j];
-                            d2 = A[i * n + k];
-                            A[i * n + j] = d1*c0+d2*s0;
-                            A[i * n + k] = -d1*s0+d2*c0;
-                        }
-                        for (i = 0; i < n; ++i) {
-                            d1 = V[i * n + j];
-                            d2 = V[i * n + k];
-                            V[i * n + j] = d1 * c0 + d2 * s0;
-                            V[i * n + k] = -d1 * s0 + d2 * c0;
-                        }
-                    }
-                } else {
-                    p /= r;
-                    q = q / r - 1.f;
-                    vt = sqrtf(4.f * p * p + q * q);
-                    s0 = sqrtf(0.5f * (1.f - q / vt));
-                    if (p < 0.f)
-                        s0 = -s0;
-                    c0 = p / (vt * s0);
-
-                    // Rotation
-                    for (i = 0; i < n; ++i) {
-                        d1 = A[i * n + j];
-                        d2 = A[i * n + k];
-                        A[i * n + j] = d1 * c0 + d2 * s0;
-                        A[i * n + k] = -d1 * s0 + d2 * c0;
-                    }
-                    for (i = 0; i < n; ++i) {
-                        d1 = V[i * n + j];
-                        d2 = V[i * n + k];
-                        V[i * n + j] = d1 * c0 + d2 * s0;
-                        V[i * n + k] = -d1 * s0 + d2 * c0;
-                    }
-                }
-            }
-        }
-        while (EstColRank >= 3 && S2[EstColRank-1] <= S2[0] * tol + tol * tol)
-            EstColRank--;
-    }
-
-	for(int row = 0; row < n; row++)
-		for(int col = 0; col < row; col++) {
-			float temp = V[row*n+col];
-			V[row*n+col] = V[col*n+row];
-			V[col*n+row] = temp;
+	for (int sweep = 0; sweep < 8; sweep++) {
+		float off_diagonal = 0.0f;
+		for (int row = 1; row < n; row++)
+			for (int col = 0; col < row; col++)
+				off_diagonal += fabsf(MAT(A, n, row, col));
+		if (off_diagonal < 1e-7f) {
+			/* The matrix has nearly reached diagonal form.
+			 * Since the eigenvalues are only used to determine truncation, their exact values aren't required - a relative error of a few ULPs won't matter at all. */
+			break;
 		}
-    return EstColRank;
-}
 
-#ifdef __KERNEL_CUDA__
-/* TODO(lukas): Fix new code and remove this. */
-ccl_device int svd_cuda(float *A, float *V, int vstride, float *S2, int n)
-{
-    int  i, j, k, EstColRank = n, RotCount = n, SweepCount = 0;
-    int slimit = 8;
-    float eps = 1e-8f;
-    float e2 = 10.f * n * eps * eps;
-    float tol = 0.1f * eps;
-    float vt, p, x0, y0, q, r, c0, s0, d1, d2;
+		/* Set the threshold for the small element rotation skip in the first sweep:
+		 * Skip all elements that are less than a tenth of the average off-diagonal element. */
+		float threshold = 0.2f*off_diagonal / (n*n);
 
-    for(int r = 0; r < n; r++)
-        for(int c = 0; c < n; c++)
-            V[(r*n+c)*vstride] = (c == r)? 1.0f: 0.0f;
+		for(int row = 1; row < n; row++) {
+			for(int col = 0; col < row; col++) {
+				/* Perform a Jacobi rotation on this element that reduces it to zero. */
+				float element = MAT(A, n, row, col);
+				float abs_element = fabsf(element);
 
-    while (RotCount != 0 && SweepCount++ <= slimit) {
-        RotCount = EstColRank * (EstColRank - 1) / 2;
+				/* If we're in a later sweep and the element already is very small, just set it to zero and skip the rotation. */
+				if (sweep > 3 && abs_element <= singular_epsilon*fabsf(MAT(A, n, row, row)) && abs_element <= singular_epsilon*fabsf(MAT(A, n, col, col))) {
+					MAT(A, n, row, col) = 0.0f;
+					continue;
+				}
 
-        for (j = 0; j < EstColRank-1; ++j) {
-            for (k = j+1; k < EstColRank; ++k) {
-                p = q = r = 0.0;
+				if(element == 0.0f) {
+					continue;
+				}
 
-                for (i = 0; i < n; ++i) {
-                    x0 = A[i * n + j];
-                    y0 = A[i * n + k];
-                    p += x0 * y0;
-                    q += x0 * x0;
-                    r += y0 * y0;
-                }
+				/* If we're in one of the first sweeps and the element is smaller than the threshold, skip it. */
+				if(sweep < 3 && (abs_element < threshold)) {
+					continue;
+				}
 
-                S2[j] = q;
-                S2[k] = r;
+				/* Determine rotation: The rotation is characterized by its angle phi - or, in the actual implementation, sin(phi) and cos(phi).
+				 * To find those, we first compute their ratio - that might be unstable if the angle approaches 90°, so there's a fallback for that case.
+				 * Then, we compute sin(phi) and cos(phi) themselves. */
+				float singular_diff = MAT(A, n, row, row) - MAT(A, n, col, col);
+				float ratio;
+				if (abs_element > singular_epsilon*fabsf(singular_diff)) {
+					float cot_2phi = 0.5f*singular_diff / element;
+					ratio = 1.0f / (fabsf(cot_2phi) + sqrtf(1.0f + cot_2phi*cot_2phi));
+					if (cot_2phi < 0.0f) ratio = -ratio; /* Copy sign. */
+				}
+				else {
+					ratio = element / singular_diff;
+				}
 
-                if (q >= r) {
-                    if (q <= e2 * S2[0] || fabsf(p) <= tol * q)
-                        RotCount--;
-                    else {
-                        p /= q;
-                        r = 1.f - r/q;
-                        vt = sqrtf(4.0f * p * p + r * r);
-                        c0 = sqrtf(0.5f * (1.f + r / vt));
-                        s0 = p / (vt*c0);
+				float c = 1.0f / sqrtf(1.0f + ratio*ratio);
+				float s = ratio*c;
+				/* To improve numerical stability by avoiding cancellation, the update equations are reformulized to use sin(phi) and tan(phi/2) instead. */
+				float tan_phi_2 = s / (1.0f + c);
 
-                        // Rotation
-                        for (i = 0; i < n; ++i) {
-                            d1 = A[i * n + j];
-                            d2 = A[i * n + k];
-                            A[i * n + j] = d1*c0+d2*s0;
-                            A[i * n + k] = -d1*s0+d2*c0;
-                        }
-                        for (i = 0; i < n; ++i) {
-                            d1 = V[(i * n + j)*vstride];
-                            d2 = V[(i * n + k)*vstride];
-                            V[(i * n + j)*vstride] = d1 * c0 + d2 * s0;
-                            V[(i * n + k)*vstride] = -d1 * s0 + d2 * c0;
-                        }
-                    }
-                } else {
-                    p /= r;
-                    q = q / r - 1.f;
-                    vt = sqrtf(4.f * p * p + q * q);
-                    s0 = sqrtf(0.5f * (1.f - q / vt));
-                    if (p < 0.f)
-                        s0 = -s0;
-                    c0 = p / (vt * s0);
+				/* Update the singular values in the diagonal. */
+				float singular_delta = ratio*element;
+				MAT(A, n, row, row) += singular_delta;
+				MAT(A, n, col, col) -= singular_delta;
 
-                    // Rotation
-                    for (i = 0; i < n; ++i) {
-                        d1 = A[i * n + j];
-                        d2 = A[i * n + k];
-                        A[i * n + j] = d1 * c0 + d2 * s0;
-                        A[i * n + k] = -d1 * s0 + d2 * c0;
-                    }
-                    for (i = 0; i < n; ++i) {
-                        d1 = V[(i * n + j)*vstride];
-                        d2 = V[(i * n + k)*vstride];
-                        V[(i * n + j)*vstride] = d1 * c0 + d2 * s0;
-                        V[(i * n + k)*vstride] = -d1 * s0 + d2 * c0;
-                    }
-                }
-            }
-        }
-        while (EstColRank >= 3 && S2[EstColRank-1] <= S2[0] * tol + tol * tol)
-            EstColRank--;
-    }
+				/* Set the element itself to zero. */
+				MAT(A, n, row, col) = 0.0f;
 
-	for(int row = 0; row < n; row++)
-		for(int col = 0; col < row; col++) {
-			float temp = V[(row*n+col)*vstride];
-			V[(row*n+col)*vstride] = V[(col*n+row)*vstride];
-			V[(col*n+row)*vstride] = temp;
+				/* Perform the actual rotations on the matrices. */
+#define ROT(M, r1, c1, r2, c2, stride)                                   \
+				{                                                        \
+					float M1 = MATS(M, n, r1, c1, stride);               \
+					float M2 = MATS(M, n, r2, c2, stride);               \
+					MATS(M, n, r1, c1, stride) -= s*(M2 + tan_phi_2*M1); \
+					MATS(M, n, r2, c2, stride) += s*(M1 - tan_phi_2*M2); \
+				}
+
+				/* Split into three parts to ensure correct accesses since we only store the lower-triangular part of A. */
+				for(int i = 0    ; i < col; i++) ROT(A, col, i, row, i, 1);
+				for(int i = col+1; i < row; i++) ROT(A, i, col, row, i, 1);
+				for(int i = row+1; i < n  ; i++) ROT(A, i, col, i, row, 1);
+
+				for(int i = 0    ; i < n  ; i++) ROT(V, col, i, row, i, v_stride);
+#undef ROT
+			}
 		}
-    return EstColRank;
+	}
+
+	/* Sort eigenvalues and the associated eigenvectors. */
+	for (int i = 0; i < n - 1; i++) {
+		float v = MAT(A, n, i, i);
+		int k = i;
+		for (int j = i; j < n; j++) {
+			if (MAT(A, n, j, j) >= v) {
+				v = MAT(A, n, j, j);
+				k = j;
+			}
+		}
+		if (k != i) {
+			/* Swap eigenvalues. */
+			MAT(A, n, k, k) = MAT(A, n, i, i);
+			MAT(A, n, i, i) = v;
+			/* Swap eigenvectors. */
+			for (int j = 0; j < n; j++) {
+				float v = MATS(V, n, i, j, v_stride);
+				MATS(V, n, i, j, v_stride) = MATS(V, n, k, j, v_stride);
+				MATS(V, n, k, j, v_stride) = v;
+			}
+		}
+	}
+
+	/* Estimate the rank of the original A. */
+	int rank = 0;
+	for (int i = 0; i < n; i++) {
+		if (MAT(A, n, i, i) > epsilon) rank++;
+	}
+	return rank;
 }
-#endif
 
 #ifdef __KERNEL_SSE3__
 ccl_device_inline void math_matrix_zero_lower_sse(__m128 *A, int n)
