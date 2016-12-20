@@ -137,11 +137,11 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 	 * both the r-feature vector z as well as z^T*z and using the resulting parameter for
 	 * that dimension of the z^T*z vector times two as the derivative. */
 	int matrix_size = 2*rank + 1; /* Constant term (1 dim) + z (rank dims) + z^T*z (rank dims) */
-	__m128 XtX_sse[(2*DENOISE_FEATURES+1)*(2*DENOISE_FEATURES+1)], design_row[(2*DENOISE_FEATURES+1)];
-	float3 XtY[2*DENOISE_FEATURES+1];
+	__m128 XtWX_sse[(2*DENOISE_FEATURES+1)*(2*DENOISE_FEATURES+1)], design_row[(2*DENOISE_FEATURES+1)];
+	float3 XtWy[2*DENOISE_FEATURES+1];
 
-	math_matrix_zero_lower_sse(XtX_sse, matrix_size);
-	math_vec3_zero(XtY, matrix_size);
+	math_matrix_zero_lower_sse(XtWX_sse, matrix_size);
+	math_vec3_zero(XtWy, matrix_size);
 	FOR_PIXEL_WINDOW_SSE {
 		filter_get_features_sse(x4, y4, t4, active_pixels, pixel_buffer, features, feature_means, pass_stride);
 		__m128 weight = filter_fill_design_row_quadratic_sse(features, active_pixels, rank, design_row, feature_transform_sse);
@@ -150,7 +150,7 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 		if(!_mm_movemask_ps(active_pixels)) continue;
 		weight = _mm_mul_ps(weight, _mm_rcp_ps(_mm_max_ps(_mm_set1_ps(1.0f), filter_get_pixel_variance_sse(pixel_buffer, active_pixels, pass_stride))));
 
-		math_add_gramian_sse(XtX_sse, matrix_size, design_row, weight);
+		math_add_gramian_sse(XtWX_sse, matrix_size, design_row, weight);
 
 		__m128 color[3];
 		filter_get_pixel_color_sse(pixel_buffer, active_pixels, color, pass_stride);
@@ -158,26 +158,19 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 		for(int row = 0; row < matrix_size; row++) {
 			__m128 color_row[3] = {color[0], color[1], color[2]};
 			math_mul_vector_scalar_sse(color_row, 3, design_row[row]);
-			XtY[row] += math_sum_float3(color_row);
+			XtWy[row] += math_sum_float3(color_row);
 		}
 	} END_FOR_PIXEL_WINDOW_SSE
 
-	float XtX[(2*DENOISE_FEATURES+1)*(2*DENOISE_FEATURES+1)];
-	math_hsum_matrix_lower(XtX, matrix_size, XtX_sse);
+	float XtWX[(2*DENOISE_FEATURES+1)*(2*DENOISE_FEATURES+1)];
+	math_hsum_matrix_lower(XtWX, matrix_size, XtWX_sse);
 
-	/* Solve the normal equation of the linear least squares system: Decompose A = X^T*X into L
-	 * so that L is a lower triangular matrix and L*L^T = A. Then, solve
-	 * A*x = (L*L^T)*x = L*(L^T*x) = X^T*y by first solving L*b = X^T*y and then L^T*x = b through
-	 * forward- and backsubstitution. */
-	math_matrix_add_diagonal(XtX, matrix_size, 1e-3f); /* Improve the numerical stability. */
-	math_cholesky(XtX, matrix_size); /* Decompose A=X^T*x to L. */
-	math_substitute_forward_vec3(XtX, matrix_size, XtY); /* Solve L*b = X^T*y. */
-	math_substitute_back_vec3(XtX, matrix_size, XtY); /* Solve L^T*x = b. */
+	math_solve_normal_equation(XtWX, XtWy, matrix_size);
 
 	/* Calculate the inverse of the r-feature bandwidths. */
 	float *bandwidth_factor = &storage->bandwidth[0];
 	for(int i = 0; i < rank; i++)
-		bandwidth_factor[i] = sqrtf(2.0f * average(fabs(XtY[1+rank+i])) + 0.16f);
+		bandwidth_factor[i] = sqrtf(2.0f * average(fabs(XtWy[1+rank+i])) + 0.16f);
 	for(int i = rank; i < DENOISE_FEATURES; i++)
 		bandwidth_factor[i] = 0.0f;
 
@@ -196,7 +189,7 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 			g_bandwidth_factor[i] = _mm_set1_ps(bandwidth_factor[i]/candidate_bw[g]);
 
 		matrix_size = rank+1;
-		math_matrix_zero_lower_sse(XtX_sse, matrix_size);
+		math_matrix_zero_lower_sse(XtWX_sse, matrix_size);
 
 		FOR_PIXEL_WINDOW_SSE {
 			__m128 color[3];
@@ -212,19 +205,19 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 
 			weight = _mm_mul_ps(weight, _mm_rcp_ps(_mm_max_ps(_mm_set1_ps(1.0f), variance)));
 
-			math_add_gramian_sse(XtX_sse, matrix_size, design_row, weight);
+			math_add_gramian_sse(XtWX_sse, matrix_size, design_row, weight);
 		} END_FOR_PIXEL_WINDOW_SSE
-		math_hsum_matrix_lower(XtX, matrix_size, XtX_sse);
+		math_hsum_matrix_lower(XtWX, matrix_size, XtWX_sse);
 
-		math_matrix_add_diagonal(XtX, matrix_size, 1e-4f); /* Improve the numerical stability. */
-		math_cholesky(XtX, matrix_size);
-		math_inverse_lower_tri_inplace(XtX, matrix_size);
+		math_matrix_add_diagonal(XtWX, matrix_size, 1e-4f); /* Improve the numerical stability. */
+		math_cholesky(XtWX, matrix_size);
+		math_inverse_lower_tri_inplace(XtWX, matrix_size);
 
 		float r_feature_weight_scalar[DENOISE_FEATURES+1];
 		math_vector_zero(r_feature_weight_scalar, matrix_size);
 		for(int col = 0; col < matrix_size; col++)
 			for(int row = col; row < matrix_size; row++)
-				r_feature_weight_scalar[col] += XtX[row]*XtX[col*matrix_size+row];
+				r_feature_weight_scalar[col] += XtWX[row]*XtWX[col*matrix_size+row];
 		__m128 r_feature_weight[DENOISE_FEATURES+1];
 		for(int col = 0; col < matrix_size; col++)
 			r_feature_weight[col] = _mm_set1_ps(r_feature_weight_scalar[col]);

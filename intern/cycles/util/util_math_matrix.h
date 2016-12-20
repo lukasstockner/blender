@@ -187,6 +187,24 @@ ccl_device_inline void math_inverse_lower_tri_inplace(float *L, int n)
 	}
 }
 
+/* Solve S = inv(Xt*W*X)*Xt*W*y.
+ * Instead of explicitly inverting Xt*W*X, we rearrange to:
+ * (Xt*W*X)*S = Xt*W*y
+ * Xt*W*X is per definition symmetric positive-semidefinite, so we can apply Cholesky decomposition to find a lower triangular L so that L*Lt = Xt*W*X.
+ * With that we get (L*Lt)*S = L*(Lt*S) = L*b = Xt*W*y.
+ * Since L is lower triangular, finding b (=Lt*S) is relatively easy since Xt*W*y is known.
+ * Then, the remaining problem is Lt*S = b, which again can be solved easily.
+ *
+ * Both inputs are destroyed in the process.
+ * The result is returned in XtWy. */
+ccl_device_inline void math_solve_normal_equation(float *XtWX, float3 *XtWy, int n)
+{
+	math_matrix_add_diagonal(XtWX, n, 1e-4f); /* Improve the numerical stability. */
+	math_cholesky(XtWX, n); /* Find L so that L*Lt = Xt*W*X. */
+	math_substitute_forward_vec3(XtWX, n, XtWy); /* Solve L*b = X^T*W*y, replacing X^T*W*y by b. */
+	math_substitute_back_vec3(XtWX, n, XtWy); /* Solve L^T*S = b, replacing b by S. */
+}
+
 ccl_device float math_largest_eigenvalue(float *A, int n, float *vec, float *tmp)
 {
 	/* Matrix-Vector-Multiplication that only accesses the lower triangular part of A. */
