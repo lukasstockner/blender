@@ -50,7 +50,7 @@ CCL_NAMESPACE_BEGIN
                                  }
 #endif
 
-ccl_device_inline void filter_get_features_sse(__m128 x, __m128 y, __m128 t, __m128 active_pixels, float ccl_readonly_ptr buffer, __m128 *features, __m128 *mean, int pass_stride)
+ccl_device_inline void filter_get_features_sse(__m128 x, __m128 y, __m128 t, __m128 active_pixels, float ccl_readonly_ptr buffer, __m128 *features, __m128 ccl_readonly_ptr mean, int pass_stride)
 {
 	__m128 *feature = features;
 	*(feature++) = x;
@@ -81,7 +81,7 @@ ccl_device_inline void filter_get_features_sse(__m128 x, __m128 y, __m128 t, __m
 #endif
 }
 
-ccl_device_inline void filter_get_feature_scales_sse(__m128 x, __m128 y, __m128 t, __m128 active_pixels, float ccl_readonly_ptr buffer, __m128 *scales, __m128 *mean, int pass_stride)
+ccl_device_inline void filter_get_feature_scales_sse(__m128 x, __m128 y, __m128 t, __m128 active_pixels, float ccl_readonly_ptr buffer, __m128 *scales, __m128 ccl_readonly_ptr mean, int pass_stride)
 {
 	*(scales++) = _mm_mask_ps(_mm_fabs_ps(_mm_sub_ps(x, *(mean++))), active_pixels); //X
 	*(scales++) = _mm_mask_ps(_mm_fabs_ps(_mm_sub_ps(y, *(mean++))), active_pixels); //Y
@@ -139,7 +139,7 @@ ccl_device_inline void filter_calculate_scale_sse(__m128 *scale)
 	scale[7] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(_mm_sqrt_ps(scale[7])), _mm_set1_ps(0.01f))); //AlbedoB
 }
 
-ccl_device_inline void filter_get_feature_variance_sse(__m128 x, __m128 y, __m128 active_pixels, float ccl_readonly_ptr buffer, __m128 *features, __m128 *scale, int pass_stride)
+ccl_device_inline void filter_get_feature_variance_sse(__m128 x, __m128 y, __m128 active_pixels, float ccl_readonly_ptr buffer, __m128 *features, __m128 ccl_readonly_ptr scale, int pass_stride)
 {
 	__m128 *feature = features;
 	*(feature++) = _mm_setzero_ps();
@@ -183,7 +183,7 @@ ccl_device_inline __m128 filter_get_pixel_variance_sse(float ccl_readonly_ptr bu
 	return _mm_mask_ps(_mm_mul_ps(_mm_set1_ps(1.0f/3.0f), _mm_add_ps(_mm_add_ps(ccl_get_feature_sse(17), ccl_get_feature_sse(19)), ccl_get_feature_sse(21))), active_pixels);
 }
 
-ccl_device_inline __m128 filter_fill_design_row_sse(__m128 *features, __m128 active_pixels, int rank, __m128 *design_row, __m128 *feature_transform, __m128 *bandwidth_factor)
+ccl_device_inline __m128 filter_fill_design_row_sse(__m128 *features, __m128 active_pixels, int rank, __m128 *design_row, __m128 ccl_readonly_ptr feature_transform, __m128 ccl_readonly_ptr bandwidth_factor)
 {
 	__m128 weight = _mm_mask_ps(_mm_set1_ps(1.0f), active_pixels);
 	design_row[0] = weight;
@@ -197,7 +197,7 @@ ccl_device_inline __m128 filter_fill_design_row_sse(__m128 *features, __m128 act
 	return weight;
 }
 
-ccl_device_inline __m128 filter_fill_design_row_quadratic_sse(__m128 *features, __m128 active_pixels, int rank, __m128 *design_row, __m128 *feature_transform)
+ccl_device_inline __m128 filter_fill_design_row_quadratic_sse(__m128 *features, __m128 active_pixels, int rank, __m128 *design_row, __m128 ccl_readonly_ptr feature_transform)
 {
 	__m128 weight = _mm_mask_ps(_mm_set1_ps(1.0f), active_pixels);
 	design_row[0] = weight;
@@ -211,7 +211,7 @@ ccl_device_inline __m128 filter_fill_design_row_quadratic_sse(__m128 *features, 
 	return weight;
 }
 
-ccl_device_inline __m128 filter_firefly_rejection_sse(__m128 *pixel_color, __m128 pixel_variance, __m128 *center_color, __m128 sqrt_center_variance)
+ccl_device_inline __m128 filter_firefly_rejection_sse(__m128 ccl_readonly_ptr pixel_color, __m128 pixel_variance, __m128 ccl_readonly_ptr center_color, __m128 sqrt_center_variance)
 {
 	__m128 color_diff = _mm_mul_ps(_mm_set1_ps(1.0f/9.0f), _mm_add_ps(_mm_add_ps(_mm_fabs_ps(_mm_sub_ps(pixel_color[0], center_color[0])), _mm_fabs_ps(_mm_sub_ps(pixel_color[1], center_color[1]))), _mm_fabs_ps(_mm_sub_ps(pixel_color[2], center_color[2]))));
 	__m128 variance = _mm_add_ps(_mm_add_ps(sqrt_center_variance, _mm_sqrt_ps(pixel_variance)), _mm_set1_ps(0.005f));

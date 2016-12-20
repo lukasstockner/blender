@@ -43,7 +43,7 @@
                              }
 #endif
 
-ccl_device_inline void filter_get_features(int3 pixel, float ccl_readonly_ptr buffer, float *features, float *mean, int pass_stride)
+ccl_device_inline void filter_get_features(int3 pixel, float ccl_readonly_ptr buffer, float *features, float ccl_readonly_ptr mean, int pass_stride)
 {
 	float *feature = features;
 	*(feature++) = pixel.x;
@@ -70,7 +70,7 @@ ccl_device_inline void filter_get_features(int3 pixel, float ccl_readonly_ptr bu
 #endif
 }
 
-ccl_device_inline void filter_get_feature_variance(float ccl_readonly_ptr buffer, float *features, float *scale, int pass_stride)
+ccl_device_inline void filter_get_feature_variance(float ccl_readonly_ptr buffer, float *features, float ccl_readonly_ptr scale, int pass_stride)
 {
 	float *feature = features;
 	*(feature++) = 0.0f;
@@ -95,7 +95,7 @@ ccl_device_inline void filter_get_feature_variance(float ccl_readonly_ptr buffer
 		features[i] *= scale[i]*scale[i];
 }
 
-ccl_device_inline void filter_get_feature_scales(int3 pixel, float ccl_readonly_ptr buffer, float *scales, float *mean, int pass_stride)
+ccl_device_inline void filter_get_feature_scales(int3 pixel, float ccl_readonly_ptr buffer, float *scales, float ccl_readonly_ptr mean, int pass_stride)
 {
 	*(scales++) = fabsf(pixel.x - *(mean++)); //X
 	*(scales++) = fabsf(pixel.y - *(mean++)); //Y
@@ -167,7 +167,7 @@ ccl_device_inline bool filter_firefly_rejection(float3 pixel_color, float pixel_
 
 /* Fill design row and compute WLR weight.
  * Doing both at the same time allows for a nice early-out as soon as the weight is zero. */
-ccl_device_inline float filter_get_design_row_transform_weight(int3 pixel, float ccl_readonly_ptr buffer, float *feature_means, int pass_stride, float *features, int rank, float *design_row, float ccl_readonly_ptr feature_transform, int transform_stride, float *bandwidth_factor)
+ccl_device_inline float filter_get_design_row_transform_weight(int3 pixel, float ccl_readonly_ptr buffer, float ccl_readonly_ptr feature_means, int pass_stride, float *features, int rank, float *design_row, float ccl_readonly_ptr feature_transform, int transform_stride, float ccl_readonly_ptr bandwidth_factor)
 {
 	filter_get_features(pixel, buffer, features, feature_means, pass_stride);
 	design_row[0] = 1.0f;
@@ -203,7 +203,7 @@ ccl_device_inline void filter_extend_design_row_quadratic(int rank, float *desig
 }
 
 /* Fill the design row without computing the weight. */
-ccl_device_inline void filter_get_design_row_transform(int3 pixel, float ccl_readonly_ptr buffer, float *feature_means, int pass_stride, float *features, int rank, float *design_row, float ccl_readonly_ptr feature_transform, int transform_stride)
+ccl_device_inline void filter_get_design_row_transform(int3 pixel, float ccl_readonly_ptr buffer, float ccl_readonly_ptr feature_means, int pass_stride, float *features, int rank, float *design_row, float ccl_readonly_ptr feature_transform, int transform_stride)
 {
 	filter_get_features(pixel, buffer, features, feature_means, pass_stride);
 	design_row[0] = 1.0f;
@@ -217,7 +217,7 @@ ccl_device_inline void filter_get_design_row_transform(int3 pixel, float ccl_rea
 	}
 }
 
-ccl_device_inline void filter_get_design_row(int3 pixel, float ccl_readonly_ptr buffer, float *feature_means, float *feature_scales, int pass_stride, float *design_row)
+ccl_device_inline void filter_get_design_row(int3 pixel, float ccl_readonly_ptr buffer, float ccl_readonly_ptr feature_means, float ccl_readonly_ptr feature_scales, int pass_stride, float *design_row)
 {
 	design_row[0] = 1.0f;
 	filter_get_features(pixel, buffer, design_row+1, feature_means, pass_stride);

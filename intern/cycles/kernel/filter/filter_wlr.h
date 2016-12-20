@@ -92,10 +92,9 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 			feature_matrix_norm += features[i + NORM_FEATURE_OFFSET]*kernel_data.integrator.filter_strength;
 #endif
 	} END_FOR_PIXEL_WINDOW
-	math_lower_tri_to_full(feature_matrix, DENOISE_FEATURES);
 
-	float *feature_transform = &storage->transform[0], *singular = tempvector + DENOISE_FEATURES;
-	int rank = svd(feature_matrix, feature_transform, singular, DENOISE_FEATURES);
+	float *feature_transform = &storage->transform[0];
+	int rank = math_jacobi_eigendecomposition(feature_matrix, feature_transform, DENOISE_FEATURES, 1);
 
 #ifdef FULL_EIGENVALUE_NORM
 	float tempvector_2[2*DENOISE_FEATURES];
@@ -109,7 +108,7 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 
 	rank = 0;
 	for(int i = 0; i < DENOISE_FEATURES; i++, rank++) {
-		float s = sqrtf(fabsf(singular[i]));
+		float s = feature_matrix[i*DENOISE_FEATURES+i];
 		if(i >= 2 && s < singular_threshold)
 			break;
 		/* Bake the feature scaling into the transformation matrix. */
@@ -123,7 +122,7 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 	for(int i = 0; i < DENOISE_FEATURES; i++) {
 		storage->means[i] = feature_means[i];
 		storage->scales[i] = feature_scale[i];
-		storage->singular[i] = sqrtf(fabsf(singular[i]));
+		storage->singular[i] = feature_matrix[i*DENOISE_FEATURES+i];
 	}
 #endif
 	storage->rank = rank;
@@ -177,11 +176,11 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 	 * both the r-feature vector z as well as z^T*z and using the resulting parameter for
 	 * that dimension of the z^T*z vector times two as the derivative. */
 	int matrix_size = 2*rank + 1; /* Constant term (1 dim) + z (rank dims) + z^T*z (rank dims) */
-	float *XtX = tempmatrix, *design_row = tempvector;
-	float3 XtY[2*DENOISE_FEATURES+1];
+	float *XtWX = tempmatrix, *design_row = tempvector;
+	float3 XtWy[2*DENOISE_FEATURES+1];
 
-	math_matrix_zero_lower(XtX, matrix_size);
-	math_vec3_zero(XtY, matrix_size);
+	math_matrix_zero_lower(XtWX, matrix_size);
+	math_vec3_zero(XtWy, matrix_size);
 	FOR_PIXEL_WINDOW {
 		float weight = filter_get_design_row_transform_weight(pixel, pixel_buffer, feature_means, pass_stride, features, rank, design_row, feature_transform, 1, NULL);
 	
@@ -189,23 +188,16 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 		weight /= max(1.0f, filter_get_pixel_variance(pixel_buffer, pass_stride));
 
 		filter_extend_design_row_quadratic(rank, design_row);
-		math_add_gramian(XtX, matrix_size, design_row, weight);
-		math_add_vec3(XtY, matrix_size, design_row, weight * filter_get_pixel_color(pixel_buffer, pass_stride));
+		math_add_gramian(XtWX, matrix_size, design_row, weight);
+		math_add_vec3(XtWy, matrix_size, design_row, weight * filter_get_pixel_color(pixel_buffer, pass_stride));
 	} END_FOR_PIXEL_WINDOW
 
-	/* Solve the normal equation of the linear least squares system: Decompose A = X^T*X into L
-	 * so that L is a lower triangular matrix and L*L^T = A. Then, solve
-	 * A*x = (L*L^T)*x = L*(L^T*x) = X^T*y by first solving L*b = X^T*y and then L^T*x = b through
-	 * forward- and backsubstitution. */
-	math_matrix_add_diagonal(XtX, matrix_size, 1e-3f); /* Improve the numerical stability. */
-	math_cholesky(XtX, matrix_size); /* Decompose A=X^T*x to L. */
-	math_substitute_forward_vec3(XtX, matrix_size, XtY); /* Solve L*b = X^T*y. */
-	math_substitute_back_vec3(XtX, matrix_size, XtY); /* Solve L^T*x = b. */
+	math_solve_normal_equation(XtWX, XtWy, matrix_size);
 
 	/* Calculate the inverse of the r-feature bandwidths. */
 	float *bandwidth_factor = &storage->bandwidth[0];
 	for(int i = 0; i < rank; i++)
-		bandwidth_factor[i] = sqrtf(2.0f * average(fabs(XtY[1+rank+i])) + 0.16f);
+		bandwidth_factor[i] = sqrtf(2.0f * average(fabs(XtWy[1+rank+i])) + 0.16f);
 	for(int i = rank; i < DENOISE_FEATURES; i++)
 		bandwidth_factor[i] = 0.0f;
 
@@ -222,7 +214,7 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 			g_bandwidth_factor[i] = bandwidth_factor[i]/candidate_bw[g];
 
 		matrix_size = rank+1;
-		math_matrix_zero_lower(XtX, matrix_size);
+		math_matrix_zero_lower(XtWX, matrix_size);
 
 		FOR_PIXEL_WINDOW {
 			float3 color = filter_get_pixel_color(pixel_buffer, pass_stride);
@@ -234,18 +226,18 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 			if(weight == 0.0f) continue;
 			weight /= max(1.0f, variance);
 
-			math_add_gramian(XtX, matrix_size, design_row, weight);
+			math_add_gramian(XtWX, matrix_size, design_row, weight);
 		} END_FOR_PIXEL_WINDOW
 
-		math_matrix_add_diagonal(XtX, matrix_size, 1e-4f); /* Improve the numerical stability. */
-		math_cholesky(XtX, matrix_size);
-		math_inverse_lower_tri_inplace(XtX, matrix_size);
+		math_matrix_add_diagonal(XtWX, matrix_size, 1e-4f); /* Improve the numerical stability. */
+		math_cholesky(XtWX, matrix_size);
+		math_inverse_lower_tri_inplace(XtWX, matrix_size);
 
 		float r_feature_weight[DENOISE_FEATURES+1];
 		math_vector_zero(r_feature_weight, matrix_size);
 		for(int col = 0; col < matrix_size; col++)
 			for(int row = col; row < matrix_size; row++)
-				r_feature_weight[col] += XtX[row]*XtX[col*matrix_size+row];
+				r_feature_weight[col] += XtWX[row]*XtWX[col*matrix_size+row];
 
 		float3 est_color = make_float3(0.0f, 0.0f, 0.0f), est_pos_color = make_float3(0.0f, 0.0f, 0.0f);
 		float est_variance = 0.0f, est_pos_variance = 0.0f;

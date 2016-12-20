@@ -104,7 +104,7 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 
 	math_matrix_zero(XtWX, matrix_size);
 	math_vec3_zero(solution, matrix_size);
-	/* Construct Xt*W*X matrix (and fill weight cache, if used). */
+	/* Construct Xt*W*X matrix and Xt*W*y vector (and fill weight cache, if used). */
 	FOR_PIXEL_WINDOW {
 		float3 color = filter_get_pixel_color(pixel_buffer + color_passes.x, pass_stride);
 		float variance = filter_get_pixel_variance(pixel_buffer + color_passes.x, pass_stride);
@@ -141,17 +141,7 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 		math_add_vec3(solution, matrix_size, design_row, weight * color);
 	} END_FOR_PIXEL_WINDOW
 
-	/* Solve S = inv(Xt*W*X)*Xt*W*y.
-	 * Instead of explicitly inverting Xt*W*X, we rearrange to:
-	 * (Xt*W*X)*S = Wt*W*y
-	 * Xt*W*X is per definition symmetric positive-semidefinite, so we can apply Cholesky decomposition to find a lower triangular L so that L*Lt = Xt*W*X.
-	 * With, that we get (L*Lt)*S = L*(Lt*S) = L*b = Wt*W*y.
-	 * Since L is lower triangular, finding b (=Lt*S) is relatively easy.
-	 * Then, the remaining problem is Lt*S = b, which also can be solved easily. */
-	math_matrix_add_diagonal(XtWX, matrix_size, 1e-4f); /* Improve the numerical stability. */
-	math_cholesky(XtWX, matrix_size); /* Find L so that L*Lt = Xt*W*X. */
-	math_substitute_forward_vec3(XtWX, matrix_size, solution); /* Solve L*b = X^T*y, replacing X^T*y by b. */
-	math_substitute_back_vec3(XtWX, matrix_size, solution); /* Solve L^T*S = b, replacing b by S. */
+	math_solve_normal_equation(XtWX, solution, matrix_size);
 
 	if(kernel_data.integrator.use_gradients) {
 		FOR_PIXEL_WINDOW {

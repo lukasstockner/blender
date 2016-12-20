@@ -554,6 +554,7 @@ ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals *kg, const ShaderClosure
 	float alpha_y = bsdf->alpha_y;
 	bool m_refractive = bsdf->type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID;
 	float3 N = bsdf->N;
+	int label;
 
 	float cosNO = dot(N, I);
 	if(cosNO > 0) {
@@ -579,6 +580,7 @@ ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals *kg, const ShaderClosure
 		/* reflection or refraction? */
 		if(!m_refractive) {
 			float cosMO = dot(m, I);
+			label = LABEL_REFLECT | LABEL_GLOSSY;
 
 			if(cosMO > 0) {
 				/* eq. 39 - compute actual reflected direction */
@@ -595,6 +597,7 @@ ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals *kg, const ShaderClosure
 							*pdf = 1.0f;
 							*eval = reflection_color(bsdf, *omega_in, m);
 						}
+						label = LABEL_REFLECT | LABEL_SINGULAR;
 					}
 					else {
 						/* microfacet normal is visible to this ray */
@@ -675,6 +678,8 @@ ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals *kg, const ShaderClosure
 			}
 		}
 		else {
+			label = LABEL_TRANSMIT | LABEL_GLOSSY;
+
 			/* CAUTION: the i and o variables are inverted relative to the paper
 			 * eq. 39 - compute actual refractive direction */
 			float3 R, T;
@@ -702,6 +707,7 @@ ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals *kg, const ShaderClosure
 					/* some high number for MIS */
 					*pdf = 1e6f;
 					*eval = make_float3(1e6f, 1e6f, 1e6f);
+					label = LABEL_TRANSMIT | LABEL_SINGULAR;
 				}
 				else {
 					/* eq. 33 */
@@ -733,7 +739,10 @@ ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals *kg, const ShaderClosure
 			}
 		}
 	}
-	return (m_refractive) ? LABEL_TRANSMIT|LABEL_GLOSSY : LABEL_REFLECT|LABEL_GLOSSY;
+	else {
+		label = (m_refractive) ? LABEL_TRANSMIT|LABEL_GLOSSY : LABEL_REFLECT|LABEL_GLOSSY;
+	}
+	return label;
 }
 
 /* Beckmann microfacet with Smith shadow-masking from:
@@ -941,6 +950,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals *kg, const ShaderCl
 	float alpha_y = bsdf->alpha_y;
 	bool m_refractive = bsdf->type == CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID;
 	float3 N = bsdf->N;
+	int label;
 
 	float cosNO = dot(N, I);
 	if(cosNO > 0) {
@@ -965,6 +975,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals *kg, const ShaderCl
 
 		/* reflection or refraction? */
 		if(!m_refractive) {
+			label = LABEL_REFLECT | LABEL_GLOSSY;
 			float cosMO = dot(m, I);
 
 			if(cosMO > 0) {
@@ -976,6 +987,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals *kg, const ShaderCl
 						/* some high number for MIS */
 						*pdf = 1e6f;
 						*eval = make_float3(1e6f, 1e6f, 1e6f);
+						label = LABEL_REFLECT | LABEL_SINGULAR;
 					}
 					else {
 						/* microfacet normal is visible to this ray
@@ -1030,6 +1042,8 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals *kg, const ShaderCl
 			}
 		}
 		else {
+			label = LABEL_TRANSMIT | LABEL_GLOSSY;
+
 			/* CAUTION: the i and o variables are inverted relative to the paper
 			 * eq. 39 - compute actual refractive direction */
 			float3 R, T;
@@ -1057,6 +1071,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals *kg, const ShaderCl
 					/* some high number for MIS */
 					*pdf = 1e6f;
 					*eval = make_float3(1e6f, 1e6f, 1e6f);
+					label = LABEL_TRANSMIT | LABEL_SINGULAR;
 				}
 				else {
 					/* eq. 33 */
@@ -1089,7 +1104,10 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals *kg, const ShaderCl
 			}
 		}
 	}
-	return (m_refractive) ? LABEL_TRANSMIT|LABEL_GLOSSY : LABEL_REFLECT|LABEL_GLOSSY;
+	else {
+		label = (m_refractive) ? LABEL_TRANSMIT|LABEL_GLOSSY : LABEL_REFLECT|LABEL_GLOSSY;
+	}
+	return label;
 }
 
 CCL_NAMESPACE_END

@@ -138,6 +138,10 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 #endif  /* __LAMP_MIS__ */
 
 #ifdef __VOLUME__
+		/* Sanitize volume stack. */
+		if(!hit) {
+			kernel_volume_clean_stack(kg, state->volume_stack);
+		}
 		/* volume attenuation, emission, scatter */
 		if(state->volume_stack[0].shader != SHADER_NONE) {
 			Ray volume_ray = *ray;
@@ -662,6 +666,10 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 #endif  /* __LAMP_MIS__ */
 
 #ifdef __VOLUME__
+		/* Sanitize volume stack. */
+		if(!hit) {
+			kernel_volume_clean_stack(kg, state.volume_stack);
+		}
 		/* volume attenuation, emission, scatter */
 		if(state.volume_stack[0].shader != SHADER_NONE) {
 			Ray volume_ray = ray;
