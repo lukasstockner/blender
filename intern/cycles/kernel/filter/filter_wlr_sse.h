@@ -209,18 +209,11 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 		} END_FOR_PIXEL_WINDOW_SSE
 		math_hsum_matrix_lower(XtWX, matrix_size, XtWX_sse);
 
-		math_matrix_add_diagonal(XtWX, matrix_size, 1e-4f); /* Improve the numerical stability. */
-		math_cholesky(XtWX, matrix_size);
-		math_inverse_lower_tri_inplace(XtWX, matrix_size);
-
-		float r_feature_weight_scalar[DENOISE_FEATURES+1];
-		math_vector_zero(r_feature_weight_scalar, matrix_size);
+		float inverse_row_scalar[DENOISE_FEATURES+1];
+		math_matrix_inverse_row(XtWX, inverse_row_scalar, matrix_size, 0);
+		__m128 inverse_row[DENOISE_FEATURES+1];
 		for(int col = 0; col < matrix_size; col++)
-			for(int row = col; row < matrix_size; row++)
-				r_feature_weight_scalar[col] += XtWX[row]*XtWX[col*matrix_size+row];
-		__m128 r_feature_weight[DENOISE_FEATURES+1];
-		for(int col = 0; col < matrix_size; col++)
-			r_feature_weight[col] = _mm_set1_ps(r_feature_weight_scalar[col]);
+			inverse_row[col] = _mm_set1_ps(inverse_row_scalar[col]);
 
 		__m128 est_pos_color[3] = {_mm_setzero_ps()}, est_color[3] = {_mm_setzero_ps()};
 		__m128 est_variance = _mm_setzero_ps(), est_pos_variance = _mm_setzero_ps(), pos_weight_sse = _mm_setzero_ps();
@@ -238,7 +231,7 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 			/* Early out if all pixels were masked away. */
 			if(!_mm_movemask_ps(active_pixels)) continue;
 
-			weight = _mm_mul_ps(weight, _mm_mul_ps(math_dot_sse(design_row, r_feature_weight, matrix_size), _mm_rcp_ps(_mm_max_ps(_mm_set1_ps(1.0f), variance))));
+			weight = _mm_mul_ps(weight, _mm_mul_ps(math_dot_sse(design_row, inverse_row, matrix_size), _mm_rcp_ps(_mm_max_ps(_mm_set1_ps(1.0f), variance))));
 
 			math_mul_vector_scalar_sse(color, 3, weight);
 			math_add_vector_sse(est_color, 3, color);

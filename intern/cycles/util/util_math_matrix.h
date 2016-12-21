@@ -28,12 +28,6 @@ CCL_NAMESPACE_BEGIN
 #define MATS(A, n, r, c, s) MAT(A, n, r, c)
 #endif
 
-ccl_device_inline void math_matrix_zero(float *A, int n)
-{
-	for(int i = 0; i < n*n; i++)
-		A[i] = 0.0f;
-}
-
 ccl_device_inline void math_vector_zero(float *v, int n)
 {
 	for(int i = 0; i < n; i++)
@@ -51,13 +45,6 @@ ccl_device_inline void math_matrix_zero_lower(float *A, int n)
 	for(int row = 0; row < n; row++)
 		for(int col = 0; col <= row; col++)
 			MAT(A, n, row, col) = 0.0f;
-}
-
-ccl_device_inline void math_matrix_identity(float *A, int n)
-{
-	for(int row = 0; row < n; row++)
-		for(int col = 0; col < n; col++)
-			MAT(A, n, row, col) = (row == col)? 1.0f: 0.0f;
 }
 
 /* In-place Cholesky-Banachiewicz decomposition of the square, positive-definite matrix A
@@ -155,24 +142,8 @@ ccl_device_inline void math_substitute_back_vec3(float *LT, int n, float3 *x)
 	}
 }
 
-ccl_device_inline void math_inverse_lower_tri(float *L, float *invL, int n)
-{
-	for(int comp = 0; comp < n; comp++) {
-		for(int row = 0; row < comp; row++)
-			MAT(invL, n, row, comp) = 0.0f;
-		MAT(invL, n, comp, comp) = 1.0f / MAT(L, n, comp, comp);
-		for(int row = comp+1; row < n; row++) {
-			float sum = 0.0f;
-			for(int col = comp; col < row; col++)
-				sum += MAT(L, n, row, col) * MAT(invL, n, col, comp);
-			MAT(invL, n, row, comp) = -sum/MAT(L, n, row, row);
-		}
-	}
-}
-
-/* Inverts the lower triangular matrix L and overwrites it with the transpose
- * of the result. */
-ccl_device_inline void math_inverse_lower_tri_inplace(float *L, int n)
+/* Inverts the lower triangular matrix L and overwrites it with the transpose of the result. */
+ccl_device_inline void math_inverse_lower_tri(float *L, int n)
 {
 	for(int row = 0; row < n; row++)
 		MAT(L, n, row, row) = 1.0f / MAT(L, n, row, row);
@@ -203,6 +174,32 @@ ccl_device_inline void math_solve_normal_equation(float *XtWX, float3 *XtWy, int
 	math_cholesky(XtWX, n); /* Find L so that L*Lt = Xt*W*X. */
 	math_substitute_forward_vec3(XtWX, n, XtWy); /* Solve L*b = X^T*W*y, replacing X^T*W*y by b. */
 	math_substitute_back_vec3(XtWX, n, XtWy); /* Solve L^T*S = b, replacing b by S. */
+}
+
+/* Find only the i-th row of the inverse of A, destroying A in the process.
+ * This can be used to solve the normal equation for only the i-th element of the result vector:
+ * If S = inv(Xt*W*X)*Xt*W*y, then S[i] is equal to dot(inv(Xt*W*X)[i], X[k])*W[k]*y[k] summed over all data points k, where [j] is the j-th row.
+ *
+ * For most applications, it makes more sense to directly use math_solve_normal_equation
+ * since that only requires one pass over the data, accumulating both Xt*W*X and Xt*W*y.
+ *
+ * But, for variance estimation the squared value of every datapoint's combined weight (= inv(Xt*W*X)*Xt*W) is needed. Calculating the combined weight
+ * explicitly is too expensive, so we need to be able to find every datapoint's own combined weight in the pass over the data.
+ *
+ * Therefore, we compute Xt*W*X in the first pass, use this function to find v, the i-th row of its inverse,
+ * and then use dot(v, X[k])*W[k] as the combined weight in the second pass. */
+ccl_device_inline void math_matrix_inverse_row(float *A, float *v, int n, int i)
+{
+	math_matrix_add_diagonal(A, n, 1e-4f); /* Improve the numerical stability. */
+	math_cholesky(A, n); /* Find L so that L*Lt = A. */
+	math_inverse_lower_tri(A, n); /* Find inv(L). */
+	/* Now, inv(A) = inv(L*Lt) = inv(Lt)*inv(L) = inv(L)t*inv(L).
+	 * From that, inv(A)[i,j] = sum_k((inv(L)t)[i, k] * inv(L)[k, j]) = sum_k(inv(L)[k, i] * inv(L)[k, j]).
+	 * But, since math_inverse_lower_tri stores the *transpose* of the result to be able to work inplace, we must swap the indices. */
+	math_vector_zero(v, n);
+	for(int j = 0; j < n; j++)
+		for(int k = j; k < n; k++)
+			v[j] += MAT(A, n, i, k)*MAT(A, n, j, k);
 }
 
 ccl_device float math_largest_eigenvalue(float *A, int n, float *vec, float *tmp)

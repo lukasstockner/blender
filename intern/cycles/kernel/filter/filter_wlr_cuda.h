@@ -211,15 +211,8 @@ ccl_device void kernel_filter_estimate_bias_variance(KernelGlobals *kg, int samp
 		math_add_gramian(XtWX, matrix_size, design_row, weight);
 	} END_FOR_PIXEL_WINDOW
 
-	math_matrix_add_diagonal(XtWX, matrix_size, 1e-4f); /* Improve the numerical stability. */
-	math_cholesky(XtWX, matrix_size);
-	math_inverse_lower_tri_inplace(XtWX, matrix_size);
-
-	float r_feature_weight[DENOISE_FEATURES+1];
-	math_vector_zero(r_feature_weight, matrix_size);
-	for(int col = 0; col < matrix_size; col++)
-		for(int row = col; row < matrix_size; row++)
-			r_feature_weight[col] += XtWX[row]*XtWX[col*matrix_size+row];
+	float inverse_row[DENOISE_FEATURES+1];
+	math_matrix_inverse_row(XtWX, inverse_row, matrix_size, 0);
 
 	float3 est_color = make_float3(0.0f, 0.0f, 0.0f), est_pos_color = make_float3(0.0f, 0.0f, 0.0f);
 	float est_variance = 0.0f, est_pos_variance = 0.0f;
@@ -234,7 +227,7 @@ ccl_device void kernel_filter_estimate_bias_variance(KernelGlobals *kg, int samp
 
 		if(weight == 0.0f) continue;
 		weight /= max(1.0f, variance);
-		weight *= math_dot(design_row, r_feature_weight, matrix_size);
+		weight *= math_dot(design_row, inverse_row, matrix_size);
 
 		est_color += weight * color;
 		est_variance += weight*weight * max(variance, 0.0f);

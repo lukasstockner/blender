@@ -102,7 +102,7 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 	float XtWX[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)], design_row[DENOISE_FEATURES+1];
 	float3 solution[(DENOISE_FEATURES+1)];
 
-	math_matrix_zero(XtWX, matrix_size);
+	math_matrix_zero_lower(XtWX, matrix_size);
 	math_vec3_zero(solution, matrix_size);
 	/* Construct Xt*W*X matrix and Xt*W*y vector (and fill weight cache, if used). */
 	FOR_PIXEL_WINDOW {
