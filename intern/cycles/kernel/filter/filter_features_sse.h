@@ -188,7 +188,7 @@ ccl_device_inline __m128 filter_fill_design_row_sse(__m128 *features, __m128 act
 	__m128 weight = _mm_mask_ps(_mm_set1_ps(1.0f), active_pixels);
 	design_row[0] = weight;
 	for(int d = 0; d < rank; d++) {
-		__m128 x = math_dot_sse(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
+		__m128 x = math_vector_dot_sse(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
 		__m128 x2 = _mm_mul_ps(x, bandwidth_factor[d]);
 		x2 = _mm_mul_ps(x2, x2);
 		weight = _mm_mask_ps(_mm_mul_ps(weight, _mm_mul_ps(_mm_set1_ps(0.75f), _mm_sub_ps(_mm_set1_ps(1.0f), x2))), _mm_and_ps(_mm_cmplt_ps(x2, _mm_set1_ps(1.0f)), active_pixels));
@@ -202,7 +202,7 @@ ccl_device_inline __m128 filter_fill_design_row_quadratic_sse(__m128 *features, 
 	__m128 weight = _mm_mask_ps(_mm_set1_ps(1.0f), active_pixels);
 	design_row[0] = weight;
 	for(int d = 0; d < rank; d++) {
-		__m128 x = math_dot_sse(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
+		__m128 x = math_vector_dot_sse(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
 		__m128 x2 = _mm_mul_ps(x, x);
 		weight = _mm_mask_ps(_mm_mul_ps(weight, _mm_mul_ps(_mm_set1_ps(0.75f), _mm_sub_ps(_mm_set1_ps(1.0f), x2))), _mm_and_ps(_mm_cmplt_ps(x2, _mm_set1_ps(1.0f)), active_pixels));
 		design_row[1+d] = x;

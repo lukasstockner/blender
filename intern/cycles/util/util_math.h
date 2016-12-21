@@ -517,6 +517,11 @@ ccl_device_inline float3 operator+=(float3& a, const float3& b)
 	return a = a + b;
 }
 
+ccl_device_inline float3 operator-=(float3& a, const float3& b)
+{
+	return a = a - b;
+}
+
 ccl_device_inline float3 operator*=(float3& a, const float3& b)
 {
 	return a = a * b;

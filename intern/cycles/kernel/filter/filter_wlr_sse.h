@@ -33,10 +33,11 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 	int2 high = make_int2(min(rect.z, x + kernel_data.integrator.half_window + 1),
 	                      min(rect.w, y + kernel_data.integrator.half_window + 1));
 
-	__m128 feature_means[DENOISE_FEATURES] = {_mm_setzero_ps()};
+	__m128 feature_means[DENOISE_FEATURES];
+	math_vector_zero_sse(feature_means, DENOISE_FEATURES);
 	FOR_PIXEL_WINDOW_SSE {
 		filter_get_features_sse(x4, y4, t4, active_pixels, pixel_buffer, features, NULL, pass_stride);
-		math_add_vector_sse(feature_means, DENOISE_FEATURES, features);
+		math_vector_add_sse(feature_means, DENOISE_FEATURES, features);
 	} END_FOR_PIXEL_WINDOW_SSE
 
 	__m128 pixel_scale = _mm_set1_ps(1.0f / ((high.y - low.y) * (high.x - low.x)));
@@ -44,7 +45,8 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 		feature_means[i] = _mm_mul_ps(_mm_hsum_ps(feature_means[i]), pixel_scale);
 	}
 
-	__m128 feature_scale[DENOISE_FEATURES] = {_mm_setzero_ps()};
+	__m128 feature_scale[DENOISE_FEATURES];
+	math_vector_zero_sse(feature_scale, DENOISE_FEATURES);
 	FOR_PIXEL_WINDOW_SSE {
 		filter_get_feature_scales_sse(x4, y4, t4, active_pixels, pixel_buffer, features, feature_means, pass_stride);
 		for(int i = 0; i < DENOISE_FEATURES; i++)
@@ -55,23 +57,23 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 
 	__m128 feature_matrix_sse[DENOISE_FEATURES*DENOISE_FEATURES];
 	__m128 feature_matrix_norm = _mm_setzero_ps();
-	math_matrix_zero_lower_sse(feature_matrix_sse, DENOISE_FEATURES);
+	math_trimatrix_zero_sse(feature_matrix_sse, DENOISE_FEATURES);
 	FOR_PIXEL_WINDOW_SSE {
 		filter_get_features_sse(x4, y4, t4, active_pixels, pixel_buffer, features, feature_means, pass_stride);
-		math_mul_vector_sse(features, DENOISE_FEATURES, feature_scale);
-		math_add_gramian_sse(feature_matrix_sse, DENOISE_FEATURES, features, _mm_set1_ps(1.0f));
+		math_vector_mul_sse(features, DENOISE_FEATURES, feature_scale);
+		math_trimatrix_add_gramian_sse(feature_matrix_sse, DENOISE_FEATURES, features, _mm_set1_ps(1.0f));
 
 		filter_get_feature_variance_sse(x4, y4, active_pixels, pixel_buffer, features, feature_scale, pass_stride);
-		math_mul_vector_scalar_sse(features, DENOISE_FEATURES, _mm_set1_ps(kernel_data.integrator.filter_strength));
+		math_vector_scale_sse(features, DENOISE_FEATURES, _mm_set1_ps(kernel_data.integrator.filter_strength));
 		for(int i = 0; i < NORM_FEATURE_NUM; i++)
 			feature_matrix_norm = _mm_add_ps(feature_matrix_norm, features[i + NORM_FEATURE_OFFSET]);
 	} END_FOR_PIXEL_WINDOW_SSE
 
 	float feature_matrix[DENOISE_FEATURES*DENOISE_FEATURES];
-	math_hsum_matrix_lower(feature_matrix, DENOISE_FEATURES, feature_matrix_sse);
+	math_trimatrix_hsum(feature_matrix, DENOISE_FEATURES, feature_matrix_sse);
 
 	float *feature_transform = &storage->transform[0];
-	int rank = math_jacobi_eigendecomposition(feature_matrix, feature_transform, DENOISE_FEATURES, 1);
+	int rank = math_trimatrix_jacobi_eigendecomposition(feature_matrix, feature_transform, DENOISE_FEATURES, 1);
 	float singular_threshold = 0.01f + 2.0f * (sqrtf(_mm_hsum_ss(feature_matrix_norm)) / (sqrtf(rank) * 0.5f));
 	singular_threshold *= singular_threshold;
 
@@ -116,7 +118,8 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 	int2 high = make_int2(min(rect.z, x + kernel_data.integrator.half_window + 1),
 	                      min(rect.w, y + kernel_data.integrator.half_window + 1));
 
-	__m128 feature_means[DENOISE_FEATURES] = {_mm_setzero_ps()};
+	__m128 feature_means[DENOISE_FEATURES];
+	math_vector_zero_sse(feature_means, DENOISE_FEATURES);
 
 	/* From here on, the mean of the features will be shifted to the central pixel's values. */
 	float feature_means_scalar[DENOISE_FEATURES];
@@ -140,7 +143,7 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 	__m128 XtWX_sse[(2*DENOISE_FEATURES+1)*(2*DENOISE_FEATURES+1)], design_row[(2*DENOISE_FEATURES+1)];
 	float3 XtWy[2*DENOISE_FEATURES+1];
 
-	math_matrix_zero_lower_sse(XtWX_sse, matrix_size);
+	math_trimatrix_zero_sse(XtWX_sse, matrix_size);
 	math_vec3_zero(XtWy, matrix_size);
 	FOR_PIXEL_WINDOW_SSE {
 		filter_get_features_sse(x4, y4, t4, active_pixels, pixel_buffer, features, feature_means, pass_stride);
@@ -150,22 +153,22 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 		if(!_mm_movemask_ps(active_pixels)) continue;
 		weight = _mm_mul_ps(weight, _mm_rcp_ps(_mm_max_ps(_mm_set1_ps(1.0f), filter_get_pixel_variance_sse(pixel_buffer, active_pixels, pass_stride))));
 
-		math_add_gramian_sse(XtWX_sse, matrix_size, design_row, weight);
+		math_trimatrix_add_gramian_sse(XtWX_sse, matrix_size, design_row, weight);
 
 		__m128 color[3];
 		filter_get_pixel_color_sse(pixel_buffer, active_pixels, color, pass_stride);
-		math_mul_vector_scalar_sse(color, 3, weight);
+		math_vector_scale_sse(color, 3, weight);
 		for(int row = 0; row < matrix_size; row++) {
 			__m128 color_row[3] = {color[0], color[1], color[2]};
-			math_mul_vector_scalar_sse(color_row, 3, design_row[row]);
+			math_vector_scale_sse(color_row, 3, design_row[row]);
 			XtWy[row] += math_sum_float3(color_row);
 		}
 	} END_FOR_PIXEL_WINDOW_SSE
 
 	float XtWX[(2*DENOISE_FEATURES+1)*(2*DENOISE_FEATURES+1)];
-	math_hsum_matrix_lower(XtWX, matrix_size, XtWX_sse);
+	math_trimatrix_hsum(XtWX, matrix_size, XtWX_sse);
 
-	math_solve_normal_equation(XtWX, XtWy, matrix_size);
+	math_trimatrix_vec3_solve(XtWX, XtWy, matrix_size);
 
 	/* Calculate the inverse of the r-feature bandwidths. */
 	float *bandwidth_factor = &storage->bandwidth[0];
@@ -189,7 +192,7 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 			g_bandwidth_factor[i] = _mm_set1_ps(bandwidth_factor[i]/candidate_bw[g]);
 
 		matrix_size = rank+1;
-		math_matrix_zero_lower_sse(XtWX_sse, matrix_size);
+		math_trimatrix_zero_sse(XtWX_sse, matrix_size);
 
 		FOR_PIXEL_WINDOW_SSE {
 			__m128 color[3];
@@ -205,17 +208,19 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 
 			weight = _mm_mul_ps(weight, _mm_rcp_ps(_mm_max_ps(_mm_set1_ps(1.0f), variance)));
 
-			math_add_gramian_sse(XtWX_sse, matrix_size, design_row, weight);
+			math_trimatrix_add_gramian_sse(XtWX_sse, matrix_size, design_row, weight);
 		} END_FOR_PIXEL_WINDOW_SSE
-		math_hsum_matrix_lower(XtWX, matrix_size, XtWX_sse);
+		math_trimatrix_hsum(XtWX, matrix_size, XtWX_sse);
 
 		float inverse_row_scalar[DENOISE_FEATURES+1];
-		math_matrix_inverse_row(XtWX, inverse_row_scalar, matrix_size, 0);
+		math_trimatrix_inverse_row(XtWX, inverse_row_scalar, matrix_size, 0);
 		__m128 inverse_row[DENOISE_FEATURES+1];
 		for(int col = 0; col < matrix_size; col++)
 			inverse_row[col] = _mm_set1_ps(inverse_row_scalar[col]);
 
-		__m128 est_pos_color[3] = {_mm_setzero_ps()}, est_color[3] = {_mm_setzero_ps()};
+		__m128 est_pos_color[3], est_color[3];
+		math_vector_zero_sse(est_color, 3);
+		math_vector_zero_sse(est_pos_color, 3);
 		__m128 est_variance = _mm_setzero_ps(), est_pos_variance = _mm_setzero_ps(), pos_weight_sse = _mm_setzero_ps();
 
 		FOR_PIXEL_WINDOW_SSE {
@@ -231,16 +236,16 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 			/* Early out if all pixels were masked away. */
 			if(!_mm_movemask_ps(active_pixels)) continue;
 
-			weight = _mm_mul_ps(weight, _mm_mul_ps(math_dot_sse(design_row, inverse_row, matrix_size), _mm_rcp_ps(_mm_max_ps(_mm_set1_ps(1.0f), variance))));
+			weight = _mm_mul_ps(weight, _mm_mul_ps(math_vector_dot_sse(design_row, inverse_row, matrix_size), _mm_rcp_ps(_mm_max_ps(_mm_set1_ps(1.0f), variance))));
 
-			math_mul_vector_scalar_sse(color, 3, weight);
-			math_add_vector_sse(est_color, 3, color);
+			math_vector_scale_sse(color, 3, weight);
+			math_vector_add_sse(est_color, 3, color);
 			__m128 variance_inc = _mm_mul_ps(_mm_mul_ps(weight, weight), _mm_max_ps(variance, _mm_setzero_ps()));
 			est_variance = _mm_add_ps(est_variance, variance_inc);
 
 			__m128 posmask = _mm_and_ps(active_pixels, _mm_cmpgt_ps(weight, _mm_setzero_ps()));
-			math_mask_vector_sse(color, 3, posmask);
-			math_add_vector_sse(est_pos_color, 3, color);
+			math_vector_mask_sse(color, 3, posmask);
+			math_vector_add_sse(est_pos_color, 3, color);
 			est_pos_variance = _mm_add_ps(est_pos_variance, _mm_mask_ps(variance_inc, posmask));
 			pos_weight_sse = _mm_add_ps(pos_weight_sse, _mm_mask_ps(weight, posmask));
 		} END_FOR_PIXEL_WINDOW_SSE

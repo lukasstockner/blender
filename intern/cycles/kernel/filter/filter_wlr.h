@@ -45,16 +45,15 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 
 
 	/* === Shift feature passes to have mean 0. === */
-	float feature_means[DENOISE_FEATURES] = {0.0f};
+	float feature_means[DENOISE_FEATURES];
+	math_vector_zero(feature_means, DENOISE_FEATURES);
 	FOR_PIXEL_WINDOW {
 		filter_get_features(pixel, pixel_buffer, features, NULL, pass_stride);
-		for(int i = 0; i < DENOISE_FEATURES; i++)
-			feature_means[i] += features[i];
+		math_vector_add(feature_means, features, DENOISE_FEATURES);
 	} END_FOR_PIXEL_WINDOW
 
 	float pixel_scale = 1.0f / ((high.y - low.y) * (high.x - low.x));
-	for(int i = 0; i < DENOISE_FEATURES; i++)
-		feature_means[i] *= pixel_scale;
+	math_vector_scale(feature_means, pixel_scale, DENOISE_FEATURES);
 
 	/* === Scale the shifted feature passes to a range of [-1; 1], will be baked into the transform later. === */
 	float *feature_scale = tempvector;
@@ -62,8 +61,7 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 
 	FOR_PIXEL_WINDOW {
 		filter_get_feature_scales(pixel, pixel_buffer, features, feature_means, pass_stride);
-		for(int i = 0; i < DENOISE_FEATURES; i++)
-			feature_scale[i] = max(feature_scale[i], features[i]);
+		math_vector_max(feature_scale, features, DENOISE_FEATURES);
 	} END_FOR_PIXEL_WINDOW
 
 	filter_calculate_scale(feature_scale);
@@ -73,20 +71,19 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 	 * This transformation maps the DENOISE_FEATURES-dimentional feature space to a reduced feature (r-feature) space
 	 * which generally has fewer dimensions. This mainly helps to prevent overfitting. */
 	float* feature_matrix = tempmatrix, feature_matrix_norm = 0.0f;
-	math_matrix_zero_lower(feature_matrix, DENOISE_FEATURES);
+	math_trimatrix_zero(feature_matrix, DENOISE_FEATURES);
 #ifdef FULL_EIGENVALUE_NORM
 	float perturbation_matrix[DENOISE_FEATURES*DENOISE_FEATURES];
-	math_matrix_zero_lower(perturbation_matrix, NORM_FEATURE_NUM);
+	math_trimatrix_zero(perturbation_matrix, NORM_FEATURE_NUM);
 #endif
 	FOR_PIXEL_WINDOW {
 		filter_get_features(pixel, pixel_buffer, features, feature_means, pass_stride);
-		for(int i = 0; i < DENOISE_FEATURES; i++)
-			features[i] *= feature_scale[i];
-		math_add_gramian(feature_matrix, DENOISE_FEATURES, features, 1.0f);
+		math_vector_mul(features, feature_scale, DENOISE_FEATURES);
+		math_trimatrix_add_gramian(feature_matrix, DENOISE_FEATURES, features, 1.0f);
 
 		filter_get_feature_variance(pixel_buffer, features, feature_scale, pass_stride);
 #ifdef FULL_EIGENVALUE_NORM
-		math_add_gramian(perturbation_matrix, NORM_FEATURE_NUM, features, kernel_data.integrator.filter_strength);
+		math_trimatrix_add_gramian(perturbation_matrix, NORM_FEATURE_NUM, features, kernel_data.integrator.filter_strength);
 #else
 		for(int i = 0; i < NORM_FEATURE_NUM; i++)
 			feature_matrix_norm += features[i + NORM_FEATURE_OFFSET]*kernel_data.integrator.filter_strength;
@@ -94,7 +91,7 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 	} END_FOR_PIXEL_WINDOW
 
 	float *feature_transform = &storage->transform[0];
-	int rank = math_jacobi_eigendecomposition(feature_matrix, feature_transform, DENOISE_FEATURES, 1);
+	int rank = math_trimatrix_jacobi_eigendecomposition(feature_matrix, feature_transform, DENOISE_FEATURES, 1);
 
 #ifdef FULL_EIGENVALUE_NORM
 	float tempvector_2[2*DENOISE_FEATURES];
@@ -112,8 +109,7 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 		if(i >= 2 && s < singular_threshold)
 			break;
 		/* Bake the feature scaling into the transformation matrix. */
-		for(int j = 0; j < DENOISE_FEATURES; j++)
-			feature_transform[rank*DENOISE_FEATURES + j] *= feature_scale[j];
+		math_vector_mul(feature_transform + rank*DENOISE_FEATURES, feature_scale, DENOISE_FEATURES);
 	}
 
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -162,7 +158,8 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 
 
 	/* From here on, the mean of the features will be shifted to the central pixel's values. */
-	float feature_means[DENOISE_FEATURES] = {0.0f};
+	float feature_means[DENOISE_FEATURES];
+	math_vector_zero(feature_means, DENOISE_FEATURES);
 	filter_get_features(make_int3(x, y, 0), center_buffer, feature_means, NULL, pass_stride);
 	int rank = storage->rank;
 	float *feature_transform = &storage->transform[0];
@@ -179,7 +176,7 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 	float *XtWX = tempmatrix, *design_row = tempvector;
 	float3 XtWy[2*DENOISE_FEATURES+1];
 
-	math_matrix_zero_lower(XtWX, matrix_size);
+	math_trimatrix_zero(XtWX, matrix_size);
 	math_vec3_zero(XtWy, matrix_size);
 	FOR_PIXEL_WINDOW {
 		float weight = filter_get_design_row_transform_weight(pixel, pixel_buffer, feature_means, pass_stride, features, rank, design_row, feature_transform, 1, NULL);
@@ -188,18 +185,17 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 		weight /= max(1.0f, filter_get_pixel_variance(pixel_buffer, pass_stride));
 
 		filter_extend_design_row_quadratic(rank, design_row);
-		math_add_gramian(XtWX, matrix_size, design_row, weight);
-		math_add_vec3(XtWy, matrix_size, design_row, weight * filter_get_pixel_color(pixel_buffer, pass_stride));
+		math_trimatrix_add_gramian(XtWX, matrix_size, design_row, weight);
+		math_vec3_add(XtWy, matrix_size, design_row, weight * filter_get_pixel_color(pixel_buffer, pass_stride));
 	} END_FOR_PIXEL_WINDOW
 
-	math_solve_normal_equation(XtWX, XtWy, matrix_size);
+	math_trimatrix_vec3_solve(XtWX, XtWy, matrix_size);
 
 	/* Calculate the inverse of the r-feature bandwidths. */
 	float *bandwidth_factor = &storage->bandwidth[0];
+	math_vector_zero(bandwidth_factor, DENOISE_FEATURES);
 	for(int i = 0; i < rank; i++)
 		bandwidth_factor[i] = sqrtf(2.0f * average(fabs(XtWy[1+rank+i])) + 0.16f);
-	for(int i = rank; i < DENOISE_FEATURES; i++)
-		bandwidth_factor[i] = 0.0f;
 
 
 
@@ -214,7 +210,7 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 			g_bandwidth_factor[i] = bandwidth_factor[i]/candidate_bw[g];
 
 		matrix_size = rank+1;
-		math_matrix_zero_lower(XtWX, matrix_size);
+		math_trimatrix_zero(XtWX, matrix_size);
 
 		FOR_PIXEL_WINDOW {
 			float3 color = filter_get_pixel_color(pixel_buffer, pass_stride);
@@ -226,11 +222,11 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 			if(weight == 0.0f) continue;
 			weight /= max(1.0f, variance);
 
-			math_add_gramian(XtWX, matrix_size, design_row, weight);
+			math_trimatrix_add_gramian(XtWX, matrix_size, design_row, weight);
 		} END_FOR_PIXEL_WINDOW
 
 		float inverse_row[DENOISE_FEATURES+1];
-		math_matrix_inverse_row(XtWX, inverse_row, matrix_size, 0);
+		math_trimatrix_inverse_row(XtWX, inverse_row, matrix_size, 0);
 
 		float3 est_color = make_float3(0.0f, 0.0f, 0.0f), est_pos_color = make_float3(0.0f, 0.0f, 0.0f);
 		float est_variance = 0.0f, est_pos_variance = 0.0f;
@@ -245,7 +241,7 @@ ccl_device void kernel_filter_estimate_wlr_params(KernelGlobals *kg, int sample,
 
 			if(weight == 0.0f) continue;
 			weight /= max(1.0f, variance);
-			weight *= math_dot(design_row, inverse_row, matrix_size);
+			weight *= math_vector_dot(design_row, inverse_row, matrix_size);
 
 			est_color += weight * color;
 			est_variance += weight*weight * max(variance, 0.0f);

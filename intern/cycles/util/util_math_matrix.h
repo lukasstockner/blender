@@ -28,6 +28,8 @@ CCL_NAMESPACE_BEGIN
 #define MATS(A, n, r, c, s) MAT(A, n, r, c)
 #endif
 
+/* Zeroing helpers. */
+
 ccl_device_inline void math_vector_zero(float *v, int n)
 {
 	for(int i = 0; i < n; i++)
@@ -40,17 +42,104 @@ ccl_device_inline void math_vec3_zero(float3 *v, int n)
 		v[i] = make_float3(0.0f, 0.0f, 0.0f);
 }
 
-ccl_device_inline void math_matrix_zero_lower(float *A, int n)
+ccl_device_inline void math_trimatrix_zero(float *A, int n)
 {
 	for(int row = 0; row < n; row++)
 		for(int col = 0; col <= row; col++)
 			MAT(A, n, row, col) = 0.0f;
 }
 
+/* Elementary vector operations. */
+
+ccl_device_inline void math_vector_add(float *a, float ccl_readonly_ptr b, int n)
+{
+	for(int i = 0; i < n; i++)
+		a[i] += b[i];
+}
+
+ccl_device_inline void math_vector_mul(float *a, float ccl_readonly_ptr b, int n)
+{
+	for(int i = 0; i < n; i++)
+		a[i] *= b[i];
+}
+
+ccl_device_inline void math_vector_mul_strided(float *a, float ccl_readonly_ptr b, int astride, int n)
+{
+	for(int i = 0; i < n; i++)
+		a[i*astride] *= b[i];
+}
+
+ccl_device_inline void math_vector_scale(float *a, float b, int n)
+{
+	for(int i = 0; i < n; i++)
+		a[i] *= b;
+}
+
+ccl_device_inline void math_vector_max(float *a, float ccl_readonly_ptr b, int n)
+{
+	for(int i = 0; i < n; i++)
+		a[i] = max(a[i], b[i]);
+}
+
+ccl_device_inline float math_vector_dot(float ccl_readonly_ptr a, float ccl_readonly_ptr b, int n)
+{
+	float d = 0.0f;
+	for(int i = 0; i < n; i++)
+		d += a[i]*b[i];
+	return d;
+}
+
+ccl_device_inline float math_vector_dot_strided(float ccl_readonly_ptr a, float ccl_readonly_ptr b, int bstride, int n)
+{
+	float d = 0.0f;
+	for(int i = 0; i < n; i++)
+		d += a[i]*b[i*bstride];
+	return d;
+}
+
+ccl_device_inline void math_vec3_add(float3 *v, int n, float *x, float3 w)
+{
+	for(int i = 0; i < n; i++)
+		v[i] += w*x[i];
+}
+
+ccl_device_inline float3 math_vector_vec3_dot(float ccl_readonly_ptr a, float3 ccl_readonly_ptr b, int n)
+{
+	float3 d = make_float3(0.0f, 0.0f, 0.0f);
+	for(int i = 0; i < n; i++)
+		d += a[i]*b[i];
+	return d;
+}
+
+/* Elementary matrix operations.
+ * Note: TriMatrix refers to a square matrix that is symmetric, and therefore its upper-triangular part isn't stored. */
+
+ccl_device_inline void math_matrix_add_diagonal(float *A, int n, float val)
+{
+	for(int row = 0; row < n; row++)
+		MAT(A, n, row, row) += val;
+}
+
+/* Add Gramian matrix of v to A.
+ * The Gramian matrix of v is vt*v, so element (i,j) is v[i]*v[j].
+ * Obviously, the resulting matrix is symmetric, so only the lower triangluar part is stored. */
+ccl_device_inline void math_trimatrix_add_gramian(float *A, int n, float *v, float weight)
+{
+	for(int row = 0; row < n; row++)
+		for(int col = 0; col <= row; col++)
+			MAT(A, n, row, col) += v[row]*v[col]*weight;
+}
+
+
+
+
+
+/* Solvers for matrix problems */
+
 /* In-place Cholesky-Banachiewicz decomposition of the square, positive-definite matrix A
  * into a lower triangular matrix L so that A = L*L^T. A is being overwritten by L.
  * Also, only the lower triangular part of A is ever accessed. */
-ccl_device void math_cholesky(float *A, int n)
+ccl_device void math_trimatrix_cholesky(float *A, int n)
 {
 	for(int row = 0; row < n; row++) {
 		for(int col = 0; col <= row; col++) {
@@ -69,111 +158,35 @@ ccl_device void math_cholesky(float *A, int n)
 	}
 }
 
-ccl_device_inline void math_matrix_add_diagonal(float *A, int n, float val)
-{
-	for(int row = 0; row < n; row++)
-		MAT(A, n, row, row) += val;
-}
-
-/* Add Gramian matrix of v to A.
- * The Gramian matrix of v is v^T*v, so element (i,j) is v[i]*v[j].
- * Obviously, the resulting matrix is symmetric, so only the lower triangluar part is stored. */
-ccl_device_inline void math_add_gramian(float *A, int n, float *v, float weight)
-{
-	for(int row = 0; row < n; row++)
-		for(int col = 0; col <= row; col++)
-			MAT(A, n, row, col) += v[row]*v[col]*weight;
-}
-
-ccl_device_inline void math_add_vec3(float3 *v, int n, float *x, float3 w)
-{
-	for(int i = 0; i < n; i++)
-		v[i] += w*x[i];
-}
-
-ccl_device_inline float math_dot(float ccl_readonly_ptr a, float ccl_readonly_ptr b, int n)
-{
-	float d = 0.0f;
-	for(int i = 0; i < n; i++)
-		d += a[i]*b[i];
-	return d;
-}
-
-ccl_device_inline float3 math_dot_vec3(float ccl_readonly_ptr a, float3 ccl_readonly_ptr b, int n)
-{
-	float3 d = make_float3(0.0f, 0.0f, 0.0f);
-	for(int i = 0; i < n; i++)
-		d += a[i]*b[i];
-	return d;
-}
-
-#ifdef __KERNEL_CUDA__
-ccl_device_inline float math_dot_cuda(float ccl_readonly_ptr a, float ccl_readonly_ptr b, int bstride, int n)
-{
-	float d = 0.0f;
-	for(int i = 0; i < n; i++)
-		d += a[i]*b[i*bstride];
-	return d;
-}
-#endif
-
-/* Solve the linear equation system L*x = b through forward substitution, where L is a lower triangular matrix.
- * x is initially set to the right-hand-side vector and is overwritten with the solution vector x. */
-ccl_device_inline void math_substitute_forward_vec3(float *L, int n, float3 *x)
-{
-	for(int row = 0; row < n; row++) {
-		float3 sum = make_float3(0.0f, 0.0f, 0.0f);
-		for(int col = 0; col < row; col++)
-			sum += MAT(L, n, row, col) * x[col];
-		x[row] = (x[row] - sum) / MAT(L, n, row, row);
-	}
-}
-
-/* Solve the linear equation system L*x = b through backsubstitution, where L is a upper triangular matrix.
- * In this implementation, instead of L, L^T is passed instead.
- * x is initially set to the right-hand-side vector and is overwritten with the solution vector x. */
-ccl_device_inline void math_substitute_back_vec3(float *LT, int n, float3 *x)
-{
-	for(int row = n-1; row >= 0; row--) {
-		float3 sum = make_float3(0.0f, 0.0f, 0.0f);
-		for(int col = row+1; col < n; col++)
-			sum += MAT(LT, n, col, row) * x[col];
-		x[row] = (x[row] - sum) / MAT(LT, n, row, row);
-	}
-}
-
-/* Inverts the lower triangular matrix L and overwrites it with the transpose of the result. */
-ccl_device_inline void math_inverse_lower_tri(float *L, int n)
-{
-	for(int row = 0; row < n; row++)
-		MAT(L, n, row, row) = 1.0f / MAT(L, n, row, row);
-
-	for(int comp = 0; comp < n; comp++) {
-		for(int row = comp+1; row < n; row++) {
-			float sum = 0.0f;
-			for(int col = comp; col < row; col++)
-				sum += MAT(L, n, row, col) * MAT(L, n, comp, col);
-			MAT(L, n, comp, row) = -sum*MAT(L, n, row, row);
-		}
-	}
-}
-
-/* Solve S = inv(Xt*W*X)*Xt*W*y.
- * Instead of explicitly inverting Xt*W*X, we rearrange to:
- * (Xt*W*X)*S = Xt*W*y
- * Xt*W*X is per definition symmetric positive-semidefinite, so we can apply Cholesky decomposition to find a lower triangular L so that L*Lt = Xt*W*X.
- * With that we get (L*Lt)*S = L*(Lt*S) = L*b = Xt*W*y.
- * Since L is lower triangular, finding b (=Lt*S) is relatively easy since Xt*W*y is known.
+/* Solve A*S=y for S given A and y, where A is symmetrical positive-semidefinite and both inputs are destroyed in the process.
+ *
+ * We can apply Cholesky decomposition to find a lower triangular L so that L*Lt = A.
+ * With that we get (L*Lt)*S = L*(Lt*S) = L*b = y, defining b as Lt*S.
+ * Since L is lower triangular, finding b is relatively easy since y is known.
  * Then, the remaining problem is Lt*S = b, which again can be solved easily.
  *
- * Both inputs are destroyed in the process.
- * The result is returned in XtWy. */
-ccl_device_inline void math_solve_normal_equation(float *XtWX, float3 *XtWy, int n)
+ * This is useful for solving the normal equation S=inv(Xt*W*X)*Xt*W*y, since Xt*W*X is
+ * symmetrical positive-semidefinite by construction, so we can just use this function with A=Xt*W*X and y=Xt*W*y. */
+ccl_device_inline void math_trimatrix_vec3_solve(float *A, float3 *y, int n)
 {
-	math_matrix_add_diagonal(XtWX, n, 1e-4f); /* Improve the numerical stability. */
-	math_cholesky(XtWX, n); /* Find L so that L*Lt = Xt*W*X. */
-	math_substitute_forward_vec3(XtWX, n, XtWy); /* Solve L*b = X^T*W*y, replacing X^T*W*y by b. */
-	math_substitute_back_vec3(XtWX, n, XtWy); /* Solve L^T*S = b, replacing b by S. */
+	math_matrix_add_diagonal(A, n, 1e-4f); /* Improve the numerical stability. */
+	math_trimatrix_cholesky(A, n); /* Replace A with L so that L*Lt = A. */
+
+	/* Use forward substitution to solve L*b = y, replacing y by b. */
+	for(int row = 0; row < n; row++) {
+		float3 sum = y[row];
+		for(int col = 0; col < row; col++)
+			sum -= MAT(A, n, row, col) * y[col];
+		y[row] = sum / MAT(A, n, row, row);
+	}
+
+	/* Use backward substitution to solve Lt*S = b, replacing b by S. */
+	for(int row = n-1; row >= 0; row--) {
+		float3 sum = y[row];
+		for(int col = row+1; col < n; col++)
+			sum -= MAT(A, n, col, row) * y[col];
+		y[row] = sum / MAT(A, n, row, row);
+	}
 }
 
 /* Find only the i-th row of the inverse of A, destroying A in the process.
@@ -188,21 +201,41 @@ ccl_device_inline void math_solve_normal_equation(float *XtWX, float3 *XtWy, int
  *
  * Therefore, we compute Xt*W*X in the first pass, use this function to find v, the i-th row of its inverse,
  * and then use dot(v, X[k])*W[k] as the combined weight in the second pass. */
-ccl_device_inline void math_matrix_inverse_row(float *A, float *v, int n, int i)
+ccl_device_inline void math_trimatrix_inverse_row(float *A, float *v, int n, int i)
 {
 	math_matrix_add_diagonal(A, n, 1e-4f); /* Improve the numerical stability. */
-	math_cholesky(A, n); /* Find L so that L*Lt = A. */
-	math_inverse_lower_tri(A, n); /* Find inv(L). */
+	math_trimatrix_cholesky(A, n); /* Find L so that L*Lt = A. */
+
+	/* Replace L by the transpose of its inverse. */
+	for(int comp = 0; comp < n; comp++) {
+		MAT(A, n, comp, comp) = 1.0f / MAT(A, n, comp, comp);
+	}
+	for(int comp = 0; comp < n; comp++) {
+		for(int row = comp+1; row < n; row++) {
+			float sum = 0.0f;
+			for(int col = comp; col < row; col++)
+				sum += MAT(A, n, row, col) * MAT(A, n, comp, col);
+			MAT(A, n, comp, row) = -sum*MAT(A, n, row, row);
+		}
+	}
+
 	/* Now, inv(A) = inv(L*Lt) = inv(Lt)*inv(L) = inv(L)t*inv(L).
 	 * From that, inv(A)[i,j] = sum_k((inv(L)t)[i, k] * inv(L)[k, j]) = sum_k(inv(L)[k, i] * inv(L)[k, j]).
-	 * But, since math_inverse_lower_tri stores the *transpose* of the result to be able to work inplace, we must swap the indices. */
+	 * But, since we stored the transpose of the result to be able to work inplace, we must swap the indices. */
 	math_vector_zero(v, n);
 	for(int j = 0; j < n; j++)
 		for(int k = j; k < n; k++)
 			v[j] += MAT(A, n, i, k)*MAT(A, n, j, k);
 }
 
-ccl_device float math_largest_eigenvalue(float *A, int n, float *vec, float *tmp)
+
+
+
+
+/* Matrix Eigenvalue algoritms */
+
+/* Find the largest eigenvalue and -vector of the matrix A. */
+ccl_device float math_trimatrix_largest_eigenvalue(float *A, int n, float *vec, float *tmp)
 {
 	/* Matrix-Vector-Multiplication that only accesses the lower triangular part of A. */
 	float fac = 0.0f;
@@ -252,7 +285,7 @@ ccl_device float math_largest_eigenvalue(float *A, int n, float *vec, float *tmp
  *
  * Additionally, the function returns an estimate of the rank of A.
  */
-ccl_device int math_jacobi_eigendecomposition(float *A, float *V, int n, int v_stride)
+ccl_device int math_trimatrix_jacobi_eigendecomposition(float *A, float *V, int n, int v_stride)
 {
 	const float epsilon = 1e-7f;
 	const float singular_epsilon = 1e-9f;
@@ -376,48 +409,54 @@ ccl_device int math_jacobi_eigendecomposition(float *A, float *V, int n, int v_s
 }
 
 #ifdef __KERNEL_SSE3__
-ccl_device_inline void math_matrix_zero_lower_sse(__m128 *A, int n)
+
+ccl_device_inline void math_vector_zero_sse(__m128 *A, int n)
+{
+	for(int i = 0; i < n; i++)
+		A[i] = _mm_setzero_ps();
+}
+ccl_device_inline void math_trimatrix_zero_sse(__m128 *A, int n)
 {
 	for(int row = 0; row < n; row++)
 		for(int col = 0; col <= row; col++)
-			MAT(A, n, row, col) = _mm_set1_ps(0.0f);
+			MAT(A, n, row, col) = _mm_setzero_ps();
 }
 
 /* Add Gramian matrix of v to A.
  * The Gramian matrix of v is v^T*v, so element (i,j) is v[i]*v[j].
  * Obviously, the resulting matrix is symmetric, so only the lower triangluar part is stored. */
-ccl_device_inline void math_add_gramian_sse(__m128 *A, int n, __m128 ccl_readonly_ptr v, __m128 weight)
+ccl_device_inline void math_trimatrix_add_gramian_sse(__m128 *A, int n, __m128 ccl_readonly_ptr v, __m128 weight)
 {
 	for(int row = 0; row < n; row++)
 		for(int col = 0; col <= row; col++)
 			MAT(A, n, row, col) = _mm_add_ps(MAT(A, n, row, col), _mm_mul_ps(_mm_mul_ps(v[row], v[col]), weight));
 }
 
-ccl_device_inline void math_add_vector_sse(__m128 *V, int n, __m128 ccl_readonly_ptr a)
+ccl_device_inline void math_vector_add_sse(__m128 *V, int n, __m128 ccl_readonly_ptr a)
 {
 	for(int i = 0; i < n; i++)
 		V[i] = _mm_add_ps(V[i], a[i]);
 }
 
-ccl_device_inline void math_mul_vector_sse(__m128 *V, int n, __m128 ccl_readonly_ptr a)
+ccl_device_inline void math_vector_mul_sse(__m128 *V, int n, __m128 ccl_readonly_ptr a)
 {
 	for(int i = 0; i < n; i++)
 		V[i] = _mm_mul_ps(V[i], a[i]);
 }
 
-ccl_device_inline void math_mul_vector_scalar_sse(__m128 *V, int n, __m128 a)
+ccl_device_inline void math_vector_scale_sse(__m128 *V, int n, __m128 a)
 {
 	for(int i = 0; i < n; i++)
 		V[i] = _mm_mul_ps(V[i], a);
 }
 
-ccl_device_inline void math_mask_vector_sse(__m128 *V, int n, __m128 mask)
+ccl_device_inline void math_vector_mask_sse(__m128 *V, int n, __m128 mask)
 {
 	for(int i = 0; i < n; i++)
 		V[i] = _mm_mask_ps(V[i], mask);
 }
 
-ccl_device_inline __m128 math_dot_sse(__m128 ccl_readonly_ptr a, __m128 ccl_readonly_ptr b, int n)
+ccl_device_inline __m128 math_vector_dot_sse(__m128 ccl_readonly_ptr a, __m128 ccl_readonly_ptr b, int n)
 {
 	__m128 d = _mm_setzero_ps();
 	for(int i = 0; i < n; i++)
@@ -430,7 +469,7 @@ ccl_device_inline float3 math_sum_float3(__m128 ccl_readonly_ptr a)
 	return make_float3(_mm_hsum_ss(a[0]), _mm_hsum_ss(a[1]), _mm_hsum_ss(a[2]));
 }
 
-ccl_device_inline void math_hsum_matrix_lower(float *A, int n, __m128 ccl_readonly_ptr B)
+ccl_device_inline void math_trimatrix_hsum(float *A, int n, __m128 ccl_readonly_ptr B)
 {
 	for(int row = 0; row < n; row++)
 		for(int col = 0; col <= row; col++)

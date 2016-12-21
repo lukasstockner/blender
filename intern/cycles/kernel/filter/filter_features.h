@@ -174,9 +174,9 @@ ccl_device_inline float filter_get_design_row_transform_weight(int3 pixel, float
 	float weight = 1.0f;
 	for(int d = 0; d < rank; d++) {
 #ifdef __KERNEL_CUDA__
-		float x = math_dot_cuda(features, feature_transform + d*DENOISE_FEATURES*transform_stride, transform_stride, DENOISE_FEATURES);
+		float x = math_vector_dot_strided(features, feature_transform + d*DENOISE_FEATURES*transform_stride, transform_stride, DENOISE_FEATURES);
 #else
-		float x = math_dot(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
+		float x = math_vector_dot(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
 #endif
 		float x2 = x;
 		if(bandwidth_factor) x2 *= bandwidth_factor[d];
@@ -209,9 +209,9 @@ ccl_device_inline void filter_get_design_row_transform(int3 pixel, float ccl_rea
 	design_row[0] = 1.0f;
 	for(int d = 0; d < rank; d++) {
 #ifdef __KERNEL_CUDA__
-		float x = math_dot_cuda(features, feature_transform + d*DENOISE_FEATURES*transform_stride, transform_stride, DENOISE_FEATURES);
+		float x = math_vector_dot_strided(features, feature_transform + d*DENOISE_FEATURES*transform_stride, transform_stride, DENOISE_FEATURES);
 #else
-		float x = math_dot(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
+		float x = math_vector_dot(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
 #endif
 		design_row[1+d] = x;
 	}

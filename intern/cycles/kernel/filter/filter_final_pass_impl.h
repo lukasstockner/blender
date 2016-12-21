@@ -102,7 +102,7 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 	float XtWX[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)], design_row[DENOISE_FEATURES+1];
 	float3 solution[(DENOISE_FEATURES+1)];
 
-	math_matrix_zero_lower(XtWX, matrix_size);
+	math_trimatrix_zero(XtWX, matrix_size);
 	math_vec3_zero(solution, matrix_size);
 	/* Construct Xt*W*X matrix and Xt*W*y vector (and fill weight cache, if used). */
 	FOR_PIXEL_WINDOW {
@@ -137,11 +137,11 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 		weight /= max(1.0f, variance);
 		weight_cache[cache_idx] = weight;
 
-		math_add_gramian(XtWX, matrix_size, design_row, weight);
-		math_add_vec3(solution, matrix_size, design_row, weight * color);
+		math_trimatrix_add_gramian(XtWX, matrix_size, design_row, weight);
+		math_vec3_add(solution, matrix_size, design_row, weight * color);
 	} END_FOR_PIXEL_WINDOW
 
-	math_solve_normal_equation(XtWX, solution, matrix_size);
+	math_trimatrix_vec3_solve(XtWX, solution, matrix_size);
 
 	if(kernel_data.integrator.use_gradients) {
 		FOR_PIXEL_WINDOW {
@@ -184,7 +184,7 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 			}
 #endif
 
-			float3 reconstruction = math_dot_vec3(design_row, solution, matrix_size);
+			float3 reconstruction = math_vector_vec3_dot(design_row, solution, matrix_size);
 #ifdef OUTPUT_RENDERBUFFER
 			if(pixel.y >= filter_area.y && pixel.y < filter_area.y+filter_area.w && pixel.x >= filter_area.x && pixel.x < filter_area.x+filter_area.z) {
 				float *combined_buffer = buffers + (offset + pixel.y*stride + pixel.x)*kernel_data.film.pass_stride;
