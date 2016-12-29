@@ -139,6 +139,7 @@ void register_node_type_cmp_trackpos(void);
 void register_node_type_cmp_planetrackdeform(void);
 void register_node_type_cmp_cornerpin(void);
 
-void node_cmp_rlayers_force_hidden_passes(struct bNode *node);
+void node_cmp_rlayers_outputs(struct bNodeTree *ntree, struct bNode *node);
+const char *node_cmp_rlayers_sock_to_pass(int sock_index);
 
 #endif

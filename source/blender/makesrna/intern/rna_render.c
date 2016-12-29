@@ -40,55 +40,6 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
-
-EnumPropertyItem rna_enum_render_pass_type_items[] = {
-	{SCE_PASS_COMBINED, "COMBINED", 0, "Combined", ""},
-	{SCE_PASS_Z, "Z", 0, "Z", ""},
-	{SCE_PASS_RGBA, "COLOR", 0, "Color", ""},
-	{SCE_PASS_DIFFUSE, "DIFFUSE", 0, "Diffuse", ""},
-	{SCE_PASS_SPEC, "SPECULAR", 0, "Specular", ""},
-	{SCE_PASS_SHADOW, "SHADOW", 0, "Shadow", ""},
-	{SCE_PASS_AO, "AO", 0, "AO", ""},
-	{SCE_PASS_REFLECT, "REFLECTION", 0, "Reflection", ""},
-	{SCE_PASS_NORMAL, "NORMAL", 0, "Normal", ""},
-	{SCE_PASS_VECTOR, "VECTOR", 0, "Vector", ""},
-	{SCE_PASS_REFRACT, "REFRACTION", 0, "Refraction", ""},
-	{SCE_PASS_INDEXOB, "OBJECT_INDEX", 0, "Object Index", ""},
-	{SCE_PASS_UV, "UV", 0, "UV", ""},
-	{SCE_PASS_MIST, "MIST", 0, "Mist", ""},
-	{SCE_PASS_EMIT, "EMIT", 0, "Emit", ""},
-	{SCE_PASS_ENVIRONMENT, "ENVIRONMENT", 0, "Environment", ""},
-	{SCE_PASS_INDEXMA, "MATERIAL_INDEX", 0, "Material Index", ""},
-	{SCE_PASS_DIFFUSE_DIRECT, "DIFFUSE_DIRECT", 0, "Diffuse Direct", ""},
-	{SCE_PASS_DIFFUSE_INDIRECT, "DIFFUSE_INDIRECT", 0, "Diffuse Indirect", ""},
-	{SCE_PASS_DIFFUSE_COLOR, "DIFFUSE_COLOR", 0, "Diffuse Color", ""},
-	{SCE_PASS_GLOSSY_DIRECT, "GLOSSY_DIRECT", 0, "Glossy Direct", ""},
-	{SCE_PASS_GLOSSY_INDIRECT, "GLOSSY_INDIRECT", 0, "Glossy Indirect", ""},
-	{SCE_PASS_GLOSSY_COLOR, "GLOSSY_COLOR", 0, "Glossy Color", ""},
-	{SCE_PASS_TRANSM_DIRECT, "TRANSMISSION_DIRECT", 0, "Transmission Direct", ""},
-	{SCE_PASS_TRANSM_INDIRECT, "TRANSMISSION_INDIRECT", 0, "Transmission Indirect", ""},
-	{SCE_PASS_TRANSM_COLOR, "TRANSMISSION_COLOR", 0, "Transmission Color", ""},
-	{SCE_PASS_SUBSURFACE_DIRECT, "SUBSURFACE_DIRECT", 0, "Subsurface Direct", ""},
-	{SCE_PASS_SUBSURFACE_INDIRECT, "SUBSURFACE_INDIRECT", 0, "Subsurface Indirect", ""},
-	{SCE_PASS_SUBSURFACE_COLOR, "SUBSURFACE_COLOR", 0, "Subsurface Color", ""},
-#ifdef WITH_CYCLES_DEBUG
-	{SCE_PASS_DEBUG, "DEBUG", 0, "Pass used for render engine debugging", ""},
-#endif
-	{0, NULL, 0, NULL, NULL}
-};
-
-EnumPropertyItem rna_enum_render_pass_debug_type_items[] = {
-	{RENDER_PASS_DEBUG_BVH_TRAVERSED_NODES, "BVH_TRAVERSED_NODES", 0, "BVH Traversed Nodes",
-	 "Number of nodes traversed in BVH for the camera rays"},
-	{RENDER_PASS_DEBUG_BVH_TRAVERSED_INSTANCES, "BVH_TRAVERSED_INSTANCES", 0, "BVH Traversed Instances",
-	 "Number of BVH instances traversed by camera rays"},
-	{RENDER_PASS_DEBUG_BVH_INTERSECTIONS, "BVH_INTERSECTIONS", 0, "BVH Intersections",
-	 "Number of primitive intersections performed by the camera rays"},
-	{RENDER_PASS_DEBUG_RAY_BOUNCES, "RAY_BOUNCES", 0, "Ray Steps",
-	 "Number of bounces done by the main integration loop"},
-	{0, NULL, 0, NULL, NULL}
-};
-
 EnumPropertyItem rna_enum_bake_pass_type_items[] = {
 	{SCE_PASS_COMBINED, "COMBINED", 0, "Combined", ""},
 	{SCE_PASS_AO, "AO", 0, "AO", ""},
@@ -438,9 +389,9 @@ static PointerRNA rna_BakePixel_next_get(PointerRNA *ptr)
 	return rna_pointer_inherit_refine(ptr, &RNA_BakePixel, bp + 1);
 }
 
-static RenderPass *rna_RenderPass_find_by_type(RenderLayer *rl, int passtype, const char *view)
+static RenderPass *rna_RenderPass_find_by_name(RenderLayer *rl, const char *name, const char *view)
 {
-	return RE_pass_find_by_type(rl, passtype, view);
+	return RE_pass_find_by_name(rl, name, view);
 }
 
 #else /* RNA_RUNTIME */
@@ -802,9 +753,9 @@ static void rna_def_render_passes(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_struct_sdna(srna, "RenderLayer");
 	RNA_def_struct_ui_text(srna, "Render Passes", "Collection of render passes");
 
-	func = RNA_def_function(srna, "find_by_type", "rna_RenderPass_find_by_type");
-	RNA_def_function_ui_description(func, "Get the render pass for a given type and view");
-	parm = RNA_def_enum(func, "pass_type", rna_enum_render_pass_type_items, SCE_PASS_COMBINED, "Pass", "");
+	func = RNA_def_function(srna, "find_by_name", "rna_RenderPass_find_by_name");
+	RNA_def_function_ui_description(func, "Get the render pass for a given name and view");
+	parm = RNA_def_string(func, "name", RE_PASSNAME_COMBINED, 0, "Pass", "");
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	parm = RNA_def_string(func, "view", NULL, 0, "View", "Render view to get pass from");  /* NULL ok here */
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
@@ -858,7 +809,12 @@ static void rna_def_render_pass(BlenderRNA *brna)
 
 	RNA_define_verify_sdna(0);
 
-	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	prop = RNA_def_property(srna, "fullname", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "fullname");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_struct_name_property(srna, prop);
+
+	prop = RNA_def_property(srna, "passname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "name");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_struct_name_property(srna, prop);
@@ -871,11 +827,6 @@ static void rna_def_render_pass(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "channels");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
-	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "passtype");
-	RNA_def_property_enum_items(prop, rna_enum_render_pass_type_items);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-
 	prop = RNA_def_property(srna, "rect", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_DYNAMIC);
 	RNA_def_property_multi_array(prop, 2, NULL);
@@ -884,11 +835,6 @@ static void rna_def_render_pass(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "view_id", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "view_id");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-
-	prop = RNA_def_property(srna, "debug_type", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "debug_type");
-	RNA_def_property_enum_items(prop, rna_enum_render_pass_debug_type_items);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	RNA_define_verify_sdna(1);

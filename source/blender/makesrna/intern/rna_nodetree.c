@@ -2606,10 +2606,6 @@ static void rna_Node_image_layer_update(Main *bmain, Scene *scene, PointerRNA *p
 	BKE_image_signal(ima, iuser, IMA_SIGNAL_SRC_CHANGE);
 	
 	rna_Node_update(bmain, scene, ptr);
-
-	if (scene->nodetree != NULL) {
-		ntreeCompositForceHidden(scene->nodetree);
-	}
 }
 
 static EnumPropertyItem *renderresult_layers_add_enum(RenderLayer *rl)
@@ -2741,14 +2737,6 @@ static EnumPropertyItem *rna_Node_scene_layer_itemf(bContext *UNUSED(C), Pointer
 	*r_free = true;
 	
 	return item;
-}
-
-static void rna_Node_scene_layer_update(Main *bmain, Scene *scene, PointerRNA *ptr)
-{
-	rna_Node_update(bmain, scene, ptr);
-	if (scene->nodetree != NULL) {
-		ntreeCompositForceHidden(scene->nodetree);
-	}
 }
 
 static EnumPropertyItem *rna_Node_channel_itemf(bContext *UNUSED(C), PointerRNA *ptr,
@@ -4836,7 +4824,7 @@ static void def_cmp_render_layers(StructRNA *srna)
 	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_Node_scene_layer_itemf");
 	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	RNA_def_property_ui_text(prop, "Layer", "");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_scene_layer_update");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
 static void rna_def_cmp_output_file_slot_file(BlenderRNA *brna)
