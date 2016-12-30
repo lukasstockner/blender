@@ -244,19 +244,25 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rl
 	for (sock = node->outputs.first; sock; sock = sock_next, sock_index++) {
 		sock_next = sock->next;
 		if (BLI_linklist_index(available_sockets.list, sock) >= 0) {
-			sock->flag &= ~(SOCK_HIDDEN | SOCK_UNAVAIL);
+			sock->flag &= ~(SOCK_UNAVAIL | SOCK_HIDDEN | SOCK_VIRTUAL);
 		}
 		else {
 			bNodeLink *link;
 			for (link = ntree->links.first; link; link = link->next) {
 				if (link->fromsock == sock) break;
 			}
-			if (!link && sock_index > 30) {
-				MEM_freeN(sock->storage);
-				nodeRemoveSocket(ntree, node, sock);
-				continue;
+			if (!link) {
+				if (sock_index > 30) {
+					MEM_freeN(sock->storage);
+					nodeRemoveSocket(ntree, node, sock);
+				}
+				else {
+					sock->flag |= SOCK_UNAVAIL;
+				}
 			}
-			sock->flag |= SOCK_UNAVAIL;
+			else {
+				sock->flag |= SOCK_VIRTUAL;
+			}
 		}
 	}
 
