@@ -2716,6 +2716,9 @@ static void write_scene(WriteData *wd, Scene *sce)
 		for (FreestyleLineSet *fls = srl->freestyleConfig.linesets.first; fls; fls = fls->next) {
 			writestruct(wd, DATA, FreestyleLineSet, 1, fls);
 		}
+		if (srl->prop) {
+			IDP_WriteProperty(srl->prop, wd);
+		}
 	}
 
 	/* writing MultiView to the blend file */
