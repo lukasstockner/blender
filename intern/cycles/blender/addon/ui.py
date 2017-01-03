@@ -485,6 +485,7 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
         scene = context.scene
         rd = scene.render
         rl = rd.layers.active
+        crl = rl.cycles
 
         split = layout.split()
 
@@ -531,8 +532,11 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
         col.prop(rl, "use_pass_emit", text="Emission")
         col.prop(rl, "use_pass_environment")
 
-        if hasattr(rd, "debug_pass_type"):
-            layout.prop(rd, "debug_pass_type")
+        if bpy.app.debug_value == 256:
+          col = layout.column()
+          col.prop(crl, "pass_debug_bvh_traversal_steps")
+          col.prop(crl, "pass_debug_bvh_traversed_instances")
+          col.prop(crl, "pass_debug_ray_bounces")
 
 
 class CyclesRender_PT_views(CyclesButtonsPanel, Panel):

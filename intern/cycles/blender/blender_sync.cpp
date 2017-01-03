@@ -492,6 +492,102 @@ void BlenderSync::sync_images()
 	}
 }
 
+/* Passes */
+static map<string, PassType> init_pass_mapping()
+{
+	map<string, PassType> mapping;
+
+#define MAP_PASS(BPASS, CPASS) mapping.insert(std::pair<string, PassType>(BPASS, CPASS));
+	/* NOTE: Keep in sync with defined names from DNA_scene_types.h */
+	MAP_PASS("Combined", PASS_COMBINED);
+	MAP_PASS("Depth", PASS_DEPTH);
+	MAP_PASS("Mist", PASS_MIST);
+	MAP_PASS("Normal", PASS_NORMAL);
+	MAP_PASS("IndexOB", PASS_OBJECT_ID);
+	MAP_PASS("UV", PASS_UV);
+	MAP_PASS("Vector", PASS_MOTION);
+	MAP_PASS("IndexMA", PASS_MATERIAL_ID);
+
+	MAP_PASS("DiffDir", PASS_DIFFUSE_DIRECT);
+	MAP_PASS("GlossDir", PASS_GLOSSY_DIRECT);
+	MAP_PASS("TransDir", PASS_TRANSMISSION_DIRECT);
+	MAP_PASS("SubsurfaceDir", PASS_SUBSURFACE_DIRECT);
+
+	MAP_PASS("DiffInd", PASS_DIFFUSE_INDIRECT);
+	MAP_PASS("GlossInd", PASS_GLOSSY_INDIRECT);
+	MAP_PASS("TransInd", PASS_TRANSMISSION_INDIRECT);
+	MAP_PASS("SubsurfaceInd", PASS_SUBSURFACE_INDIRECT);
+
+	MAP_PASS("DiffCol", PASS_DIFFUSE_COLOR);
+	MAP_PASS("GlossCol", PASS_GLOSSY_COLOR);
+	MAP_PASS("TransCol", PASS_TRANSMISSION_COLOR);
+	MAP_PASS("SubsurfaceCol", PASS_SUBSURFACE_COLOR);
+
+	MAP_PASS("Emit", PASS_EMISSION);
+	MAP_PASS("Env", PASS_BACKGROUND);
+	MAP_PASS("AO", PASS_AO);
+	MAP_PASS("Shadow", PASS_SHADOW);
+
+#ifdef __KERNEL_DEBUG__
+	MAP_PASS("Debug BVH Traversal Steps", PASS_BVH_TRAVERSED_NODES);
+	MAP_PASS("Debug BVH Traversed Instances", PASS_BVH_TRAVERSED_INSTANCES);
+	MAP_PASS("Debug BVH Intersections", PASS_BVH_INTERSECTIONS);
+	MAP_PASS("Debug Ray Bounces", PASS_RAY_BOUNCES);
+#endif
+#undef MAP_PASS
+
+	return mapping;
+}
+map<string, PassType> pass_mapping = init_pass_mapping();
+
+PassType BlenderSync::get_pass_type(BL::RenderPass& b_pass)
+{
+	string name = b_pass.passname();
+	if (pass_mapping.count(name)) {
+		return pass_mapping[name];
+	}
+
+	return PASS_NONE;
+}
+
+array<Pass> BlenderSync::sync_render_passes(BL::RenderLayer& b_rlay,
+	                                        BL::SceneRenderLayer& b_srlay)
+{
+	array<Pass> passes;
+	Pass::add(PASS_COMBINED, passes);
+
+	/* loop over passes */
+	BL::RenderLayer::passes_iterator b_pass_iter;
+
+	for(b_rlay.passes.begin(b_pass_iter); b_pass_iter != b_rlay.passes.end(); ++b_pass_iter) {
+		BL::RenderPass b_pass(*b_pass_iter);
+		PassType pass_type = get_pass_type(b_pass);
+
+		if(pass_type == PASS_MOTION && scene->integrator->motion_blur)
+			continue;
+		if(pass_type != PASS_NONE)
+			Pass::add(pass_type, passes);
+	}
+
+#ifdef __KERNEL_DEBUG__
+	PointerRNA crp = RNA_pointer_get(&b_srlay.ptr, "cycles");
+	if(get_boolean(crp, "pass_debug_bvh_traversal_steps")) {
+		b_engine.add_pass(1, "Debug BVH Traversal Steps", b_srlay.name().c_str(), NULL, "X");
+		Pass::add(PASS_BVH_TRAVERSAL_STEPS, passes);
+	}
+	if(get_boolean(crp, "pass_debug_bvh_traversed_instances")) {
+		b_engine.add_pass(1, "Debug BVH Traversed Instances", b_srlay.name().c_str(), NULL, "X");
+		Pass::add(PASS_BVH_TRAVERSED_INSTANCES, passes);
+	}
+	if(get_boolean(crp, "pass_debug_ray_bounces")) {
+		b_engine.add_pass(1, "Debug Ray Bounces", b_srlay.name().c_str(), NULL, "X");
+		Pass::add(PASS_RAY_BOUNCES, passes);
+	}
+#endif
+
+	return passes;
+}
+
 /* Scene Parameters */
 
 SceneParams BlenderSync::get_scene_params(BL::Scene& b_scene,
