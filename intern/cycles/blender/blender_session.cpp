@@ -398,42 +398,18 @@ void BlenderSession::render()
 
 		BL::RenderLayer b_rlay = *b_single_rlay;
 
-		/* add passes */
-		array<Pass> passes;
-		if(session_params.device.advanced_shading) {
-			passes = sync->sync_render_passes(b_rlay, *b_layer_iter);
-		}
-		else {
-			Pass::add(PASS_COMBINED, passes);
-		}
+		sync->sync_film(b_rlay, *b_layer_iter, session_params.device.advanced_shading);
 
-		buffer_params.passes = passes;
-		buffer_params.denoising_data_pass = b_layer_iter->use_denoising();
+		buffer_params.passes = scene->film->passes;
+
 		session->tile_manager.schedule_denoising = b_layer_iter->use_denoising();
 		session->params.use_denoising = b_layer_iter->use_denoising();
-		scene->film->denoising_data_pass = buffer_params.denoising_data_pass;
-		scene->film->denoising_flags = 0;
-		if(!b_layer_iter->denoising_diffuse_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_DIR;
-		if(!b_layer_iter->denoising_diffuse_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_IND;
-		if(!b_layer_iter->denoising_glossy_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_DIR;
-		if(!b_layer_iter->denoising_glossy_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_IND;
-		if(!b_layer_iter->denoising_transmission_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_DIR;
-		if(!b_layer_iter->denoising_transmission_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_IND;
-		if(!b_layer_iter->denoising_subsurface_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_DIR;
-		if(!b_layer_iter->denoising_subsurface_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_IND;
-		scene->film->denoising_clean_pass = (scene->film->denoising_flags & DENOISING_CLEAN_ALL_PASSES);
-		scene->film->denoising_split_pass = b_layer_iter->denoising_cross();
-		buffer_params.denoising_clean_pass = scene->film->denoising_clean_pass;
-		buffer_params.denoising_split_pass = scene->film->denoising_split_pass;
 		session->params.denoising_radius = b_layer_iter->denoising_radius();
 		session->params.denoising_pca_threshold = (b_layer_iter->denoising_strength() == 0.0f)? 1e-3f : copysignf(powf(10.0f, -fabsf(b_layer_iter->denoising_strength())*2.0f), b_layer_iter->denoising_strength());
 		session->params.denoising_weight_adjust = powf(2.0f, b_layer_iter->denoising_weighting_adjust() - 1.0f);
 		session->params.denoising_use_gradients = b_layer_iter->denoising_gradients();
 		session->params.denoising_use_cross = b_layer_iter->denoising_cross();
 
-		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
-		scene->film->tag_passes_update(scene, passes);
-		scene->film->tag_update(scene);
 		scene->integrator->tag_update(scene);
 
 		int view_index = 0;
@@ -581,7 +557,7 @@ void BlenderSession::bake(BL::Object& b_object,
 
 	if(shader_type == SHADER_EVAL_UV) {
 		/* force UV to be available */
-		Pass::add(PASS_UV, scene->film->passes);
+		scene->film->passes.add(PASS_UV);
 	}
 
 	int bake_pass_filter = bake_pass_filter_get(pass_filter);
@@ -589,7 +565,7 @@ void BlenderSession::bake(BL::Object& b_object,
 
 	/* force use_light_pass to be true if we bake more than just colors */
 	if(bake_pass_filter & ~BAKE_FILTER_COLOR) {
-		Pass::add(PASS_LIGHT, scene->film->passes);
+		scene->film->passes.add(PASS_LIGHT);
 	}
 
 	/* create device and update scene */
@@ -686,8 +662,14 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 			int components = b_pass.channels();
 
 			/* copy pixels */
-			if(!buffers->get_pass_rect(pass_type, exposure, sample, components, &pixels[0]))
-				memset(&pixels[0], 0, pixels.size()*sizeof(float));
+			if(pass_type != PASS_NONE) {
+				if(!buffers->get_pass_rect(pass_type, exposure, sample, components, &pixels[0]))
+					memset(&pixels[0], 0, pixels.size()*sizeof(float));
+			}
+			else if(b_pass.passname().substr(0, 4) == "AOV ") {
+				if(!buffers->get_aov_rect(ustring(b_pass.passname().substr(4)), exposure, sample, components, &pixels[0]))
+					memset(&pixels[0], 0, pixels.size()*sizeof(float));
+			}
 
 			b_pass.rect(&pixels[0]);
 		}
@@ -811,7 +793,7 @@ BL::RenderResult BlenderSession::save_preview()
 	BL::RenderResult::layers_iterator b_rlay;
 	b_rr.layers.begin(b_rlay);
 
-	BL::RenderPass b_combined_pass(b_rlay->passes.find_by_type(BL::RenderPass::type_COMBINED, ""));
+	BL::RenderPass b_combined_pass(b_rlay->passes.find_by_name("Combined", ""));
 
 	if(buffers->get_pass_rect(PASS_COMBINED, exposure, sample, 4, &pixels[0])) {
 		b_combined_pass.rect(&pixels[0]);

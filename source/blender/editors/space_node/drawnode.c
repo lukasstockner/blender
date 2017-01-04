@@ -1122,6 +1122,11 @@ static void node_shader_buts_ies(uiLayout *layout, bContext *UNUSED(C), PointerR
 		uiItemR(row, ptr, "filepath", 0, "", ICON_NONE);
 }
 
+static void node_shader_buts_aov_output(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "aov", 0, "", ICON_NONE);
+}
+
 static void node_shader_buts_script(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *row;
@@ -1293,6 +1298,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 			break;
 		case SH_NODE_IESLIGHT:
 			ntype->draw_buttons = node_shader_buts_ies;
+			break;
+		case SH_NODE_AOV_OUTPUT:
+			ntype->draw_buttons = node_shader_buts_aov_output;
 			break;
 	}
 }

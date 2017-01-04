@@ -550,42 +550,67 @@ PassType BlenderSync::get_pass_type(BL::RenderPass& b_pass)
 	return PASS_NONE;
 }
 
-array<Pass> BlenderSync::sync_render_passes(BL::RenderLayer& b_rlay,
-	                                        BL::SceneRenderLayer& b_srlay)
+void BlenderSync::sync_film(BL::RenderLayer& b_rlay,
+	                        BL::SceneRenderLayer& b_srlay,
+	                        bool advanced_shading)
 {
-	array<Pass> passes;
-	Pass::add(PASS_COMBINED, passes);
+	PassSettings passes;
 
-	/* loop over passes */
-	BL::RenderLayer::passes_iterator b_pass_iter;
+	if(advanced_shading) {
+		/* loop over passes */
+		BL::RenderLayer::passes_iterator b_pass_iter;
 
-	for(b_rlay.passes.begin(b_pass_iter); b_pass_iter != b_rlay.passes.end(); ++b_pass_iter) {
-		BL::RenderPass b_pass(*b_pass_iter);
-		PassType pass_type = get_pass_type(b_pass);
+		for(b_rlay.passes.begin(b_pass_iter); b_pass_iter != b_rlay.passes.end(); ++b_pass_iter) {
+			BL::RenderPass b_pass(*b_pass_iter);
+			PassType pass_type = get_pass_type(b_pass);
 
-		if(pass_type == PASS_MOTION && scene->integrator->motion_blur)
-			continue;
-		if(pass_type != PASS_NONE)
-			Pass::add(pass_type, passes);
-	}
+			if(pass_type == PASS_MOTION && scene->integrator->motion_blur)
+				continue;
+			if(pass_type != PASS_NONE)
+				passes.add(pass_type);
+		}
 
 #ifdef __KERNEL_DEBUG__
-	PointerRNA crp = RNA_pointer_get(&b_srlay.ptr, "cycles");
-	if(get_boolean(crp, "pass_debug_bvh_traversal_steps")) {
-		b_engine.add_pass(1, "Debug BVH Traversal Steps", b_srlay.name().c_str(), NULL, "X");
-		Pass::add(PASS_BVH_TRAVERSAL_STEPS, passes);
-	}
-	if(get_boolean(crp, "pass_debug_bvh_traversed_instances")) {
-		b_engine.add_pass(1, "Debug BVH Traversed Instances", b_srlay.name().c_str(), NULL, "X");
-		Pass::add(PASS_BVH_TRAVERSED_INSTANCES, passes);
-	}
-	if(get_boolean(crp, "pass_debug_ray_bounces")) {
-		b_engine.add_pass(1, "Debug Ray Bounces", b_srlay.name().c_str(), NULL, "X");
-		Pass::add(PASS_RAY_BOUNCES, passes);
-	}
+		PointerRNA crp = RNA_pointer_get(&b_srlay.ptr, "cycles");
+		if(get_boolean(crp, "pass_debug_bvh_traversal_steps")) {
+			b_engine.add_pass(1, "Debug BVH Traversal Steps", b_srlay.name().c_str(), NULL, "X");
+			passes.add(PASS_BVH_TRAVERSAL_STEPS);
+		}
+		if(get_boolean(crp, "pass_debug_bvh_traversed_instances")) {
+			b_engine.add_pass(1, "Debug BVH Traversed Instances", b_srlay.name().c_str(), NULL, "X");
+			passes.add(PASS_BVH_TRAVERSED_INSTANCES);
+		}
+		if(get_boolean(crp, "pass_debug_ray_bounces")) {
+			b_engine.add_pass(1, "Debug Ray Bounces", b_srlay.name().c_str(), NULL, "X");
+			passes.add(PASS_RAY_BOUNCES);
+		}
 #endif
 
-	return passes;
+		AOV first = {ustring("Some Random Name"), 9999, true};
+		AOV second = {ustring("Value"), 9999, false};
+		passes.add(first);
+		b_engine.add_pass(3, "AOV Some Random Name", b_srlay.name().c_str(), NULL, "RGB");
+		passes.add(second);
+		b_engine.add_pass(1, "AOV Value", b_srlay.name().c_str(), NULL, "X");
+	}
+
+	scene->film->denoising_flags = 0;
+	if(!b_srlay.denoising_diffuse_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_DIR;
+	if(!b_srlay.denoising_diffuse_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_IND;
+	if(!b_srlay.denoising_glossy_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_DIR;
+	if(!b_srlay.denoising_glossy_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_IND;
+	if(!b_srlay.denoising_transmission_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_DIR;
+	if(!b_srlay.denoising_transmission_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_IND;
+	if(!b_srlay.denoising_subsurface_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_DIR;
+	if(!b_srlay.denoising_subsurface_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_IND;
+
+	passes.denoising_data_pass = b_srlay.use_denoising();
+	passes.denoising_clean_pass = (scene->film->denoising_flags & DENOISING_CLEAN_ALL_PASSES);
+	passes.denoising_split_pass = b_srlay.denoising_cross();
+
+	scene->film->pass_alpha_threshold = b_srlay.pass_alpha_threshold();
+	scene->film->tag_passes_update(scene, passes);
+	scene->film->tag_update(scene);
 }
 
 /* Scene Parameters */

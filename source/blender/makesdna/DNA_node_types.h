@@ -894,6 +894,10 @@ typedef struct NodeShaderIESLight {
 	char filepath[1024];
 } NodeShaderIESLight;
 
+typedef struct NodeShaderAOVOutput {
+	char aov[64];
+} NodeShaderAOVOutput;
+
 typedef struct NodeSunBeams {
 	float source[2];
 

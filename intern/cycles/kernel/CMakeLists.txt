@@ -82,6 +82,7 @@ set(SRC_HEADERS
 	kernel_math.h
 	kernel_montecarlo.h
 	kernel_passes.h
+	kernel_passes_write.h
 	kernel_path.h
 	kernel_path_branched.h
 	kernel_path_common.h
@@ -138,6 +139,7 @@ set(SRC_CLOSURE_HEADERS
 set(SRC_SVM_HEADERS
 	svm/svm.h
 	svm/svm_attribute.h
+	svm/svm_aov.h
 	svm/svm_blackbody.h
 	svm/svm_bump.h
 	svm/svm_camera.h

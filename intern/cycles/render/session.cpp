@@ -975,7 +975,7 @@ void Session::render()
 	task.need_finish_queue = params.progressive_refine;
 	task.integrator_branched = scene->integrator->method == Integrator::BRANCHED_PATH;
 	task.requested_tile_size = params.tile_size;
-	task.passes_size = tile_manager.params.get_passes_size();
+	task.passes_size = tile_manager.params.passes.get_size();
 
 	if(params.use_denoising) {
 		task.denoising_radius = params.denoising_radius;
