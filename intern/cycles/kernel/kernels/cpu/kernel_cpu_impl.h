@@ -249,70 +249,31 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(KernelGlobals *kg,
 #endif
 }
 
-void KERNEL_FUNCTION_FULL_NAME(filter_estimate_wlr_params)(KernelGlobals *kg,
-                                                           int sample,
-                                                           float* buffer,
-                                                           int x,
-                                                           int y,
-                                                           void *storage,
-                                                           int* prefilter_rect)
+void KERNEL_FUNCTION_FULL_NAME(filter_reconstruct)(KernelGlobals *kg,
+                                                   int sample,
+                                                   float* buffer,
+                                                   int x,
+                                                   int y,
+                                                   int offset,
+                                                   int stride,
+                                                   float *buffers,
+                                                   void *storage_ptr,
+                                                   float *weight_cache,
+                                                   int* filter_area,
+                                                   int* prefilter_rect)
 {
 #ifdef KERNEL_STUB
-	STUB_ASSERT(KERNEL_ARCH, filter_estimate_wlr_params);
-#else
-	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
-	kernel_filter_estimate_wlr_params(kg, sample, buffer, x, y, (FilterStorage*) storage, rect);
-#endif
-}
-
-void KERNEL_FUNCTION_FULL_NAME(filter_final_pass_wlr)(KernelGlobals *kg,
-                                                      int sample,
-                                                      float* buffer,
-                                                      int x,
-                                                      int y,
-                                                      int offset,
-                                                      int stride,
-                                                      float *buffers,
-                                                      void *storage_ptr,
-                                                      float *weight_cache,
-                                                      int* filter_area,
-                                                      int* prefilter_rect)
-{
-#ifdef KERNEL_STUB
-	STUB_ASSERT(KERNEL_ARCH, filter_final_pass_wlr);
-#else
-	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
-	int4 area = make_int4(filter_area[0], filter_area[1], filter_area[2], filter_area[3]);
-	FilterStorage *storage = (FilterStorage*) storage_ptr;
-	kernel_filter_final_pass_wlr(kg, sample, buffer, x, y, offset, stride, buffers, 0, make_int2(0, 0), storage, weight_cache, storage->transform, 1, area, rect);
-#endif
-}
-
-void KERNEL_FUNCTION_FULL_NAME(filter_final_pass_nlm)(KernelGlobals *kg,
-                                                      int sample,
-                                                      float* buffer,
-                                                      int x,
-                                                      int y,
-                                                      int offset,
-                                                      int stride,
-                                                      float *buffers,
-                                                      void *storage_ptr,
-                                                      float *weight_cache,
-                                                      int* filter_area,
-                                                      int* prefilter_rect)
-{
-#ifdef KERNEL_STUB
-	STUB_ASSERT(KERNEL_ARCH, filter_final_pass_nlm);
+	STUB_ASSERT(KERNEL_ARCH, filter_reconstruct);
 #else
 	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
 	int4 area = make_int4(filter_area[0], filter_area[1], filter_area[2], filter_area[3]);
 	FilterStorage *storage = (FilterStorage*) storage_ptr;
 	if(kernel_data.film.denoise_cross) {
-		kernel_filter_final_pass_nlm(kg, sample, buffer, x, y, offset, stride, buffers, 0, make_int2(0, 6), storage, weight_cache, storage->transform, 1, area, rect);
-		kernel_filter_final_pass_nlm(kg, sample, buffer, x, y, offset, stride, buffers, 0, make_int2(6, 0), storage, weight_cache, storage->transform, 1, area, rect);
+		kernel_filter_reconstruct(kg, sample, buffer, x, y, offset, stride, buffers, 0, make_int2(0, 6), storage, weight_cache, storage->transform, 1, area, rect);
+		kernel_filter_reconstruct(kg, sample, buffer, x, y, offset, stride, buffers, 0, make_int2(6, 0), storage, weight_cache, storage->transform, 1, area, rect);
 	}
 	else {
-		kernel_filter_final_pass_nlm(kg, sample, buffer, x, y, offset, stride, buffers, 0, make_int2(0, 0), storage, weight_cache, storage->transform, 1, area, rect);
+		kernel_filter_reconstruct(kg, sample, buffer, x, y, offset, stride, buffers, 0, make_int2(0, 0), storage, weight_cache, storage->transform, 1, area, rect);
 	}
 #endif
 }

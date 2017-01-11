@@ -1169,7 +1169,8 @@ typedef struct KernelIntegrator {
 	float filter_strength;
 	float weighting_adjust;
 	int use_gradients;
-	int use_nlm_weights;
+
+	int pad;
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 

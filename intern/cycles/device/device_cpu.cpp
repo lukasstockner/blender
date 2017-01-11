@@ -138,9 +138,7 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int, float, float)>                               filter_non_local_means_kernel;
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                                  filter_combine_halves_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, void*, int*)>                                      filter_construct_transform_kernel;
-	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, void*, int*)>                                      filter_estimate_wlr_params_kernel;
-	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, float*, int*, int*)>      filter_final_pass_wlr_kernel;
-	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, float*, int*, int*)>      filter_final_pass_nlm_kernel;
+	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, float*, int*, int*)>      filter_reconstruct_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, int, int, float*, int, int)>                                         filter_divide_combined_kernel;
 
 #define KERNEL_FUNCTIONS(name) \
@@ -162,9 +160,7 @@ public:
 	  filter_non_local_means_kernel(KERNEL_FUNCTIONS(filter_non_local_means)),
 	  filter_combine_halves_kernel(KERNEL_FUNCTIONS(filter_combine_halves)),
 	  filter_construct_transform_kernel(KERNEL_FUNCTIONS(filter_construct_transform)),
-	  filter_estimate_wlr_params_kernel(KERNEL_FUNCTIONS(filter_estimate_wlr_params)),
-	  filter_final_pass_wlr_kernel(KERNEL_FUNCTIONS(filter_final_pass_wlr)),
-	  filter_final_pass_nlm_kernel(KERNEL_FUNCTIONS(filter_final_pass_nlm)),
+	  filter_reconstruct_kernel(KERNEL_FUNCTIONS(filter_reconstruct)),
 	  filter_divide_combined_kernel(KERNEL_FUNCTIONS(filter_divide_combined))
 	{
 #ifdef WITH_OSL
@@ -454,7 +450,6 @@ public:
 	void denoise_run(KernelGlobals *kg, int sample, float *filter_buffer, int4 filter_area, int4 rect, int offset, int stride, float *buffers)
 	{
 		bool use_gradients = kg->__data.integrator.use_gradients;
-		bool nlm_weights = kg->__data.integrator.use_nlm_weights;
 
 		int hw = kg->__data.integrator.half_window;
 		FilterStorage *storage = new FilterStorage[filter_area.z*filter_area.w];
@@ -463,47 +458,11 @@ public:
 		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
 		int pass_stride = w*h;
 
-		if(nlm_weights) {
-			for(int y = 0; y < filter_area.w; y++) {
-				for(int x = 0; x < filter_area.z; x++) {
-					filter_construct_transform_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);
-					filter_final_pass_nlm_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storage + y*filter_area.z + x, weight_cache, &filter_area.x, &rect.x);
-				}
+		for(int y = 0; y < filter_area.w; y++) {
+			for(int x = 0; x < filter_area.z; x++) {
+				filter_construct_transform_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);
+				filter_reconstruct_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storage + y*filter_area.z + x, weight_cache, &filter_area.x, &rect.x);
 			}
-		}
-		else {
-			for(int y = 0; y < filter_area.w; y++) {
-				for(int x = 0; x < filter_area.z; x++) {
-					filter_construct_transform_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);
-					filter_estimate_wlr_params_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);
-				}
-			}
-#ifdef WITH_CYCLES_DEBUG_FILTER
-			DenoiseDebug debug(filter_area.z, filter_area.w, 4 * DENOISE_FEATURES + 6);
-
-#define WRITE_DEBUG(name, var) debug.add_pass(name, &storage[0].var, sizeof(FilterStorage)/sizeof(float), filter_area.z);
-			for(int i = 0; i < DENOISE_FEATURES; i++) {
-				WRITE_DEBUG(string_printf("mean_%d", i), means[i]);
-				WRITE_DEBUG(string_printf("scale_%d", i), scales[i]);
-				WRITE_DEBUG(string_printf("singular_%d", i), singular[i]);
-				WRITE_DEBUG(string_printf("bandwidth_%d", i), bandwidth[i]);
-			}
-			WRITE_DEBUG("singular_threshold", singular_threshold);
-			WRITE_DEBUG("feature_matrix_norm", feature_matrix_norm);
-			WRITE_DEBUG("global_bandwidth", global_bandwidth);
-#endif
-			for(int y = 0; y < filter_area.w; y++) {
-				for(int x = 0; x < filter_area.z; x++) {
-					filter_final_pass_wlr_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storage + y*filter_area.z + x, weight_cache, &filter_area.x, &rect.x);
-				}
-			}
-#ifdef WITH_CYCLES_DEBUG_FILTER
-			WRITE_DEBUG("filtered_global_bandwidth", filtered_global_bandwidth);
-			WRITE_DEBUG("sum_weight", sum_weight);
-			WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
-			debug.write(string_printf("debug_%dx%d.exr", filter_area.x, filter_area.y));
-#undef WRITE_DEBUG
-#endif
 		}
 
 		if(use_gradients) {

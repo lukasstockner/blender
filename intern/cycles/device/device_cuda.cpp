@@ -838,8 +838,7 @@ public:
 		cuda_push_context();
 
 		CUfunction cuFilterDivideShadow, cuFilterGetFeature, cuFilterNonLocalMeans, cuFilterCombineHalves;
-		CUfunction cuFilterConstructTransform, cuFilterEstimateBandwidths, cuFilterEstimateBiasVariance, cuFilterCalculateBandwidth;
-		CUfunction cuFilterFinalPassWLR, cuFilterFinalPassNLM, cuFilterDivideCombined;
+		CUfunction cuFilterConstructTransform, cuFilterReconstruct, cuFilterDivideCombined;
 		CUdeviceptr d_buffers = cuda_device_ptr(rtile.buffer);
 
 		cuda_assert(cuModuleGetFunction(&cuFilterDivideShadow, cuModule, "kernel_cuda_filter_divide_shadow"));
@@ -848,11 +847,7 @@ public:
 		cuda_assert(cuModuleGetFunction(&cuFilterCombineHalves, cuModule, "kernel_cuda_filter_combine_halves"));
 
 		cuda_assert(cuModuleGetFunction(&cuFilterConstructTransform, cuModule, "kernel_cuda_filter_construct_transform"));
-		cuda_assert(cuModuleGetFunction(&cuFilterEstimateBandwidths, cuModule, "kernel_cuda_filter_estimate_bandwidths"));
-		cuda_assert(cuModuleGetFunction(&cuFilterEstimateBiasVariance, cuModule, "kernel_cuda_filter_estimate_bias_variance"));
-		cuda_assert(cuModuleGetFunction(&cuFilterCalculateBandwidth, cuModule, "kernel_cuda_filter_calculate_bandwidth"));
-		cuda_assert(cuModuleGetFunction(&cuFilterFinalPassWLR, cuModule, "kernel_cuda_filter_final_pass_wlr"));
-		cuda_assert(cuModuleGetFunction(&cuFilterFinalPassNLM, cuModule, "kernel_cuda_filter_final_pass_nlm"));
+		cuda_assert(cuModuleGetFunction(&cuFilterReconstruct, cuModule, "kernel_cuda_filter_reconstruct"));
 		cuda_assert(cuModuleGetFunction(&cuFilterDivideCombined, cuModule, "kernel_cuda_filter_divide_combined"));
 
 		cuda_assert(cuFuncSetCacheConfig(cuFilterDivideShadow, CU_FUNC_CACHE_PREFER_L1));
@@ -863,11 +858,7 @@ public:
 		bool l1 = false;
 		if(getenv("CYCLES_DENOISE_PREFER_L1")) l1 = true;
 		cuda_assert(cuFuncSetCacheConfig(cuFilterConstructTransform, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
-		cuda_assert(cuFuncSetCacheConfig(cuFilterEstimateBandwidths, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
-		cuda_assert(cuFuncSetCacheConfig(cuFilterEstimateBiasVariance, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
-		cuda_assert(cuFuncSetCacheConfig(cuFilterCalculateBandwidth, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
-		cuda_assert(cuFuncSetCacheConfig(cuFilterFinalPassWLR, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
-		cuda_assert(cuFuncSetCacheConfig(cuFilterFinalPassNLM, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
+		cuda_assert(cuFuncSetCacheConfig(cuFilterReconstruct, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
 		cuda_assert(cuFuncSetCacheConfig(cuFilterDivideCombined, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
 
 		if(have_error())
@@ -884,7 +875,7 @@ public:
 		                      min(filter_area.y + filter_area.w + hw, buffer_area.y + buffer_area.w));
 
 		int threads_per_block;
-		cuda_assert(cuFuncGetAttribute(&threads_per_block, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, cuFilterFinalPassWLR));
+		cuda_assert(cuFuncGetAttribute(&threads_per_block, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, cuFilterReconstruct));
 
 		int xthreads = (int)sqrt((float)threads_per_block);
 		int ythreads = (int)sqrt((float)threads_per_block);
@@ -1122,67 +1113,21 @@ public:
 		                           xthreads, ythreads, 1, /* threads */
 		                           0, 0, transform_args, 0));
 
-		if(kernel_globals.integrator.use_nlm_weights) {
-			void *final_args[] = {&sample,
-			                      &d_denoise_buffers,
-			                      &rtile.offset,
-			                      &rtile.stride,
-			                      &d_transforms,
-			                      &d_storage,
-			                      &d_buffers,
-			                      &filter_area,
-			                      &rect};
-			cuda_assert(cuLaunchKernel(cuFilterFinalPassNLM,
-			                           xblocks , yblocks, 1, /* blocks */
-			                           xthreads, ythreads, 1, /* threads */
-			                           0, 0, final_args, 0));
+		void *final_args[] = {&sample,
+		                      &d_denoise_buffers,
+		                      &rtile.offset,
+		                      &rtile.stride,
+		                      &d_transforms,
+		                      &d_storage,
+		                      &d_buffers,
+		                      &filter_area,
+		                      &rect};
+		cuda_assert(cuLaunchKernel(cuFilterReconstruct,
+		                           xblocks , yblocks, 1, /* blocks */
+		                           xthreads, ythreads, 1, /* threads */
+		                           0, 0, final_args, 0));
 
-			cuda_assert(cuCtxSynchronize());
-		}
-		else {
-			cuda_assert(cuLaunchKernel(cuFilterEstimateBandwidths,
-			                           xblocks , yblocks, 1, /* blocks */
-			                           xthreads, ythreads, 1, /* threads */
-			                           0, 0, transform_args, 0));
-
-			for(int g = 0; g < 6; g++) {
-				void *bias_variance_args[] = {&sample,
-				                              &d_denoise_buffers,
-				                              &d_transforms,
-				                              &d_storage,
-				                              &filter_area,
-				                              &rect,
-				                              &g};
-				cuda_assert(cuLaunchKernel(cuFilterEstimateBiasVariance,
-				                           xblocks , yblocks, 1, /* blocks */
-				                           xthreads, ythreads, 1, /* threads */
-				                           0, 0, bias_variance_args, 0));
-			}
-
-			void *bandwidth_args[] = {&sample,
-			                          &d_storage,
-			                          &filter_area};
-			cuda_assert(cuLaunchKernel(cuFilterCalculateBandwidth,
-			                           xblocks , yblocks, 1, /* blocks */
-			                           xthreads, ythreads, 1, /* threads */
-			                           0, 0, bandwidth_args, 0));
-
-			void *final_args[] = {&sample,
-			                      &d_denoise_buffers,
-			                      &rtile.offset,
-			                      &rtile.stride,
-			                      &d_transforms,
-			                      &d_storage,
-			                      &d_buffers,
-			                      &filter_area,
-			                      &rect};
-			cuda_assert(cuLaunchKernel(cuFilterFinalPassWLR,
-			                           xblocks , yblocks, 1, /* blocks */
-			                           xthreads, ythreads, 1, /* threads */
-			                           0, 0, final_args, 0));
-
-			cuda_assert(cuCtxSynchronize());
-		}
+		cuda_assert(cuCtxSynchronize());
 
 		if(kernel_globals.integrator.use_gradients) {
 			void *divide_args[] = {&d_buffers,

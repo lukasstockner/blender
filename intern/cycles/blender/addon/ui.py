@@ -579,7 +579,6 @@ class CyclesRender_PT_denoising(CyclesButtonsPanel, Panel):
         sub.prop(rl, "filter_strength", slider=True)
         sub.prop(rl, "filter_weighting_adjust", slider=True)
         sub.prop(rl, "filter_gradients")
-        sub.prop(rl, "filter_use_nlm_weights")
         sub.prop(rl, "filter_cross")
 
         sub = col.column(align=True)

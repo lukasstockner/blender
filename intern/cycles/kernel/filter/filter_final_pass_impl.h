@@ -22,7 +22,7 @@ CCL_NAMESPACE_BEGIN
 #define STORAGE_TYPE FilterStorage
 #endif
 
-ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, int offset, int stride, float *buffers, int filtered_passes, int2 color_passes, STORAGE_TYPE *storage, float *weight_cache, float ccl_readonly_ptr transform, int transform_stride, int4 filter_area, int4 rect)
+ccl_device void kernel_filter_reconstruct(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, int offset, int stride, float *buffers, int filtered_passes, int2 color_passes, STORAGE_TYPE *storage, float *weight_cache, float ccl_readonly_ptr transform, int transform_stride, int4 filter_area, int4 rect)
 {
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int buffer_h = (rect.w - rect.y);
@@ -44,7 +44,6 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 	float sqrt_center_variance = sqrtf(filter_get_pixel_variance(center_buffer + color_passes.x, pass_stride));
 
 	/* NFOR weighting directly writes to the design row, so it doesn't need the feature vector and always uses full rank. */
-#ifndef WEIGHTING_NFOR
 #  ifdef __KERNEL_CUDA__
 	/* On GPUs, store the feature vector in shared memory for faster access. */
 	__shared__ float shared_features[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
@@ -54,41 +53,9 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 #  endif
 	const int rank = storage->rank;
 	const int matrix_size = rank+1;
-#else
-	const int matrix_size = DENOISE_FEATURES;
-	float *feature_scales = transform;
-#endif
 
 	float feature_means[DENOISE_FEATURES];
 	filter_get_features(make_int3(x, y, 0), center_buffer, feature_means, NULL, pass_stride);
-
-#ifdef WEIGHTING_WLR
-	/* Apply a median filter to the 3x3 window aroung the current pixel. */
-	int sort_idx = 0;
-	float global_bandwidths[9];
-	for(int dy = max(-1, filter_area.y - y); dy < min(2, filter_area.y+filter_area.w - y); dy++) {
-		for(int dx = max(-1, filter_area.x - x); dx < min(2, filter_area.x+filter_area.z - x); dx++) {
-			int ofs = dy*filter_area.z + dx;
-			if(storage[ofs].rank != rank) continue;
-			global_bandwidths[sort_idx++] = storage[ofs].global_bandwidth;
-		}
-	}
-	/* Insertion-sort the global bandwidths (fast enough for 9 elements). */
-	for(int i = 1; i < sort_idx; i++) {
-		float v = global_bandwidths[i];
-		int j;
-		for(j = i-1; j >= 0 && global_bandwidths[j] > v; j--)
-			global_bandwidths[j+1] = global_bandwidths[j];
-		global_bandwidths[j+1] = v;
-	}
-	float inv_global_bandwidth = 1.0f / (global_bandwidths[sort_idx/2] * kernel_data.integrator.weighting_adjust);
-
-	float bandwidth_factor[DENOISE_FEATURES];
-	for(int i = 0; i < rank; i++) {
-		/* Same as above, divide by the bandwidth since the bandwidth_factor actually is the inverse of the bandwidth. */
-		bandwidth_factor[i] = storage->bandwidth[i] * inv_global_bandwidth;
-	}
-#endif
 
 	/* Essentially, this function is just a first-order regression solver.
 	 * We model the pixel color as a linear function of the feature vectors.
@@ -117,15 +84,9 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 			continue;
 		}
 
-#ifdef WEIGHTING_WLR
-		float weight = filter_get_design_row_transform_weight(pixel, pixel_buffer, feature_means, pass_stride, features, rank, design_row, transform, transform_stride, bandwidth_factor);
-#elif defined(WEIGHTING_NLM)
 		filter_get_design_row_transform(pixel, pixel_buffer, feature_means, pass_stride, features, rank, design_row, transform, transform_stride);
 		float weight = nlm_weight(x, y, pixel.x, pixel.y, center_buffer + color_passes.y, pixel_buffer + color_passes.y, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
-#else /* WEIGHTING_NFOR */
-		filter_get_design_row(pixel, pixel_buffer, feature_means, feature_scales, pass_stride, design_row);
-		float weight = nlm_weight(x, y, pixel.x, pixel.y, center_buffer + color_passes.y, pixel_buffer + color_passes.y, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
-#endif
+
 		if(weight < 1e-5f) {
 #ifdef WEIGHT_CACHING_CUDA
 			if(cache_idx < CUDA_WEIGHT_CACHE_SIZE) weight_cache[cache_idx] = 0.0f;
@@ -155,11 +116,7 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 				weight = weight_cache[cache_idx];
 				if(weight == 0.0f) continue;
 				color = filter_get_pixel_color(pixel_buffer + color_passes.x, pass_stride);
-#  ifdef WEIGHTING_NFOR
-				filter_get_design_row(pixel, pixel_buffer, feature_means, feature_scales, pass_stride, design_row);
-#  else
 				filter_get_design_row_transform(pixel, pixel_buffer, feature_means, pass_stride, features, rank, design_row, transform, transform_stride);
-#  endif
 			}
 #  ifdef WEIGHTING_CACHING_CUDA
 			else
@@ -170,15 +127,10 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 				color = filter_get_pixel_color(pixel_buffer + color_passes.x, pass_stride);
 				float variance = filter_get_pixel_variance(pixel_buffer + color_passes.x, pass_stride);
 				if(filter_firefly_rejection(color, variance, center_color, sqrt_center_variance)) continue;
-#  ifdef WEIGHTING_WLR
-				weight = filter_get_design_row_transform_weight(pixel, pixel_buffer, feature_means, pass_stride, features, rank, design_row, transform, transform_stride, bandwidth_factor);
-#  elif defined(WEIGHTING_NLM)
+
 				filter_get_design_row_transform(pixel, pixel_buffer, feature_means, pass_stride, features, rank, design_row, transform, transform_stride);
 				weight = nlm_weight(x, y, pixel.x, pixel.y, center_buffer + color_passes.y, pixel_buffer + color_passes.y, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
-#  else /* WEIGHTING_NFOR */
-				filter_get_design_row(pixel, pixel_buffer, feature_means, feature_scales, pass_stride, design_row);
-				weight = nlm_weight(x, y, pixel.x, pixel.y, center_buffer + color_passes.y, pixel_buffer + color_passes.y, pass_stride, 1.0f, kernel_data.integrator.weighting_adjust, 4, rect);
-#  endif
+
 				if(weight == 0.0f) continue;
 				weight /= max(1.0f, variance);
 			}
@@ -227,6 +179,5 @@ ccl_device void FUNCTION_NAME(KernelGlobals *kg, int sample, float ccl_readonly_
 }
 
 #undef STORAGE_TYPE
-#undef FUNCTION_NAME
 
 CCL_NAMESPACE_END

@@ -816,7 +816,6 @@ void Session::run_denoise()
 		kernel_data.integrator.filter_strength = params.filter_strength;
 		kernel_data.integrator.weighting_adjust = params.filter_weight_adjust;
 		kernel_data.integrator.use_gradients = params.filter_gradient;
-		kernel_data.integrator.use_nlm_weights = params.filter_nlm;
 		device->const_copy_to("__data", &kernel_data, sizeof(kernel_data));
 
 		/* Generate tiles. */

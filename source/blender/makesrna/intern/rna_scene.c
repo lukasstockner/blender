@@ -5019,11 +5019,6 @@ static void rna_def_scene_render_layer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Half window", "Size of the filter window (the pixel area used for denoising one pixel). Higher values get rid of more noise, but might lose detail and are slower");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "filter_use_nlm_weights", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_NLM_WEIGHTS);
-	RNA_def_property_ui_text(prop, "Use NLM weights", "Use Non-Local means for weighting the pixels");
-	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-
 	prop = RNA_def_property(srna, "filter_gradients", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_GRADIENTS);
 	RNA_def_property_ui_text(prop, "Use gradients for denoising", "Use aditional predictions of neighboring pixels using the fitted gradients to get a cleaner result. Might cause visible tile borders.");

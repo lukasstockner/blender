@@ -36,35 +36,11 @@
 
 #  include "filter_wlr_cuda.h"
 
-/* Define the final pass functions. */
-#  define FUNCTION_NAME kernel_filter_final_pass_wlr
-#  define WEIGHTING_WLR
-#  undef  WEIGHTING_NLM
-#  undef  WEIGHTING_NFOR
+/* Define the reconstruction function. */
 #  undef  WEIGHT_CACHING_CPU
 #  define WEIGHT_CACHING_CUDA
 #  define OUTPUT_RENDERBUFFER
 #  include "filter_final_pass_impl.h"
-
-#  define FUNCTION_NAME kernel_filter_final_pass_nlm
-#  undef  WEIGHTING_WLR
-#  define WEIGHTING_NLM
-#  undef  WEIGHTING_NFOR
-#  undef  WEIGHT_CACHING_CPU
-#  define WEIGHT_CACHING_CUDA
-#  define OUTPUT_RENDERBUFFER
-#  include "filter_final_pass_impl.h"
-
-#  if 0
-#    define FUNCTION_NAME kernel_filter_final_pass_nfor
-#    undef  WEIGHTING_WLR
-#    undef  WEIGHTING_NLM
-#    define WEIGHTING_NFOR
-#    undef  WEIGHT_CACHING_CPU
-#    define WEIGHT_CACHING_CUDA
-#    define OUTPUT_RENDERBUFFER
-#    include "filter_final_pass_impl.h"
-#  endif
 
 #else
 
@@ -74,35 +50,11 @@
 #    include "filter_wlr.h"
 #  endif // __KERNEL_SSE3__
 
-/* Define the final pass functions. */
-#  define FUNCTION_NAME kernel_filter_final_pass_wlr
-#  define WEIGHTING_WLR
-#  undef  WEIGHTING_NLM
-#  undef  WEIGHTING_NFOR
+/* Define the reconstruction function. */
 #  define WEIGHT_CACHING_CPU
 #  undef  WEIGHT_CACHING_CUDA
 #  define OUTPUT_RENDERBUFFER
 #  include "filter_final_pass_impl.h"
-
-#  define FUNCTION_NAME kernel_filter_final_pass_nlm
-#  undef  WEIGHTING_WLR
-#  define WEIGHTING_NLM
-#  undef  WEIGHTING_NFOR
-#  define WEIGHT_CACHING_CPU
-#  undef  WEIGHT_CACHING_CUDA
-#  define OUTPUT_RENDERBUFFER
-#  include "filter_final_pass_impl.h"
-
-#  if 0
-#    define FUNCTION_NAME kernel_filter_final_pass_nfor
-#    undef  WEIGHTING_WLR
-#    undef  WEIGHTING_NLM
-#    define WEIGHTING_NFOR
-#    define WEIGHT_CACHING_CPU
-#    undef  WEIGHT_CACHING_CUDA
-#    define OUTPUT_RENDERBUFFER
-#    include "filter_final_pass_impl.h"
-#  endif
 
 #endif // __KERNEL_CUDA__
 

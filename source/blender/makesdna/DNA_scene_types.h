@@ -266,7 +266,6 @@ typedef enum SceneDenoiseFlag {
 	SCE_DENOISE_PASS_TRANSIND         = (1 << 7),
 	SCE_DENOISE_PASS_SUBDIR           = (1 << 8),
 	SCE_DENOISE_PASS_SUBIND           = (1 << 9),
-	SCE_DENOISE_NLM_WEIGHTS           = (1 << 10),
 	SCE_DENOISE_GRADIENTS             = (1 << 11),
 	SCE_DENOISE_CROSS                 = (1 << 12),
 } SceneDenoiseFlag;

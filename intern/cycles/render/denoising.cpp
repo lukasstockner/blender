@@ -214,6 +214,7 @@ bool denoise_standalone(SessionParams &session_params,
 	session_params.tile_order = TILE_BOTTOM_TO_TOP;
 	session_params.flip_output = false;
 	session_params.prev_frames = mid_frame;
+	session_params.filter_weight_adjust /= 2.0f;
 
 	Session *session = new Session(session_params);
 	session->set_pause(false);
