@@ -178,44 +178,5 @@ ccl_device_inline void filter_get_pixel_variance_3_sse(float ccl_readonly_ptr bu
 	var[2] = _mm_mask_ps(ccl_get_feature_sse(21), active_pixels);
 }
 
-ccl_device_inline __m128 filter_get_pixel_variance_sse(float ccl_readonly_ptr buffer, __m128 active_pixels, int pass_stride)
-{
-	return _mm_mask_ps(_mm_mul_ps(_mm_set1_ps(1.0f/3.0f), _mm_add_ps(_mm_add_ps(ccl_get_feature_sse(17), ccl_get_feature_sse(19)), ccl_get_feature_sse(21))), active_pixels);
-}
-
-ccl_device_inline __m128 filter_fill_design_row_sse(__m128 *features, __m128 active_pixels, int rank, __m128 *design_row, __m128 ccl_readonly_ptr feature_transform, __m128 ccl_readonly_ptr bandwidth_factor)
-{
-	__m128 weight = _mm_mask_ps(_mm_set1_ps(1.0f), active_pixels);
-	design_row[0] = weight;
-	for(int d = 0; d < rank; d++) {
-		__m128 x = math_vector_dot_sse(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
-		__m128 x2 = _mm_mul_ps(x, bandwidth_factor[d]);
-		x2 = _mm_mul_ps(x2, x2);
-		weight = _mm_mask_ps(_mm_mul_ps(weight, _mm_mul_ps(_mm_set1_ps(0.75f), _mm_sub_ps(_mm_set1_ps(1.0f), x2))), _mm_and_ps(_mm_cmplt_ps(x2, _mm_set1_ps(1.0f)), active_pixels));
-		design_row[1+d] = x;
-	}
-	return weight;
-}
-
-ccl_device_inline __m128 filter_fill_design_row_quadratic_sse(__m128 *features, __m128 active_pixels, int rank, __m128 *design_row, __m128 ccl_readonly_ptr feature_transform)
-{
-	__m128 weight = _mm_mask_ps(_mm_set1_ps(1.0f), active_pixels);
-	design_row[0] = weight;
-	for(int d = 0; d < rank; d++) {
-		__m128 x = math_vector_dot_sse(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
-		__m128 x2 = _mm_mul_ps(x, x);
-		weight = _mm_mask_ps(_mm_mul_ps(weight, _mm_mul_ps(_mm_set1_ps(0.75f), _mm_sub_ps(_mm_set1_ps(1.0f), x2))), _mm_and_ps(_mm_cmplt_ps(x2, _mm_set1_ps(1.0f)), active_pixels));
-		design_row[1+d] = x;
-		design_row[1+rank+d] = x2;
-	}
-	return weight;
-}
-
-ccl_device_inline __m128 filter_firefly_rejection_sse(__m128 ccl_readonly_ptr pixel_color, __m128 pixel_variance, __m128 ccl_readonly_ptr center_color, __m128 sqrt_center_variance)
-{
-	__m128 color_diff = _mm_mul_ps(_mm_set1_ps(1.0f/9.0f), _mm_add_ps(_mm_add_ps(_mm_fabs_ps(_mm_sub_ps(pixel_color[0], center_color[0])), _mm_fabs_ps(_mm_sub_ps(pixel_color[1], center_color[1]))), _mm_fabs_ps(_mm_sub_ps(pixel_color[2], center_color[2]))));
-	__m128 variance = _mm_add_ps(_mm_add_ps(sqrt_center_variance, _mm_sqrt_ps(pixel_variance)), _mm_set1_ps(0.005f));
-	return _mm_cmple_ps(color_diff, variance);;
-}
 
 CCL_NAMESPACE_END

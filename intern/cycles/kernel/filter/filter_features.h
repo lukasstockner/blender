@@ -165,43 +165,6 @@ ccl_device_inline bool filter_firefly_rejection(float3 pixel_color, float pixel_
 	return (color_diff > 3.0f*variance);
 }
 
-/* Fill design row and compute WLR weight.
- * Doing both at the same time allows for a nice early-out as soon as the weight is zero. */
-ccl_device_inline float filter_get_design_row_transform_weight(int3 pixel, float ccl_readonly_ptr buffer, float ccl_readonly_ptr feature_means, int pass_stride, float *features, int rank, float *design_row, float ccl_readonly_ptr feature_transform, int transform_stride, float ccl_readonly_ptr bandwidth_factor)
-{
-	filter_get_features(pixel, buffer, features, feature_means, pass_stride);
-	design_row[0] = 1.0f;
-	float weight = 1.0f;
-	for(int d = 0; d < rank; d++) {
-#ifdef __KERNEL_CUDA__
-		float x = math_vector_dot_strided(features, feature_transform + d*DENOISE_FEATURES*transform_stride, transform_stride, DENOISE_FEATURES);
-#else
-		float x = math_vector_dot(features, feature_transform + d*DENOISE_FEATURES, DENOISE_FEATURES);
-#endif
-		float x2 = x;
-		if(bandwidth_factor) x2 *= bandwidth_factor[d];
-		x2 *= x2;
-		if(x2 < 1.0f) {
-			/* Pixels are weighted by Epanechnikov kernels. */
-			weight *= 0.75f * (1.0f - x2);
-		}
-		else {
-			weight = 0.0f;
-			break;
-		}
-		design_row[1+d] = x;
-	}
-	return weight;
-}
-
-/* Fill design row with the quadratic elements. */
-ccl_device_inline void filter_extend_design_row_quadratic(int rank, float *design_row)
-{
-	for(int d = 0; d < rank; d++) {
-		design_row[1+rank+d] = design_row[1+d]*design_row[1+d];
-	}
-}
-
 /* Fill the design row without computing the weight. */
 ccl_device_inline void filter_get_design_row_transform(int3 pixel, float ccl_readonly_ptr buffer, float ccl_readonly_ptr feature_means, int pass_stride, float *features, int rank, float *design_row, float ccl_readonly_ptr feature_transform, int transform_stride)
 {
@@ -215,14 +178,6 @@ ccl_device_inline void filter_get_design_row_transform(int3 pixel, float ccl_rea
 #endif
 		design_row[1+d] = x;
 	}
-}
-
-ccl_device_inline void filter_get_design_row(int3 pixel, float ccl_readonly_ptr buffer, float ccl_readonly_ptr feature_means, float ccl_readonly_ptr feature_scales, int pass_stride, float *design_row)
-{
-	design_row[0] = 1.0f;
-	filter_get_features(pixel, buffer, design_row+1, feature_means, pass_stride);
-	for(int d = 0; d < DENOISE_FEATURES; d++)
-		design_row[d+1] *= feature_scales[d];
 }
 
 CCL_NAMESPACE_END
