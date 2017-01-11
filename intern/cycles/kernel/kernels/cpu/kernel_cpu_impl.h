@@ -172,8 +172,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_divide_shadow)(KernelGlobals *kg,
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_divide_shadow);
 #else
-	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
-	kernel_filter_divide_shadow(kg, sample, buffers, x, y, tile_x, tile_y, offset, stride, unfiltered, sampleVariance, sampleVarianceV, bufferVariance, rect);
+	kernel_filter_divide_shadow(kg, sample, buffers, x, y, tile_x, tile_y, offset, stride, unfiltered, sampleVariance, sampleVarianceV, bufferVariance, load_int4(prefilter_rect));
 #endif
 }
 
@@ -194,8 +193,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(KernelGlobals *kg,
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_get_feature);
 #else
-	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
-	kernel_filter_get_feature(kg, sample, buffers, m_offset, v_offset, x, y, tile_x, tile_y, offset, stride, mean, variance, rect);
+	kernel_filter_get_feature(kg, sample, buffers, m_offset, v_offset, x, y, tile_x, tile_y, offset, stride, mean, variance, load_int4(prefilter_rect));
 #endif
 }
 
@@ -211,8 +209,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_non_local_means)(int x, int y,
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_non_local_means);
 #else
-	int4 rect = make_int4(filter_rect[0], filter_rect[1], filter_rect[2], filter_rect[3]);
-	kernel_filter_non_local_means(x, y, noisyImage, weightImage, variance, filteredImage, rect, r, f, a, k_2);
+	kernel_filter_non_local_means(x, y, noisyImage, weightImage, variance, filteredImage, load_int4(filter_rect), r, f, a, k_2);
 #endif
 }
 
@@ -228,8 +225,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_combine_halves);
 #else
-	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
-	kernel_filter_combine_halves(x, y, mean, variance, a, b, rect, r);
+	kernel_filter_combine_halves(x, y, mean, variance, a, b, load_int4(prefilter_rect), r);
 #endif
 }
 
@@ -244,8 +240,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(KernelGlobals *kg,
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_construct_transform);
 #else
-	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
-	kernel_filter_construct_transform(kg, sample, buffer, x, y, (FilterStorage*) storage, rect);
+	kernel_filter_construct_transform(kg, sample, buffer, x, y, (FilterStorage*) storage, load_int4(prefilter_rect));
 #endif
 }
 
@@ -265,8 +260,8 @@ void KERNEL_FUNCTION_FULL_NAME(filter_reconstruct)(KernelGlobals *kg,
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_reconstruct);
 #else
-	int4 rect = make_int4(prefilter_rect[0], prefilter_rect[1], prefilter_rect[2], prefilter_rect[3]);
-	int4 area = make_int4(filter_area[0], filter_area[1], filter_area[2], filter_area[3]);
+	int4 rect = load_int4(prefilter_rect);
+	int4 area = load_int4(filter_area);
 	FilterStorage *storage = (FilterStorage*) storage_ptr;
 	if(kernel_data.film.denoise_cross) {
 		kernel_filter_reconstruct(kg, sample, buffer, x, y, offset, stride, buffers, 0, make_int2(0, 6), storage, weight_cache, storage->transform, 1, area, rect);

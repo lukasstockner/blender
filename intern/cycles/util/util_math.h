@@ -1198,6 +1198,15 @@ ccl_device_inline void print_int4(const char *label, const int4& a)
 	printf("%s: %d %d %d %d\n", label, a.x, a.y, a.z, a.w);
 }
 
+ccl_device_inline int4 load_int4(const int *v)
+{
+#ifdef __KERNEL_SSE__
+	return _mm_loadu_si128((__m128i*)v);
+#else
+	return make_int4(v[0], v[1], v[2], v[3]);
+#endif
+}
+
 #endif
 
 /* Int/Float conversion */
