@@ -142,7 +142,6 @@ public:
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, float*, int*, int*)>      filter_final_pass_wlr_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, float*, int*, int*)>      filter_final_pass_nlm_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, int, int, float*, int, int)>                                         filter_divide_combined_kernel;
-	KernelFunctions<void(*)(int, int, float**, float**, float**, float**, int*, int, int, float, float)>              filter_non_local_means_3_kernel;
 
 #define KERNEL_FUNCTIONS(name) \
 	      KERNEL_NAME_EVAL(cpu, name), \
@@ -166,8 +165,7 @@ public:
 	  filter_estimate_wlr_params_kernel(KERNEL_FUNCTIONS(filter_estimate_wlr_params)),
 	  filter_final_pass_wlr_kernel(KERNEL_FUNCTIONS(filter_final_pass_wlr)),
 	  filter_final_pass_nlm_kernel(KERNEL_FUNCTIONS(filter_final_pass_nlm)),
-	  filter_divide_combined_kernel(KERNEL_FUNCTIONS(filter_divide_combined)),
-	  filter_non_local_means_3_kernel(KERNEL_FUNCTIONS(filter_non_local_means_3))
+	  filter_divide_combined_kernel(KERNEL_FUNCTIONS(filter_divide_combined))
 	{
 #ifdef WITH_OSL
 		kernel_globals.osl = &osl_globals;
@@ -455,7 +453,6 @@ public:
 
 	void denoise_run(KernelGlobals *kg, int sample, float *filter_buffer, int4 filter_area, int4 rect, int offset, int stride, float *buffers)
 	{
-		bool only_nlm_filter = getenv("ONLY_NLM_FILTER");
 		bool use_gradients = kg->__data.integrator.use_gradients;
 		bool nlm_weights = kg->__data.integrator.use_nlm_weights;
 
@@ -466,28 +463,7 @@ public:
 		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
 		int pass_stride = w*h;
 
-		if(only_nlm_filter) {
-			float *img[3] = {filter_buffer + 16*pass_stride, filter_buffer + 18*pass_stride, filter_buffer + 20*pass_stride};
-			float *var[3] = {filter_buffer + 17*pass_stride, filter_buffer + 19*pass_stride, filter_buffer + 21*pass_stride};
-			float *out[3] = {filter_buffer +  0*pass_stride, filter_buffer +  1*pass_stride, filter_buffer +  2*pass_stride};
-			for(int y = rect.y; y < rect.w; y++) {
-				for(int x = rect.x; x < rect.z; x++) {
-					filter_non_local_means_3_kernel()(x, y, img, img, var, out, &rect.x, 10, 4, 1, 0.04f);
-				}
-			}
-			for(int y = 0; y < filter_area.w; y++) {
-				int py = y + filter_area.y;
-				for(int x = 0; x < filter_area.z; x++) {
-					int px = x + filter_area.x;
-					int i = (py - rect.y)*w + (px - rect.x);
-					float *loc_buf = buffers + (offset + py*stride + px)*kg->__data.film.pass_stride;
-					loc_buf[0] = sample*filter_buffer[0*pass_stride + i];
-					loc_buf[1] = sample*filter_buffer[1*pass_stride + i];
-					loc_buf[2] = sample*filter_buffer[2*pass_stride + i];
-				}
-			}
-		}
-		else if(nlm_weights) {
+		if(nlm_weights) {
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
 					filter_construct_transform_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);

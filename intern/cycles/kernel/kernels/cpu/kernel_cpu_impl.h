@@ -216,26 +216,6 @@ void KERNEL_FUNCTION_FULL_NAME(filter_non_local_means)(int x, int y,
 #endif
 }
 
-void KERNEL_FUNCTION_FULL_NAME(filter_non_local_means_3)(int x, int y,
-                                                         float *noisyImage[3],
-                                                         float *weightImage[3],
-                                                         float *variance[3],
-                                                         float *filteredImage[3],
-                                                         int* filter_rect,
-                                                         int r, int f,
-                                                         float a, float k_2)
-{
-#ifdef KERNEL_STUB
-	STUB_ASSERT(KERNEL_ARCH, filter_non_local_means_3);
-#else
-	int4 rect = make_int4(filter_rect[0], filter_rect[1], filter_rect[2], filter_rect[3]);
-	kernel_filter_non_local_means_3(x, y,
-	                                (float ccl_readonly_ptr*) noisyImage,
-	                                (float ccl_readonly_ptr*) weightImage,
-	                                (float ccl_readonly_ptr*) variance,
-	                                filteredImage, rect, r, f, a, k_2);
-#endif
-}
 
 void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
                                                       float *mean,
