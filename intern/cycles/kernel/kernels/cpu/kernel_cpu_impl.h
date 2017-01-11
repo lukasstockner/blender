@@ -197,23 +197,6 @@ void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(KernelGlobals *kg,
 #endif
 }
 
-void KERNEL_FUNCTION_FULL_NAME(filter_non_local_means)(int x, int y,
-                                                       float *noisyImage,
-                                                       float *weightImage,
-                                                       float *variance,
-                                                       float *filteredImage,
-                                                       int* filter_rect,
-                                                       int r, int f,
-                                                       float a, float k_2)
-{
-#ifdef KERNEL_STUB
-	STUB_ASSERT(KERNEL_ARCH, filter_non_local_means);
-#else
-	kernel_filter_non_local_means(x, y, noisyImage, weightImage, variance, filteredImage, load_int4(filter_rect), r, f, a, k_2);
-#endif
-}
-
-
 void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
                                                       float *mean,
                                                       float *variance,
@@ -285,6 +268,59 @@ void KERNEL_FUNCTION_FULL_NAME(filter_divide_combined)(KernelGlobals *kg,
 #else
 	kernel_filter_divide_combined(kg, x, y, sample, buffers, offset, stride);
 #endif
+}
+
+void KERNEL_FUNCTION_FULL_NAME(filter_nlm_calc_difference)(int dx,
+                                                           int dy,
+                                                           float *weightImage,
+                                                           float *variance,
+                                                           float *differenceImage,
+                                                           int *rect,
+                                                           int w,
+                                                           int channel_offset,
+                                                           float a,
+                                                           float k_2)
+{
+	kernel_filter_nlm_calc_difference(dx, dy, weightImage, variance, differenceImage, load_int4(rect), w, channel_offset, a, k_2);
+}
+
+void KERNEL_FUNCTION_FULL_NAME(filter_nlm_blur)(float *differenceImage,
+                                                float *outImage,
+                                                int *rect,
+                                                int w,
+                                                int f)
+{
+	kernel_filter_nlm_blur(differenceImage, outImage, load_int4(rect), w, f);
+}
+
+void KERNEL_FUNCTION_FULL_NAME(filter_nlm_calc_weight)(float *differenceImage,
+                                                       float *outImage,
+                                                       int *rect,
+                                                       int w,
+                                                       int f)
+{
+	kernel_filter_nlm_calc_weight(differenceImage, outImage, load_int4(rect), w, f);
+}
+
+void KERNEL_FUNCTION_FULL_NAME(filter_nlm_update_output)(int dx,
+                                                         int dy,
+                                                         float *differenceImage,
+                                                         float *image,
+                                                         float *outImage,
+                                                         float *accumImage,
+                                                         int *rect,
+                                                         int w,
+                                                         int f)
+{
+	kernel_filter_nlm_update_output(dx, dy, differenceImage, image, outImage, accumImage, load_int4(rect), w, f);
+}
+
+void KERNEL_FUNCTION_FULL_NAME(filter_nlm_normalize)(float *outImage,
+                                                     float *accumImage,
+                                                     int *rect,
+                                                     int w)
+{
+	kernel_filter_nlm_normalize(outImage, accumImage, load_int4(rect), w);
 }
 
 #undef KERNEL_STUB

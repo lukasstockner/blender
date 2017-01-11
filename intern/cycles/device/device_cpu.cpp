@@ -135,11 +135,16 @@ public:
 	KernelFunctions<void(*)(KernelGlobals *, uint4 *, float4 *, float*, int, int, int, int, int)> shader_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, float*, float*, float*, float*, int*)> filter_divide_shadow_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, float**, int, int, int, int, int*, int*, int*, int*, float*, float*, int*)>       filter_get_feature_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int, float, float)>                               filter_non_local_means_kernel;
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                                  filter_combine_halves_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, void*, int*)>                                      filter_construct_transform_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, float*, int*, int*)>      filter_reconstruct_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, int, int, float*, int, int)>                                         filter_divide_combined_kernel;
+
+	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, float, float)> filter_nlm_calc_difference_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                 filter_nlm_blur_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                 filter_nlm_calc_weight_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int)>       filter_nlm_update_output_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int)>                                      filter_nlm_normalize_kernel;
 
 #define KERNEL_FUNCTIONS(name) \
 	      KERNEL_NAME_EVAL(cpu, name), \
@@ -157,11 +162,15 @@ public:
 	  shader_kernel(KERNEL_FUNCTIONS(shader)),
 	  filter_divide_shadow_kernel(KERNEL_FUNCTIONS(filter_divide_shadow)),
 	  filter_get_feature_kernel(KERNEL_FUNCTIONS(filter_get_feature)),
-	  filter_non_local_means_kernel(KERNEL_FUNCTIONS(filter_non_local_means)),
 	  filter_combine_halves_kernel(KERNEL_FUNCTIONS(filter_combine_halves)),
 	  filter_construct_transform_kernel(KERNEL_FUNCTIONS(filter_construct_transform)),
 	  filter_reconstruct_kernel(KERNEL_FUNCTIONS(filter_reconstruct)),
-	  filter_divide_combined_kernel(KERNEL_FUNCTIONS(filter_divide_combined))
+	  filter_divide_combined_kernel(KERNEL_FUNCTIONS(filter_divide_combined)),
+	  filter_nlm_calc_difference_kernel(KERNEL_FUNCTIONS(filter_nlm_calc_difference)),
+	  filter_nlm_blur_kernel(KERNEL_FUNCTIONS(filter_nlm_blur)),
+	  filter_nlm_calc_weight_kernel(KERNEL_FUNCTIONS(filter_nlm_calc_weight)),
+	  filter_nlm_update_output_kernel(KERNEL_FUNCTIONS(filter_nlm_update_output)),
+	  filter_nlm_normalize_kernel(KERNEL_FUNCTIONS(filter_nlm_normalize))
 	{
 #ifdef WITH_OSL
 		kernel_globals.osl = &osl_globals;
@@ -275,6 +284,30 @@ public:
 		}
 	};
 
+	void non_local_means(int4 rect, float *image, float *weight, float *out, float *variance, float *difference, float *blurDifference, float *weightAccum, int r, int f, float a, float k_2)
+	{
+		int w = align_up(rect.z-rect.x, 4);
+		int h = rect.w-rect.y;
+
+		memset(weightAccum, 0, sizeof(float)*w*h);
+		memset(out, 0, sizeof(float)*w*h);
+
+		for(int i = 0; i < (2*r+1)*(2*r+1); i++) {
+			int dy = i / (2*r+1) - r;
+			int dx = i % (2*r+1) - r;
+
+			int local_rect[4] = {max(0, -dx), max(0, -dy), rect.z-rect.x - max(0, dx), rect.w-rect.y - max(0, dy)};
+			filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, 0, a, k_2);
+			filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
+			filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
+			filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
+			filter_nlm_update_output_kernel()(dx, dy, blurDifference, image, out, weightAccum, local_rect, w, f);
+		}
+
+		int local_rect[4] = {0, 0, rect.z-rect.x, rect.w-rect.y};
+		filter_nlm_normalize_kernel()(out, weightAccum, local_rect, w);
+	}
+
 	float* denoise_fill_buffer(KernelGlobals *kg, int sample, int4 rect, float** buffers, int* tile_x, int* tile_y, int *offsets, int *strides, int frames, int *frame_strides)
 	{
 		bool cross_denoise = kg->__data.film.denoise_cross;
@@ -294,51 +327,16 @@ public:
 #ifdef WITH_CYCLES_DEBUG_FILTER
 			DenoiseDebug debug((rect.z - rect.x), h, 34);
 #endif
-			/* ==== Step 1: Prefilter general features. ==== */
-			{
-
-				float *unfiltered = filter_buffer + 16*pass_stride;
-				/* Order in render buffers:
-				 *   Normal[X, Y, Z] NormalVar[X, Y, Z] Albedo[R, G, B] AlbedoVar[R, G, B ] Depth DepthVar
-				 *          0  1  2            3  4  5         6  7  8            9  10 11  12    13
-				 *
-				 * Order in denoise buffer:
-				 *   Normal[X, XVar, Y, YVar, Z, ZVar] Depth DepthVar Shadow ShadowVar Albedo[R, RVar, G, GVar, B, BVar] Color[R, RVar, G, GVar, B, BVar]
-				 *          0  1     2  3     4  5     6     7        8      9                10 11    12 13    14 15          16 17    18 19    20 21
-				 *
-				 * Order of processing: |NormalXYZ|Depth|AlbedoXYZ |
-				 *                      |         |     |          | */
-				int mean_from[]      = { 0, 1, 2,   6,    7,  8, 12 };
-				int variance_from[]  = { 3, 4, 5,   9,   10, 11, 13 };
-				int offset_to[]      = { 0, 2, 4,  10,   12, 14,  6 };
-				for(int i = 0; i < 7; i++) {
-					for(int y = rect.y; y < rect.w; y++) {
-						for(int x = rect.x; x < rect.z; x++) {
-							filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, unfiltered, filter_buffer + (offset_to[i]+1)*pass_stride, &rect.x);
-						}
-					}
-					for(int y = rect.y; y < rect.w; y++) {
-						for(int x = rect.x; x < rect.z; x++) {
-							filter_non_local_means_kernel()(x, y, unfiltered, unfiltered, filter_buffer + (offset_to[i]+1)*pass_stride, filter_buffer + offset_to[i]*pass_stride, &rect.x, 2, 2, 1, 0.25f);
-						}
-					}
-#ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, var) debug.add_pass(string_printf("f%d_%s", i, name), var, 1, w);
-					WRITE_DEBUG("unfiltered", unfiltered);
-					WRITE_DEBUG("sampleV", filter_buffer + (offset_to[i]+1)*pass_stride);
-					WRITE_DEBUG("filtered", filter_buffer + offset_to[i]*pass_stride);
-#undef WRITE_DEBUG
-#endif
-				}
-			}
 
 
+#define PASSPTR(i) (filter_buffer + (i)*pass_stride)
 
-			/* ==== Step 2: Prefilter shadow feature. ==== */
+			/* ==== Step 1: Prefilter shadow feature. ==== */
 			{
 				/* Reuse some passes of the filter_buffer for temporary storage. */
-				float *sampleV = filter_buffer + 16*pass_stride, *sampleVV = filter_buffer + 17*pass_stride, *bufferV = filter_buffer + 18*pass_stride, *cleanV = filter_buffer + 19*pass_stride;
-				float *unfiltered = filter_buffer + 20*pass_stride;
+				float *sampleV = PASSPTR(0), *sampleVV = PASSPTR(1), *bufferV = PASSPTR(2), *cleanV = PASSPTR(3);
+				float *unfiltered = PASSPTR(4), *unfilteredB = PASSPTR(5);
+				float *diffI = PASSPTR(10), *blurDiffI = PASSPTR(11), *accumI = PASSPTR(12);
 
 				/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
 				for(int y = rect.y; y < rect.w; y++) {
@@ -349,29 +347,21 @@ public:
 #ifdef WITH_CYCLES_DEBUG_FILTER
 #define WRITE_DEBUG(name, var) debug.add_pass(string_printf("shadow_%s", name), var, 1, w);
 				WRITE_DEBUG("unfilteredA", unfiltered);
-				WRITE_DEBUG("unfilteredB", unfiltered + pass_stride);
+				WRITE_DEBUG("unfilteredB", unfilteredB);
 				WRITE_DEBUG("bufferV", bufferV);
 				WRITE_DEBUG("sampleV", sampleV);
 				WRITE_DEBUG("sampleVV", sampleVV);
 #endif
 
 				/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
-				for(int y = rect.y; y < rect.w; y++) {
-					for(int x = rect.x; x < rect.z; x++) {
-						filter_non_local_means_kernel()(x, y, bufferV, sampleV, sampleVV, cleanV, &rect.x, 6, 3, 4, 1.0f);
-					}
-				}
+				non_local_means(rect, bufferV, sampleV, cleanV, sampleVV, diffI, blurDiffI, accumI, 6, 3, 4.0f, 1.0f);
 #ifdef WITH_CYCLES_DEBUG_FILTER
-			WRITE_DEBUG("cleanV", cleanV);
+				WRITE_DEBUG("cleanV", cleanV);
 #endif
 
 				/* Use the smoothed variance to filter the two shadow half images using each other for weight calculation. */
-				for(int y = rect.y; y < rect.w; y++) {
-					for(int x = rect.x; x < rect.z; x++) {
-						filter_non_local_means_kernel()(x, y, unfiltered, unfiltered + pass_stride, cleanV, sampleV, &rect.x, 5, 3, 1, 0.25f);
-						filter_non_local_means_kernel()(x, y, unfiltered + pass_stride, unfiltered, cleanV, bufferV, &rect.x, 5, 3, 1, 0.25f);
-					}
-				}
+				non_local_means(rect, unfiltered, unfilteredB, sampleV, cleanV, diffI, blurDiffI, accumI, 5, 3, 1.0f, 0.25f);
+				non_local_means(rect, unfilteredB, unfiltered, bufferV, cleanV, diffI, blurDiffI, accumI, 5, 3, 1.0f, 0.25f);
 #ifdef WITH_CYCLES_DEBUG_FILTER
 				WRITE_DEBUG("filteredA", sampleV);
 				WRITE_DEBUG("filteredB", bufferV);
@@ -388,12 +378,8 @@ public:
 #endif
 
 				/* Use the residual variance for a second filter pass. */
-				for(int y = rect.y; y < rect.w; y++) {
-					for(int x = rect.x; x < rect.z; x++) {
-						filter_non_local_means_kernel()(x, y, sampleV, bufferV, sampleVV, unfiltered              , &rect.x, 4, 2, 1, 0.5f);
-						filter_non_local_means_kernel()(x, y, bufferV, sampleV, sampleVV, unfiltered + pass_stride, &rect.x, 4, 2, 1, 0.5f);
-					}
-				}
+				non_local_means(rect, sampleV, bufferV, unfiltered , sampleVV, diffI, blurDiffI, accumI, 4, 2, 1.0f, 0.5f);
+				non_local_means(rect, bufferV, sampleV, unfilteredB, sampleVV, diffI, blurDiffI, accumI, 4, 2, 1.0f, 0.5f);
 #ifdef WITH_CYCLES_DEBUG_FILTER
 				WRITE_DEBUG("finalA", unfiltered);
 				WRITE_DEBUG("finalB", unfiltered + pass_stride);
@@ -402,15 +388,50 @@ public:
 				/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_combine_halves_kernel()(x, y, filter_buffer + 8*pass_stride, filter_buffer + 9*pass_stride, unfiltered, unfiltered + pass_stride, &rect.x, 0);
+						filter_combine_halves_kernel()(x, y, PASSPTR(8), PASSPTR(9), unfiltered, unfiltered + pass_stride, &rect.x, 0);
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
-				WRITE_DEBUG("final", filter_buffer + 8*pass_stride);
-				WRITE_DEBUG("finalV", filter_buffer + 9 * pass_stride);
+				WRITE_DEBUG("final", PASSPTR(8));
+				WRITE_DEBUG("finalV", PASSPTR(9));
 				debug.write(string_printf("debugf_%dx%d.exr", tile_x[1], tile_y[1]));
 #undef WRITE_DEBUG
 #endif
+			}
+
+			/* ==== Step 2: Prefilter general features. ==== */
+			{
+
+				float *unfiltered = PASSPTR(16);
+				float *diffI = PASSPTR(17), *blurDiffI = PASSPTR(18), *accumI = PASSPTR(19);
+				/* Order in render buffers:
+				 *   Normal[X, Y, Z] NormalVar[X, Y, Z] Albedo[R, G, B] AlbedoVar[R, G, B ] Depth DepthVar
+				 *          0  1  2            3  4  5         6  7  8            9  10 11  12    13
+				 *
+				 * Order in denoise buffer:
+				 *   Normal[X, XVar, Y, YVar, Z, ZVar] Depth DepthVar Shadow ShadowVar Albedo[R, RVar, G, GVar, B, BVar] Color[R, RVar, G, GVar, B, BVar]
+				 *          0  1     2  3     4  5     6     7        8      9                10 11    12 13    14 15          16 17    18 19    20 21
+				 *
+				 * Order of processing: |NormalXYZ|Depth|AlbedoXYZ |
+				 *                      |         |     |          | */
+				int mean_from[]      = { 0, 1, 2,   6,    7,  8, 12 };
+				int variance_from[]  = { 3, 4, 5,   9,   10, 11, 13 };
+				int offset_to[]      = { 0, 2, 4,  10,   12, 14,  6 };
+				for(int i = 0; i < 7; i++) {
+					for(int y = rect.y; y < rect.w; y++) {
+						for(int x = rect.x; x < rect.z; x++) {
+							filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, unfiltered, PASSPTR(offset_to[i]+1), &rect.x);
+						}
+					}
+					non_local_means(rect, unfiltered, unfiltered, PASSPTR(offset_to[i]), PASSPTR(offset_to[i]+1), diffI, blurDiffI, accumI, 2, 2, 1, 0.25f);
+#ifdef WITH_CYCLES_DEBUG_FILTER
+#define WRITE_DEBUG(name, var) debug.add_pass(string_printf("f%d_%s", i, name), var, 1, w);
+					WRITE_DEBUG("unfiltered", unfiltered);
+					WRITE_DEBUG("sampleV", PASSPTR(offset_to[i]+1));
+					WRITE_DEBUG("filtered", PASSPTR(offset_to[i]));
+#undef WRITE_DEBUG
+#endif
+				}
 			}
 
 
@@ -424,7 +445,7 @@ public:
 					for(int i = 0; i < 6; i++) {
 						for(int y = rect.y; y < rect.w; y++) {
 							for(int x = rect.x; x < rect.z; x++) {
-								filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, filter_buffer + offset_to[i]*pass_stride, filter_buffer + (offset_to[i]+1)*pass_stride, &rect.x);
+								filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, PASSPTR(offset_to[i]), PASSPTR(offset_to[i]+1), &rect.x);
 							}
 						}
 					}
@@ -436,7 +457,7 @@ public:
 					for(int i = 0; i < 3; i++) {
 						for(int y = rect.y; y < rect.w; y++) {
 							for(int x = rect.x; x < rect.z; x++) {
-								filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, filter_buffer + offset_to[i]*pass_stride, filter_buffer + (offset_to[i]+1)*pass_stride, &rect.x);
+								filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, PASSPTR(offset_to[i]), PASSPTR(offset_to[i]+1), &rect.x);
 							}
 						}
 					}

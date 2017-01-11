@@ -79,15 +79,6 @@ void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(KernelGlobals *kg,
                                                    float *variance,
                                                    int* prefilter_rect);
 
-void KERNEL_FUNCTION_FULL_NAME(filter_non_local_means)(int x, int y,
-                                                       float *noisyImage,
-                                                       float *weightImage,
-                                                       float *variance,
-                                                       float *filteredImage,
-                                                       int* rect,
-                                                       int r, int f,
-                                                       float a, float k_2);
-
 void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
                                                       float *mean,
                                                       float *variance,
@@ -123,5 +114,45 @@ void KERNEL_FUNCTION_FULL_NAME(filter_divide_combined)(KernelGlobals *kg,
                                                        float *buffers,
                                                        int offset,
                                                        int stride);
+
+
+
+void KERNEL_FUNCTION_FULL_NAME(filter_nlm_calc_difference)(int dx,
+                                                           int dy,
+                                                           float *weightImage,
+                                                           float *variance,
+                                                           float *differenceImage,
+                                                           int* rect,
+                                                           int w,
+                                                           int channel_offset,
+                                                           float a,
+                                                           float k_2);
+
+void KERNEL_FUNCTION_FULL_NAME(filter_nlm_blur)(float *differenceImage,
+                                                float *outImage,
+                                                int* rect,
+                                                int w,
+                                                int f);
+
+void KERNEL_FUNCTION_FULL_NAME(filter_nlm_calc_weight)(float *differenceImage,
+                                                       float *outImage,
+                                                       int* rect,
+                                                       int w,
+                                                       int f);
+
+void KERNEL_FUNCTION_FULL_NAME(filter_nlm_update_output)(int dx,
+                                                         int dy,
+                                                         float *differenceImage,
+                                                         float *image,
+                                                         float *outImage,
+                                                         float *accumImage,
+                                                         int* rect,
+                                                         int w,
+                                                         int f);
+
+void KERNEL_FUNCTION_FULL_NAME(filter_nlm_normalize)(float *outImage,
+                                                     float *accumImage,
+                                                     int* rect,
+                                                     int w);
 
 #undef KERNEL_ARCH
