@@ -78,7 +78,10 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int dx, int dy, float c
 				float qvar = varianceImage[c*channel_offset + (y+dy)*w+(x+dx)];
 				diff += (cdiff*cdiff - a*(pvar + min(pvar, qvar))) / (1e-8f + k_2*(pvar+qvar));
 			}
-			differenceImage[y*w+x] = diff * (1.0f / numChannels);
+			if(numChannels > 1) {
+				diff *= 1.0f/numChannels;
+			}
+			differenceImage[y*w+x] = diff;
 		}
 	}
 }

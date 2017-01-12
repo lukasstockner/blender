@@ -211,7 +211,8 @@ set(SRC_FILTER_HEADERS
 	filter/filter_features.h
 	filter/filter_features_sse.h
 	filter/filter_final_pass_impl.h
-	filter/filter_nlm.h
+	filter/filter_nlm_cpu.h
+	filter/filter_nlm_gpu.h
 	filter/filter_prefilter.h
 	filter/filter_wlr.h
 	filter/filter_wlr_cuda.h

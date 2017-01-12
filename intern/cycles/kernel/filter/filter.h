@@ -22,7 +22,12 @@
 #  include "filter_features_sse.h"
 #endif // __KERNEL_SSE3__
 
-#include "filter_nlm.h"
+#ifdef __KERNEL_CPU__
+#include "filter_nlm_cpu.h"
+#else
+#include "filter_nlm_gpu.h"
+#endif
+
 #include "filter_prefilter.h"
 
 /* Not all features are included in the matrix norm. */

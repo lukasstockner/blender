@@ -336,7 +336,7 @@ public:
 				/* Reuse some passes of the filter_buffer for temporary storage. */
 				float *sampleV = PASSPTR(0), *sampleVV = PASSPTR(1), *bufferV = PASSPTR(2), *cleanV = PASSPTR(3);
 				float *unfiltered = PASSPTR(4), *unfilteredB = PASSPTR(5);
-				float *diffI = PASSPTR(10), *blurDiffI = PASSPTR(11), *accumI = PASSPTR(12);
+				float *nlm_temp1 = PASSPTR(10), *nlm_temp2 = PASSPTR(11), *nlm_temp3 = PASSPTR(12);
 
 				/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
 				for(int y = rect.y; y < rect.w; y++) {
@@ -354,14 +354,14 @@ public:
 #endif
 
 				/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
-				non_local_means(rect, bufferV, sampleV, cleanV, sampleVV, diffI, blurDiffI, accumI, 6, 3, 4.0f, 1.0f);
+				non_local_means(rect, bufferV, sampleV, cleanV, sampleVV, nlm_temp1, nlm_temp2, nlm_temp3, 6, 3, 4.0f, 1.0f);
 #ifdef WITH_CYCLES_DEBUG_FILTER
 				WRITE_DEBUG("cleanV", cleanV);
 #endif
 
 				/* Use the smoothed variance to filter the two shadow half images using each other for weight calculation. */
-				non_local_means(rect, unfiltered, unfilteredB, sampleV, cleanV, diffI, blurDiffI, accumI, 5, 3, 1.0f, 0.25f);
-				non_local_means(rect, unfilteredB, unfiltered, bufferV, cleanV, diffI, blurDiffI, accumI, 5, 3, 1.0f, 0.25f);
+				non_local_means(rect, unfiltered, unfilteredB, sampleV, cleanV, nlm_temp1, nlm_temp2, nlm_temp3, 5, 3, 1.0f, 0.25f);
+				non_local_means(rect, unfilteredB, unfiltered, bufferV, cleanV, nlm_temp1, nlm_temp2, nlm_temp3, 5, 3, 1.0f, 0.25f);
 #ifdef WITH_CYCLES_DEBUG_FILTER
 				WRITE_DEBUG("filteredA", sampleV);
 				WRITE_DEBUG("filteredB", bufferV);
@@ -378,8 +378,8 @@ public:
 #endif
 
 				/* Use the residual variance for a second filter pass. */
-				non_local_means(rect, sampleV, bufferV, unfiltered , sampleVV, diffI, blurDiffI, accumI, 4, 2, 1.0f, 0.5f);
-				non_local_means(rect, bufferV, sampleV, unfilteredB, sampleVV, diffI, blurDiffI, accumI, 4, 2, 1.0f, 0.5f);
+				non_local_means(rect, sampleV, bufferV, unfiltered , sampleVV, nlm_temp1, nlm_temp2, nlm_temp3, 4, 2, 1.0f, 0.5f);
+				non_local_means(rect, bufferV, sampleV, unfilteredB, sampleVV, nlm_temp1, nlm_temp2, nlm_temp3, 4, 2, 1.0f, 0.5f);
 #ifdef WITH_CYCLES_DEBUG_FILTER
 				WRITE_DEBUG("finalA", unfiltered);
 				WRITE_DEBUG("finalB", unfiltered + pass_stride);
@@ -403,7 +403,7 @@ public:
 			{
 
 				float *unfiltered = PASSPTR(16);
-				float *diffI = PASSPTR(17), *blurDiffI = PASSPTR(18), *accumI = PASSPTR(19);
+				float *nlm_temp1 = PASSPTR(17), *nlm_temp2 = PASSPTR(18), *nlm_temp3 = PASSPTR(19);
 				/* Order in render buffers:
 				 *   Normal[X, Y, Z] NormalVar[X, Y, Z] Albedo[R, G, B] AlbedoVar[R, G, B ] Depth DepthVar
 				 *          0  1  2            3  4  5         6  7  8            9  10 11  12    13
@@ -423,7 +423,7 @@ public:
 							filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, unfiltered, PASSPTR(offset_to[i]+1), &rect.x);
 						}
 					}
-					non_local_means(rect, unfiltered, unfiltered, PASSPTR(offset_to[i]), PASSPTR(offset_to[i]+1), diffI, blurDiffI, accumI, 2, 2, 1, 0.25f);
+					non_local_means(rect, unfiltered, unfiltered, PASSPTR(offset_to[i]), PASSPTR(offset_to[i]+1), nlm_temp1, nlm_temp2, nlm_temp3, 2, 2, 1, 0.25f);
 #ifdef WITH_CYCLES_DEBUG_FILTER
 #define WRITE_DEBUG(name, var) debug.add_pass(string_printf("f%d_%s", i, name), var, 1, w);
 					WRITE_DEBUG("unfiltered", unfiltered);

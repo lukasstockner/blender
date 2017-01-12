@@ -305,5 +305,56 @@ kernel_cuda_filter_divide_combined(float *buffers, int sample, int offset, int s
 	}
 }
 
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter_nlm_calc_difference(int dx, int dy, float ccl_readonly_ptr weightImage, float ccl_readonly_ptr varianceImage, float *differenceImage, int4 rect, int w, float a, float k_2) {
+	int x = blockDim.x*blockIdx.x + threadIdx.x + rect.x;
+	int y = blockDim.y*blockIdx.y + threadIdx.y + rect.y;
+	if(x < rect.z && y < rect.w) {
+		kernel_filter_nlm_calc_difference(x, y, dx, dy, weightImage, varianceImage, differenceImage, rect, w, 0, a, k_2);
+	}
+}
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter_nlm_blur(float ccl_readonly_ptr differenceImage, float *outImage, int4 rect, int w, int f) {
+	int x = blockDim.x*blockIdx.x + threadIdx.x + rect.x;
+	int y = blockDim.y*blockIdx.y + threadIdx.y + rect.y;
+	if(x < rect.z && y < rect.w) {
+		kernel_filter_nlm_blur(x, y, differenceImage, outImage, rect, w, f);
+	}
+}
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter_nlm_calc_weight(float ccl_readonly_ptr differenceImage, float *outImage, int4 rect, int w, int f) {
+	int x = blockDim.x*blockIdx.x + threadIdx.x + rect.x;
+	int y = blockDim.y*blockIdx.y + threadIdx.y + rect.y;
+	if(x < rect.z && y < rect.w) {
+		kernel_filter_nlm_calc_weight(x, y, differenceImage, outImage, rect, w, f);
+	}
+}
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter_nlm_update_output(int dx, int dy, float ccl_readonly_ptr differenceImage, float ccl_readonly_ptr image, float *outImage, float *accumImage, int4 rect, int w, int f) {
+	int x = blockDim.x*blockIdx.x + threadIdx.x + rect.x;
+	int y = blockDim.y*blockIdx.y + threadIdx.y + rect.y;
+	if(x < rect.z && y < rect.w) {
+		kernel_filter_nlm_update_output(x, y, dx, dy, differenceImage, image, outImage, accumImage, rect, w, f);
+	}
+}
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter_nlm_normalize(float *outImage, float ccl_readonly_ptr accumImage, int4 rect, int w) {
+	int x = blockDim.x*blockIdx.x + threadIdx.x + rect.x;
+	int y = blockDim.y*blockIdx.y + threadIdx.y + rect.y;
+	if(x < rect.z && y < rect.w) {
+		kernel_filter_nlm_normalize(x, y, outImage, accumImage, rect, w);
+	}
+}
+
 #endif
 
