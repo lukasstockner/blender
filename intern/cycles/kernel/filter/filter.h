@@ -22,12 +22,6 @@
 #  include "filter_features_sse.h"
 #endif // __KERNEL_SSE3__
 
-#ifdef __KERNEL_CPU__
-#include "filter_nlm_cpu.h"
-#else
-#include "filter_nlm_gpu.h"
-#endif
-
 #include "filter_prefilter.h"
 
 /* Not all features are included in the matrix norm. */
@@ -62,6 +56,12 @@
 #  include "filter_final_pass_impl.h"
 
 #endif // __KERNEL_CUDA__
+
+#ifdef __KERNEL_CPU__
+#include "filter_nlm_cpu.h"
+#else
+#include "filter_nlm_gpu.h"
+#endif
 
 CCL_NAMESPACE_BEGIN
 

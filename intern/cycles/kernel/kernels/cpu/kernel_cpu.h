@@ -150,9 +150,35 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_update_output)(int dx,
                                                          int w,
                                                          int f);
 
+void KERNEL_FUNCTION_FULL_NAME(filter_nlm_construct_gramian)(int dx,
+                                                             int dy,
+                                                             float *differenceImage,
+                                                             float *buffer,
+                                                             int color_pass,
+                                                             void *storage,
+                                                             float *XtWX,
+                                                             float3 *XtWY,
+                                                             int *rect,
+                                                             int *filter_rect,
+                                                             int w,
+                                                             int h,
+                                                             int f);
+
 void KERNEL_FUNCTION_FULL_NAME(filter_nlm_normalize)(float *outImage,
                                                      float *accumImage,
                                                      int* rect,
                                                      int w);
+
+void KERNEL_FUNCTION_FULL_NAME(filter_finalize)(int x,
+                                                int y,
+                                                int storage_ofs,
+                                                int w,
+                                                int h,
+                                                float *buffer,
+                                                void *storage,
+                                                float *XtWX,
+                                                float3 *XtWY,
+                                                int *buffer_params,
+                                                int sample);
 
 #undef KERNEL_ARCH

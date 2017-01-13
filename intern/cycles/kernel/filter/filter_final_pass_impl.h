@@ -22,8 +22,80 @@ CCL_NAMESPACE_BEGIN
 #define STORAGE_TYPE FilterStorage
 #endif
 
+ccl_device_inline void kernel_filter_construct_gramian(int x, int y, int storage_ofs, int storage_size, int dx, int dy, int w, int h, float ccl_readonly_ptr buffer, int color_pass, STORAGE_TYPE *storage, float weight, float ccl_readonly_ptr transform, float *XtWX, float3 *XtWY)
+{
+	const int pass_stride = w*h;
+
+	float ccl_readonly_ptr p_buffer = buffer +      y*w +      x;
+	float ccl_readonly_ptr q_buffer = buffer + (y+dy)*w + (x+dx);
+
+	storage += storage_ofs;
+
+#ifdef __KERNEL_CPU__
+	transform = storage->transform;
+	XtWX += (DENOISE_FEATURES+1)*(DENOISE_FEATURES+1) * storage_ofs;
+	XtWY += (DENOISE_FEATURES+1) * storage_ofs;
+	const int stride = 1;
+	(void)storage_size;
+#else
+	transform += storage_ofs;
+	XtWX += storage_ofs;
+	XtWY += storage_ofs;
+	const int stride = storage_size;
+#endif
+
+	float3 p_color = filter_get_pixel_color(p_buffer + color_pass, pass_stride);
+	float3 q_color = filter_get_pixel_color(q_buffer + color_pass, pass_stride);
+
+	float p_std_dev = sqrtf(filter_get_pixel_variance(p_buffer + color_pass, pass_stride));
+	float q_std_dev = sqrtf(filter_get_pixel_variance(q_buffer + color_pass, pass_stride));
+
+	if(average(fabs(p_color - q_color)) > 3.0f*(p_std_dev + q_std_dev + 1e-3f)) {
+		return;
+	}
+
+	float feature_means[DENOISE_FEATURES], features[DENOISE_FEATURES];
+	filter_get_features(make_int3(x, y, 0), p_buffer, feature_means, NULL, pass_stride);
+
+	float design_row[DENOISE_FEATURES+1];
+	filter_get_design_row_transform(make_int3(x+dx, y+dy, 0), q_buffer, feature_means, pass_stride, features, storage->rank, design_row, transform, stride);
+
+	math_trimatrix_add_gramian_strided(XtWX, storage->rank+1, design_row, weight, stride);
+	math_vec3_add_strided(XtWY, storage->rank+1, design_row, weight * q_color, stride);
+}
+
+ccl_device_inline void kernel_filter_finalize(int x, int y, int storage_ofs, int storage_size, int w, int h, float *buffer, STORAGE_TYPE *storage, float *XtWX, float3 *XtWY, int4 buffer_params, int sample)
+{
+	storage += storage_ofs;
+#ifdef __KERNEL_CPU__
+	XtWX += (DENOISE_FEATURES+1)*(DENOISE_FEATURES+1) * storage_ofs;
+	XtWY += (DENOISE_FEATURES+1) * storage_ofs;
+	const int stride = 1;
+	(void)storage_size;
+#else
+	XtWX += storage_ofs;
+	XtWY += storage_ofs;
+	const int stride = storage_size;
+#endif
+
+	math_trimatrix_vec3_solve(XtWX, XtWY, storage->rank+1, stride);
+
+	float3 final_color = XtWY[0];
+	float *combined_buffer = buffer + (y*buffer_params.y + x + buffer_params.x)*buffer_params.z;
+	final_color *= sample;
+	if(buffer_params.w) {
+		final_color.x += combined_buffer[buffer_params.w+0];
+		final_color.y += combined_buffer[buffer_params.w+1];
+		final_color.z += combined_buffer[buffer_params.w+2];
+	}
+	combined_buffer[0] = final_color.x;
+	combined_buffer[1] = final_color.y;
+	combined_buffer[2] = final_color.z;
+}
+
 ccl_device void kernel_filter_reconstruct(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, int offset, int stride, float *buffers, int filtered_passes, int2 color_passes, STORAGE_TYPE *storage, float *weight_cache, float ccl_readonly_ptr transform, int transform_stride, int4 filter_area, int4 rect)
 {
+#if 0
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int buffer_h = (rect.w - rect.y);
 	int pass_stride = buffer_h * buffer_w * kernel_data.film.num_frames;
@@ -176,6 +248,7 @@ ccl_device void kernel_filter_reconstruct(KernelGlobals *kg, int sample, float c
 		filtered_buffer[3*pass_stride] = 1.0f;
 #endif
 	}
+#endif
 }
 
 #undef STORAGE_TYPE

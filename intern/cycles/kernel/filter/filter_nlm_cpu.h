@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#define REFERENCE_NLM
+
 CCL_NAMESPACE_BEGIN
 
 ccl_device float nlm_weight(int px, int py, int qx, int qy, float ccl_readonly_ptr p_buffer, float ccl_readonly_ptr q_buffer, int pass_stride, float a, float k_2, int f, int4 rect)
@@ -101,7 +103,7 @@ ccl_device_inline void kernel_filter_nlm_blur(float ccl_readonly_ptr differenceI
 		for(int y1 = low; y1 < high; y1++) {
 #ifdef __KERNEL_SSE3__
 			for(int x = aligned_lowx; x < aligned_highx; x+=4) {
-				_mm_store_ps(outImage + y*w+x, _mm_add_ps(_mm_load_ps(outImage + y*w+x), _mm_load_ps(differenceImage + y*w+x)));
+				_mm_store_ps(outImage + y*w+x, _mm_add_ps(_mm_load_ps(outImage + y*w+x), _mm_load_ps(differenceImage + y1*w+x)));
 			}
 #else
 			for(int x = rect.x; x < rect.z; x++) {
@@ -158,6 +160,26 @@ ccl_device_inline void kernel_filter_nlm_update_output(int dx, int dy, float ccl
 			else {
 				accumImage[y*w+x] = weight;
 			}
+		}
+	}
+}
+
+ccl_device_inline void kernel_filter_nlm_construct_gramian(int dx, int dy, float ccl_readonly_ptr differenceImage, float ccl_readonly_ptr buffer, int color_pass, FilterStorage *storage, float *XtWX, float3 *XtWY, int4 rect, int4 filter_rect, int w, int h, int f)
+{
+	/* fy and fy are in filter-window-relative coordinates, while x and y are in feature-window-relative coordinates. */
+	for(int fy = max(0, rect.y-filter_rect.y); fy < min(filter_rect.w, rect.w-filter_rect.y); fy++) {
+		int y = fy + filter_rect.y;
+		for(int fx = max(0, rect.x-filter_rect.x); fx < min(filter_rect.z, rect.z-filter_rect.x); fx++) {
+			int x = fx + filter_rect.x;
+			const int low = max(rect.x, x-f);
+			const int high = min(rect.z, x+f+1);
+			float sum = 0.0f;
+			for(int x1 = low; x1 < high; x1++) {
+				sum += differenceImage[y*w+x1];
+			}
+			float weight = sum * (1.0f/(high - low));
+			int storage_ofs = fy*filter_rect.z + fx;
+			kernel_filter_construct_gramian(x, y, storage_ofs, filter_rect.z*filter_rect.w, dx, dy, w, h, buffer, color_pass, storage, weight, NULL, XtWX, XtWY);
 		}
 	}
 }

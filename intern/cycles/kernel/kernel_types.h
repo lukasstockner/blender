@@ -1327,9 +1327,7 @@ enum RayState {
 
 typedef struct FilterStorage {
 	float transform[DENOISE_FEATURES*DENOISE_FEATURES];
-	float bandwidth[DENOISE_FEATURES];
 	int rank;
-	float global_bandwidth;
 #ifdef WITH_CYCLES_DEBUG_FILTER
 	float filtered_global_bandwidth;
 	float sum_weight;
@@ -1340,10 +1338,7 @@ typedef struct FilterStorage {
 } FilterStorage;
 
 typedef struct CUDAFilterStorage {
-	float bandwidth[DENOISE_FEATURES];
 	int rank;
-	float global_bandwidth;
-	float est_bias[6], est_variance[6];
 #ifdef WITH_CYCLES_DEBUG_FILTER
 	float filtered_global_bandwidth;
 	float sum_weight;

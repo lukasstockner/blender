@@ -315,12 +315,44 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_update_output)(int dx,
 	kernel_filter_nlm_update_output(dx, dy, differenceImage, image, outImage, accumImage, load_int4(rect), w, f);
 }
 
+void KERNEL_FUNCTION_FULL_NAME(filter_nlm_construct_gramian)(int dx,
+                                                             int dy,
+                                                             float *differenceImage,
+                                                             float *buffer,
+                                                             int color_pass,
+                                                             void *storage,
+                                                             float *XtWX,
+                                                             float3 *XtWY,
+                                                             int *rect,
+                                                             int *filter_rect,
+                                                             int w,
+                                                             int h,
+                                                             int f)
+{
+  kernel_filter_nlm_construct_gramian(dx, dy, differenceImage, buffer, color_pass, (FilterStorage*) storage, XtWX, XtWY, load_int4(rect), load_int4(filter_rect), w, h, f);
+}
+
 void KERNEL_FUNCTION_FULL_NAME(filter_nlm_normalize)(float *outImage,
                                                      float *accumImage,
                                                      int *rect,
                                                      int w)
 {
 	kernel_filter_nlm_normalize(outImage, accumImage, load_int4(rect), w);
+}
+
+void KERNEL_FUNCTION_FULL_NAME(filter_finalize)(int x,
+                                                int y,
+                                                int storage_ofs,
+                                                int w,
+                                                int h,
+                                                float *buffer,
+                                                void *storage,
+                                                float *XtWX,
+                                                float3 *XtWY,
+                                                int *buffer_params,
+                                                int sample)
+{
+  kernel_filter_finalize(x, y, storage_ofs, 0, w, h, buffer, (FilterStorage*) storage, XtWX, XtWY, load_int4(buffer_params), sample);
 }
 
 #undef KERNEL_STUB

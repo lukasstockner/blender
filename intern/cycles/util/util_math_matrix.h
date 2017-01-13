@@ -24,8 +24,10 @@ CCL_NAMESPACE_BEGIN
 /* Variants that use a constant stride on GPUS. */
 #ifdef __KERNEL_GPU__
 #define MATS(A, n, r, c, s) A[((r)*(n)+(c))*(s)]
+#define VECS(V, i, s) V[(i)*(s)]
 #else
 #define MATS(A, n, r, c, s) MAT(A, n, r, c)
+#define VECS(V, i, s) V[i]
 #endif
 
 /* Zeroing helpers. */
@@ -103,6 +105,12 @@ ccl_device_inline void math_vec3_add(float3 *v, int n, float *x, float3 w)
 		v[i] += w*x[i];
 }
 
+ccl_device_inline void math_vec3_add_strided(float3 *v, int n, float *x, float3 w, int stride)
+{
+	for(int i = 0; i < n; i++)
+		v[i*stride] += w*x[i];
+}
+
 ccl_device_inline float3 math_vector_vec3_dot(float ccl_readonly_ptr a, float3 ccl_readonly_ptr b, int n)
 {
 	float3 d = make_float3(0.0f, 0.0f, 0.0f);
@@ -114,10 +122,10 @@ ccl_device_inline float3 math_vector_vec3_dot(float ccl_readonly_ptr a, float3 c
 /* Elementary matrix operations.
  * Note: TriMatrix refers to a square matrix that is symmetric, and therefore its upper-triangular part isn't stored. */
 
-ccl_device_inline void math_matrix_add_diagonal(float *A, int n, float val)
+ccl_device_inline void math_matrix_add_diagonal(float *A, int n, float val, int stride)
 {
 	for(int row = 0; row < n; row++)
-		MAT(A, n, row, row) += val;
+		MATS(A, n, row, row, stride) += val;
 }
 
 /* Add Gramian matrix of v to A.
@@ -130,6 +138,16 @@ ccl_device_inline void math_trimatrix_add_gramian(float *A, int n, float *v, flo
 			MAT(A, n, row, col) += v[row]*v[col]*weight;
 }
 
+/* Add Gramian matrix of v to A.
+ * The Gramian matrix of v is vt*v, so element (i,j) is v[i]*v[j].
+ * Obviously, the resulting matrix is symmetric, so only the lower triangluar part is stored. */
+ccl_device_inline void math_trimatrix_add_gramian_strided(float *A, int n, float *v, float weight, int stride)
+{
+	for(int row = 0; row < n; row++)
+		for(int col = 0; col <= row; col++)
+			MATS(A, n, row, col, stride) += v[row]*v[col]*weight;
+}
+
 
 
 
@@ -139,21 +157,21 @@ ccl_device_inline void math_trimatrix_add_gramian(float *A, int n, float *v, flo
 /* In-place Cholesky-Banachiewicz decomposition of the square, positive-definite matrix A
  * into a lower triangular matrix L so that A = L*L^T. A is being overwritten by L.
  * Also, only the lower triangular part of A is ever accessed. */
-ccl_device void math_trimatrix_cholesky(float *A, int n)
+ccl_device void math_trimatrix_cholesky(float *A, int n, int stride)
 {
 	for(int row = 0; row < n; row++) {
 		for(int col = 0; col <= row; col++) {
-			float sum_col = MAT(A, n, row, col);
+			float sum_col = MATS(A, n, row, col, stride);
 			for(int k = 0; k < col; k++) {
-				sum_col -= MAT(A, n, row, k) * MAT(A, n, col, k);
+				sum_col -= MATS(A, n, row, k, stride) * MATS(A, n, col, k, stride);
 			}
 			if(row == col) {
 				sum_col = sqrtf(max(sum_col, 0.0f));
 			}
 			else {
-				sum_col /= MAT(A, n, col, col);
+				sum_col /= MATS(A, n, col, col, stride);
 			}
-			MAT(A, n, row, col) = sum_col;
+			MATS(A, n, row, col, stride) = sum_col;
 		}
 	}
 }
@@ -167,65 +185,26 @@ ccl_device void math_trimatrix_cholesky(float *A, int n)
  *
  * This is useful for solving the normal equation S=inv(Xt*W*X)*Xt*W*y, since Xt*W*X is
  * symmetrical positive-semidefinite by construction, so we can just use this function with A=Xt*W*X and y=Xt*W*y. */
-ccl_device_inline void math_trimatrix_vec3_solve(float *A, float3 *y, int n)
+ccl_device_inline void math_trimatrix_vec3_solve(float *A, float3 *y, int n, int stride)
 {
-	math_matrix_add_diagonal(A, n, 1e-4f); /* Improve the numerical stability. */
-	math_trimatrix_cholesky(A, n); /* Replace A with L so that L*Lt = A. */
+	math_matrix_add_diagonal(A, n, 1e-4f, stride); /* Improve the numerical stability. */
+	math_trimatrix_cholesky(A, n, stride); /* Replace A with L so that L*Lt = A. */
 
 	/* Use forward substitution to solve L*b = y, replacing y by b. */
 	for(int row = 0; row < n; row++) {
-		float3 sum = y[row];
+		float3 sum = VECS(y, row, stride);
 		for(int col = 0; col < row; col++)
-			sum -= MAT(A, n, row, col) * y[col];
-		y[row] = sum / MAT(A, n, row, row);
+			sum -= MATS(A, n, row, col, stride) * VECS(y, col, stride);
+		VECS(y, row, stride) = sum / MATS(A, n, row, row, stride);
 	}
 
 	/* Use backward substitution to solve Lt*S = b, replacing b by S. */
 	for(int row = n-1; row >= 0; row--) {
-		float3 sum = y[row];
+		float3 sum = VECS(y, row, stride);
 		for(int col = row+1; col < n; col++)
-			sum -= MAT(A, n, col, row) * y[col];
-		y[row] = sum / MAT(A, n, row, row);
+			sum -= MATS(A, n, col, row, stride) * VECS(y, col, stride);
+		VECS(y, row, stride) = sum / MATS(A, n, row, row, stride);
 	}
-}
-
-/* Find only the i-th row of the inverse of A, destroying A in the process.
- * This can be used to solve the normal equation for only the i-th element of the result vector:
- * If S = inv(Xt*W*X)*Xt*W*y, then S[i] is equal to dot(inv(Xt*W*X)[i], X[k])*W[k]*y[k] summed over all data points k, where [j] is the j-th row.
- *
- * For most applications, it makes more sense to directly use math_solve_normal_equation
- * since that only requires one pass over the data, accumulating both Xt*W*X and Xt*W*y.
- *
- * But, for variance estimation the squared value of every datapoint's combined weight (= inv(Xt*W*X)*Xt*W) is needed. Calculating the combined weight
- * explicitly is too expensive, so we need to be able to find every datapoint's own combined weight in the pass over the data.
- *
- * Therefore, we compute Xt*W*X in the first pass, use this function to find v, the i-th row of its inverse,
- * and then use dot(v, X[k])*W[k] as the combined weight in the second pass. */
-ccl_device_inline void math_trimatrix_inverse_row(float *A, float *v, int n, int i)
-{
-	math_matrix_add_diagonal(A, n, 1e-4f); /* Improve the numerical stability. */
-	math_trimatrix_cholesky(A, n); /* Find L so that L*Lt = A. */
-
-	/* Replace L by the transpose of its inverse. */
-	for(int comp = 0; comp < n; comp++) {
-		MAT(A, n, comp, comp) = 1.0f / MAT(A, n, comp, comp);
-	}
-	for(int comp = 0; comp < n; comp++) {
-		for(int row = comp+1; row < n; row++) {
-			float sum = 0.0f;
-			for(int col = comp; col < row; col++)
-				sum += MAT(A, n, row, col) * MAT(A, n, comp, col);
-			MAT(A, n, comp, row) = -sum*MAT(A, n, row, row);
-		}
-	}
-
-	/* Now, inv(A) = inv(L*Lt) = inv(Lt)*inv(L) = inv(L)t*inv(L).
-	 * From that, inv(A)[i,j] = sum_k((inv(L)t)[i, k] * inv(L)[k, j]) = sum_k(inv(L)[k, i] * inv(L)[k, j]).
-	 * But, since we stored the transpose of the result to be able to work inplace, we must swap the indices. */
-	math_vector_zero(v, n);
-	for(int j = 0; j < n; j++)
-		for(int k = j; k < n; k++)
-			v[j] += MAT(A, n, i, k)*MAT(A, n, j, k);
 }
 
 
