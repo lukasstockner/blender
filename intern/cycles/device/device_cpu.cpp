@@ -340,18 +340,18 @@ public:
 			{
 				/* Reuse some passes of the filter_buffer for temporary storage. */
 				float *sampleV = PASSPTR(0), *sampleVV = PASSPTR(1), *bufferV = PASSPTR(2), *cleanV = PASSPTR(3);
-				float *unfiltered = PASSPTR(4), *unfilteredB = PASSPTR(5);
+				float *unfilteredA = PASSPTR(4), *unfilteredB = PASSPTR(5);
 				float *nlm_temp1 = PASSPTR(10), *nlm_temp2 = PASSPTR(11), *nlm_temp3 = PASSPTR(12);
 
 				/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_divide_shadow_kernel()(kg, sample, buffer, x, y, tile_x, tile_y, offsets, strides, unfiltered, sampleV, sampleVV, bufferV, &rect.x);
+						filter_divide_shadow_kernel()(kg, sample, buffer, x, y, tile_x, tile_y, offsets, strides, unfilteredA, sampleV, sampleVV, bufferV, &rect.x);
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
 #define WRITE_DEBUG(name, var) debug.add_pass(string_printf("shadow_%s", name), var, 1, w);
-				WRITE_DEBUG("unfilteredA", unfiltered);
+				WRITE_DEBUG("unfilteredA", unfilteredA);
 				WRITE_DEBUG("unfilteredB", unfilteredB);
 				WRITE_DEBUG("bufferV", bufferV);
 				WRITE_DEBUG("sampleV", sampleV);
@@ -365,8 +365,8 @@ public:
 #endif
 
 				/* Use the smoothed variance to filter the two shadow half images using each other for weight calculation. */
-				non_local_means(rect, unfiltered, unfilteredB, sampleV, cleanV, nlm_temp1, nlm_temp2, nlm_temp3, 5, 3, 1.0f, 0.25f);
-				non_local_means(rect, unfilteredB, unfiltered, bufferV, cleanV, nlm_temp1, nlm_temp2, nlm_temp3, 5, 3, 1.0f, 0.25f);
+				non_local_means(rect, unfilteredA, unfilteredB, sampleV, cleanV, nlm_temp1, nlm_temp2, nlm_temp3, 5, 3, 1.0f, 0.25f);
+				non_local_means(rect, unfilteredB, unfilteredA, bufferV, cleanV, nlm_temp1, nlm_temp2, nlm_temp3, 5, 3, 1.0f, 0.25f);
 #ifdef WITH_CYCLES_DEBUG_FILTER
 				WRITE_DEBUG("filteredA", sampleV);
 				WRITE_DEBUG("filteredB", bufferV);
@@ -383,17 +383,17 @@ public:
 #endif
 
 				/* Use the residual variance for a second filter pass. */
-				non_local_means(rect, sampleV, bufferV, unfiltered , sampleVV, nlm_temp1, nlm_temp2, nlm_temp3, 4, 2, 1.0f, 0.5f);
+				non_local_means(rect, sampleV, bufferV, unfilteredA, sampleVV, nlm_temp1, nlm_temp2, nlm_temp3, 4, 2, 1.0f, 0.5f);
 				non_local_means(rect, bufferV, sampleV, unfilteredB, sampleVV, nlm_temp1, nlm_temp2, nlm_temp3, 4, 2, 1.0f, 0.5f);
 #ifdef WITH_CYCLES_DEBUG_FILTER
-				WRITE_DEBUG("finalA", unfiltered);
-				WRITE_DEBUG("finalB", unfiltered + pass_stride);
+				WRITE_DEBUG("finalA", unfilteredA);
+				WRITE_DEBUG("finalB", unfilteredB);
 #endif
 
 				/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_combine_halves_kernel()(x, y, PASSPTR(8), PASSPTR(9), unfiltered, unfiltered + pass_stride, &rect.x, 0);
+						filter_combine_halves_kernel()(x, y, PASSPTR(8), PASSPTR(9), unfilteredA, unfilteredB, &rect.x, 0);
 					}
 				}
 #ifdef WITH_CYCLES_DEBUG_FILTER
@@ -492,7 +492,6 @@ public:
 		for(int y = 0; y < filter_area.w; y++) {
 			for(int x = 0; x < filter_area.z; x++) {
 				filter_construct_transform_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);
-				//filter_reconstruct_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, storage + y*filter_area.z + x, weight_cache, &filter_area.x, &rect.x);
 			}
 		}
 
