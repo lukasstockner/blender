@@ -153,13 +153,8 @@ ccl_device_inline void kernel_filter_nlm_update_output(int dx, int dy, float ccl
 				sum += differenceImage[y*w+x1];
 			}
 			float weight = sum * (1.0f/(high - low));
-			if(outImage) {
-				accumImage[y*w+x] += weight;
-				outImage[y*w+x] += weight*image[(y+dy)*w+(x+dx)];
-			}
-			else {
-				accumImage[y*w+x] = weight;
-			}
+			accumImage[y*w+x] += weight;
+			outImage[y*w+x] += weight*image[(y+dy)*w+(x+dx)];
 		}
 	}
 }
