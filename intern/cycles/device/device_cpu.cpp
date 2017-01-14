@@ -289,28 +289,33 @@ public:
 		}
 	};
 
-	void non_local_means(int4 rect, float *image, float *weight, float *out, float *variance, float *difference, float *blurDifference, float *weightAccum, int r, int f, float a, float k_2)
+	void non_local_means(int4 rect, float *image, float *weight, float *out, float *variance, float *difference, float *blurDifference, float *weightAccum, int r, int f, float a, float k_2, int channel_ofs_in = 0, int channel_ofs_out = 0)
 	{
 		int w = align_up(rect.z-rect.x, 4);
 		int h = rect.w-rect.y;
 
-		memset(weightAccum, 0, sizeof(float)*w*h);
-		memset(out, 0, sizeof(float)*w*h);
+		int channels = channel_ofs_in? 3: 1;
+		memset(weightAccum, 0, sizeof(float)*w*h*channels);
+		memset(out, 0, sizeof(float)*w*h*channels);
 
 		for(int i = 0; i < (2*r+1)*(2*r+1); i++) {
 			int dy = i / (2*r+1) - r;
 			int dx = i % (2*r+1) - r;
 
 			int local_rect[4] = {max(0, -dx), max(0, -dy), rect.z-rect.x - max(0, dx), rect.w-rect.y - max(0, dy)};
-			filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, 0, a, k_2);
+			filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, channel_ofs_in, a, k_2);
 			filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
 			filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
 			filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-			filter_nlm_update_output_kernel()(dx, dy, blurDifference, image, out, weightAccum, local_rect, w, f);
+			for(int c = 0; c < channels; c++) {
+				filter_nlm_update_output_kernel()(dx, dy, blurDifference, image + channel_ofs_in*c, out + channel_ofs_out*c, weightAccum + w*h*c, local_rect, w, f);
+			}
 		}
 
 		int local_rect[4] = {0, 0, rect.z-rect.x, rect.w-rect.y};
-		filter_nlm_normalize_kernel()(out, weightAccum, local_rect, w);
+		for(int c = 0; c < channels; c++) {
+			filter_nlm_normalize_kernel()(out + channel_ofs_out*c, weightAccum + w*h*c, local_rect, w);
+		}
 	}
 
 	float* denoise_fill_buffer(KernelGlobals *kg, int sample, int4 rect, float** buffers, int* tile_x, int* tile_y, int *offsets, int *strides, int frames, int *frame_strides)
@@ -445,6 +450,25 @@ public:
 						}
 					}
 				}
+			}
+#ifdef WITH_CYCLES_DEBUG_FILTER
+			{
+				float *temp1 = new float[pass_stride], *temp2 = new float[pass_stride], *temp3 = new float[3*pass_stride], *out = new float[3*pass_stride];
+				non_local_means(rect, PASSPTR(16), PASSPTR(16), out, PASSPTR(17), temp1, temp2, temp3, 8, 4, 1, 0.5f, 2*pass_stride, pass_stride);
+				debug.add_pass("input0Filtered", out);
+				debug.add_pass("input1Filtered", out+pass_stride);
+				debug.add_pass("input2Filtered", out+2*pass_stride);
+				debug.add_pass("input0Unfiltered", PASSPTR(16));
+				debug.add_pass("input1Unfiltered", PASSPTR(18));
+				debug.add_pass("input2Unfiltered", PASSPTR(20));
+				debug.add_pass("input0Variance", PASSPTR(17));
+				debug.add_pass("input1Variance", PASSPTR(19));
+				debug.add_pass("input2Variance", PASSPTR(21));
+				delete[] temp1;
+				delete[] temp2;
+				delete[] temp3;
+				delete[] out;
+#endif
 			}
 
 			debug.write(string_printf("debug_tile_%d_%d.exr", rect.x, rect.y));
