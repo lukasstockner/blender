@@ -329,10 +329,7 @@ public:
 			for(int i = 0; i < 9; i++) {
 				buffer[i] = buffers[i] + frame_strides[i]*frame;
 			}
-#ifdef WITH_CYCLES_DEBUG_FILTER
-			DenoiseDebug debug((rect.z - rect.x), h, 34);
-#endif
-
+			DebugPasses debug((rect.z - rect.x), h, 34, 1, w);
 
 #define PASSPTR(i) (filter_buffer + (i)*pass_stride)
 
@@ -349,28 +346,21 @@ public:
 						filter_divide_shadow_kernel()(kg, sample, buffer, x, y, tile_x, tile_y, offsets, strides, unfilteredA, sampleV, sampleVV, bufferV, &rect.x);
 					}
 				}
-#ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, var) debug.add_pass(string_printf("shadow_%s", name), var, 1, w);
-				WRITE_DEBUG("unfilteredA", unfilteredA);
-				WRITE_DEBUG("unfilteredB", unfilteredB);
-				WRITE_DEBUG("bufferV", bufferV);
-				WRITE_DEBUG("sampleV", sampleV);
-				WRITE_DEBUG("sampleVV", sampleVV);
-#endif
+				debug.add_pass("shadowUnfilteredA", unfilteredA);
+				debug.add_pass("shadowUnfilteredB", unfilteredB);
+				debug.add_pass("shadowBufferV", bufferV);
+				debug.add_pass("shadowSampleV", sampleV);
+				debug.add_pass("shadowSampleVV", sampleVV);
 
 				/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
 				non_local_means(rect, bufferV, sampleV, cleanV, sampleVV, nlm_temp1, nlm_temp2, nlm_temp3, 6, 3, 4.0f, 1.0f);
-#ifdef WITH_CYCLES_DEBUG_FILTER
-				WRITE_DEBUG("cleanV", cleanV);
-#endif
+				debug.add_pass("shadowCleanV", cleanV);
 
 				/* Use the smoothed variance to filter the two shadow half images using each other for weight calculation. */
 				non_local_means(rect, unfilteredA, unfilteredB, sampleV, cleanV, nlm_temp1, nlm_temp2, nlm_temp3, 5, 3, 1.0f, 0.25f);
 				non_local_means(rect, unfilteredB, unfilteredA, bufferV, cleanV, nlm_temp1, nlm_temp2, nlm_temp3, 5, 3, 1.0f, 0.25f);
-#ifdef WITH_CYCLES_DEBUG_FILTER
-				WRITE_DEBUG("filteredA", sampleV);
-				WRITE_DEBUG("filteredB", bufferV);
-#endif
+				debug.add_pass("shadowFilteredA", sampleV);
+				debug.add_pass("shadowFilteredB", bufferV);
 
 				/* Estimate the residual variance between the two filtered halves. */
 				for(int y = rect.y; y < rect.w; y++) {
@@ -378,17 +368,13 @@ public:
 						filter_combine_halves_kernel()(x, y, NULL, sampleVV, sampleV, bufferV, &rect.x, 2);
 					}
 				}
-#ifdef WITH_CYCLES_DEBUG_FILTER
-				WRITE_DEBUG("residualV", sampleVV);
-#endif
+				debug.add_pass("shadowResidualV", sampleVV);
 
 				/* Use the residual variance for a second filter pass. */
 				non_local_means(rect, sampleV, bufferV, unfilteredA, sampleVV, nlm_temp1, nlm_temp2, nlm_temp3, 4, 2, 1.0f, 0.5f);
 				non_local_means(rect, bufferV, sampleV, unfilteredB, sampleVV, nlm_temp1, nlm_temp2, nlm_temp3, 4, 2, 1.0f, 0.5f);
-#ifdef WITH_CYCLES_DEBUG_FILTER
-				WRITE_DEBUG("finalA", unfilteredA);
-				WRITE_DEBUG("finalB", unfilteredB);
-#endif
+				debug.add_pass("shadowFinalA", unfilteredA);
+				debug.add_pass("shadowFinalB", unfilteredB);
 
 				/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
 				for(int y = rect.y; y < rect.w; y++) {
@@ -396,12 +382,8 @@ public:
 						filter_combine_halves_kernel()(x, y, PASSPTR(8), PASSPTR(9), unfilteredA, unfilteredB, &rect.x, 0);
 					}
 				}
-#ifdef WITH_CYCLES_DEBUG_FILTER
-				WRITE_DEBUG("final", PASSPTR(8));
-				WRITE_DEBUG("finalV", PASSPTR(9));
-				debug.write(string_printf("debugf_%dx%d.exr", tile_x[1], tile_y[1]));
-#undef WRITE_DEBUG
-#endif
+				debug.add_pass("shadowFinal", PASSPTR(8));
+				debug.add_pass("shadowFinalV", PASSPTR(9));
 			}
 
 			/* ==== Step 2: Prefilter general features. ==== */
@@ -429,13 +411,9 @@ public:
 						}
 					}
 					non_local_means(rect, unfiltered, unfiltered, PASSPTR(offset_to[i]), PASSPTR(offset_to[i]+1), nlm_temp1, nlm_temp2, nlm_temp3, 2, 2, 1, 0.25f);
-#ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, var) debug.add_pass(string_printf("f%d_%s", i, name), var, 1, w);
-					WRITE_DEBUG("unfiltered", unfiltered);
-					WRITE_DEBUG("sampleV", PASSPTR(offset_to[i]+1));
-					WRITE_DEBUG("filtered", PASSPTR(offset_to[i]));
-#undef WRITE_DEBUG
-#endif
+					debug.add_pass(string_printf("feature%dUnfiltered", i), unfiltered);
+					debug.add_pass(string_printf("feature%dFiltered", i), PASSPTR(offset_to[i]));
+					debug.add_pass(string_printf("feature%dVariance", i), PASSPTR(offset_to[i]+1));
 				}
 			}
 
@@ -468,6 +446,8 @@ public:
 					}
 				}
 			}
+
+			debug.write(string_printf("debug_tile_%d_%d.exr", rect.x, rect.y));
 		}
 
 		return filter_buffers;

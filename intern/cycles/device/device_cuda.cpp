@@ -993,33 +993,12 @@ public:
 				                           xthreads, ythreads, 1, /* threads */
 				                           0, 0, divide_args, 0));
 
-#ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, ptr) debug_write_pfm(string_printf("debug_%dx%d_cuda_shadow_%s.pfm", rtile.x+rtile.buffers->params.overscan, rtile.y+rtile.buffers->params.overscan, name).c_str(), ptr, rtile.w, rtile.h, 1, w)
-				float *temp = new float[pass_stride*6];
-				cuda_assert(cuMemcpyDtoH(temp, d_sampleV, 6*pass_stride*sizeof(float)));
-
-				WRITE_DEBUG("unfilteredA", temp + 4*pass_stride);
-				WRITE_DEBUG("unfilteredB", temp + 5*pass_stride);
-				WRITE_DEBUG("bufferV", temp + 2*pass_stride);
-				WRITE_DEBUG("sampleV", temp + 0*pass_stride);
-				WRITE_DEBUG("sampleVV", temp + 1*pass_stride);
-#endif
-
 				/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
 				non_local_means(rect, d_bufferV, d_sampleV, d_cleanV, d_sampleVV, d_temp1, d_temp2, d_temp3, 6, 3, 2.0f, 2.0f);
-#ifdef WITH_CYCLES_DEBUG_FILTER
-				cuda_assert(cuMemcpyDtoH(temp, d_cleanV, pass_stride*sizeof(float)));
-				WRITE_DEBUG("cleanV", temp);
-#endif
 
 				/* Use the smoothed variance to filter the two shadow half images using each other for weight calculation. */
 				non_local_means(rect, d_unfilteredA, d_unfilteredB, d_sampleV, d_cleanV, d_temp1, d_temp2, d_temp3, 5, 3, 1.0f, 0.25f);
 				non_local_means(rect, d_unfilteredB, d_unfilteredA, d_bufferV, d_cleanV, d_temp1, d_temp2, d_temp3, 5, 3, 1.0f, 0.25f);
-#ifdef WITH_CYCLES_DEBUG_FILTER
-				cuda_assert(cuMemcpyDtoH(temp, d_sampleV, 3*pass_stride*sizeof(float)));
-				WRITE_DEBUG("filteredA", temp);
-				WRITE_DEBUG("filteredB", temp + 2*pass_stride);
-#endif
 
 				/* Estimate the residual variance between the two filtered halves. */
 				int var_r = 2;
@@ -1029,19 +1008,10 @@ public:
 				                           xblocks , yblocks, 1, /* blocks */
 				                           xthreads, ythreads, 1, /* threads */
 				                           0, 0, residual_variance_args, 0));
-#ifdef WITH_CYCLES_DEBUG_FILTER
-				cuda_assert(cuMemcpyDtoH(temp, d_cleanV, pass_stride*sizeof(float)));
-				WRITE_DEBUG("residualV", temp);
-#endif
 
 				/* Use the residual variance for a second filter pass. */
 				non_local_means(rect, d_sampleV, d_bufferV, d_unfilteredA, d_cleanV, d_temp1, d_temp2, d_temp3, 4, 2, 1.0f, 1.0f);
 				non_local_means(rect, d_bufferV, d_sampleV, d_unfilteredB, d_cleanV, d_temp1, d_temp2, d_temp3, 4, 2, 1.0f, 1.0f);
-#ifdef WITH_CYCLES_DEBUG_FILTER
-				cuda_assert(cuMemcpyDtoH(temp, d_unfilteredA, 2*pass_stride*sizeof(float)));
-				WRITE_DEBUG("finalA", temp);
-				WRITE_DEBUG("finalB", temp + 1*pass_stride);
-#endif
 
 				/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
 				var_r = 0;
@@ -1053,13 +1023,6 @@ public:
 				                           xthreads, ythreads, 1, /* threads */
 				                           0, 0, final_prefiltered_args, 0));
 				cuda_assert(cuCtxSynchronize());
-#ifdef WITH_CYCLES_DEBUG_FILTER
-				cuda_assert(cuMemcpyDtoH(temp, d_mean, 2*pass_stride*sizeof(float)));
-				WRITE_DEBUG("final", temp);
-				WRITE_DEBUG("finalV", temp + 1*pass_stride);
-				delete[] temp;
-#undef WRITE_DEBUG
-#endif
 			}
 
 			/* ==== Step 2: Prefilter general features. ==== */
@@ -1112,18 +1075,6 @@ public:
 				}
 			}
 		}
-
-#ifdef WITH_CYCLES_DEBUG_FILTER
-#define WRITE_DEBUG(name, pass) debug_write_pfm(string_printf("debug_%dx%d_cuda_feature%d_%s.pfm", rtile.x+rtile.buffers->params.overscan, rtile.y+rtile.buffers->params.overscan, i, name).c_str(), host_denoise_buffer+pass*pass_stride, rtile.w, rtile.h, 1, w)
-		float *host_denoise_buffer = new float[22*pass_stride];
-		cuda_assert(cuMemcpyDtoH(host_denoise_buffer, d_denoise_buffers, 22*pass_stride*sizeof(float)));
-		for(int i = 0; i < 8; i++) {
-			WRITE_DEBUG("filtered", 2*i);
-			WRITE_DEBUG("variance", 2*i+1);
-		}
-		delete[] host_denoise_buffer;
-#undef WRITE_DEBUG
-#endif
 
 		/* Use the prefiltered feature to denoise the image. */
 		int storage_num = filter_area.z*filter_area.w;
@@ -1226,26 +1177,6 @@ public:
 		                           0, 0, finalize_args, 0));
 		cuda_assert(cuMemFree(d_XtWX));
 		cuda_assert(cuMemFree(d_XtWY));
-
-#ifdef WITH_CYCLES_DEBUG_FILTER
-		CUDAFilterStorage *host_storage = new CUDAFilterStorage[filter_area.z*filter_area.w];
-		cuda_assert(cuMemcpyDtoH(host_storage, d_storage, sizeof(CUDAFilterStorage)*filter_area.z*filter_area.w));
-#define WRITE_DEBUG(name, var) debug_write_pfm(string_printf("debug_%dx%d_cuda_%s.pfm", rtile.x+rtile.buffers->params.overscan, rtile.y+rtile.buffers->params.overscan, name).c_str(), &host_storage[0].var, filter_area.z, filter_area.w, sizeof(CUDAFilterStorage)/sizeof(float), filter_area.z);
-		for(int i = 0; i < DENOISE_FEATURES; i++) {
-			WRITE_DEBUG(string_printf("mean_%d", i).c_str(), means[i]);
-			WRITE_DEBUG(string_printf("scale_%d", i).c_str(), scales[i]);
-			WRITE_DEBUG(string_printf("singular_%d", i).c_str(), singular[i]);
-			WRITE_DEBUG(string_printf("bandwidth_%d", i).c_str(), bandwidth[i]);
-		}
-		WRITE_DEBUG("singular_threshold", singular_threshold);
-		WRITE_DEBUG("feature_matrix_norm", feature_matrix_norm);
-		WRITE_DEBUG("global_bandwidth", global_bandwidth);
-		WRITE_DEBUG("filtered_global_bandwidth", filtered_global_bandwidth);
-		WRITE_DEBUG("sum_weight", sum_weight);
-		WRITE_DEBUG("log_rmse_per_sample", log_rmse_per_sample);
-		delete[] host_storage;
-#undef WRITE_DEBUG
-#endif
 		cuda_assert(cuMemFree(d_storage));
 
 		cuda_pop_context();

@@ -21,7 +21,7 @@
 #include <iostream>
 
 #include "util_static_assert.h"
-#include <vector>
+#include "util_vector.h"
 
 #ifdef WITH_CYCLES_DEBUG_FILTER
 #include "OpenImageIO/imageio.h"
@@ -157,54 +157,31 @@ inline DebugFlags& DebugFlags() {
 std::ostream& operator <<(std::ostream &os,
                           DebugFlagsConstRef debug_flags);
 
-#ifdef WITH_CYCLES_DEBUG_FILTER
-class DenoiseDebug {
+class DebugPasses {
 public:
-	DenoiseDebug(int w, int h, int channels) : w(w), h(h), channels(channels), channel(0)
+
+#ifdef WITH_CYCLES_DEBUG_FILTER
+	DebugPasses(int w, int h, int channels, int pixelstride, int linestride)
+	: w(w),
+	  h(h),
+	  pixelstride(pixelstride),
+	  linestride(linestride)
 	{
-		pixels = new float[w*h*channels];
+		pixels.resize(w*h*channels);
 	}
 
-	~DenoiseDebug()
-	{
-		delete[] pixels;
-	}
+	void add_pass(std::string name, float *data);
+	bool write(std::string name);
 
-	void add_pass(std::string name, float *data, int pixelstride, int linestride)
-	{
-		for (int y = 0; y < h; y++) {
-			for (int x = 0; x < w; x++) {
-				pixels[(y*w + x)*channels + channel] = data[(y*linestride + x)*pixelstride];
-			}
-		}
-		channel++;
-		passnames.push_back(name);
-	}
-
-	bool write(std::string name)
-	{
-		if (channel != channels) return false;
-		ImageOutput *out = ImageOutput::create(name);
-		if (!out) return false;
-
-		ImageSpec spec(w, h, channels, TypeDesc::FLOAT);
-		spec.channelnames = passnames;
-
-		out->open(name, spec);
-		out->write_image(TypeDesc::FLOAT, pixels);
-		out->close();
-		ImageOutput::destroy(out);
-
-		return true;
-	}
-
-	int w, h, channels, channel;
-	float *pixels;
-	std::vector<std::string> passnames;
-};
-
-bool debug_write_pfm(const char *name, float *data, int w, int h, int pixelstride, int linestride);
+	int w, h, pixelstride, linestride;
+	vector<float> pixels;
+	vector<std::string> passnames;
+#else
+	DebugPasses(int, int, int, int, int) {}
+	void add_pass(std::string, float*) {}
+	bool write(std::string) { return true; }
 #endif
+};
 
 CCL_NAMESPACE_END
 

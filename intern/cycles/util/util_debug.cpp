@@ -184,16 +184,39 @@ std::ostream& operator <<(std::ostream &os,
 }
 
 #ifdef WITH_CYCLES_DEBUG_FILTER
-bool debug_write_pfm(const char *name, float *data, int w, int h, int pixelstride, int linestride)
+void DebugPasses::add_pass(std::string name, float *data)
 {
-	FILE* f = fopen(name, "wb");
-	if(!f) return false;
-	fprintf(f, "Pf\n%d %d\n-1\n", w, h);
-	for(int y = 0; y < h; y++, data += linestride*pixelstride)
-		for(int x = 0; x < w; x++)
-			fwrite(data+x*pixelstride, sizeof(float), 1, f);
-	fclose(f);
-	return true;
+    int pass_index = passnames.size();
+    passnames.push_back(name);
+    pixels.resize(w*h*passnames.size());
+    for (int y = 0, i = pass_index*w*h; y < h; y++) {
+        for (int x = 0; x < w; x++, i++) {
+            pixels[i] = data[(y*linestride + x)*pixelstride];
+        }
+    }
+}
+
+bool DebugPasses::write(std::string name)
+{
+    ImageOutput *out = ImageOutput::create(name);
+    if (!out) return false;
+
+    int num_channels = passnames.size();
+    ImageSpec spec(w, h, num_channels, TypeDesc::FLOAT);
+    spec.channelnames = passnames;
+
+    vector<float> write_pixels(w*h*num_channels);
+    for(int i = 0; i < w*h; i++) {
+        for(int c = 0; c < num_channels; c++) {
+            write_pixels[i*num_channels+c] = pixels[c*w*h + i];
+        }
+    }
+    out->open(name, spec);
+    out->write_image(TypeDesc::FLOAT, &write_pixels[0]);
+    out->close();
+    ImageOutput::destroy(out);
+
+    return true;
 }
 #endif
 
