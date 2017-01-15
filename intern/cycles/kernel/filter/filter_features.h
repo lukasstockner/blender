@@ -148,11 +148,6 @@ ccl_device_inline float3 filter_get_pixel_color(float ccl_readonly_ptr buffer, i
 	return make_float3(ccl_get_feature(16), ccl_get_feature(18), ccl_get_feature(20));
 }
 
-ccl_device_inline float3 filter_get_pixel_variance3(float ccl_readonly_ptr buffer, int pass_stride)
-{
-	return make_float3(ccl_get_feature(17), ccl_get_feature(19), ccl_get_feature(21));
-}
-
 ccl_device_inline float filter_get_pixel_variance(float ccl_readonly_ptr buffer, int pass_stride)
 {
 	return average(make_float3(ccl_get_feature(17), ccl_get_feature(19), ccl_get_feature(21)));

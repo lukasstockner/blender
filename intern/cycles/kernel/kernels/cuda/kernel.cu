@@ -265,26 +265,6 @@ kernel_cuda_filter_construct_transform(int sample, float const* __restrict__ buf
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
-kernel_cuda_filter_reconstruct(int sample, float* buffer, int offset, int stride, float const* __restrict__ transform, void *storage, float *buffers, int4 filter_area, int4 rect)
-{
-	int x = blockDim.x*blockIdx.x + threadIdx.x;
-	int y = blockDim.y*blockIdx.y + threadIdx.y;
-	if(x < filter_area.z && y < filter_area.w) {
-		CUDAFilterStorage *l_storage = ((CUDAFilterStorage*) storage) + y*filter_area.z + x;
-		float const* __restrict__ l_transform = transform + y*filter_area.z + x;
-		float weight_cache[CUDA_WEIGHT_CACHE_SIZE];
-		if(kernel_data.film.denoise_cross) {
-			kernel_filter_reconstruct(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, 0, make_int2(0, 6), l_storage, weight_cache, l_transform, filter_area.z*filter_area.w, filter_area, rect);
-			kernel_filter_reconstruct(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, 0, make_int2(6, 0), l_storage, weight_cache, l_transform, filter_area.z*filter_area.w, filter_area, rect);
-		}
-		else {
-			kernel_filter_reconstruct(NULL, sample, buffer, x + filter_area.x, y + filter_area.y, offset, stride, buffers, 0, make_int2(0, 0), l_storage, weight_cache, l_transform, filter_area.z*filter_area.w, filter_area, rect);
-		}
-	}
-}
-
-extern "C" __global__ void
-CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_filter_divide_combined(float *buffers, int sample, int offset, int stride, int4 filter_area)
 {
 	int x = blockDim.x*blockIdx.x + threadIdx.x;

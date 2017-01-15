@@ -908,7 +908,7 @@ public:
 		cuda_push_context();
 
 		CUfunction cuFilterDivideShadow, cuFilterGetFeature, cuFilterCombineHalves;
-		CUfunction cuFilterConstructTransform, cuFilterReconstruct, cuFilterDivideCombined;
+		CUfunction cuFilterConstructTransform, cuFilterDivideCombined;
 		CUdeviceptr d_buffers = cuda_device_ptr(rtile.buffer);
 
 		cuda_assert(cuModuleGetFunction(&cuFilterDivideShadow, cuModule, "kernel_cuda_filter_divide_shadow"));
@@ -916,7 +916,6 @@ public:
 		cuda_assert(cuModuleGetFunction(&cuFilterCombineHalves, cuModule, "kernel_cuda_filter_combine_halves"));
 
 		cuda_assert(cuModuleGetFunction(&cuFilterConstructTransform, cuModule, "kernel_cuda_filter_construct_transform"));
-		cuda_assert(cuModuleGetFunction(&cuFilterReconstruct, cuModule, "kernel_cuda_filter_reconstruct"));
 		cuda_assert(cuModuleGetFunction(&cuFilterDivideCombined, cuModule, "kernel_cuda_filter_divide_combined"));
 
 		cuda_assert(cuFuncSetCacheConfig(cuFilterDivideShadow, CU_FUNC_CACHE_PREFER_L1));
@@ -926,7 +925,6 @@ public:
 		bool l1 = false;
 		if(getenv("CYCLES_DENOISE_PREFER_L1")) l1 = true;
 		cuda_assert(cuFuncSetCacheConfig(cuFilterConstructTransform, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
-		cuda_assert(cuFuncSetCacheConfig(cuFilterReconstruct, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
 		cuda_assert(cuFuncSetCacheConfig(cuFilterDivideCombined, l1? CU_FUNC_CACHE_PREFER_L1: CU_FUNC_CACHE_PREFER_SHARED));
 
 		if(have_error())
@@ -943,7 +941,7 @@ public:
 		                      min(filter_area.y + filter_area.w + hw, buffer_area.y + buffer_area.w));
 
 		int threads_per_block;
-		cuda_assert(cuFuncGetAttribute(&threads_per_block, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, cuFilterReconstruct));
+		cuda_assert(cuFuncGetAttribute(&threads_per_block, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, cuFilterConstructTransform));
 
 		int xthreads = (int)sqrt((float)threads_per_block);
 		int ythreads = (int)sqrt((float)threads_per_block);

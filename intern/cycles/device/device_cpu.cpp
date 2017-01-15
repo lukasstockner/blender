@@ -137,7 +137,6 @@ public:
 	KernelFunctions<void(*)(KernelGlobals*, int, float**, int, int, int, int, int*, int*, int*, int*, float*, float*, int*)>       filter_get_feature_kernel;
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                                  filter_combine_halves_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, void*, int*)>                                      filter_construct_transform_kernel;
-	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, int, int, float*, void*, float*, int*, int*)>      filter_reconstruct_kernel;
 	KernelFunctions<void(*)(KernelGlobals*, int, int, int, float*, int, int)>                                         filter_divide_combined_kernel;
 
 	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, float, float)> filter_nlm_calc_difference_kernel;
@@ -167,7 +166,6 @@ public:
 	  filter_get_feature_kernel(KERNEL_FUNCTIONS(filter_get_feature)),
 	  filter_combine_halves_kernel(KERNEL_FUNCTIONS(filter_combine_halves)),
 	  filter_construct_transform_kernel(KERNEL_FUNCTIONS(filter_construct_transform)),
-	  filter_reconstruct_kernel(KERNEL_FUNCTIONS(filter_reconstruct)),
 	  filter_divide_combined_kernel(KERNEL_FUNCTIONS(filter_divide_combined)),
 	  filter_nlm_calc_difference_kernel(KERNEL_FUNCTIONS(filter_nlm_calc_difference)),
 	  filter_nlm_blur_kernel(KERNEL_FUNCTIONS(filter_nlm_blur)),

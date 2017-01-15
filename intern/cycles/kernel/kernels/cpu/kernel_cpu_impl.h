@@ -227,35 +227,6 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(KernelGlobals *kg,
 #endif
 }
 
-void KERNEL_FUNCTION_FULL_NAME(filter_reconstruct)(KernelGlobals *kg,
-                                                   int sample,
-                                                   float* buffer,
-                                                   int x,
-                                                   int y,
-                                                   int offset,
-                                                   int stride,
-                                                   float *buffers,
-                                                   void *storage_ptr,
-                                                   float *weight_cache,
-                                                   int* filter_area,
-                                                   int* prefilter_rect)
-{
-#ifdef KERNEL_STUB
-	STUB_ASSERT(KERNEL_ARCH, filter_reconstruct);
-#else
-	int4 rect = load_int4(prefilter_rect);
-	int4 area = load_int4(filter_area);
-	FilterStorage *storage = (FilterStorage*) storage_ptr;
-	if(kernel_data.film.denoise_cross) {
-		kernel_filter_reconstruct(kg, sample, buffer, x, y, offset, stride, buffers, 0, make_int2(0, 6), storage, weight_cache, storage->transform, 1, area, rect);
-		kernel_filter_reconstruct(kg, sample, buffer, x, y, offset, stride, buffers, 0, make_int2(6, 0), storage, weight_cache, storage->transform, 1, area, rect);
-	}
-	else {
-		kernel_filter_reconstruct(kg, sample, buffer, x, y, offset, stride, buffers, 0, make_int2(0, 0), storage, weight_cache, storage->transform, 1, area, rect);
-	}
-#endif
-}
-
 void KERNEL_FUNCTION_FULL_NAME(filter_divide_combined)(KernelGlobals *kg,
                                                        int x, int y,
                                                        int sample,

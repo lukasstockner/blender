@@ -95,19 +95,6 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(KernelGlobals *kg,
                                                            void *storage,
                                                            int* rect);
 
-void KERNEL_FUNCTION_FULL_NAME(filter_reconstruct)(KernelGlobals *kg,
-                                                   int sample,
-                                                   float* buffer,
-                                                   int x,
-                                                   int y,
-                                                   int offset,
-                                                   int stride,
-                                                   float* buffers,
-                                                   void *storage,
-                                                   float* weight_cache,
-                                                   int* filter_area,
-                                                   int* rect);
-
 void KERNEL_FUNCTION_FULL_NAME(filter_divide_combined)(KernelGlobals *kg,
                                                        int x, int y,
                                                        int sample,
