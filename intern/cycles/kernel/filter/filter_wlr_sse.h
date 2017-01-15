@@ -56,41 +56,52 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 	filter_calculate_scale_sse(feature_scale);
 
 	__m128 feature_matrix_sse[DENOISE_FEATURES*DENOISE_FEATURES];
-	__m128 feature_matrix_norm = _mm_setzero_ps();
 	math_trimatrix_zero_sse(feature_matrix_sse, DENOISE_FEATURES);
 	FOR_PIXEL_WINDOW_SSE {
 		filter_get_features_sse(x4, y4, t4, active_pixels, pixel_buffer, features, feature_means, pass_stride);
 		math_vector_mul_sse(features, DENOISE_FEATURES, feature_scale);
 		math_trimatrix_add_gramian_sse(feature_matrix_sse, DENOISE_FEATURES, features, _mm_set1_ps(1.0f));
-
-		filter_get_feature_variance_sse(x4, y4, active_pixels, pixel_buffer, features, feature_scale, pass_stride);
-		math_vector_scale_sse(features, DENOISE_FEATURES, _mm_set1_ps(kernel_data.integrator.filter_strength));
-		for(int i = 0; i < NORM_FEATURE_NUM; i++)
-			feature_matrix_norm = _mm_add_ps(feature_matrix_norm, features[i + NORM_FEATURE_OFFSET]);
 	} END_FOR_PIXEL_WINDOW_SSE
 
 	float feature_matrix[DENOISE_FEATURES*DENOISE_FEATURES];
 	math_trimatrix_hsum(feature_matrix, DENOISE_FEATURES, feature_matrix_sse);
 
 	float *feature_transform = &storage->transform[0];
-	int rank = math_trimatrix_jacobi_eigendecomposition(feature_matrix, feature_transform, DENOISE_FEATURES, 1);
-	float singular_threshold = 0.01f + 2.0f * (sqrtf(_mm_hsum_ss(feature_matrix_norm)) / (sqrtf(rank) * 0.5f));
-	singular_threshold *= singular_threshold;
+	math_trimatrix_jacobi_eigendecomposition(feature_matrix, feature_transform, DENOISE_FEATURES, 1);
 
-	rank = 0;
-	for(int i = 0; i < DENOISE_FEATURES; i++, rank++) {
-		float s = feature_matrix[i*DENOISE_FEATURES+i];
-		if(i >= 2 && s < singular_threshold)
-			break;
-		/* Bake the feature scaling into the transformation matrix. */
-		for(int j = 0; j < DENOISE_FEATURES; j++) {
-			feature_transform[rank*DENOISE_FEATURES + j] *= _mm_cvtss_f32(feature_scale[j]);
+	int rank = 0;
+	if(kernel_data.integrator.filter_strength > 0.0f) {
+		float threshold_energy = 0.0f;
+		for(int i = 0; i < DENOISE_FEATURES; i++) {
+			threshold_energy += feature_matrix[i*DENOISE_FEATURES+i];
+		}
+		threshold_energy *= 1.0f-kernel_data.integrator.filter_strength;
+
+		float reduced_energy = 0.0f;
+		for(int i = 0; i < DENOISE_FEATURES; i++, rank++) {
+			float s = feature_matrix[i*DENOISE_FEATURES+i];
+			if(i >= 2 && reduced_energy >= threshold_energy)
+				break;
+			reduced_energy += s;
+			/* Bake the feature scaling into the transformation matrix. */
+			for(int j = 0; j < DENOISE_FEATURES; j++) {
+				feature_transform[rank*DENOISE_FEATURES + j] *= _mm_cvtss_f32(feature_scale[j]);
+			}
+		}
+	}
+	else {
+		for(int i = 0; i < DENOISE_FEATURES; i++, rank++) {
+			float s = feature_matrix[i*DENOISE_FEATURES+i];
+			if(i >= 2 && sqrtf(s) < -kernel_data.integrator.filter_strength)
+				break;
+			/* Bake the feature scaling into the transformation matrix. */
+			for(int j = 0; j < DENOISE_FEATURES; j++) {
+				feature_transform[rank*DENOISE_FEATURES + j] *= _mm_cvtss_f32(feature_scale[j]);
+			}
 		}
 	}
 
 #ifdef WITH_CYCLES_DEBUG_FILTER
-	storage->feature_matrix_norm = _mm_hsum_ss(feature_matrix_norm);
-	storage->singular_threshold = singular_threshold;
 	for(int i = 0; i < DENOISE_FEATURES; i++) {
 		storage->means[i] = _mm_cvtss_f32(feature_means[i]);
 		storage->scales[i] = _mm_cvtss_f32(feature_scale[i]);

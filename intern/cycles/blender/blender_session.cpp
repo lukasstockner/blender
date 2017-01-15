@@ -448,7 +448,7 @@ void BlenderSession::render()
 		buffer_params.selective_denoising = scene->film->selective_denoising;
 		buffer_params.cross_denoising = scene->film->cross_denoising;
 		scene->integrator->half_window = b_layer_iter->half_window();
-		scene->integrator->filter_strength = powf(2.0f, b_layer_iter->filter_strength());
+		scene->integrator->filter_strength = (b_layer_iter->filter_strength() == 0.0f)? 1e-3f : copysignf(powf(10.0f, -fabsf(b_layer_iter->filter_strength())*2.0f), b_layer_iter->filter_strength());
 		scene->integrator->weighting_adjust = powf(2.0f, b_layer_iter->filter_weighting_adjust() - 1.0f);
 		scene->integrator->use_gradients = b_layer_iter->filter_gradients();
 
@@ -1363,7 +1363,7 @@ void BlenderSession::denoise(BL::RenderResult& b_rr)
 
 		session->params.half_window = half_window;
 		session->params.samples = get_int(cscene, "samples");
-		session->params.filter_strength = powf(2.0f, filter_strength);
+		session->params.filter_strength = (filter_strength == 0.0f)? 1e-3f : copysignf(powf(10.0f, -fabsf(filter_strength)*2.0f), filter_strength);
 		session->params.filter_weight_adjust = powf(2.0f, weight_adjust - 1.0f);
 		session->params.filter_gradient = filter_gradient;
 

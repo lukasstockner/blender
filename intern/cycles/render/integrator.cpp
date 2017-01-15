@@ -78,7 +78,7 @@ NODE_DEFINE(Integrator)
 	SOCKET_ENUM(sampling_pattern, "Sampling Pattern", sampling_pattern_enum, SAMPLING_PATTERN_SOBOL);
 
 	SOCKET_INT(half_window, "Half Window", 8);
-	SOCKET_FLOAT(filter_strength, "Filter Strength", 0.0f);
+	SOCKET_FLOAT(filter_strength, "Filter Strength", 1e-3f);
 	SOCKET_FLOAT(weighting_adjust, "Weighting Adjust", 1.0f);
 	SOCKET_BOOLEAN(use_gradients, "Use Gradients for filtering", true);
 

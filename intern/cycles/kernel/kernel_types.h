@@ -1332,7 +1332,6 @@ typedef struct FilterStorage {
 	float filtered_global_bandwidth;
 	float sum_weight;
 	float means[DENOISE_FEATURES], scales[DENOISE_FEATURES], singular[DENOISE_FEATURES];
-	float singular_threshold, feature_matrix_norm;
 	float log_rmse_per_sample;
 #endif
 } FilterStorage;
@@ -1343,7 +1342,6 @@ typedef struct CUDAFilterStorage {
 	float filtered_global_bandwidth;
 	float sum_weight;
 	float means[DENOISE_FEATURES], scales[DENOISE_FEATURES], singular[DENOISE_FEATURES];
-	float singular_threshold, feature_matrix_norm;
 	float log_rmse_per_sample;
 #endif
 } CUDAFilterStorage;
