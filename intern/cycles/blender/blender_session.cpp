@@ -1363,6 +1363,9 @@ void BlenderSession::denoise(BL::RenderResult& b_rr)
 
 		session->params.half_window = half_window;
 		session->params.samples = get_int(cscene, "samples");
+		if(get_boolean(cscene, "use_square_samples")) {
+			session->params.samples *= session->params.samples;
+		}
 		session->params.filter_strength = (filter_strength == 0.0f)? 1e-3f : copysignf(powf(10.0f, -fabsf(filter_strength)*2.0f), filter_strength);
 		session->params.filter_weight_adjust = powf(2.0f, weight_adjust - 1.0f);
 		session->params.filter_gradient = filter_gradient;
