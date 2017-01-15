@@ -281,7 +281,11 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_calc_difference)(int dx,
                                                            float a,
                                                            float k_2)
 {
+#ifdef KERNEL_STUB
+	STUB_ASSERT(KERNEL_ARCH, filter_nlm_calc_difference);
+#else
 	kernel_filter_nlm_calc_difference(dx, dy, weightImage, variance, differenceImage, load_int4(rect), w, channel_offset, a, k_2);
+#endif
 }
 
 void KERNEL_FUNCTION_FULL_NAME(filter_nlm_blur)(float *differenceImage,
@@ -290,7 +294,11 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_blur)(float *differenceImage,
                                                 int w,
                                                 int f)
 {
+#ifdef KERNEL_STUB
+	STUB_ASSERT(KERNEL_ARCH, filter_nlm_blur);
+#else
 	kernel_filter_nlm_blur(differenceImage, outImage, load_int4(rect), w, f);
+#endif
 }
 
 void KERNEL_FUNCTION_FULL_NAME(filter_nlm_calc_weight)(float *differenceImage,
@@ -299,7 +307,11 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_calc_weight)(float *differenceImage,
                                                        int w,
                                                        int f)
 {
+#ifdef KERNEL_STUB
+	STUB_ASSERT(KERNEL_ARCH, filter_nlm_calc_weight);
+#else
 	kernel_filter_nlm_calc_weight(differenceImage, outImage, load_int4(rect), w, f);
+#endif
 }
 
 void KERNEL_FUNCTION_FULL_NAME(filter_nlm_update_output)(int dx,
@@ -312,7 +324,11 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_update_output)(int dx,
                                                          int w,
                                                          int f)
 {
+#ifdef KERNEL_STUB
+	STUB_ASSERT(KERNEL_ARCH, filter_nlm_update_output);
+#else
 	kernel_filter_nlm_update_output(dx, dy, differenceImage, image, outImage, accumImage, load_int4(rect), w, f);
+#endif
 }
 
 void KERNEL_FUNCTION_FULL_NAME(filter_nlm_construct_gramian)(int dx,
@@ -329,7 +345,11 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_construct_gramian)(int dx,
                                                              int h,
                                                              int f)
 {
-  kernel_filter_nlm_construct_gramian(dx, dy, differenceImage, buffer, color_pass, (FilterStorage*) storage, XtWX, XtWY, load_int4(rect), load_int4(filter_rect), w, h, f);
+#ifdef KERNEL_STUB
+	STUB_ASSERT(KERNEL_ARCH, filter_nlm_construct_gramian);
+#else
+    kernel_filter_nlm_construct_gramian(dx, dy, differenceImage, buffer, color_pass, (FilterStorage*) storage, XtWX, XtWY, load_int4(rect), load_int4(filter_rect), w, h, f);
+#endif
 }
 
 void KERNEL_FUNCTION_FULL_NAME(filter_nlm_normalize)(float *outImage,
@@ -337,7 +357,11 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_normalize)(float *outImage,
                                                      int *rect,
                                                      int w)
 {
+#ifdef KERNEL_STUB
+	STUB_ASSERT(KERNEL_ARCH, filter_nlm_normalize);
+#else
 	kernel_filter_nlm_normalize(outImage, accumImage, load_int4(rect), w);
+#endif
 }
 
 void KERNEL_FUNCTION_FULL_NAME(filter_finalize)(int x,
@@ -352,7 +376,11 @@ void KERNEL_FUNCTION_FULL_NAME(filter_finalize)(int x,
                                                 int *buffer_params,
                                                 int sample)
 {
-  kernel_filter_finalize(x, y, storage_ofs, 0, w, h, buffer, (FilterStorage*) storage, XtWX, XtWY, load_int4(buffer_params), sample);
+#ifdef KERNEL_STUB
+	STUB_ASSERT(KERNEL_ARCH, filter_finalize);
+#else
+    kernel_filter_finalize(x, y, storage_ofs, 0, w, h, buffer, (FilterStorage*) storage, XtWX, XtWY, load_int4(buffer_params), sample);
+#endif
 }
 
 #undef KERNEL_STUB
