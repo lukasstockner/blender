@@ -22,7 +22,7 @@ CCL_NAMESPACE_BEGIN
 #define STORAGE_TYPE FilterStorage
 #endif
 
-ccl_device_inline void kernel_filter_construct_gramian(int x, int y, int storage_ofs, int storage_size, int dx, int dy, int w, int h, float ccl_readonly_ptr buffer, int color_pass, STORAGE_TYPE *storage, float weight, float ccl_readonly_ptr transform, float *XtWX, float3 *XtWY)
+ccl_device_inline void kernel_filter_construct_gramian(int x, int y, int storage_ofs, int storage_size, int dx, int dy, int w, int h, float ccl_readonly_ptr buffer, int color_pass, int variance_pass, STORAGE_TYPE *storage, float weight, float ccl_readonly_ptr transform, float *XtWX, float3 *XtWY)
 {
 	const int pass_stride = w*h;
 
@@ -44,11 +44,11 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y, int storage
 	const int stride = storage_size;
 #endif
 
-	float3 p_color = filter_get_pixel_color(p_buffer + color_pass, pass_stride);
-	float3 q_color = filter_get_pixel_color(q_buffer + color_pass, pass_stride);
+	float3 p_color = filter_get_pixel_color(p_buffer, color_pass, pass_stride);
+	float3 q_color = filter_get_pixel_color(q_buffer, color_pass, pass_stride);
 
-	float p_std_dev = sqrtf(filter_get_pixel_variance(p_buffer + color_pass, pass_stride));
-	float q_std_dev = sqrtf(filter_get_pixel_variance(q_buffer + color_pass, pass_stride));
+	float p_std_dev = sqrtf(filter_get_pixel_variance(p_buffer, variance_pass, pass_stride));
+	float q_std_dev = sqrtf(filter_get_pixel_variance(q_buffer, variance_pass, pass_stride));
 
 	if(average(fabs(p_color - q_color)) > 3.0f*(p_std_dev + q_std_dev + 1e-3f)) {
 		return;

@@ -109,7 +109,7 @@ ccl_device_inline void kernel_filter_nlm_update_output(int dx, int dy, float ccl
 	}
 }
 
-ccl_device_inline void kernel_filter_nlm_construct_gramian(int dx, int dy, float ccl_readonly_ptr differenceImage, float ccl_readonly_ptr buffer, int color_pass, FilterStorage *storage, float *XtWX, float3 *XtWY, int4 rect, int4 filter_rect, int w, int h, int f)
+ccl_device_inline void kernel_filter_nlm_construct_gramian(int dx, int dy, float ccl_readonly_ptr differenceImage, float ccl_readonly_ptr buffer, int color_pass, int variance_pass, FilterStorage *storage, float *XtWX, float3 *XtWY, int4 rect, int4 filter_rect, int w, int h, int f)
 {
 	/* fy and fy are in filter-window-relative coordinates, while x and y are in feature-window-relative coordinates. */
 	for(int fy = max(0, rect.y-filter_rect.y); fy < min(filter_rect.w, rect.w-filter_rect.y); fy++) {
@@ -124,7 +124,7 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int dx, int dy, float
 			}
 			float weight = sum * (1.0f/(high - low));
 			int storage_ofs = fy*filter_rect.z + fx;
-			kernel_filter_construct_gramian(x, y, storage_ofs, filter_rect.z*filter_rect.w, dx, dy, w, h, buffer, color_pass, storage, weight, NULL, XtWX, XtWY);
+			kernel_filter_construct_gramian(x, y, storage_ofs, filter_rect.z*filter_rect.w, dx, dy, w, h, buffer, color_pass, variance_pass, storage, weight, NULL, XtWX, XtWY);
 		}
 	}
 }

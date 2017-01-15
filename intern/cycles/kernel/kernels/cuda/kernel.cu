@@ -327,11 +327,11 @@ kernel_cuda_filter_nlm_normalize(float *outImage, float ccl_readonly_ptr accumIm
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
-kernel_cuda_filter_nlm_construct_gramian(int dx, int dy, float ccl_readonly_ptr differenceImage, float ccl_readonly_ptr buffer, int color_pass, void *storage, float const* __restrict__ transform, float *XtWX, float3 *XtWY, int4 rect, int4 filter_rect, int w, int h, int f) {
+kernel_cuda_filter_nlm_construct_gramian(int dx, int dy, float ccl_readonly_ptr differenceImage, float ccl_readonly_ptr buffer, int color_pass, int variance_pass, void *storage, float const* __restrict__ transform, float *XtWX, float3 *XtWY, int4 rect, int4 filter_rect, int w, int h, int f) {
 	int x = blockDim.x*blockIdx.x + threadIdx.x + max(0, rect.x-filter_rect.x);
 	int y = blockDim.y*blockIdx.y + threadIdx.y + max(0, rect.y-filter_rect.y);
 	if(x < min(filter_rect.z, rect.z-filter_rect.x) && y < min(filter_rect.w, rect.w-filter_rect.y)) {
-		kernel_filter_nlm_construct_gramian(x, y, dx, dy, differenceImage, buffer, color_pass, (CUDAFilterStorage*) storage, transform, XtWX, XtWY, rect, filter_rect, w, h, f);
+		kernel_filter_nlm_construct_gramian(x, y, dx, dy, differenceImage, buffer, color_pass, variance_pass, (CUDAFilterStorage*) storage, transform, XtWX, XtWY, rect, filter_rect, w, h, f);
 	}
 }
 

@@ -56,7 +56,13 @@ ccl_device_inline void kernel_filter_nlm_calc_weight(int x, int y, float ccl_rea
 	outImage[y*w+x] = expf(-max(sum, 0.0f));
 }
 
-ccl_device_inline void kernel_filter_nlm_update_output(int x, int y, int dx, int dy, float ccl_readonly_ptr differenceImage, float ccl_readonly_ptr image, float *outImage, float *accumImage, int4 rect, int w, int f)
+ccl_device_inline void kernel_filter_nlm_update_output(int x, int y,
+                                                       int dx, int dy,
+                                                       float ccl_readonly_ptr differenceImage,
+                                                       float ccl_readonly_ptr image,
+                                                       float *outImage, float *accumImage,
+                                                       int4 rect, int w,
+                                                       int f)
 {
 	float sum = 0.0f;
 	const int low = max(rect.x, x-f);
@@ -74,7 +80,17 @@ ccl_device_inline void kernel_filter_nlm_update_output(int x, int y, int dx, int
 	}
 }
 
-ccl_device_inline void kernel_filter_nlm_construct_gramian(int fx, int fy, int dx, int dy, float ccl_readonly_ptr differenceImage, float ccl_readonly_ptr buffer, int color_pass, CUDAFilterStorage *storage, float ccl_readonly_ptr transform, float *XtWX, float3 *XtWY, int4 rect, int4 filter_rect, int w, int h, int f)
+ccl_device_inline void kernel_filter_nlm_construct_gramian(int fx, int fy,
+                                                           int dx, int dy,
+                                                           float ccl_readonly_ptr differenceImage,
+                                                           float ccl_readonly_ptr buffer,
+                                                           int color_pass, int variance_pass,
+                                                           CUDAFilterStorage *storage,
+                                                           float ccl_readonly_ptr transform,
+                                                           float *XtWX, float3 *XtWY,
+                                                           int4 rect, int4 filter_rect,
+                                                           int w, int h,
+                                                           int f)
 {
 	int y = fy + filter_rect.y;
 	int x = fx + filter_rect.x;
@@ -86,7 +102,16 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int fx, int fy, int d
 	}
 	float weight = sum * (1.0f/(high - low));
 	int storage_ofs = fy*filter_rect.z + fx;
-	kernel_filter_construct_gramian(x, y, storage_ofs, filter_rect.z*filter_rect.w, dx, dy, w, h, buffer, color_pass, storage, weight, transform, XtWX, XtWY);
+	kernel_filter_construct_gramian(x, y,
+	                                storage_ofs,
+	                                filter_rect.z*filter_rect.w,
+	                                dx, dy, w, h,
+	                                buffer,
+	                                color_pass, variance_pass,
+	                                storage,
+	                                weight,
+	                                transform,
+	                                XtWX, XtWY);
 }
 
 ccl_device_inline void kernel_filter_nlm_normalize(int x, int y, float *outImage, float ccl_readonly_ptr accumImage, int4 rect, int w)

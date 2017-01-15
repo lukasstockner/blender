@@ -1056,10 +1056,11 @@ public:
 			{
 				int mean_from[]      = {20, 21, 22};
 				int variance_from[]  = {23, 24, 25};
-				int offset_to[]      = {16, 18, 20};
+				int mean_to[]        = {16, 17, 18};
+				int variance_to[]    = {19, 20, 21};
 				for(int i = 0; i < 3; i++) {
-					CUdeviceptr d_mean = CUDA_PTR_ADD(d_denoise_buffer, offset_to[i]*pass_stride);
-					CUdeviceptr d_variance = CUDA_PTR_ADD(d_denoise_buffer, (offset_to[i]+1)*pass_stride);
+					CUdeviceptr d_mean = CUDA_PTR_ADD(d_denoise_buffer, mean_to[i]*pass_stride);
+					CUdeviceptr d_variance = CUDA_PTR_ADD(d_denoise_buffer, variance_to[i]*pass_stride);
 
 					void *get_feature_args[] = {&sample, &d_buffer, &mean_from[i], &variance_from[i],
 					                            &buffer_area,
@@ -1118,10 +1119,11 @@ public:
 		int f = 4;
 		float a = 1.0f;
 		float k_2 = kernel_globals.integrator.weighting_adjust;
-		int color_pass = 0;
+		int color_pass = 16;
+		int variance_pass = 19;
 
 		CUdeviceptr color_buffer = CUDA_PTR_ADD(d_denoise_buffers, 16*pass_stride);
-		CUdeviceptr variance_buffer = CUDA_PTR_ADD(d_denoise_buffers, 17*pass_stride);
+		CUdeviceptr variance_buffer = CUDA_PTR_ADD(d_denoise_buffers, 19*pass_stride);
 		CUdeviceptr d_difference, d_blurDifference, d_XtWX, d_XtWY;
 		cuda_assert(cuMemAlloc(&d_difference, pass_stride*sizeof(float)));
 		cuda_assert(cuMemAlloc(&d_blurDifference, pass_stride*sizeof(float)));
@@ -1134,7 +1136,7 @@ public:
 		void *calc_difference_args[] = {&dx, &dy, &color_buffer, &variance_buffer, &d_difference, &local_rect, &w, &a, &k_2};
 		void *blur_args[] = {&d_difference, &d_blurDifference, &local_rect, &w, &f};
 		void *calc_weight_args[] = {&d_blurDifference, &d_difference, &local_rect, &w, &f};
-		void *construct_gramian_args[] = {&dx, &dy, &d_blurDifference, &d_denoise_buffers, &color_pass, &d_storage, &d_transforms, &d_XtWX, &d_XtWY, &local_rect, &local_filter_rect, &w, &h, &f};
+		void *construct_gramian_args[] = {&dx, &dy, &d_blurDifference, &d_denoise_buffers, &color_pass, &variance_pass, &d_storage, &d_transforms, &d_XtWX, &d_XtWY, &local_rect, &local_filter_rect, &w, &h, &f};
 
 		for(int i = 0; i < (2*hw+1)*(2*hw+1); i++) {
 			dy = i / (2*hw+1) - hw;
