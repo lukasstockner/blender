@@ -234,7 +234,9 @@ typedef struct SceneRenderLayer {
 
 	int samples;
 	float pass_alpha_threshold;
-	
+
+	IDProperty *prop;
+
 	struct FreestyleConfig freestyleConfig;
 } SceneRenderLayer;
 
@@ -303,23 +305,42 @@ typedef enum ScenePassType {
 	SCE_PASS_SUBSURFACE_DIRECT        = (1 << 28),
 	SCE_PASS_SUBSURFACE_INDIRECT      = (1 << 29),
 	SCE_PASS_SUBSURFACE_COLOR         = (1 << 30),
-	SCE_PASS_DEBUG                    = (1 << 31),  /* This is a virtual pass. */
 } ScenePassType;
 
-/* MSVC doesn't like 64-bit enum values. */
-#define SCE_PASS_DENOISE_NORMAL           (((uint64_t) 1) << 32)
-#define SCE_PASS_DENOISE_NORMAL_VAR       (((uint64_t) 1) << 33)
-#define SCE_PASS_DENOISE_ALBEDO           (((uint64_t) 1) << 34)
-#define SCE_PASS_DENOISE_ALBEDO_VAR       (((uint64_t) 1) << 35)
-#define SCE_PASS_DENOISE_DEPTH            (((uint64_t) 1) << 36)
-#define SCE_PASS_DENOISE_DEPTH_VAR        (((uint64_t) 1) << 37)
-#define SCE_PASS_DENOISE_SHADOW_A         (((uint64_t) 1) << 38)
-#define SCE_PASS_DENOISE_SHADOW_B         (((uint64_t) 1) << 39)
-#define SCE_PASS_DENOISE_NOISY            (((uint64_t) 1) << 40) /* The original noisy image (only the components that are denoised). */
-#define SCE_PASS_DENOISE_NOISY_VAR        (((uint64_t) 1) << 41)
-#define SCE_PASS_DENOISE_CLEAN            (((uint64_t) 1) << 42) /* If present, these image components are added to the denoised image. */
-#define SCE_PASS_DENOISE_NOISY_B          (((uint64_t) 1) << 43)
-#define SCE_PASS_DENOISE_NOISY_B_VAR      (((uint64_t) 1) << 44)
+#define RE_PASSNAME_COMBINED "Combined"
+#define RE_PASSNAME_Z "Depth"
+#define RE_PASSNAME_VECTOR "Vector"
+#define RE_PASSNAME_NORMAL "Normal"
+#define RE_PASSNAME_UV "UV"
+#define RE_PASSNAME_RGBA "Color"
+#define RE_PASSNAME_EMIT "Emit"
+#define RE_PASSNAME_DIFFUSE "Diffuse"
+#define RE_PASSNAME_SPEC "Spec"
+#define RE_PASSNAME_SHADOW "Shadow"
+
+#define RE_PASSNAME_AO "AO"
+#define RE_PASSNAME_ENVIRONMENT "Env"
+#define RE_PASSNAME_INDIRECT "Indirect"
+#define RE_PASSNAME_REFLECT "Reflect"
+#define RE_PASSNAME_REFRACT "Refract"
+#define RE_PASSNAME_INDEXOB "IndexOB"
+#define RE_PASSNAME_INDEXMA "IndexMA"
+#define RE_PASSNAME_MIST "Mist"
+
+#define RE_PASSNAME_RAYHITS "RayHits"
+#define RE_PASSNAME_DIFFUSE_DIRECT "DiffDir"
+#define RE_PASSNAME_DIFFUSE_INDIRECT "DiffInd"
+#define RE_PASSNAME_DIFFUSE_COLOR "DiffCol"
+#define RE_PASSNAME_GLOSSY_DIRECT "GlossDir"
+#define RE_PASSNAME_GLOSSY_INDIRECT "GlossInd"
+#define RE_PASSNAME_GLOSSY_COLOR "GlossCol"
+#define RE_PASSNAME_TRANSM_DIRECT "TransDir"
+#define RE_PASSNAME_TRANSM_INDIRECT "TransInd"
+#define RE_PASSNAME_TRANSM_COLOR "TransCol"
+
+#define RE_PASSNAME_SUBSURFACE_DIRECT "SubsurfaceDir"
+#define RE_PASSNAME_SUBSURFACE_INDIRECT "SubsurfaceInd"
+#define RE_PASSNAME_SUBSURFACE_COLOR "SubsurfaceCol"
 
 /* note, srl->passflag is treestore element 'nr' in outliner, short still... */
 

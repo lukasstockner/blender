@@ -214,7 +214,7 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 	if(!params.denoising_passes)
 		/* The RenderBuffer doesn't have denoising passes. */
 		return false;
-	if(!(type & EX_TYPE_DENOISE_ALL))
+	if(!(type & DENOISING_PASS_ALL))
 		/* The type doesn't correspond to any denoising pass. */
 		return false;
 
@@ -223,20 +223,20 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 	float scale = 1.0f;
 	int type_offset = 0;
 	switch(type) {
-		case EX_TYPE_NONE: assert(0); break;
-		case EX_TYPE_DENOISE_NORMAL:     type_offset =  0; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_NORMAL_VAR: type_offset =  3; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_ALBEDO:     type_offset =  6; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_ALBEDO_VAR: type_offset =  9; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_DEPTH:      type_offset = 12; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_DEPTH_VAR:  type_offset = 13; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_SHADOW_A:   type_offset = 14; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_SHADOW_B:   type_offset = 17; scale = 1.0f/sample; break;
-		case EX_TYPE_DENOISE_NOISY:      type_offset = 20; scale = exposure/sample; break;
-		case EX_TYPE_DENOISE_NOISY_VAR:  type_offset = 23; scale = exposure*exposure/sample; break;
-		case EX_TYPE_DENOISE_NOISY_B:    type_offset = 26; scale = exposure/(sample/2); break;
-		case EX_TYPE_DENOISE_NOISY_B_VAR:type_offset = 29; scale = exposure*exposure/(sample/2); break;
-		case EX_TYPE_DENOISE_CLEAN:      type_offset = params.cross_denoising? 32: 26; scale = exposure/sample; break;
+		case DENOISING_PASS_NONE:        assert(0); break;
+		case DENOISING_PASS_NORMAL:      type_offset =  0; scale = 1.0f/sample; break;
+		case DENOISING_PASS_NORMAL_VAR:  type_offset =  3; scale = 1.0f/sample; break;
+		case DENOISING_PASS_ALBEDO:      type_offset =  6; scale = 1.0f/sample; break;
+		case DENOISING_PASS_ALBEDO_VAR:  type_offset =  9; scale = 1.0f/sample; break;
+		case DENOISING_PASS_DEPTH:       type_offset = 12; scale = 1.0f/sample; break;
+		case DENOISING_PASS_DEPTH_VAR:   type_offset = 13; scale = 1.0f/sample; break;
+		case DENOISING_PASS_SHADOW_A:    type_offset = 14; scale = 1.0f/sample; break;
+		case DENOISING_PASS_SHADOW_B:    type_offset = 17; scale = 1.0f/sample; break;
+		case DENOISING_PASS_NOISY:       type_offset = 20; scale = exposure/sample; break;
+		case DENOISING_PASS_NOISY_VAR:   type_offset = 23; scale = exposure*exposure/sample; break;
+		case DENOISING_PASS_NOISY_B:     type_offset = 26; scale = exposure/(sample/2); break;
+		case DENOISING_PASS_NOISY_B_VAR: type_offset = 29; scale = exposure*exposure/(sample/2); break;
+		case DENOISING_PASS_CLEAN:       type_offset = params.cross_denoising? 32: 26; scale = exposure/sample; break;
 	}
 
 	if(read_pixels) {
@@ -250,7 +250,7 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 	in += params.width*params.height*pass_stride * frame;
 
 	if(components == 1) {
-		assert(type & (EX_TYPE_DENOISE_DEPTH | EX_TYPE_DENOISE_DEPTH_VAR));
+		assert(type & (DENOISING_PASS_DEPTH | DENOISING_PASS_DEPTH_VAR));
 		if(read_pixels) {
 			FOREACH_PIXEL
 				in[0] = pixels[0] * scale;
@@ -262,7 +262,7 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 	}
 	else {
 		assert(components == 3);
-		assert(!(type & (EX_TYPE_DENOISE_DEPTH | EX_TYPE_DENOISE_DEPTH_VAR)));
+		assert(!(type & (DENOISING_PASS_DEPTH | DENOISING_PASS_DEPTH_VAR)));
 
 		if(read_pixels) {
 			FOREACH_PIXEL {

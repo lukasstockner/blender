@@ -7,11 +7,11 @@ CCL_NAMESPACE_BEGIN
 typedef class PassTypeInfo
 {
 public:
-	PassTypeInfo(DenoiseExtendedTypes type, int num_channels, string channels)
+	PassTypeInfo(DenoisingPassType type, int num_channels, string channels)
 	 : type(type), num_channels(num_channels), channels(channels) {}
-	PassTypeInfo() : type(EX_TYPE_NONE), num_channels(0), channels("") {}
+	PassTypeInfo() : type(DENOISING_PASS_NONE), num_channels(0), channels("") {}
 
-	DenoiseExtendedTypes type;
+	DenoisingPassType type;
 	int num_channels;
 	string channels;
 
@@ -24,17 +24,17 @@ static map<string, PassTypeInfo> denoise_passes_init()
 {
 	map<string, PassTypeInfo> passes;
 
-	passes["DenoiseNormal"]    = PassTypeInfo(EX_TYPE_DENOISE_NORMAL,     3, "XYZ");
-	passes["DenoiseNormalVar"] = PassTypeInfo(EX_TYPE_DENOISE_NORMAL_VAR, 3, "XYZ");
-	passes["DenoiseAlbedo"]    = PassTypeInfo(EX_TYPE_DENOISE_ALBEDO,     3, "RGB");
-	passes["DenoiseAlbedoVar"] = PassTypeInfo(EX_TYPE_DENOISE_ALBEDO_VAR, 3, "RGB");
-	passes["DenoiseDepth"]     = PassTypeInfo(EX_TYPE_DENOISE_DEPTH,      1, "Z");
-	passes["DenoiseDepthVar"]  = PassTypeInfo(EX_TYPE_DENOISE_DEPTH_VAR,  1, "Z");
-	passes["DenoiseShadowA"]   = PassTypeInfo(EX_TYPE_DENOISE_SHADOW_A,   3, "RGB");
-	passes["DenoiseShadowB"]   = PassTypeInfo(EX_TYPE_DENOISE_SHADOW_B,   3, "RGB");
-	passes["DenoiseNoisy"]     = PassTypeInfo(EX_TYPE_DENOISE_NOISY,      3, "RGB");
-	passes["DenoiseNoisyVar"]  = PassTypeInfo(EX_TYPE_DENOISE_NOISY_VAR,  3, "RGB");
-	passes["DenoiseClean"]     = PassTypeInfo(EX_TYPE_DENOISE_CLEAN,      3, "RGB");
+	passes["Denoising Normal"]          = PassTypeInfo(DENOISING_PASS_NORMAL,     3, "XYZ");
+	passes["Denoising Normal Variance"] = PassTypeInfo(DENOISING_PASS_NORMAL_VAR, 3, "XYZ");
+	passes["Denoising Albedo"]          = PassTypeInfo(DENOISING_PASS_ALBEDO,     3, "RGB");
+	passes["Denoising Albedo Variance"] = PassTypeInfo(DENOISING_PASS_ALBEDO_VAR, 3, "RGB");
+	passes["Denoising Depth"]           = PassTypeInfo(DENOISING_PASS_DEPTH,      1, "Z");
+	passes["Denoising Depth Variance"]  = PassTypeInfo(DENOISING_PASS_DEPTH_VAR,  1, "Z");
+	passes["Denoising Shadow A"]        = PassTypeInfo(DENOISING_PASS_SHADOW_A,   3, "ABV");
+	passes["Denoising Shadow B"]        = PassTypeInfo(DENOISING_PASS_SHADOW_B,   3, "ABV");
+	passes["Denoising Noisy"]           = PassTypeInfo(DENOISING_PASS_NOISY,      3, "RGB");
+	passes["Denoising Noisy Variance"]  = PassTypeInfo(DENOISING_PASS_NOISY_VAR,  3, "RGB");
+	passes["Denoising Clean"]           = PassTypeInfo(DENOISING_PASS_CLEAN,      3, "RGB");
 
 	return passes;
 }
@@ -97,8 +97,8 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 
 	if(renderlayer != "") {
 		/* Find all passes that the frame contains. */
-		int passes = EX_TYPE_NONE;
-		map<DenoiseExtendedTypes, int> num_channels;
+		int passes = DENOISING_PASS_NONE;
+		map<DenoisingPassType, int> num_channels;
 		map<PassTypeInfo, int3> channel_ids;
 		for(int i = 0; i < spec.nchannels; i++) {
 			if(!split_channel(spec.channelnames[i], layer, pass, channel)) continue;
@@ -126,7 +126,7 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 
 		/* The frame always needs to include all the required denoising passes.
 		 * If the primary frame also included a clean pass, all the secondary frames need to do so as well. */
-		if((~passes & EX_TYPE_DENOISE_REQUIRED) == 0 && !(buffers && buffers->params.selective_denoising && !(passes & EX_TYPE_DENOISE_CLEAN))) {
+		if((~passes & DENOISING_PASS_REQUIRED) == 0 && !(buffers && buffers->params.selective_denoising && !(passes & DENOISING_PASS_CLEAN))) {
 			printf("Frame %s: Found all needed passes!\n", file.c_str());
 
 			if(buffers == NULL) {
@@ -135,7 +135,7 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 				params.height = params.full_height = params.final_height = spec.height;
 				params.full_x = params.full_y = 0;
 				params.denoising_passes = true;
-				params.selective_denoising = (passes & EX_TYPE_DENOISE_CLEAN);
+				params.selective_denoising = (passes & DENOISING_PASS_CLEAN);
 				params.frames = numframes;
 
 				buffers = new RenderBuffers(device);

@@ -247,15 +247,15 @@ void RE_engine_update_result(RenderEngine *engine, RenderResult *result)
 	}
 }
 
-void RE_engine_add_pass(RenderEngine *engine, int passtype, int channels, const char *layername, const char *viewname)
+void RE_engine_add_pass(RenderEngine *engine, int channels, const char *name, const char *layername, const char *viewname, const char *chan_id)
 {
 	Render *re = engine->re;
 
-	if(!re || !re->result) {
+	if (!re || !re->result) {
 		return;
 	}
 
-	render_result_add_pass(re->result, ((uint64_t)1)<<passtype, channels, layername, viewname);
+	render_result_add_pass(re->result, channels, name, layername, viewname, chan_id);
 }
 
 void RE_engine_end_result(RenderEngine *engine, RenderResult *result, int cancel, int highlight, int merge_results)

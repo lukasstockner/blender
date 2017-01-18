@@ -38,6 +38,8 @@ typedef enum FilterType {
 	FILTER_NUM_TYPES,
 } FilterType;
 
+
+
 class Pass {
 public:
 	PassType type;

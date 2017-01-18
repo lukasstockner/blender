@@ -2047,6 +2047,11 @@ bool BKE_scene_remove_render_layer(Main *bmain, Scene *scene, SceneRenderLayer *
 		return false;
 	}
 
+	if (srl->prop) {
+		IDP_FreeProperty(srl->prop);
+		MEM_freeN(srl->prop);
+	}
+
 	BLI_remlink(&scene->r.layers, srl);
 	MEM_freeN(srl);
 

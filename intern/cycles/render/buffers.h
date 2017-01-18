@@ -30,34 +30,34 @@
 
 CCL_NAMESPACE_BEGIN
 
-typedef enum DenoiseExtendedTypes {
-	EX_TYPE_NONE                      = 0,
-	EX_TYPE_DENOISE_NORMAL            = (1 << 0),
-	EX_TYPE_DENOISE_NORMAL_VAR        = (1 << 1),
-	EX_TYPE_DENOISE_ALBEDO            = (1 << 2),
-	EX_TYPE_DENOISE_ALBEDO_VAR        = (1 << 3),
-	EX_TYPE_DENOISE_DEPTH             = (1 << 4),
-	EX_TYPE_DENOISE_DEPTH_VAR         = (1 << 5),
-	EX_TYPE_DENOISE_SHADOW_A          = (1 << 6),
-	EX_TYPE_DENOISE_SHADOW_B          = (1 << 7),
-	EX_TYPE_DENOISE_NOISY             = (1 << 8),
-	EX_TYPE_DENOISE_NOISY_VAR         = (1 << 9),
-	EX_TYPE_DENOISE_CLEAN             = (1 << 10),
-	EX_TYPE_DENOISE_NOISY_B           = (1 << 11),
-	EX_TYPE_DENOISE_NOISY_B_VAR       = (1 << 12),
+typedef enum DenoisingPassType {
+	DENOISING_PASS_NONE                      = 0,
+	DENOISING_PASS_NORMAL            = (1 << 0),
+	DENOISING_PASS_NORMAL_VAR        = (1 << 1),
+	DENOISING_PASS_ALBEDO            = (1 << 2),
+	DENOISING_PASS_ALBEDO_VAR        = (1 << 3),
+	DENOISING_PASS_DEPTH             = (1 << 4),
+	DENOISING_PASS_DEPTH_VAR         = (1 << 5),
+	DENOISING_PASS_SHADOW_A          = (1 << 6),
+	DENOISING_PASS_SHADOW_B          = (1 << 7),
+	DENOISING_PASS_NOISY             = (1 << 8),
+	DENOISING_PASS_NOISY_VAR         = (1 << 9),
+	DENOISING_PASS_CLEAN             = (1 << 10),
+	DENOISING_PASS_NOISY_B           = (1 << 11),
+	DENOISING_PASS_NOISY_B_VAR       = (1 << 12),
 
-	EX_TYPE_DENOISE_REQUIRED = (EX_TYPE_DENOISE_NORMAL
-	                          | EX_TYPE_DENOISE_NORMAL_VAR
-	                          | EX_TYPE_DENOISE_ALBEDO
-	                          | EX_TYPE_DENOISE_ALBEDO_VAR
-	                          | EX_TYPE_DENOISE_DEPTH
-	                          | EX_TYPE_DENOISE_DEPTH_VAR
-	                          | EX_TYPE_DENOISE_SHADOW_A
-	                          | EX_TYPE_DENOISE_SHADOW_B
-	                          | EX_TYPE_DENOISE_NOISY
-	                          | EX_TYPE_DENOISE_NOISY_VAR),
-	EX_TYPE_DENOISE_ALL = EX_TYPE_DENOISE_REQUIRED | EX_TYPE_DENOISE_CLEAN | EX_TYPE_DENOISE_NOISY_B | EX_TYPE_DENOISE_NOISY_B_VAR,
-} DenoiseExtendedTypes;
+	DENOISING_PASS_REQUIRED = (DENOISING_PASS_NORMAL
+	                          | DENOISING_PASS_NORMAL_VAR
+	                          | DENOISING_PASS_ALBEDO
+	                          | DENOISING_PASS_ALBEDO_VAR
+	                          | DENOISING_PASS_DEPTH
+	                          | DENOISING_PASS_DEPTH_VAR
+	                          | DENOISING_PASS_SHADOW_A
+	                          | DENOISING_PASS_SHADOW_B
+	                          | DENOISING_PASS_NOISY
+	                          | DENOISING_PASS_NOISY_VAR),
+	DENOISING_PASS_ALL = DENOISING_PASS_REQUIRED | DENOISING_PASS_CLEAN | DENOISING_PASS_NOISY_B | DENOISING_PASS_NOISY_B_VAR,
+} DenoisingPassType;
 
 class Device;
 struct DeviceDrawParams;

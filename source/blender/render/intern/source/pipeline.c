@@ -239,9 +239,9 @@ void RE_FreeRenderResult(RenderResult *res)
 	render_result_free(res);
 }
 
-float *RE_RenderLayerGetPass(volatile RenderLayer *rl, uint64_t passtype, const char *viewname)
+float *RE_RenderLayerGetPass(volatile RenderLayer *rl, const char *name, const char *viewname)
 {
-	RenderPass *rpass = RE_pass_find_by_type(rl, passtype, viewname);
+	RenderPass *rpass = RE_pass_find_by_name(rl, name, viewname);
 	return rpass ? rpass->rect : NULL;
 }
 
@@ -382,13 +382,13 @@ void RE_AcquireResultImageViews(Render *re, RenderResult *rr)
 			if (rl) {
 				if (rv->rectf == NULL) {
 					for (rview = (RenderView *)rr->views.first; rview; rview = rview->next) {
-						rview->rectf = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, rview->name);
+						rview->rectf = RE_RenderLayerGetPass(rl, RE_PASSNAME_COMBINED, rview->name);
 					}
 				}
 
 				if (rv->rectz == NULL) {
 					for (rview = (RenderView *)rr->views.first; rview; rview = rview->next) {
-						rview->rectz = RE_RenderLayerGetPass(rl, SCE_PASS_Z, rview->name);
+						rview->rectz = RE_RenderLayerGetPass(rl, RE_PASSNAME_Z, rview->name);
 					}
 				}
 			}
@@ -442,10 +442,10 @@ void RE_AcquireResultImage(Render *re, RenderResult *rr, const int view_id)
 
 			if (rl) {
 				if (rv->rectf == NULL)
-					rr->rectf = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, rv->name);
+					rr->rectf = RE_RenderLayerGetPass(rl, RE_PASSNAME_COMBINED, rv->name);
 
 				if (rv->rectz == NULL)
-					rr->rectz = RE_RenderLayerGetPass(rl, SCE_PASS_Z, rv->name);
+					rr->rectz = RE_RenderLayerGetPass(rl, RE_PASSNAME_Z, rv->name);
 			}
 
 			rr->have_combined = (rv->rectf != NULL);
@@ -845,7 +845,7 @@ static void render_result_rescale(Render *re)
 	if (src_rectf == NULL) {
 		RenderLayer *rl = render_get_active_layer(re, re->result);
 		if (rl != NULL) {
-			src_rectf = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, NULL);
+			src_rectf = RE_RenderLayerGetPass(rl, RE_PASSNAME_COMBINED, NULL);
 		}
 	}
 
@@ -864,7 +864,7 @@ static void render_result_rescale(Render *re)
 				RenderLayer *rl;
 				rl = render_get_active_layer(re, re->result);
 				if (rl != NULL) {
-					dst_rectf = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, NULL);
+					dst_rectf = RE_RenderLayerGetPass(rl, RE_PASSNAME_COMBINED, NULL);
 				}
 			}
 
@@ -1658,7 +1658,7 @@ static void merge_renderresult_blur(RenderResult *rr, RenderResult *brr, float b
 		/* passes are allocated in sync */
 		rpass1 = rl1->passes.first;
 		for (rpass = rl->passes.first; rpass && rpass1; rpass = rpass->next, rpass1 = rpass1->next) {
-			if ((rpass->passtype & SCE_PASS_COMBINED) && key_alpha)
+			if (STREQ(rpass->name, RE_PASSNAME_COMBINED) && key_alpha)
 				addblur_rect_key(rr, rpass->rect, rpass1->rect, blurfac);
 			else
 				addblur_rect(rr, rpass->rect, rpass1->rect, blurfac, rpass->channels);
@@ -1859,6 +1859,7 @@ static void render_result_uncrop(Render *re)
 			rres = render_result_new(re, &re->disprect, 0, RR_USE_MEM, RR_ALL_LAYERS, RR_ALL_VIEWS);
 
 			render_result_clone_passes(re, rres, NULL);
+
 			render_result_merge(rres, re->result);
 			render_result_free(re->result);
 			re->result = rres;
@@ -3891,7 +3892,7 @@ void RE_layer_load_from_file(RenderLayer *layer, ReportList *reports, const char
 
 	/* multiview: since the API takes no 'view', we use the first combined pass found */
 	for (rpass = layer->passes.first; rpass; rpass = rpass->next)
-		if (rpass->passtype == SCE_PASS_COMBINED)
+		if (STREQ(rpass->name, RE_PASSNAME_COMBINED))
 			break;
 
 	if (rpass == NULL)
@@ -4017,13 +4018,12 @@ bool RE_layers_have_name(struct RenderResult *rr)
 	return false;
 }
 
-RenderPass *RE_pass_find_by_type(volatile RenderLayer *rl, uint64_t passtype, const char *viewname)
+RenderPass *RE_pass_find_by_name(volatile RenderLayer *rl, const char *name, const char *viewname)
 {
 	RenderPass *rp = NULL;
 
 	for (rp = rl->passes.last; rp; rp = rp->prev) {
-		if (rp->passtype == passtype) {
-
+		if (STREQ(rp->name, name)) {
 			if (viewname == NULL || viewname[0] == '\0')
 				break;
 			else if (STREQ(rp->view, viewname))
@@ -4050,7 +4050,7 @@ RenderPass *RE_create_gp_pass(RenderResult *rr, const char *layername, const cha
 	}
 	
 	/* clear previous pass if exist or the new image will be over previous one*/
-	RenderPass *rp = RE_pass_find_by_type(rl, SCE_PASS_COMBINED, viewname);
+	RenderPass *rp = RE_pass_find_by_name(rl, RE_PASSNAME_COMBINED, viewname);
 	if (rp) {
 		if (rp->rect) {
 			MEM_freeN(rp->rect);
@@ -4058,5 +4058,5 @@ RenderPass *RE_create_gp_pass(RenderResult *rr, const char *layername, const cha
 		BLI_freelinkN(&rl->passes, rp);
 	}
 	/* create a totally new pass */
-	return gp_add_pass(rr, rl, 4, SCE_PASS_COMBINED, viewname);
+	return gp_add_pass(rr, rl, 4, RE_PASSNAME_COMBINED, viewname);
 }
