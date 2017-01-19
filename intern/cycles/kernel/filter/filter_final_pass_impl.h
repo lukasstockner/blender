@@ -94,7 +94,7 @@ ccl_device_inline void kernel_filter_finalize(int x, int y, int storage_ofs, int
 		combined_buffer[2] = final_color.z;
 	}
 	else {
-		int idx = (y+buffer_params.y)*w+(x+buffer_params.x);
+		int idx = y*w+x;
 		buffer[idx] = final_color.x;
 		buffer[buffer_params.w + idx] = final_color.y;
 		buffer[2*buffer_params.w + idx] = final_color.z;

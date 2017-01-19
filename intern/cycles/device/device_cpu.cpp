@@ -481,7 +481,7 @@ public:
 		scoped_fpe fpe(FPE_ENABLED);
 #endif
 
-		bool use_gradients = kg->__data.integrator.use_gradients;
+		bool cross_denoise = kg->__data.film.denoise_cross;
 
 		int hw = kg->__data.integrator.half_window;
 		int storage_num = filter_area.z*filter_area.w;
@@ -492,8 +492,6 @@ public:
 
 		float *XtWX = new float[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)*storage_num];
 		float3 *XtWY = new float3[(DENOISE_FEATURES+1)*storage_num];
-		memset(XtWX, 0, sizeof(float)*(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)*storage_num);
-		memset(XtWY, 0, sizeof(float3)*(DENOISE_FEATURES+1)*storage_num);
 
 		for(int y = 0; y < filter_area.w; y++) {
 			for(int x = 0; x < filter_area.z; x++) {
@@ -501,6 +499,7 @@ public:
 			}
 		}
 
+		if(cross_denoise)
 		{
 			int f = 4;
 			float a = 1.0f;
@@ -509,7 +508,15 @@ public:
 			float *variance = filter_buffer + 19*pass_stride;
 			float *difference = new float[pass_stride];
 			float *blurDifference = new float[pass_stride];
-			int local_filter_rect[4] = {filter_area.x-rect.x, filter_area.y-rect.y, filter_area.z, filter_area.w};
+			float *outA = new float[3*pass_stride];
+			float *outB = new float[3*pass_stride];
+			int first_filter_rect[4] = {filter_area.x-rect.x, filter_area.y-rect.y, filter_area.z, filter_area.w};
+			int first_buffer_params[4] = {-rect.x, -rect.y, 0, pass_stride};
+			int simple_rect[4] = {0, 0, w, h};
+			DebugPasses debug(filter_area.z, filter_area.w, 34, 1, w);
+
+			memset(XtWX, 0, sizeof(float)*(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)*storage_num);
+			memset(XtWY, 0, sizeof(float3)*(DENOISE_FEATURES+1)*storage_num);
 			for(int i = 0; i < (2*hw+1)*(2*hw+1); i++) {
 				int dy = i / (2*hw+1) - hw;
 				int dx = i % (2*hw+1) - hw;
@@ -519,16 +526,116 @@ public:
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
 				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 16, 19, storage, XtWX, XtWY, local_rect, local_filter_rect, w, h, 4);
+				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 22, 25, storage, XtWX, XtWY, local_rect, first_filter_rect, w, h, 4);
+			}
+			for(int y = 0; y < filter_area.w; y++) {
+				for(int x = 0; x < filter_area.z; x++) {
+					filter_finalize_kernel()(x, y, y*filter_area.z + x, w, h, outA, storage, XtWX, XtWY, first_buffer_params, sample);
+				}
+			}
+			debug.add_pass("passAColor0", outA+0*pass_stride);
+			debug.add_pass("passAColor1", outA+1*pass_stride);
+			debug.add_pass("passAColor2", outA+2*pass_stride);
+
+			memset(XtWX, 0, sizeof(float)*(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)*storage_num);
+			memset(XtWY, 0, sizeof(float3)*(DENOISE_FEATURES+1)*storage_num);
+			weight = filter_buffer + 22*pass_stride;
+			variance = filter_buffer + 25*pass_stride;
+			for(int i = 0; i < (2*hw+1)*(2*hw+1); i++) {
+				int dy = i / (2*hw+1) - hw;
+				int dx = i % (2*hw+1) - hw;
+
+				int local_rect[4] = {max(0, -dx), max(0, -dy), rect.z-rect.x - max(0, dx), rect.w-rect.y - max(0, dy)};
+				filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, pass_stride, a, k_2);
+				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
+				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
+				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
+				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 16, 19, storage, XtWX, XtWY, local_rect, first_filter_rect, w, h, 4);
+			}
+			for(int y = 0; y < filter_area.w; y++) {
+				for(int x = 0; x < filter_area.z; x++) {
+					filter_finalize_kernel()(x, y, y*filter_area.z + x, w, h, outB, storage, XtWX, XtWY, first_buffer_params, sample);
+				}
+			}
+			debug.add_pass("passBColor0", outB+0*pass_stride);
+			debug.add_pass("passBColor1", outB+1*pass_stride);
+			debug.add_pass("passBColor2", outB+2*pass_stride);
+
+			weight = filter_buffer + 16*pass_stride;
+			variance = filter_buffer + 19*pass_stride;
+			for(int c = 0; c < 3; c++) {
+				for(int y = 0; y < filter_area.w; y++) {
+					for(int x = 0; x < filter_area.z; x++) {
+						filter_combine_halves_kernel()(x, y, weight + c*pass_stride, variance + c*pass_stride, outA + c*pass_stride, outB + c*pass_stride, simple_rect, 0);
+					}
+				}
+			}
+			delete[] outA;
+			delete[] outB;
+			debug.add_pass("combinedColor0", weight+0*pass_stride);
+			debug.add_pass("combinedColor1", weight+1*pass_stride);
+			debug.add_pass("combinedColor2", weight+2*pass_stride);
+			debug.add_pass("combinedVariance0", variance+0*pass_stride);
+			debug.add_pass("combinedVariance1", variance+1*pass_stride);
+			debug.add_pass("combinedVariance2", variance+2*pass_stride);
+
+			memset(XtWX, 0, sizeof(float)*(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)*storage_num);
+			memset(XtWY, 0, sizeof(float3)*(DENOISE_FEATURES+1)*storage_num);
+			int second_filter_rect[4] = {0, 0, filter_area.z, filter_area.w};
+			int second_buffer_params[4] = {offset, stride, kg->__data.film.pass_stride, kg->__data.film.pass_no_denoising};
+			for(int i = 0; i < (2*hw+1)*(2*hw+1); i++) {
+				int dy = i / (2*hw+1) - hw;
+				int dx = i % (2*hw+1) - hw;
+
+				int local_rect[4] = {max(0, -dx), max(0, -dy), filter_area.z - max(0, dx), filter_area.w - max(0, dy)};
+				filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, pass_stride, a, k_2);
+				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
+				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
+				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
+				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 16, 19, storage, XtWX, XtWY, local_rect, second_filter_rect, w, h, 4);
 			}
 			delete[] difference;
 			delete[] blurDifference;
+			for(int y = 0; y < filter_area.w; y++) {
+				for(int x = 0; x < filter_area.z; x++) {
+					filter_finalize_kernel()(x + filter_area.x, y + filter_area.y, y*filter_area.z + x, w, h, buffers, storage, XtWX, XtWY, second_buffer_params, sample);
+				}
+			}
+
+			debug.write(string_printf("filter_%d_%d.exr", filter_area.x, filter_area.y));
+		}
+		else {
+			int f = 4;
+			float a = 1.0f;
+			float k_2 = kg->__data.integrator.weighting_adjust;
+			float *weight = filter_buffer + 16*pass_stride;
+			float *variance = filter_buffer + 19*pass_stride;
+			float *difference = new float[pass_stride];
+			float *blurDifference = new float[pass_stride];
+			int filter_rect[4] = {filter_area.x-rect.x, filter_area.y-rect.y, filter_area.z, filter_area.w};
 			int buffer_params[4] = {offset, stride, kg->__data.film.pass_stride, kg->__data.film.pass_no_denoising};
+
+			memset(XtWX, 0, sizeof(float)*(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)*storage_num);
+			memset(XtWY, 0, sizeof(float3)*(DENOISE_FEATURES+1)*storage_num);
+			for(int i = 0; i < (2*hw+1)*(2*hw+1); i++) {
+				int dy = i / (2*hw+1) - hw;
+				int dx = i % (2*hw+1) - hw;
+
+				int local_rect[4] = {max(0, -dx), max(0, -dy), rect.z-rect.x - max(0, dx), rect.w-rect.y - max(0, dy)};
+				filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, pass_stride, a, k_2);
+				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
+				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
+				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
+				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 16, 19, storage, XtWX, XtWY, local_rect, filter_rect, w, h, 4);
+			}
+			delete[] difference;
+			delete[] blurDifference;
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
 					filter_finalize_kernel()(x + filter_area.x, y + filter_area.y, y*filter_area.z + x, w, h, buffers, storage, XtWX, XtWY, buffer_params, sample);
 				}
 			}
+
 		}
 
 		delete[] storage;
