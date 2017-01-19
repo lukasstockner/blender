@@ -95,7 +95,7 @@ ccl_device void kernel_filter_combine_halves(int x, int y, float *mean, float *v
 
 	if(mean)     mean[idx] = 0.5f * (a[idx]+b[idx]);
 	if(variance) {
-		if(r == 0) variance[idx] = 0.5f * (a[idx]-b[idx])*(a[idx]-b[idx]);
+		if(r == 0) variance[idx] = 0.25f * (a[idx]-b[idx])*(a[idx]-b[idx]);
 		else {
 			variance[idx] = 0.0f;
 			float values[25];
@@ -103,7 +103,7 @@ ccl_device void kernel_filter_combine_halves(int x, int y, float *mean, float *v
 			for(int py = max(y-r, rect.y); py < min(y+r+1, rect.w); py++) {
 				for(int px = max(x-r, rect.x); px < min(x+r+1, rect.z); px++) {
 					int pidx = (py-rect.y)*buffer_w + (px-rect.x);
-					values[numValues++] = 0.5f * (a[pidx]-b[pidx])*(a[pidx]-b[pidx]);
+					values[numValues++] = 0.25f * (a[pidx]-b[pidx])*(a[pidx]-b[pidx]);
 				}
 			}
 			/* Insertion-sort the variances (fast enough for 25 elements). */
