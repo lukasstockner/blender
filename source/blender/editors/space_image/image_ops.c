@@ -3729,6 +3729,7 @@ typedef struct PostprocessJob {
 	short *do_update;
 	short *stop;
 	bool image_outdated;
+	bool release_renderresult;
 	int last_layer;
 
 	ScrArea *sa;
@@ -3747,7 +3748,8 @@ static int postprocess_poll(bContext *C)
 	RenderEngine *engine;
 	int can_postprocess;
 
-	if (!(ima && ima->type == IMA_TYPE_R_RESULT && rr &&
+	if (!(ima && rr &&
+	      ELEM(ima->type, IMA_TYPE_R_RESULT, IMA_TYPE_MULTILAYER) &&
 	      BKE_scene_use_result_postprocess(scene) &&
 	      type->can_postprocess && type->postprocess)) {
 		if (rr) {
@@ -3817,7 +3819,9 @@ static void postprocess_freejob(void *pj)
 {
 	PostprocessJob *job = pj;
 
-	BKE_image_release_renderresult(job->scene, job->ima);
+	if (job->release_renderresult) {
+		BKE_image_release_renderresult(job->scene, job->ima);
+	}
 	MEM_freeN(pj);
 }
 
@@ -4023,7 +4027,8 @@ static void postprocess_image_rect_update(void *pj, RenderResult *rr, volatile r
 	else if (job->image_outdated) {
 		/* update entire render */
 		job->image_outdated = false;
-		BKE_image_signal(ima, NULL, IMA_SIGNAL_COLORMANAGE);
+		if (ima->type != IMA_TYPE_MULTILAYER)
+			BKE_image_signal(ima, NULL, IMA_SIGNAL_COLORMANAGE);
 		*(job->do_update) = true;
 		return;
 	}
@@ -4063,12 +4068,22 @@ static int postprocess_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	Image *ima = CTX_data_edit_image(C);
 	RenderResult *rr = BKE_image_acquire_renderresult(scene, ima);
 	Render *re = RE_NewRender(scene->id.name);
+	ScrArea *sa = CTX_wm_area(C);
 
 	if (WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_POSTPROCESS))
 		return OPERATOR_CANCELLED;
 
 	WM_jobs_kill_all_except(CTX_wm_manager(C), CTX_wm_screen(C));
 	WM_cursor_wait(1);
+
+	bool release_renderresult = true;
+	if (ima->type == IMA_TYPE_MULTILAYER) {
+		rr = RE_DuplicateRenderResult(rr);
+		BKE_image_release_renderresult(scene, ima);
+		ima = BKE_image_verify_viewer(IMA_TYPE_R_RESULT, "Render Result");
+		release_renderresult = false;
+	}
+	sa = render_view_open(C, event->x, event->y, op->reports);
 
 	job = MEM_callocN(sizeof(PostprocessJob), "postprocess job");
 	job->rr = rr;
@@ -4078,7 +4093,8 @@ static int postprocess_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	job->image_outdated = true;
 	job->main = CTX_data_main(C);
 	job->last_layer = 0;
-	job->sa = render_view_open(C, event->x, event->y, op->reports);
+	job->sa = sa;
+	job->release_renderresult = release_renderresult;
 
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Postprocess", WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS, WM_JOB_TYPE_POSTPROCESS);
 	WM_jobs_customdata_set(wm_job, job, postprocess_freejob);

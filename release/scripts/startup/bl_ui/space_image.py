@@ -1241,7 +1241,7 @@ class IMAGE_PT_tools_post_process(Panel):
         rd = context.scene.render
         sima = context.space_data
 
-        return sima.show_render and rd.use_result_postprocess
+        return (sima.image.type in {'MULTILAYER', 'RENDER_RESULT'}) and rd.use_result_postprocess
 
     def draw(self, context):
         layout = self.layout
