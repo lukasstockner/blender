@@ -477,6 +477,10 @@ public:
 
 	void denoise_run(KernelGlobals *kg, int sample, float *filter_buffer, int4 filter_area, int4 rect, int offset, int stride, float *buffers)
 	{
+#ifdef WITH_CYCLES_DEBUG_FPE
+		scoped_fpe fpe(FPE_ENABLED);
+#endif
+
 		bool use_gradients = kg->__data.integrator.use_gradients;
 
 		int hw = kg->__data.integrator.half_window;
