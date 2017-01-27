@@ -809,7 +809,7 @@ void Session::run_denoise()
 		kernel_data.film.pass_stride = buffers->params.get_passes_size();
 		kernel_data.film.pass_denoising = buffers->params.get_denoise_offset();
 		kernel_data.film.pass_no_denoising = buffers->params.selective_denoising? kernel_data.film.pass_denoising+20 : 0;
-		kernel_data.film.denoise_cross = 0;
+		kernel_data.film.denoise_cross = buffers->params.cross_denoising;
 		kernel_data.film.exposure = 1.0f;
 		kernel_data.film.num_frames = buffers->params.frames;
 		kernel_data.film.prev_frames = params.prev_frames;

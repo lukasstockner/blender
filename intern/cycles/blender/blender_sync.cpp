@@ -875,9 +875,12 @@ RenderBuffers* BlenderSync::get_render_buffer(Device *device,
 			denoising_passes |= denoising_type;
 			if(denoising_type == DENOISING_PASS_CLEAN)
 				params.selective_denoising = true;
+			if(denoising_type == DENOISING_PASS_NOISY_B)
+				params.cross_denoising = true;
 		}
 	}
 	params.denoising_passes = ((~denoising_passes & DENOISING_PASS_REQUIRED) == 0);
+	assert(!params.cross_denoising || (denoising_passes & DENOISING_PASS_NOISY_B_VAR));
 
 	RenderBuffers *buffer = new RenderBuffers(device);
 	buffer->reset(device, params);

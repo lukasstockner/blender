@@ -136,6 +136,7 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 				params.full_x = params.full_y = 0;
 				params.denoising_passes = true;
 				params.selective_denoising = (passes & DENOISING_PASS_CLEAN);
+				params.cross_denoising = (passes & DENOISING_PASS_NOISY_B) && (passes & DENOISING_PASS_NOISY_B_VAR);
 				params.frames = numframes;
 
 				buffers = new RenderBuffers(device);
