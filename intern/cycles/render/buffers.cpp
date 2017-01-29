@@ -240,13 +240,19 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 	}
 
 	if(read_pixels) {
-		scale = sample;
+		if(type == DENOISING_PASS_NOISY_B || type == DENOISING_PASS_NOISY_B_VAR) {
+			scale = sample/2;
+		}
+		else {
+			scale = sample;
+		}
 	}
 
 	int pass_offset = params.get_denoise_offset() + type_offset;
+	int pass_stride = params.get_passes_size();
+	assert(pass_offset + components <= pass_stride);
 
 	float *in = (float*)buffer.data_pointer + pass_offset;
-	int pass_stride = params.get_passes_size();
 	in += params.width*params.height*pass_stride * frame;
 
 	if(components == 1) {
