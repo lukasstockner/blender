@@ -70,31 +70,6 @@ ccl_device_inline void filter_get_features(int3 pixel, float ccl_readonly_ptr bu
 #endif
 }
 
-ccl_device_inline void filter_get_feature_variance(float ccl_readonly_ptr buffer, float *features, float ccl_readonly_ptr scale, int pass_stride)
-{
-	float *feature = features;
-	*(feature++) = 0.0f;
-	*(feature++) = 0.0f;
-#ifdef DENOISE_TEMPORAL
-	*(feature++) = 0.0f;
-#endif
-	*(feature++) = ccl_get_feature(7);
-	*(feature++) = ccl_get_feature(1);
-	*(feature++) = ccl_get_feature(3);
-	*(feature++) = ccl_get_feature(5);
-	*(feature++) = 0.0f;//ccl_get_feature(9);
-	*(feature++) = ccl_get_feature(11);
-	*(feature++) = ccl_get_feature(13);
-	*(feature++) = ccl_get_feature(15);
-#ifdef DENOISE_SECOND_ORDER_SCREEN
-	features[10] = 0.0f;
-	features[11] = 0.0f;
-	features[12] = 0.0f;
-#endif
-	for(int i = 0; i < DENOISE_FEATURES; i++)
-		features[i] *= scale[i]*scale[i];
-}
-
 ccl_device_inline void filter_get_feature_scales(int3 pixel, float ccl_readonly_ptr buffer, float *scales, float ccl_readonly_ptr mean, int pass_stride)
 {
 	*(scales++) = fabsf(pixel.x - *(mean++)); //X

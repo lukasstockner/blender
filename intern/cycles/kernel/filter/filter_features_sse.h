@@ -139,44 +139,5 @@ ccl_device_inline void filter_calculate_scale_sse(__m128 *scale)
 	scale[7] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(_mm_sqrt_ps(scale[7])), _mm_set1_ps(0.01f))); //AlbedoB
 }
 
-ccl_device_inline void filter_get_feature_variance_sse(__m128 x, __m128 y, __m128 active_pixels, float ccl_readonly_ptr buffer, __m128 *features, __m128 ccl_readonly_ptr scale, int pass_stride)
-{
-	__m128 *feature = features;
-	*(feature++) = _mm_setzero_ps();
-	*(feature++) = _mm_setzero_ps();
-#ifdef DENOISE_TEMPORAL
-	*(feature++) = _mm_setzero_ps();
-#endif
-	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 7), active_pixels);
-	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 1), active_pixels);
-	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 3), active_pixels);
-	*(feature++) = _mm_mask_ps(ccl_get_feature_sse( 5), active_pixels);
-	*(feature++) = _mm_setzero_ps();//_mm_mask_ps(ccl_get_feature_sse( 9), active_pixels);
-	*(feature++) = _mm_mask_ps(ccl_get_feature_sse(11), active_pixels);
-	*(feature++) = _mm_mask_ps(ccl_get_feature_sse(13), active_pixels);
-	*(feature++) = _mm_mask_ps(ccl_get_feature_sse(15), active_pixels);
-#ifdef DENOISE_SECOND_ORDER_SCREEN
-	features[10] = _mm_setzero_ps();
-	features[11] = _mm_setzero_ps();
-	features[12] = _mm_setzero_ps();
-#endif
-	for(int i = 0; i < DENOISE_FEATURES; i++)
-		features[i] = _mm_mul_ps(features[i], _mm_mul_ps(scale[i], scale[i]));
-}
-
-ccl_device_inline void filter_get_pixel_color_sse(float ccl_readonly_ptr buffer, __m128 active_pixels, __m128 *color, int pass_stride)
-{
-	color[0] = _mm_mask_ps(ccl_get_feature_sse(16), active_pixels);
-	color[1] = _mm_mask_ps(ccl_get_feature_sse(18), active_pixels);
-	color[2] = _mm_mask_ps(ccl_get_feature_sse(20), active_pixels);
-}
-
-ccl_device_inline void filter_get_pixel_variance_3_sse(float ccl_readonly_ptr buffer, __m128 active_pixels, __m128 *var, int pass_stride)
-{
-	var[0] = _mm_mask_ps(ccl_get_feature_sse(17), active_pixels);
-	var[1] = _mm_mask_ps(ccl_get_feature_sse(19), active_pixels);
-	var[2] = _mm_mask_ps(ccl_get_feature_sse(21), active_pixels);
-}
-
 
 CCL_NAMESPACE_END
