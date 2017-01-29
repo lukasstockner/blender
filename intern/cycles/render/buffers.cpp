@@ -65,12 +65,12 @@ bool BufferParams::modified(const BufferParams& params)
 		&& full_y == params.full_y
 		&& width == params.width
 		&& height == params.height
-	        && frames == params.frames
+		&& frames == params.frames
 		&& full_width == params.full_width
 		&& full_height == params.full_height
 		&& final_width == params.final_width
 		&& final_height == params.final_height
-	        && overscan == params.overscan
+		&& overscan == params.overscan
 		&& Pass::equals(passes, params.passes));
 }
 

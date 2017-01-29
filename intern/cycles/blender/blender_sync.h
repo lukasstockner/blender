@@ -99,7 +99,7 @@ public:
 	static RenderBuffers* get_render_buffer(Device *device,
 	                                        BL::RenderLayer& b_rl,
 	                                        BL::RenderResult& b_rr,
-                                                int samples);
+	                                        int samples);
 	static PassType get_pass_type(BL::RenderPass& b_pass);
 	static DenoisingPassType get_denoising_pass_type(BL::RenderPass& b_pass);
 
