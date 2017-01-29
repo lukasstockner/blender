@@ -321,10 +321,26 @@ public:
 		bool cross_denoise = kg->__data.film.denoise_cross;
 		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
 		int pass_stride = w*h*frames;
-		int passes = cross_denoise? 28:22;
+		int passes = cross_denoise? 20 : 14;
 		float *filter_buffers = new float[passes*pass_stride];
 		memset(filter_buffers, 0, sizeof(float)*passes*pass_stride);
 
+		/* Denoising Buffer Pass allocation:
+		 *  0: Normal X
+		 *  1: Normal Y
+		 *  2: Normal Z
+		 *  3: Depth
+		 *  4: Shadowing
+		 *  5: Albedo R
+		 *  6: Albedo G
+		 *  7: Albedo B
+		 *  8: Color R
+		 *  9: Color G
+		 * 10: Color B
+		 * 11: Color Variance R
+		 * 12: Color Variance G
+		 * 13: Color Variance B
+		 * With Cross-denoising passes, this list is essentially repeated two times. */
 
 		for(int frame = 0; frame < frames; frame++) {
 			float *filter_buffer = filter_buffers + w*h*frame;
@@ -332,7 +348,7 @@ public:
 			for(int i = 0; i < 9; i++) {
 				buffer[i] = buffers[i] + frame_strides[i]*frame;
 			}
-			DebugPasses debug((rect.z - rect.x), h, 34, 1, w);
+			DebugPasses debug((rect.z - rect.x), h, 40, 1, w);
 
 #define PASSPTR(i) (filter_buffer + (i)*pass_stride)
 
@@ -340,8 +356,8 @@ public:
 			{
 				/* Reuse some passes of the filter_buffer for temporary storage. */
 				float *sampleV = PASSPTR(0), *sampleVV = PASSPTR(1), *bufferV = PASSPTR(2), *cleanV = PASSPTR(3);
-				float *unfilteredA = PASSPTR(4), *unfilteredB = PASSPTR(5);
-				float *nlm_temp1 = PASSPTR(10), *nlm_temp2 = PASSPTR(11), *nlm_temp3 = PASSPTR(12);
+				float *unfilteredA = PASSPTR(5), *unfilteredB = PASSPTR(6);
+				float *nlm_temp1 = PASSPTR(7), *nlm_temp2 = PASSPTR(8), *nlm_temp3 = PASSPTR(9);
 
 				/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
 				for(int y = rect.y; y < rect.w; y++) {
@@ -382,41 +398,36 @@ public:
 				/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_combine_halves_kernel()(x, y, PASSPTR(8), PASSPTR(9), unfilteredA, unfilteredB, &rect.x, 0);
+						filter_combine_halves_kernel()(x, y, PASSPTR(4), NULL, unfilteredA, unfilteredB, &rect.x, 0);
 					}
 				}
-				debug.add_pass("shadowFinal", PASSPTR(8));
-				debug.add_pass("shadowFinalV", PASSPTR(9));
+				debug.add_pass("shadowFinal", PASSPTR(4));
 			}
 
 			/* ==== Step 2: Prefilter general features. ==== */
 			{
 
-				float *unfiltered = PASSPTR(16);
-				float *nlm_temp1 = PASSPTR(17), *nlm_temp2 = PASSPTR(18), *nlm_temp3 = PASSPTR(19);
+				float *unfiltered = PASSPTR(8), *variance = PASSPTR(9);
+				float *nlm_temp1 = PASSPTR(10), *nlm_temp2 = PASSPTR(11), *nlm_temp3 = PASSPTR(12);
 				/* Order in render buffers:
 				 *   Normal[X, Y, Z] NormalVar[X, Y, Z] Albedo[R, G, B] AlbedoVar[R, G, B ] Depth DepthVar
 				 *          0  1  2            3  4  5         6  7  8            9  10 11  12    13
-				 *
-				 * Order in denoise buffer:
-				 *   Normal[X, XVar, Y, YVar, Z, ZVar] Depth DepthVar Shadow ShadowVar Albedo[R, RVar, G, GVar, B, BVar] Color[R, RVar, G, GVar, B, BVar]
-				 *          0  1     2  3     4  5     6     7        8      9                10 11    12 13    14 15          16 17    18 19    20 21
 				 *
 				 * Order of processing: |NormalXYZ|Depth|AlbedoXYZ |
 				 *                      |         |     |          | */
 				int mean_from[]      = { 0, 1, 2,   6,    7,  8, 12 };
 				int variance_from[]  = { 3, 4, 5,   9,   10, 11, 13 };
-				int offset_to[]      = { 0, 2, 4,  10,   12, 14,  6 };
+				int mean_to[]        = { 1, 2, 3,   0,    5,  6,  7 };
 				for(int i = 0; i < 7; i++) {
 					for(int y = rect.y; y < rect.w; y++) {
 						for(int x = rect.x; x < rect.z; x++) {
-							filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, unfiltered, PASSPTR(offset_to[i]+1), &rect.x);
+							filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, unfiltered, variance, &rect.x);
 						}
 					}
-					non_local_means(rect, unfiltered, unfiltered, PASSPTR(offset_to[i]), PASSPTR(offset_to[i]+1), nlm_temp1, nlm_temp2, nlm_temp3, 2, 2, 1, 0.25f);
+					non_local_means(rect, unfiltered, unfiltered, PASSPTR(mean_to[i]), variance, nlm_temp1, nlm_temp2, nlm_temp3, 2, 2, 1, 0.25f);
 					debug.add_pass(string_printf("feature%dUnfiltered", i), unfiltered);
-					debug.add_pass(string_printf("feature%dFiltered", i), PASSPTR(offset_to[i]));
-					debug.add_pass(string_printf("feature%dVariance", i), PASSPTR(offset_to[i]+1));
+					debug.add_pass(string_printf("feature%dFiltered", i), PASSPTR(mean_to[i]));
+					debug.add_pass(string_printf("feature%dVariance", i), variance);
 				}
 			}
 
@@ -424,27 +435,14 @@ public:
 
 			/* ==== Step 3: Copy combined color pass. ==== */
 			{
-				if(cross_denoise) {
-					int mean_from[]      = {20, 21, 22, 26, 27, 28};
-					int variance_from[]  = {23, 24, 25, 29, 30, 31};
-					int offset_to[]      = {16, 17, 18, 22, 23, 24};
-					for(int i = 0; i < 6; i++) {
-						for(int y = rect.y; y < rect.w; y++) {
-							for(int x = rect.x; x < rect.z; x++) {
-								filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, PASSPTR(offset_to[i]), PASSPTR(offset_to[i]+3), &rect.x);
-							}
-						}
-					}
-				}
-				else {
-					int mean_from[]      = {20, 21, 22};
-					int variance_from[]  = {23, 24, 25};
-					int offset_to[]      = {16, 17, 18};
-					for(int i = 0; i < 3; i++) {
-						for(int y = rect.y; y < rect.w; y++) {
-							for(int x = rect.x; x < rect.z; x++) {
-								filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, PASSPTR(offset_to[i]), PASSPTR(offset_to[i]+3), &rect.x);
-							}
+				int mean_from[]      = {20, 21, 22, 26, 27, 28};
+				int variance_from[]  = {23, 24, 25, 29, 30, 31};
+				int mean_to[]        = { 8,  9, 10, 14, 15, 16};
+				int variance_to[]    = {11, 12, 13, 17, 18, 19};
+				for(int i = 0; i < (cross_denoise? 6 : 3); i++) {
+					for(int y = rect.y; y < rect.w; y++) {
+						for(int x = rect.x; x < rect.z; x++) {
+							filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, PASSPTR(mean_to[i]), PASSPTR(variance_to[i]), &rect.x);
 						}
 					}
 				}
@@ -452,16 +450,16 @@ public:
 #ifdef WITH_CYCLES_DEBUG_FILTER
 			{
 				float *temp1 = new float[pass_stride], *temp2 = new float[pass_stride], *temp3 = new float[3*pass_stride], *out = new float[3*pass_stride];
-				non_local_means(rect, PASSPTR(16), PASSPTR(16), out, PASSPTR(19), temp1, temp2, temp3, 8, 4, 1, 0.5f, pass_stride, pass_stride);
+				non_local_means(rect, PASSPTR(8), PASSPTR(8), out, PASSPTR(11), temp1, temp2, temp3, 8, 4, 1, 0.5f, pass_stride, pass_stride);
 				debug.add_pass("input0Filtered", out);
 				debug.add_pass("input1Filtered", out+pass_stride);
 				debug.add_pass("input2Filtered", out+2*pass_stride);
-				debug.add_pass("input0Unfiltered", PASSPTR(16));
-				debug.add_pass("input1Unfiltered", PASSPTR(17));
-				debug.add_pass("input2Unfiltered", PASSPTR(18));
-				debug.add_pass("input0Variance", PASSPTR(19));
-				debug.add_pass("input1Variance", PASSPTR(20));
-				debug.add_pass("input2Variance", PASSPTR(21));
+				debug.add_pass("input0Unfiltered", PASSPTR(8));
+				debug.add_pass("input1Unfiltered", PASSPTR(9));
+				debug.add_pass("input2Unfiltered", PASSPTR(10));
+				debug.add_pass("input0Variance", PASSPTR(11));
+				debug.add_pass("input1Variance", PASSPTR(12));
+				debug.add_pass("input2Variance", PASSPTR(13));
 				delete[] temp1;
 				delete[] temp2;
 				delete[] temp3;
@@ -504,8 +502,8 @@ public:
 			int f = 4;
 			float a = 1.0f;
 			float k_2 = kg->__data.integrator.weighting_adjust;
-			float *weight = filter_buffer + 16*pass_stride;
-			float *variance = filter_buffer + 19*pass_stride;
+			float *weight = filter_buffer + 8*pass_stride;
+			float *variance = filter_buffer + 11*pass_stride;
 			float *difference = new float[pass_stride];
 			float *blurDifference = new float[pass_stride];
 			float *outA = new float[3*pass_stride];
@@ -526,7 +524,7 @@ public:
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
 				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 22, 25, storage, XtWX, XtWY, local_rect, first_filter_rect, w, h, 4);
+				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 14, 17, storage, XtWX, XtWY, local_rect, first_filter_rect, w, h, 4);
 			}
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
@@ -539,8 +537,8 @@ public:
 
 			memset(XtWX, 0, sizeof(float)*(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)*storage_num);
 			memset(XtWY, 0, sizeof(float3)*(DENOISE_FEATURES+1)*storage_num);
-			weight = filter_buffer + 22*pass_stride;
-			variance = filter_buffer + 25*pass_stride;
+			weight = filter_buffer + 14*pass_stride;
+			variance = filter_buffer + 17*pass_stride;
 			for(int i = 0; i < (2*hw+1)*(2*hw+1); i++) {
 				int dy = i / (2*hw+1) - hw;
 				int dx = i % (2*hw+1) - hw;
@@ -550,7 +548,7 @@ public:
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
 				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 16, 19, storage, XtWX, XtWY, local_rect, first_filter_rect, w, h, 4);
+				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 8, 11, storage, XtWX, XtWY, local_rect, first_filter_rect, w, h, 4);
 			}
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
@@ -561,8 +559,8 @@ public:
 			debug.add_pass("passBColor1", outB+1*pass_stride);
 			debug.add_pass("passBColor2", outB+2*pass_stride);
 
-			weight = filter_buffer + 16*pass_stride;
-			variance = filter_buffer + 19*pass_stride;
+			weight = filter_buffer + 8*pass_stride;
+			variance = filter_buffer + 11*pass_stride;
 			for(int c = 0; c < 3; c++) {
 				for(int y = 0; y < filter_area.w; y++) {
 					for(int x = 0; x < filter_area.z; x++) {
@@ -592,7 +590,7 @@ public:
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
 				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 16, 19, storage, XtWX, XtWY, local_rect, second_filter_rect, w, h, 4);
+				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 8, 11, storage, XtWX, XtWY, local_rect, second_filter_rect, w, h, 4);
 			}
 			delete[] difference;
 			delete[] blurDifference;
@@ -608,8 +606,8 @@ public:
 			int f = 4;
 			float a = 1.0f;
 			float k_2 = kg->__data.integrator.weighting_adjust;
-			float *weight = filter_buffer + 16*pass_stride;
-			float *variance = filter_buffer + 19*pass_stride;
+			float *weight = filter_buffer + 8*pass_stride;
+			float *variance = filter_buffer + 11*pass_stride;
 			float *difference = new float[pass_stride];
 			float *blurDifference = new float[pass_stride];
 			int filter_rect[4] = {filter_area.x-rect.x, filter_area.y-rect.y, filter_area.z, filter_area.w};
@@ -626,7 +624,7 @@ public:
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
 				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 16, 19, storage, XtWX, XtWY, local_rect, filter_rect, w, h, 4);
+				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 8, 11, storage, XtWX, XtWY, local_rect, filter_rect, w, h, 4);
 			}
 			delete[] difference;
 			delete[] blurDifference;

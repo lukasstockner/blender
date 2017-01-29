@@ -931,6 +931,7 @@ public:
 			return;
 
 		int overscan = rtile.buffers->params.overscan;
+		bool cross_denoise = kernel_globals.film.denoise_cross;
 
 		int hw = kernel_globals.integrator.half_window;
 		int4 filter_area = make_int4(rtile.x + overscan, rtile.y + overscan, rtile.w - 2*overscan, rtile.h - 2*overscan);
@@ -953,7 +954,8 @@ public:
 		int h = (rect.w - rect.y);
 		int frame_stride = w*(rect.w - rect.y);
 		int pass_stride = frame_stride*rtile.buffers->params.frames;
-		cuda_assert(cuMemAlloc(&d_denoise_buffers, 22*pass_stride*sizeof(float)));
+		int passes = cross_denoise? 20 : 14;
+		cuda_assert(cuMemAlloc(&d_denoise_buffers, passes*pass_stride*sizeof(float)));
 #define CUDA_PTR_ADD(ptr, x) ((CUdeviceptr) (((float*) (ptr)) + (x)))
 
 		for(int frame = 0; frame < rtile.buffers->params.frames; frame++) {
@@ -962,22 +964,18 @@ public:
 
 			/* ==== Step 1: Prefilter shadow feature. ==== */
 			{
-				CUdeviceptr d_mean = CUDA_PTR_ADD(d_denoise_buffer, 8*pass_stride);
-				CUdeviceptr d_variance = CUDA_PTR_ADD(d_denoise_buffer, 9*pass_stride);
+				CUdeviceptr d_mean = CUDA_PTR_ADD(d_denoise_buffer, 4*pass_stride);
 				/* Reuse some passes of the filter_buffer for temporary storage. */
 				CUdeviceptr d_sampleV = CUDA_PTR_ADD(d_denoise_buffer, 0*pass_stride);
 				CUdeviceptr d_sampleVV = CUDA_PTR_ADD(d_denoise_buffer, 1*pass_stride);
 				CUdeviceptr d_bufferV = CUDA_PTR_ADD(d_denoise_buffer, 2*pass_stride);
 				CUdeviceptr d_cleanV = CUDA_PTR_ADD(d_denoise_buffer, 3*pass_stride);
-				CUdeviceptr d_unfilteredA = CUDA_PTR_ADD(d_denoise_buffer, 4*pass_stride);
-				CUdeviceptr d_unfilteredB = CUDA_PTR_ADD(d_denoise_buffer, 5*pass_stride);
+				CUdeviceptr d_unfilteredA = CUDA_PTR_ADD(d_denoise_buffer, 5*pass_stride);
+				CUdeviceptr d_unfilteredB = CUDA_PTR_ADD(d_denoise_buffer, 6*pass_stride);
 
-				CUdeviceptr d_temp1 = CUDA_PTR_ADD(d_denoise_buffer, 6*pass_stride);
-				CUdeviceptr d_temp2 = CUDA_PTR_ADD(d_denoise_buffer, 7*pass_stride);
-				/* This buffer actually overlaps one of the final buffers (d_mean).
-				 * That is fine since it's only used during NLM calls, and the final result is written
-				 * after the NLM calls. */
-				CUdeviceptr d_temp3 = CUDA_PTR_ADD(d_denoise_buffer, 8*pass_stride);
+				CUdeviceptr d_temp1 = CUDA_PTR_ADD(d_denoise_buffer, 7*pass_stride);
+				CUdeviceptr d_temp2 = CUDA_PTR_ADD(d_denoise_buffer, 8*pass_stride);
+				CUdeviceptr d_temp3 = CUDA_PTR_ADD(d_denoise_buffer, 9*pass_stride);
 
 				CUdeviceptr d_null = (CUdeviceptr) 0;
 				/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
@@ -1013,7 +1011,7 @@ public:
 
 				/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
 				var_r = 0;
-				void *final_prefiltered_args[] = {&d_mean, &d_variance,
+				void *final_prefiltered_args[] = {&d_mean, &d_null,
 				                                  &d_unfilteredA, &d_unfilteredB,
 				                                  &rect, &var_r};
 				cuda_assert(cuLaunchKernel(cuFilterCombineHalves,
@@ -1025,17 +1023,17 @@ public:
 
 			/* ==== Step 2: Prefilter general features. ==== */
 			{
-				CUdeviceptr d_temp1 = CUDA_PTR_ADD(d_denoise_buffer, 17*pass_stride);
-				CUdeviceptr d_temp2 = CUDA_PTR_ADD(d_denoise_buffer, 18*pass_stride);
-				CUdeviceptr d_temp3 = CUDA_PTR_ADD(d_denoise_buffer, 19*pass_stride);
+				CUdeviceptr d_unfiltered = CUDA_PTR_ADD(d_denoise_buffer, 8*pass_stride);
+				CUdeviceptr d_variance   = CUDA_PTR_ADD(d_denoise_buffer, 9*pass_stride);
+				CUdeviceptr d_temp1      = CUDA_PTR_ADD(d_denoise_buffer, 10*pass_stride);
+				CUdeviceptr d_temp2      = CUDA_PTR_ADD(d_denoise_buffer, 11*pass_stride);
+				CUdeviceptr d_temp3      = CUDA_PTR_ADD(d_denoise_buffer, 12*pass_stride);
 
 				int mean_from[]      = { 0, 1, 2,  6,  7,  8, 12 };
 				int variance_from[]  = { 3, 4, 5,  9, 10, 11, 13 };
-				int offset_to[]      = { 0, 2, 4, 10, 12, 14,  6 };
+				int mean_to[]        = { 1, 2, 3,  0,  5,  6,  7 };
 				for(int i = 0; i < 7; i++) {
-					CUdeviceptr d_mean = CUDA_PTR_ADD(d_denoise_buffer, offset_to[i]*pass_stride);
-					CUdeviceptr d_variance = CUDA_PTR_ADD(d_denoise_buffer, (offset_to[i]+1)*pass_stride);
-					CUdeviceptr d_unfiltered = CUDA_PTR_ADD(d_denoise_buffer, 16*pass_stride);
+					CUdeviceptr d_mean = CUDA_PTR_ADD(d_denoise_buffer, mean_to[i]*pass_stride);
 
 					void *get_feature_args[] = {&sample, &d_buffer, &mean_from[i], &variance_from[i],
 					                            &buffer_area,
@@ -1047,18 +1045,18 @@ public:
 					                           xthreads, ythreads, 1, /* threads */
 					                           0, 0, get_feature_args, 0));
 
-					/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
+					/* Smooth the feature using non-local means. */
 					non_local_means(rect, d_unfiltered, d_unfiltered, d_mean, d_variance, d_temp1, d_temp2, d_temp3, 4, 2, 1.0f, 0.25f);
 				}
 			}
 
 			/* ==== Step 3: Copy combined color pass. ==== */
 			{
-				int mean_from[]      = {20, 21, 22};
-				int variance_from[]  = {23, 24, 25};
-				int mean_to[]        = {16, 17, 18};
-				int variance_to[]    = {19, 20, 21};
-				for(int i = 0; i < 3; i++) {
+				int mean_from[]      = {20, 21, 22, 26, 27, 28};
+				int variance_from[]  = {23, 24, 25, 29, 30, 31};
+				int mean_to[]        = { 8,  9, 10, 14, 15, 16};
+				int variance_to[]    = {11, 12, 13, 17, 18, 19};
+				for(int i = 0; i < (cross_denoise? 6 : 3); i++) {
 					CUdeviceptr d_mean = CUDA_PTR_ADD(d_denoise_buffer, mean_to[i]*pass_stride);
 					CUdeviceptr d_variance = CUDA_PTR_ADD(d_denoise_buffer, variance_to[i]*pass_stride);
 
@@ -1119,11 +1117,11 @@ public:
 		int f = 4;
 		float a = 1.0f;
 		float k_2 = kernel_globals.integrator.weighting_adjust;
-		int color_pass = 16;
-		int variance_pass = 19;
+		int color_pass = 8;
+		int variance_pass = 11;
 
-		CUdeviceptr color_buffer = CUDA_PTR_ADD(d_denoise_buffers, 16*pass_stride);
-		CUdeviceptr variance_buffer = CUDA_PTR_ADD(d_denoise_buffers, 19*pass_stride);
+		CUdeviceptr color_buffer = CUDA_PTR_ADD(d_denoise_buffers, 8*pass_stride);
+		CUdeviceptr variance_buffer = CUDA_PTR_ADD(d_denoise_buffers, 11*pass_stride);
 		CUdeviceptr d_difference, d_blurDifference, d_XtWX, d_XtWY;
 		cuda_assert(cuMemAlloc(&d_difference, pass_stride*sizeof(float)));
 		cuda_assert(cuMemAlloc(&d_blurDifference, pass_stride*sizeof(float)));

@@ -58,14 +58,14 @@ ccl_device_inline void filter_get_features_sse(__m128 x, __m128 y, __m128 t, __m
 #ifdef DENOISE_TEMPORAL
 	*(feature++) = t;
 #endif
-	*(feature++) = ccl_get_feature_sse(6);
 	*(feature++) = ccl_get_feature_sse(0);
+	*(feature++) = ccl_get_feature_sse(1);
 	*(feature++) = ccl_get_feature_sse(2);
+	*(feature++) = ccl_get_feature_sse(3);
 	*(feature++) = ccl_get_feature_sse(4);
-	*(feature++) = ccl_get_feature_sse(8);
-	*(feature++) = ccl_get_feature_sse(10);
-	*(feature++) = ccl_get_feature_sse(12);
-	*(feature++) = ccl_get_feature_sse(14);
+	*(feature++) = ccl_get_feature_sse(5);
+	*(feature++) = ccl_get_feature_sse(6);
+	*(feature++) = ccl_get_feature_sse(7);
 	if(mean) {
 		for(int i = 0; i < DENOISE_FEATURES; i++)
 			features[i] = _mm_mask_ps(_mm_sub_ps(features[i], mean[i]), active_pixels);
@@ -89,26 +89,26 @@ ccl_device_inline void filter_get_feature_scales_sse(__m128 x, __m128 y, __m128 
 	*(scales++) = _mm_mask_ps(_mm_fabs_ps(_mm_sub_ps(t, *(mean++))), active_pixels); //T
 #endif
 
-	*(scales++) = _mm_mask_ps(_mm_fabs_ps(_mm_sub_ps(ccl_get_feature_sse(6), *(mean++))), active_pixels); //Depth
+	*(scales++) = _mm_mask_ps(_mm_fabs_ps(_mm_sub_ps(ccl_get_feature_sse(0), *(mean++))), active_pixels); //Depth
 
-	__m128 diff = _mm_sub_ps(ccl_get_feature_sse(0), mean[0]);
+	__m128 diff = _mm_sub_ps(ccl_get_feature_sse(1), mean[0]);
 	__m128 scale3 = _mm_mul_ps(diff, diff);
 	diff = _mm_sub_ps(ccl_get_feature_sse(2), mean[1]);
 	scale3 = _mm_add_ps(scale3, _mm_mul_ps(diff, diff));
-	diff = _mm_sub_ps(ccl_get_feature_sse(4), mean[2]);
+	diff = _mm_sub_ps(ccl_get_feature_sse(3), mean[2]);
 	scale3 = _mm_add_ps(scale3, _mm_mul_ps(diff, diff));
 	mean += 3;
 	*(scales++) = _mm_mask_ps(scale3, active_pixels); //NormalX
 	*(scales++) = _mm_mask_ps(scale3, active_pixels); //NormalY
 	*(scales++) = _mm_mask_ps(scale3, active_pixels); //NormalZ
 
-	*(scales++) = _mm_mask_ps(_mm_fabs_ps(_mm_sub_ps(ccl_get_feature_sse(8), *(mean++))), active_pixels); //Shadow
+	*(scales++) = _mm_mask_ps(_mm_fabs_ps(_mm_sub_ps(ccl_get_feature_sse(4), *(mean++))), active_pixels); //Shadow
 
-	diff = _mm_sub_ps(ccl_get_feature_sse(10), mean[0]);
+	diff = _mm_sub_ps(ccl_get_feature_sse(5), mean[0]);
 	scale3 = _mm_mul_ps(diff, diff);
-	diff = _mm_sub_ps(ccl_get_feature_sse(12), mean[1]);
+	diff = _mm_sub_ps(ccl_get_feature_sse(6), mean[1]);
 	scale3 = _mm_add_ps(scale3, _mm_mul_ps(diff, diff));
-	diff = _mm_sub_ps(ccl_get_feature_sse(14), mean[2]);
+	diff = _mm_sub_ps(ccl_get_feature_sse(7), mean[2]);
 	scale3 = _mm_add_ps(scale3, _mm_mul_ps(diff, diff));
 	mean += 3;
 	*(scales++) = _mm_mask_ps(scale3, active_pixels); //AlbedoR

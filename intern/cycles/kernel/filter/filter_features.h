@@ -51,14 +51,14 @@ ccl_device_inline void filter_get_features(int3 pixel, float ccl_readonly_ptr bu
 #ifdef DENOISE_TEMPORAL
 	*(feature++) = pixel.z;
 #endif
-	*(feature++) = ccl_get_feature(6);
 	*(feature++) = ccl_get_feature(0);
+	*(feature++) = ccl_get_feature(1);
 	*(feature++) = ccl_get_feature(2);
+	*(feature++) = ccl_get_feature(3);
 	*(feature++) = ccl_get_feature(4);
-	*(feature++) = ccl_get_feature(8);
-	*(feature++) = ccl_get_feature(10);
-	*(feature++) = ccl_get_feature(12);
-	*(feature++) = ccl_get_feature(14);
+	*(feature++) = ccl_get_feature(5);
+	*(feature++) = ccl_get_feature(6);
+	*(feature++) = ccl_get_feature(7);
 	if(mean) {
 		for(int i = 0; i < DENOISE_FEATURES; i++)
 			features[i] -= mean[i];
@@ -78,17 +78,17 @@ ccl_device_inline void filter_get_feature_scales(int3 pixel, float ccl_readonly_
 	*(scales++) = fabsf(pixel.z - *(mean++)); //T
 #endif
 
-	*(scales++) = fabsf(ccl_get_feature(6) - *(mean++)); //Depth
+	*(scales++) = fabsf(ccl_get_feature(0) - *(mean++)); //Depth
 
-	float normalS = len_squared(make_float3(ccl_get_feature(0) - mean[0], ccl_get_feature(2) - mean[1], ccl_get_feature(4) - mean[2]));
+	float normalS = len_squared(make_float3(ccl_get_feature(1) - mean[0], ccl_get_feature(2) - mean[1], ccl_get_feature(3) - mean[2]));
 	mean += 3;
 	*(scales++) = normalS; //NormalX
 	*(scales++) = normalS; //NormalY
 	*(scales++) = normalS; //NormalZ
 
-	*(scales++) = fabsf(ccl_get_feature(8) - *(mean++)); //Shadow
+	*(scales++) = fabsf(ccl_get_feature(4) - *(mean++)); //Shadow
 
-	float normalT = len_squared(make_float3(ccl_get_feature(10) - mean[0], ccl_get_feature(12) - mean[1], ccl_get_feature(14) - mean[2]));
+	float normalT = len_squared(make_float3(ccl_get_feature(5) - mean[0], ccl_get_feature(6) - mean[1], ccl_get_feature(7) - mean[2]));
 	mean += 3;
 	*(scales++) = normalT; //AlbedoR
 	*(scales++) = normalT; //AlbedoG
