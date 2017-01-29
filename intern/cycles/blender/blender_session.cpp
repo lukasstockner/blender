@@ -1343,34 +1343,34 @@ void BlenderSession::denoise(BL::RenderResult& b_rr)
 
 	BL::RenderResult::layers_iterator b_layer_iter;
 	for(b_rr.layers.begin(b_layer_iter); b_layer_iter != b_rr.layers.end(); ++b_layer_iter) {
-		/* Search corresponding scene layer to get the half window. */
+		b_rlay_name = b_layer_iter->name();
+
+		/* Search corresponding scene layer to get the denoising properties. */
 		BL::RenderSettings r = b_scene.render();
 		BL::RenderSettings::layers_iterator b_s_layer_iter;
-		int half_window = -1;
-		float filter_strength = 0.0f;
-		float weight_adjust = 0.0f;
-		bool filter_gradient;
+		BL::SceneRenderLayer b_s_layer = r.layers.active();
 		for(r.layers.begin(b_s_layer_iter); b_s_layer_iter != r.layers.end(); ++b_s_layer_iter) {
 			if(b_s_layer_iter->name() == b_layer_iter->name()) {
-				half_window = b_s_layer_iter->half_window();
-				filter_strength = b_s_layer_iter->filter_strength();
-				weight_adjust = b_s_layer_iter->filter_weighting_adjust();
-				filter_gradient = b_s_layer_iter->filter_gradients();
+				b_s_layer = *b_s_layer_iter;
 				break;
 			}
 		}
-		assert(half_window != -1);
 
-		session->params.half_window = half_window;
 		session->params.samples = get_int(cscene, "samples");
 		if(get_boolean(cscene, "use_square_samples")) {
 			session->params.samples *= session->params.samples;
 		}
-		session->params.filter_strength = (filter_strength == 0.0f)? 1e-3f : copysignf(powf(10.0f, -fabsf(filter_strength)*2.0f), filter_strength);
-		session->params.filter_weight_adjust = powf(2.0f, weight_adjust - 1.0f);
-		session->params.filter_gradient = filter_gradient;
 
 		session->buffers = BlenderSync::get_render_buffer(session->device, *b_layer_iter, b_rr, session->params.samples);
+		if(!session->buffers) {
+			continue;
+		}
+
+		session->params.half_window = b_s_layer.half_window();
+		float filter_strength = b_s_layer.filter_strength();
+		session->params.filter_strength = (filter_strength == 0.0f)? 1e-3f : copysignf(powf(10.0f, -fabsf(filter_strength)*2.0f), filter_strength);
+		session->params.filter_weight_adjust = powf(2.0f, b_s_layer.filter_weighting_adjust() - 1.0f);
+		session->params.filter_gradient = b_s_layer.filter_gradients();
 
 		session->start_denoise();
 		session->wait();
