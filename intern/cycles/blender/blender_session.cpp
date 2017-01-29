@@ -1371,6 +1371,7 @@ void BlenderSession::denoise(BL::RenderResult& b_rr)
 		session->params.filter_strength = (filter_strength == 0.0f)? 1e-3f : copysignf(powf(10.0f, -fabsf(filter_strength)*2.0f), filter_strength);
 		session->params.filter_weight_adjust = powf(2.0f, b_s_layer.filter_weighting_adjust() - 1.0f);
 		session->params.filter_gradient = b_s_layer.filter_gradients();
+		session->params.filter_cross = b_s_layer.filter_cross() && session->buffers->params.cross_denoising;
 
 		session->start_denoise();
 		session->wait();

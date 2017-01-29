@@ -68,6 +68,7 @@ public:
 	float filter_weight_adjust;
 	bool filter_gradient;
 	int prev_frames;
+	bool filter_cross;
 
 	double cancel_timeout;
 	double reset_timeout;
@@ -102,6 +103,7 @@ public:
 		filter_weight_adjust = 1.0f;
 		filter_gradient = false;
 		prev_frames = 0;
+		filter_cross = false;
 
 		cancel_timeout = 0.1;
 		reset_timeout = 0.1;
@@ -131,6 +133,7 @@ public:
 		&& filter_strength == params.filter_strength
 		&& filter_weight_adjust == params.filter_weight_adjust
 		&& filter_gradient == params.filter_gradient
+		&& filter_cross == params.filter_cross
 		&& prev_frames == params.prev_frames
 		&& display_buffer_linear == params.display_buffer_linear
 		&& cancel_timeout == params.cancel_timeout

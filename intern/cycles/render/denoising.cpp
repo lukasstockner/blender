@@ -237,6 +237,7 @@ bool denoise_standalone(SessionParams &session_params,
 
 	buffers->copy_to_device();
 	session->buffers = buffers;
+	session->params.filter_cross = buffers->params.cross_denoising;
 
 	session->start_denoise();
 	session->wait();
