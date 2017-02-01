@@ -496,6 +496,8 @@ void Session::release_tile(RenderTile& rtile)
 {
 	thread_scoped_lock tile_lock(tile_mutex);
 
+	progress.add_finished_tile();
+
 	bool delete_tile;
 
 	if(tile_manager.return_tile(rtile.tile_index, delete_tile)) {
@@ -994,11 +996,11 @@ void Session::update_status_time(bool show_pause, bool show_done)
 
 		substatus = string_printf("Path Tracing Tile %d/%d", tile, num_tiles);
 
-		if(device->show_samples() || (is_cpu && is_last_tile))
-		{
+		if(device->show_samples() || (is_cpu && is_last_tile)) {
 			/* Some devices automatically support showing the sample number:
 			 * - CUDADevice
-			 * - OpenCLDevice when using the megakernel (the split kernel renders multiple samples at the same time, so the current sample isn't really defined)
+			 * - OpenCLDevice when using the megakernel (the split kernel renders multiple
+			 *   samples at the same time, so the current sample isn't really defined)
 			 * - CPUDevice when using one thread
 			 * For these devices, the current sample is always shown.
 			 *

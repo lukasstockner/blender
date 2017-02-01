@@ -217,7 +217,7 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
         draw_samples_info(layout, context)
 
 
-class CyclesRender_PT_geometery(CyclesButtonsPanel, Panel):
+class CyclesRender_PT_geometry(CyclesButtonsPanel, Panel):
     bl_label = "Geometry"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -226,6 +226,7 @@ class CyclesRender_PT_geometery(CyclesButtonsPanel, Panel):
 
         scene = context.scene
         cscene = scene.cycles
+        ccscene = scene.cycles_curves
 
         if cscene.feature_set == 'EXPERIMENTAL':
             split = layout.split()
@@ -251,6 +252,25 @@ class CyclesRender_PT_geometery(CyclesButtonsPanel, Panel):
             row = layout.row()
             row.prop(cscene, "volume_step_size")
             row.prop(cscene, "volume_max_steps")
+
+        layout.prop(ccscene, "use_curves", text="Use Hair")
+        col = layout.column()
+        col.active = ccscene.use_curves
+
+        col.prop(ccscene, "primitive", text="Primitive")
+        col.prop(ccscene, "shape", text="Shape")
+
+        if not (ccscene.primitive in {'CURVE_SEGMENTS', 'LINE_SEGMENTS'} and ccscene.shape == 'RIBBONS'):
+            col.prop(ccscene, "cull_backfacing", text="Cull back-faces")
+
+        if ccscene.primitive == 'TRIANGLES' and ccscene.shape == 'THICK':
+            col.prop(ccscene, "resolution", text="Resolution")
+        elif ccscene.primitive == 'CURVE_SEGMENTS':
+            col.prop(ccscene, "subdivisions", text="Curve subdivisions")
+
+        row = col.row()
+        row.prop(ccscene, "minimum_width", text="Min Pixels")
+        row.prop(ccscene, "maximum_width", text="Max Ext.")
 
 
 class CyclesRender_PT_light_paths(CyclesButtonsPanel, Panel):
@@ -412,6 +432,10 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
         col.prop(cscene, "debug_use_spatial_splits")
         col.prop(cscene, "debug_use_hair_bvh")
 
+        row = col.row()
+        row.active = not cscene.debug_use_spatial_splits
+        row.prop(cscene, "debug_bvh_time_steps")
+
 
 class CyclesRender_PT_layer_options(CyclesButtonsPanel, Panel):
     bl_label = "Layer"
@@ -511,9 +535,10 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
 
         if _cycles.with_cycles_debug:
           col = layout.column()
-          col.prop(crl, "pass_debug_bvh_traversal_steps")
+          col.prop(crl, "pass_debug_bvh_traversed_nodes")
           col.prop(crl, "pass_debug_bvh_traversed_instances")
           col.prop(crl, "pass_debug_ray_bounces")
+          col.prop(crl, "pass_debug_bvh_intersections")
 
 
 class CyclesRender_PT_views(CyclesButtonsPanel, Panel):
@@ -814,10 +839,13 @@ class CyclesObject_PT_cycles_settings(CyclesButtonsPanel, Panel):
         col = layout.column()
         col.label(text="Performance:")
         row = col.row()
-        row.active = scene.render.use_simplify and cscene.use_camera_cull
-        row.prop(cob, "use_camera_cull")
-        row.active = scene.render.use_simplify and cscene.use_distance_cull
-        row.prop(cob, "use_distance_cull")
+        sub = row.row()
+        sub.active = scene.render.use_simplify and cscene.use_camera_cull
+        sub.prop(cob, "use_camera_cull")
+
+        sub = row.row()
+        sub.active = scene.render.use_simplify and cscene.use_distance_cull
+        sub.prop(cob, "use_distance_cull")
 
 
 class CYCLES_OT_use_shading_nodes(Operator):
@@ -1058,10 +1086,11 @@ class CyclesWorld_PT_ambient_occlusion(CyclesButtonsPanel, Panel):
         layout = self.layout
 
         light = context.world.light_settings
+        scene = context.scene
 
         row = layout.row()
         sub = row.row()
-        sub.active = light.use_ambient_occlusion
+        sub.active = light.use_ambient_occlusion or scene.render.use_simplify
         sub.prop(light, "ao_factor", text="Factor")
         row.prop(light, "distance", text="Distance")
 
@@ -1438,43 +1467,6 @@ class CyclesParticle_PT_textures(CyclesButtonsPanel, Panel):
             layout.template_ID(slot, "texture", new="texture.new")
 
 
-class CyclesRender_PT_CurveRendering(CyclesButtonsPanel, Panel):
-    bl_label = "Cycles Hair Rendering"
-    bl_context = "particle"
-
-    @classmethod
-    def poll(cls, context):
-        psys = context.particle_system
-        return CyclesButtonsPanel.poll(context) and psys and psys.settings.type == 'HAIR'
-
-    def draw_header(self, context):
-        ccscene = context.scene.cycles_curves
-        self.layout.prop(ccscene, "use_curves", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        ccscene = scene.cycles_curves
-
-        layout.active = ccscene.use_curves
-
-        layout.prop(ccscene, "primitive", text="Primitive")
-        layout.prop(ccscene, "shape", text="Shape")
-
-        if not (ccscene.primitive in {'CURVE_SEGMENTS', 'LINE_SEGMENTS'} and ccscene.shape == 'RIBBONS'):
-            layout.prop(ccscene, "cull_backfacing", text="Cull back-faces")
-
-        if ccscene.primitive == 'TRIANGLES' and ccscene.shape == 'THICK':
-            layout.prop(ccscene, "resolution", text="Resolution")
-        elif ccscene.primitive == 'CURVE_SEGMENTS':
-            layout.prop(ccscene, "subdivisions", text="Curve subdivisions")
-
-        row = layout.row()
-        row.prop(ccscene, "minimum_width", text="Min Pixels")
-        row.prop(ccscene, "maximum_width", text="Max Ext.")
-
-
 class CyclesRender_PT_bake(CyclesButtonsPanel, Panel):
     bl_label = "Bake"
     bl_context = "render"
@@ -1668,6 +1660,13 @@ class CyclesScene_PT_simplify(CyclesButtonsPanel, Panel):
         row = col.row()
         row.active = cscene.use_distance_cull
         row.prop(cscene, "distance_cull_margin", text="Distance")
+
+        split = layout.split()
+        col = split.column()
+        col.prop(cscene, "ao_bounces")
+
+        col = split.column()
+        col.prop(cscene, "ao_bounces_render")
 
 def draw_device(self, context):
     scene = context.scene
