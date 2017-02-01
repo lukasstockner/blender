@@ -103,6 +103,8 @@ public:
 	static PassType get_pass_type(BL::RenderPass& b_pass);
 	static DenoisingPassType get_denoising_pass_type(BL::RenderPass& b_pass);
 
+	static DeviceInfo get_device_info(BL::UserPreferences& b_userpref, int device_type);
+
 private:
 	/* sync */
 	void sync_lamps(bool update_all);

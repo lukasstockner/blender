@@ -137,6 +137,24 @@ void python_thread_state_restore(void **python_thread_state)
 	*python_thread_state = NULL;
 }
 
+static PointerRNA get_user_preferences()
+{
+	PyObject *bpy = PyImport_ImportModule("bpy");
+	PyObject *pycontext = PyObject_GetAttrString(bpy, "context");
+	PyObject *pyuserpref = PyObject_GetAttrString(pycontext, "user_preferences");
+	PyObject *pyptr = PyObject_CallMethod(pyuserpref, "as_pointer", NULL);
+
+	PointerRNA ptr;
+	RNA_pointer_create(NULL, &RNA_UserPreferences, (void*)PyLong_AsVoidPtr(pyptr), &ptr);
+
+	Py_DECREF(pyptr);
+	Py_DECREF(pyuserpref);
+	Py_DECREF(pycontext);
+	Py_DECREF(bpy);
+
+	return ptr;
+}
+
 static const char *PyC_UnicodeAsByte(PyObject *py_str, PyObject **coerce)
 {
 	const char *result = _PyUnicode_AsString(py_str);
@@ -751,17 +769,20 @@ static PyObject *denoise_files_func(PyObject * /*self*/, PyObject *args, PyObjec
 	session_params.threads = 0;
 
 	PyObject *pyframelist;
-	int midframe, half_output = 0;
+	int midframe, half_output = 0, use_gpu = 0;
 	const char *output = NULL;
 
-	static const char* keylist[] = {"frames", "midframe", "output", "half_float", "samples", "threads", "tile_x", "tile_y", "filter_strength", "filter_weight_adjust"};
-	if(!PyArg_ParseTupleAndKeywords(args, keywords, "Ois|piiiiff", const_cast<char **>(keylist), &pyframelist, &midframe, &output, &half_output,
+	static const char* keylist[] = {"frames", "midframe", "output", "half_float", "use_gpu", "samples", "threads", "tile_x", "tile_y", "filter_strength", "filter_weight_adjust"};
+	if(!PyArg_ParseTupleAndKeywords(args, keywords, "Ois|ppiiiiff", const_cast<char **>(keylist), &pyframelist, &midframe, &output, &half_output, &use_gpu,
 	                                &session_params.samples, &session_params.threads, &session_params.tile_size.x, &session_params.tile_size.y,
 	                                &session_params.filter_strength, &session_params.filter_weight_adjust)) {
 		return NULL;
 	}
 	session_params.output_half_float = (half_output > 0);
 	session_params.output_path = string(output);
+
+	BL::UserPreferences b_userpref(get_user_preferences());
+	session_params.device = BlenderSync::get_device_info(b_userpref, use_gpu);
 
 	int numframes = PyList_Size(pyframelist);
 	if(numframes < 1) {
