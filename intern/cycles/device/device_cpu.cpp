@@ -348,7 +348,7 @@ public:
 			for(int i = 0; i < 9; i++) {
 				buffer[i] = buffers[i] + frame_strides[i]*frame;
 			}
-			DebugPasses debug((rect.z - rect.x), h, 40, 1, w);
+			DebugPasses debug((rect.z - rect.x), h, 42, 1, w);
 
 #define PASSPTR(i) (filter_buffer + (i)*pass_stride)
 
@@ -447,6 +447,7 @@ public:
 					}
 				}
 			}
+
 #ifdef WITH_CYCLES_DEBUG_FILTER
 			{
 				float *temp1 = new float[pass_stride], *temp2 = new float[pass_stride], *temp3 = new float[3*pass_stride], *out = new float[3*pass_stride];
@@ -464,8 +465,8 @@ public:
 				delete[] temp2;
 				delete[] temp3;
 				delete[] out;
-#endif
 			}
+#endif
 
 			debug.write(string_printf("debug_tile_%d_%d.exr", rect.x, rect.y));
 		}
