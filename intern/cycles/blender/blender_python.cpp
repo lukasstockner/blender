@@ -754,9 +754,10 @@ static PyObject *denoise_files_func(PyObject * /*self*/, PyObject *args, PyObjec
 	int midframe, half_output = 0;
 	const char *output = NULL;
 
-	static const char* keylist[] = {"frames", "midframe", "output", "half_float", "samples", "threads", "tile_x", "tile_y", "filter_strength"};
-	if(!PyArg_ParseTupleAndKeywords(args, keywords, "Ois|piiiif", const_cast<char **>(keylist), &pyframelist, &midframe, &output, &half_output,
-	                                &session_params.samples, &session_params.threads, &session_params.tile_size.x, &session_params.tile_size.y, &session_params.filter_strength)) {
+	static const char* keylist[] = {"frames", "midframe", "output", "half_float", "samples", "threads", "tile_x", "tile_y", "filter_strength", "filter_weight_adjust"};
+	if(!PyArg_ParseTupleAndKeywords(args, keywords, "Ois|piiiiff", const_cast<char **>(keylist), &pyframelist, &midframe, &output, &half_output,
+	                                &session_params.samples, &session_params.threads, &session_params.tile_size.x, &session_params.tile_size.y,
+	                                &session_params.filter_strength, &session_params.filter_weight_adjust)) {
 		return NULL;
 	}
 	session_params.output_half_float = (half_output > 0);

@@ -89,7 +89,7 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 	string layer, pass, channel;
 	for(int i = 0; i < spec.nchannels; i++) {
 		if(!split_channel(spec.channelnames[i], layer, pass, channel)) continue;
-		if(pass == "DenoiseNoisy") {
+		if(pass == "Denoising Noisy") {
 			renderlayer = layer;
 			break;
 		}
@@ -215,7 +215,6 @@ bool denoise_standalone(SessionParams &session_params,
 	session_params.tile_order = TILE_BOTTOM_TO_TOP;
 	session_params.flip_output = false;
 	session_params.prev_frames = mid_frame;
-	session_params.filter_weight_adjust /= 2.0f;
 
 	Session *session = new Session(session_params);
 	session->set_pause(false);

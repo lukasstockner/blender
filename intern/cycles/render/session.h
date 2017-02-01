@@ -99,8 +99,8 @@ public:
 
 		only_denoise = false;
 		half_window = 8;
-		filter_strength = 1.0f;
-		filter_weight_adjust = 1.0f;
+		filter_strength = 1e-3f;
+		filter_weight_adjust = 0.5f;
 		filter_gradient = false;
 		prev_frames = 0;
 		filter_cross = false;
