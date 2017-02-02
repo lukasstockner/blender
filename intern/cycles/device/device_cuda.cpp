@@ -24,6 +24,8 @@
 
 #include "buffers.h"
 
+#include "filter_defines.h"
+
 #ifdef WITH_CUDA_DYNLOAD
 #  include "cuew.h"
 #else
@@ -84,7 +86,7 @@ public:
 	DedicatedTaskPool task_pool;
 	CUdevice cuDevice;
 	CUcontext cuContext;
-	CUmodule cuModule;
+	CUmodule cuModule, cuFilterModule;
 	map<device_ptr, bool> tex_interp_map;
 	map<device_ptr, uint> tex_bindless_map;
 	int cuDevId;
@@ -321,8 +323,10 @@ public:
 		return true;
 	}
 
-	string compile_kernel(const DeviceRequestedFeatures& requested_features)
+	string compile_kernel(const DeviceRequestedFeatures& requested_features, bool filter)
 	{
+		const char *name = filter? "kernel_filter" : "kernel";
+		const char *source = filter? "filter.cu" : "kernel.cu";
 		/* Compute cubin name. */
 		int major, minor;
 		cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, cuDevId);
@@ -330,8 +334,8 @@ public:
 
 		/* Attempt to use kernel provided with Blender. */
 		if(!use_adaptive_compilation()) {
-			const string cubin = path_get(string_printf("lib/kernel_sm_%d%d.cubin",
-			                                            major, minor));
+			const string cubin = path_get(string_printf("lib/%s_sm_%d%d.cubin",
+			                                            name, major, minor));
 			VLOG(1) << "Testing for pre-compiled kernel " << cubin << ".";
 			if(path_exists(cubin)) {
 				VLOG(1) << "Using precompiled kernel.";
@@ -340,7 +344,7 @@ public:
 		}
 
 		const string common_cflags =
-		        compile_kernel_get_common_cflags(requested_features);
+		        filter? "" : compile_kernel_get_common_cflags(requested_features);
 
 		/* Try to use locally compiled kernel. */
 		const string kernel_path = path_get("kernel");
@@ -351,8 +355,8 @@ public:
 		 */
 		const string cubin_md5 = util_md5_string(kernel_md5 + common_cflags);
 
-		const string cubin_file = string_printf("cycles_kernel_sm%d%d_%s.cubin",
-		                                        major, minor,
+		const string cubin_file = string_printf("cycles_%s_sm%d%d_%s.cubin",
+		                                        name, major, minor,
 		                                        cubin_md5.c_str());
 		const string cubin = path_cache_get(path_join("kernels", cubin_file));
 		VLOG(1) << "Testing for locally compiled kernel " << cubin << ".";
@@ -386,7 +390,7 @@ public:
 		const char *nvcc = cuewCompilerPath();
 		const string kernel = path_join(kernel_path,
 		                          path_join("kernels",
-		                                    path_join("cuda", "kernel.cu")));
+		                                    path_join("cuda", source)));
 		double starttime = time_dt();
 		printf("Compiling CUDA kernel ...\n");
 
@@ -434,9 +438,12 @@ public:
 			return false;
 
 		/* get kernel */
-		string cubin = compile_kernel(requested_features);
-
+		string cubin = compile_kernel(requested_features, false);
 		if(cubin == "")
+			return false;
+
+		string filter_cubin = compile_kernel(requested_features, true);
+		if(filter_cubin == "")
 			return false;
 
 		/* open module */
@@ -452,6 +459,14 @@ public:
 
 		if(cuda_error_(result, "cuModuleLoad"))
 			cuda_error_message(string_printf("Failed loading CUDA kernel %s.", cubin.c_str()));
+
+		if(path_read_text(filter_cubin, cubin_data))
+			result = cuModuleLoadData(&cuFilterModule, cubin_data.c_str());
+		else
+			result = CUDA_ERROR_FILE_NOT_FOUND;
+
+		if(cuda_error_(result, "cuModuleLoad"))
+			cuda_error_message(string_printf("Failed loading CUDA kernel %s.", filter_cubin.c_str()));
 
 		cuda_pop_context();
 
@@ -838,11 +853,11 @@ public:
 		cuda_assert(cuMemsetD8(out, 0, sizeof(float)*w*h));
 
 		CUfunction cuNLMCalcDifference, cuNLMBlur, cuNLMCalcWeight, cuNLMUpdateOutput, cuNLMNormalize;
-		cuda_assert(cuModuleGetFunction(&cuNLMCalcDifference, cuModule, "kernel_cuda_filter_nlm_calc_difference"));
-		cuda_assert(cuModuleGetFunction(&cuNLMBlur, cuModule, "kernel_cuda_filter_nlm_blur"));
-		cuda_assert(cuModuleGetFunction(&cuNLMCalcWeight, cuModule, "kernel_cuda_filter_nlm_calc_weight"));
-		cuda_assert(cuModuleGetFunction(&cuNLMUpdateOutput, cuModule, "kernel_cuda_filter_nlm_update_output"));
-		cuda_assert(cuModuleGetFunction(&cuNLMNormalize, cuModule, "kernel_cuda_filter_nlm_normalize"));
+		cuda_assert(cuModuleGetFunction(&cuNLMCalcDifference, cuFilterModule, "kernel_cuda_filter_nlm_calc_difference"));
+		cuda_assert(cuModuleGetFunction(&cuNLMBlur, cuFilterModule, "kernel_cuda_filter_nlm_blur"));
+		cuda_assert(cuModuleGetFunction(&cuNLMCalcWeight, cuFilterModule, "kernel_cuda_filter_nlm_calc_weight"));
+		cuda_assert(cuModuleGetFunction(&cuNLMUpdateOutput, cuFilterModule, "kernel_cuda_filter_nlm_update_output"));
+		cuda_assert(cuModuleGetFunction(&cuNLMNormalize, cuFilterModule, "kernel_cuda_filter_nlm_normalize"));
 
 		cuda_assert(cuFuncSetCacheConfig(cuNLMCalcDifference, CU_FUNC_CACHE_PREFER_L1));
 		cuda_assert(cuFuncSetCacheConfig(cuNLMBlur, CU_FUNC_CACHE_PREFER_L1));
@@ -911,12 +926,12 @@ public:
 		CUfunction cuFilterConstructTransform, cuFilterDivideCombined;
 		CUdeviceptr d_buffers = cuda_device_ptr(rtile.buffer);
 
-		cuda_assert(cuModuleGetFunction(&cuFilterDivideShadow, cuModule, "kernel_cuda_filter_divide_shadow"));
-		cuda_assert(cuModuleGetFunction(&cuFilterGetFeature, cuModule, "kernel_cuda_filter_get_feature"));
-		cuda_assert(cuModuleGetFunction(&cuFilterCombineHalves, cuModule, "kernel_cuda_filter_combine_halves"));
+		cuda_assert(cuModuleGetFunction(&cuFilterDivideShadow, cuFilterModule, "kernel_cuda_filter_divide_shadow"));
+		cuda_assert(cuModuleGetFunction(&cuFilterGetFeature, cuFilterModule, "kernel_cuda_filter_get_feature"));
+		cuda_assert(cuModuleGetFunction(&cuFilterCombineHalves, cuFilterModule, "kernel_cuda_filter_combine_halves"));
 
-		cuda_assert(cuModuleGetFunction(&cuFilterConstructTransform, cuModule, "kernel_cuda_filter_construct_transform"));
-		cuda_assert(cuModuleGetFunction(&cuFilterDivideCombined, cuModule, "kernel_cuda_filter_divide_combined"));
+		cuda_assert(cuModuleGetFunction(&cuFilterConstructTransform, cuFilterModule, "kernel_cuda_filter_construct_transform"));
+		cuda_assert(cuModuleGetFunction(&cuFilterDivideCombined, cuFilterModule, "kernel_cuda_filter_divide_combined"));
 
 		cuda_assert(cuFuncSetCacheConfig(cuFilterDivideShadow, CU_FUNC_CACHE_PREFER_L1));
 		cuda_assert(cuFuncSetCacheConfig(cuFilterGetFeature, CU_FUNC_CACHE_PREFER_L1));
@@ -931,15 +946,21 @@ public:
 			return;
 
 		int overscan = rtile.buffers->params.overscan;
-		bool cross_denoise = kernel_globals.film.denoise_cross;
+		bool use_cross_denoising = kernel_globals.film.denoise_cross;
+		bool use_gradients = kernel_globals.integrator.use_gradients;
+		int half_window = kernel_globals.integrator.half_window;
+		int buffer_pass_stride = kernel_globals.film.pass_stride;
+		int buffer_denoising_offset = kernel_globals.film.pass_denoising;
+		float pca_threshold = kernel_globals.integrator.filter_strength;
+		int num_frames = 1;
+		int prev_frames = 0;
 
-		int hw = kernel_globals.integrator.half_window;
 		int4 filter_area = make_int4(rtile.x + overscan, rtile.y + overscan, rtile.w - 2*overscan, rtile.h - 2*overscan);
 		int4 buffer_area = make_int4(rtile.buffers->params.full_x, rtile.buffers->params.full_y, rtile.buffers->params.width, rtile.buffers->params.height);
-		int4 rect = make_int4(max(filter_area.x - hw, buffer_area.x),
-		                      max(filter_area.y - hw, buffer_area.y),
-		                      min(filter_area.x + filter_area.z + hw, buffer_area.x + buffer_area.z),
-		                      min(filter_area.y + filter_area.w + hw, buffer_area.y + buffer_area.w));
+		int4 rect = make_int4(max(filter_area.x - half_window, buffer_area.x),
+		                      max(filter_area.y - half_window, buffer_area.y),
+		                      min(filter_area.x + filter_area.z + half_window, buffer_area.x + buffer_area.z),
+		                      min(filter_area.y + filter_area.w + half_window, buffer_area.y + buffer_area.w));
 
 		int threads_per_block;
 		cuda_assert(cuFuncGetAttribute(&threads_per_block, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, cuFilterConstructTransform));
@@ -954,7 +975,7 @@ public:
 		int h = (rect.w - rect.y);
 		int frame_stride = w*(rect.w - rect.y);
 		int pass_stride = frame_stride*rtile.buffers->params.frames;
-		int passes = cross_denoise? 20 : 14;
+		int passes = use_cross_denoising? 20 : 14;
 		cuda_assert(cuMemAlloc(&d_denoise_buffers, passes*pass_stride*sizeof(float)));
 #define CUDA_PTR_ADD(ptr, x) ((CUdeviceptr) (((float*) (ptr)) + (x)))
 
@@ -983,7 +1004,8 @@ public:
 					                   &buffer_area,
 				                       &rtile.offset, &rtile.stride,
 				                       &d_unfilteredA, &d_sampleV, &d_sampleVV, &d_bufferV,
-				                       &rect};
+				                       &rect, &buffer_pass_stride, &buffer_denoising_offset,
+				                       &num_frames, &use_gradients};
 				cuda_assert(cuLaunchKernel(cuFilterDivideShadow,
 				                           xblocks , yblocks, 1, /* blocks */
 				                           xthreads, ythreads, 1, /* threads */
@@ -1039,7 +1061,9 @@ public:
 					                            &buffer_area,
 					                            &rtile.offset, &rtile.stride,
 					                            &d_unfiltered, &d_variance,
-					                            &rect};
+					                            &rect, &buffer_pass_stride,
+					                            &buffer_denoising_offset,
+					                            &use_cross_denoising};
 					cuda_assert(cuLaunchKernel(cuFilterGetFeature,
 					                           xblocks , yblocks, 1, /* blocks */
 					                           xthreads, ythreads, 1, /* threads */
@@ -1056,7 +1080,7 @@ public:
 				int variance_from[]  = {23, 24, 25, 29, 30, 31};
 				int mean_to[]        = { 8,  9, 10, 14, 15, 16};
 				int variance_to[]    = {11, 12, 13, 17, 18, 19};
-				for(int i = 0; i < (cross_denoise? 6 : 3); i++) {
+				for(int i = 0; i < (use_cross_denoising? 6 : 3); i++) {
 					CUdeviceptr d_mean = CUDA_PTR_ADD(d_denoise_buffer, mean_to[i]*pass_stride);
 					CUdeviceptr d_variance = CUDA_PTR_ADD(d_denoise_buffer, variance_to[i]*pass_stride);
 
@@ -1064,7 +1088,9 @@ public:
 					                            &buffer_area,
 					                            &rtile.offset, &rtile.stride,
 					                            &d_mean, &d_variance,
-					                            &rect};
+					                            &rect, &buffer_pass_stride,
+					                            &buffer_denoising_offset,
+					                            &use_cross_denoising};
 					cuda_assert(cuLaunchKernel(cuFilterGetFeature,
 					                           xblocks , yblocks, 1, /* blocks */
 					                           xthreads, ythreads, 1, /* threads */
@@ -1075,9 +1101,9 @@ public:
 
 		/* Use the prefiltered feature to denoise the image. */
 		int storage_num = filter_area.z*filter_area.w;
-		CUdeviceptr d_storage, d_transforms;
-		cuda_assert(cuMemAlloc(&d_storage, storage_num*sizeof(CUDAFilterStorage)));
-		cuda_assert(cuMemAlloc(&d_transforms, storage_num*sizeof(float)*DENOISE_FEATURES*DENOISE_FEATURES));
+		CUdeviceptr d_rank, d_transform;
+		cuda_assert(cuMemAlloc(&d_rank, storage_num*sizeof(int)));
+		cuda_assert(cuMemAlloc(&d_transform, storage_num*sizeof(float)*TRANSFORM_SIZE));
 
 		xthreads = (int)sqrt((float)threads_per_block);
 		ythreads = (int)sqrt((float)threads_per_block);
@@ -1086,10 +1112,14 @@ public:
 
 		void *transform_args[] = {&sample,
 		                          &d_denoise_buffers,
-		                          &d_transforms,
-		                          &d_storage,
+		                          &d_transform,
+		                          &d_rank,
 		                          &filter_area,
-		                          &rect};
+		                          &rect,
+		                          &half_window,
+		                          &pca_threshold,
+		                          &num_frames,
+		                          &prev_frames};
 		cuda_assert(cuLaunchKernel(cuFilterConstructTransform,
 		                           xblocks , yblocks, 1, /* blocks */
 		                           xthreads, ythreads, 1, /* threads */
@@ -1097,11 +1127,11 @@ public:
 
 
 		CUfunction cuNLMCalcDifference, cuNLMBlur, cuNLMCalcWeight, cuNLMConstructGramian, cuFinalize;
-		cuda_assert(cuModuleGetFunction(&cuNLMCalcDifference, cuModule, "kernel_cuda_filter_nlm_calc_difference"));
-		cuda_assert(cuModuleGetFunction(&cuNLMBlur, cuModule, "kernel_cuda_filter_nlm_blur"));
-		cuda_assert(cuModuleGetFunction(&cuNLMCalcWeight, cuModule, "kernel_cuda_filter_nlm_calc_weight"));
-		cuda_assert(cuModuleGetFunction(&cuNLMConstructGramian, cuModule, "kernel_cuda_filter_nlm_construct_gramian"));
-		cuda_assert(cuModuleGetFunction(&cuFinalize, cuModule, "kernel_cuda_filter_finalize"));
+		cuda_assert(cuModuleGetFunction(&cuNLMCalcDifference, cuFilterModule, "kernel_cuda_filter_nlm_calc_difference"));
+		cuda_assert(cuModuleGetFunction(&cuNLMBlur, cuFilterModule, "kernel_cuda_filter_nlm_blur"));
+		cuda_assert(cuModuleGetFunction(&cuNLMCalcWeight, cuFilterModule, "kernel_cuda_filter_nlm_calc_weight"));
+		cuda_assert(cuModuleGetFunction(&cuNLMConstructGramian, cuFilterModule, "kernel_cuda_filter_nlm_construct_gramian"));
+		cuda_assert(cuModuleGetFunction(&cuFinalize, cuFilterModule, "kernel_cuda_filter_finalize"));
 
 		cuda_assert(cuFuncSetCacheConfig(cuNLMCalcDifference, CU_FUNC_CACHE_PREFER_L1));
 		cuda_assert(cuFuncSetCacheConfig(cuNLMBlur, CU_FUNC_CACHE_PREFER_L1));
@@ -1134,11 +1164,11 @@ public:
 		void *calc_difference_args[] = {&dx, &dy, &color_buffer, &variance_buffer, &d_difference, &local_rect, &w, &a, &k_2};
 		void *blur_args[] = {&d_difference, &d_blurDifference, &local_rect, &w, &f};
 		void *calc_weight_args[] = {&d_blurDifference, &d_difference, &local_rect, &w, &f};
-		void *construct_gramian_args[] = {&dx, &dy, &d_blurDifference, &d_denoise_buffers, &color_pass, &variance_pass, &d_storage, &d_transforms, &d_XtWX, &d_XtWY, &local_rect, &local_filter_rect, &w, &h, &f};
+		void *construct_gramian_args[] = {&dx, &dy, &d_blurDifference, &d_denoise_buffers, &color_pass, &variance_pass, &d_transform, &d_rank, &d_XtWX, &d_XtWY, &local_rect, &local_filter_rect, &w, &h, &f};
 
-		for(int i = 0; i < (2*hw+1)*(2*hw+1); i++) {
-			dy = i / (2*hw+1) - hw;
-			dx = i % (2*hw+1) - hw;
+		for(int i = 0; i < (2*half_window+1)*(2*half_window+1); i++) {
+			dy = i / (2*half_window+1) - half_window;
+			dx = i % (2*half_window+1) - half_window;
 			local_rect = make_int4(max(0, -dx), max(0, -dy), rect.z-rect.x - max(0, dx), rect.w-rect.y - max(0, dy));
 
 			cuda_assert(cuLaunchKernel(cuNLMCalcDifference,
@@ -1164,18 +1194,18 @@ public:
 		}
 		cuda_assert(cuMemFree(d_difference));
 		cuda_assert(cuMemFree(d_blurDifference));
-		cuda_assert(cuMemFree(d_transforms));
+		cuda_assert(cuMemFree(d_transform));
 		cuda_assert(cuMemFree(d_denoise_buffers));
 		//int w, int h, float *buffer, void *storage, float *XtWX, float3 *XtWY, int4 filter_area, int4 buffer_params, int sample) {
 		int4 buffer_params = make_int4(rtile.offset, rtile.stride, kernel_globals.film.pass_stride, kernel_globals.film.pass_no_denoising);
-		void *finalize_args[] = {&w, &h, &d_buffers, &d_storage, &d_XtWX, &d_XtWY, &filter_area, &buffer_params, &sample};
+		void *finalize_args[] = {&w, &h, &d_buffers, &d_rank, &d_XtWX, &d_XtWY, &filter_area, &buffer_params, &sample};
 		cuda_assert(cuLaunchKernel(cuFinalize,
 		                           xblocks , yblocks, 1, /* blocks */
 		                           xthreads, ythreads, 1, /* threads */
 		                           0, 0, finalize_args, 0));
 		cuda_assert(cuMemFree(d_XtWX));
 		cuda_assert(cuMemFree(d_XtWY));
-		cuda_assert(cuMemFree(d_storage));
+		cuda_assert(cuMemFree(d_rank));
 
 		cuda_pop_context();
 	}

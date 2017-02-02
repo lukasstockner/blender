@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 Blender Foundation
+ * Copyright 2011-2017 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,14 +19,13 @@
 #define ccl_get_feature(pass) buffer[(pass)*pass_stride]
 
 /* Loop over the pixels in the range [low.x, high.x) x [low.y, high.y).
- * pixel_buffer always points to the current pixel in the first pass.
- * cache_idx always points to the same pixel, but only if rect stays the same. */
+ * pixel_buffer always points to the current pixel in the first pass. */
 #ifdef DENOISE_TEMPORAL
 #define FOR_PIXEL_WINDOW     pixel_buffer = buffer + (low.y - rect.y)*buffer_w + (low.x - rect.x); \
-                             for(int t = 0, cache_idx = 0; t < num_frames; t++) { \
+                             for(int t = 0; t < num_frames; t++) { \
                                  pixel.z = (t == 0)? 0: ((t <= prev_frames)? (t-prev_frames-1): (t - prev_frames)); \
 	                             for(pixel.y = low.y; pixel.y < high.y; pixel.y++) { \
-	                                 for(pixel.x = low.x; pixel.x < high.x; pixel.x++, pixel_buffer++, cache_idx++) {
+	                                 for(pixel.x = low.x; pixel.x < high.x; pixel.x++, pixel_buffer++) {
 
 #define END_FOR_PIXEL_WINDOW         } \
                                      pixel_buffer += buffer_w - (high.x - low.x); \
@@ -35,8 +34,8 @@
                              }
 #else
 #define FOR_PIXEL_WINDOW     pixel_buffer = buffer + (low.y - rect.y)*buffer_w + (low.x - rect.x); \
-                             for(pixel.y = low.y, cache_idx = 0; pixel.y < high.y; pixel.y++) { \
-                                 for(pixel.x = low.x; pixel.x < high.x; pixel.x++, pixel_buffer++, cache_idx++) {
+                             for(pixel.y = low.y; pixel.y < high.y; pixel.y++) { \
+                                 for(pixel.x = low.x; pixel.x < high.x; pixel.x++, pixel_buffer++) {
 
 #define END_FOR_PIXEL_WINDOW     } \
                                  pixel_buffer += buffer_w - (high.x - low.x); \

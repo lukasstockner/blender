@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 Blender Foundation
+ * Copyright 2011-2017 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,22 +16,24 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample, float ccl_readonly_ptr buffer, int x, int y, FilterStorage *storage, int4 rect)
+ccl_device void kernel_filter_construct_transform(int sample, float ccl_readonly_ptr buffer,
+                                                  int x, int y, int4 rect,
+                                                  float *transform, int *rank,
+                                                  int half_window, float pca_threshold,
+                                                  int num_frames, int prev_frames)
 {
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int buffer_h = (rect.w - rect.y);
-	int pass_stride = buffer_h * buffer_w * kernel_data.film.num_frames;
-	int num_frames = kernel_data.film.num_frames;
-	int prev_frames = kernel_data.film.prev_frames;
+	int pass_stride = buffer_h * buffer_w * num_frames;
 
 	__m128 features[DENOISE_FEATURES];
 	float ccl_readonly_ptr pixel_buffer;
 	int3 pixel;
 
-	int2 low  = make_int2(max(rect.x, x - kernel_data.integrator.half_window),
-	                      max(rect.y, y - kernel_data.integrator.half_window));
-	int2 high = make_int2(min(rect.z, x + kernel_data.integrator.half_window + 1),
-	                      min(rect.w, y + kernel_data.integrator.half_window + 1));
+	int2 low  = make_int2(max(rect.x, x - half_window),
+	                      max(rect.y, y - half_window));
+	int2 high = make_int2(min(rect.z, x + half_window + 1),
+	                      min(rect.w, y + half_window + 1));
 
 	__m128 feature_means[DENOISE_FEATURES];
 	math_vector_zero_sse(feature_means, DENOISE_FEATURES);
@@ -66,50 +68,39 @@ ccl_device void kernel_filter_construct_transform(KernelGlobals *kg, int sample,
 	float feature_matrix[DENOISE_FEATURES*DENOISE_FEATURES];
 	math_trimatrix_hsum(feature_matrix, DENOISE_FEATURES, feature_matrix_sse);
 
-	float *feature_transform = &storage->transform[0];
-	math_trimatrix_jacobi_eigendecomposition(feature_matrix, feature_transform, DENOISE_FEATURES, 1);
+	math_trimatrix_jacobi_eigendecomposition(feature_matrix, transform, DENOISE_FEATURES, 1);
 
-	int rank = 0;
-	if(kernel_data.integrator.filter_strength > 0.0f) {
+	*rank = 0;
+	if(pca_threshold > 0.0f) {
 		float threshold_energy = 0.0f;
 		for(int i = 0; i < DENOISE_FEATURES; i++) {
 			threshold_energy += feature_matrix[i*DENOISE_FEATURES+i];
 		}
-		threshold_energy *= 1.0f-kernel_data.integrator.filter_strength;
+		threshold_energy *= 1.0f-pca_threshold;
 
 		float reduced_energy = 0.0f;
-		for(int i = 0; i < DENOISE_FEATURES; i++, rank++) {
+		for(int i = 0; i < DENOISE_FEATURES; i++, (*rank)++) {
 			float s = feature_matrix[i*DENOISE_FEATURES+i];
 			if(i >= 2 && reduced_energy >= threshold_energy)
 				break;
 			reduced_energy += s;
 			/* Bake the feature scaling into the transformation matrix. */
 			for(int j = 0; j < DENOISE_FEATURES; j++) {
-				feature_transform[rank*DENOISE_FEATURES + j] *= _mm_cvtss_f32(feature_scale[j]);
+				transform[(*rank)*DENOISE_FEATURES + j] *= _mm_cvtss_f32(feature_scale[j]);
 			}
 		}
 	}
 	else {
-		for(int i = 0; i < DENOISE_FEATURES; i++, rank++) {
+		for(int i = 0; i < DENOISE_FEATURES; i++, (*rank)++) {
 			float s = feature_matrix[i*DENOISE_FEATURES+i];
-			if(i >= 2 && sqrtf(s) < -kernel_data.integrator.filter_strength)
+			if(i >= 2 && sqrtf(s) < -pca_threshold)
 				break;
 			/* Bake the feature scaling into the transformation matrix. */
 			for(int j = 0; j < DENOISE_FEATURES; j++) {
-				feature_transform[rank*DENOISE_FEATURES + j] *= _mm_cvtss_f32(feature_scale[j]);
+				transform[(*rank)*DENOISE_FEATURES + j] *= _mm_cvtss_f32(feature_scale[j]);
 			}
 		}
 	}
-
-#ifdef WITH_CYCLES_DEBUG_FILTER
-	for(int i = 0; i < DENOISE_FEATURES; i++) {
-		storage->means[i] = _mm_cvtss_f32(feature_means[i]);
-		storage->scales[i] = _mm_cvtss_f32(feature_scale[i]);
-		storage->singular[i] = feature_matrix[i*DENOISE_FEATURES+i];
-	}
-#endif
-
-	storage->rank = rank;
 }
 
 CCL_NAMESPACE_END

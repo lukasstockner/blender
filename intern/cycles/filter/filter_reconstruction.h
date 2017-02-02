@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 Blender Foundation
+ * Copyright 2011-2017 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,32 +16,25 @@
 
 CCL_NAMESPACE_BEGIN
 
-#ifdef __KERNEL_CUDA__
-#define STORAGE_TYPE CUDAFilterStorage
-#else
-#define STORAGE_TYPE FilterStorage
-#endif
-
-ccl_device_inline void kernel_filter_construct_gramian(int x, int y, int storage_ofs, int storage_size, int dx, int dy, int w, int h, float ccl_readonly_ptr buffer, int color_pass, int variance_pass, STORAGE_TYPE *storage, float weight, float ccl_readonly_ptr transform, float *XtWX, float3 *XtWY)
+ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
+                                                       int storage_stride,
+                                                       int dx, int dy, int w, int h,
+                                                       float ccl_readonly_ptr buffer,
+                                                       int color_pass, int variance_pass,
+                                                       float ccl_readonly_ptr transform,
+                                                       int *rank, float weight,
+                                                       float *XtWX, float3 *XtWY)
 {
 	const int pass_stride = w*h;
 
 	float ccl_readonly_ptr p_buffer = buffer +      y*w +      x;
 	float ccl_readonly_ptr q_buffer = buffer + (y+dy)*w + (x+dx);
 
-	storage += storage_ofs;
-
 #ifdef __KERNEL_CPU__
-	transform = storage->transform;
-	XtWX += (DENOISE_FEATURES+1)*(DENOISE_FEATURES+1) * storage_ofs;
-	XtWY += (DENOISE_FEATURES+1) * storage_ofs;
 	const int stride = 1;
-	(void)storage_size;
+	(void)storage_stride;
 #else
-	transform += storage_ofs;
-	XtWX += storage_ofs;
-	XtWY += storage_ofs;
-	const int stride = storage_size;
+	const int stride = storage_stride;
 #endif
 
 	float3 p_color = filter_get_pixel_color(p_buffer, color_pass, pass_stride);
@@ -58,27 +51,26 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y, int storage
 	filter_get_features(make_int3(x, y, 0), p_buffer, feature_means, NULL, pass_stride);
 
 	float design_row[DENOISE_FEATURES+1];
-	filter_get_design_row_transform(make_int3(x+dx, y+dy, 0), q_buffer, feature_means, pass_stride, features, storage->rank, design_row, transform, stride);
+	filter_get_design_row_transform(make_int3(x+dx, y+dy, 0), q_buffer, feature_means, pass_stride, features, *rank, design_row, transform, stride);
 
-	math_trimatrix_add_gramian_strided(XtWX, storage->rank+1, design_row, weight, stride);
-	math_vec3_add_strided(XtWY, storage->rank+1, design_row, weight * q_color, stride);
+	math_trimatrix_add_gramian_strided(XtWX, (*rank)+1, design_row, weight, stride);
+	math_vec3_add_strided(XtWY, (*rank)+1, design_row, weight * q_color, stride);
 }
 
-ccl_device_inline void kernel_filter_finalize(int x, int y, int storage_ofs, int storage_size, int w, int h, float *buffer, STORAGE_TYPE *storage, float *XtWX, float3 *XtWY, int4 buffer_params, int sample)
+ccl_device_inline void kernel_filter_finalize(int x, int y, int w, int h,
+                                              float *buffer,
+                                              int *rank, int storage_stride,
+                                              float *XtWX, float3 *XtWY,
+                                              int4 buffer_params, int sample)
 {
-	storage += storage_ofs;
 #ifdef __KERNEL_CPU__
-	XtWX += (DENOISE_FEATURES+1)*(DENOISE_FEATURES+1) * storage_ofs;
-	XtWY += (DENOISE_FEATURES+1) * storage_ofs;
 	const int stride = 1;
-	(void)storage_size;
+	(void)storage_stride;
 #else
-	XtWX += storage_ofs;
-	XtWY += storage_ofs;
-	const int stride = storage_size;
+	const int stride = storage_stride;
 #endif
 
-	math_trimatrix_vec3_solve(XtWX, XtWY, storage->rank+1, stride);
+	math_trimatrix_vec3_solve(XtWX, XtWY, (*rank)+1, stride);
 
 	float3 final_color = XtWY[0];
 	if(buffer_params.z) {

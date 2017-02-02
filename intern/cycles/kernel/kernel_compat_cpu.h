@@ -45,8 +45,6 @@
 
 #define ccl_addr_space
 
-#define ccl_readonly_ptr const * __restrict
-
 /* On x86_64, versions of glibc < 2.16 have an issue where expf is
  * much slower than the double version.  This was fixed in glibc 2.16.
  */

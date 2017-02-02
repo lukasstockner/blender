@@ -50,7 +50,6 @@
 #define ccl_addr_space
 #define ccl_restrict __restrict__
 #define ccl_align(n) __align__(n)
-#define ccl_readonly_ptr const * __restrict__
 
 /* No assert supported for CUDA */
 

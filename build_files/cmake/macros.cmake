@@ -536,6 +536,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 			cycles_bvh
 			cycles_device
 			cycles_kernel
+			cycles_filter
 			cycles_util
 			cycles_subd)
 		if(WITH_CYCLES_OSL)
@@ -651,6 +652,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		cycles_bvh
 		cycles_device
 		cycles_kernel
+		cycles_filter
 		cycles_util
 		cycles_subd
 		bf_intern_opencolorio

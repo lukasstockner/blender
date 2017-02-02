@@ -18,6 +18,7 @@ set(INC_SYS
 set(LIBRARIES
 	cycles_device
 	cycles_kernel
+	cycles_filter
 	cycles_render
 	cycles_bvh
 	cycles_subd

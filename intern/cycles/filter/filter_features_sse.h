@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 Blender Foundation
+ * Copyright 2011-2017 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ CCL_NAMESPACE_BEGIN
 #else
 #define FOR_PIXEL_WINDOW_SSE     pixel_buffer = buffer + (low.y - rect.y)*buffer_w + (low.x - rect.x); \
                                  for(pixel.y = low.y; pixel.y < high.y; pixel.y++) { \
+                                     __m128 t4 = _mm_setzero_ps(); \
                                      __m128 y4 = _mm_set1_ps(pixel.y); \
                                      for(pixel.x = low.x; pixel.x < high.x; pixel.x += 4, pixel_buffer += 4) { \
                                          __m128 x4 = _mm_add_ps(_mm_set1_ps(pixel.x), _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f)); \

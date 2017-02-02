@@ -1372,38 +1372,6 @@ enum RayState {
 #define PATCH_MAP_NODE_IS_LEAF (1u << 31)
 #define PATCH_MAP_NODE_INDEX_MASK (~(PATCH_MAP_NODE_IS_SET | PATCH_MAP_NODE_IS_LEAF))
 
-/* Enabling second-order screen features will preserve shadow edges better, but currently may cause artifacts in smooth areas. */
-#undef DENOISE_SECOND_ORDER_SCREEN
-#define DENOISE_TEMPORAL
-#ifdef DENOISE_SECOND_ORDER_SCREEN
-#define DENOISE_FEATURES 13 /* The amount of denoising features: Normal, Albedo, Depth, Shadow and screen position (x, y, x^2, y^2, x*y) */
-#elif defined(DENOISE_TEMPORAL)
-#define DENOISE_FEATURES 11 /* The amount of denoising features: Normal, Albedo, Depth, Shadow, screen position (x, y) and frame*/
-#else
-#define DENOISE_FEATURES 10 /* The amount of denoising features: Normal, Albedo, Depth, Shadow and screen position (x, y)*/
-#endif
-
-typedef struct FilterStorage {
-	float transform[DENOISE_FEATURES*DENOISE_FEATURES];
-	int rank;
-#ifdef WITH_CYCLES_DEBUG_FILTER
-	float filtered_global_bandwidth;
-	float sum_weight;
-	float means[DENOISE_FEATURES], scales[DENOISE_FEATURES], singular[DENOISE_FEATURES];
-	float log_rmse_per_sample;
-#endif
-} FilterStorage;
-
-typedef struct CUDAFilterStorage {
-	int rank;
-#ifdef WITH_CYCLES_DEBUG_FILTER
-	float filtered_global_bandwidth;
-	float sum_weight;
-	float means[DENOISE_FEATURES], scales[DENOISE_FEATURES], singular[DENOISE_FEATURES];
-	float log_rmse_per_sample;
-#endif
-} CUDAFilterStorage;
-
 CCL_NAMESPACE_END
 
 #endif /*  __KERNEL_TYPES_H__ */

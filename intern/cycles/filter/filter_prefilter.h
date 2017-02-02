@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 Blender Foundation
+ * Copyright 2011-2017 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,21 +25,29 @@ CCL_NAMESPACE_BEGIN
  * sampleVarianceV: Variance of the sample variance estimation, quite noisy (since it's essentially the buffer variance of the two variance halves)
  * bufferVariance: The buffer-based variance of the shadow feature. Unbiased, but quite noisy.
  */
-ccl_device void kernel_filter_divide_shadow(KernelGlobals *kg, int sample, float **buffers, int x, int y, int *tile_x, int *tile_y, int *offset, int *stride, float *unfiltered, float *sampleVariance, float *sampleVarianceV, float *bufferVariance, int4 rect)
+ccl_device void kernel_filter_divide_shadow(int sample, float **buffers,
+                                            int x, int y,
+                                            int *tile_x, int *tile_y,
+                                            int *offset, int *stride,
+                                            float *unfiltered, float *sampleVariance,
+                                            float *sampleVarianceV, float *bufferVariance,
+                                            int4 rect, int buffer_pass_stride,
+                                            int buffer_denoising_offset, int num_frames,
+                                            bool use_gradients)
 {
 	int xtile = (x < tile_x[1])? 0: ((x < tile_x[2])? 1: 2);
 	int ytile = (y < tile_y[1])? 0: ((y < tile_y[2])? 1: 2);
 	int tile = ytile*3+xtile;
-	float *center_buffer = buffers[tile] + (offset[tile] + y*stride[tile] + x)*kernel_data.film.pass_stride;
+	float *center_buffer = buffers[tile] + (offset[tile] + y*stride[tile] + x)*buffer_pass_stride;
 
-	if(kernel_data.integrator.use_gradients && tile == 4) {
+	if(use_gradients && tile == 4) {
 		center_buffer[0] = center_buffer[1] = center_buffer[2] = center_buffer[3] = 0.0f;
 	}
-	center_buffer += kernel_data.film.pass_denoising;
+	center_buffer += buffer_denoising_offset;
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);
-	int Bofs = (rect.w - rect.y)*buffer_w*kernel_data.film.num_frames;
+	int Bofs = (rect.w - rect.y)*buffer_w*num_frames;
 	unfiltered[idx] = center_buffer[15] / max(center_buffer[14], 1e-7f);
 	unfiltered[idx+Bofs] = center_buffer[18] / max(center_buffer[17], 1e-7f);
 	float varFac = 1.0f / (sample * (sample-1));
@@ -59,18 +67,25 @@ ccl_device void kernel_filter_divide_shadow(KernelGlobals *kg, int sample, float
  * - mean, variance: Target denoise buffers.
  * - rect: The prefilter area (lower pixels inclusive, upper pixels exclusive).
  */
-ccl_device void kernel_filter_get_feature(KernelGlobals *kg, int sample, float **buffers, int m_offset, int v_offset, int x, int y, int *tile_x, int *tile_y, int *offset, int *stride, float *mean, float *variance, int4 rect)
+ccl_device void kernel_filter_get_feature(int sample, float **buffers,
+                                          int m_offset, int v_offset,
+                                          int x, int y,
+                                          int *tile_x, int *tile_y,
+                                          int *offset, int *stride,
+                                          float *mean, float *variance,
+                                          int4 rect, int buffer_pass_stride,
+                                          int buffer_denoising_offset, bool use_cross_denoising)
 {
 	int xtile = (x < tile_x[1])? 0: ((x < tile_x[2])? 1: 2);
 	int ytile = (y < tile_y[1])? 0: ((y < tile_y[2])? 1: 2);
 	int tile = ytile*3+xtile;
-	float *center_buffer = buffers[tile] + (offset[tile] + y*stride[tile] + x)*kernel_data.film.pass_stride + kernel_data.film.pass_denoising;
+	float *center_buffer = buffers[tile] + (offset[tile] + y*stride[tile] + x)*buffer_pass_stride + buffer_denoising_offset;
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);
 
 	/* TODO: This is an ugly hack! */
-	if(m_offset >= 20 && m_offset <= 22 && kernel_data.film.denoise_cross) {
+	if(m_offset >= 20 && m_offset <= 22 && use_cross_denoising) {
 		int odd_sample = sample/2;
 		mean[idx] = (center_buffer[m_offset] - center_buffer[m_offset+6]) / odd_sample;
 		variance[idx] = center_buffer[v_offset] / (odd_sample * (sample-1));
@@ -88,7 +103,10 @@ ccl_device void kernel_filter_get_feature(KernelGlobals *kg, int sample, float *
 
 /* Combine A/B buffers.
  * Calculates the combined mean and the buffer variance. */
-ccl_device void kernel_filter_combine_halves(int x, int y, float *mean, float *variance, float *a, float *b, int4 rect, int r)
+ccl_device void kernel_filter_combine_halves(int x, int y,
+                                             float *mean, float *variance,
+                                             float *a, float *b,
+                                             int4 rect, int r)
 {
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);

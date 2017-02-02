@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 Blender Foundation
+ * Copyright 2011-2017 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,12 +85,11 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int fx, int fy,
                                                            float ccl_readonly_ptr differenceImage,
                                                            float ccl_readonly_ptr buffer,
                                                            int color_pass, int variance_pass,
-                                                           CUDAFilterStorage *storage,
                                                            float ccl_readonly_ptr transform,
+                                                           int *rank,
                                                            float *XtWX, float3 *XtWY,
                                                            int4 rect, int4 filter_rect,
-                                                           int w, int h,
-                                                           int f)
+                                                           int w, int h, int f)
 {
 	int y = fy + filter_rect.y;
 	int x = fx + filter_rect.x;
@@ -101,17 +100,20 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int fx, int fy,
 		sum += differenceImage[y*w+x1];
 	}
 	float weight = sum * (1.0f/(high - low));
+
 	int storage_ofs = fy*filter_rect.z + fx;
+	transform += storage_ofs;
+	rank += storage_ofs;
+	XtWX += storage_ofs;
+	XtWY += storage_ofs;
+
 	kernel_filter_construct_gramian(x, y,
-	                                storage_ofs,
 	                                filter_rect.z*filter_rect.w,
 	                                dx, dy, w, h,
 	                                buffer,
 	                                color_pass, variance_pass,
-	                                storage,
-	                                weight,
-	                                transform,
-	                                XtWX, XtWY);
+	                                transform, rank,
+	                                weight, XtWX, XtWY);
 }
 
 ccl_device_inline void kernel_filter_nlm_normalize(int x, int y, float *outImage, float ccl_readonly_ptr accumImage, int4 rect, int w)

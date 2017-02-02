@@ -208,19 +208,6 @@ set(SRC_SPLIT_HEADERS
 	split/kernel_sum_all_radiance.h
 )
 
-set(SRC_FILTER_HEADERS
-	filter/filter.h
-	filter/filter_features.h
-	filter/filter_features_sse.h
-	filter/filter_final_pass_impl.h
-	filter/filter_nlm_cpu.h
-	filter/filter_nlm_gpu.h
-	filter/filter_prefilter.h
-	filter/filter_wlr.h
-	filter/filter_wlr_cuda.h
-	filter/filter_wlr_sse.h
-)
-
 # CUDA module
 
 if(WITH_CYCLES_CUDA_BINARIES)
@@ -253,7 +240,6 @@ if(WITH_CYCLES_CUDA_BINARIES)
 		${SRC_GEOM_HEADERS}
 		${SRC_CLOSURE_HEADERS}
 		${SRC_UTIL_HEADERS}
-		${SRC_FILTER_HEADERS}
 	)
 	set(cuda_cubins)
 
@@ -270,12 +256,6 @@ if(WITH_CYCLES_CUDA_BINARIES)
 			set(cuda_debug_flags "-D__KERNEL_DEBUG__")
 		else()
 			set(cuda_debug_flags "")
-		endif()
-
-		if(WITH_CYCLES_DEBUG_FILTER)
-			set(cuda_filter_debug_flags "-DWITH_CYCLES_DEBUG_FILTER")
-		else()
-			set(cuda_filter_debug_flags "")
 		endif()
 
 		set(cuda_nvcc_command ${CUDA_NVCC_EXECUTABLE})
@@ -298,7 +278,6 @@ if(WITH_CYCLES_CUDA_BINARIES)
 					${cuda_math_flags}
 					${cuda_extra_flags}
 					${cuda_debug_flags}
-					${cuda_filter_debug_flags}
 					-I${CMAKE_CURRENT_SOURCE_DIR}/../util
 					-I${CMAKE_CURRENT_SOURCE_DIR}/svm
 					-DCCL_NAMESPACE_BEGIN=
@@ -359,7 +338,6 @@ add_library(cycles_kernel
 	${SRC_SVM_HEADERS}
 	${SRC_GEOM_HEADERS}
 	${SRC_SPLIT_HEADERS}
-	${SRC_FILTER_HEADERS}
 )
 
 if(WITH_CYCLES_CUDA)
@@ -396,5 +374,4 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_SVM_HEADERS}" ${CYCLES_INSTAL
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_GEOM_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/geom)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_UTIL_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_SPLIT_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/split)
-delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_FILTER_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/filter)
 

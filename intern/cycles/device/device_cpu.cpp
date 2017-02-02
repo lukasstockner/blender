@@ -32,6 +32,8 @@
 #include "kernel_types.h"
 #include "kernel_globals.h"
 
+#include "filter.h"
+
 #include "osl_shader.h"
 #include "osl_globals.h"
 
@@ -133,11 +135,11 @@ public:
 	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)>       convert_to_half_float_kernel;
 	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)>       convert_to_byte_kernel;
 	KernelFunctions<void(*)(KernelGlobals *, uint4 *, float4 *, float*, int, int, int, int, int)> shader_kernel;
-	KernelFunctions<void(*)(KernelGlobals*, int, float**, int, int, int*, int*, int*, int*, float*, float*, float*, float*, int*)> filter_divide_shadow_kernel;
-	KernelFunctions<void(*)(KernelGlobals*, int, float**, int, int, int, int, int*, int*, int*, int*, float*, float*, int*)>       filter_get_feature_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                                  filter_combine_halves_kernel;
-	KernelFunctions<void(*)(KernelGlobals*, int, float*, int, int, void*, int*)>                                      filter_construct_transform_kernel;
-	KernelFunctions<void(*)(KernelGlobals*, int, int, int, float*, int, int)>                                         filter_divide_combined_kernel;
+
+	KernelFunctions<void(*)(int, float**, int, int, int*, int*, int*, int*, float*, float*, float*, float*, int*, int, int, int, bool)> filter_divide_shadow_kernel;
+	KernelFunctions<void(*)(int, float**, int, int, int, int, int*, int*, int*, int*, float*, float*, int*, int, int, bool)>            filter_get_feature_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                                       filter_combine_halves_kernel;
+	KernelFunctions<void(*)(int, int, int, float*, int, int, int, int)>                                                                 filter_divide_combined_kernel;
 
 	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, float, float)> filter_nlm_calc_difference_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                 filter_nlm_blur_kernel;
@@ -145,8 +147,9 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int)>       filter_nlm_update_output_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int)>                                      filter_nlm_normalize_kernel;
 
-	KernelFunctions<void(*)(int, int, float*, float*, int, int,  void*, float*, float3*, int*, int*, int, int, int)>  filter_nlm_construct_gramian_kernel;
-	KernelFunctions<void(*)(int, int, int, int, int, float*, void*, float*, float3*, int*, int)>                      filter_finalize_kernel;
+	KernelFunctions<void(*)(int, float*, int, int, int, float*, int*, int*, int, float, int, int)>                          filter_construct_transform_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, int, int, float*, int*, float*, float3*, int*, int*, int, int, int)>  filter_nlm_construct_gramian_kernel;
+	KernelFunctions<void(*)(int, int, int, int, int, float*, int*, float*, float3*, int*, int)>                            filter_finalize_kernel;
 
 #define KERNEL_FUNCTIONS(name) \
 	      KERNEL_NAME_EVAL(cpu, name), \
@@ -165,13 +168,13 @@ public:
 	  filter_divide_shadow_kernel(KERNEL_FUNCTIONS(filter_divide_shadow)),
 	  filter_get_feature_kernel(KERNEL_FUNCTIONS(filter_get_feature)),
 	  filter_combine_halves_kernel(KERNEL_FUNCTIONS(filter_combine_halves)),
-	  filter_construct_transform_kernel(KERNEL_FUNCTIONS(filter_construct_transform)),
 	  filter_divide_combined_kernel(KERNEL_FUNCTIONS(filter_divide_combined)),
 	  filter_nlm_calc_difference_kernel(KERNEL_FUNCTIONS(filter_nlm_calc_difference)),
 	  filter_nlm_blur_kernel(KERNEL_FUNCTIONS(filter_nlm_blur)),
 	  filter_nlm_calc_weight_kernel(KERNEL_FUNCTIONS(filter_nlm_calc_weight)),
 	  filter_nlm_update_output_kernel(KERNEL_FUNCTIONS(filter_nlm_update_output)),
 	  filter_nlm_normalize_kernel(KERNEL_FUNCTIONS(filter_nlm_normalize)),
+	  filter_construct_transform_kernel(KERNEL_FUNCTIONS(filter_construct_transform)),
 	  filter_nlm_construct_gramian_kernel(KERNEL_FUNCTIONS(filter_nlm_construct_gramian)),
 	  filter_finalize_kernel(KERNEL_FUNCTIONS(filter_finalize))
 	{
@@ -318,10 +321,15 @@ public:
 
 	float* denoise_fill_buffer(KernelGlobals *kg, int sample, int4 rect, float** buffers, int* tile_x, int* tile_y, int *offsets, int *strides, int frames, int *frame_strides)
 	{
-		bool cross_denoise = kg->__data.film.denoise_cross;
+		bool use_cross_denoising = kg->__data.film.denoise_cross;
+		bool use_gradients = kg->__data.integrator.use_gradients;
+		int buffer_pass_stride = kg->__data.film.pass_stride;
+		int buffer_denoising_offset = kg->__data.film.pass_denoising;
+		int num_frames = 1;
+
 		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
 		int pass_stride = w*h*frames;
-		int passes = cross_denoise? 20 : 14;
+		int passes = use_cross_denoising? 20 : 14;
 		float *filter_buffers = new float[passes*pass_stride];
 		memset(filter_buffers, 0, sizeof(float)*passes*pass_stride);
 
@@ -362,7 +370,7 @@ public:
 				/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
 				for(int y = rect.y; y < rect.w; y++) {
 					for(int x = rect.x; x < rect.z; x++) {
-						filter_divide_shadow_kernel()(kg, sample, buffer, x, y, tile_x, tile_y, offsets, strides, unfilteredA, sampleV, sampleVV, bufferV, &rect.x);
+						filter_divide_shadow_kernel()(sample, buffer, x, y, tile_x, tile_y, offsets, strides, unfilteredA, sampleV, sampleVV, bufferV, &rect.x, buffer_pass_stride, buffer_denoising_offset, num_frames, use_gradients);
 					}
 				}
 				debug.add_pass("shadowUnfilteredA", unfilteredA);
@@ -421,7 +429,7 @@ public:
 				for(int i = 0; i < 7; i++) {
 					for(int y = rect.y; y < rect.w; y++) {
 						for(int x = rect.x; x < rect.z; x++) {
-							filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, unfiltered, variance, &rect.x);
+							filter_get_feature_kernel()(sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, unfiltered, variance, &rect.x, buffer_pass_stride, buffer_denoising_offset, use_cross_denoising);
 						}
 					}
 					non_local_means(rect, unfiltered, unfiltered, PASSPTR(mean_to[i]), variance, nlm_temp1, nlm_temp2, nlm_temp3, 2, 2, 1, 0.25f);
@@ -439,10 +447,10 @@ public:
 				int variance_from[]  = {23, 24, 25, 29, 30, 31};
 				int mean_to[]        = { 8,  9, 10, 14, 15, 16};
 				int variance_to[]    = {11, 12, 13, 17, 18, 19};
-				for(int i = 0; i < (cross_denoise? 6 : 3); i++) {
+				for(int i = 0; i < (use_cross_denoising? 6 : 3); i++) {
 					for(int y = rect.y; y < rect.w; y++) {
 						for(int x = rect.x; x < rect.z; x++) {
-							filter_get_feature_kernel()(kg, sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, PASSPTR(mean_to[i]), PASSPTR(variance_to[i]), &rect.x);
+							filter_get_feature_kernel()(sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, PASSPTR(mean_to[i]), PASSPTR(variance_to[i]), &rect.x, buffer_pass_stride, buffer_denoising_offset, use_cross_denoising);
 						}
 					}
 				}
@@ -480,25 +488,28 @@ public:
 		scoped_fpe fpe(FPE_ENABLED);
 #endif
 
-		bool cross_denoise = kg->__data.film.denoise_cross;
-
-		int hw = kg->__data.integrator.half_window;
-		int storage_num = filter_area.z*filter_area.w;
-		FilterStorage *storage = new FilterStorage[storage_num];
+		bool use_cross_denoising = kg->__data.film.denoise_cross;
+		int half_window = kg->__data.integrator.half_window;
+		float pca_threshold = kg->__data.integrator.filter_strength;
+		int num_frames = 1; /* TODO(lukas) */
+		int prev_frames = 0;
 
 		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
 		int pass_stride = w*h;
 
-		float *XtWX = new float[(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)*storage_num];
-		float3 *XtWY = new float3[(DENOISE_FEATURES+1)*storage_num];
+		int storage_num = filter_area.z*filter_area.w;
+		float *XtWX = new float[XTWX_SIZE*storage_num];
+		float3 *XtWY = new float3[XTWY_SIZE*storage_num];
+		float *transform = new float[TRANSFORM_SIZE*storage_num];
+		int *rank = new int[storage_num];
 
 		for(int y = 0; y < filter_area.w; y++) {
 			for(int x = 0; x < filter_area.z; x++) {
-				filter_construct_transform_kernel()(kg, sample, filter_buffer, x + filter_area.x, y + filter_area.y, storage + y*filter_area.z + x, &rect.x);
+				filter_construct_transform_kernel()(sample, filter_buffer, x + filter_area.x, y + filter_area.y, y*filter_area.z + x, transform, rank, &rect.x, half_window, pca_threshold, num_frames, prev_frames);
 			}
 		}
 
-		if(cross_denoise)
+		if(use_cross_denoising)
 		{
 			int f = 4;
 			float a = 1.0f;
@@ -514,46 +525,46 @@ public:
 			int simple_rect[4] = {0, 0, w, h};
 			DebugPasses debug(filter_area.z, filter_area.w, 34, 1, w);
 
-			memset(XtWX, 0, sizeof(float)*(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)*storage_num);
-			memset(XtWY, 0, sizeof(float3)*(DENOISE_FEATURES+1)*storage_num);
-			for(int i = 0; i < (2*hw+1)*(2*hw+1); i++) {
-				int dy = i / (2*hw+1) - hw;
-				int dx = i % (2*hw+1) - hw;
+			memset(XtWX, 0, sizeof(float)*XTWX_SIZE*storage_num);
+			memset(XtWY, 0, sizeof(float3)*XTWY_SIZE*storage_num);
+			for(int i = 0; i < (2*half_window+1)*(2*half_window+1); i++) {
+				int dy = i / (2*half_window+1) - half_window;
+				int dx = i % (2*half_window+1) - half_window;
 
 				int local_rect[4] = {max(0, -dx), max(0, -dy), rect.z-rect.x - max(0, dx), rect.w-rect.y - max(0, dy)};
 				filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, pass_stride, a, k_2);
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
 				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 14, 17, storage, XtWX, XtWY, local_rect, first_filter_rect, w, h, 4);
+				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 14, 17, transform, rank, XtWX, XtWY, local_rect, first_filter_rect, w, h, 4);
 			}
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
-					filter_finalize_kernel()(x, y, y*filter_area.z + x, w, h, outA, storage, XtWX, XtWY, first_buffer_params, sample);
+					filter_finalize_kernel()(x, y, y*filter_area.z + x, w, h, outA, rank, XtWX, XtWY, first_buffer_params, sample);
 				}
 			}
 			debug.add_pass("passAColor0", outA+0*pass_stride);
 			debug.add_pass("passAColor1", outA+1*pass_stride);
 			debug.add_pass("passAColor2", outA+2*pass_stride);
 
-			memset(XtWX, 0, sizeof(float)*(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)*storage_num);
-			memset(XtWY, 0, sizeof(float3)*(DENOISE_FEATURES+1)*storage_num);
+			memset(XtWX, 0, sizeof(float)*XTWX_SIZE*storage_num);
+			memset(XtWY, 0, sizeof(float3)*XTWY_SIZE*storage_num);
 			weight = filter_buffer + 14*pass_stride;
 			variance = filter_buffer + 17*pass_stride;
-			for(int i = 0; i < (2*hw+1)*(2*hw+1); i++) {
-				int dy = i / (2*hw+1) - hw;
-				int dx = i % (2*hw+1) - hw;
+			for(int i = 0; i < (2*half_window+1)*(2*half_window+1); i++) {
+				int dy = i / (2*half_window+1) - half_window;
+				int dx = i % (2*half_window+1) - half_window;
 
 				int local_rect[4] = {max(0, -dx), max(0, -dy), rect.z-rect.x - max(0, dx), rect.w-rect.y - max(0, dy)};
 				filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, pass_stride, a, k_2);
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
 				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 8, 11, storage, XtWX, XtWY, local_rect, first_filter_rect, w, h, 4);
+				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 8, 11, transform, rank, XtWX, XtWY, local_rect, first_filter_rect, w, h, 4);
 			}
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
-					filter_finalize_kernel()(x, y, y*filter_area.z + x, w, h, outB, storage, XtWX, XtWY, first_buffer_params, sample);
+					filter_finalize_kernel()(x, y, y*filter_area.z + x, w, h, outB, rank, XtWX, XtWY, first_buffer_params, sample);
 				}
 			}
 			debug.add_pass("passBColor0", outB+0*pass_stride);
@@ -578,26 +589,26 @@ public:
 			debug.add_pass("combinedVariance1", variance+1*pass_stride);
 			debug.add_pass("combinedVariance2", variance+2*pass_stride);
 
-			memset(XtWX, 0, sizeof(float)*(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)*storage_num);
-			memset(XtWY, 0, sizeof(float3)*(DENOISE_FEATURES+1)*storage_num);
+			memset(XtWX, 0, sizeof(float)*XTWX_SIZE*storage_num);
+			memset(XtWY, 0, sizeof(float3)*XTWY_SIZE*storage_num);
 			int second_filter_rect[4] = {0, 0, filter_area.z, filter_area.w};
 			int second_buffer_params[4] = {offset, stride, kg->__data.film.pass_stride, kg->__data.film.pass_no_denoising};
-			for(int i = 0; i < (2*hw+1)*(2*hw+1); i++) {
-				int dy = i / (2*hw+1) - hw;
-				int dx = i % (2*hw+1) - hw;
+			for(int i = 0; i < (2*half_window+1)*(2*half_window+1); i++) {
+				int dy = i / (2*half_window+1) - half_window;
+				int dx = i % (2*half_window+1) - half_window;
 
 				int local_rect[4] = {max(0, -dx), max(0, -dy), filter_area.z - max(0, dx), filter_area.w - max(0, dy)};
 				filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, pass_stride, a, k_2);
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
 				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 8, 11, storage, XtWX, XtWY, local_rect, second_filter_rect, w, h, 4);
+				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 8, 11, transform, rank, XtWX, XtWY, local_rect, second_filter_rect, w, h, 4);
 			}
 			delete[] difference;
 			delete[] blurDifference;
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
-					filter_finalize_kernel()(x + filter_area.x, y + filter_area.y, y*filter_area.z + x, w, h, buffers, storage, XtWX, XtWY, second_buffer_params, sample);
+					filter_finalize_kernel()(x + filter_area.x, y + filter_area.y, y*filter_area.z + x, w, h, buffers, rank, XtWX, XtWY, second_buffer_params, sample);
 				}
 			}
 
@@ -614,30 +625,31 @@ public:
 			int filter_rect[4] = {filter_area.x-rect.x, filter_area.y-rect.y, filter_area.z, filter_area.w};
 			int buffer_params[4] = {offset, stride, kg->__data.film.pass_stride, kg->__data.film.pass_no_denoising};
 
-			memset(XtWX, 0, sizeof(float)*(DENOISE_FEATURES+1)*(DENOISE_FEATURES+1)*storage_num);
-			memset(XtWY, 0, sizeof(float3)*(DENOISE_FEATURES+1)*storage_num);
-			for(int i = 0; i < (2*hw+1)*(2*hw+1); i++) {
-				int dy = i / (2*hw+1) - hw;
-				int dx = i % (2*hw+1) - hw;
+			memset(XtWX, 0, sizeof(float)*XTWX_SIZE*storage_num);
+			memset(XtWY, 0, sizeof(float3)*XTWY_SIZE*storage_num);
+			for(int i = 0; i < (2*half_window+1)*(2*half_window+1); i++) {
+				int dy = i / (2*half_window+1) - half_window;
+				int dx = i % (2*half_window+1) - half_window;
 
 				int local_rect[4] = {max(0, -dx), max(0, -dy), rect.z-rect.x - max(0, dx), rect.w-rect.y - max(0, dy)};
 				filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, pass_stride, a, k_2);
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
 				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
 				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 8, 11, storage, XtWX, XtWY, local_rect, filter_rect, w, h, 4);
+				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 8, 11, transform, rank, XtWX, XtWY, local_rect, filter_rect, w, h, 4);
 			}
 			delete[] difference;
 			delete[] blurDifference;
 			for(int y = 0; y < filter_area.w; y++) {
 				for(int x = 0; x < filter_area.z; x++) {
-					filter_finalize_kernel()(x + filter_area.x, y + filter_area.y, y*filter_area.z + x, w, h, buffers, storage, XtWX, XtWY, buffer_params, sample);
+					filter_finalize_kernel()(x + filter_area.x, y + filter_area.y, y*filter_area.z + x, w, h, buffers, rank, XtWX, XtWY, buffer_params, sample);
 				}
 			}
 
 		}
 
-		delete[] storage;
+		delete[] transform;
+		delete[] rank;
 		delete[] XtWX;
 		delete[] XtWY;
 	}
@@ -726,9 +738,9 @@ public:
 				int tile_x[4] = {rtiles[3].x, rtiles[4].x, rtiles[5].x, rtiles[5].x+rtiles[5].w};
 				int tile_y[4] = {rtiles[1].y, rtiles[4].y, rtiles[7].y, rtiles[7].y+rtiles[7].h};
 
-				int hw = kg.__data.integrator.half_window;
+				int half_window = kg.__data.integrator.half_window;
 				int4 filter_area = make_int4(tile.x, tile.y, tile.w, tile.h);
-				int4 rect = make_int4(max(tile.x - hw, tile_x[0]), max(tile.y - hw, tile_y[0]), min(tile.x + tile.w + hw+1, tile_x[3]), min(tile.y + tile.h + hw+1, tile_y[3]));
+				int4 rect = make_int4(max(tile.x - half_window, tile_x[0]), max(tile.y - half_window, tile_y[0]), min(tile.x + tile.w + half_window+1, tile_x[3]), min(tile.y + tile.h + half_window+1, tile_y[3]));
 
 				float* filter_buffer = denoise_fill_buffer(&kg, sample, rect, buffers, tile_x, tile_y, offsets, strides, tile.buffers->params.frames, frame_stride);
 				denoise_run(&kg, sample, filter_buffer, filter_area, rect, tile.offset, tile.stride, (float*) tile.buffer);
