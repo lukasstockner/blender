@@ -1003,9 +1003,10 @@ public:
 				void *divide_args[] = {&sample, &d_buffer,
 					                   &buffer_area,
 				                       &rtile.offset, &rtile.stride,
-				                       &d_unfilteredA, &d_sampleV, &d_sampleVV, &d_bufferV,
+				                       &d_unfilteredA, &d_unfilteredB,
+				                       &d_sampleV, &d_sampleVV, &d_bufferV,
 				                       &rect, &buffer_pass_stride, &buffer_denoising_offset,
-				                       &num_frames, &use_gradients};
+				                       &use_gradients};
 				cuda_assert(cuLaunchKernel(cuFilterDivideShadow,
 				                           xblocks , yblocks, 1, /* blocks */
 				                           xthreads, ythreads, 1, /* threads */
@@ -1147,8 +1148,6 @@ public:
 		int f = 4;
 		float a = 1.0f;
 		float k_2 = kernel_globals.integrator.weighting_adjust;
-		int color_pass = 8;
-		int variance_pass = 11;
 
 		CUdeviceptr color_buffer = CUDA_PTR_ADD(d_denoise_buffers, 8*pass_stride);
 		CUdeviceptr variance_buffer = CUDA_PTR_ADD(d_denoise_buffers, 11*pass_stride);
@@ -1164,7 +1163,7 @@ public:
 		void *calc_difference_args[] = {&dx, &dy, &color_buffer, &variance_buffer, &d_difference, &local_rect, &w, &a, &k_2};
 		void *blur_args[] = {&d_difference, &d_blurDifference, &local_rect, &w, &f};
 		void *calc_weight_args[] = {&d_blurDifference, &d_difference, &local_rect, &w, &f};
-		void *construct_gramian_args[] = {&dx, &dy, &d_blurDifference, &d_denoise_buffers, &color_pass, &variance_pass, &d_transform, &d_rank, &d_XtWX, &d_XtWY, &local_rect, &local_filter_rect, &w, &h, &f};
+		void *construct_gramian_args[] = {&dx, &dy, &d_blurDifference, &d_denoise_buffers, &color_buffer, &variance_buffer, &d_transform, &d_rank, &d_XtWX, &d_XtWY, &local_rect, &local_filter_rect, &w, &h, &f};
 
 		for(int i = 0; i < (2*half_window+1)*(2*half_window+1); i++) {
 			dy = i / (2*half_window+1) - half_window;

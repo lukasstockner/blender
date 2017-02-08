@@ -117,14 +117,14 @@ ccl_device_inline void filter_calculate_scale(float *scale)
 	scale[7] = 1.0f/max(sqrtf(scale[7]), 0.01f); //AlbedoB
 }
 
-ccl_device_inline float3 filter_get_pixel_color(float ccl_readonly_ptr buffer, int channel, int pass_stride)
+ccl_device_inline float3 filter_get_pixel_color(float ccl_readonly_ptr buffer, int pass_stride)
 {
-	return make_float3(ccl_get_feature(channel), ccl_get_feature(channel+1), ccl_get_feature(channel+2));
+	return make_float3(ccl_get_feature(0), ccl_get_feature(1), ccl_get_feature(2));
 }
 
-ccl_device_inline float filter_get_pixel_variance(float ccl_readonly_ptr buffer, int channel, int pass_stride)
+ccl_device_inline float filter_get_pixel_variance(float ccl_readonly_ptr buffer, int pass_stride)
 {
-	return average(make_float3(ccl_get_feature(channel), ccl_get_feature(channel+1), ccl_get_feature(channel+2)));
+	return average(make_float3(ccl_get_feature(0), ccl_get_feature(1), ccl_get_feature(2)));
 }
 
 ccl_device_inline bool filter_firefly_rejection(float3 pixel_color, float pixel_variance, float3 center_color, float sqrt_center_variance)

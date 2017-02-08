@@ -112,10 +112,14 @@ ccl_device_inline void kernel_filter_nlm_update_output(int dx, int dy, float ccl
 ccl_device_inline void kernel_filter_nlm_construct_gramian(int dx, int dy,
                                                            float ccl_readonly_ptr differenceImage,
                                                            float ccl_readonly_ptr buffer,
-                                                           int color_pass, int variance_pass,
-                                                           float *transform, int *rank,
-                                                           float *XtWX, float3 *XtWY,
-                                                           int4 rect, int4 filter_rect,
+                                                           float *color_pass,
+                                                           float *variance_pass,
+                                                           float *transform,
+                                                           int *rank,
+                                                           float *XtWX,
+                                                           float3 *XtWY,
+                                                           int4 rect,
+                                                           int4 filter_rect,
                                                            int w, int h, int f)
 {
 	/* fy and fy are in filter-window-relative coordinates, while x and y are in feature-window-relative coordinates. */

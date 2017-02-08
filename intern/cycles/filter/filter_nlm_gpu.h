@@ -84,11 +84,14 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int fx, int fy,
                                                            int dx, int dy,
                                                            float ccl_readonly_ptr differenceImage,
                                                            float ccl_readonly_ptr buffer,
-                                                           int color_pass, int variance_pass,
+                                                           float *color_pass,
+                                                           float *variance_pass,
                                                            float ccl_readonly_ptr transform,
                                                            int *rank,
-                                                           float *XtWX, float3 *XtWY,
-                                                           int4 rect, int4 filter_rect,
+                                                           float *XtWX,
+                                                           float3 *XtWY,
+                                                           int4 rect,
+                                                           int4 filter_rect,
                                                            int w, int h, int f)
 {
 	int y = fy + filter_rect.y;

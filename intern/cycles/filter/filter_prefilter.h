@@ -25,14 +25,19 @@ CCL_NAMESPACE_BEGIN
  * sampleVarianceV: Variance of the sample variance estimation, quite noisy (since it's essentially the buffer variance of the two variance halves)
  * bufferVariance: The buffer-based variance of the shadow feature. Unbiased, but quite noisy.
  */
-ccl_device void kernel_filter_divide_shadow(int sample, float **buffers,
+ccl_device void kernel_filter_divide_shadow(int sample,
+                                            float **buffers,
                                             int x, int y,
                                             int *tile_x, int *tile_y,
                                             int *offset, int *stride,
-                                            float *unfiltered, float *sampleVariance,
-                                            float *sampleVarianceV, float *bufferVariance,
-                                            int4 rect, int buffer_pass_stride,
-                                            int buffer_denoising_offset, int num_frames,
+                                            float *unfilteredA,
+                                            float *unfilteredB,
+                                            float *sampleVariance,
+                                            float *sampleVarianceV,
+                                            float *bufferVariance,
+                                            int4 rect,
+                                            int buffer_pass_stride,
+                                            int buffer_denoising_offset,
                                             bool use_gradients)
 {
 	int xtile = (x < tile_x[1])? 0: ((x < tile_x[2])? 1: 2);
@@ -47,13 +52,12 @@ ccl_device void kernel_filter_divide_shadow(int sample, float **buffers,
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);
-	int Bofs = (rect.w - rect.y)*buffer_w*num_frames;
-	unfiltered[idx] = center_buffer[15] / max(center_buffer[14], 1e-7f);
-	unfiltered[idx+Bofs] = center_buffer[18] / max(center_buffer[17], 1e-7f);
+	unfilteredA[idx] = center_buffer[15] / max(center_buffer[14], 1e-7f);
+	unfilteredB[idx] = center_buffer[18] / max(center_buffer[17], 1e-7f);
 	float varFac = 1.0f / (sample * (sample-1));
 	sampleVariance[idx] = (center_buffer[16] + center_buffer[19]) * varFac;
 	sampleVarianceV[idx] = 0.5f * (center_buffer[16] - center_buffer[19]) * (center_buffer[16] - center_buffer[19]) * varFac * varFac;
-	bufferVariance[idx] = 0.5f * (unfiltered[idx] - unfiltered[idx+Bofs]) * (unfiltered[idx] - unfiltered[idx+Bofs]);
+	bufferVariance[idx] = 0.5f * (unfilteredA[idx] - unfilteredB[idx]) * (unfilteredA[idx] - unfilteredB[idx]);
 }
 
 /* Load a regular feature from the render buffers into the denoise buffer.

@@ -31,10 +31,14 @@ CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_filter_divide_shadow(int sample, float* buffers,
                                  int4 buffer_rect,
                                  int offset, int stride,
-                                 float *unfiltered, float *sampleVariance,
-                                 float *sampleVarianceV, float *bufferVariance,
-                                 int4 prefilter_rect, int buffer_pass_stride,
-                                 int buffer_denoising_offset, int num_frames,
+                                 float *unfilteredA,
+                                 float *unfilteredB,
+                                 float *sampleVariance,
+                                 float *sampleVarianceV,
+                                 float *bufferVariance,
+                                 int4 prefilter_rect,
+                                 int buffer_pass_stride,
+                                 int buffer_denoising_offset,
                                  bool use_gradients)
 {
 	int x = prefilter_rect.x + blockDim.x*blockIdx.x + threadIdx.x;
@@ -48,10 +52,14 @@ kernel_cuda_filter_divide_shadow(int sample, float* buffers,
 		kernel_filter_divide_shadow(sample, tile_buffers,
 		                            x, y, tile_x, tile_y,
 		                            tile_offset, tile_stride,
-		                            unfiltered, sampleVariance,
-		                            sampleVarianceV, bufferVariance,
-		                            prefilter_rect, buffer_pass_stride,
-		                            buffer_denoising_offset, num_frames,
+		                            unfilteredA,
+		                            unfilteredB,
+		                            sampleVariance,
+		                            sampleVarianceV,
+		                            bufferVariance,
+		                            prefilter_rect,
+		                            buffer_pass_stride,
+		                            buffer_denoising_offset,
 		                            use_gradients);
 	}
 }
@@ -198,11 +206,14 @@ CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_filter_nlm_construct_gramian(int dx, int dy,
                                          float ccl_readonly_ptr differenceImage,
                                          float ccl_readonly_ptr buffer,
-                                         int color_pass, int variance_pass,
+                                         float *color_pass,
+                                         float *variance_pass,
                                          float const* __restrict__ transform,
                                          int *rank,
-                                         float *XtWX, float3 *XtWY,
-                                         int4 rect, int4 filter_rect,
+                                         float *XtWX,
+                                         float3 *XtWY,
+                                         int4 rect,
+                                         int4 filter_rect,
                                          int w, int h, int f) {
 	int x = blockDim.x*blockIdx.x + threadIdx.x + max(0, rect.x-filter_rect.x);
 	int y = blockDim.y*blockIdx.y + threadIdx.y + max(0, rect.y-filter_rect.y);

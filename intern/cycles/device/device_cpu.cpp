@@ -26,6 +26,7 @@
 
 #include "device.h"
 #include "device_intern.h"
+#include "device_denoising.h"
 
 #include "kernel.h"
 #include "kernel_compat_cpu.h"
@@ -136,10 +137,10 @@ public:
 	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)>       convert_to_byte_kernel;
 	KernelFunctions<void(*)(KernelGlobals *, uint4 *, float4 *, float*, int, int, int, int, int)> shader_kernel;
 
-	KernelFunctions<void(*)(int, float**, int, int, int*, int*, int*, int*, float*, float*, float*, float*, int*, int, int, int, bool)> filter_divide_shadow_kernel;
-	KernelFunctions<void(*)(int, float**, int, int, int, int, int*, int*, int*, int*, float*, float*, int*, int, int, bool)>            filter_get_feature_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                                       filter_combine_halves_kernel;
-	KernelFunctions<void(*)(int, int, int, float*, int, int, int, int)>                                                                 filter_divide_combined_kernel;
+	KernelFunctions<void(*)(int, float**, int, int, int*, int*, int*, int*, float*, float*, float*, float*, float*, int*, int, int, bool)> filter_divide_shadow_kernel;
+	KernelFunctions<void(*)(int, float**, int, int, int, int, int*, int*, int*, int*, float*, float*, int*, int, int, bool)>               filter_get_feature_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                                          filter_combine_halves_kernel;
+	KernelFunctions<void(*)(int, int, int, float*, int, int, int, int)>                                                                    filter_divide_combined_kernel;
 
 	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, float, float)> filter_nlm_calc_difference_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                 filter_nlm_blur_kernel;
@@ -147,9 +148,9 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int)>       filter_nlm_update_output_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int)>                                      filter_nlm_normalize_kernel;
 
-	KernelFunctions<void(*)(int, float*, int, int, int, float*, int*, int*, int, float, int, int)>                          filter_construct_transform_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, int, int, float*, int*, float*, float3*, int*, int*, int, int, int)>  filter_nlm_construct_gramian_kernel;
-	KernelFunctions<void(*)(int, int, int, int, int, float*, int*, float*, float3*, int*, int)>                            filter_finalize_kernel;
+	KernelFunctions<void(*)(int, float*, int, int, int, float*, int*, int*, int, float, int, int)>                               filter_construct_transform_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, float*, int*, float*, float3*, int*, int*, int, int, int)> filter_nlm_construct_gramian_kernel;
+	KernelFunctions<void(*)(int, int, int, int, int, float*, int*, float*, float3*, int*, int)>                                  filter_finalize_kernel;
 
 #define KERNEL_FUNCTIONS(name) \
 	      KERNEL_NAME_EVAL(cpu, name), \
@@ -221,10 +222,18 @@ public:
 	void mem_free(device_memory& mem)
 	{
 		if(mem.device_pointer) {
+			if(!mem.data_pointer) {
+				delete[] (char*) mem.device_pointer;
+			}
 			mem.device_pointer = 0;
 			stats.mem_free(mem.device_size);
 			mem.device_size = 0;
 		}
+	}
+
+	virtual device_ptr mem_get_offset_ptr(device_memory& mem, int offset)
+	{
+		return (device_ptr) (((char*) mem.device_pointer) + mem.memory_offset(offset));
 	}
 
 	void const_copy_to(const char *name, void *host, size_t size)
@@ -290,368 +299,216 @@ public:
 		}
 	};
 
-	void non_local_means(int4 rect, float *image, float *weight, float *out, float *variance, float *difference, float *blurDifference, float *weightAccum, int r, int f, float a, float k_2, int channel_ofs_in = 0, int channel_ofs_out = 0)
+	bool denoising_non_local_means(device_ptr image_ptr, device_ptr guide_ptr, device_ptr variance_ptr, device_ptr out_ptr,
+	                               DenoisingTask *task)
 	{
+		int4 rect = task->rect;
+		int   r   = task->nlm_state.r;
+		int   f   = task->nlm_state.f;
+		float a   = task->nlm_state.a;
+		float k_2 = task->nlm_state.k_2;
+
 		int w = align_up(rect.z-rect.x, 4);
 		int h = rect.w-rect.y;
 
-		int channels = channel_ofs_in? 3: 1;
-		memset(weightAccum, 0, sizeof(float)*w*h*channels);
-		memset(out, 0, sizeof(float)*w*h*channels);
+		float *blurDifference = (float*) task->nlm_state.temporary_1_ptr;
+		float *difference     = (float*) task->nlm_state.temporary_2_ptr;
+		float *weightAccum    = (float*) task->nlm_state.temporary_3_ptr;
+
+		memset(weightAccum, 0, sizeof(float)*w*h);
+		memset((float*) out_ptr, 0, sizeof(float)*w*h);
 
 		for(int i = 0; i < (2*r+1)*(2*r+1); i++) {
 			int dy = i / (2*r+1) - r;
 			int dx = i % (2*r+1) - r;
 
 			int local_rect[4] = {max(0, -dx), max(0, -dy), rect.z-rect.x - max(0, dx), rect.w-rect.y - max(0, dy)};
-			filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, channel_ofs_in, a, k_2);
-			filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
+			filter_nlm_calc_difference_kernel()(dx, dy,
+			                                    (float*) guide_ptr,
+			                                    (float*) variance_ptr,
+			                                    difference,
+			                                    local_rect,
+			                                    0,
+			                                    w, a, k_2);
+
+			filter_nlm_blur_kernel()       (difference, blurDifference, local_rect, w, f);
 			filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
-			filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-			for(int c = 0; c < channels; c++) {
-				filter_nlm_update_output_kernel()(dx, dy, blurDifference, image + channel_ofs_in*c, out + channel_ofs_out*c, weightAccum + w*h*c, local_rect, w, f);
-			}
+			filter_nlm_blur_kernel()       (difference, blurDifference, local_rect, w, f);
+
+			filter_nlm_update_output_kernel()(dx, dy,
+			                                  blurDifference,
+			                                  (float*) image_ptr,
+			                                  (float*) out_ptr,
+			                                  weightAccum,
+			                                  local_rect,
+			                                  w, f);
 		}
 
 		int local_rect[4] = {0, 0, rect.z-rect.x, rect.w-rect.y};
-		for(int c = 0; c < channels; c++) {
-			filter_nlm_normalize_kernel()(out + channel_ofs_out*c, weightAccum + w*h*c, local_rect, w);
-		}
+		filter_nlm_normalize_kernel()((float*) out_ptr, weightAccum, local_rect, w);
+
+		return true;
 	}
 
-	float* denoise_fill_buffer(KernelGlobals *kg, int sample, int4 rect, float** buffers, int* tile_x, int* tile_y, int *offsets, int *strides, int frames, int *frame_strides)
+	bool denoising_construct_transform(DenoisingTask *task)
 	{
-		bool use_cross_denoising = kg->__data.film.denoise_cross;
-		bool use_gradients = kg->__data.integrator.use_gradients;
-		int buffer_pass_stride = kg->__data.film.pass_stride;
-		int buffer_denoising_offset = kg->__data.film.pass_denoising;
-		int num_frames = 1;
-
-		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
-		int pass_stride = w*h*frames;
-		int passes = use_cross_denoising? 20 : 14;
-		float *filter_buffers = new float[passes*pass_stride];
-		memset(filter_buffers, 0, sizeof(float)*passes*pass_stride);
-
-		/* Denoising Buffer Pass allocation:
-		 *  0: Normal X
-		 *  1: Normal Y
-		 *  2: Normal Z
-		 *  3: Depth
-		 *  4: Shadowing
-		 *  5: Albedo R
-		 *  6: Albedo G
-		 *  7: Albedo B
-		 *  8: Color R
-		 *  9: Color G
-		 * 10: Color B
-		 * 11: Color Variance R
-		 * 12: Color Variance G
-		 * 13: Color Variance B
-		 * With Cross-denoising passes, this list is essentially repeated two times. */
-
-		for(int frame = 0; frame < frames; frame++) {
-			float *filter_buffer = filter_buffers + w*h*frame;
-			float *buffer[9];
-			for(int i = 0; i < 9; i++) {
-				buffer[i] = buffers[i] + frame_strides[i]*frame;
+		for(int y = 0; y < task->filter_area.w; y++) {
+			for(int x = 0; x < task->filter_area.z; x++) {
+				filter_construct_transform_kernel()(task->render_buffer.samples,
+				                                    (float*) task->buffer.mem.device_pointer,
+				                                    x + task->filter_area.x,
+				                                    y + task->filter_area.y,
+				                                    y*task->filter_area.z + x,
+				                                    (float*) task->storage.transform.device_pointer,
+				                                    (int*)   task->storage.rank.device_pointer,
+				                                    &task->rect.x,
+				                                    task->half_window,
+				                                    task->pca_threshold,
+				                                    1,
+				                                    0);
 			}
-			DebugPasses debug((rect.z - rect.x), h, 42, 1, w);
-
-#define PASSPTR(i) (filter_buffer + (i)*pass_stride)
-
-			/* ==== Step 1: Prefilter shadow feature. ==== */
-			{
-				/* Reuse some passes of the filter_buffer for temporary storage. */
-				float *sampleV = PASSPTR(0), *sampleVV = PASSPTR(1), *bufferV = PASSPTR(2), *cleanV = PASSPTR(3);
-				float *unfilteredA = PASSPTR(5), *unfilteredB = PASSPTR(6);
-				float *nlm_temp1 = PASSPTR(7), *nlm_temp2 = PASSPTR(8), *nlm_temp3 = PASSPTR(9);
-
-				/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
-				for(int y = rect.y; y < rect.w; y++) {
-					for(int x = rect.x; x < rect.z; x++) {
-						filter_divide_shadow_kernel()(sample, buffer, x, y, tile_x, tile_y, offsets, strides, unfilteredA, sampleV, sampleVV, bufferV, &rect.x, buffer_pass_stride, buffer_denoising_offset, num_frames, use_gradients);
-					}
-				}
-				debug.add_pass("shadowUnfilteredA", unfilteredA);
-				debug.add_pass("shadowUnfilteredB", unfilteredB);
-				debug.add_pass("shadowBufferV", bufferV);
-				debug.add_pass("shadowSampleV", sampleV);
-				debug.add_pass("shadowSampleVV", sampleVV);
-
-				/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
-				non_local_means(rect, bufferV, sampleV, cleanV, sampleVV, nlm_temp1, nlm_temp2, nlm_temp3, 6, 3, 4.0f, 1.0f);
-				debug.add_pass("shadowCleanV", cleanV);
-
-				/* Use the smoothed variance to filter the two shadow half images using each other for weight calculation. */
-				non_local_means(rect, unfilteredA, unfilteredB, sampleV, cleanV, nlm_temp1, nlm_temp2, nlm_temp3, 5, 3, 1.0f, 0.25f);
-				non_local_means(rect, unfilteredB, unfilteredA, bufferV, cleanV, nlm_temp1, nlm_temp2, nlm_temp3, 5, 3, 1.0f, 0.25f);
-				debug.add_pass("shadowFilteredA", sampleV);
-				debug.add_pass("shadowFilteredB", bufferV);
-
-				/* Estimate the residual variance between the two filtered halves. */
-				for(int y = rect.y; y < rect.w; y++) {
-					for(int x = rect.x; x < rect.z; x++) {
-						filter_combine_halves_kernel()(x, y, NULL, sampleVV, sampleV, bufferV, &rect.x, 2);
-					}
-				}
-				debug.add_pass("shadowResidualV", sampleVV);
-
-				/* Use the residual variance for a second filter pass. */
-				non_local_means(rect, sampleV, bufferV, unfilteredA, sampleVV, nlm_temp1, nlm_temp2, nlm_temp3, 4, 2, 1.0f, 0.5f);
-				non_local_means(rect, bufferV, sampleV, unfilteredB, sampleVV, nlm_temp1, nlm_temp2, nlm_temp3, 4, 2, 1.0f, 0.5f);
-				debug.add_pass("shadowFinalA", unfilteredA);
-				debug.add_pass("shadowFinalB", unfilteredB);
-
-				/* Combine the two double-filtered halves to a final shadow feature image and associated variance. */
-				for(int y = rect.y; y < rect.w; y++) {
-					for(int x = rect.x; x < rect.z; x++) {
-						filter_combine_halves_kernel()(x, y, PASSPTR(4), NULL, unfilteredA, unfilteredB, &rect.x, 0);
-					}
-				}
-				debug.add_pass("shadowFinal", PASSPTR(4));
-			}
-
-			/* ==== Step 2: Prefilter general features. ==== */
-			{
-
-				float *unfiltered = PASSPTR(8), *variance = PASSPTR(9);
-				float *nlm_temp1 = PASSPTR(10), *nlm_temp2 = PASSPTR(11), *nlm_temp3 = PASSPTR(12);
-				/* Order in render buffers:
-				 *   Normal[X, Y, Z] NormalVar[X, Y, Z] Albedo[R, G, B] AlbedoVar[R, G, B ] Depth DepthVar
-				 *          0  1  2            3  4  5         6  7  8            9  10 11  12    13
-				 *
-				 * Order of processing: |NormalXYZ|Depth|AlbedoXYZ |
-				 *                      |         |     |          | */
-				int mean_from[]      = { 0, 1, 2,   6,    7,  8, 12 };
-				int variance_from[]  = { 3, 4, 5,   9,   10, 11, 13 };
-				int mean_to[]        = { 1, 2, 3,   0,    5,  6,  7 };
-				for(int i = 0; i < 7; i++) {
-					for(int y = rect.y; y < rect.w; y++) {
-						for(int x = rect.x; x < rect.z; x++) {
-							filter_get_feature_kernel()(sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, unfiltered, variance, &rect.x, buffer_pass_stride, buffer_denoising_offset, use_cross_denoising);
-						}
-					}
-					non_local_means(rect, unfiltered, unfiltered, PASSPTR(mean_to[i]), variance, nlm_temp1, nlm_temp2, nlm_temp3, 2, 2, 1, 0.25f);
-					debug.add_pass(string_printf("feature%dUnfiltered", i), unfiltered);
-					debug.add_pass(string_printf("feature%dFiltered", i), PASSPTR(mean_to[i]));
-					debug.add_pass(string_printf("feature%dVariance", i), variance);
-				}
-			}
-
-
-
-			/* ==== Step 3: Copy combined color pass. ==== */
-			{
-				int mean_from[]      = {20, 21, 22, 26, 27, 28};
-				int variance_from[]  = {23, 24, 25, 29, 30, 31};
-				int mean_to[]        = { 8,  9, 10, 14, 15, 16};
-				int variance_to[]    = {11, 12, 13, 17, 18, 19};
-				for(int i = 0; i < (use_cross_denoising? 6 : 3); i++) {
-					for(int y = rect.y; y < rect.w; y++) {
-						for(int x = rect.x; x < rect.z; x++) {
-							filter_get_feature_kernel()(sample, buffer, mean_from[i], variance_from[i], x, y, tile_x, tile_y, offsets, strides, PASSPTR(mean_to[i]), PASSPTR(variance_to[i]), &rect.x, buffer_pass_stride, buffer_denoising_offset, use_cross_denoising);
-						}
-					}
-				}
-			}
-
-#ifdef WITH_CYCLES_DEBUG_FILTER
-			{
-				float *temp1 = new float[pass_stride], *temp2 = new float[pass_stride], *temp3 = new float[3*pass_stride], *out = new float[3*pass_stride];
-				non_local_means(rect, PASSPTR(8), PASSPTR(8), out, PASSPTR(11), temp1, temp2, temp3, 8, 4, 1, 0.5f, pass_stride, pass_stride);
-				debug.add_pass("input0Filtered", out);
-				debug.add_pass("input1Filtered", out+pass_stride);
-				debug.add_pass("input2Filtered", out+2*pass_stride);
-				debug.add_pass("input0Unfiltered", PASSPTR(8));
-				debug.add_pass("input1Unfiltered", PASSPTR(9));
-				debug.add_pass("input2Unfiltered", PASSPTR(10));
-				debug.add_pass("input0Variance", PASSPTR(11));
-				debug.add_pass("input1Variance", PASSPTR(12));
-				debug.add_pass("input2Variance", PASSPTR(13));
-				delete[] temp1;
-				delete[] temp2;
-				delete[] temp3;
-				delete[] out;
-			}
-#endif
-
-			debug.write(string_printf("debug_tile_%d_%d.exr", rect.x, rect.y));
 		}
-
-		return filter_buffers;
+		return true;
 	}
 
-	void denoise_run(KernelGlobals *kg, int sample, float *filter_buffer, int4 filter_area, int4 rect, int offset, int stride, float *buffers)
+	bool denoising_reconstruct(device_ptr color_ptr,
+	                           device_ptr color_variance_ptr,
+	                           device_ptr guide_ptr,
+	                           device_ptr guide_variance_ptr,
+	                           device_ptr output_ptr,
+	                           DenoisingTask *task)
 	{
-#ifdef WITH_CYCLES_DEBUG_FPE
-		scoped_fpe fpe(FPE_ENABLED);
-#endif
+		mem_zero(task->storage.XtWX);
+		mem_zero(task->storage.XtWY);
 
-		bool use_cross_denoising = kg->__data.film.denoise_cross;
-		int half_window = kg->__data.integrator.half_window;
-		float pca_threshold = kg->__data.integrator.filter_strength;
-		int num_frames = 1; /* TODO(lukas) */
-		int prev_frames = 0;
+		float *difference     = (float*) task->reconstruction_state.temporary_1_ptr;
+		float *blurDifference = (float*) task->reconstruction_state.temporary_2_ptr;
 
-		int w = align_up(rect.z - rect.x, 4), h = (rect.w - rect.y);
-		int pass_stride = w*h;
+		int r = task->half_window;
+		for(int i = 0; i < (2*r+1)*(2*r+1); i++) {
+			int dy = i / (2*r+1) - r;
+			int dx = i % (2*r+1) - r;
 
-		int storage_num = filter_area.z*filter_area.w;
-		float *XtWX = new float[XTWX_SIZE*storage_num];
-		float3 *XtWY = new float3[XTWY_SIZE*storage_num];
-		float *transform = new float[TRANSFORM_SIZE*storage_num];
-		int *rank = new int[storage_num];
-
-		for(int y = 0; y < filter_area.w; y++) {
-			for(int x = 0; x < filter_area.z; x++) {
-				filter_construct_transform_kernel()(sample, filter_buffer, x + filter_area.x, y + filter_area.y, y*filter_area.z + x, transform, rank, &rect.x, half_window, pca_threshold, num_frames, prev_frames);
+			int local_rect[4] = {max(0, -dx), max(0, -dy),
+			                     task->reconstruction_state.source_w - max(0, dx),
+			                     task->reconstruction_state.source_h - max(0, dy)};
+			filter_nlm_calc_difference_kernel()(dx, dy,
+			                                    (float*) guide_ptr,
+			                                    (float*) guide_variance_ptr,
+			                                    difference,
+			                                    local_rect,
+			                                    task->buffer.w,
+			                                    task->buffer.pass_stride,
+			                                    1.0f,
+			                                    task->nlm_k_2);
+			filter_nlm_blur_kernel()(difference, blurDifference, local_rect, task->buffer.w, 4);
+			filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, task->buffer.w, 4);
+			filter_nlm_blur_kernel()(difference, blurDifference, local_rect, task->buffer.w, 4);
+			filter_nlm_construct_gramian_kernel()(dx, dy,
+			                                      blurDifference,
+			                                      (float*)  task->buffer.mem.device_pointer,
+			                                      (float*)  color_ptr,
+			                                      (float*)  color_variance_ptr,
+			                                      (float*)  task->storage.transform.device_pointer,
+			                                      (int*)    task->storage.rank.device_pointer,
+			                                      (float*)  task->storage.XtWX.device_pointer,
+			                                      (float3*) task->storage.XtWY.device_pointer,
+			                                      local_rect,
+			                                      &task->reconstruction_state.filter_rect.x,
+			                                      task->buffer.w,
+			                                      task->buffer.h,
+			                                      4);
+		}
+		for(int y = 0; y < task->filter_area.w; y++) {
+			for(int x = 0; x < task->filter_area.z; x++) {
+				filter_finalize_kernel()(x,
+				                         y,
+				                         y*task->filter_area.z + x,
+				                         task->buffer.w,
+				                         task->buffer.h,
+				                         (float*)  output_ptr,
+				                         (int*)    task->storage.rank.device_pointer,
+				                         (float*)  task->storage.XtWX.device_pointer,
+				                         (float3*) task->storage.XtWY.device_pointer,
+				                         &task->reconstruction_state.buffer_params.x,
+				                         task->render_buffer.samples);
 			}
 		}
+		return true;
+	}
 
-		if(use_cross_denoising)
-		{
-			int f = 4;
-			float a = 1.0f;
-			float k_2 = kg->__data.integrator.weighting_adjust;
-			float *weight = filter_buffer + 8*pass_stride;
-			float *variance = filter_buffer + 11*pass_stride;
-			float *difference = new float[pass_stride];
-			float *blurDifference = new float[pass_stride];
-			float *outA = new float[3*pass_stride];
-			float *outB = new float[3*pass_stride];
-			int first_filter_rect[4] = {filter_area.x-rect.x, filter_area.y-rect.y, filter_area.z, filter_area.w};
-			int first_buffer_params[4] = {-rect.x, -rect.y, 0, pass_stride};
-			int simple_rect[4] = {0, 0, w, h};
-			DebugPasses debug(filter_area.z, filter_area.w, 34, 1, w);
-
-			memset(XtWX, 0, sizeof(float)*XTWX_SIZE*storage_num);
-			memset(XtWY, 0, sizeof(float3)*XTWY_SIZE*storage_num);
-			for(int i = 0; i < (2*half_window+1)*(2*half_window+1); i++) {
-				int dy = i / (2*half_window+1) - half_window;
-				int dx = i % (2*half_window+1) - half_window;
-
-				int local_rect[4] = {max(0, -dx), max(0, -dy), rect.z-rect.x - max(0, dx), rect.w-rect.y - max(0, dy)};
-				filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, pass_stride, a, k_2);
-				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
-				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 14, 17, transform, rank, XtWX, XtWY, local_rect, first_filter_rect, w, h, 4);
+	bool denoising_combine_halves(device_ptr a_ptr, device_ptr b_ptr,
+	                              device_ptr mean_ptr, device_ptr variance_ptr,
+	                              int r, int4 rect, DenoisingTask *task)
+	{
+		(void) task;
+		for(int y = rect.y; y < rect.w; y++) {
+			for(int x = rect.x; x < rect.z; x++) {
+				filter_combine_halves_kernel()(x, y,
+				                               (float*) mean_ptr,
+				                               (float*) variance_ptr,
+				                               (float*) a_ptr,
+				                               (float*) b_ptr,
+				                               &rect.x,
+				                               r);
 			}
-			for(int y = 0; y < filter_area.w; y++) {
-				for(int x = 0; x < filter_area.z; x++) {
-					filter_finalize_kernel()(x, y, y*filter_area.z + x, w, h, outA, rank, XtWX, XtWY, first_buffer_params, sample);
-				}
-			}
-			debug.add_pass("passAColor0", outA+0*pass_stride);
-			debug.add_pass("passAColor1", outA+1*pass_stride);
-			debug.add_pass("passAColor2", outA+2*pass_stride);
-
-			memset(XtWX, 0, sizeof(float)*XTWX_SIZE*storage_num);
-			memset(XtWY, 0, sizeof(float3)*XTWY_SIZE*storage_num);
-			weight = filter_buffer + 14*pass_stride;
-			variance = filter_buffer + 17*pass_stride;
-			for(int i = 0; i < (2*half_window+1)*(2*half_window+1); i++) {
-				int dy = i / (2*half_window+1) - half_window;
-				int dx = i % (2*half_window+1) - half_window;
-
-				int local_rect[4] = {max(0, -dx), max(0, -dy), rect.z-rect.x - max(0, dx), rect.w-rect.y - max(0, dy)};
-				filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, pass_stride, a, k_2);
-				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
-				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 8, 11, transform, rank, XtWX, XtWY, local_rect, first_filter_rect, w, h, 4);
-			}
-			for(int y = 0; y < filter_area.w; y++) {
-				for(int x = 0; x < filter_area.z; x++) {
-					filter_finalize_kernel()(x, y, y*filter_area.z + x, w, h, outB, rank, XtWX, XtWY, first_buffer_params, sample);
-				}
-			}
-			debug.add_pass("passBColor0", outB+0*pass_stride);
-			debug.add_pass("passBColor1", outB+1*pass_stride);
-			debug.add_pass("passBColor2", outB+2*pass_stride);
-
-			weight = filter_buffer + 8*pass_stride;
-			variance = filter_buffer + 11*pass_stride;
-			for(int c = 0; c < 3; c++) {
-				for(int y = 0; y < filter_area.w; y++) {
-					for(int x = 0; x < filter_area.z; x++) {
-						filter_combine_halves_kernel()(x, y, weight + c*pass_stride, variance + c*pass_stride, outA + c*pass_stride, outB + c*pass_stride, simple_rect, 0);
-					}
-				}
-			}
-			delete[] outA;
-			delete[] outB;
-			debug.add_pass("combinedColor0", weight+0*pass_stride);
-			debug.add_pass("combinedColor1", weight+1*pass_stride);
-			debug.add_pass("combinedColor2", weight+2*pass_stride);
-			debug.add_pass("combinedVariance0", variance+0*pass_stride);
-			debug.add_pass("combinedVariance1", variance+1*pass_stride);
-			debug.add_pass("combinedVariance2", variance+2*pass_stride);
-
-			memset(XtWX, 0, sizeof(float)*XTWX_SIZE*storage_num);
-			memset(XtWY, 0, sizeof(float3)*XTWY_SIZE*storage_num);
-			int second_filter_rect[4] = {0, 0, filter_area.z, filter_area.w};
-			int second_buffer_params[4] = {offset, stride, kg->__data.film.pass_stride, kg->__data.film.pass_no_denoising};
-			for(int i = 0; i < (2*half_window+1)*(2*half_window+1); i++) {
-				int dy = i / (2*half_window+1) - half_window;
-				int dx = i % (2*half_window+1) - half_window;
-
-				int local_rect[4] = {max(0, -dx), max(0, -dy), filter_area.z - max(0, dx), filter_area.w - max(0, dy)};
-				filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, pass_stride, a, k_2);
-				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
-				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 8, 11, transform, rank, XtWX, XtWY, local_rect, second_filter_rect, w, h, 4);
-			}
-			delete[] difference;
-			delete[] blurDifference;
-			for(int y = 0; y < filter_area.w; y++) {
-				for(int x = 0; x < filter_area.z; x++) {
-					filter_finalize_kernel()(x + filter_area.x, y + filter_area.y, y*filter_area.z + x, w, h, buffers, rank, XtWX, XtWY, second_buffer_params, sample);
-				}
-			}
-
-			debug.write(string_printf("filter_%d_%d.exr", filter_area.x, filter_area.y));
 		}
-		else {
-			int f = 4;
-			float a = 1.0f;
-			float k_2 = kg->__data.integrator.weighting_adjust;
-			float *weight = filter_buffer + 8*pass_stride;
-			float *variance = filter_buffer + 11*pass_stride;
-			float *difference = new float[pass_stride];
-			float *blurDifference = new float[pass_stride];
-			int filter_rect[4] = {filter_area.x-rect.x, filter_area.y-rect.y, filter_area.z, filter_area.w};
-			int buffer_params[4] = {offset, stride, kg->__data.film.pass_stride, kg->__data.film.pass_no_denoising};
+		return true;
+	}
 
-			memset(XtWX, 0, sizeof(float)*XTWX_SIZE*storage_num);
-			memset(XtWY, 0, sizeof(float3)*XTWY_SIZE*storage_num);
-			for(int i = 0; i < (2*half_window+1)*(2*half_window+1); i++) {
-				int dy = i / (2*half_window+1) - half_window;
-				int dx = i % (2*half_window+1) - half_window;
-
-				int local_rect[4] = {max(0, -dx), max(0, -dy), rect.z-rect.x - max(0, dx), rect.w-rect.y - max(0, dy)};
-				filter_nlm_calc_difference_kernel()(dx, dy, weight, variance, difference, local_rect, w, pass_stride, a, k_2);
-				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
-				filter_nlm_blur_kernel()(difference, blurDifference, local_rect, w, f);
-				filter_nlm_construct_gramian_kernel()(dx, dy, blurDifference, filter_buffer, 8, 11, transform, rank, XtWX, XtWY, local_rect, filter_rect, w, h, 4);
+	bool denoising_divide_shadow(device_ptr a_ptr, device_ptr b_ptr,
+	                             device_ptr sample_variance_ptr, device_ptr sv_variance_ptr,
+	                             device_ptr buffer_variance_ptr, DenoisingTask *task)
+	{
+		for(int y = task->rect.y; y < task->rect.w; y++) {
+			for(int x = task->rect.x; x < task->rect.z; x++) {
+				filter_divide_shadow_kernel()(task->render_buffer.samples,
+				                              (float**) task->neighbors.buffers,
+				                              x, y,
+				                              task->neighbors.tile_x,
+				                              task->neighbors.tile_y,
+				                              task->neighbors.offsets,
+				                              task->neighbors.strides,
+				                              (float*) a_ptr,
+				                              (float*) b_ptr,
+				                              (float*) sample_variance_ptr,
+				                              (float*) sv_variance_ptr,
+				                              (float*) buffer_variance_ptr,
+				                              &task->rect.x,
+				                              task->render_buffer.pass_stride,
+				                              task->render_buffer.denoising_offset,
+				                              task->use_gradients);
 			}
-			delete[] difference;
-			delete[] blurDifference;
-			for(int y = 0; y < filter_area.w; y++) {
-				for(int x = 0; x < filter_area.z; x++) {
-					filter_finalize_kernel()(x + filter_area.x, y + filter_area.y, y*filter_area.z + x, w, h, buffers, rank, XtWX, XtWY, buffer_params, sample);
-				}
-			}
-
 		}
+		return true;
+	}
 
-		delete[] transform;
-		delete[] rank;
-		delete[] XtWX;
-		delete[] XtWY;
+	bool denoising_get_feature(int mean_offset,
+	                           int variance_offset,
+	                           device_ptr mean_ptr,
+	                           device_ptr variance_ptr,
+	                           DenoisingTask *task)
+	{
+		for(int y = task->rect.y; y < task->rect.w; y++) {
+			for(int x = task->rect.x; x < task->rect.z; x++) {
+				filter_get_feature_kernel()(task->render_buffer.samples,
+				                            (float**) task->neighbors.buffers,
+				                            mean_offset,
+				                            variance_offset,
+				                            x, y,
+				                            task->neighbors.tile_x,
+				                            task->neighbors.tile_y,
+				                            task->neighbors.offsets,
+				                            task->neighbors.strides,
+				                            (float*) mean_ptr,
+				                            (float*) variance_ptr,
+				                            &task->rect.x,
+				                            task->render_buffer.pass_stride,
+				                            task->render_buffer.denoising_offset,
+				                            task->use_cross_denoising);
+			}
+		}
+		return true;
 	}
 
 	void thread_render(DeviceTask& task)
@@ -697,56 +554,47 @@ public:
 				}
 
 				if(tile.buffers->params.overscan && !task.get_cancel()) {
-					int tile_x[4] = {tile.x, tile.x, tile.x+tile.w, tile.x+tile.w};
-					int tile_y[4] = {tile.y, tile.y, tile.y+tile.h, tile.y+tile.h};
-					int offsets[9] = {0, 0, 0, 0, tile.offset, 0, 0, 0, 0};
-					int strides[9] = {0, 0, 0, 0, tile.stride, 0, 0, 0, 0};
-					float *buffers[9] = {NULL, NULL, NULL, NULL, (float*) tile.buffer, NULL, NULL, NULL, NULL};
-					BufferParams &params = tile.buffers->params;
-					int frame_stride[9] = {0, 0, 0, 0, params.width * params.height * params.get_passes_size(), 0, 0, 0, 0};
+					DenoisingTask denoising(this);
 
 					int overscan = tile.buffers->params.overscan;
-					int4 filter_area = make_int4(tile.x + overscan, tile.y + overscan, tile.w - 2*overscan, tile.h - 2*overscan);
-					int4 rect = make_int4(tile.x, tile.y, tile.x + tile.w, tile.y + tile.h);
+					denoising.filter_area = make_int4(tile.x + overscan, tile.y + overscan, tile.w - 2*overscan, tile.h - 2*overscan);
+					denoising.render_buffer.samples = end_sample;
 
-					float* filter_buffer = denoise_fill_buffer(&kg, end_sample, rect, buffers, tile_x, tile_y, offsets, strides, tile.buffers->params.frames, frame_stride);
-					denoise_run(&kg, end_sample, filter_buffer, filter_area, rect, tile.offset, tile.stride, (float*) tile.buffer);
-					delete[] filter_buffer;
+					denoising.neighbors.init_from_single_tile(tile);
+					denoising.init_from_kerneldata(&kg.__data);
+
+					denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
+					denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, _4, _5, &denoising);
+					denoising.functions.divide_shadow = function_bind(&CPUDevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
+					denoising.functions.non_local_means = function_bind(&CPUDevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
+					denoising.functions.combine_halves = function_bind(&CPUDevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
+					denoising.functions.get_feature = function_bind(&CPUDevice::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
+
+					denoising.run_denoising();
 				}
 			}
 			else if(tile.task == RenderTile::DENOISE) {
-				int sample = tile.start_sample + tile.num_samples;
+				tile.sample = tile.start_sample + tile.num_samples;
+
+				DenoisingTask denoising(this);
+				denoising.filter_area = make_int4(tile.x, tile.y, tile.w, tile.h);
+				denoising.render_buffer.samples = tile.sample;
 
 				RenderTile rtiles[9];
 				rtiles[4] = tile;
 				task.get_neighbor_tiles(rtiles);
-				float *buffers[9];
-				int offsets[9], strides[9];
-				int frame_stride[9];
-				for(int i = 0; i < 9; i++) {
-					buffers[i] = (float*) rtiles[i].buffer;
-					offsets[i] = rtiles[i].offset;
-					strides[i] = rtiles[i].stride;
-					if(rtiles[i].buffers) {
-						BufferParams &params = rtiles[i].buffers->params;
-						frame_stride[i] = params.width * params.height * params.get_passes_size();
-					}
-					else {
-						frame_stride[i] = 0;
-					}
-				}
-				int tile_x[4] = {rtiles[3].x, rtiles[4].x, rtiles[5].x, rtiles[5].x+rtiles[5].w};
-				int tile_y[4] = {rtiles[1].y, rtiles[4].y, rtiles[7].y, rtiles[7].y+rtiles[7].h};
+				denoising.neighbors.init_from_rendertiles(rtiles);
 
-				int half_window = kg.__data.integrator.half_window;
-				int4 filter_area = make_int4(tile.x, tile.y, tile.w, tile.h);
-				int4 rect = make_int4(max(tile.x - half_window, tile_x[0]), max(tile.y - half_window, tile_y[0]), min(tile.x + tile.w + half_window+1, tile_x[3]), min(tile.y + tile.h + half_window+1, tile_y[3]));
+				denoising.init_from_kerneldata(&kg.__data);
 
-				float* filter_buffer = denoise_fill_buffer(&kg, sample, rect, buffers, tile_x, tile_y, offsets, strides, tile.buffers->params.frames, frame_stride);
-				denoise_run(&kg, sample, filter_buffer, filter_area, rect, tile.offset, tile.stride, (float*) tile.buffer);
-				delete[] filter_buffer;
+				denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
+				denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, _4, _5, &denoising);
+				denoising.functions.divide_shadow = function_bind(&CPUDevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
+				denoising.functions.non_local_means = function_bind(&CPUDevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
+				denoising.functions.combine_halves = function_bind(&CPUDevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
+				denoising.functions.get_feature = function_bind(&CPUDevice::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
 
-				tile.sample = sample;
+				denoising.run_denoising();
 
 				task.update_progress(&tile, tile.w*tile.h);
 			}

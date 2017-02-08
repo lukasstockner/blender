@@ -18,17 +18,21 @@ CCL_NAMESPACE_BEGIN
 
 ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
                                                        int storage_stride,
-                                                       int dx, int dy, int w, int h,
+                                                       int dx, int dy,
+                                                       int w, int h,
                                                        float ccl_readonly_ptr buffer,
-                                                       int color_pass, int variance_pass,
+                                                       float *color_pass,
+                                                       float *variance_pass,
                                                        float ccl_readonly_ptr transform,
-                                                       int *rank, float weight,
-                                                       float *XtWX, float3 *XtWY)
+                                                       int *rank,
+                                                       float weight,
+                                                       float *XtWX,
+                                                       float3 *XtWY)
 {
 	const int pass_stride = w*h;
 
-	float ccl_readonly_ptr p_buffer = buffer +      y*w +      x;
-	float ccl_readonly_ptr q_buffer = buffer + (y+dy)*w + (x+dx);
+	int p_offset =  y    *w +  x;
+	int q_offset = (y+dy)*w + (x+dx);
 
 #ifdef __KERNEL_CPU__
 	const int stride = 1;
@@ -37,21 +41,21 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
 	const int stride = storage_stride;
 #endif
 
-	float3 p_color = filter_get_pixel_color(p_buffer, color_pass, pass_stride);
-	float3 q_color = filter_get_pixel_color(q_buffer, color_pass, pass_stride);
+	float3 p_color = filter_get_pixel_color(color_pass + p_offset, pass_stride);
+	float3 q_color = filter_get_pixel_color(color_pass + q_offset, pass_stride);
 
-	float p_std_dev = sqrtf(filter_get_pixel_variance(p_buffer, variance_pass, pass_stride));
-	float q_std_dev = sqrtf(filter_get_pixel_variance(q_buffer, variance_pass, pass_stride));
+	float p_std_dev = sqrtf(filter_get_pixel_variance(variance_pass + p_offset, pass_stride));
+	float q_std_dev = sqrtf(filter_get_pixel_variance(variance_pass + q_offset, pass_stride));
 
 	if(average(fabs(p_color - q_color)) > 3.0f*(p_std_dev + q_std_dev + 1e-3f)) {
 		return;
 	}
 
 	float feature_means[DENOISE_FEATURES], features[DENOISE_FEATURES];
-	filter_get_features(make_int3(x, y, 0), p_buffer, feature_means, NULL, pass_stride);
+	filter_get_features(make_int3(x, y, 0), buffer + p_offset, feature_means, NULL, pass_stride);
 
 	float design_row[DENOISE_FEATURES+1];
-	filter_get_design_row_transform(make_int3(x+dx, y+dy, 0), q_buffer, feature_means, pass_stride, features, *rank, design_row, transform, stride);
+	filter_get_design_row_transform(make_int3(x+dx, y+dy, 0), buffer + q_offset, feature_means, pass_stride, features, *rank, design_row, transform, stride);
 
 	math_trimatrix_add_gramian_strided(XtWX, (*rank)+1, design_row, weight, stride);
 	math_vec3_add_strided(XtWY, (*rank)+1, design_row, weight * q_color, stride);
