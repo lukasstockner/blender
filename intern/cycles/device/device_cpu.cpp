@@ -196,7 +196,7 @@ public:
 
 	void mem_alloc(device_memory& mem, MemoryType /*type*/)
 	{
-		mem.device_pointer = mem.data_pointer;
+		mem.device_pointer = mem.data_pointer? mem.data_pointer : ((device_ptr) new char[mem.memory_size()]);
 		mem.device_size = mem.memory_size();
 		stats.mem_alloc(mem.device_size);
 	}

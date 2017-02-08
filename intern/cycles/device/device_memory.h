@@ -142,7 +142,7 @@ template<> struct device_type_traits<float2> {
 
 template<> struct device_type_traits<float3> {
 	static const DataType data_type = TYPE_FLOAT;
-	static const int num_elements = 3;
+	static const int num_elements = 4;
 };
 
 template<> struct device_type_traits<float4> {
@@ -166,6 +166,10 @@ class device_memory
 {
 public:
 	size_t memory_size() { return data_size*data_elements*datatype_size(data_type); }
+	size_t memory_offset(int element) {
+		assert(element < data_size);
+		return element*data_elements*datatype_size(data_type);
+	}
 
 	/* data information */
 	DataType data_type;
@@ -280,6 +284,41 @@ public:
 
 private:
 	array<T> data;
+};
+
+/* Memory that's only allocated on the device. */
+
+template<typename T> class device_only_memory : public device_memory
+{
+public:
+	device_only_memory(int width = 0, int height = 0, int depth = 0)
+	{
+		data_type = device_type_traits<T>::data_type;
+		data_elements = device_type_traits<T>::num_elements;
+		data_pointer = 0;
+		device_size = 0;
+		data_size = width * ((height == 0)? 1: height) * ((depth == 0)? 1: depth);
+		data_width = width;
+		data_height = height;
+		data_depth = depth;
+
+		assert(data_elements > 0);
+
+		device_pointer = 0;
+	}
+	void resize(int width = 0, int height = 0, int depth = 0)
+	{
+		assert(!device_pointer);
+		data_size = width * ((height == 0)? 1: height) * ((depth == 0)? 1: depth);
+		data_width = width;
+		data_height = height;
+		data_depth = depth;
+	}
+	virtual ~device_only_memory() { assert(!device_pointer); }
+
+	/* no copying */
+	device_only_memory(const device_only_memory&);
+	device_only_memory& operator = (const device_only_memory&);
 };
 
 CCL_NAMESPACE_END

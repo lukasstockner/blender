@@ -240,6 +240,14 @@ public:
 		int y, int w, int h, int elem) = 0;
 	virtual void mem_zero(device_memory& mem) = 0;
 	virtual void mem_free(device_memory& mem) = 0;
+	virtual device_ptr mem_get_offset_ptr(device_memory& mem, int offset)
+	{
+		/* Only required for devices that implement denoising. */
+		assert(false);
+		(void) mem;
+		(void) offset;
+		return (device_ptr) 0;
+	}
 
 	/* constant memory */
 	virtual void const_copy_to(const char *name, void *host, size_t size) = 0;
