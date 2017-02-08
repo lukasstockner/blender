@@ -137,10 +137,10 @@ public:
 	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)>       convert_to_byte_kernel;
 	KernelFunctions<void(*)(KernelGlobals *, uint4 *, float4 *, float*, int, int, int, int, int)> shader_kernel;
 
-	KernelFunctions<void(*)(int, float**, int, int, int*, int*, int*, int*, float*, float*, float*, float*, float*, int*, int, int, bool)> filter_divide_shadow_kernel;
-	KernelFunctions<void(*)(int, float**, int, int, int, int, int*, int*, int*, int*, float*, float*, int*, int, int, bool)>               filter_get_feature_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                                          filter_combine_halves_kernel;
-	KernelFunctions<void(*)(int, int, int, float*, int, int, int, int)>                                                                    filter_divide_combined_kernel;
+	KernelFunctions<void(*)(int, TilesInfo*, int, int, float*, float*, float*, float*, float*, int*, int, int, bool)> filter_divide_shadow_kernel;
+	KernelFunctions<void(*)(int, TilesInfo*, int, int, int, int, float*, float*, int*, int, int, bool)>               filter_get_feature_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                     filter_combine_halves_kernel;
+	KernelFunctions<void(*)(int, int, int, float*, int, int, int, int)>                                               filter_divide_combined_kernel;
 
 	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, float, float)> filter_nlm_calc_difference_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                 filter_nlm_blur_kernel;
@@ -148,7 +148,7 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int)>       filter_nlm_update_output_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int)>                                      filter_nlm_normalize_kernel;
 
-	KernelFunctions<void(*)(int, float*, int, int, int, float*, int*, int*, int, float, int, int)>                               filter_construct_transform_kernel;
+	KernelFunctions<void(*)(int, float*, int, int, int, float*, int*, int*, int, float)>                                         filter_construct_transform_kernel;
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, float*, int*, float*, float3*, int*, int*, int, int, int)> filter_nlm_construct_gramian_kernel;
 	KernelFunctions<void(*)(int, int, int, int, int, float*, int*, float*, float3*, int*, int)>                                  filter_finalize_kernel;
 
@@ -363,9 +363,7 @@ public:
 				                                    (int*)   task->storage.rank.device_pointer,
 				                                    &task->rect.x,
 				                                    task->half_window,
-				                                    task->pca_threshold,
-				                                    1,
-				                                    0);
+				                                    task->pca_threshold);
 			}
 		}
 		return true;
@@ -463,12 +461,8 @@ public:
 		for(int y = task->rect.y; y < task->rect.w; y++) {
 			for(int x = task->rect.x; x < task->rect.z; x++) {
 				filter_divide_shadow_kernel()(task->render_buffer.samples,
-				                              (float**) task->neighbors.buffers,
+				                              task->tiles,
 				                              x, y,
-				                              task->neighbors.tile_x,
-				                              task->neighbors.tile_y,
-				                              task->neighbors.offsets,
-				                              task->neighbors.strides,
 				                              (float*) a_ptr,
 				                              (float*) b_ptr,
 				                              (float*) sample_variance_ptr,
@@ -492,14 +486,10 @@ public:
 		for(int y = task->rect.y; y < task->rect.w; y++) {
 			for(int x = task->rect.x; x < task->rect.z; x++) {
 				filter_get_feature_kernel()(task->render_buffer.samples,
-				                            (float**) task->neighbors.buffers,
+				                            task->tiles,
 				                            mean_offset,
 				                            variance_offset,
 				                            x, y,
-				                            task->neighbors.tile_x,
-				                            task->neighbors.tile_y,
-				                            task->neighbors.offsets,
-				                            task->neighbors.strides,
 				                            (float*) mean_ptr,
 				                            (float*) variance_ptr,
 				                            &task->rect.x,
@@ -560,7 +550,7 @@ public:
 					denoising.filter_area = make_int4(tile.x + overscan, tile.y + overscan, tile.w - 2*overscan, tile.h - 2*overscan);
 					denoising.render_buffer.samples = end_sample;
 
-					denoising.neighbors.init_from_single_tile(tile);
+					denoising.tiles_from_single_tile(tile);
 					denoising.init_from_kerneldata(&kg.__data);
 
 					denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
@@ -583,7 +573,7 @@ public:
 				RenderTile rtiles[9];
 				rtiles[4] = tile;
 				task.get_neighbor_tiles(rtiles);
-				denoising.neighbors.init_from_rendertiles(rtiles);
+				denoising.tiles_from_rendertiles(rtiles);
 
 				denoising.init_from_kerneldata(&kg.__data);
 

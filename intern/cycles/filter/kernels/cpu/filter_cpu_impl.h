@@ -35,13 +35,9 @@ CCL_NAMESPACE_BEGIN
 /* Denoise filter */
 
 void KERNEL_FUNCTION_FULL_NAME(filter_divide_shadow)(int sample,
-                                                     float** buffers,
+                                                     TilesInfo *tiles,
                                                      int x,
                                                      int y,
-                                                     int *tile_x,
-                                                     int *tile_y,
-                                                     int *offset,
-                                                     int *stride,
                                                      float *unfilteredA,
                                                      float *unfilteredB,
                                                      float *sampleVariance,
@@ -55,9 +51,8 @@ void KERNEL_FUNCTION_FULL_NAME(filter_divide_shadow)(int sample,
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_divide_shadow);
 #else
-	kernel_filter_divide_shadow(sample, buffers,
-                              x, y, tile_x, tile_y,
-                              offset, stride,
+	kernel_filter_divide_shadow(sample, tiles,
+                              x, y,
                               unfilteredA,
                               unfilteredB,
                               sampleVariance,
@@ -71,15 +66,11 @@ void KERNEL_FUNCTION_FULL_NAME(filter_divide_shadow)(int sample,
 }
 
 void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(int sample,
-                                                   float** buffers,
+                                                   TilesInfo *tiles,
                                                    int m_offset,
                                                    int v_offset,
                                                    int x,
                                                    int y,
-                                                   int *tile_x,
-                                                   int *tile_y,
-                                                   int *offset,
-                                                   int *stride,
                                                    float *mean, float *variance,
                                                    int* prefilter_rect,
                                                    int buffer_pass_stride,
@@ -89,10 +80,9 @@ void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(int sample,
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_get_feature);
 #else
-	kernel_filter_get_feature(sample, buffers,
+	kernel_filter_get_feature(sample, tiles,
                             m_offset, v_offset,
-                            x, y, tile_x, tile_y,
-                            offset, stride,
+                            x, y,
                             mean, variance,
                             load_int4(prefilter_rect), buffer_pass_stride,
                             buffer_denoising_offset, use_cross_denoising);
@@ -123,9 +113,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(int sample,
                                                            int *rank,
                                                            int* prefilter_rect,
                                                            int half_window,
-                                                           float pca_threshold,
-                                                           int num_frames,
-                                                           int prev_frames)
+                                                           float pca_threshold)
 {
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_construct_transform);
@@ -135,8 +123,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(int sample,
 	kernel_filter_construct_transform(sample, buffer,
                                     x, y, load_int4(prefilter_rect),
                                     transform, rank,
-                                    half_window, pca_threshold,
-                                    num_frames, prev_frames);
+                                    half_window, pca_threshold);
 #endif
 }
 

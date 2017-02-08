@@ -31,50 +31,54 @@ void DenoisingTask::init_from_kerneldata(KernelData *data)
 	render_buffer.pass_stride = data->film.pass_stride;
 	render_buffer.denoising_offset = data->film.pass_denoising;
 	render_buffer.no_denoising_offset = data->film.pass_no_denoising;
-	render_buffer.offset = neighbors.offsets[4];
-	render_buffer.stride = neighbors.strides[4];
-	render_buffer.ptr    = neighbors.buffers[4];
+	render_buffer.offset = tiles->offsets[4];
+	render_buffer.stride = tiles->strides[4];
+	render_buffer.ptr    = tiles->buffers[4];
 
-	/* Expand filter_area by half_window pixels and clamp the result to the extent of the neighboring tiles. */
-	rect = make_int4(max(neighbors.tile_x[0], filter_area.x - half_window),
-	                 max(neighbors.tile_y[0], filter_area.y - half_window),
-	                 min(neighbors.tile_x[3], filter_area.x + filter_area.z + half_window),
-	                 min(neighbors.tile_y[3], filter_area.y + filter_area.w + half_window));
+	/* Expand filter_area by half_window pixels and clamp the result to the extent of the neighboring tiles */
+	rect = make_int4(max(tiles->x[0], filter_area.x - half_window),
+	                 max(tiles->y[0], filter_area.y - half_window),
+	                 min(tiles->x[3], filter_area.x + filter_area.z + half_window),
+	                 min(tiles->y[3], filter_area.y + filter_area.w + half_window));
 }
 
-void DenoisingTask::NeighborBuffers::init_from_single_tile(const RenderTile &tile)
+void DenoisingTask::tiles_from_single_tile(const RenderTile &tile)
 {
-	tile_x[0] = tile.x;
-	tile_x[1] = tile.x;
-	tile_x[2] = tile.x+tile.w;
-	tile_x[3] = tile.x+tile.w;
-	tile_y[0] = tile.y;
-	tile_y[1] = tile.y;
-	tile_y[2] = tile.y+tile.h;
-	tile_y[3] = tile.y+tile.h;
-	std::fill(buffers, buffers+9, (device_ptr) 0);
-	std::fill(offsets, offsets+9, 0);
-	std::fill(strides, strides+9, 0);
-	buffers[4] = tile.buffer;
-	offsets[4] = tile.offset;
-	strides[4] = tile.stride;
+	tiles = (TilesInfo*) tiles_mem.resize(sizeof(TilesInfo)/sizeof(int));
+
+	tiles->x[0] = tile.x;
+	tiles->x[1] = tile.x;
+	tiles->x[2] = tile.x+tile.w;
+	tiles->x[3] = tile.x+tile.w;
+	tiles->y[0] = tile.y;
+	tiles->y[1] = tile.y;
+	tiles->y[2] = tile.y+tile.h;
+	tiles->y[3] = tile.y+tile.h;
+	std::fill(tiles->buffers, tiles->buffers+9, (device_ptr) 0);
+	std::fill(tiles->offsets, tiles->offsets+9, 0);
+	std::fill(tiles->strides, tiles->strides+9, 0);
+	tiles->buffers[4] = tile.buffer;
+	tiles->offsets[4] = tile.offset;
+	tiles->strides[4] = tile.stride;
 }
 
-void DenoisingTask::NeighborBuffers::init_from_rendertiles(RenderTile *rtiles)
+void DenoisingTask::tiles_from_rendertiles(RenderTile *rtiles)
 {
+	tiles = (TilesInfo*) tiles_mem.resize(sizeof(TilesInfo)/sizeof(int));
+
 	for(int i = 0; i < 9; i++) {
-		buffers[i] = rtiles[i].buffer;
-		offsets[i] = rtiles[i].offset;
-		strides[i] = rtiles[i].stride;
+		tiles->buffers[i] = rtiles[i].buffer;
+		tiles->offsets[i] = rtiles[i].offset;
+		tiles->strides[i] = rtiles[i].stride;
 	}
-	tile_x[0] = rtiles[3].x;
-	tile_x[1] = rtiles[4].x;
-	tile_x[2] = rtiles[5].x;
-	tile_x[3] = rtiles[5].x + rtiles[5].w;
-	tile_y[0] = rtiles[1].y;
-	tile_y[1] = rtiles[4].y;
-	tile_y[2] = rtiles[7].y;
-	tile_y[3] = rtiles[7].y + rtiles[7].h;
+	tiles->x[0] = rtiles[3].x;
+	tiles->x[1] = rtiles[4].x;
+	tiles->x[2] = rtiles[5].x;
+	tiles->x[3] = rtiles[5].x + rtiles[5].w;
+	tiles->y[0] = rtiles[1].y;
+	tiles->y[1] = rtiles[4].y;
+	tiles->y[2] = rtiles[7].y;
+	tiles->y[3] = rtiles[7].y + rtiles[7].h;
 }
 
 bool DenoisingTask::run_denoising()
@@ -86,6 +90,9 @@ bool DenoisingTask::run_denoising()
 	buffer.pass_stride = buffer.w * buffer.h;
 	buffer.mem.resize(buffer.pass_stride * buffer.passes);
 	device->mem_alloc(buffer.mem, MEM_READ_WRITE);
+
+	device->mem_alloc(tiles_mem, MEM_READ_ONLY);
+	device->mem_copy_to(tiles_mem);
 
 	device_ptr null_ptr = (device_ptr) 0;
 
@@ -262,6 +269,7 @@ bool DenoisingTask::run_denoising()
 	device->mem_free(temporary_1);
 	device->mem_free(temporary_2);
 	device->mem_free(buffer.mem);
+	device->mem_free(tiles_mem);
 	return true;
 }
 

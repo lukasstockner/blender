@@ -23,4 +23,13 @@
 #define XTWX_SIZE      ((DENOISE_FEATURES+1)*(DENOISE_FEATURES+1))
 #define XTWY_SIZE      (DENOISE_FEATURES+1)
 
+typedef struct TilesInfo {
+	int offsets[9];
+	int strides[9];
+	/* TODO(lukas): CUDA doesn't have uint64_t... */
+	long long int buffers[9];
+	int x[4];
+	int y[4];
+} TilesInfo;
+
 #endif /* __FILTER_DEFINES_H__*/

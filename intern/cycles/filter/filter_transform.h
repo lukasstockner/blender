@@ -19,14 +19,13 @@ CCL_NAMESPACE_BEGIN
 ccl_device void kernel_filter_construct_transform(int sample, float ccl_readonly_ptr buffer,
                                                   int x, int y, int4 rect,
                                                   float *transform, int *rank,
-                                                  int half_window, float pca_threshold,
-                                                  int num_frames, int prev_frames)
+                                                  int half_window, float pca_threshold)
 {
 	float features[DENOISE_FEATURES];
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int buffer_h = (rect.w - rect.y);
-	int pass_stride = buffer_h * buffer_w * num_frames;
+	int pass_stride = buffer_h * buffer_w;
 
 	/* Temporary storage, used in different steps of the algorithm. */
 	float tempmatrix[DENOISE_FEATURES*DENOISE_FEATURES];

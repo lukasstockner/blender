@@ -26,10 +26,8 @@ CCL_NAMESPACE_BEGIN
  * bufferVariance: The buffer-based variance of the shadow feature. Unbiased, but quite noisy.
  */
 ccl_device void kernel_filter_divide_shadow(int sample,
-                                            float **buffers,
+                                            TilesInfo *tiles,
                                             int x, int y,
-                                            int *tile_x, int *tile_y,
-                                            int *offset, int *stride,
                                             float *unfilteredA,
                                             float *unfilteredB,
                                             float *sampleVariance,
@@ -40,10 +38,10 @@ ccl_device void kernel_filter_divide_shadow(int sample,
                                             int buffer_denoising_offset,
                                             bool use_gradients)
 {
-	int xtile = (x < tile_x[1])? 0: ((x < tile_x[2])? 1: 2);
-	int ytile = (y < tile_y[1])? 0: ((y < tile_y[2])? 1: 2);
+	int xtile = (x < tiles->x[1])? 0: ((x < tiles->x[2])? 1: 2);
+	int ytile = (y < tiles->y[1])? 0: ((y < tiles->y[2])? 1: 2);
 	int tile = ytile*3+xtile;
-	float *center_buffer = buffers[tile] + (offset[tile] + y*stride[tile] + x)*buffer_pass_stride;
+	float *center_buffer = ((float*) tiles->buffers[tile]) + (tiles->offsets[tile] + y*tiles->strides[tile] + x)*buffer_pass_stride;
 
 	if(use_gradients && tile == 4) {
 		center_buffer[0] = center_buffer[1] = center_buffer[2] = center_buffer[3] = 0.0f;
@@ -63,27 +61,23 @@ ccl_device void kernel_filter_divide_shadow(int sample,
 /* Load a regular feature from the render buffers into the denoise buffer.
  * Parameters:
  * - sample: The sample amount in the buffer, used to normalize the buffer.
- * - buffers: 9-Element Array containing pointers to the buffers of the 3x3 tiles around the current one.
  * - m_offset, v_offset: Render Buffer Pass offsets of mean and variance of the feature.
  * - x, y: Current pixel
- * - tile_x, tile_y: 4-Element Arrays containing the x/y coordinates of the start of the lower, current and upper tile as well as the end of the upper tile plus one.
- * - offset, stride: 9-Element Arrays containing offset and stride of the RenderBuffers.
  * - mean, variance: Target denoise buffers.
  * - rect: The prefilter area (lower pixels inclusive, upper pixels exclusive).
  */
-ccl_device void kernel_filter_get_feature(int sample, float **buffers,
+ccl_device void kernel_filter_get_feature(int sample, 
+                                          TilesInfo *tiles,
                                           int m_offset, int v_offset,
                                           int x, int y,
-                                          int *tile_x, int *tile_y,
-                                          int *offset, int *stride,
                                           float *mean, float *variance,
                                           int4 rect, int buffer_pass_stride,
                                           int buffer_denoising_offset, bool use_cross_denoising)
 {
-	int xtile = (x < tile_x[1])? 0: ((x < tile_x[2])? 1: 2);
-	int ytile = (y < tile_y[1])? 0: ((y < tile_y[2])? 1: 2);
+	int xtile = (x < tiles->x[1])? 0: ((x < tiles->x[2])? 1: 2);
+	int ytile = (y < tiles->y[1])? 0: ((y < tiles->y[2])? 1: 2);
 	int tile = ytile*3+xtile;
-	float *center_buffer = buffers[tile] + (offset[tile] + y*stride[tile] + x)*buffer_pass_stride + buffer_denoising_offset;
+	float *center_buffer = ((float*) tiles->buffers[tile]) + (tiles->offsets[tile] + y*tiles->strides[tile] + x)*buffer_pass_stride + buffer_denoising_offset;
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);

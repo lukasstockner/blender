@@ -17,13 +17,9 @@
 /* Templated common declaration part of all CPU kernels. */
 
 void KERNEL_FUNCTION_FULL_NAME(filter_divide_shadow)(int sample,
-                                                     float** buffers,
+                                                     TilesInfo *tiles,
                                                      int x,
                                                      int y,
-                                                     int *tile_x,
-                                                     int *tile_y,
-                                                     int *offset,
-                                                     int *stride,
                                                      float *unfilteredA,
                                                      float *unfilteredB,
                                                      float *sampleV,
@@ -35,15 +31,11 @@ void KERNEL_FUNCTION_FULL_NAME(filter_divide_shadow)(int sample,
                                                      bool use_gradients);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(int sample,
-                                                   float** buffers,
+                                                   TilesInfo *tiles,
                                                    int m_offset,
                                                    int v_offset,
                                                    int x,
                                                    int y,
-                                                   int *tile_x,
-                                                   int *tile_y,
-                                                   int *offset,
-                                                   int *stride,
                                                    float *mean,
                                                    float *variance,
                                                    int* prefilter_rect,
@@ -68,9 +60,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(int sample,
                                                            int *rank,
                                                            int* rect,
                                                            int half_window,
-                                                           float pca_threshold,
-                                                           int num_frames,
-                                                           int prev_frames);
+                                                           float pca_threshold);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_divide_combined)(int x, int y,
                                                        int sample,

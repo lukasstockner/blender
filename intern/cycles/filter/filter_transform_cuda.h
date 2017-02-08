@@ -20,7 +20,6 @@ ccl_device void kernel_filter_construct_transform(int sample, float ccl_readonly
                                                   int x, int y, int4 rect,
                                                   float *transform, int *rank,
                                                   int half_window, float pca_threshold,
-                                                  int num_frames, int prev_frames,
                                                   int transform_stride, int localIdx)
 {
 	__shared__ float shared_features[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
@@ -28,7 +27,7 @@ ccl_device void kernel_filter_construct_transform(int sample, float ccl_readonly
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int buffer_h = (rect.w - rect.y);
-	int pass_stride = buffer_h * buffer_w * num_frames;
+	int pass_stride = buffer_h * buffer_w;
 	/* === Calculate denoising window. === */
 	int2 low  = make_int2(max(rect.x, x - half_window),
 	                      max(rect.y, y - half_window));

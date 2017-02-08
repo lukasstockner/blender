@@ -20,6 +20,8 @@
 #include "device.h"
 #include "buffers.h"
 
+#include "filter_defines.h"
+
 CCL_NAMESPACE_BEGIN
 
 class DenoisingTask {
@@ -42,16 +44,10 @@ public:
 		int samples;
 	} render_buffer;
 
-	struct NeighborBuffers {
-		int tile_x[4];
-		int tile_y[4];
-		device_ptr buffers[9];
-		int offsets[9];
-		int strides[9];
-
-		void init_from_single_tile(const RenderTile &tile);
-		void init_from_rendertiles(RenderTile *rtiles);
-	} neighbors;
+	TilesInfo *tiles;
+	device_vector<int> tiles_mem;
+	void tiles_from_single_tile(const RenderTile &tile);
+	void tiles_from_rendertiles(RenderTile *rtiles);
 
 	int4 rect;
 	int4 filter_area;
