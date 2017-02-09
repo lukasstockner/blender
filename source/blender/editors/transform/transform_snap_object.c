@@ -620,6 +620,10 @@ static float dist_aabb_to_plane(
 
 /** \Walk DFS
  * \{ */
+
+typedef void (*Nearest2DGetEdgeVertsCallback)(const int index, const float *v_pair[2], void *data);
+typedef void (*Nearest2DCopyVertNoCallback)(const int index, float r_no[3], void *data);
+
 typedef struct Nearest2dUserData {
 	struct Nearest2dPrecalc data_precalc;
 
@@ -630,8 +634,8 @@ typedef struct Nearest2dUserData {
 	float depth_range[2];
 
 	void *userdata;
-	void(*get_edge_verts)(int, const float*[2], void*);
-	void(*copy_vert_no)(int, float[3], void*);
+	Nearest2DGetEdgeVertsCallback get_edge_verts;
+	Nearest2DCopyVertNoCallback copy_vert_no;
 
 	int index;
 	float co[3];
@@ -1296,8 +1300,8 @@ static bool snapDerivedMesh(
 		    .r_axis_closest = {1.0f, 1.0f, 1.0f},
 		    .depth_range = {snapdata->depth_range[0], *ray_depth + snapdata->depth_range[0]},
 		    .userdata = treedata,
-		    .get_edge_verts = get_dm_edge_verts,
-		    .copy_vert_no = copy_dm_vert_no,
+		    .get_edge_verts = (Nearest2DGetEdgeVertsCallback)get_dm_edge_verts,
+		    .copy_vert_no = (Nearest2DCopyVertNoCallback)copy_dm_vert_no,
 		    .index = -1};
 
 		dist_squared_to_projected_aabb_precalc(
@@ -1566,8 +1570,8 @@ static bool snapEditMesh(
 		    .r_axis_closest = {1.0f, 1.0f, 1.0f},
 		    .depth_range = {snapdata->depth_range[0], *ray_depth + snapdata->depth_range[0]},
 		    .userdata = treedata,
-		    .get_edge_verts = get_bedge_verts,
-		    .copy_vert_no = copy_bvert_no,
+		    .get_edge_verts = (Nearest2DGetEdgeVertsCallback)get_bedge_verts,
+		    .copy_vert_no = (Nearest2DCopyVertNoCallback)copy_bvert_no,
 		    .index = -1};
 
 		float lpmat[4][4];
@@ -1823,6 +1827,9 @@ SnapObjectContext *ED_transform_snap_object_context_create(
 	sctx->bmain = bmain;
 	sctx->scene = scene;
 
+	sctx->cache.object_map = BLI_ghash_ptr_new(__func__);
+	sctx->cache.mem_arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
+
 	return sctx;
 }
 
@@ -1836,9 +1843,6 @@ SnapObjectContext *ED_transform_snap_object_context_create_view3d(
 	sctx->use_v3d = true;
 	sctx->v3d_data.ar = ar;
 	sctx->v3d_data.v3d = v3d;
-
-	sctx->cache.object_map = BLI_ghash_ptr_new(__func__);
-	sctx->cache.mem_arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
 
 	return sctx;
 }
@@ -1895,7 +1899,7 @@ bool ED_transform_snap_object_project_ray_ex(
         SnapObjectContext *sctx,
         const unsigned short snap_to,
         const struct SnapObjectParams *params,
-        const float UNUSED(ray_start[3]), const float UNUSED(ray_normal[3]),
+        const float ray_start[3], const float ray_normal[3],
         float *ray_depth,
         float r_loc[3], float r_no[3], int *r_index,
         Object **r_ob, float r_obmat[4][4])
@@ -1903,7 +1907,9 @@ bool ED_transform_snap_object_project_ray_ex(
 	const float depth_range[2] = {0.0f, FLT_MAX};
 
 	SnapData snapdata;
-	snap_data_set(&snapdata, sctx->v3d_data.ar, snap_to, VIEW_PROJ_NONE, NULL, r_loc, r_loc, r_no, depth_range);
+	snap_data_set(
+	        &snapdata, sctx->v3d_data.ar, snap_to, VIEW_PROJ_NONE,
+	        NULL, ray_start, ray_start, ray_normal, depth_range);
 
 	return snapObjectsRay(
 	        sctx, &snapdata,
@@ -2022,11 +2028,13 @@ static bool transform_snap_context_project_view3d_mixed_impl(
 	BLI_assert((snap_to_flag & ~(1 | 2 | 4)) == 0);
 
 	if (use_depth) {
-		const float dist_px_orig = *dist_px;
+		const float dist_px_orig = dist_px ? *dist_px : 0;
 		for (int i = 2; i >= 0; i--) {
 			if (snap_to_flag & (1 << i)) {
-				if (i == 0)
+				if (i == 0) {
+					BLI_assert(dist_px != NULL);
 					*dist_px = dist_px_orig;
+				}
 				if (ED_transform_snap_object_project_view3d(
 				        sctx,
 				        elem_type[i], params,
