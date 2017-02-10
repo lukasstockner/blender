@@ -37,6 +37,7 @@ set(SRC_HEADERS
 	util_args.h
 	util_atomic.h
 	util_boundbox.h
+	util_cuda_capabilities.h
 	util_debug.h
 	util_guarded_allocator.cpp
 	util_foreach.h

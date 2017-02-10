@@ -41,6 +41,7 @@ set(SRC_KERNELS_CPU_HEADERS
 
 set(SRC_UTIL_HEADERS
 	../util/util_atomic.h
+	../util/util_cuda_capabilities.h
 	../util/util_color.h
 	../util/util_half.h
 	../util/util_hash.h
