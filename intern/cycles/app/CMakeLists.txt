@@ -108,11 +108,8 @@ endmacro()
 if(WITH_CYCLES_STANDALONE)
 	set(SRC
 		cycles_standalone.cpp
-		cycles_standalone.h
 		cycles_xml.cpp
 		cycles_xml.h
-		cycles_denoising.cpp
-		cycles_denoising.h
 	)
 	add_executable(cycles ${SRC})
 	cycles_target_link_libraries(cycles)
