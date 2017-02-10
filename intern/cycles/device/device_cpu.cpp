@@ -328,8 +328,8 @@ public:
 			                                    (float*) variance_ptr,
 			                                    difference,
 			                                    local_rect,
-			                                    0,
-			                                    w, a, k_2);
+			                                    w, 0,
+			                                    a, k_2);
 
 			filter_nlm_blur_kernel()       (difference, blurDifference, local_rect, w, f);
 			filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
