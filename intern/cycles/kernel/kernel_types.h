@@ -1124,12 +1124,7 @@ typedef struct KernelFilm {
 	int pass_denoising;
 	int pass_no_denoising;
 	int denoise_flag;
-	int frames;
-
-	int num_frames;
-	int prev_frames;
 	int denoise_cross;
-	int pass_pad4;
 
 #ifdef __KERNEL_DEBUG__
 	int pass_bvh_traversed_nodes;

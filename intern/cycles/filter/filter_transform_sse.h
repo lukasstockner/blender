@@ -27,7 +27,7 @@ ccl_device void kernel_filter_construct_transform(int sample, float ccl_readonly
 
 	__m128 features[DENOISE_FEATURES];
 	float ccl_readonly_ptr pixel_buffer;
-	int3 pixel;
+	int2 pixel;
 
 	int2 low  = make_int2(max(rect.x, x - half_window),
 	                      max(rect.y, y - half_window));
@@ -37,7 +37,7 @@ ccl_device void kernel_filter_construct_transform(int sample, float ccl_readonly
 	__m128 feature_means[DENOISE_FEATURES];
 	math_vector_zero_sse(feature_means, DENOISE_FEATURES);
 	FOR_PIXEL_WINDOW_SSE {
-		filter_get_features_sse(x4, y4, t4, active_pixels, pixel_buffer, features, NULL, pass_stride);
+		filter_get_features_sse(x4, y4, active_pixels, pixel_buffer, features, NULL, pass_stride);
 		math_vector_add_sse(feature_means, DENOISE_FEATURES, features);
 	} END_FOR_PIXEL_WINDOW_SSE
 
@@ -49,7 +49,7 @@ ccl_device void kernel_filter_construct_transform(int sample, float ccl_readonly
 	__m128 feature_scale[DENOISE_FEATURES];
 	math_vector_zero_sse(feature_scale, DENOISE_FEATURES);
 	FOR_PIXEL_WINDOW_SSE {
-		filter_get_feature_scales_sse(x4, y4, t4, active_pixels, pixel_buffer, features, feature_means, pass_stride);
+		filter_get_feature_scales_sse(x4, y4, active_pixels, pixel_buffer, features, feature_means, pass_stride);
 		for(int i = 0; i < DENOISE_FEATURES; i++)
 			feature_scale[i] = _mm_max_ps(feature_scale[i], features[i]);
 	} END_FOR_PIXEL_WINDOW_SSE
@@ -59,7 +59,7 @@ ccl_device void kernel_filter_construct_transform(int sample, float ccl_readonly
 	__m128 feature_matrix_sse[DENOISE_FEATURES*DENOISE_FEATURES];
 	math_trimatrix_zero_sse(feature_matrix_sse, DENOISE_FEATURES);
 	FOR_PIXEL_WINDOW_SSE {
-		filter_get_features_sse(x4, y4, t4, active_pixels, pixel_buffer, features, feature_means, pass_stride);
+		filter_get_features_sse(x4, y4, active_pixels, pixel_buffer, features, feature_means, pass_stride);
 		math_vector_mul_sse(features, DENOISE_FEATURES, feature_scale);
 		math_trimatrix_add_gramian_sse(feature_matrix_sse, DENOISE_FEATURES, features, _mm_set1_ps(1.0f));
 	} END_FOR_PIXEL_WINDOW_SSE

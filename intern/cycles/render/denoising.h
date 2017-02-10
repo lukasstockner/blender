@@ -23,8 +23,7 @@
 CCL_NAMESPACE_BEGIN
 
 bool denoise_standalone(SessionParams &session_params,
-                        vector<string> &frames,
-                        int mid_frame);
+                        string filename);
 
 CCL_NAMESPACE_END
 

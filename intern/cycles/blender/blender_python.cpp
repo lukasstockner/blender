@@ -768,12 +768,11 @@ static PyObject *denoise_files_func(PyObject * /*self*/, PyObject *args, PyObjec
 	session_params.samples = 128;
 	session_params.threads = 0;
 
-	PyObject *pyframelist;
-	int midframe, half_output = 0, use_gpu = 0;
-	const char *output = NULL;
+	int half_output = 0, use_gpu = 0;
+	const char *output = NULL, *filename = NULL;
 
-	static const char* keylist[] = {"frames", "midframe", "output", "half_float", "use_gpu", "samples", "threads", "tile_x", "tile_y", "filter_strength", "filter_weight_adjust"};
-	if(!PyArg_ParseTupleAndKeywords(args, keywords, "Ois|ppiiiiff", const_cast<char **>(keylist), &pyframelist, &midframe, &output, &half_output, &use_gpu,
+	static const char* keylist[] = {"filename", "output", "half_float", "use_gpu", "samples", "threads", "tile_x", "tile_y", "filter_strength", "filter_weight_adjust"};
+	if(!PyArg_ParseTupleAndKeywords(args, keywords, "ss|ppiiiiff", const_cast<char **>(keylist), &filename, &output, &half_output, &use_gpu,
 	                                &session_params.samples, &session_params.threads, &session_params.tile_size.x, &session_params.tile_size.y,
 	                                &session_params.filter_strength, &session_params.filter_weight_adjust)) {
 		return NULL;
@@ -784,17 +783,7 @@ static PyObject *denoise_files_func(PyObject * /*self*/, PyObject *args, PyObjec
 	BL::UserPreferences b_userpref(get_user_preferences());
 	session_params.device = BlenderSync::get_device_info(b_userpref, use_gpu);
 
-	int numframes = PyList_Size(pyframelist);
-	if(numframes < 1) {
-		Py_RETURN_FALSE;
-	}
-
-	vector<string> frames;
-	for(int i = 0; i < numframes; i++) {
-		frames.push_back(_PyUnicode_AsString(PyList_GetItem(pyframelist, i)));
-	}
-
-	if(denoise_standalone(session_params, frames, midframe)) {
+	if(denoise_standalone(session_params, filename)) {
 		Py_RETURN_TRUE;
 	}
 	Py_RETURN_FALSE;

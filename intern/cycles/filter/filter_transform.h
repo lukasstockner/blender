@@ -31,7 +31,7 @@ ccl_device void kernel_filter_construct_transform(int sample, float ccl_readonly
 	float tempmatrix[DENOISE_FEATURES*DENOISE_FEATURES];
 	float tempvector[2*DENOISE_FEATURES];
 	float ccl_readonly_ptr pixel_buffer;
-	int3 pixel;
+	int2 pixel;
 
 
 

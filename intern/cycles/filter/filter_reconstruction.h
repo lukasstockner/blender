@@ -52,10 +52,10 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
 	}
 
 	float feature_means[DENOISE_FEATURES], features[DENOISE_FEATURES];
-	filter_get_features(make_int3(x, y, 0), buffer + p_offset, feature_means, NULL, pass_stride);
+	filter_get_features(make_int2(x, y), buffer + p_offset, feature_means, NULL, pass_stride);
 
 	float design_row[DENOISE_FEATURES+1];
-	filter_get_design_row_transform(make_int3(x+dx, y+dy, 0), buffer + q_offset, feature_means, pass_stride, features, *rank, design_row, transform, stride);
+	filter_get_design_row_transform(make_int2(x+dx, y+dy), buffer + q_offset, feature_means, pass_stride, features, *rank, design_row, transform, stride);
 
 	math_trimatrix_add_gramian_strided(XtWX, (*rank)+1, design_row, weight, stride);
 	math_vec3_add_strided(XtWY, (*rank)+1, design_row, weight * q_color, stride);

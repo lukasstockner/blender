@@ -460,9 +460,6 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 		}
 	}
 
-	kfilm->num_frames = 1;
-	kfilm->prev_frames = 0;
-
 	kfilm->pass_stride = align_up(kfilm->pass_stride, 4);
 	kfilm->pass_alpha_threshold = pass_alpha_threshold;
 

@@ -34,7 +34,7 @@ ccl_device void kernel_filter_construct_transform(int sample, float ccl_readonly
 	int2 high = make_int2(min(rect.z, x + half_window + 1),
 	                      min(rect.w, y + half_window + 1));
 	float ccl_readonly_ptr pixel_buffer;
-	int3 pixel;
+	int2 pixel;
 
 
 

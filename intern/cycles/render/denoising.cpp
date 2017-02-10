@@ -65,7 +65,7 @@ static int find_channel(string channels, string channel)
 	return pos;
 }
 
-static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buffers, int samples, int numframes, int framenum)
+static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buffers, int samples)
 {
 	ImageInput *frame = ImageInput::open(file);
 	if(!frame) {
@@ -124,9 +124,8 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 			}
 		}
 
-		/* The frame always needs to include all the required denoising passes.
-		 * If the primary frame also included a clean pass, all the secondary frames need to do so as well. */
-		if((~passes & DENOISING_PASS_REQUIRED) == 0 && !(buffers && buffers->params.selective_denoising && !(passes & DENOISING_PASS_CLEAN))) {
+		/* The buffer always needs to include all the required denoising passes. */
+		if((~passes & DENOISING_PASS_REQUIRED) == 0) {
 			printf("Frame %s: Found all needed passes!\n", file.c_str());
 
 			if(buffers == NULL) {
@@ -137,7 +136,6 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 				params.denoising_passes = true;
 				params.selective_denoising = (passes & DENOISING_PASS_CLEAN);
 				params.cross_denoising = (passes & DENOISING_PASS_NOISY_B) && (passes & DENOISING_PASS_NOISY_B_VAR);
-				params.frames = numframes;
 
 				buffers = new RenderBuffers(device);
 				buffers->reset(device, params);
@@ -156,7 +154,7 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 					fflush(stdout);
 					frame->read_image(i->second[c], i->second[c]+1, TypeDesc::FLOAT, pass_data + c, xstride, ystride);
 				}
-				buffers->get_denoising_rect(i->first.type, 1.0f, samples, i->first.num_channels, rect, pass_data, true, framenum);
+				buffers->get_denoising_rect(i->first.type, 1.0f, samples, i->first.num_channels, rect, pass_data, true);
 			}
 
 			/* Read combined pass. */
@@ -182,7 +180,7 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 				return NULL;
 			}
 
-			buffers->get_pass_rect(PASS_COMBINED, 1.0f, samples, 4, rect, pass_data, true, framenum);
+			buffers->get_pass_rect(PASS_COMBINED, 1.0f, samples, 4, rect, pass_data, true);
 
 			delete[] pass_data;
 		}
@@ -205,8 +203,7 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 }
 
 bool denoise_standalone(SessionParams &session_params,
-                        vector<string> &frames,
-                        int mid_frame)
+                        string filename)
 {
 	session_params.only_denoise = true;
 	session_params.progressive_refine = false;
@@ -214,24 +211,14 @@ bool denoise_standalone(SessionParams &session_params,
 	session_params.background = true;
 	session_params.tile_order = TILE_BOTTOM_TO_TOP;
 	session_params.flip_output = false;
-	session_params.prev_frames = mid_frame;
 
 	Session *session = new Session(session_params);
 	session->set_pause(false);
 
-	int framenum = 0;
-	RenderBuffers *buffers = load_frame(frames[mid_frame], session->device, NULL, session_params.samples, frames.size(), framenum++);
+	RenderBuffers *buffers = load_frame(filename, session->device, NULL, session_params.samples);
 	if(buffers == NULL) {
 		delete session;
 		return false;
-	}
-	for(int i = 0; i < frames.size(); i++) {
-		if(i == mid_frame) continue;
-		buffers = load_frame(frames[i], session->device, buffers, session_params.samples, frames.size(), framenum++);
-		if(buffers == NULL) {
-			delete session;
-			return false;
-		}
 	}
 
 	buffers->copy_to_device();
