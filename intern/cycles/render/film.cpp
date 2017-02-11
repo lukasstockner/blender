@@ -279,9 +279,10 @@ NODE_DEFINE(Film)
 
 	SOCKET_BOOLEAN(use_sample_clamp, "Use Sample Clamp", false);
 
-	SOCKET_BOOLEAN(denoising_passes, "Generate Denoising Passes", false);
-	SOCKET_BOOLEAN(selective_denoising, "Use Selective Denoising Pass", false);
-	SOCKET_BOOLEAN(cross_denoising, "Use Cross-Denoising Pass", false);
+	SOCKET_BOOLEAN(denoising_data_pass,  "Generate Denoising Data Pass",  false);
+	SOCKET_BOOLEAN(denoising_clean_pass, "Generate Denoising Clean Pass", false);
+	SOCKET_BOOLEAN(denoising_split_pass, "Generate Denoising Split Pass", false);
+	SOCKET_INT(denoising_flags, "Denoising Flags", 0);
 
 	return type;
 }
@@ -441,20 +442,19 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 		kfilm->pass_stride += pass.components;
 	}
 
-	kfilm->pass_denoising = 0;
-	kfilm->pass_no_denoising = 0;
-	kfilm->denoise_flag = 0;
-	kfilm->denoise_cross = 0;
-	if(denoising_passes) {
-		kfilm->pass_denoising = kfilm->pass_stride;
+	kfilm->pass_denoising_data = 0;
+	kfilm->pass_denoising_clean = 0;
+	kfilm->denoising_flags = 0;
+	if(denoising_data_pass) {
+		kfilm->pass_denoising_data = kfilm->pass_stride;
 		kfilm->pass_stride += 26;
-		kfilm->denoise_flag = denoise_flags;
-		if(cross_denoising) {
+		kfilm->denoising_flags = denoising_flags;
+		if(denoising_split_pass) {
 			kfilm->pass_stride += 6;
-			kfilm->denoise_cross = 1;
+			kfilm->denoising_flags |= DENOISING_USE_SPLIT_PASSES;
 		}
-		if(selective_denoising) {
-			kfilm->pass_no_denoising = kfilm->pass_stride;
+		if(denoising_clean_pass) {
+			kfilm->pass_denoising_clean = kfilm->pass_stride;
 			kfilm->pass_stride += 3;
 			kfilm->use_light_pass = 1;
 		}
@@ -473,6 +473,10 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	kfilm->mist_start = mist_start;
 	kfilm->mist_inv_depth = (mist_depth > 0.0f)? 1.0f/mist_depth: 0.0f;
 	kfilm->mist_falloff = mist_falloff;
+
+	pass_stride = kfilm->pass_stride;
+	denoising_data_offset = kfilm->pass_denoising_data;
+	denoising_clean_offset = kfilm->pass_denoising_clean;
 
 	need_update = false;
 }

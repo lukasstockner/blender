@@ -123,11 +123,11 @@ ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sa
 ccl_device_inline void kernel_write_denoising_shadow(KernelGlobals *kg, ccl_global float *buffer,
 	int sample, float2 shadow_info)
 {
-	if(kernel_data.film.pass_denoising == 0)
+	if(kernel_data.film.pass_denoising_data == 0)
 		return;
 
 	if(sample & 1) buffer += 3;
-	buffer += kernel_data.film.pass_denoising + 14;
+	buffer += kernel_data.film.pass_denoising_data + 14;
 
 	if(sample < 2) {
 		buffer[0] = shadow_info.x; /* Unoccluded lighting */
@@ -147,9 +147,9 @@ ccl_device_inline void kernel_write_denoising_shadow(KernelGlobals *kg, ccl_glob
 ccl_device_inline bool kernel_write_denoising_passes(KernelGlobals *kg, ccl_global float *buffer,
 	ccl_addr_space PathState *state, ShaderData *sd, int sample, float3 world_albedo)
 {
-	if(kernel_data.film.pass_denoising == 0)
+	if(kernel_data.film.pass_denoising_data == 0)
 		return false;
-	buffer += kernel_data.film.pass_denoising;
+	buffer += kernel_data.film.pass_denoising_data;
 
 	if(state->flag & PATH_RAY_DENOISING_PASS_DONE)
 		return false;
@@ -354,26 +354,28 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global f
 ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *buffer,
 	int sample, PathRadiance *L, float alpha)
 {
+	int split_passes = (kernel_data.film.denoising_flags & DENOISING_USE_SPLIT_PASSES);
+
 	if(L) {
 		float3 L_sum = path_radiance_clamp_and_sum(kg, L);
 		kernel_write_pass_float4(buffer, sample, make_float4(L_sum.x, L_sum.y, L_sum.z, alpha));
 
 		kernel_write_light_passes(kg, buffer, L, sample);
 
-		if(kernel_data.film.pass_denoising) {
-			if(kernel_data.film.pass_no_denoising) {
+		if(kernel_data.film.pass_denoising_data) {
+			if(kernel_data.film.pass_denoising_clean) {
 				float3 noisy, clean;
 				path_radiance_split_denoising(kg, L, &noisy, &clean);
-				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 20, sample, noisy);
-				if(kernel_data.film.denoise_cross && !(sample & 1)) {
-					kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 26, sample, noisy);
+				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 20, sample, noisy);
+				if(split_passes && !(sample & 1)) {
+					kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 26, sample, noisy);
 				}
-				kernel_write_pass_float3_nopad(buffer + kernel_data.film.pass_no_denoising, sample, clean);
+				kernel_write_pass_float3_nopad(buffer + kernel_data.film.pass_denoising_clean, sample, clean);
 			}
 			else {
-				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 20, sample, L_sum);
-				if(kernel_data.film.denoise_cross && !(sample & 1)) {
-					kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 26, sample, L_sum);
+				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 20, sample, L_sum);
+				if(split_passes && !(sample & 1)) {
+					kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 26, sample, L_sum);
 				}
 			}
 		}
@@ -381,14 +383,14 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *
 	else {
 		kernel_write_pass_float4(buffer, sample, make_float4(0.0f, 0.0f, 0.0f, 0.0f));
 
-		if(kernel_data.film.pass_denoising) {
-			kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 20, sample, make_float3(0.0f, 0.0f, 0.0f));
-			if(kernel_data.film.denoise_cross && !(sample & 1)) {
-				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising + 26, sample, make_float3(0.0f, 0.0f, 0.0f));
+		if(kernel_data.film.pass_denoising_data) {
+			kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 20, sample, make_float3(0.0f, 0.0f, 0.0f));
+			if(split_passes && !(sample & 1)) {
+				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 26, sample, make_float3(0.0f, 0.0f, 0.0f));
 			}
 		}
-		if(kernel_data.film.pass_no_denoising) {
-			kernel_write_pass_float3_nopad(buffer + kernel_data.film.pass_no_denoising, sample, make_float3(0.0f, 0.0f, 0.0f));
+		if(kernel_data.film.pass_denoising_clean) {
+			kernel_write_pass_float3_nopad(buffer + kernel_data.film.pass_denoising_clean, sample, make_float3(0.0f, 0.0f, 0.0f));
 		}
 	}
 }

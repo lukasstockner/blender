@@ -378,7 +378,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	int overscan = 0;
 	const bool is_gpu = params.device.type == DEVICE_CUDA || params.device.type == DEVICE_OPENCL || getenv("CPU_OVERSCAN");
 	if(params.denoise_result && is_gpu) {
-		overscan = scene->integrator->half_window;
+		overscan = params.denoising_half_window;
 		rtile.x -= overscan;
 		rtile.y -= overscan;
 		rtile.w += 2*overscan;
@@ -964,6 +964,19 @@ void Session::render()
 	task.need_finish_queue = params.progressive_refine;
 	task.integrator_branched = scene->integrator->method == Integrator::BRANCHED_PATH;
 	task.requested_tile_size = params.tile_size;
+
+	if(params.denoise_result) {
+		task.denoising_half_window = params.denoising_half_window;
+		task.denoising_pca_threshold = params.denoising_pca_threshold;
+		task.denoising_weight_adjust = params.denoising_weight_adjust;
+		task.denoising_use_cross = params.denoising_use_cross;
+		task.denoising_use_gradients = params.denoising_use_gradients;
+
+		assert(!scene->film->need_update);
+		task.pass_stride = scene->film->pass_stride;
+		task.pass_denoising_data = scene->film->denoising_data_offset;
+		task.pass_denoising_clean = scene->film->denoising_clean_offset;
+	}
 
 	device->task_add(task);
 }

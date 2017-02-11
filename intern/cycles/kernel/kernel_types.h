@@ -390,24 +390,17 @@ typedef enum BakePassFilterCombos {
 } BakePassFilterCombos;
 
 typedef enum DenoiseFlag {
-	DENOISE_DIFFUSE_DIR      = (1 << 0),
-	DENOISE_DIFFUSE_IND      = (1 << 1),
-	DENOISE_GLOSSY_DIR       = (1 << 2),
-	DENOISE_GLOSSY_IND       = (1 << 3),
-	DENOISE_TRANSMISSION_DIR = (1 << 4),
-	DENOISE_TRANSMISSION_IND = (1 << 5),
-	DENOISE_SUBSURFACE_DIR   = (1 << 6),
-	DENOISE_SUBSURFACE_IND   = (1 << 7),
+	DENOISING_CLEAN_DIFFUSE_DIR      = (1 << 0),
+	DENOISING_CLEAN_DIFFUSE_IND      = (1 << 1),
+	DENOISING_CLEAN_GLOSSY_DIR       = (1 << 2),
+	DENOISING_CLEAN_GLOSSY_IND       = (1 << 3),
+	DENOISING_CLEAN_TRANSMISSION_DIR = (1 << 4),
+	DENOISING_CLEAN_TRANSMISSION_IND = (1 << 5),
+	DENOISING_CLEAN_SUBSURFACE_DIR   = (1 << 6),
+	DENOISING_CLEAN_SUBSURFACE_IND   = (1 << 7),
+	DENOISING_CLEAN_ALL_PASSES       = (1 << 8)-1,
 
-	DENOISE_ALL = (
-	    DENOISE_DIFFUSE_DIR |
-	    DENOISE_DIFFUSE_IND |
-	    DENOISE_GLOSSY_DIR |
-	    DENOISE_GLOSSY_IND |
-	    DENOISE_TRANSMISSION_DIR |
-	    DENOISE_TRANSMISSION_IND |
-	    DENOISE_SUBSURFACE_DIR |
-	    DENOISE_SUBSURFACE_IND),
+	DENOISING_USE_SPLIT_PASSES       = (1 << 8),
 } DenoiseFlag;
 
 typedef ccl_addr_space struct PathRadiance {
@@ -1121,10 +1114,10 @@ typedef struct KernelFilm {
 	float mist_inv_depth;
 	float mist_falloff;
 
-	int pass_denoising;
-	int pass_no_denoising;
-	int denoise_flag;
-	int denoise_cross;
+	int pass_denoising_data;
+	int pass_denoising_clean;
+	int denoising_flags;
+	int pad;
 
 #ifdef __KERNEL_DEBUG__
 	int pass_bvh_traversed_nodes;
@@ -1217,12 +1210,6 @@ typedef struct KernelIntegrator {
 	int volume_max_steps;
 	float volume_step_size;
 	int volume_samples;
-
-	/* denoiser */
-	int half_window;
-	float filter_strength;
-	float weighting_adjust;
-	int use_gradients;
 
 	int start_sample;
 	int pad1, pad2, pad3;

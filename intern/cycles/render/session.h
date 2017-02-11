@@ -62,11 +62,11 @@ public:
 
 	bool display_buffer_linear;
 
-	int half_window;
-	float filter_strength;
-	float filter_weight_adjust;
-	bool filter_gradient;
-	bool filter_cross;
+	int denoising_half_window;
+	float denoising_pca_threshold;
+	float denoising_weight_adjust;
+	bool denoising_use_gradients;
+	bool denoising_use_cross;
 
 	double cancel_timeout;
 	double reset_timeout;
@@ -95,11 +95,11 @@ public:
 
 		display_buffer_linear = false;
 
-		half_window = 8;
-		filter_strength = 1e-3f;
-		filter_weight_adjust = 0.5f;
-		filter_gradient = false;
-		filter_cross = false;
+		denoising_half_window = 8;
+		denoising_pca_threshold = 1e-3f;
+		denoising_weight_adjust = 0.5f;
+		denoising_use_gradients = false;
+		denoising_use_cross = false;
 
 		cancel_timeout = 0.1;
 		reset_timeout = 0.1;
@@ -124,11 +124,11 @@ public:
 		&& start_resolution == params.start_resolution
 		&& threads == params.threads
 		&& denoise_result == params.denoise_result
-		&& half_window == params.half_window
-		&& filter_strength == params.filter_strength
-		&& filter_weight_adjust == params.filter_weight_adjust
-		&& filter_gradient == params.filter_gradient
-		&& filter_cross == params.filter_cross
+		&& denoising_half_window == params.denoising_half_window
+		&& denoising_pca_threshold == params.denoising_pca_threshold
+		&& denoising_weight_adjust == params.denoising_weight_adjust
+		&& denoising_use_gradients == params.denoising_use_gradients
+		&& denoising_use_cross == params.denoising_use_cross
 		&& display_buffer_linear == params.display_buffer_linear
 		&& cancel_timeout == params.cancel_timeout
 		&& reset_timeout == params.reset_timeout

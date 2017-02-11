@@ -85,11 +85,6 @@ public:
 
 	bool need_update;
 
-	int half_window;
-	float filter_strength;
-	float weighting_adjust;
-	bool use_gradients;
-
 	Integrator();
 	~Integrator();
 

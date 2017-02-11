@@ -84,11 +84,11 @@ public:
 
 	/* passes */
 	array<Pass> passes;
-	bool denoising_passes;
+	bool denoising_data_pass;
 	/* If only some light path types should be denoised, an additional pass is needed. */
-	bool selective_denoising;
+	bool denoising_clean_pass;
 	/* Generate an additional pass containing only every second sample. */
-	bool cross_denoising;
+	bool denoising_split_pass;
 	/* On GPUs, tiles are extended in each direction to include all the info required for denoising. */
 	int overscan;
 

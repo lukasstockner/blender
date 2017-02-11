@@ -44,9 +44,9 @@ BufferParams::BufferParams()
 	final_width = 0;
 	final_height = 0;
 
-	denoising_passes = false;
-	selective_denoising = false;
-	cross_denoising = false;
+	denoising_data_pass = false;
+	denoising_clean_pass = false;
+	denoising_split_pass = false;
 	overscan = 0;
 
 	Pass::add(PASS_COMBINED, passes);
@@ -79,12 +79,12 @@ int BufferParams::get_passes_size()
 	for(size_t i = 0; i < passes.size(); i++)
 		size += passes[i].components;
 
-	if(denoising_passes) {
+	if(denoising_data_pass) {
 		/* Feature passes: 11 Channels (3 Color, 3 Normal, 1 Depth, 4 Shadow) + 9 Variance
 		 * Color passes: 3 Noisy (RGB) + 3 Variance [+ 3 Skip (RGB)] */
 		size += 26;
-		if(selective_denoising) size += 3;
-		if(cross_denoising) size += 6;
+		if(denoising_clean_pass) size += 3;
+		if(denoising_split_pass) size += 6;
 	}
 
 	return align_up(size, 4);
@@ -207,7 +207,7 @@ int4 RenderBuffers::rect_to_local(int4 rect) {
 
 bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels)
 {
-	if(!params.denoising_passes)
+	if(!params.denoising_data_pass)
 		/* The RenderBuffer doesn't have denoising passes. */
 		return false;
 	if(!(type & DENOISING_PASS_ALL))
@@ -232,7 +232,7 @@ bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int
 		case DENOISING_PASS_NOISY_VAR:   type_offset = 23; scale = exposure*exposure/sample; break;
 		case DENOISING_PASS_NOISY_B:     type_offset = 26; scale = exposure/(sample/2); break;
 		case DENOISING_PASS_NOISY_B_VAR: type_offset = 29; scale = exposure*exposure/(sample/2); break;
-		case DENOISING_PASS_CLEAN:       type_offset = params.cross_denoising? 32: 26; scale = exposure/sample; break;
+		case DENOISING_PASS_CLEAN:       type_offset = params.denoising_split_pass? 32: 26; scale = exposure/sample; break;
 	}
 
 	if(read_pixels) {

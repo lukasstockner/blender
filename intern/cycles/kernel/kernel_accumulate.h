@@ -484,15 +484,21 @@ ccl_device_inline void path_radiance_split_denoising(KernelGlobals *kg, PathRadi
 	*clean = L->emission + L->background;
 	*noisy = L->direct_scatter + L->indirect_scatter;
 
-	/* TODO Clean this up */
-	*((kernel_data.film.denoise_flag & DENOISE_DIFFUSE_DIR)? noisy: clean) += L->direct_diffuse;
-	*((kernel_data.film.denoise_flag & DENOISE_DIFFUSE_IND)? noisy: clean) += L->indirect_diffuse;
-	*((kernel_data.film.denoise_flag & DENOISE_GLOSSY_DIR)? noisy: clean) += L->direct_glossy;
-	*((kernel_data.film.denoise_flag & DENOISE_GLOSSY_IND)? noisy: clean) += L->indirect_glossy;
-	*((kernel_data.film.denoise_flag & DENOISE_TRANSMISSION_DIR)? noisy: clean) += L->direct_transmission;
-	*((kernel_data.film.denoise_flag & DENOISE_TRANSMISSION_IND)? noisy: clean) += L->indirect_transmission;
-	*((kernel_data.film.denoise_flag & DENOISE_SUBSURFACE_DIR)? noisy: clean) += L->direct_subsurface;
-	*((kernel_data.film.denoise_flag & DENOISE_SUBSURFACE_IND)? noisy: clean) += L->indirect_subsurface;
+#  define ADD_COMPONENT(flag, component)     \
+	if(kernel_data.film.denoising_flags & flag) \
+		*clean += component;                 \
+	else                                     \
+		*noisy += component;
+
+	ADD_COMPONENT(DENOISING_CLEAN_DIFFUSE_DIR,      L->direct_diffuse);
+	ADD_COMPONENT(DENOISING_CLEAN_DIFFUSE_IND,      L->indirect_diffuse);
+	ADD_COMPONENT(DENOISING_CLEAN_GLOSSY_DIR,       L->direct_glossy);
+	ADD_COMPONENT(DENOISING_CLEAN_GLOSSY_IND,       L->indirect_glossy);
+	ADD_COMPONENT(DENOISING_CLEAN_TRANSMISSION_DIR, L->direct_transmission);
+	ADD_COMPONENT(DENOISING_CLEAN_TRANSMISSION_IND, L->indirect_transmission);
+	ADD_COMPONENT(DENOISING_CLEAN_SUBSURFACE_DIR,   L->direct_subsurface);
+	ADD_COMPONENT(DENOISING_CLEAN_SUBSURFACE_IND,   L->indirect_subsurface);
+#  undef ADD_COMPONENT
 #else
 	*noisy = *L;
 	*clean = make_float3(0.0f, 0.0f, 0.0f);

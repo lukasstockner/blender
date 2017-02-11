@@ -93,7 +93,6 @@ public:
 	int cuDevId;
 	int cuDevArchitecture;
 	bool first_error;
-	KernelData kernel_globals;
 
 	struct PixelMem {
 		GLuint cuPBO;
@@ -557,9 +556,6 @@ public:
 
 		cuda_push_context();
 		cuda_assert(cuModuleGetGlobal(&mem, &bytes, cuModule, name));
-		if(strcmp(name, "__data") == 0) {
-			kernel_globals = *(KernelData*) host;
-		}
 		//assert(bytes == size);
 		cuda_assert(cuMemcpyHtoD(mem, host, size));
 		cuda_pop_context();
@@ -1127,7 +1123,7 @@ public:
 		                &buffer_variance_ptr,
 		                &task->rect,
 		                &task->render_buffer.pass_stride,
-		                &task->render_buffer.denoising_offset,
+		                &task->render_buffer.denoising_data_offset,
 		                &task->use_gradients};
 		CUDA_LAUNCH_KERNEL(cuFilterDivideShadow, args);
 		cuda_assert(cuCtxSynchronize());
@@ -1162,7 +1158,7 @@ public:
 		                &variance_ptr,
 		                &task->rect,
 		                &task->render_buffer.pass_stride,
-		                &task->render_buffer.denoising_offset,
+		                &task->render_buffer.denoising_data_offset,
 		                &task->use_cross_denoising};
 		CUDA_LAUNCH_KERNEL(cuFilterGetFeature, args);
 		cuda_assert(cuCtxSynchronize());
@@ -1171,7 +1167,7 @@ public:
 		return !have_error();
 	}
 
-	void denoise(RenderTile &rtile, int sample)
+	void denoise(RenderTile &rtile, const DeviceTask &task, int sample)
 	{
 		DenoisingTask denoising(this);
 
@@ -1180,7 +1176,7 @@ public:
 		denoising.render_buffer.samples = sample;
 
 		denoising.tiles_from_single_tile(rtile);
-		denoising.init_from_kerneldata(&kernel_globals);
+		denoising.init_from_devicetask(task);
 
 		denoising.functions.construct_transform = function_bind(&CUDADevice::denoising_construct_transform, this, &denoising);
 		denoising.functions.reconstruct = function_bind(&CUDADevice::denoising_reconstruct, this, _1, _2, _3, _4, _5, &denoising);
@@ -1644,12 +1640,12 @@ public:
 					}
 
 					if(tile.buffers->params.overscan && !task->get_cancel()) { /* TODO(lukas) Works, but seems hacky? */
-						denoise(tile, end_sample);
+						denoise(tile, *task, end_sample);
 					}
 				}
 				else if(tile.task == RenderTile::DENOISE) {
 					int sample = tile.start_sample + tile.num_samples;
-					denoise(tile, sample);
+					denoise(tile, *task, sample);
 					tile.sample = sample;
 				}
 

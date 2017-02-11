@@ -470,7 +470,7 @@ public:
 				                              (float*) buffer_variance_ptr,
 				                              &task->rect.x,
 				                              task->render_buffer.pass_stride,
-				                              task->render_buffer.denoising_offset,
+				                              task->render_buffer.denoising_data_offset,
 				                              task->use_gradients);
 			}
 		}
@@ -494,7 +494,7 @@ public:
 				                            (float*) variance_ptr,
 				                            &task->rect.x,
 				                            task->render_buffer.pass_stride,
-				                            task->render_buffer.denoising_offset,
+				                            task->render_buffer.denoising_data_offset,
 				                            task->use_cross_denoising);
 			}
 		}
@@ -551,7 +551,7 @@ public:
 					denoising.render_buffer.samples = end_sample;
 
 					denoising.tiles_from_single_tile(tile);
-					denoising.init_from_kerneldata(&kg.__data);
+					denoising.init_from_devicetask(task);
 
 					denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
 					denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, _4, _5, &denoising);
@@ -575,7 +575,7 @@ public:
 				task.get_neighbor_tiles(rtiles);
 				denoising.tiles_from_rendertiles(rtiles);
 
-				denoising.init_from_kerneldata(&kg.__data);
+				denoising.init_from_devicetask(task);
 
 				denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
 				denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, _4, _5, &denoising);

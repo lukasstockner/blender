@@ -80,11 +80,6 @@ NODE_DEFINE(Integrator)
 	sampling_pattern_enum.insert("cmj", SAMPLING_PATTERN_CMJ);
 	SOCKET_ENUM(sampling_pattern, "Sampling Pattern", sampling_pattern_enum, SAMPLING_PATTERN_SOBOL);
 
-	SOCKET_INT(half_window, "Half Window", 8);
-	SOCKET_FLOAT(filter_strength, "Filter Strength", 1e-3f);
-	SOCKET_FLOAT(weighting_adjust, "Weighting Adjust", 1.0f);
-	SOCKET_BOOLEAN(use_gradients, "Use Gradients for filtering", true);
-
 	return type;
 }
 
@@ -218,11 +213,6 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 		scene->film->use_sample_clamp = use_sample_clamp;
 		scene->film->tag_update(scene);
 	}
-
-	kintegrator->half_window = half_window;
-	kintegrator->filter_strength = filter_strength;
-	kintegrator->weighting_adjust = weighting_adjust;
-	kintegrator->use_gradients = use_gradients;
 
 	need_update = false;
 }

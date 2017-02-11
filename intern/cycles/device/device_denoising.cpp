@@ -20,17 +20,17 @@
 
 CCL_NAMESPACE_BEGIN
 
-void DenoisingTask::init_from_kerneldata(KernelData *data)
+void DenoisingTask::init_from_devicetask(const DeviceTask &task)
 {
-	half_window = data->integrator.half_window;
-	pca_threshold = data->integrator.filter_strength;
-	nlm_k_2 = data->integrator.weighting_adjust;
-	use_cross_denoising = data->film.denoise_cross;
-	use_gradients = data->integrator.use_gradients;
+	half_window = task.denoising_half_window;
+	pca_threshold = task.denoising_pca_threshold;
+	nlm_k_2 = task.denoising_weight_adjust;
+	use_cross_denoising = task.denoising_use_cross;
+	use_gradients = task.denoising_use_gradients;
 
-	render_buffer.pass_stride = data->film.pass_stride;
-	render_buffer.denoising_offset = data->film.pass_denoising;
-	render_buffer.no_denoising_offset = data->film.pass_no_denoising;
+	render_buffer.pass_stride = task.pass_stride;
+	render_buffer.denoising_data_offset  = task.pass_denoising_data;
+	render_buffer.denoising_clean_offset = task.pass_denoising_clean;
 	render_buffer.offset = tiles->offsets[4];
 	render_buffer.stride = tiles->strides[4];
 	render_buffer.ptr    = tiles->buffers[4];
@@ -242,7 +242,7 @@ bool DenoisingTask::run_denoising()
 		reconstruction_state.buffer_params = make_int4(render_buffer.offset + tile_coordinate_offset,
 		                                               render_buffer.stride,
 		                                               render_buffer.pass_stride,
-		                                               render_buffer.no_denoising_offset);
+		                                               render_buffer.denoising_clean_offset);
 		reconstruction_state.source_w = storage.w;
 		reconstruction_state.source_h = storage.h;
 
@@ -256,7 +256,7 @@ bool DenoisingTask::run_denoising()
 		reconstruction_state.buffer_params = make_int4(render_buffer.offset + tile_coordinate_offset,
 		                                               render_buffer.stride,
 		                                               render_buffer.pass_stride,
-		                                               render_buffer.no_denoising_offset);
+		                                               render_buffer.denoising_clean_offset);
 		reconstruction_state.source_w = rect.z-rect.x;
 		reconstruction_state.source_h = rect.w-rect.y;
 

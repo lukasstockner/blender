@@ -406,27 +406,28 @@ void BlenderSession::render()
 		}
 
 		buffer_params.passes = passes;
-		buffer_params.denoising_passes = b_layer_iter->keep_denoise_data() || b_layer_iter->denoise_result();
+		buffer_params.denoising_data_pass = b_layer_iter->keep_denoise_data() || b_layer_iter->denoise_result();
 		session->tile_manager.schedule_denoising = (b_layer_iter->denoise_result() && is_cpu) && !getenv("CPU_OVERSCAN");
 		session->params.denoise_result = b_layer_iter->denoise_result();
-		scene->film->denoising_passes = buffer_params.denoising_passes;
-		scene->film->denoise_flags = 0;
-		if(b_layer_iter->denoise_diffuse_direct()) scene->film->denoise_flags |= DENOISE_DIFFUSE_DIR;
-		if(b_layer_iter->denoise_diffuse_indirect()) scene->film->denoise_flags |= DENOISE_DIFFUSE_IND;
-		if(b_layer_iter->denoise_glossy_direct()) scene->film->denoise_flags |= DENOISE_GLOSSY_DIR;
-		if(b_layer_iter->denoise_glossy_indirect()) scene->film->denoise_flags |= DENOISE_GLOSSY_IND;
-		if(b_layer_iter->denoise_transmission_direct()) scene->film->denoise_flags |= DENOISE_TRANSMISSION_DIR;
-		if(b_layer_iter->denoise_transmission_indirect()) scene->film->denoise_flags |= DENOISE_TRANSMISSION_IND;
-		if(b_layer_iter->denoise_subsurface_direct()) scene->film->denoise_flags |= DENOISE_SUBSURFACE_DIR;
-		if(b_layer_iter->denoise_subsurface_indirect()) scene->film->denoise_flags |= DENOISE_SUBSURFACE_IND;
-		scene->film->selective_denoising = (scene->film->denoise_flags != DENOISE_ALL);
-		scene->film->cross_denoising = b_layer_iter->filter_cross();
-		buffer_params.selective_denoising = scene->film->selective_denoising;
-		buffer_params.cross_denoising = scene->film->cross_denoising;
-		scene->integrator->half_window = b_layer_iter->half_window();
-		scene->integrator->filter_strength = (b_layer_iter->filter_strength() == 0.0f)? 1e-3f : copysignf(powf(10.0f, -fabsf(b_layer_iter->filter_strength())*2.0f), b_layer_iter->filter_strength());
-		scene->integrator->weighting_adjust = powf(2.0f, b_layer_iter->filter_weighting_adjust() - 1.0f);
-		scene->integrator->use_gradients = b_layer_iter->filter_gradients();
+		scene->film->denoising_data_pass = buffer_params.denoising_data_pass;
+		scene->film->denoising_flags = 0;
+		if(!b_layer_iter->denoise_diffuse_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_DIR;
+		if(!b_layer_iter->denoise_diffuse_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_IND;
+		if(!b_layer_iter->denoise_glossy_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_DIR;
+		if(!b_layer_iter->denoise_glossy_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_IND;
+		if(!b_layer_iter->denoise_transmission_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_DIR;
+		if(!b_layer_iter->denoise_transmission_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_IND;
+		if(!b_layer_iter->denoise_subsurface_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_DIR;
+		if(!b_layer_iter->denoise_subsurface_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_IND;
+		scene->film->denoising_clean_pass = (scene->film->denoising_flags & DENOISING_CLEAN_ALL_PASSES);
+		scene->film->denoising_split_pass = b_layer_iter->filter_cross();
+		buffer_params.denoising_clean_pass = scene->film->denoising_clean_pass;
+		buffer_params.denoising_split_pass = scene->film->denoising_split_pass;
+		session->params.denoising_half_window = b_layer_iter->half_window();
+		session->params.denoising_pca_threshold = (b_layer_iter->filter_strength() == 0.0f)? 1e-3f : copysignf(powf(10.0f, -fabsf(b_layer_iter->filter_strength())*2.0f), b_layer_iter->filter_strength());
+		session->params.denoising_weight_adjust = powf(2.0f, b_layer_iter->filter_weighting_adjust() - 1.0f);
+		session->params.denoising_use_gradients = b_layer_iter->filter_gradients();
+		session->params.denoising_use_cross = b_layer_iter->filter_cross();
 
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes);

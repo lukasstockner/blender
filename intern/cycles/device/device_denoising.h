@@ -35,8 +35,8 @@ public:
 
 	/* Pointer and parameters of the RenderBuffers. */
 	struct RenderBuffers {
-		int denoising_offset;
-		int no_denoising_offset;
+		int denoising_data_offset;
+		int denoising_clean_offset;
 		int pass_stride;
 		int offset;
 		int stride;
@@ -125,7 +125,7 @@ public:
 
 	DenoisingTask(Device *device) : device(device) {}
 
-	void init_from_kerneldata(KernelData *data);
+	void init_from_devicetask(const DeviceTask &task);
 
 	bool run_denoising();
 
