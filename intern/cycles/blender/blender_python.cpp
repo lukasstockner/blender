@@ -29,8 +29,6 @@
 #include "util_string.h"
 #include "util_types.h"
 
-#include "denoising.h"
-
 #ifdef WITH_OSL
 #include "osl.h"
 
@@ -762,34 +760,6 @@ static PyObject *get_device_types_func(PyObject * /*self*/, PyObject * /*args*/)
 	return list;
 }
 
-static PyObject *denoise_files_func(PyObject * /*self*/, PyObject *args, PyObject *keywords)
-{
-	SessionParams session_params;
-	session_params.samples = 128;
-	session_params.threads = 0;
-
-	int half_output = 0, use_gpu = 0;
-	const char *output = NULL, *filename = NULL;
-
-	static const char* keylist[] = {"filename", "output", "half_float", "use_gpu", "samples", "threads", "tile_x", "tile_y", "filter_strength", "filter_weight_adjust"};
-	if(!PyArg_ParseTupleAndKeywords(args, keywords, "ss|ppiiiiff", const_cast<char **>(keylist), &filename, &output, &half_output, &use_gpu,
-	                                &session_params.samples, &session_params.threads, &session_params.tile_size.x, &session_params.tile_size.y,
-	                                &session_params.filter_strength, &session_params.filter_weight_adjust)) {
-		return NULL;
-	}
-	session_params.output_half_float = (half_output > 0);
-	session_params.output_path = string(output);
-
-	BL::UserPreferences b_userpref(get_user_preferences());
-	session_params.device = BlenderSync::get_device_info(b_userpref, use_gpu);
-
-	if(denoise_standalone(session_params, filename)) {
-		Py_RETURN_TRUE;
-	}
-	Py_RETURN_FALSE;
-}
-
-
 static PyMethodDef methods[] = {
 	{"init", init_func, METH_VARARGS, ""},
 	{"exit", exit_func, METH_VARARGS, ""},
@@ -812,7 +782,6 @@ static PyMethodDef methods[] = {
 
 	{"can_postprocess", can_postprocess_func, METH_VARARGS, ""},
 	{"postprocess", postprocess_func, METH_VARARGS, ""},
-	{"denoise_files", (PyCFunction)denoise_files_func, METH_VARARGS|METH_KEYWORDS, ""},
 
 	/* Debugging routines */
 	{"debug_flags_update", debug_flags_update_func, METH_VARARGS, ""},
