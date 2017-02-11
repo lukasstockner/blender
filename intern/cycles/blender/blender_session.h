@@ -57,9 +57,6 @@ public:
 	void reset_session(BL::BlendData& b_data,
 	                   BL::Scene& b_scene);
 
-	/* denoising */
-	void denoise(BL::RenderResult& b_rr);
-
 	/* offline render */
 	void render();
 

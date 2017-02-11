@@ -1231,26 +1231,6 @@ class IMAGE_PT_tools_grease_pencil_edit(GreasePencilStrokeEditPanel, Panel):
 class IMAGE_PT_tools_grease_pencil_sculpt(GreasePencilStrokeSculptPanel, Panel):
     bl_space_type = 'IMAGE_EDITOR'
 
-class IMAGE_PT_tools_post_process(Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'UI'
-    bl_label = "Post-processing"
-
-    @classmethod
-    def poll(cls, context):
-        rd = context.scene.render
-        sima = context.space_data
-
-        return (sima.image.type in {'MULTILAYER', 'RENDER_RESULT'}) and rd.use_result_postprocess
-
-    def draw(self, context):
-        layout = self.layout
-
-        sima = context.space_data
-        ima = sima.image
-
-        layout.operator("image.postprocess");
-
 
 # Grease Pencil drawing brushes
 class IMAGE_PT_tools_grease_pencil_brush(GreasePencilBrushPanel, Panel):

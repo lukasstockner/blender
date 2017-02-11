@@ -63,7 +63,6 @@ struct BakePixel;
 #define RE_USE_TEXTURE_PREVIEW		128
 #define RE_USE_SHADING_NODES_CUSTOM 	256
 #define RE_USE_SPHERICAL_STEREO 512
-#define RE_USE_RESULT_POSTPROCESS	1024
 
 /* RenderEngine.flag */
 #define RE_ENGINE_ANIMATION		1
@@ -97,9 +96,6 @@ typedef struct RenderEngineType {
 	void (*view_draw)(struct RenderEngine *engine, const struct bContext *context);
 
 	void (*update_script_node)(struct RenderEngine *engine, struct bNodeTree *ntree, struct bNode *node);
-
-	int (*can_postprocess)(struct RenderEngine *engine, struct RenderResult *result);
-	void (*postprocess)(struct RenderEngine *engine, struct Scene *scene, struct RenderResult *result);
 
 	/* RNA integration */
 	ExtensionRNA ext;
@@ -159,7 +155,6 @@ void RE_engine_update_memory_stats(RenderEngine *engine, float mem_used, float m
 void RE_engine_report(RenderEngine *engine, int type, const char *msg);
 void RE_engine_set_error_message(RenderEngine *engine, const char *msg);
 
-void RE_engine_postprocess(struct Scene *scene, struct Render *re, struct RenderResult *rr);
 int RE_engine_render(struct Render *re, int do_all);
 
 bool RE_engine_is_external(struct Render *re);

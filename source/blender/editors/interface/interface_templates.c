@@ -3492,8 +3492,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 		Scene *scene;
 		/* another scene can be rendering too, for example via compositor */
 		for (scene = CTX_data_main(C)->scene.first; scene; scene = scene->id.next) {
-			if (WM_jobs_test(wm, scene, WM_JOB_TYPE_RENDER) ||
-			    WM_jobs_test(wm, scene, WM_JOB_TYPE_POSTPROCESS)) {
+			if (WM_jobs_test(wm, scene, WM_JOB_TYPE_RENDER)) {
 				handle_event = B_STOPRENDER;
 				icon = ICON_SCENE;
 				break;

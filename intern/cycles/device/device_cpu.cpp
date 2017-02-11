@@ -576,7 +576,6 @@ public:
 				denoising.tiles_from_rendertiles(rtiles);
 
 				denoising.init_from_devicetask(task);
-
 				denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
 				denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, _4, _5, &denoising);
 				denoising.functions.divide_shadow = function_bind(&CPUDevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);

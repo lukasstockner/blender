@@ -194,5 +194,5 @@ def system_info():
 def can_postprocess(result):
     return False
 
-def postprocess(engine, scene, result):
+def postprocess(scene, result):
     return

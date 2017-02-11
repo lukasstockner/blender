@@ -68,7 +68,7 @@
 static RenderEngineType internal_render_type = {
 	NULL, NULL,
 	"BLENDER_RENDER", N_("Blender Render"), RE_INTERNAL,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL,
 	{NULL, NULL, NULL}
 };
 
@@ -77,7 +77,7 @@ static RenderEngineType internal_render_type = {
 static RenderEngineType internal_game_type = {
 	NULL, NULL,
 	"BLENDER_GAME", N_("Blender Game"), RE_INTERNAL | RE_GAME,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL,
 	{NULL, NULL, NULL}
 };
 
@@ -596,23 +596,6 @@ static bool render_layer_exclude_animated(Scene *scene, SceneRenderLayer *srl)
 	prop = RNA_struct_find_property(&ptr, "layers_exclude");
 
 	return RNA_property_animated(&ptr, prop);
-}
-
-void RE_engine_postprocess(Scene *scene, Render *re, RenderResult *rr)
-{
-	RenderEngineType *type = RE_engines_find(scene->r.engine);
-	RenderEngine *engine = RE_engine_create(type);
-
-	engine->re = re;
-	RE_parts_init(engine->re, false);
-
-	RE_InitState(engine->re, NULL, &scene->r, NULL, rr, rr->rectx, rr->recty, NULL);
-	engine->tile_x = engine->re->partx;
-	engine->tile_y = engine->re->party;
-
-	type->postprocess(engine, scene, rr);
-
-	RE_engine_free(engine);
 }
 
 int RE_engine_render(Render *re, int do_all)
