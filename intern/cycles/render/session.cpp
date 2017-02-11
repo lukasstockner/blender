@@ -46,7 +46,7 @@ Session::Session(const SessionParams& params_)
 : params(params_),
   tile_manager(params.progressive, params.samples, params.tile_size, params.start_resolution,
        params.background == false || params.progressive_refine, params.background, params.tile_order,
-       max(params.device.multi_devices.size(), 1), params.only_denoise),
+       max(params.device.multi_devices.size(), 1)),
   stats()
 {
 	device_use_gl = ((params.device.type != DEVICE_CPU) && !params.background);
@@ -130,11 +130,6 @@ Session::~Session()
 void Session::start()
 {
 	session_thread = new thread(function_bind(&Session::run, this));
-}
-
-void Session::start_denoise()
-{
-	session_thread = new thread(function_bind(&Session::run_denoise, this));
 }
 
 bool Session::ready_to_reset()
@@ -778,79 +773,6 @@ void Session::run()
 		progress.set_update();
 }
 
-void Session::run_denoise()
-{
-	if(!progress.get_cancel()) {
-		if(!kernels_loaded) {
-			progress.set_status("Loading render kernels (may take a few minutes the first time)");
-
-			DeviceRequestedFeatures requested_features;
-			if(!device->load_kernels(requested_features)) {
-				string message = device->error_message();
-				if(message.empty())
-					message = "Failed loading render kernel, see console for errors";
-
-				progress.set_error(message);
-				progress.set_status("Error", message);
-				progress.set_update();
-				return;
-			}
-
-			kernels_loaded = true;
-		}
-
-		progress.reset_sample();
-		tile_manager.reset(buffers->params, params.samples);
-		progress.set_total_pixel_samples(tile_manager.state.total_pixel_samples);
-		tile_manager.state.global_buffers = buffers;
-		progress.set_render_start_time();
-
-		/* Set up KernelData. */
-		KernelData kernel_data;
-		kernel_data.integrator.half_window = params.half_window;
-		kernel_data.film.pass_stride = buffers->params.get_passes_size();
-		kernel_data.film.pass_denoising = buffers->params.get_denoise_offset();
-		kernel_data.film.pass_no_denoising = buffers->params.selective_denoising? kernel_data.film.pass_denoising+20 : 0;
-		kernel_data.film.denoise_cross = params.filter_cross;
-		kernel_data.film.exposure = 1.0f;
-		kernel_data.integrator.filter_strength = params.filter_strength;
-		kernel_data.integrator.weighting_adjust = params.filter_weight_adjust;
-		kernel_data.integrator.use_gradients = params.filter_gradient;
-		device->const_copy_to("__data", &kernel_data, sizeof(kernel_data));
-
-		/* Generate tiles. */
-		tile_manager.next();
-		{
-			thread_scoped_lock buffers_lock(buffers_mutex);
-
-			if(!device->error_message().empty())
-				progress.set_error(device->error_message());
-
-			/* update status and timing */
-			update_status_time();
-
-			/* render */
-			render();
-
-			/* update status and timing */
-			update_status_time();
-
-
-			if(!device->error_message().empty())
-				progress.set_error(device->error_message());
-		}
-
-		device->task_wait();
-
-		progress.set_update();
-	}
-
-	if(progress.get_cancel())
-		progress.set_status("Cancel", progress.get_cancel_message());
-	else
-		progress.set_update();
-}
-
 bool Session::draw(BufferParams& buffer_params, DeviceDrawParams &draw_params)
 {
 	if(device_use_gl)
@@ -1040,7 +962,7 @@ void Session::render()
 	task.update_tile_sample = function_bind(&Session::update_tile_sample, this, _1);
 	task.update_progress_sample = function_bind(&Progress::add_samples, &this->progress, _1, _2);
 	task.need_finish_queue = params.progressive_refine;
-	task.integrator_branched = !params.only_denoise && (scene->integrator->method == Integrator::BRANCHED_PATH);
+	task.integrator_branched = scene->integrator->method == Integrator::BRANCHED_PATH;
 	task.requested_tile_size = params.tile_size;
 
 	device->task_add(task);

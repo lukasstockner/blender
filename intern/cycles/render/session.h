@@ -62,7 +62,6 @@ public:
 
 	bool display_buffer_linear;
 
-	bool only_denoise;
 	int half_window;
 	float filter_strength;
 	float filter_weight_adjust;
@@ -96,7 +95,6 @@ public:
 
 		display_buffer_linear = false;
 
-		only_denoise = false;
 		half_window = 8;
 		filter_strength = 1e-3f;
 		filter_weight_adjust = 0.5f;
@@ -126,7 +124,6 @@ public:
 		&& start_resolution == params.start_resolution
 		&& threads == params.threads
 		&& denoise_result == params.denoise_result
-		&& only_denoise == params.only_denoise
 		&& half_window == params.half_window
 		&& filter_strength == params.filter_strength
 		&& filter_weight_adjust == params.filter_weight_adjust
@@ -165,7 +162,6 @@ public:
 	~Session();
 
 	void start();
-	void start_denoise();
 	bool draw(BufferParams& params, DeviceDrawParams& draw_params);
 	void wait();
 
@@ -192,7 +188,6 @@ protected:
 	} delayed_reset;
 
 	void run();
-	void run_denoise();
 
 	void update_status_time(bool show_pause = false, bool show_done = false);
 

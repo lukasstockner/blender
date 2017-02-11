@@ -192,11 +192,7 @@ def system_info():
     return _cycles.system_info()
 
 def can_postprocess(result):
-    import _cycles
-    return _cycles.can_postprocess(result.as_pointer())
+    return False
 
 def postprocess(engine, scene, result):
-    import bpy
-    import _cycles
-    userpref = bpy.context.user_preferences.as_pointer()
-    _cycles.postprocess(engine.as_pointer(), userpref, scene.as_pointer(), result.as_pointer())
+    return

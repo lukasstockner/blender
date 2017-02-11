@@ -694,58 +694,6 @@ static PyObject *set_resumable_chunks_func(PyObject * /*self*/, PyObject *args)
 	Py_RETURN_NONE;
 }
 
-static PyObject *can_postprocess_func(PyObject * /*self*/, PyObject *args)
-{
-	PyObject *pyresult;
-
-	if(!PyArg_ParseTuple(args, "O", &pyresult))
-		return NULL;
-
-	/* RNA */
-	PointerRNA resultptr;
-	RNA_pointer_create(NULL, &RNA_RenderResult, (void*)PyLong_AsVoidPtr(pyresult), &resultptr);
-	BL::RenderResult b_rr(resultptr);
-
-	bool can_denoise = can_denoise_render_result(b_rr);
-
-	return Py_BuildValue("i", can_denoise? 1: 0);
-}
-
-static PyObject *postprocess_func(PyObject * /*self*/, PyObject *args)
-{
-	PyObject *pyresult, *pyengine, *pyuserpref, *pyscene;
-
-	if(!PyArg_ParseTuple(args, "OOOO", &pyengine, &pyuserpref, &pyscene, &pyresult))
-		return NULL;
-
-	/* RNA */
-	PointerRNA engineptr;
-	RNA_pointer_create(NULL, &RNA_RenderEngine, (void*)PyLong_AsVoidPtr(pyengine), &engineptr);
-	BL::RenderEngine engine(engineptr);
-
-	PointerRNA userprefptr;
-	RNA_pointer_create(NULL, &RNA_UserPreferences, (void*)PyLong_AsVoidPtr(pyuserpref), &userprefptr);
-	BL::UserPreferences userpref(userprefptr);
-
-	PointerRNA sceneptr;
-	RNA_pointer_create(NULL, &RNA_Scene, (void*)PyLong_AsVoidPtr(pyscene), &sceneptr);
-	BL::Scene scene(sceneptr);
-
-	PointerRNA resultptr;
-	RNA_pointer_create(NULL, &RNA_RenderResult, (void*)PyLong_AsVoidPtr(pyresult), &resultptr);
-	BL::RenderResult b_rr(resultptr);
-
-	BlenderSession session(engine, userpref, scene);
-
-	python_thread_state_save(&session.python_thread_state);
-
-	session.denoise(b_rr);
-
-	python_thread_state_restore(&session.python_thread_state);
-
-	Py_RETURN_NONE;
-}
-
 static PyObject *get_device_types_func(PyObject * /*self*/, PyObject * /*args*/)
 {
 	vector<DeviceInfo>& devices = Device::available_devices();
@@ -779,9 +727,6 @@ static PyMethodDef methods[] = {
 #ifdef WITH_OPENCL
 	{"opencl_disable", opencl_disable_func, METH_NOARGS, ""},
 #endif
-
-	{"can_postprocess", can_postprocess_func, METH_VARARGS, ""},
-	{"postprocess", postprocess_func, METH_VARARGS, ""},
 
 	/* Debugging routines */
 	{"debug_flags_update", debug_flags_update_func, METH_VARARGS, ""},

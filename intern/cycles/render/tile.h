@@ -90,7 +90,7 @@ public:
 	int num_samples;
 
 	TileManager(bool progressive, int num_samples, int2 tile_size, int start_resolution,
-	            bool preserve_tile_device, bool background, TileOrder tile_order, int num_devices = 1, bool only_denoise = false);
+	            bool preserve_tile_device, bool background, TileOrder tile_order, int num_devices = 1);
 	~TileManager();
 
 	void free_device();
@@ -126,10 +126,6 @@ protected:
 	TileOrder tile_order;
 	int start_resolution;
 	int num_devices;
-
-	/* If this flag is set, the TileManager will only generate tiles for denoising,
-	 * not for rendering. */
-	bool only_denoise;
 
 	/* in some cases it is important that the same tile will be returned for the same
 	 * device it was originally generated for (i.e. viewport rendering when buffer is

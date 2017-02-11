@@ -95,30 +95,6 @@ BlenderSession::BlenderSession(BL::RenderEngine& b_engine,
 	start_resize_time = 0.0;
 }
 
-BlenderSession::BlenderSession(BL::RenderEngine& b_engine,
-                               BL::UserPreferences& b_userpref,
-                               BL::Scene& b_scene)
-: b_engine(b_engine),
-  b_userpref(b_userpref),
-  b_data(PointerRNA_NULL),
-  b_render(PointerRNA_NULL),
-  b_scene(b_scene),
-  b_v3d(PointerRNA_NULL),
-  b_rv3d(PointerRNA_NULL),
-  python_thread_state(NULL)
-{
-	width = 0;
-	height = 0;
-
-	sync = NULL;
-	session = NULL;
-	scene = NULL;
-
-	background = true;
-	last_redraw_time = 0.0;
-	start_resize_time = 0.0;
-}
-
 BlenderSession::~BlenderSession()
 {
 	free_session();
@@ -1323,83 +1299,6 @@ void BlenderSession::update_resumable_tile_manager(int num_samples)
 
 	session->tile_manager.range_start_sample = range_start_sample;
 	session->tile_manager.range_num_samples = range_num_samples;
-}
-
-void BlenderSession::denoise(BL::RenderResult& b_rr)
-{
-	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
-
-	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, true);
-	session_params.only_denoise = true;
-	session_params.progressive_refine = false;
-	session_params.progressive = false;
-	session_params.samples = 1;
-	session_params.start_resolution = 1;
-	session = new Session(session_params);
-	session->set_pause(false);
-
-	b_engine.use_highlight_tiles(true);
-	session->progress.set_update_callback(function_bind(&BlenderSession::tag_redraw, this));
-	session->progress.set_cancel_callback(function_bind(&BlenderSession::test_cancel, this));
-	session->write_render_tile_cb = function_bind(&BlenderSession::write_render_tile, this, _1);
-	session->update_render_tile_cb = function_bind(&BlenderSession::update_render_tile, this, _1, _2);
-
-	BL::RenderResult::layers_iterator b_layer_iter;
-	for(b_rr.layers.begin(b_layer_iter); b_layer_iter != b_rr.layers.end(); ++b_layer_iter) {
-		b_rlay_name = b_layer_iter->name();
-
-		/* Search corresponding scene layer to get the denoising properties. */
-		BL::RenderSettings r = b_scene.render();
-		BL::RenderSettings::layers_iterator b_s_layer_iter;
-		BL::SceneRenderLayer b_s_layer = r.layers.active();
-		for(r.layers.begin(b_s_layer_iter); b_s_layer_iter != r.layers.end(); ++b_s_layer_iter) {
-			if(b_s_layer_iter->name() == b_layer_iter->name()) {
-				b_s_layer = *b_s_layer_iter;
-				break;
-			}
-		}
-
-		session->params.samples = get_int(cscene, "samples");
-		if(get_boolean(cscene, "use_square_samples")) {
-			session->params.samples *= session->params.samples;
-		}
-
-		session->buffers = BlenderSync::get_render_buffer(session->device, *b_layer_iter, b_rr, session->params.samples);
-		if(!session->buffers) {
-			continue;
-		}
-
-		session->params.half_window = b_s_layer.half_window();
-		float filter_strength = b_s_layer.filter_strength();
-		session->params.filter_strength = (filter_strength == 0.0f)? 1e-3f : copysignf(powf(10.0f, -fabsf(filter_strength)*2.0f), filter_strength);
-		session->params.filter_weight_adjust = powf(2.0f, b_s_layer.filter_weighting_adjust() - 1.0f);
-		session->params.filter_gradient = b_s_layer.filter_gradients();
-		session->params.filter_cross = b_s_layer.filter_cross() && session->buffers->params.cross_denoising;
-
-		session->start_denoise();
-		session->wait();
-
-		delete session->buffers;
-		session->buffers = NULL;
-	}
-}
-
-bool can_denoise_render_result(BL::RenderResult& b_rr)
-{
-	/* Since the RenderResult may contain multiple layers,
-	 * this function returns true if at least one of them can be denoised. */
-	BL::RenderResult::layers_iterator b_layer_iter;
-	BL::RenderLayer::passes_iterator b_pass_iter;
-	for(b_rr.layers.begin(b_layer_iter); b_layer_iter != b_rr.layers.end(); ++b_layer_iter) {
-		int denoising_passes = DENOISING_PASS_NONE;
-		for(b_layer_iter->passes.begin(b_pass_iter); b_pass_iter != b_layer_iter->passes.end(); ++b_pass_iter) {
-			denoising_passes |= BlenderSync::get_denoising_pass_type(*b_pass_iter);
-		}
-		if((~denoising_passes & DENOISING_PASS_REQUIRED) == 0) {
-			return true;
-		}
-	}
-	return false;
 }
 
 CCL_NAMESPACE_END
