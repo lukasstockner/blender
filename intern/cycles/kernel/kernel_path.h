@@ -491,7 +491,7 @@ bool kernel_path_subsurface_scatter(
 			hit_L->direct_throughput = L->direct_throughput;
 			path_radiance_copy_indirect(hit_L, L);
 
-			kernel_path_surface_connect_light(kg, rng, sd, emission_sd, *hit_tp, state, hit_L, NULL);
+			kernel_path_surface_connect_light(kg, rng, sd, emission_sd, *hit_tp, state, hit_L);
 
 			if(kernel_path_surface_bounce(kg,
 			                              rng,
@@ -885,10 +885,7 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 #endif  /* __SUBSURFACE__ */
 
 		/* direct lighting */
-		float2 shadow_info = make_float2(0.0f, 0.0f);
-		kernel_path_surface_connect_light(kg, rng, &sd, &emission_sd, throughput, &state, L, &shadow_info);
-		if(write_denoising_shadow)
-			kernel_write_denoising_shadow(kg, buffer, sample, shadow_info);
+		kernel_path_surface_connect_light(kg, rng, &sd, &emission_sd, throughput, &state, &L);
 
 		/* compute direct lighting and next bounce */
 		if(!kernel_path_surface_bounce(kg, rng, &sd, &throughput, &state, L, &ray))
