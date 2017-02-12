@@ -121,7 +121,7 @@ ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sa
 }
 
 ccl_device_inline void kernel_write_denoising_shadow(KernelGlobals *kg, ccl_global float *buffer,
-	int sample, float2 shadow_info)
+	int sample, float path_total, float path_total_shaded)
 {
 	if(kernel_data.film.pass_denoising_data == 0)
 		return;
@@ -130,16 +130,16 @@ ccl_device_inline void kernel_write_denoising_shadow(KernelGlobals *kg, ccl_glob
 	buffer += kernel_data.film.pass_denoising_data + 14;
 
 	if(sample < 2) {
-		buffer[0] = shadow_info.x; /* Unoccluded lighting */
-		buffer[1] = shadow_info.y; /* Occluded lighting */
+		buffer[0] = path_total;
+		buffer[1] = path_total_shaded;
 		buffer[2] = 0.0f; /* Sample variance */
 	}
 	else {
 		float old_shadowing = buffer[1] / max(buffer[0], 1e-7f);
-		buffer[0] += shadow_info.x;
-		buffer[1] += shadow_info.y;
+		buffer[0] += path_total;
+		buffer[1] += path_total_shaded;
 		float new_shadowing = buffer[1] / max(buffer[0], 1e-7f);
-		float cur_shadowing = shadow_info.y / max(shadow_info.x, 1e-7f);
+		float cur_shadowing = path_total_shaded / max(path_total, 1e-7f);
 		buffer[2] += (cur_shadowing - old_shadowing) * (cur_shadowing - new_shadowing);
 	}
 }
@@ -375,6 +375,8 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *
 		kernel_write_pass_float4(buffer, sample, make_float4(L_sum.x, L_sum.y, L_sum.z, alpha));
 
 		kernel_write_light_passes(kg, buffer, L, sample);
+
+		kernel_write_denoising_shadow(kg, buffer, sample, average(L->path_total), average(L->path_total_shaded));
 
 		if(kernel_data.film.pass_denoising_data) {
 			if(kernel_data.film.pass_denoising_clean) {

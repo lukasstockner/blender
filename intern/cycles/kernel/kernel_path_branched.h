@@ -56,10 +56,10 @@ ccl_device_inline void kernel_branched_path_ao(KernelGlobals *kg,
 			light_ray.dD = differential3_zero();
 
 			if(!shadow_blocked(kg, emission_sd, state, &light_ray, &ao_shadow)) {
-				path_radiance_accum_ao(L, throughput*num_samples_inv, ao_alpha, ao_bsdf, ao_shadow, state->bounce);
+				path_radiance_accum_ao(L, state, throughput*num_samples_inv, ao_alpha, ao_bsdf, ao_shadow);
 			}
 			else {
-				path_radiance_accum_total_ao(L, throughput*num_samples_inv, ao_bsdf);
+				path_radiance_accum_total_ao(L, state, throughput*num_samples_inv, ao_bsdf);
 			}
 		}
 	}
@@ -479,7 +479,7 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 		shader_eval_surface(kg, &sd, rng, &state, 0.0f, state.flag, SHADER_CONTEXT_MAIN);
 		shader_merge_closures(&sd);
 
-		kernel_write_denoising_passes(kg, buffer, &state, &sd, sample, make_float3(0.0f, 0.0f, 0.0f));
+		bool write_denoising_shadow = kernel_write_denoising_passes(kg, buffer, &state, &sd, sample, make_float3(0.0f, 0.0f, 0.0f));
 
 #ifdef __SHADOW_TRICKS__
 		if((sd.object_flag & SD_OBJECT_SHADOW_CATCHER)) {
@@ -574,6 +574,10 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 					&sd, &emission_sd, &hit_state, throughput, 1.0f, L, all);
 			}
 #endif  /* __EMISSION__ */
+
+			if(write_denoising_shadow && !(state.flag & PATH_RAY_SHADOW_CATCHER)) {
+				state.flag &= ~PATH_RAY_STORE_SHADOW_INFO;
+			}
 
 			/* indirect light */
 			kernel_branched_path_surface_indirect_light(kg, rng,

@@ -23,7 +23,7 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
                                        int sample,
                                        ccl_addr_space Ray *ray)
 {
-	state->flag = PATH_RAY_CAMERA|PATH_RAY_MIS_SKIP;
+	state->flag = PATH_RAY_CAMERA|PATH_RAY_MIS_SKIP|PATH_RAY_STORE_SHADOW_INFO;
 
 	state->rng_offset = PRNG_BASE_NUM;
 	state->sample = sample;

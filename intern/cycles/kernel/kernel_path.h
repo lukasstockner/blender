@@ -89,10 +89,10 @@ ccl_device_noinline void kernel_path_ao(KernelGlobals *kg,
 		light_ray.dD = differential3_zero();
 
 		if(!shadow_blocked(kg, emission_sd, state, &light_ray, &ao_shadow)) {
-			path_radiance_accum_ao(L, throughput, ao_alpha, ao_bsdf, ao_shadow, state->bounce);
+			path_radiance_accum_ao(L, state, throughput, ao_alpha, ao_bsdf, ao_shadow);
 		}
 		else {
-			path_radiance_accum_total_ao(L, throughput, ao_bsdf);
+			path_radiance_accum_total_ao(L, state, throughput, ao_bsdf);
 		}
 	}
 }
@@ -913,6 +913,10 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 
 		/* direct lighting */
 		kernel_path_surface_connect_light(kg, rng, &sd, &emission_sd, throughput, &state, L);
+
+		if(write_denoising_shadow && !(state.flag & PATH_RAY_SHADOW_CATCHER)) {
+			state.flag &= ~PATH_RAY_STORE_SHADOW_INFO;
+		}
 
 		/* compute direct lighting and next bounce */
 		if(!kernel_path_surface_bounce(kg, rng, &sd, &throughput, &state, L, &ray))

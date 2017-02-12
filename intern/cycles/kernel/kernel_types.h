@@ -307,6 +307,7 @@ enum PathRayFlag {
 	PATH_RAY_SHADOW_CATCHER      = (1 << 15),
 	PATH_RAY_SHADOW_CATCHER_ONLY = (1 << 16),
 	PATH_RAY_DENOISING_PASS_DONE = (1 << 17),
+	PATH_RAY_STORE_SHADOW_INFO   = (1 << 18),
 };
 
 /* Closure Label */
