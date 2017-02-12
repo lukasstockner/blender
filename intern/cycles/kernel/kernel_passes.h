@@ -352,12 +352,26 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global f
 }
 
 ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *buffer,
-	int sample, PathRadiance *L, float alpha)
+	int sample, PathRadiance *L, float alpha, bool is_shadow_catcher)
 {
 	int split_passes = (kernel_data.film.denoising_flags & DENOISING_USE_SPLIT_PASSES);
 
 	if(L) {
-		float3 L_sum = path_radiance_clamp_and_sum(kg, L);
+		float3 L_sum;
+#ifdef __SHADOW_TRICKS__
+		if(is_shadow_catcher) {
+			float shadow = path_radiance_sum_shadow(L);
+			L_sum = L->shadow_color * shadow;
+			if(kernel_data.background.transparent) {
+				alpha = 1.0f - shadow;
+			}
+		}
+		else
+#endif  /* __SHADOW_TRICKS__ */
+		{
+			L_sum = path_radiance_clamp_and_sum(kg, L);
+		}
+
 		kernel_write_pass_float4(buffer, sample, make_float4(L_sum.x, L_sum.y, L_sum.z, alpha));
 
 		kernel_write_light_passes(kg, buffer, L, sample);

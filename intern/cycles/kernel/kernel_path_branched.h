@@ -55,8 +55,12 @@ ccl_device_inline void kernel_branched_path_ao(KernelGlobals *kg,
 			light_ray.dP = ccl_fetch(sd, dP);
 			light_ray.dD = differential3_zero();
 
-			if(!shadow_blocked(kg, emission_sd, state, &light_ray, &ao_shadow))
+			if(!shadow_blocked(kg, emission_sd, state, &light_ray, &ao_shadow)) {
 				path_radiance_accum_ao(L, throughput*num_samples_inv, ao_alpha, ao_bsdf, ao_shadow, state->bounce);
+			}
+			else {
+				path_radiance_accum_total_ao(L, throughput*num_samples_inv, ao_bsdf);
+			}
 		}
 	}
 }
@@ -206,7 +210,8 @@ ccl_device void kernel_branched_path_subsurface_scatter(KernelGlobals *kg,
 #ifdef __EMISSION__
 				/* direct light */
 				if(kernel_data.integrator.use_direct_light) {
-					int all = kernel_data.integrator.sample_all_lights_direct;
+					int all = (kernel_data.integrator.sample_all_lights_direct) ||
+					          (state->flag & PATH_RAY_SHADOW_CATCHER);
 					kernel_branched_path_surface_connect_light(
 					        kg,
 					        rng,
@@ -237,7 +242,7 @@ ccl_device void kernel_branched_path_subsurface_scatter(KernelGlobals *kg,
 }
 #endif  /* __SUBSURFACE__ */
 
-ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int sample, Ray ray, ccl_global float *buffer, PathRadiance *L)
+ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int sample, Ray ray, ccl_global float *buffer, PathRadiance *L, bool *is_shadow_catcher)
 {
 	/* initialize */
 	float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
@@ -460,7 +465,7 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 #ifdef __BACKGROUND__
 			/* sample background shader */
 			float3 L_background = indirect_background(kg, &emission_sd, &state, &ray);
-			path_radiance_accum_background(L, throughput, L_background, state.bounce);
+			path_radiance_accum_background(L, &state, throughput, L_background, state.bounce);
 			kernel_write_denoising_passes(kg, buffer, &state, NULL, sample, L_background);
 #else
 			kernel_write_denoising_passes(kg, buffer, &state, NULL, sample, make_float3(0.0f, 0.0f, 0.0f));
@@ -475,6 +480,21 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 		shader_merge_closures(&sd);
 
 		kernel_write_denoising_passes(kg, buffer, &state, &sd, sample, make_float3(0.0f, 0.0f, 0.0f));
+
+#ifdef __SHADOW_TRICKS__
+		if((sd.object_flag & SD_OBJECT_SHADOW_CATCHER)) {
+			if(state.flag & PATH_RAY_CAMERA) {
+				state.flag |= (PATH_RAY_SHADOW_CATCHER | PATH_RAY_SHADOW_CATCHER_ONLY);
+				state.catcher_object = sd.object;
+				if(!kernel_data.background.transparent) {
+					L->shadow_color = indirect_background(kg, &emission_sd, &state, &ray);
+				}
+			}
+		}
+		else {
+			state.flag &= ~PATH_RAY_SHADOW_CATCHER_ONLY;
+		}
+#endif  /* __SHADOW_TRICKS__ */
 
 		/* holdout */
 #ifdef __HOLDOUT__
@@ -548,7 +568,8 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 #ifdef __EMISSION__
 			/* direct light */
 			if(kernel_data.integrator.use_direct_light) {
-				int all = kernel_data.integrator.sample_all_lights_direct;
+				int all = (kernel_data.integrator.sample_all_lights_direct) ||
+				          (state.flag & PATH_RAY_SHADOW_CATCHER);
 				kernel_branched_path_surface_connect_light(kg, rng,
 					&sd, &emission_sd, &hit_state, throughput, 1.0f, L, all);
 			}
@@ -585,6 +606,10 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 #endif  /* __VOLUME__ */
 	}
 
+#ifdef __SHADOW_TRICKS__
+	*is_shadow_catcher = (state.flag & PATH_RAY_SHADOW_CATCHER);
+#endif  /* __SHADOW_TRICKS__ */
+
 #ifdef __KERNEL_DEBUG__
 	kernel_write_debug_passes(kg, buffer, &state, &debug_data, sample);
 #endif  /* __KERNEL_DEBUG__ */
@@ -611,13 +636,14 @@ ccl_device void kernel_branched_path_trace(KernelGlobals *kg,
 
 	/* integrate */
 	PathRadiance L;
+	bool is_shadow_catcher;
 
 	if(ray.t != 0.0f) {
-		float alpha = kernel_branched_path_integrate(kg, &rng, sample, ray, buffer, &L);
-		kernel_write_result(kg, buffer, sample, &L, alpha);
+		float alpha = kernel_branched_path_integrate(kg, &rng, sample, ray, buffer, &L, &is_shadow_catcher);
+		kernel_write_result(kg, buffer, sample, &L, alpha, is_shadow_catcher);
 	}
 	else {
-		kernel_write_result(kg, buffer, sample, NULL, 0.0f);
+		kernel_write_result(kg, buffer, sample, NULL, 0.0f, false);
 	}
 
 	path_rng_end(kg, rng_state, rng);

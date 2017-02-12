@@ -16,7 +16,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-#if defined(__BRANCHED_PATH__) || defined(__SUBSURFACE__)
+#if defined(__BRANCHED_PATH__) || defined(__SUBSURFACE__) || defined(__SHADOW_TRICKS__)
 
 /* branched path tracing: connect path directly to position on one or more lights and add it to L */
 ccl_device_noinline void kernel_branched_path_surface_connect_light(KernelGlobals *kg, RNG *rng,
@@ -66,6 +66,9 @@ ccl_device_noinline void kernel_branched_path_surface_connect_light(KernelGlobal
 							/* accumulate */
 							path_radiance_accum_light(L, throughput*num_samples_inv, &L_light, shadow, num_samples_inv, state->bounce, is_lamp);
 						}
+						else {
+							path_radiance_accum_total_light(L, throughput*num_samples_inv, &L_light);
+						}
 					}
 				}
 			}
@@ -100,6 +103,9 @@ ccl_device_noinline void kernel_branched_path_surface_connect_light(KernelGlobal
 							/* accumulate */
 							path_radiance_accum_light(L, throughput*num_samples_inv, &L_light, shadow, num_samples_inv, state->bounce, is_lamp);
 						}
+						else {
+							path_radiance_accum_total_light(L, throughput*num_samples_inv, &L_light);
+						}
 					}
 				}
 			}
@@ -123,6 +129,9 @@ ccl_device_noinline void kernel_branched_path_surface_connect_light(KernelGlobal
 					/* accumulate */
 					path_radiance_accum_light(L, throughput*num_samples_adjust, &L_light, shadow, num_samples_adjust, state->bounce, is_lamp);
 				}
+			}
+			else {
+				path_radiance_accum_total_light(L, throughput*num_samples_adjust, &L_light);
 			}
 		}
 	}
@@ -198,6 +207,21 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg, ccl_
 	if(!(kernel_data.integrator.use_direct_light && (ccl_fetch(sd, flag) & SD_BSDF_HAS_EVAL)))
 		return;
 
+#ifdef __SHADOW_TRICKS__
+	if(state->flag & PATH_RAY_SHADOW_CATCHER) {
+		kernel_branched_path_surface_connect_light(kg,
+		                                           rng,
+		                                           sd,
+		                                           emission_sd,
+		                                           state,
+		                                           throughput,
+		                                           1.0f,
+		                                           L,
+		                                           1);
+		return;
+	}
+#endif
+
 	/* sample illumination from lights to find path contribution */
 	float light_t = path_state_rng_1D(kg, rng, state, PRNG_LIGHT);
 	float light_u, light_v;
@@ -222,6 +246,9 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg, ccl_
 				/* accumulate */
 				path_radiance_accum_light(L, throughput, &L_light, shadow, 1.0f, state->bounce, is_lamp);
 			}
+		}
+		else {
+			path_radiance_accum_total_light(L, throughput, &L_light);
 		}
 	}
 #endif
