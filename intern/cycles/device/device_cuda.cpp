@@ -265,7 +265,7 @@ public:
 	 * kernel sources md5 and only depends on compiler or compilation settings.
 	 */
 	string compile_kernel_get_common_cflags(
-	        const DeviceRequestedFeatures& requested_features)
+	        const DeviceRequestedFeatures* requested_features)
 	{
 		const int cuda_version = cuewCompilerVersion();
 		const int machine = system_cpu_bits();
@@ -280,8 +280,8 @@ public:
 		                              machine,
 		                              cuda_version,
 		                              include.c_str());
-		if(use_adaptive_compilation()) {
-			cflags += " " + requested_features.get_build_options();
+		if(requested_features && use_adaptive_compilation()) {
+			cflags += " " + requested_features->get_build_options();
 		}
 		const char *extra_cflags = getenv("CYCLES_CUDA_EXTRA_CFLAGS");
 		if(extra_cflags) {
@@ -344,7 +344,7 @@ public:
 		}
 
 		const string common_cflags =
-		        filter? "" : compile_kernel_get_common_cflags(requested_features);
+		        compile_kernel_get_common_cflags(filter? NULL : &requested_features);
 
 		/* Try to use locally compiled kernel. */
 		const string kernel_path = path_get("kernel");

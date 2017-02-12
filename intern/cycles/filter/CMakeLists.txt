@@ -21,6 +21,9 @@ set(SRC
 
 set(SRC_HEADERS
 	filter.h
+	filter_compat_cpu.h
+	filter_compat_cuda.h
+	filter_compat_opencl.h
 	filter_defines.h
 	filter_features.h
 	filter_features_sse.h
