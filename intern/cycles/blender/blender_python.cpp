@@ -135,24 +135,6 @@ void python_thread_state_restore(void **python_thread_state)
 	*python_thread_state = NULL;
 }
 
-static PointerRNA get_user_preferences()
-{
-	PyObject *bpy = PyImport_ImportModule("bpy");
-	PyObject *pycontext = PyObject_GetAttrString(bpy, "context");
-	PyObject *pyuserpref = PyObject_GetAttrString(pycontext, "user_preferences");
-	PyObject *pyptr = PyObject_CallMethod(pyuserpref, "as_pointer", NULL);
-
-	PointerRNA ptr;
-	RNA_pointer_create(NULL, &RNA_UserPreferences, (void*)PyLong_AsVoidPtr(pyptr), &ptr);
-
-	Py_DECREF(pyptr);
-	Py_DECREF(pyuserpref);
-	Py_DECREF(pycontext);
-	Py_DECREF(bpy);
-
-	return ptr;
-}
-
 static const char *PyC_UnicodeAsByte(PyObject *py_str, PyObject **coerce)
 {
 	const char *result = _PyUnicode_AsString(py_str);
@@ -776,14 +758,6 @@ void *CCL_python_module_init()
 	Py_INCREF(Py_False);
 	PyModule_AddStringConstant(mod, "osl_version", "unknown");
 	PyModule_AddStringConstant(mod, "osl_version_string", "unknown");
-#endif
-
-#ifdef WITH_CYCLES_DEBUG
-	PyModule_AddObject(mod, "with_cycles_debug", Py_True);
-	Py_INCREF(Py_True);
-#else
-	PyModule_AddObject(mod, "with_cycles_debug", Py_False);
-	Py_INCREF(Py_False);
 #endif
 
 #ifdef WITH_NETWORK

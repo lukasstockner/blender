@@ -33,11 +33,5 @@ public:
 	RenderLayersNode(bNode *editorNode);
 	void convertToOperations(NodeConverter &converter, const CompositorContext &context) const;
 private:
-	void testSocketLink(NodeConverter &converter,
-	                    const CompositorContext &context,
-	                    NodeOutput *output,
-	                    RenderLayersProg *operation,
-	                    Scene *scene,
-	                    int layerId,
-	                    bool is_preview) const;
+	void testSocketLink(NodeConverter &converter, const CompositorContext &context, int outputSocketNumber, RenderLayersBaseProg *operation) const;
 };

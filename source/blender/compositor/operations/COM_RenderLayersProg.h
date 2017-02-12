@@ -40,7 +40,7 @@ extern "C" {
  *
  * @todo: rename to operation.
  */
-class RenderLayersProg : public NodeOperation {
+class RenderLayersBaseProg : public NodeOperation {
 protected:
 	/**
 	 * Reference to the scene object.
@@ -65,7 +65,7 @@ protected:
 	/**
 	 * renderpass where this operation needs to get its data from
 	 */
-	const char *m_passName;
+	int m_renderpass;
 	
 	int m_elementsize;
 
@@ -73,6 +73,11 @@ protected:
 	 * @brief render data used for active rendering
 	 */
 	const RenderData *m_rd;
+
+	/**
+	 * Constructor
+	 */
+	RenderLayersBaseProg(int renderpass, int elementsize);
 	
 	/**
 	 * Determine the output resolution. The resolution is retrieved from the Renderer
@@ -86,10 +91,6 @@ protected:
 
 	void doInterpolation(float output[4], float x, float y, PixelSampler sampler);
 public:
-	/**
-	 * Constructor
-	 */
-	RenderLayersProg(const char *passName, DataType type, int elementsize);
 	/**
 	 * setter for the scene field. Will be called from
 	 * @see RenderLayerNode to set the actual scene where
@@ -107,25 +108,116 @@ public:
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 };
 
-class RenderLayersAOOperation : public RenderLayersProg {
+class RenderLayersAOOperation : public RenderLayersBaseProg {
 public:
-	RenderLayersAOOperation(const char *passName, DataType type, int elementsize)
-	 : RenderLayersProg(passName, type, elementsize) {}
+	RenderLayersAOOperation();
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 };
 
-class RenderLayersAlphaProg : public RenderLayersProg {
+class RenderLayersAlphaProg : public RenderLayersBaseProg {
 public:
-	RenderLayersAlphaProg(const char *passName, DataType type, int elementsize)
-	 : RenderLayersProg(passName, type, elementsize) {}
+	RenderLayersAlphaProg();
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 };
 
-class RenderLayersDepthProg : public RenderLayersProg {
+class RenderLayersColorOperation : public RenderLayersBaseProg {
 public:
-	RenderLayersDepthProg(const char *passName, DataType type, int elementsize)
-	 : RenderLayersProg(passName, type, elementsize) {}
+	RenderLayersColorOperation();
+};
+
+class RenderLayersCyclesOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersCyclesOperation(int pass);
+};
+
+class RenderLayersDepthProg : public RenderLayersBaseProg {
+public:
+	RenderLayersDepthProg();
 	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 };
+
+class RenderLayersDiffuseOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersDiffuseOperation();
+};
+
+class RenderLayersEmitOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersEmitOperation();
+};
+
+class RenderLayersEnvironmentOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersEnvironmentOperation();
+};
+
+/// @todo rename to image operation
+class RenderLayersColorProg : public RenderLayersBaseProg {
+public:
+	RenderLayersColorProg();
+};
+
+class RenderLayersIndirectOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersIndirectOperation();
+};
+
+class RenderLayersMaterialIndexOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersMaterialIndexOperation();
+};
+
+class RenderLayersMistOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersMistOperation();
+};
+
+class RenderLayersNormalOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersNormalOperation();
+};
+
+class RenderLayersObjectIndexOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersObjectIndexOperation();
+};
+
+class RenderLayersReflectionOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersReflectionOperation();
+};
+
+class RenderLayersRefractionOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersRefractionOperation();
+};
+
+class RenderLayersShadowOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersShadowOperation();
+};
+
+class RenderLayersSpecularOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersSpecularOperation();
+};
+
+class RenderLayersSpeedOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersSpeedOperation();
+};
+
+class RenderLayersUVOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersUVOperation();
+};
+
+#ifdef WITH_CYCLES_DEBUG
+class RenderLayersCyclesDebugOperation : public RenderLayersBaseProg {
+public:
+	RenderLayersCyclesDebugOperation(int pass,
+	                                 int debug_pass_type);
+};
+#endif
 
 #endif

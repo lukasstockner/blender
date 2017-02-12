@@ -249,7 +249,7 @@ void ntreeCompositForceHidden(bNodeTree *ntree)
 
 	for (node = ntree->nodes.first; node; node = node->next) {
 		if (node->type == CMP_NODE_R_LAYERS)
-			node_cmp_rlayers_outputs(ntree, node);
+			node_cmp_rlayers_force_hidden_passes(node);
 		
 		/* XXX this stuff is called all the time, don't want that.
 		 * Updates should only happen when actually necessary.

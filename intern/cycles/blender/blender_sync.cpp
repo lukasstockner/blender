@@ -480,140 +480,6 @@ void BlenderSync::sync_images()
 	}
 }
 
-/* Passes */
-PassType BlenderSync::get_pass_type(BL::RenderPass& b_pass)
-{
-	string name = b_pass.passname();
-#define MAP_PASS(passname, passtype) if(name == passname) return passtype;
-	/* NOTE: Keep in sync with defined names from DNA_scene_types.h */
-	MAP_PASS("Combined", PASS_COMBINED);
-	MAP_PASS("Depth", PASS_DEPTH);
-	MAP_PASS("Mist", PASS_MIST);
-	MAP_PASS("Normal", PASS_NORMAL);
-	MAP_PASS("IndexOB", PASS_OBJECT_ID);
-	MAP_PASS("UV", PASS_UV);
-	MAP_PASS("Vector", PASS_MOTION);
-	MAP_PASS("IndexMA", PASS_MATERIAL_ID);
-
-	MAP_PASS("DiffDir", PASS_DIFFUSE_DIRECT);
-	MAP_PASS("GlossDir", PASS_GLOSSY_DIRECT);
-	MAP_PASS("TransDir", PASS_TRANSMISSION_DIRECT);
-	MAP_PASS("SubsurfaceDir", PASS_SUBSURFACE_DIRECT);
-
-	MAP_PASS("DiffInd", PASS_DIFFUSE_INDIRECT);
-	MAP_PASS("GlossInd", PASS_GLOSSY_INDIRECT);
-	MAP_PASS("TransInd", PASS_TRANSMISSION_INDIRECT);
-	MAP_PASS("SubsurfaceInd", PASS_SUBSURFACE_INDIRECT);
-
-	MAP_PASS("DiffCol", PASS_DIFFUSE_COLOR);
-	MAP_PASS("GlossCol", PASS_GLOSSY_COLOR);
-	MAP_PASS("TransCol", PASS_TRANSMISSION_COLOR);
-	MAP_PASS("SubsurfaceCol", PASS_SUBSURFACE_COLOR);
-
-	MAP_PASS("Emit", PASS_EMISSION);
-	MAP_PASS("Env", PASS_BACKGROUND);
-	MAP_PASS("AO", PASS_AO);
-	MAP_PASS("Shadow", PASS_SHADOW);
-
-#ifdef __KERNEL_DEBUG__
-	MAP_PASS("Debug BVH Traversed Nodes", PASS_BVH_TRAVERSED_NODES);
-	MAP_PASS("Debug BVH Traversed Instances", PASS_BVH_TRAVERSED_INSTANCES);
-	MAP_PASS("Debug BVH Intersections", PASS_BVH_INTERSECTIONS);
-	MAP_PASS("Debug Ray Bounces", PASS_RAY_BOUNCES);
-#endif
-
-	return PASS_NONE;
-}
-
-DenoisingPassType BlenderSync::get_denoising_pass_type(BL::RenderPass& b_pass)
-{
-	string name = b_pass.passname();
-
-	MAP_PASS("Denoising Normal", DENOISING_PASS_NORMAL);
-	MAP_PASS("Denoising Normal Variance", DENOISING_PASS_NORMAL_VAR);
-	MAP_PASS("Denoising Albedo", DENOISING_PASS_ALBEDO);
-	MAP_PASS("Denoising Albedo Variance", DENOISING_PASS_ALBEDO_VAR);
-	MAP_PASS("Denoising Depth", DENOISING_PASS_DEPTH);
-	MAP_PASS("Denoising Depth Variance", DENOISING_PASS_DEPTH_VAR);
-	MAP_PASS("Denoising Shadow A", DENOISING_PASS_SHADOW_A);
-	MAP_PASS("Denoising Shadow B", DENOISING_PASS_SHADOW_B);
-	MAP_PASS("Denoising Noisy", DENOISING_PASS_NOISY);
-	MAP_PASS("Denoising Noisy Variance", DENOISING_PASS_NOISY_VAR);
-	MAP_PASS("Denoising Noisy B", DENOISING_PASS_NOISY_B);
-	MAP_PASS("Denoising Noisy B Variance", DENOISING_PASS_NOISY_B_VAR);
-	MAP_PASS("Denoising Clean", DENOISING_PASS_CLEAN);
-#undef MAP_PASS
-
-	return DENOISING_PASS_NONE;
-}
-
-array<Pass> BlenderSync::sync_render_passes(BL::RenderLayer& b_rlay,
-	                                        BL::SceneRenderLayer& b_srlay)
-{
-	array<Pass> passes;
-	Pass::add(PASS_COMBINED, passes);
-
-	/* loop over passes */
-	BL::RenderLayer::passes_iterator b_pass_iter;
-
-	for(b_rlay.passes.begin(b_pass_iter); b_pass_iter != b_rlay.passes.end(); ++b_pass_iter) {
-		BL::RenderPass b_pass(*b_pass_iter);
-		PassType pass_type = get_pass_type(b_pass);
-
-		if(pass_type == PASS_MOTION && scene->integrator->motion_blur)
-			continue;
-		if(pass_type != PASS_NONE)
-			Pass::add(pass_type, passes);
-	}
-
-#define ADD_PASS(channels, passname, chan_id) b_engine.add_pass(channels, passname, b_srlay.name().c_str(), NULL, chan_id);
-
-#ifdef __KERNEL_DEBUG__
-	PointerRNA crp = RNA_pointer_get(&b_srlay.ptr, "cycles");
-	if(get_boolean(crp, "pass_debug_bvh_traversed_nodes")) {
-		ADD_PASS(1, "Debug BVH Traversed Nodes", "X");
-		Pass::add(PASS_BVH_TRAVERSED_NODES, passes);
-	}
-	if(get_boolean(crp, "pass_debug_bvh_traversed_instances")) {
-		ADD_PASS(1, "Debug BVH Traversed Instances", "X");
-		Pass::add(PASS_BVH_TRAVERSED_INSTANCES, passes);
-	}
-	if(get_boolean(crp, "pass_debug_ray_bounces")) {
-		ADD_PASS(1, "Debug Ray Bounces", "X");
-		Pass::add(PASS_RAY_BOUNCES, passes);
-	}
-	if(get_boolean(crp, "pass_debug_bvh_intersections")) {
-		ADD_PASS(1, "Debug BVH Intersections", "X");
-		Pass::add(PASS_BVH_INTERSECTIONS, passes);
-	}
-#endif
-
-	if(b_srlay.keep_denoise_data()) {
-		ADD_PASS(3, "Denoising Normal", "XYZ");
-		ADD_PASS(3, "Denoising Normal Variance", "XYZ");
-		ADD_PASS(3, "Denoising Albedo", "RGB");
-		ADD_PASS(3, "Denoising Albedo Variance", "RGB");
-		ADD_PASS(1, "Denoising Depth", "Z");
-		ADD_PASS(1, "Denoising Depth Variance", "Z");
-		ADD_PASS(3, "Denoising Shadow A", "ABV");
-		ADD_PASS(3, "Denoising Shadow B", "ABV");
-		ADD_PASS(3, "Denoising Noisy", "RGB");
-		ADD_PASS(3, "Denoising Noisy Variance", "RGB");
-		if(b_srlay.filter_cross()) {
-			ADD_PASS(3, "Denoising Noisy B", "RGB");
-			ADD_PASS(3, "Denoising Noisy B Variance", "RGB");
-		}
-		if(!(b_srlay.denoise_diffuse_direct() && b_srlay.denoise_diffuse_indirect() &&
-			 b_srlay.denoise_glossy_direct() && b_srlay.denoise_glossy_indirect() &&
-			 b_srlay.denoise_transmission_direct() && b_srlay.denoise_transmission_indirect() &&
-			 b_srlay.denoise_subsurface_direct() && b_srlay.denoise_subsurface_indirect())) {
-			ADD_PASS(3, "Denoising Clean", "RGB");
-		}
-	}
-
-	return passes;
-}
-
 /* Scene Parameters */
 
 SceneParams BlenderSync::get_scene_params(BL::Scene& b_scene,
@@ -683,30 +549,35 @@ bool BlenderSync::get_session_pause(BL::Scene& b_scene, bool background)
 	return (background)? false: get_boolean(cscene, "preview_pause");
 }
 
-DeviceInfo BlenderSync::get_device_info(BL::UserPreferences& b_userpref, int device_type)
+SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
+                                              BL::UserPreferences& b_userpref,
+                                              BL::Scene& b_scene,
+                                              bool background)
 {
-	DeviceInfo cpu;
+	SessionParams params;
+	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
+
+	/* feature set */
+	params.experimental = (get_enum(cscene, "feature_set") != 0);
 
 	/* device type */
 	vector<DeviceInfo>& devices = Device::available_devices();
-
+	
 	/* device default CPU */
 	foreach(DeviceInfo& device, devices) {
 		if(device.type == DEVICE_CPU) {
-			cpu = device;
+			params.device = device;
 			break;
 		}
 	}
 
-	if(device_type == 2) {
+	if(get_enum(cscene, "device") == 2) {
 		/* find network device */
-		foreach(DeviceInfo& info, devices) {
-			if(info.type == DEVICE_NETWORK) {
-				return info;
-			}
-		}
+		foreach(DeviceInfo& info, devices)
+			if(info.type == DEVICE_NETWORK)
+				params.device = info;
 	}
-	else if(device_type == 1) {
+	else if(get_enum(cscene, "device") == 1) {
 		PointerRNA b_preferences;
 
 		BL::UserPreferences::addons_iterator b_addon_iter;
@@ -734,30 +605,14 @@ DeviceInfo BlenderSync::get_device_info(BL::UserPreferences& b_userpref, int dev
 			} RNA_END
 
 			if(used_devices.size() == 1) {
-				return used_devices[0];
+				params.device = used_devices[0];
 			}
 			else if(used_devices.size() > 1) {
-				return Device::get_multi_device(used_devices);
+				params.device = Device::get_multi_device(used_devices);
 			}
+			/* Else keep using the CPU device that was set before. */
 		}
 	}
-
-	return cpu;
-}
-
-SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
-                                              BL::UserPreferences& b_userpref,
-                                              BL::Scene& b_scene,
-                                              bool background)
-{
-	SessionParams params;
-	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
-
-	/* feature set */
-	params.experimental = (get_enum(cscene, "feature_set") != 0);
-
-	/* device */
-	params.device = BlenderSync::get_device_info(b_userpref, get_enum(cscene, "device"));
 
 	/* Background */
 	params.background = background;

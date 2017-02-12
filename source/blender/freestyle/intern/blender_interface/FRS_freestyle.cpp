@@ -448,13 +448,15 @@ static void prepare(Render *re, SceneRenderLayer *srl)
 	RenderLayer *rl = RE_GetRenderLayer(re->result, srl->name);
 	bool diffuse = false, z = false;
 	for (RenderPass *rpass = (RenderPass *)rl->passes.first; rpass; rpass = rpass->next) {
-		if (STREQ(rpass->name, RE_PASSNAME_DIFFUSE)) {
+		switch (rpass->passtype) {
+		case SCE_PASS_DIFFUSE:
 			controller->setPassDiffuse(rpass->rect, rpass->rectx, rpass->recty);
 			diffuse = true;
-		}
-		if (STREQ(rpass->name, RE_PASSNAME_Z)) {
+			break;
+		case SCE_PASS_Z:
 			controller->setPassZ(rpass->rect, rpass->rectx, rpass->recty);
 			z = true;
+			break;
 		}
 	}
 	if (G.debug & G_DEBUG_FREESTYLE) {
@@ -490,7 +492,7 @@ void FRS_composite_result(Render *re, SceneRenderLayer *srl, Render *freestyle_r
 		return;
 	}
 
-	src = RE_RenderLayerGetPass(rl, RE_PASSNAME_COMBINED, freestyle_render->viewname);
+	src = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, freestyle_render->viewname);
 	if (!src) {
 		if (G.debug & G_DEBUG_FREESTYLE) {
 			cout << "No source result image to composite" << endl;
@@ -510,7 +512,7 @@ void FRS_composite_result(Render *re, SceneRenderLayer *srl, Render *freestyle_r
 		}
 		return;
 	}
-	dest = RE_RenderLayerGetPass(rl, RE_PASSNAME_COMBINED, re->viewname);
+	dest = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, re->viewname);
 	if (!dest) {
 		if (G.debug & G_DEBUG_FREESTYLE) {
 			cout << "No destination result image to composite to" << endl;

@@ -505,6 +505,8 @@ void ED_node_composit_default(const bContext *C, struct Scene *sce)
 	nodeAddLink(sce->nodetree, in, fromsock, out, tosock);
 	
 	ntreeUpdateTree(CTX_data_main(C), sce->nodetree);
+	
+	// XXX ntreeCompositForceHidden(sce->nodetree);
 }
 
 /* assumes nothing being done in ntree yet, sets the default in/out node */
@@ -582,6 +584,14 @@ void snode_set_context(const bContext *C)
 	
 	if (snode->nodetree != ntree || snode->id != id || snode->from != from) {
 		ED_node_tree_start(snode, ntree, id, from);
+	}
+	
+	/* XXX Legacy hack to update render layer node outputs.
+	 * This should be handled by the depsgraph eventually ...
+	 */
+	if (ED_node_is_compositor(snode) && snode->nodetree) {
+		/* update output sockets based on available layers */
+		ntreeCompositForceHidden(snode->nodetree);
 	}
 }
 
