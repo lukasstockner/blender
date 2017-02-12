@@ -176,16 +176,6 @@ bool RenderBuffers::copy_from_device()
 	return true;
 }
 
-bool RenderBuffers::copy_to_device()
-{
-	if(!buffer.device_pointer)
-		return false;
-
-	device->mem_copy_to(buffer);
-
-	return true;
-}
-
 /* When calling from the BlenderSession, rect is in final image coordinates.
  * To make addressing the buffer easier, rect is brought to "buffer coordinates"
  * where the buffer starts at (0, 0) and ends at (width, height). */
@@ -205,86 +195,7 @@ int4 RenderBuffers::rect_to_local(int4 rect) {
                       for(int y = rect.y; y < rect.w; y++, in += (params.width + rect.x - rect.z)*pass_stride) \
                           for(int x = rect.x; x < rect.z; x++, in += pass_stride, pixels += components)
 
-bool RenderBuffers::get_denoising_rect(int type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels)
-{
-	if(!params.denoising_data_pass)
-		/* The RenderBuffer doesn't have denoising passes. */
-		return false;
-	if(!(type & DENOISING_PASS_ALL))
-		/* The type doesn't correspond to any denoising pass. */
-		return false;
-
-	rect = rect_to_local(rect);
-
-	float scale = 1.0f;
-	int type_offset = 0;
-	switch(type) {
-		case DENOISING_PASS_NONE:        assert(0); break;
-		case DENOISING_PASS_NORMAL:      type_offset =  0; scale = 1.0f/sample; break;
-		case DENOISING_PASS_NORMAL_VAR:  type_offset =  3; scale = 1.0f/sample; break;
-		case DENOISING_PASS_ALBEDO:      type_offset =  6; scale = 1.0f/sample; break;
-		case DENOISING_PASS_ALBEDO_VAR:  type_offset =  9; scale = 1.0f/sample; break;
-		case DENOISING_PASS_DEPTH:       type_offset = 12; scale = 1.0f/sample; break;
-		case DENOISING_PASS_DEPTH_VAR:   type_offset = 13; scale = 1.0f/sample; break;
-		case DENOISING_PASS_SHADOW_A:    type_offset = 14; scale = 1.0f/sample; break;
-		case DENOISING_PASS_SHADOW_B:    type_offset = 17; scale = 1.0f/sample; break;
-		case DENOISING_PASS_NOISY:       type_offset = 20; scale = exposure/sample; break;
-		case DENOISING_PASS_NOISY_VAR:   type_offset = 23; scale = exposure*exposure/sample; break;
-		case DENOISING_PASS_NOISY_B:     type_offset = 26; scale = exposure/(sample/2); break;
-		case DENOISING_PASS_NOISY_B_VAR: type_offset = 29; scale = exposure*exposure/(sample/2); break;
-		case DENOISING_PASS_CLEAN:       type_offset = params.denoising_split_pass? 32: 26; scale = exposure/sample; break;
-	}
-
-	if(read_pixels) {
-		if(type == DENOISING_PASS_NOISY_B || type == DENOISING_PASS_NOISY_B_VAR) {
-			scale = sample/2;
-		}
-		else {
-			scale = sample;
-		}
-	}
-
-	int pass_offset = params.get_denoise_offset() + type_offset;
-	int pass_stride = params.get_passes_size();
-	assert(pass_offset + components <= pass_stride);
-
-	float *in = (float*)buffer.data_pointer + pass_offset;
-
-	if(components == 1) {
-		assert(type & (DENOISING_PASS_DEPTH | DENOISING_PASS_DEPTH_VAR));
-		if(read_pixels) {
-			FOREACH_PIXEL
-				in[0] = pixels[0] * scale;
-		}
-		else {
-			FOREACH_PIXEL
-				pixels[0] = in[0] * scale;
-		}
-	}
-	else {
-		assert(components == 3);
-		assert(!(type & (DENOISING_PASS_DEPTH | DENOISING_PASS_DEPTH_VAR)));
-
-		if(read_pixels) {
-			FOREACH_PIXEL {
-				in[0] = pixels[0] * scale;
-				in[1] = pixels[1] * scale;
-				in[2] = pixels[2] * scale;
-			}
-		}
-		else {
-			FOREACH_PIXEL {
-				pixels[0] = in[0] * scale;
-				pixels[1] = in[1] * scale;
-				pixels[2] = in[2] * scale;
-			}
-		}
-	}
-
-	return true;
-}
-
-bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels)
+bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, int4 rect, float *pixels)
 {
 	rect = rect_to_local(rect);
 
@@ -304,31 +215,18 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 		float scale = (pass.filter)? 1.0f/(float)sample: 1.0f;
 		float scale_exposure = (pass.exposure)? scale*exposure: scale;
 
-		if(read_pixels) {
-			scale = scale_exposure = sample;
-		}
 
 		if(components == 1) {
 			assert(pass.components == components);
 
 			/* scalar */
 			if(type == PASS_DEPTH) {
-				if(read_pixels) {
-					FOREACH_PIXEL
-						in[0] = (pixels[0] == 1e10f)? 0.0f: pixels[0]*scale_exposure;
-				}
-				else {
-					FOREACH_PIXEL
-						pixels[0] = (in[0] == 0.0f)? 1e10f: in[0]*scale_exposure;
+				FOREACH_PIXEL {
+					pixels[0] = (in[0] == 0.0f)? 1e10f: in[0]*scale_exposure;
 				}
 			}
 			else if(type == PASS_MIST) {
-				if(read_pixels) {
-					FOREACH_PIXEL
-						in[0] = pixels[0]*scale_exposure;
-				}
-				else {
-					FOREACH_PIXEL
+				FOREACH_PIXEL {
 						pixels[0] = saturate(in[0]*scale_exposure);
 				}
 			}
@@ -336,25 +234,16 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 			else if(type == PASS_BVH_TRAVERSED_NODES ||
 			        type == PASS_BVH_TRAVERSED_INSTANCES ||
 			        type == PASS_BVH_INTERSECTIONS ||
-			        type == PASS_RAY_BOUNCES) {
-				if(read_pixels) {
-					FOREACH_PIXEL
-						in[0] = pixels[0]*scale;
-				}
-				else {
-					FOREACH_PIXEL
-						pixels[0] = in[0]*scale;
+			        type == PASS_RAY_BOUNCES)
+			{
+				FOREACH_PIXEL {
+					pixels[0] = in[0]*scale;
 				}
 			}
 #endif
 			else {
-				if(read_pixels) {
-					FOREACH_PIXEL
-						in[0] = pixels[0]*scale_exposure;
-				}
-				else {
-					FOREACH_PIXEL
-						pixels[0] = in[0]*scale_exposure;
+				FOREACH_PIXEL {
+					pixels[0] = in[0]*scale_exposure;
 				}
 			}
 		}
@@ -363,23 +252,13 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 			/* RGBA */
 			if(type == PASS_SHADOW) {
-				if(read_pixels) {
-					FOREACH_PIXEL {
-						in[0] = pixels[0];
-						in[1] = pixels[1];
-						in[2] = pixels[2];
-						in[3] = 1.0f;
-					}
-				}
-				else {
-					FOREACH_PIXEL {
-						float w = in[3];
-						float invw = (w > 0.0f)? 1.0f/w: 1.0f;
+				FOREACH_PIXEL {
+					float w = in[3];
+					float invw = (w > 0.0f)? 1.0f/w: 1.0f;
 
-						pixels[0] = in[0]*invw;
-						pixels[1] = in[1]*invw;
-						pixels[2] = in[2]*invw;
-					}
+					pixels[0] = in[0]*invw;
+					pixels[1] = in[1]*invw;
+					pixels[2] = in[2]*invw;
 				}
 			}
 			else if(pass.divide_type != PASS_NONE) {
@@ -392,41 +271,23 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 					divide_offset += color_pass.components;
 				}
 
-				if(read_pixels) {
-					FOREACH_PIXEL {
-						in[0] = pixels[0] * pixels[divide_offset];
-						in[1] = pixels[1] * pixels[divide_offset + 1];
-						in[2] = pixels[2] * pixels[divide_offset + 2];
-					}
-				}
-				else {
-					FOREACH_PIXEL {
-						float3 f = make_float3(in[0], in[1], in[2]);
-						float3 f_divide = make_float3(in[divide_offset], in[divide_offset+1], in[divide_offset+2]);
+				FOREACH_PIXEL {
+					float3 f = make_float3(in[0], in[1], in[2]);
+					float3 f_divide = make_float3(in[divide_offset], in[divide_offset+1], in[divide_offset+2]);
 
-						f = safe_divide_even_color(f*exposure, f_divide);
+					f = safe_divide_even_color(f*exposure, f_divide);
 
-						pixels[0] = f.x;
-						pixels[1] = f.y;
-						pixels[2] = f.z;
-					}
+					pixels[0] = f.x;
+					pixels[1] = f.y;
+					pixels[2] = f.z;
 				}
 			}
 			else {
 				/* RGB/vector */
-				if(read_pixels) {
-					FOREACH_PIXEL {
-						in[0] = pixels[0]*scale_exposure;
-						in[1] = pixels[1]*scale_exposure;
-						in[2] = pixels[2]*scale_exposure;
-					}
-				}
-				else {
-					FOREACH_PIXEL {
-						pixels[0] = in[0]*scale_exposure;
-						pixels[1] = in[1]*scale_exposure;
-						pixels[2] = in[2]*scale_exposure;
-					}
+				FOREACH_PIXEL {
+					pixels[0] = in[0]*scale_exposure;
+					pixels[1] = in[1]*scale_exposure;
+					pixels[2] = in[2]*scale_exposure;
 				}
 			}
 		}
@@ -435,24 +296,14 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 			/* RGBA */
 			if(type == PASS_SHADOW) {
-				if(read_pixels) {
-					FOREACH_PIXEL {
-						in[0] = pixels[0];
-						in[1] = pixels[1];
-						in[2] = pixels[2];
-						in[3] = 1.0f;
-					}
-				}
-				else {
-					FOREACH_PIXEL {
-						float w = in[3];
-						float invw = (w > 0.0f)? 1.0f/w: 1.0f;
+				FOREACH_PIXEL {
+					float w = in[3];
+					float invw = (w > 0.0f)? 1.0f/w: 1.0f;
 
-						pixels[0] = in[0]*invw;
-						pixels[1] = in[1]*invw;
-						pixels[2] = in[2]*invw;
-						pixels[3] = 1.0f;
-					}
+					pixels[0] = in[0]*invw;
+					pixels[1] = in[1]*invw;
+					pixels[2] = in[2]*invw;
+					pixels[3] = 1.0f;
 				}
 			}
 			else if(type == PASS_MOTION) {
@@ -465,45 +316,24 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 					weight_offset += color_pass.components;
 				}
 
-				if(read_pixels) {
-					FOREACH_PIXEL {
-						float w = in[weight_offset];
-						in[0] = pixels[0]*w;
-						in[1] = pixels[1]*w;
-						in[2] = pixels[2]*w;
-						in[3] = pixels[3]*w;
-					}
-				}
-				else {
-					FOREACH_PIXEL {
-						float w = in[weight_offset];
-						float invw = (w > 0.0f)? 1.0f/w: 0.0f;
+				FOREACH_PIXEL {
+					float w = in[weight_offset];
+					float invw = (w > 0.0f)? 1.0f/w: 0.0f;
 
-						pixels[0] = in[0]*invw;
-						pixels[1] = in[1]*invw;
-						pixels[2] = in[2]*invw;
-						pixels[3] = in[3]*invw;
-					}
+					pixels[0] = in[0]*invw;
+					pixels[1] = in[1]*invw;
+					pixels[2] = in[2]*invw;
+					pixels[3] = in[3]*invw;
 				}
 			}
 			else {
-				if(read_pixels) {
-					FOREACH_PIXEL {
-						in[0] = pixels[0]*scale_exposure;
-						in[1] = pixels[1]*scale_exposure;
-						in[2] = pixels[2]*scale_exposure;
-						in[3] = pixels[3]*scale;
-					}
-				}
-				else {
-					FOREACH_PIXEL {
-						pixels[0] = in[0]*scale_exposure;
-						pixels[1] = in[1]*scale_exposure;
-						pixels[2] = in[2]*scale_exposure;
+				FOREACH_PIXEL {
+					pixels[0] = in[0]*scale_exposure;
+					pixels[1] = in[1]*scale_exposure;
+					pixels[2] = in[2]*scale_exposure;
 
-						/* clamp since alpha might be > 1.0 due to russian roulette */
-						pixels[3] = saturate(in[3]*scale);
-					}
+					/* clamp since alpha might be > 1.0 due to russian roulette */
+					pixels[3] = saturate(in[3]*scale);
 				}
 			}
 		}
@@ -524,7 +354,6 @@ DisplayBuffer::DisplayBuffer(Device *device_, bool linear)
 	draw_height = 0;
 	transparent = true; /* todo: determine from background */
 	half_float = linear;
-	flip_image = true;
 }
 
 DisplayBuffer::~DisplayBuffer()
@@ -595,7 +424,8 @@ void DisplayBuffer::write(Device *device, const string& filename)
 	if(w == 0 || h == 0)
 		return;
 	
-	TypeDesc output_format = half_float? TypeDesc::HALF : TypeDesc::UINT8;
+	if(half_float)
+		return;
 
 	/* read buffer from device */
 	device_memory& rgba = rgba_data();
@@ -603,22 +433,16 @@ void DisplayBuffer::write(Device *device, const string& filename)
 
 	/* write image */
 	ImageOutput *out = ImageOutput::create(filename);
-	ImageSpec spec(w, h, 4, output_format);
-	int scanlinesize = w*spec.pixel_bytes();
+	ImageSpec spec(w, h, 4, TypeDesc::UINT8);
+	int scanlinesize = w*4*sizeof(uchar);
 
 	out->open(filename, spec);
 
-	uchar *pixels = (uchar*)rgba.data_pointer;
 	/* conversion for different top/bottom convention */
-	if(flip_image) {
-		pixels += (h-1)*scanlinesize;
-		scanlinesize = -scanlinesize;
-	}
-
-	out->write_image(output_format,
-		pixels,
+	out->write_image(TypeDesc::UINT8,
+		(uchar*)rgba.data_pointer + (h-1)*scanlinesize,
 		AutoStride,
-		scanlinesize,
+		-scanlinesize,
 		AutoStride);
 
 	out->close();

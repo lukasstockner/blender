@@ -30,35 +30,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-typedef enum DenoisingPassType {
-	DENOISING_PASS_NONE                      = 0,
-	DENOISING_PASS_NORMAL            = (1 << 0),
-	DENOISING_PASS_NORMAL_VAR        = (1 << 1),
-	DENOISING_PASS_ALBEDO            = (1 << 2),
-	DENOISING_PASS_ALBEDO_VAR        = (1 << 3),
-	DENOISING_PASS_DEPTH             = (1 << 4),
-	DENOISING_PASS_DEPTH_VAR         = (1 << 5),
-	DENOISING_PASS_SHADOW_A          = (1 << 6),
-	DENOISING_PASS_SHADOW_B          = (1 << 7),
-	DENOISING_PASS_NOISY             = (1 << 8),
-	DENOISING_PASS_NOISY_VAR         = (1 << 9),
-	DENOISING_PASS_CLEAN             = (1 << 10),
-	DENOISING_PASS_NOISY_B           = (1 << 11),
-	DENOISING_PASS_NOISY_B_VAR       = (1 << 12),
-
-	DENOISING_PASS_REQUIRED = (DENOISING_PASS_NORMAL
-	                          | DENOISING_PASS_NORMAL_VAR
-	                          | DENOISING_PASS_ALBEDO
-	                          | DENOISING_PASS_ALBEDO_VAR
-	                          | DENOISING_PASS_DEPTH
-	                          | DENOISING_PASS_DEPTH_VAR
-	                          | DENOISING_PASS_SHADOW_A
-	                          | DENOISING_PASS_SHADOW_B
-	                          | DENOISING_PASS_NOISY
-	                          | DENOISING_PASS_NOISY_VAR),
-	DENOISING_PASS_ALL = DENOISING_PASS_REQUIRED | DENOISING_PASS_CLEAN | DENOISING_PASS_NOISY_B | DENOISING_PASS_NOISY_B_VAR,
-} DenoisingPassType;
-
 class Device;
 struct DeviceDrawParams;
 struct float4;
@@ -120,9 +91,7 @@ public:
 	void reset(Device *device, BufferParams& params);
 
 	bool copy_from_device();
-	bool copy_to_device();
-	bool get_pass_rect(PassType type, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels = false);
-	bool get_denoising_rect(int denoising_pass, float exposure, int sample, int components, int4 rect, float *pixels, bool read_pixels = false);
+	bool get_pass_rect(PassType type, float exposure, int sample, int components, int4 rect, float *pixels);
 
 protected:
 	void device_free();
@@ -151,8 +120,6 @@ public:
 	/* byte buffer for converted result */
 	device_vector<uchar4> rgba_byte;
 	device_vector<half4> rgba_half;
-	/* flip the image while writing? */
-	bool flip_image;
 
 	DisplayBuffer(Device *device, bool linear = false);
 	~DisplayBuffer();
