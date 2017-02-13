@@ -71,6 +71,21 @@ ccl_device_noinline void kernel_branched_path_surface_indirect_light(KernelGloba
 	RNG *rng, ShaderData *sd, ShaderData *indirect_sd, ShaderData *emission_sd,
 	float3 throughput, float num_samples_adjust, PathState *state, PathRadiance *L)
 {
+	float sum_sample_weight = 0.0f;
+#ifdef __DENOISING_FEATURES__
+	for(int i = 0; i < ccl_fetch(sd, num_closure); i++) {
+		const ShaderClosure *sc = &ccl_fetch(sd, closure)[i];
+
+		if(!CLOSURE_IS_BSDF(sc->type))
+			continue;
+		/* transparency is not handled here, but in outer loop */
+		if(sc->type == CLOSURE_BSDF_TRANSPARENT_ID)
+			continue;
+
+		sum_sample_weight += sc->sample_weight;
+	}
+#endif  /* __DENOISING_FEATURES__ */
+
 	for(int i = 0; i < ccl_fetch(sd, num_closure); i++) {
 		const ShaderClosure *sc = &ccl_fetch(sd, closure)[i];
 
@@ -110,7 +125,8 @@ ccl_device_noinline void kernel_branched_path_surface_indirect_light(KernelGloba
 			                                        &tp,
 			                                        &ps,
 			                                        L,
-			                                        &bsdf_ray))
+			                                        &bsdf_ray,
+			                                        sum_sample_weight))
 			{
 				continue;
 			}
@@ -466,9 +482,6 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 			/* sample background shader */
 			float3 L_background = indirect_background(kg, &emission_sd, &state, &ray);
 			path_radiance_accum_background(L, &state, throughput, L_background, state.bounce);
-			kernel_write_denoising_passes(kg, buffer, &state, NULL, sample, L_background);
-#else
-			kernel_write_denoising_passes(kg, buffer, &state, NULL, sample, make_float3(0.0f, 0.0f, 0.0f));
 #endif  /* __BACKGROUND__ */
 
 			break;
@@ -478,8 +491,6 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 		shader_setup_from_ray(kg, &sd, &isect, &ray);
 		shader_eval_surface(kg, &sd, rng, &state, 0.0f, state.flag, SHADER_CONTEXT_MAIN);
 		shader_merge_closures(&sd);
-
-		bool write_denoising_shadow = kernel_write_denoising_passes(kg, buffer, &state, &sd, sample, make_float3(0.0f, 0.0f, 0.0f));
 
 #ifdef __SHADOW_TRICKS__
 		if((sd.object_flag & SD_OBJECT_SHADOW_CATCHER)) {
@@ -575,9 +586,7 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int
 			}
 #endif  /* __EMISSION__ */
 
-			if(write_denoising_shadow && !(state.flag & PATH_RAY_SHADOW_CATCHER)) {
-				state.flag &= ~PATH_RAY_STORE_SHADOW_INFO;
-			}
+			kernel_update_denoising_features(kg, &sd, &state, L);
 
 			/* indirect light */
 			kernel_branched_path_surface_indirect_light(kg, rng,
@@ -656,4 +665,3 @@ ccl_device void kernel_branched_path_trace(KernelGlobals *kg,
 #endif  /* __BRANCHED_PATH__ */
 
 CCL_NAMESPACE_END
-

@@ -144,6 +144,7 @@ CCL_NAMESPACE_BEGIN
 
 #ifndef __SPLIT_KERNEL__
 #  define __SHADOW_TRICKS__
+#  define __DENOISING_FEATURES__
 #endif
 
 #ifdef __KERNEL_SHADING__
@@ -465,6 +466,12 @@ typedef ccl_addr_space struct PathRadiance {
 
 	float3 shadow_color;
 #endif
+
+#ifdef __DENOISING_FEATURES__
+	float3 denoising_normal;
+	float3 denoising_albedo;
+	float denoising_depth;
+#endif  /* __DENOISING_FEATURES__ */
 } PathRadiance;
 
 typedef struct BsdfEval {
@@ -965,7 +972,10 @@ typedef struct PathState {
 	int glossy_bounce;
 	int transmission_bounce;
 	int transparent_bounce;
-	float path_length;
+
+#ifdef __DENOISING_FEATURES__
+	float denoising_feature_weight;
+#endif  /* __DENOISING_FEATURES__ */
 
 	/* multiple importance sampling */
 	float min_ray_pdf; /* smallest bounce pdf over entire path up to now */

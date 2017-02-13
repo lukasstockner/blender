@@ -34,7 +34,10 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
 	state->glossy_bounce = 0;
 	state->transmission_bounce = 0;
 	state->transparent_bounce = 0;
-	state->path_length = 0.0f;
+
+#ifdef __DENOISING_FEATURES__
+	state->denoising_feature_weight = (kernel_data.film.pass_denoising_data)? 1.0f : 0.0f;
+#endif  /* __DENOISING_FEATURES__ */
 
 	state->min_ray_pdf = FLT_MAX;
 	state->ray_pdf = 0.0f;

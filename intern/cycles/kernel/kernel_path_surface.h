@@ -141,7 +141,7 @@ ccl_device_noinline void kernel_branched_path_surface_connect_light(KernelGlobal
 /* branched path tracing: bounce off or through surface to with new direction stored in ray */
 ccl_device bool kernel_branched_path_surface_bounce(KernelGlobals *kg, RNG *rng,
 	ShaderData *sd, const ShaderClosure *sc, int sample, int num_samples,
-	float3 *throughput, PathState *state, PathRadiance *L, Ray *ray)
+	float3 *throughput, PathState *state, PathRadiance *L, Ray *ray, float sum_sample_weight)
 {
 	/* sample BSDF */
 	float bsdf_pdf;
@@ -160,6 +160,10 @@ ccl_device bool kernel_branched_path_surface_bounce(KernelGlobals *kg, RNG *rng,
 
 	/* modify throughput */
 	path_radiance_bsdf_bounce(L, throughput, &bsdf_eval, bsdf_pdf, state->bounce, label);
+
+#ifdef __DENOISING_FEATURES__
+	state->denoising_feature_weight *= (sc->sample_weight / sum_sample_weight) * (1.0f / num_samples);
+#endif
 
 	/* modify path state */
 	path_state_next(kg, state, label);

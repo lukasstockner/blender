@@ -222,6 +222,12 @@ ccl_device_inline void path_radiance_init(PathRadiance *L, int use_light_pass)
 	L->path_total_shaded = make_float3(0.0f, 0.0f, 0.0f);
 	L->shadow_color = make_float3(0.0f, 0.0f, 0.0f);
 #endif
+
+#ifdef __DENOISING_FEATURES__
+	L->denoising_normal = make_float3(0.0f, 0.0f, 0.0f);
+	L->denoising_albedo = make_float3(0.0f, 0.0f, 0.0f);
+	L->denoising_depth = 0.0f;
+#endif  /* __DENOISING_FEATURES__ */
 }
 
 ccl_device_inline void path_radiance_bsdf_bounce(PathRadiance *L, ccl_addr_space float3 *throughput,
@@ -419,6 +425,10 @@ ccl_device_inline void path_radiance_accum_background(PathRadiance *L,
 		}
 	}
 #endif
+
+#ifdef __DENOISING_FEATURES__
+	L->denoising_albedo += state->denoising_feature_weight * value;
+#endif  /* __DENOISING_FEATURES__ */
 }
 
 ccl_device_inline void path_radiance_sum_indirect(PathRadiance *L)

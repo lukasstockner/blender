@@ -144,72 +144,63 @@ ccl_device_inline void kernel_write_denoising_shadow(KernelGlobals *kg, ccl_glob
 	}
 }
 
-ccl_device_inline bool kernel_write_denoising_passes(KernelGlobals *kg, ccl_global float *buffer,
-	ccl_addr_space PathState *state, ShaderData *sd, int sample, float3 world_albedo)
+ccl_device_inline void kernel_update_denoising_features(KernelGlobals *kg,
+                                                        ShaderData *sd,
+                                                        PathState *state,
+                                                        PathRadiance *L)
 {
-	if(kernel_data.film.pass_denoising_data == 0)
-		return false;
-	buffer += kernel_data.film.pass_denoising_data;
-
-	if(state->flag & PATH_RAY_DENOISING_PASS_DONE)
-		return false;
-
-	/* Can also be called if the ray misses the scene, sd is NULL in that case. */
-	if(sd) {
-		state->path_length += ccl_fetch(sd, ray_length);
-
-		float3 normal = make_float3(0.0f, 0.0f, 0.0f);
-		float3 albedo = make_float3(0.0f, 0.0f, 0.0f);
-		float sum_weight = 0.0f, sum_nonspecular_weight = 0.0f;
-
-		for(int i = 0; i < ccl_fetch(sd, num_closure); i++) {
-			ShaderClosure *sc = ccl_fetch_array(sd, closure, i);
-
-			if(!CLOSURE_IS_BSDF_OR_BSSRDF(sc->type))
-				continue;
-
-			/* Classify closures into diffuse-like and specular-like closures.
-			 * This is pretty arbitrary, but some distinction has to be made. */
-			bool is_specular = (sc->type == CLOSURE_BSDF_TRANSPARENT_ID);
-			if(CLOSURE_IS_BSDF_MICROFACET(sc->type)) {
-				MicrofacetBsdf *bsdf = (MicrofacetBsdf*) sc;
-				if(bsdf->alpha_x*bsdf->alpha_y <= 0.075f*0.075f) {
-					is_specular = true;
-				}
-			}
-
-			/* All closures contribute to the normal feature, but only diffuse-like ones to the albedo. */
-			normal += sc->N * sc->sample_weight;
-			sum_weight += sc->sample_weight;
-			if(!is_specular) {
-				albedo += sc->weight;
-				sum_nonspecular_weight += sc->sample_weight;
-			}
-		}
-
-		if(sum_weight == 0.0f) {
-			kernel_write_pass_float3_var(buffer, sample, make_float3(0.0f, 0.0f, 0.0f));
-			kernel_write_pass_float3_var(buffer + 6, sample, make_float3(0.0f, 0.0f, 0.0f));
-			kernel_write_pass_float_var(buffer + 12, sample, 0.0f);
-		}
-		else {
-			/* Wait for next bounce if 75% or more sample weight belongs to specular-like closures. */
-			if(sum_nonspecular_weight*4.0f <= sum_weight) {
-				return false;
-			}
-			kernel_write_pass_float3_var(buffer, sample, ensure_finite3(normal/sum_weight));
-			kernel_write_pass_float3_var(buffer + 6, sample, ensure_finite3(albedo));
-			kernel_write_pass_float_var(buffer + 12, sample, ensure_finite(state->path_length));
-		}
-	}
-	else {
-		kernel_write_pass_float3_var(buffer, sample, make_float3(0.0f, 0.0f, 0.0f));
-		kernel_write_pass_float3_var(buffer + 6, sample, world_albedo);
-		kernel_write_pass_float_var(buffer + 12, sample, 0.0f);
+#ifdef __DENOISING_FEATURES__
+	if(state->denoising_feature_weight == 0.0f) {
+		return;
 	}
 
-	state->flag |= PATH_RAY_DENOISING_PASS_DONE;
-	return true;
+	L->denoising_depth += state->denoising_feature_weight * ccl_fetch(sd, ray_length);
+
+	float3 normal = make_float3(0.0f, 0.0f, 0.0f);
+	float3 albedo = make_float3(0.0f, 0.0f, 0.0f);
+	float sum_weight = 0.0f, sum_nonspecular_weight = 0.0f;
+
+	for(int i = 0; i < ccl_fetch(sd, num_closure); i++) {
+		ShaderClosure *sc = ccl_fetch_array(sd, closure, i);
+
+		if(!CLOSURE_IS_BSDF_OR_BSSRDF(sc->type))
+			continue;
+
+		/* Classify closures into diffuse-like and specular-like closures.
+		 * This is pretty arbitrary, but some distinction has to be made. */
+		bool is_specular = (sc->type == CLOSURE_BSDF_TRANSPARENT_ID);
+		if(CLOSURE_IS_BSDF_MICROFACET(sc->type)) {
+			MicrofacetBsdf *bsdf = (MicrofacetBsdf*) sc;
+			if(bsdf->alpha_x*bsdf->alpha_y <= 0.075f*0.075f) {
+				is_specular = true;
+			}
+		}
+
+		/* All closures contribute to the normal feature, but only diffuse-like ones to the albedo. */
+		normal += sc->N * sc->sample_weight;
+		sum_weight += sc->sample_weight;
+		if(!is_specular) {
+			albedo += sc->weight;
+			sum_nonspecular_weight += sc->sample_weight;
+		}
+	}
+
+	/* Wait for next bounce if 75% or more sample weight belongs to specular-like closures. */
+	if((sum_weight == 0.0f) || (sum_nonspecular_weight*4.0f > sum_weight)) {
+		L->denoising_normal += state->denoising_feature_weight * ensure_finite3(normal/sum_weight);
+		L->denoising_albedo += state->denoising_feature_weight * ensure_finite3(albedo);
+
+		state->denoising_feature_weight = 0.0f;
+		if(!(state->flag & PATH_RAY_SHADOW_CATCHER)) {
+			state->flag &= ~PATH_RAY_STORE_SHADOW_INFO;
+		}
+	}
+#else
+	(void) kg;
+	(void) sd;
+	(void) state;
+	(void) L;
+#endif  /* __DENOISING_FEATURES__ */
 }
 
 ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L,
@@ -376,6 +367,7 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *
 
 		kernel_write_light_passes(kg, buffer, L, sample);
 
+#ifdef __DENOISING_FEATURES__
 		kernel_write_denoising_shadow(kg, buffer, sample, average(L->path_total), average(L->path_total_shaded));
 
 		if(kernel_data.film.pass_denoising_data) {
@@ -394,20 +386,33 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *
 					kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 26, sample, L_sum);
 				}
 			}
+
+			kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data, sample, L->denoising_normal);
+			kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 6, sample, L->denoising_albedo);
+			kernel_write_pass_float_var(buffer + kernel_data.film.pass_denoising_data + 12, sample, L->denoising_depth);
 		}
+#endif  /* __DENOISING_FEATURES__ */
 	}
 	else {
 		kernel_write_pass_float4(buffer, sample, make_float4(0.0f, 0.0f, 0.0f, 0.0f));
+
+#ifdef __DENOISING_FEATURES__
+		kernel_write_denoising_shadow(kg, buffer, sample, 0.0f, 0.0f);
 
 		if(kernel_data.film.pass_denoising_data) {
 			kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 20, sample, make_float3(0.0f, 0.0f, 0.0f));
 			if(split_passes && !(sample & 1)) {
 				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 26, sample, make_float3(0.0f, 0.0f, 0.0f));
 			}
+
+			kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data, sample, make_float3(0.0f, 0.0f, 0.0f));
+			kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 6, sample, make_float3(0.0f, 0.0f, 0.0f));
+			kernel_write_pass_float_var(buffer + kernel_data.film.pass_denoising_data + 12, sample, 0.0f);
 		}
 		if(kernel_data.film.pass_denoising_clean) {
 			kernel_write_pass_float3_nopad(buffer + kernel_data.film.pass_denoising_clean, sample, make_float3(0.0f, 0.0f, 0.0f));
 		}
+#endif  /* __DENOISING_FEATURES__ */
 	}
 }
 

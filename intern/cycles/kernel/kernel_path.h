@@ -419,6 +419,8 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 		}
 #endif  /* defined(__EMISSION__) && defined(__BRANCHED_PATH__) */
 
+		kernel_update_denoising_features(kg, sd, state, L);
+
 		if(!kernel_path_surface_bounce(kg, rng, sd, &throughput, state, L, ray))
 			break;
 	}
@@ -789,9 +791,6 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 			/* sample background shader */
 			float3 L_background = indirect_background(kg, &emission_sd, &state, &ray);
 			path_radiance_accum_background(L, &state, throughput, L_background, state.bounce);
-			kernel_write_denoising_passes(kg, buffer, &state, NULL, sample, L_background);
-#else
-			kernel_write_denoising_passes(kg, buffer, &state, NULL, sample, make_float3(0.0f, 0.0f, 0.0f));
 #endif  /* __BACKGROUND__ */
 
 			break;
@@ -804,8 +803,6 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 		shader_setup_from_ray(kg, &sd, &isect, &ray);
 		float rbsdf = path_state_rng_1D_for_decision(kg, rng, &state, PRNG_BSDF);
 		shader_eval_surface(kg, &sd, rng, &state, rbsdf, state.flag, SHADER_CONTEXT_MAIN);
-
-		bool write_denoising_shadow = kernel_write_denoising_passes(kg, buffer, &state, &sd, sample, make_float3(0.0f, 0.0f, 0.0f));
 
 #ifdef __SHADOW_TRICKS__
 		if((sd.object_flag & SD_OBJECT_SHADOW_CATCHER)) {
@@ -914,9 +911,7 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 		/* direct lighting */
 		kernel_path_surface_connect_light(kg, rng, &sd, &emission_sd, throughput, &state, L);
 
-		if(write_denoising_shadow && !(state.flag & PATH_RAY_SHADOW_CATCHER)) {
-			state.flag &= ~PATH_RAY_STORE_SHADOW_INFO;
-		}
+		kernel_update_denoising_features(kg, &sd, &state, L);
 
 		/* compute direct lighting and next bounce */
 		if(!kernel_path_surface_bounce(kg, rng, &sd, &throughput, &state, L, &ray))
