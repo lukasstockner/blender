@@ -5095,11 +5095,6 @@ static void rna_def_scene_render_layer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Denoise Render Result", "Denoise the rendered image during rendering");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "keep_denoise_data", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_STORE_PASSES);
-	RNA_def_property_ui_text(prop, "Keep denoising data", "Store the denoising data so that the image can be denoised later");
-	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-
 	prop = RNA_def_property(srna, "denoise_diffuse_direct", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_DIFFDIR);
 	RNA_def_property_ui_text(prop, "Diffuse Direct", "Denoise the direct diffuse lighting");

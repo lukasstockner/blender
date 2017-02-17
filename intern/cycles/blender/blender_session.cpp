@@ -505,7 +505,7 @@ void BlenderSession::render()
 		}
 
 		buffer_params.passes = passes;
-		buffer_params.denoising_data_pass = b_layer_iter->keep_denoise_data() || b_layer_iter->denoise_result();
+		buffer_params.denoising_data_pass = b_layer_iter->denoise_result();
 		session->tile_manager.schedule_denoising = (b_layer_iter->denoise_result() && is_cpu) && !getenv("CPU_OVERSCAN");
 		session->params.denoise_result = b_layer_iter->denoise_result();
 		scene->film->denoising_data_pass = buffer_params.denoising_data_pass;

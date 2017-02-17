@@ -257,7 +257,6 @@ typedef struct SceneRenderLayer {
 
 typedef enum SceneDenoiseFlag {
 	SCE_DENOISE_RESULT                = (1 << 0),
-	SCE_DENOISE_STORE_PASSES          = (1 << 1),
 	SCE_DENOISE_PASS_DIFFDIR          = (1 << 2),
 	SCE_DENOISE_PASS_DIFFIND          = (1 << 3),
 	SCE_DENOISE_PASS_GLOSSDIR         = (1 << 4),

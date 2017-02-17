@@ -594,8 +594,6 @@ class CyclesRender_PT_denoising(CyclesButtonsPanel, Panel):
 
         col = layout.column()
 
-        col.prop(rl, "keep_denoise_data")
-
         sub = col.column(align=True)
         sub.prop(rl, "half_window")
         sub.prop(rl, "filter_strength", slider=True)
