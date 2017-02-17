@@ -45,9 +45,7 @@ public:
 	DeviceInfo device;
 	bool background;
 	bool progressive_refine;
-
 	string output_path;
-	bool output_half_float;
 
 	bool progressive;
 	bool experimental;
@@ -80,7 +78,6 @@ public:
 		progressive_refine = false;
 
 		output_path = "";
-		output_half_float = false;
 
 		progressive = false;
 		experimental = false;
@@ -113,7 +110,6 @@ public:
 		&& background == params.background
 		&& progressive_refine == params.progressive_refine
 		&& output_path == params.output_path
-		&& output_half_float == params.output_half_float
 		/* && samples == params.samples */
 		&& progressive == params.progressive
 		&& experimental == params.experimental

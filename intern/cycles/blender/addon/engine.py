@@ -205,9 +205,3 @@ def with_network():
 def system_info():
     import _cycles
     return _cycles.system_info()
-
-def can_postprocess(result):
-    return False
-
-def postprocess(scene, result):
-    return

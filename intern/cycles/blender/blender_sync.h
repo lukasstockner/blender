@@ -93,10 +93,6 @@ public:
 	                                      Camera *cam,
 	                                      int width, int height);
 
-	static RenderBuffers* get_render_buffer(Device *device,
-	                                        BL::RenderLayer& b_rl,
-	                                        BL::RenderResult& b_rr,
-	                                        int samples);
 private:
 	/* sync */
 	void sync_lamps(bool update_all);
