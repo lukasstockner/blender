@@ -49,10 +49,6 @@ public:
 	int full_width;
 	int full_height;
 
-	/* the width/height of the part that will be visible (might be smaller due to overscan). */
-	int final_width;
-	int final_height;
-
 	/* passes */
 	array<Pass> passes;
 	bool denoising_data_pass;
@@ -60,8 +56,6 @@ public:
 	bool denoising_clean_pass;
 	/* Generate an additional pass containing only every second sample. */
 	bool denoising_split_pass;
-	/* On GPUs, tiles are extended in each direction to include all the info required for denoising. */
-	int overscan;
 
 	/* functions */
 	BufferParams();
@@ -91,11 +85,10 @@ public:
 	void reset(Device *device, BufferParams& params);
 
 	bool copy_from_device();
-	bool get_pass_rect(PassType type, float exposure, int sample, int components, int4 rect, float *pixels);
+	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels);
 
 protected:
 	void device_free();
-	int4 rect_to_local(int4 rect);
 
 	Device *device;
 };

@@ -41,13 +41,10 @@ BufferParams::BufferParams()
 	full_y = 0;
 	full_width = 0;
 	full_height = 0;
-	final_width = 0;
-	final_height = 0;
 
 	denoising_data_pass = false;
 	denoising_clean_pass = false;
 	denoising_split_pass = false;
-	overscan = 0;
 
 	Pass::add(PASS_COMBINED, passes);
 }
@@ -66,9 +63,6 @@ bool BufferParams::modified(const BufferParams& params)
 		&& height == params.height
 		&& full_width == params.full_width
 		&& full_height == params.full_height
-		&& final_width == params.final_width
-		&& final_height == params.final_height
-		&& overscan == params.overscan
 		&& Pass::equals(passes, params.passes));
 }
 
@@ -176,29 +170,8 @@ bool RenderBuffers::copy_from_device()
 	return true;
 }
 
-/* When calling from the BlenderSession, rect is in final image coordinates.
- * To make addressing the buffer easier, rect is brought to "buffer coordinates"
- * where the buffer starts at (0, 0) and ends at (width, height). */
-int4 RenderBuffers::rect_to_local(int4 rect) {
-	rect.x -= params.full_x;
-	rect.y -= params.full_y;
-	rect.z -= params.full_x;
-	rect.w -= params.full_y;
-	assert(rect.x >= 0 && rect.y >= 0 && rect.z <= params.width && rect.w <= params.height);
-	return rect;
-}
-
-/* Helper macro that loops over all the pixels in the rect.
- * First, the buffer pointer is shifted to the starting point of the rect.
- * Then, after each line, the buffer pointer is shifted to the start of the next one. */
-#define FOREACH_PIXEL in += (rect.y*params.width + rect.x)*pass_stride; \
-                      for(int y = rect.y; y < rect.w; y++, in += (params.width + rect.x - rect.z)*pass_stride) \
-                          for(int x = rect.x; x < rect.z; x++, in += pass_stride, pixels += components)
-
-bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, int4 rect, float *pixels)
+bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels)
 {
-	rect = rect_to_local(rect);
-
 	int pass_offset = 0;
 
 	for(size_t j = 0; j < params.passes.size(); j++) {
@@ -215,19 +188,22 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 		float scale = (pass.filter)? 1.0f/(float)sample: 1.0f;
 		float scale_exposure = (pass.exposure)? scale*exposure: scale;
 
+		int size = params.width*params.height;
 
 		if(components == 1) {
 			assert(pass.components == components);
 
 			/* scalar */
 			if(type == PASS_DEPTH) {
-				FOREACH_PIXEL {
-					pixels[0] = (in[0] == 0.0f)? 1e10f: in[0]*scale_exposure;
+				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
+					float f = *in;
+					pixels[0] = (f == 0.0f)? 1e10f: f*scale_exposure;
 				}
 			}
 			else if(type == PASS_MIST) {
-				FOREACH_PIXEL {
-						pixels[0] = saturate(in[0]*scale_exposure);
+				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
+					float f = *in;
+					pixels[0] = saturate(f*scale_exposure);
 				}
 			}
 #ifdef WITH_CYCLES_DEBUG
@@ -236,14 +212,16 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 			        type == PASS_BVH_INTERSECTIONS ||
 			        type == PASS_RAY_BOUNCES)
 			{
-				FOREACH_PIXEL {
-					pixels[0] = in[0]*scale;
+				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
+					float f = *in;
+					pixels[0] = f*scale;
 				}
 			}
 #endif
 			else {
-				FOREACH_PIXEL {
-					pixels[0] = in[0]*scale_exposure;
+				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
+					float f = *in;
+					pixels[0] = f*scale_exposure;
 				}
 			}
 		}
@@ -252,28 +230,30 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 			/* RGBA */
 			if(type == PASS_SHADOW) {
-				FOREACH_PIXEL {
-					float w = in[3];
-					float invw = (w > 0.0f)? 1.0f/w: 1.0f;
+				for(int i = 0; i < size; i++, in += pass_stride, pixels += 3) {
+					float4 f = make_float4(in[0], in[1], in[2], in[3]);
+					float invw = (f.w > 0.0f)? 1.0f/f.w: 1.0f;
 
-					pixels[0] = in[0]*invw;
-					pixels[1] = in[1]*invw;
-					pixels[2] = in[2]*invw;
+					pixels[0] = f.x*invw;
+					pixels[1] = f.y*invw;
+					pixels[2] = f.z*invw;
 				}
 			}
 			else if(pass.divide_type != PASS_NONE) {
-				int divide_offset = -pass_offset;
 				/* RGB lighting passes that need to divide out color */
+				pass_offset = 0;
 				for(size_t k = 0; k < params.passes.size(); k++) {
 					Pass& color_pass = params.passes[k];
 					if(color_pass.type == pass.divide_type)
 						break;
-					divide_offset += color_pass.components;
+					pass_offset += color_pass.components;
 				}
 
-				FOREACH_PIXEL {
+				float *in_divide = (float*)buffer.data_pointer + pass_offset;
+
+				for(int i = 0; i < size; i++, in += pass_stride, in_divide += pass_stride, pixels += 3) {
 					float3 f = make_float3(in[0], in[1], in[2]);
-					float3 f_divide = make_float3(in[divide_offset], in[divide_offset+1], in[divide_offset+2]);
+					float3 f_divide = make_float3(in_divide[0], in_divide[1], in_divide[2]);
 
 					f = safe_divide_even_color(f*exposure, f_divide);
 
@@ -284,10 +264,12 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 			}
 			else {
 				/* RGB/vector */
-				FOREACH_PIXEL {
-					pixels[0] = in[0]*scale_exposure;
-					pixels[1] = in[1]*scale_exposure;
-					pixels[2] = in[2]*scale_exposure;
+				for(int i = 0; i < size; i++, in += pass_stride, pixels += 3) {
+					float3 f = make_float3(in[0], in[1], in[2]);
+
+					pixels[0] = f.x*scale_exposure;
+					pixels[1] = f.y*scale_exposure;
+					pixels[2] = f.z*scale_exposure;
 				}
 			}
 		}
@@ -296,48 +278,52 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 			/* RGBA */
 			if(type == PASS_SHADOW) {
-				FOREACH_PIXEL {
-					float w = in[3];
-					float invw = (w > 0.0f)? 1.0f/w: 1.0f;
+				for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {
+					float4 f = make_float4(in[0], in[1], in[2], in[3]);
+					float invw = (f.w > 0.0f)? 1.0f/f.w: 1.0f;
 
-					pixels[0] = in[0]*invw;
-					pixels[1] = in[1]*invw;
-					pixels[2] = in[2]*invw;
+					pixels[0] = f.x*invw;
+					pixels[1] = f.y*invw;
+					pixels[2] = f.z*invw;
 					pixels[3] = 1.0f;
 				}
 			}
 			else if(type == PASS_MOTION) {
-				int weight_offset = -pass_offset;
 				/* need to normalize by number of samples accumulated for motion */
+				pass_offset = 0;
 				for(size_t k = 0; k < params.passes.size(); k++) {
 					Pass& color_pass = params.passes[k];
 					if(color_pass.type == PASS_MOTION_WEIGHT)
 						break;
-					weight_offset += color_pass.components;
+					pass_offset += color_pass.components;
 				}
 
-				FOREACH_PIXEL {
-					float w = in[weight_offset];
+				float *in_weight = (float*)buffer.data_pointer + pass_offset;
+
+				for(int i = 0; i < size; i++, in += pass_stride, in_weight += pass_stride, pixels += 4) {
+					float4 f = make_float4(in[0], in[1], in[2], in[3]);
+					float w = in_weight[0];
 					float invw = (w > 0.0f)? 1.0f/w: 0.0f;
 
-					pixels[0] = in[0]*invw;
-					pixels[1] = in[1]*invw;
-					pixels[2] = in[2]*invw;
-					pixels[3] = in[3]*invw;
+					pixels[0] = f.x*invw;
+					pixels[1] = f.y*invw;
+					pixels[2] = f.z*invw;
+					pixels[3] = f.w*invw;
 				}
 			}
 			else {
-				FOREACH_PIXEL {
-					pixels[0] = in[0]*scale_exposure;
-					pixels[1] = in[1]*scale_exposure;
-					pixels[2] = in[2]*scale_exposure;
+				for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {
+					float4 f = make_float4(in[0], in[1], in[2], in[3]);
+
+					pixels[0] = f.x*scale_exposure;
+					pixels[1] = f.y*scale_exposure;
+					pixels[2] = f.z*scale_exposure;
 
 					/* clamp since alpha might be > 1.0 due to russian roulette */
-					pixels[3] = saturate(in[3]*scale);
+					pixels[3] = saturate(f.w*scale);
 				}
 			}
 		}
-#undef FOREACH_PIXEL
 
 		return true;
 	}

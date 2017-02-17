@@ -1225,15 +1225,18 @@ public:
 		return !have_error();
 	}
 
-	void denoise(RenderTile &rtile, const DeviceTask &task, int sample)
+	void denoise(RenderTile &rtile, const DeviceTask &task)
 	{
 		DenoisingTask denoising(this);
 
-		int overscan = rtile.buffers->params.overscan;
-		denoising.filter_area = make_int4(rtile.x + overscan, rtile.y + overscan, rtile.w - 2*overscan, rtile.h - 2*overscan);
-		denoising.render_buffer.samples = sample;
+		denoising.filter_area = make_int4(rtile.x, rtile.y, rtile.w, rtile.h);
+		denoising.render_buffer.samples = rtile.sample;
 
-		denoising.tiles_from_single_tile(rtile);
+		RenderTile rtiles[9];
+		rtiles[4] = rtile;
+		task.get_neighbor_tiles(rtiles);
+		denoising.tiles_from_rendertiles(rtiles);
+
 		denoising.init_from_devicetask(task);
 
 		denoising.functions.construct_transform = function_bind(&CUDADevice::denoising_construct_transform, this, &denoising);
@@ -1713,15 +1716,13 @@ public:
 							task->update_progress(&tile, tile.w*tile.h);
 						}
 					}
-
-					if(tile.buffers->params.overscan && !task->get_cancel()) { /* TODO(lukas) Works, but seems hacky? */
-						denoise(tile, *task, tile.start_sample + tile.num_samples);
-					}
 				}
 				else if(tile.task == RenderTile::DENOISE) {
-					int sample = tile.start_sample + tile.num_samples;
-					denoise(tile, *task, sample);
-					tile.sample = sample;
+					tile.sample = tile.start_sample + tile.num_samples;
+
+					denoise(tile, *task);
+
+					task->update_progress(&tile, tile.w*tile.h);
 				}
 
 				task->release_tile(tile);

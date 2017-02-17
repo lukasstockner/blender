@@ -114,8 +114,7 @@ public:
 	/* Get number of actual samples to render. */
 	int get_num_effective_samples();
 
-	/* Schedule tiles for denoising after they've been rendered.
-	 * Only used for denoising on CPUs, for GPUs the tiles are simply rendered with a bit of overscan. */
+	/* Schedule tiles for denoising after they've been rendered. */
 	bool schedule_denoising;
 protected:
 

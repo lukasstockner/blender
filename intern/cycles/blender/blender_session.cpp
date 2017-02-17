@@ -392,11 +392,10 @@ static void end_render_result(BL::RenderEngine& b_engine,
 void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only, bool highlight)
 {
 	BufferParams& params = rtile.buffers->params;
-	BufferParams& full_params = session->tile_manager.state.buffer;
-	int x = rtile.x + params.overscan - full_params.full_x;
-	int y = rtile.y + params.overscan - full_params.full_y;
-	int w = rtile.w - 2*params.overscan;
-	int h = rtile.h - 2*params.overscan;
+	int x = params.full_x - session->tile_manager.params.full_x;
+	int y = params.full_y - session->tile_manager.params.full_y;
+	int w = params.width;
+	int h = params.height;
 
 	/* get render result */
 	BL::RenderResult b_rr = begin_render_result(b_engine, x, y, w, h, b_rlay_name.c_str(), b_rview_name.c_str());
@@ -460,7 +459,6 @@ void BlenderSession::render()
 
 	/* get buffer parameters */
 	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
-	const bool is_cpu = session_params.device.type == DEVICE_CPU;
 	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_v3d, b_rv3d, scene->camera, width, height);
 
 	/* render each layer */
@@ -506,7 +504,7 @@ void BlenderSession::render()
 
 		buffer_params.passes = passes;
 		buffer_params.denoising_data_pass = b_layer_iter->denoise_result();
-		session->tile_manager.schedule_denoising = (b_layer_iter->denoise_result() && is_cpu) && !getenv("CPU_OVERSCAN");
+		session->tile_manager.schedule_denoising = b_layer_iter->denoise_result();
 		session->params.denoise_result = b_layer_iter->denoise_result();
 		scene->film->denoising_data_pass = buffer_params.denoising_data_pass;
 		scene->film->denoising_flags = 0;
@@ -760,12 +758,9 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 		return;
 
 	BufferParams& params = buffers->params;
-	float exposure = scene? scene->film->exposure : 1.0f;
+	float exposure = scene->film->exposure;
 
-	int4 rect = make_int4(rtile.x + params.overscan, rtile.y + params.overscan,
-	                      rtile.x+rtile.w - params.overscan, rtile.y+rtile.h - params.overscan);
-
-	vector<float> pixels((rect.w-rect.y)*(rect.z-rect.x)*4);
+	vector<float> pixels(params.width*params.height*4);
 
 	/* Adjust absolute sample number to the range. */
 	int sample = rtile.sample;
@@ -786,7 +781,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 			int components = b_pass.channels();
 
 			/* copy pixels */
-			if(!buffers->get_pass_rect(pass_type, exposure, sample, components, rect, &pixels[0]))
+			if(!buffers->get_pass_rect(pass_type, exposure, sample, components, &pixels[0]))
 				memset(&pixels[0], 0, pixels.size()*sizeof(float));
 
 			b_pass.rect(&pixels[0]);
@@ -795,7 +790,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 	else {
 		/* copy combined pass */
 		BL::RenderPass b_combined_pass(b_rlay.passes.find_by_type(BL::RenderPass::type_COMBINED, b_rview_name.c_str()));
-		if(buffers->get_pass_rect(PASS_COMBINED, exposure, sample, 4, rect, &pixels[0]))
+		if(buffers->get_pass_rect(PASS_COMBINED, exposure, sample, 4, &pixels[0]))
 			b_combined_pass.rect(&pixels[0]);
 	}
 

@@ -42,26 +42,6 @@ void DenoisingTask::init_from_devicetask(const DeviceTask &task)
 	                 min(tiles->y[3], filter_area.y + filter_area.w + half_window));
 }
 
-void DenoisingTask::tiles_from_single_tile(const RenderTile &tile)
-{
-	tiles = (TilesInfo*) tiles_mem.resize(sizeof(TilesInfo)/sizeof(int));
-
-	tiles->x[0] = tile.x;
-	tiles->x[1] = tile.x;
-	tiles->x[2] = tile.x+tile.w;
-	tiles->x[3] = tile.x+tile.w;
-	tiles->y[0] = tile.y;
-	tiles->y[1] = tile.y;
-	tiles->y[2] = tile.y+tile.h;
-	tiles->y[3] = tile.y+tile.h;
-	std::fill(tiles->buffers, tiles->buffers+9, (device_ptr) 0);
-	std::fill(tiles->offsets, tiles->offsets+9, 0);
-	std::fill(tiles->strides, tiles->strides+9, 0);
-	tiles->buffers[4] = tile.buffer;
-	tiles->offsets[4] = tile.offset;
-	tiles->strides[4] = tile.stride;
-}
-
 void DenoisingTask::tiles_from_rendertiles(RenderTile *rtiles)
 {
 	tiles = (TilesInfo*) tiles_mem.resize(sizeof(TilesInfo)/sizeof(int));

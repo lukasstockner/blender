@@ -46,7 +46,6 @@ public:
 
 	TilesInfo *tiles;
 	device_vector<int> tiles_mem;
-	void tiles_from_single_tile(const RenderTile &tile);
 	void tiles_from_rendertiles(RenderTile *rtiles);
 
 	int4 rect;
