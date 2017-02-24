@@ -23,6 +23,7 @@
 #include "kernel_montecarlo.h"
 #include "kernel_differential.h"
 #include "kernel_camera.h"
+#include "kernel_color.h"
 
 #include "geom/geom.h"
 #include "bvh/bvh.h"

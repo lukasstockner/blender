@@ -171,8 +171,10 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 		r.w = alpha;
 	}
 
+	/* TODO(lukas): srgb only enables the sRGB nonlinear transform,
+	 * NOT the correct conversion from linear sRGB into the Scene Linear colorspace. */
 	if(srgb) {
-		r_ssef = color_srgb_to_scene_linear(r_ssef);
+		r_ssef = color_srgb_to_linear(r_ssef);
 		r.w = alpha;
 	}
 #else
@@ -189,10 +191,11 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 		}
 	}
 
+	/* TODO(lukas): Same as above. */
 	if(srgb) {
-		r.x = color_srgb_to_scene_linear(r.x);
-		r.y = color_srgb_to_scene_linear(r.y);
-		r.z = color_srgb_to_scene_linear(r.z);
+		r.x = color_srgb_to_linear(r.x);
+		r.y = color_srgb_to_linear(r.y);
+		r.z = color_srgb_to_linear(r.z);
 	}
 #endif
 

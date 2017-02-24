@@ -47,7 +47,7 @@ ccl_device_inline float3 color_byte_to_float(uchar4 c)
 	return make_float3(c.x*(1.0f/255.0f), c.y*(1.0f/255.0f), c.z*(1.0f/255.0f));
 }
 
-ccl_device float color_srgb_to_scene_linear(float c)
+ccl_device float color_srgb_to_linear(float c)
 {
 	if(c < 0.04045f)
 		return (c < 0.0f)? 0.0f: c * (1.0f/12.92f);
@@ -55,7 +55,7 @@ ccl_device float color_srgb_to_scene_linear(float c)
 		return powf((c + 0.055f) * (1.0f / 1.055f), 2.4f);
 }
 
-ccl_device float color_scene_linear_to_srgb(float c)
+ccl_device float color_linear_to_srgb(float c)
 {
 	if(c < 0.0031308f)
 		return (c < 0.0f)? 0.0f: c * 12.92f;
@@ -150,24 +150,31 @@ ccl_device float3 xyY_to_xyz(float x, float y, float Y)
 	return make_float3(X, Y, Z);
 }
 
-ccl_device float3 xyz_to_rgb(float x, float y, float z)
+ccl_device float3 xyz_to_rec709(float3 xyz)
 {
-	return make_float3(3.240479f * x + -1.537150f * y + -0.498535f * z,
-	                  -0.969256f * x +  1.875991f * y +  0.041556f * z,
-	                   0.055648f * x + -0.204043f * y +  1.057311f * z);
+	return make_float3(3.240479f*xyz.x + -1.537150f*xyz.y + -0.498535f*xyz.z,
+	                  -0.969256f*xyz.x +  1.875991f*xyz.y +  0.041556f*xyz.z,
+	                   0.055648f*xyz.x + -0.204043f*xyz.y +  1.057311f*xyz.z);
+}
+
+ccl_device float3 rec709_to_xyz(float3 rgb)
+{
+	return make_float3(0.4124564f*rgb.x + 0.3575761f*rgb.y + 0.1804375f*rgb.z,
+	                   0.2126729f*rgb.x + 0.7151522f*rgb.y + 0.0721750f*rgb.z,
+	                   0.0193339f*rgb.x + 0.1191920f*rgb.y + 0.9503041f*rgb.z);
 }
 
 #ifndef __KERNEL_OPENCL__
 
-ccl_device float3 color_srgb_to_scene_linear(float3 c)
+ccl_device float3 color_srgb_to_linear(float3 c)
 {
 	return make_float3(
-		color_srgb_to_scene_linear(c.x),
-		color_srgb_to_scene_linear(c.y),
-		color_srgb_to_scene_linear(c.z));
+		color_srgb_to_linear(c.x),
+		color_srgb_to_linear(c.y),
+		color_srgb_to_linear(c.z));
 }
 
-#ifdef __KERNEL_SSE2__
+#  ifdef __KERNEL_SSE2__
 /*
  * Calculate initial guess for arg^exp based on float representation
  * This method gives a constant bias, which can be easily compensated by multiplication with bias_coeff.
@@ -214,7 +221,7 @@ ccl_device_inline ssef fastpow24(const ssef &arg)
 	return x * (x * x);
 }
 
-ccl_device ssef color_srgb_to_scene_linear(const ssef &c)
+ccl_device ssef color_srgb_to_linear(const ssef &c)
 {
 	sseb cmp = c < ssef(0.04045f);
 	ssef lt = max(c * ssef(1.0f/12.92f), ssef(0.0f));
@@ -222,19 +229,19 @@ ccl_device ssef color_srgb_to_scene_linear(const ssef &c)
 	ssef gte = fastpow24(gtebase);
 	return select(cmp, lt, gte);
 }
-#endif
+#  endif /* __KERNEL_SSE2__ */
 
-ccl_device float3 color_scene_linear_to_srgb(float3 c)
+ccl_device float3 color_linear_to_srgb(float3 c)
 {
 	return make_float3(
-		color_scene_linear_to_srgb(c.x),
-		color_scene_linear_to_srgb(c.y),
-		color_scene_linear_to_srgb(c.z));
+		color_linear_to_srgb(c.x),
+		color_linear_to_srgb(c.y),
+		color_linear_to_srgb(c.z));
 }
 
-#endif
+#endif /* __KERNEL_OPENCL__ */
 
-ccl_device float linear_rgb_to_gray(float3 c)
+ccl_device float rec709_to_gray(float3 c)
 {
 	return c.x*0.2126f + c.y*0.7152f + c.z*0.0722f;
 }

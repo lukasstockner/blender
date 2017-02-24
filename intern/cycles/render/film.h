@@ -101,6 +101,8 @@ public:
 
 	float pass_alpha_threshold;
 
+	Transform rgb_to_xyz;
+
 	int pass_stride;
 	int denoising_data_offset;
 	int denoising_clean_offset;
@@ -124,9 +126,13 @@ public:
 	void device_update(Device *device, DeviceScene *dscene, Scene *scene);
 	void device_free(Device *device, DeviceScene *dscene, Scene *scene);
 
+	float color_to_gray(float3 color);
+	float3 rec709_to_scene_linear(float3 color);
+
 	bool modified(const Film& film);
 	void tag_passes_update(Scene *scene, const PassSettings& passes);
 	void tag_update(Scene *scene);
+
 };
 
 CCL_NAMESPACE_END

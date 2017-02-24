@@ -30,6 +30,16 @@
 /* Hacks to hook into Blender API
  * todo: clean this up ... */
 
+typedef enum {
+	COLOR_ROLE_SCENE_LINEAR = 0,
+	COLOR_ROLE_XYZ,
+	COLOR_ROLE_COLOR_PICKING,
+	COLOR_ROLE_TEXTURE_PAINTING,
+	COLOR_ROLE_DEFAULT_SEQUENCER,
+	COLOR_ROLE_DEFAULT_BYTE,
+	COLOR_ROLE_DEFAULT_FLOAT,
+} ColorRoles;
+
 extern "C" {
 size_t BLI_timecode_string_from_time_simple(char *str, size_t maxlen, double time_seconds);
 void BKE_image_user_frame_calc(void *iuser, int cfra, int fieldnr);
@@ -42,6 +52,14 @@ CCL_NAMESPACE_BEGIN
 
 void python_thread_state_save(void **python_thread_state);
 void python_thread_state_restore(void **python_thread_state);
+
+static inline PointerRNA get_color_management_ptr()
+{
+	PointerRNA color_ptr;
+	/* RNA_ColorManagement doesn't actually use its pointer, so anything that's not NULL is fine here. */
+	RNA_pointer_create(NULL, &RNA_ColorManagement, (void*)1, &color_ptr);
+	return color_ptr;
+}
 
 static inline BL::Mesh object_to_mesh(BL::BlendData& data,
                                       BL::Object& object,

@@ -46,6 +46,7 @@
 #include "kernel_differential.h"
 #include "kernel_montecarlo.h"
 #include "kernel_camera.h"
+#include "kernel_color.h"
 #include "kernels/cpu/kernel_cpu_image.h"
 #include "geom/geom.h"
 #include "bvh/bvh.h"
