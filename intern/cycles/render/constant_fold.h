@@ -22,6 +22,7 @@
 
 CCL_NAMESPACE_BEGIN
 
+class Scene;
 class ShaderGraph;
 class ShaderInput;
 class ShaderNode;
@@ -32,8 +33,9 @@ public:
 	ShaderGraph *const graph;
 	ShaderNode *const node;
 	ShaderOutput *const output;
+	Scene *const scene;
 
-	ConstantFolder(ShaderGraph *graph, ShaderNode *node, ShaderOutput *output);
+	ConstantFolder(ShaderGraph *graph, ShaderNode *node, ShaderOutput *output, Scene *scene);
 
 	bool all_inputs_constant() const;
 

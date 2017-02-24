@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "render/film.h"
 #include "render/image.h"
 #include "render/integrator.h"
 #include "render/nodes.h"
@@ -1595,7 +1596,7 @@ RGBToBWNode::RGBToBWNode()
 void RGBToBWNode::constant_fold(const ConstantFolder& folder)
 {
 	if(folder.all_inputs_constant()) {
-		folder.make_constant(linear_rgb_to_gray(color));
+		folder.make_constant(folder.scene->film->color_to_gray(color));
 	}
 }
 
@@ -1691,7 +1692,7 @@ void ConvertNode::constant_fold(const ConstantFolder& folder)
 			if(to == SocketType::FLOAT) {
 				if(from == SocketType::COLOR) {
 					/* color to float */
-					folder.make_constant(linear_rgb_to_gray(value_color));
+					folder.make_constant(folder.scene->film->color_to_gray(value_color));
 				}
 				else {
 					/* vector/point/normal to float */
@@ -4753,7 +4754,8 @@ BlackbodyNode::BlackbodyNode()
 void BlackbodyNode::constant_fold(const ConstantFolder& folder)
 {
 	if(folder.all_inputs_constant()) {
-		folder.make_constant(svm_math_blackbody_color(temperature));
+		float3 val = folder.scene->film->rec709_to_scene_linear(svm_math_blackbody_color(temperature));
+		folder.make_constant(val);
 	}
 }
 

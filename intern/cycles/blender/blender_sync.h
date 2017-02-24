@@ -162,6 +162,7 @@ private:
 	BL::RenderEngine b_engine;
 	BL::BlendData b_data;
 	BL::Scene b_scene;
+	BL::ColorManagement b_color;
 
 	id_map<void*, Shader> shader_map;
 	id_map<ObjectKey, Object> object_map;

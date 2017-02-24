@@ -39,7 +39,7 @@ ccl_device void svm_node_blackbody(KernelGlobals *kg, ShaderData *sd, float *sta
 	/* Input */
 	float temperature = stack_load_float(stack, temperature_offset);
 
-	float3 color_rgb = svm_math_blackbody_color(temperature);
+	float3 color_rgb = rec709_to_scene_linear(kg, svm_math_blackbody_color(temperature));
 
 	if(stack_valid(col_offset))
 		stack_store_float3(stack, col_offset, color_rgb);

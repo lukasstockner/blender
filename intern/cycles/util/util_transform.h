@@ -301,6 +301,11 @@ ccl_device_inline bool operator!=(const Transform& A, const Transform& B)
 	return !(A == B);
 }
 
+ccl_device_inline float transform_difference(const Transform& A, const Transform& B)
+{
+	return sqrtf(len_squared(A.x - B.x) + len_squared(A.y - B.y) + len_squared(A.z - B.z) + len_squared(A.w - B.w));
+}
+
 ccl_device_inline float3 transform_get_column(const Transform *t, int column)
 {
 	return make_float3(t->x[column], t->y[column], t->z[column]);
