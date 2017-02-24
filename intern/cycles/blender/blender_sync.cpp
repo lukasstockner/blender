@@ -52,6 +52,7 @@ BlenderSync::BlenderSync(BL::RenderEngine& b_engine,
 : b_engine(b_engine),
   b_data(b_data),
   b_scene(b_scene),
+  b_color(get_color_management_ptr()),
   shader_map(&scene->shaders),
   object_map(&scene->objects),
   mesh_map(&scene->meshes),
@@ -369,6 +370,19 @@ void BlenderSync::sync_film()
 				break;
 		}
 	}
+
+	BL::ColorSpace xyz = b_color.get_by_role(COLOR_ROLE_XYZ);
+	float rgb_primaries[][3] = {{1.0f, 0.0f, 0.0f},
+	                            {0.0f, 1.0f, 0.0f},
+	                            {0.0f, 0.0f, 1.0f}};
+	float xyz_primaries[3][3];
+	xyz.transform_color(rgb_primaries[0], true, xyz_primaries[0]);
+	xyz.transform_color(rgb_primaries[1], true, xyz_primaries[1]);
+	xyz.transform_color(rgb_primaries[2], true, xyz_primaries[2]);
+	film->rgb_to_xyz = make_transform(xyz_primaries[0][0], xyz_primaries[1][0], xyz_primaries[2][0], 0.0f,
+	                                  xyz_primaries[0][1], xyz_primaries[1][1], xyz_primaries[2][1], 0.0f,
+	                                  xyz_primaries[0][2], xyz_primaries[1][2], xyz_primaries[2][2], 0.0f,
+	                                  0.0f, 0.0f, 0.0f, 1.0f);
 
 	if(film->modified(prevfilm))
 		film->tag_update(scene);

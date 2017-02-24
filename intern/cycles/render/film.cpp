@@ -25,6 +25,7 @@
 #include "util_algorithm.h"
 #include "util_debug.h"
 #include "util_foreach.h"
+#include "util_logging.h"
 #include "util_math.h"
 #include "util_math_cdf.h"
 
@@ -256,6 +257,12 @@ static vector<float> filter_table(FilterType type, float width)
 	return filter_table;
 }
 
+
+static Transform rec709_to_xyz_transform = make_transform(0.4124564f, 0.3575761f, 0.1804375f, 0.0f,
+                                                          0.2126729f, 0.7151522f, 0.0721750f, 0.0f,
+                                                          0.0193339f, 0.1191920f, 0.9503041f, 0.0f,
+                                                          0.0f, 0.0f, 0.0f, 1.0f);
+
 /* Film */
 
 NODE_DEFINE(Film)
@@ -276,6 +283,8 @@ NODE_DEFINE(Film)
 	SOCKET_FLOAT(mist_start, "Mist Start", 0.0f);
 	SOCKET_FLOAT(mist_depth, "Mist Depth", 100.0f);
 	SOCKET_FLOAT(mist_falloff, "Mist Falloff", 1.0f);
+
+	SOCKET_TRANSFORM(rgb_to_xyz, "RGB to XYZ", rec709_to_xyz_transform);
 
 	SOCKET_BOOLEAN(use_sample_clamp, "Use Sample Clamp", false);
 
@@ -451,6 +460,19 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	kfilm->mist_inv_depth = (mist_depth > 0.0f)? 1.0f/mist_depth: 0.0f;
 	kfilm->mist_falloff = mist_falloff;
 
+	kfilm->xyz_to_rgb = transform_inverse(rgb_to_xyz);
+	kfilm->rgb_to_y = make_float3(rgb_to_xyz.y.x, rgb_to_xyz.y.y, rgb_to_xyz.y.z);
+	if(transform_difference(rgb_to_xyz, rec709_to_xyz_transform) < 1e-5f) {
+		kfilm->colorspace = COLORSPACE_REC709;
+		VLOG(2) << "Working color space uses Rec.709 primaries.";
+	}
+	else {
+		kfilm->colorspace = COLORSPACE_CUSTOM;
+		VLOG(2) << "Working color space uses custom primaries.";
+		print_transform("Working space: ", rgb_to_xyz);
+		print_transform("Rec.709 space: ", rec709_to_xyz_transform);
+	}
+
 	need_update = false;
 }
 
@@ -485,5 +507,18 @@ void Film::tag_update(Scene * /*scene*/)
 	need_update = true;
 }
 
-CCL_NAMESPACE_END
+float Film::color_to_gray(float3 color)
+{
+	return dot(make_float4(color.x, color.y, color.z, 0.0f), rgb_to_xyz.y);
+}
 
+float3 Film::rec709_to_scene_linear(float3 color)
+{
+	if(rgb_to_xyz == rec709_to_xyz_transform) {
+		return color;
+	}
+	Transform xyz_to_rgb = transform_inverse(rgb_to_xyz);
+	return transform_direction(&xyz_to_rgb, transform_direction(&rec709_to_xyz_transform, color));
+}
+
+CCL_NAMESPACE_END

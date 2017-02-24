@@ -24,6 +24,8 @@
 
 #include "kernel_globals.h"
 
+#include "kernel_color.h"
+
 #ifdef __OSL__
 #  include "osl_shader.h"
 #endif

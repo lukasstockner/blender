@@ -496,7 +496,7 @@ void ShaderGraph::remove_proxy_nodes()
  * Try to constant fold some nodes, and pipe result directly to
  * the input socket of connected nodes.
  */
-void ShaderGraph::constant_fold()
+void ShaderGraph::constant_fold(Scene *scene)
 {
 	ShaderNodeSet done, scheduled;
 	queue<ShaderNode*> traverse_queue;
@@ -536,7 +536,7 @@ void ShaderGraph::constant_fold()
 				}
 			}
 			/* Optimize current node. */
-			ConstantFolder folder(this, node, output);
+			ConstantFolder folder(this, node, output, scene);
 			node->constant_fold(folder);
 		}
 	}
@@ -668,7 +668,7 @@ void ShaderGraph::clean(Scene *scene)
 	/* 1: Remove proxy nodes was already done. */
 
 	/* 2: Constant folding. */
-	constant_fold();
+	constant_fold(scene);
 
 	/* 3: Simplification. */
 	simplify_settings(scene);

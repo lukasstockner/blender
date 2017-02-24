@@ -959,6 +959,11 @@ typedef struct SubsurfaceIndirectRays
 	struct PathRadiance L[BSSRDF_MAX_HITS];
 } SubsurfaceIndirectRays;
 
+typedef enum Colorspace {
+	COLORSPACE_CUSTOM = 0,
+	COLORSPACE_REC709 = 1,
+} Colorspace;
+
 /* Constant Kernel Data
  *
  * These structs are passed from CPU to various devices, and the struct layout
@@ -1083,13 +1088,15 @@ typedef struct KernelFilm {
 	int pass_shadow;
 	float pass_shadow_scale;
 	int filter_table_offset;
-	int pass_pad2;
 
 	int pass_mist;
 	float mist_start;
 	float mist_inv_depth;
 	float mist_falloff;
 
+	int colorspace;
+	float3 rgb_to_y;
+	Transform xyz_to_rgb;
 #ifdef __KERNEL_DEBUG__
 	int pass_bvh_traversed_nodes;
 	int pass_bvh_traversed_instances;
