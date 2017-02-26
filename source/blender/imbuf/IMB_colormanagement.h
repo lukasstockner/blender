@@ -159,6 +159,9 @@ const char *IMB_colormanagement_view_get_default_name(const char *display_name);
 
 void IMB_colormanagment_colorspace_from_ibuf_ftype(struct ColorManagedColorspaceSettings *colorspace_settings, struct ImBuf *ibuf);
 
+struct ColorSpace *IMB_colormanagement_colorspace_get_named(const char *name);
+struct ColorSpace *IMB_colormanagement_colorspace_get_indexed(int index);
+
 /* ** RNA helper functions ** */
 void IMB_colormanagement_display_items_add(struct EnumPropertyItem **items, int *totitem);
 void IMB_colormanagement_view_items_add(struct EnumPropertyItem **items, int *totitem, const char *display_name);
