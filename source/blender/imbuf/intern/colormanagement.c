@@ -2562,6 +2562,16 @@ void IMB_colormanagment_colorspace_from_ibuf_ftype(ColorManagedColorspaceSetting
 	}
 }
 
+ColorSpace *IMB_colormanagement_colorspace_get_named(const char *name)
+{
+	return colormanage_colorspace_get_named(name);
+}
+
+ColorSpace *IMB_colormanagement_colorspace_get_indexed(int index)
+{
+	return colormanage_colorspace_get_indexed(index);
+}
+
 /*********************** Looks functions *************************/
 
 ColorManagedLook *colormanage_look_add(const char *name, const char *process_space, bool is_noop)

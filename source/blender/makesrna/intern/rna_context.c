@@ -121,6 +121,16 @@ static PointerRNA rna_Context_user_preferences_get(PointerRNA *UNUSED(ptr))
 	return newptr;
 }
 
+static PointerRNA rna_Context_color_management_get(PointerRNA *UNUSED(ptr))
+{
+	PointerRNA newptr;
+
+	/* TODO: Since color management settings are global, we don't actually need to store a data pointer.
+	 * However, setting it to NULL will confuse RNA, so it's set to 1 instead. */
+	RNA_pointer_create(NULL, &RNA_ColorManagement, (void*)1, &newptr);
+	return newptr;
+}
+
 static int rna_Context_mode_get(PointerRNA *ptr)
 {
 	bContext *C = (bContext *)ptr->data;
@@ -217,6 +227,11 @@ void RNA_def_context(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, mode_items);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_enum_funcs(prop, "rna_Context_mode_get", NULL, NULL);
+
+	prop = RNA_def_property(srna, "color_management", PROP_POINTER, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_struct_type(prop, "ColorManagement");
+	RNA_def_property_pointer_funcs(prop, "rna_Context_color_management_get", NULL, NULL, NULL);
 }
 
 #endif
