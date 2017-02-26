@@ -38,6 +38,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "IMB_colormanagement.h"
+
 #ifdef RNA_RUNTIME
 
 #include "RNA_access.h"
@@ -63,7 +65,6 @@
 
 #include "ED_node.h"
 
-#include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 
 static int rna_CurveMapping_curves_length(PointerRNA *ptr)
@@ -573,6 +574,14 @@ static EnumPropertyItem *rna_ColorManagedColorspaceSettings_colorspace_itemf(
 	return items;
 }
 
+static PointerRNA rna_ColorManagedColorspaceSettings_colorspace_ptr_get(struct PointerRNA *ptr)
+{
+	ColorManagedColorspaceSettings *colorspace_settings = (ColorManagedColorspaceSettings *) ptr->data;
+
+	ColorSpace *colorspace = IMB_colormanagement_colorspace_get_named(colorspace_settings->name);
+	return rna_pointer_inherit_refine(ptr, &RNA_ColorSpace, colorspace);
+}
+
 static void rna_ColorManagedColorspaceSettings_reload_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	ID *id = ptr->id.data;
@@ -682,6 +691,24 @@ static void rna_CurveMap_initialize(struct CurveMapping *cumap)
 {
 	curvemapping_initialize(cumap);
 }
+
+static void rna_ColorSpace_transform_color(struct ColorSpace *colorspace, float in_color[3], int from_scene_linear, float out_color[3])
+{
+	copy_v3_v3(out_color, in_color);
+	if(from_scene_linear) {
+		IMB_colormanagement_scene_linear_to_colorspace_v3(out_color, colorspace);
+	}
+	else {
+		IMB_colormanagement_colorspace_to_scene_linear_v3(out_color, colorspace);
+	}
+}
+
+static struct ColorSpace *rna_ColorManagement_get_by_role(int role)
+{
+	const char *name = IMB_colormanagement_role_colorspace_name_get(role);
+	return name? IMB_colormanagement_colorspace_get_named(name) : NULL;
+}
+
 #else
 
 static void rna_def_curvemappoint(BlenderRNA *brna)
@@ -1070,6 +1097,8 @@ static void rna_def_colormanage(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+	PropertyRNA *parm;
+	FunctionRNA *func;
 
 	static EnumPropertyItem display_device_items[] = {
 		{0, "DEFAULT", 0, "Default", ""},
@@ -1090,6 +1119,18 @@ static void rna_def_colormanage(BlenderRNA *brna)
 		{0, "NONE", 0, "None", "Do not perform any color transform on load, treat colors as in scene linear space already"},
 		{0, NULL, 0, NULL, NULL}
 	};
+
+	static EnumPropertyItem color_role_items[] = {
+		{COLOR_ROLE_SCENE_LINEAR, "SCENE_LINEAR", 0, "Scene Linear", ""},
+		{COLOR_ROLE_XYZ, "XYZ", 0, "XYZ", ""},
+		{COLOR_ROLE_COLOR_PICKING, "COLOR_PICKING", 0, "Color Picking", ""},
+		{COLOR_ROLE_TEXTURE_PAINTING, "TEXTURE_PAINTING", 0, "Texture Painting", ""},
+		{COLOR_ROLE_DEFAULT_SEQUENCER, "DEFAULT_SEQUENCER", 0, "Default Sequencer", ""},
+		{COLOR_ROLE_DEFAULT_BYTE, "DEFAULT_BYTE", 0, "Default Byte", ""},
+		{COLOR_ROLE_DEFAULT_FLOAT, "DEFAULT_FLOAT", 0, "Default Float", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 
 	/* ** Display Settings  **  */
 	srna = RNA_def_struct(brna, "ColorManagedDisplaySettings", NULL);
@@ -1158,6 +1199,38 @@ static void rna_def_colormanage(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_WINDOW, "rna_ColorManagement_update");
 
 	/* ** Colorspace **  */
+	srna = RNA_def_struct(brna, "ColorSpace", NULL);
+
+	func = RNA_def_function(srna, "transform_color", "rna_ColorSpace_transform_color");
+	parm = RNA_def_float_color(func, "in_color", 3, NULL, 0.0f, 0.0f, "Input Color", "The color that's transformed to or from scene linear colorspace", 0.0f, 0.0f);
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+	parm = RNA_def_boolean(func, "from_scene_linear", false, "From Scene Linear", "Specifies the direction of the transformation");
+	parm = RNA_def_float_color(func, "out_color", 3, NULL, 0.0f, 0.0f, "Output Color", "The transformed color", 0.0f, 0.0f);
+	RNA_def_function_output(func, parm);
+
+	srna = RNA_def_struct(brna, "ColorManagement", NULL);
+
+	func = RNA_def_function(srna, "get_by_role", "rna_ColorManagement_get_by_role");
+	RNA_def_function_flag(func, FUNC_NO_SELF);
+	parm = RNA_def_property(func, "role", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(parm, color_role_items);
+	RNA_def_property_ui_text(parm, "Color Role", "The role that will be returned");
+	RNA_def_parameter_flags(parm, PROP_ENUM_NO_CONTEXT, PARM_REQUIRED);
+	parm = RNA_def_pointer(func, "colorspace", "ColorSpace", "Color Space", "The color space belonging to this role");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "get", "IMB_colormanagement_colorspace_get_indexed");
+	RNA_def_function_flag(func, FUNC_NO_SELF);
+	parm = RNA_def_property(func, "name", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(parm, color_space_items);
+	RNA_def_property_enum_funcs(parm, NULL, NULL,
+	                            "rna_ColorManagedColorspaceSettings_colorspace_itemf");
+	RNA_def_property_ui_text(parm, "Color Space", "Color Space that will be returned");
+	RNA_def_parameter_flags(parm, PROP_ENUM_NO_CONTEXT, PARM_REQUIRED);
+	parm = RNA_def_pointer(func, "colorspace", "ColorSpace", "Color Space", "The color space belonging to this role");
+	RNA_def_function_return(func, parm);
+
+	//
 	srna = RNA_def_struct(brna, "ColorManagedInputColorspaceSettings", NULL);
 	RNA_def_struct_path_func(srna, "rna_ColorManagedInputColorspaceSettings_path");
 	RNA_def_struct_ui_text(srna, "ColorManagedInputColorspaceSettings", "Input color space settings");
@@ -1170,6 +1243,11 @@ static void rna_def_colormanage(BlenderRNA *brna)
 	                                  "rna_ColorManagedColorspaceSettings_colorspace_itemf");
 	RNA_def_property_ui_text(prop, "Input Color Space", "Color space of the image or movie on disk");
 	RNA_def_property_update(prop, NC_WINDOW, "rna_ColorManagedColorspaceSettings_reload_update");
+
+	prop = RNA_def_property(srna, "colorspace", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_funcs(prop, "rna_ColorManagedColorspaceSettings_colorspace_ptr_get",
+	                                     NULL, NULL, NULL);
+	RNA_def_property_struct_type(prop, "ColorSpace");
 
 	//
 	srna = RNA_def_struct(brna, "ColorManagedSequencerColorspaceSettings", NULL);
