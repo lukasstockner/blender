@@ -3669,6 +3669,8 @@ static const EnumPropertyItem sh_tex_prop_color_space_items[] = {
 	{SHD_COLORSPACE_NONE, "NONE", 0, "Non-Color Data",
 	                      "Image contains non-color data, for example a displacement or normal map, "
 	                      "and will not be converted"},
+	{SHD_COLORSPACE_AUTO, "AUTO", 0, "Automatic",
+	                      "Image colorspace will be determined from the image datablock settings"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -3708,7 +3710,7 @@ static void def_sh_tex_environment(StructRNA *srna)
 
 	prop = RNA_def_property(srna, "color_space", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, sh_tex_prop_color_space_items);
-	RNA_def_property_enum_default(prop, SHD_COLORSPACE_COLOR);
+	RNA_def_property_enum_default(prop, SHD_COLORSPACE_AUTO);
 	RNA_def_property_ui_text(prop, "Color Space", "Image file color space");
 	RNA_def_property_update(prop, 0, "rna_Node_update");
 
@@ -3765,7 +3767,7 @@ static void def_sh_tex_image(StructRNA *srna)
 
 	prop = RNA_def_property(srna, "color_space", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, sh_tex_prop_color_space_items);
-	RNA_def_property_enum_default(prop, SHD_COLORSPACE_COLOR);
+	RNA_def_property_enum_default(prop, SHD_COLORSPACE_AUTO);
 	RNA_def_property_ui_text(prop, "Color Space", "Image file color space");
 	RNA_def_property_update(prop, 0, "rna_Node_update");
 

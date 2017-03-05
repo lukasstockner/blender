@@ -128,6 +128,9 @@ public:
 	device_vector<float> tex_image_float_packed;
 	device_vector<uint4> tex_image_packed_info;
 
+	/* color management */
+	device_vector<float> color_management;
+
 	KernelData data;
 };
 

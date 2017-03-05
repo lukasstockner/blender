@@ -93,6 +93,9 @@ public:
 	                                      Camera *cam,
 	                                      int width, int height);
 
+	float3 builtin_colorspace_to_linear(float3 color,
+	                                    ustring colorspace);
+
 private:
 	/* sync */
 	void sync_lamps(bool update_all);
@@ -164,6 +167,7 @@ private:
 	id_map<void*, Mesh> mesh_map;
 	id_map<ObjectKey, Light> light_map;
 	id_map<ParticleSystemKey, ParticleSystem> particle_system_map;
+	map<ustring, BL::ColorSpace*> colorspace_map;
 	set<Mesh*> mesh_synced;
 	set<Mesh*> mesh_motion_synced;
 	set<float> motion_times;

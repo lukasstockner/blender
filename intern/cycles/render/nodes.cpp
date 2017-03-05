@@ -210,11 +210,7 @@ NODE_DEFINE(ImageTextureNode)
 	TEXTURE_MAPPING_DEFINE(ImageTextureNode);
 
 	SOCKET_STRING(filename, "Filename", ustring(""));
-
-	static NodeEnum color_space_enum;
-	color_space_enum.insert("none", NODE_COLOR_SPACE_NONE);
-	color_space_enum.insert("color", NODE_COLOR_SPACE_COLOR);
-	SOCKET_ENUM(color_space, "Color Space", color_space_enum, NODE_COLOR_SPACE_COLOR);
+	SOCKET_STRING(color_space, "Color Space", ustring("none"));
 
 	SOCKET_BOOLEAN(use_alpha, "Use Alpha", true);
 
@@ -253,8 +249,8 @@ ImageTextureNode::ImageTextureNode()
 {
 	image_manager = NULL;
 	slot = -1;
+	colorspace_data = -1;
 	is_float = -1;
-	is_linear = false;
 	builtin_data = NULL;
 	animated = false;
 }
@@ -263,6 +259,7 @@ ImageTextureNode::~ImageTextureNode()
 {
 	if(image_manager) {
 		image_manager->remove_image(filename.string(),
+		                            color_space,
 		                            builtin_data,
 		                            interpolation,
 		                            extension,
@@ -275,8 +272,8 @@ ShaderNode *ImageTextureNode::clone() const
 	ImageTextureNode *node = new ImageTextureNode(*this);
 	node->image_manager = NULL;
 	node->slot = -1;
+	node->colorspace_data = -1;
 	node->is_float = -1;
-	node->is_linear = false;
 	return node;
 }
 
@@ -305,11 +302,12 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 	if(is_float == -1) {
 		bool is_float_bool;
 		slot = image_manager->add_image(filename.string(),
+		                                color_space,
 		                                builtin_data,
 		                                animated,
 		                                0,
 		                                is_float_bool,
-		                                is_linear,
+		                                &colorspace_data,
 		                                interpolation,
 		                                extension,
 		                                use_alpha);
@@ -317,7 +315,6 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 	}
 
 	if(slot != -1) {
-		int srgb = (is_linear || color_space != NODE_COLOR_SPACE_COLOR)? 0: 1;
 		int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
 
 		if(projection != NODE_IMAGE_PROJ_BOX) {
@@ -327,8 +324,8 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 					vector_offset,
 					compiler.stack_assign_if_linked(color_out),
 					compiler.stack_assign_if_linked(alpha_out),
-					srgb),
-				projection);
+					projection),
+				colorspace_data);
 		}
 		else {
 			compiler.add_node(NODE_TEX_IMAGE_BOX,
@@ -337,8 +334,8 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 					vector_offset,
 					compiler.stack_assign_if_linked(color_out),
 					compiler.stack_assign_if_linked(alpha_out),
-					srgb),
-				__float_as_int(projection_blend));
+					__float_as_int(projection_blend)),
+				colorspace_data);
 		}
 
 		tex_mapping.compile_end(compiler, vector_in, vector_offset);
@@ -366,18 +363,19 @@ void ImageTextureNode::compile(OSLCompiler& compiler)
 	if(is_float == -1) {
 		if(builtin_data == NULL) {
 			ImageManager::ImageDataType type;
-			type = image_manager->get_image_metadata(filename.string(), NULL, is_linear);
+			type = image_manager->get_image_metadata(filename.string(), color_space, NULL, &colorspace_data);
 			if(type == ImageManager::IMAGE_DATA_TYPE_FLOAT || type == ImageManager::IMAGE_DATA_TYPE_FLOAT4)
 				is_float = 1;
 		}
 		else {
 			bool is_float_bool;
 			slot = image_manager->add_image(filename.string(),
+			                                color_space,
 			                                builtin_data,
 			                                animated,
 			                                0,
 			                                is_float_bool,
-			                                is_linear,
+			                                &colorspace_data,
 			                                interpolation,
 			                                extension,
 			                                use_alpha);
@@ -397,7 +395,8 @@ void ImageTextureNode::compile(OSLCompiler& compiler)
 		 */
 		compiler.parameter("filename", string_printf("@%d", slot).c_str());
 	}
-	if(is_linear || color_space != NODE_COLOR_SPACE_COLOR)
+	/* TODO(lukas): Implement. */
+	if(colorspace_data == 0)
 		compiler.parameter("color_space", "linear");
 	else
 		compiler.parameter("color_space", "sRGB");
@@ -420,11 +419,7 @@ NODE_DEFINE(EnvironmentTextureNode)
 	TEXTURE_MAPPING_DEFINE(EnvironmentTextureNode);
 
 	SOCKET_STRING(filename, "Filename", ustring(""));
-
-	static NodeEnum color_space_enum;
-	color_space_enum.insert("none", NODE_COLOR_SPACE_NONE);
-	color_space_enum.insert("color", NODE_COLOR_SPACE_COLOR);
-	SOCKET_ENUM(color_space, "Color Space", color_space_enum, NODE_COLOR_SPACE_COLOR);
+	SOCKET_STRING(color_space, "Color Space", ustring("none"));
 
 	SOCKET_BOOLEAN(use_alpha, "Use Alpha", true);
 
@@ -453,8 +448,8 @@ EnvironmentTextureNode::EnvironmentTextureNode()
 {
 	image_manager = NULL;
 	slot = -1;
+	colorspace_data = -1;
 	is_float = -1;
-	is_linear = false;
 	builtin_data = NULL;
 	animated = false;
 }
@@ -463,6 +458,7 @@ EnvironmentTextureNode::~EnvironmentTextureNode()
 {
 	if(image_manager) {
 		image_manager->remove_image(filename.string(),
+		                            color_space,
 		                            builtin_data,
 		                            interpolation,
 		                            EXTENSION_REPEAT,
@@ -475,8 +471,8 @@ ShaderNode *EnvironmentTextureNode::clone() const
 	EnvironmentTextureNode *node = new EnvironmentTextureNode(*this);
 	node->image_manager = NULL;
 	node->slot = -1;
+	node->colorspace_data = -1;
 	node->is_float = -1;
-	node->is_linear = false;
 	return node;
 }
 
@@ -503,11 +499,12 @@ void EnvironmentTextureNode::compile(SVMCompiler& compiler)
 	if(slot == -1) {
 		bool is_float_bool;
 		slot = image_manager->add_image(filename.string(),
+		                                color_space,
 		                                builtin_data,
 		                                animated,
 		                                0,
 		                                is_float_bool,
-		                                is_linear,
+		                                &colorspace_data,
 		                                interpolation,
 		                                EXTENSION_REPEAT,
 		                                use_alpha);
@@ -515,7 +512,6 @@ void EnvironmentTextureNode::compile(SVMCompiler& compiler)
 	}
 
 	if(slot != -1) {
-		int srgb = (is_linear || color_space != NODE_COLOR_SPACE_COLOR)? 0: 1;
 		int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
 
 		compiler.add_node(NODE_TEX_ENVIRONMENT,
@@ -524,8 +520,8 @@ void EnvironmentTextureNode::compile(SVMCompiler& compiler)
 				vector_offset,
 				compiler.stack_assign_if_linked(color_out),
 				compiler.stack_assign_if_linked(alpha_out),
-				srgb),
-			projection);
+				projection),
+			colorspace_data);
 	
 		tex_mapping.compile_end(compiler, vector_in, vector_offset);
 	}
@@ -555,18 +551,19 @@ void EnvironmentTextureNode::compile(OSLCompiler& compiler)
 	if(is_float == -1) {
 		if(builtin_data == NULL) {
 			ImageManager::ImageDataType type;
-			type = image_manager->get_image_metadata(filename.string(), NULL, is_linear);
+			type = image_manager->get_image_metadata(filename.string(), color_space, NULL, &colorspace_data);
 			if(type == ImageManager::IMAGE_DATA_TYPE_FLOAT || type == ImageManager::IMAGE_DATA_TYPE_FLOAT4)
 				is_float = 1;
 		}
 		else {
 			bool is_float_bool;
 			slot = image_manager->add_image(filename.string(),
+			                                color_space,
 			                                builtin_data,
 			                                animated,
 			                                0,
 			                                is_float_bool,
-			                                is_linear,
+			                                &colorspace_data,
 			                                interpolation,
 			                                EXTENSION_REPEAT,
 			                                use_alpha);
@@ -581,7 +578,8 @@ void EnvironmentTextureNode::compile(OSLCompiler& compiler)
 		compiler.parameter("filename", string_printf("@%d", slot).c_str());
 	}
 	compiler.parameter(this, "projection");
-	if(is_linear || color_space != NODE_COLOR_SPACE_COLOR)
+	/* TODO(lukas): Implement. */
+	if(colorspace_data == 0)
 		compiler.parameter("color_space", "linear");
 	else
 		compiler.parameter("color_space", "sRGB");
@@ -1383,6 +1381,7 @@ PointDensityTextureNode::~PointDensityTextureNode()
 {
 	if(image_manager) {
 		image_manager->remove_image(filename.string(),
+		                            ustring("none"),
 		                            builtin_data,
 		                            interpolation,
 		                            EXTENSION_CLIP,
@@ -1420,10 +1419,10 @@ void PointDensityTextureNode::compile(SVMCompiler& compiler)
 
 	if(use_density || use_color) {
 		if(slot == -1) {
-			bool is_float, is_linear;
-			slot = image_manager->add_image(filename.string(), builtin_data,
+			bool is_float;
+			slot = image_manager->add_image(filename.string(), ustring("none"), builtin_data,
 			                                false, 0,
-			                                is_float, is_linear,
+			                                is_float, NULL,
 			                                interpolation,
 			                                EXTENSION_CLIP,
 			                                true);
@@ -1472,10 +1471,10 @@ void PointDensityTextureNode::compile(OSLCompiler& compiler)
 
 	if(use_density || use_color) {
 		if(slot == -1) {
-			bool is_float, is_linear;
-			slot = image_manager->add_image(filename.string(), builtin_data,
+			bool is_float;
+			slot = image_manager->add_image(filename.string(), ustring("none"), builtin_data,
 			                                false, 0,
-			                                is_float, is_linear,
+			                                is_float, NULL,
 			                                interpolation,
 			                                EXTENSION_CLIP,
 			                                true);

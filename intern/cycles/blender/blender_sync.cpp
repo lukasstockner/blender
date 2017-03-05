@@ -75,6 +75,10 @@ BlenderSync::BlenderSync(BL::RenderEngine& b_engine,
 
 BlenderSync::~BlenderSync()
 {
+	for(map<ustring, BL::ColorSpace*>::iterator i = colorspace_map.begin(); i != colorspace_map.end(); ++i) {
+		delete i->second;
+	}
+
 }
 
 /* Sync */

@@ -44,7 +44,7 @@ static void node_shader_init_tex_environment(bNodeTree *UNUSED(ntree), bNode *no
 	NodeTexEnvironment *tex = MEM_callocN(sizeof(NodeTexEnvironment), "NodeTexEnvironment");
 	BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
 	BKE_texture_colormapping_default(&tex->base.color_mapping);
-	tex->color_space = SHD_COLORSPACE_COLOR;
+	tex->color_space = SHD_COLORSPACE_AUTO;
 	tex->projection = SHD_PROJ_EQUIRECTANGULAR;
 	tex->iuser.frames = 1;
 	tex->iuser.sfra = 1;

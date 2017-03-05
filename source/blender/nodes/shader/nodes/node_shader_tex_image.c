@@ -45,7 +45,7 @@ static void node_shader_init_tex_image(bNodeTree *UNUSED(ntree), bNode *node)
 	NodeTexImage *tex = MEM_callocN(sizeof(NodeTexImage), "NodeTexImage");
 	BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
 	BKE_texture_colormapping_default(&tex->base.color_mapping);
-	tex->color_space = SHD_COLORSPACE_COLOR;
+	tex->color_space = SHD_COLORSPACE_AUTO;
 	tex->iuser.frames = 1;
 	tex->iuser.sfra = 1;
 	tex->iuser.fie_ima = 2;
@@ -104,7 +104,7 @@ static int node_shader_gpu_tex_image(GPUMaterial *mat, bNode *node, bNodeExecDat
 	}
 
 	ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, NULL);
-	if ((tex->color_space == SHD_COLORSPACE_COLOR) &&
+	if ((tex->color_space != SHD_COLORSPACE_NONE) &&
 	    ibuf && (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) == 0 &&
 	    GPU_material_do_color_management(mat))
 	{

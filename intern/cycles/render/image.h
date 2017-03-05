@@ -21,9 +21,12 @@
 #include "device_memory.h"
 
 #include "util_image.h"
+#include "util_map.h"
 #include "util_string.h"
 #include "util_thread.h"
 #include "util_vector.h"
+
+#include "kernel_types.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -49,26 +52,32 @@ public:
 	};
 
 	int add_image(const string& filename,
+	              ustring color_space,
 	              void *builtin_data,
 	              bool animated,
 	              float frame,
 	              bool& is_float,
-	              bool& is_linear,
+	              int *colorspace_data,
 	              InterpolationType interpolation,
 	              ExtensionType extension,
 	              bool use_alpha);
 	void remove_image(int flat_slot);
 	void remove_image(const string& filename,
+	                  ustring color_space,
 	                  void *builtin_data,
 	                  InterpolationType interpolation,
 	                  ExtensionType extension,
 	                  bool use_alpha);
 	void tag_reload_image(const string& filename,
+	                      ustring color_space,
 	                      void *builtin_data,
 	                      InterpolationType interpolation,
 	                      ExtensionType extension,
 	                      bool use_alpha);
-	ImageDataType get_image_metadata(const string& filename, void *builtin_data, bool& is_linear);
+	ImageDataType get_image_metadata(const string& filename,
+	                                 ustring color_space,
+	                                 void *builtin_data,
+	                                 int *colorspace_data);
 
 	void device_update(Device *device,
 	                   DeviceScene *dscene,
@@ -107,9 +116,12 @@ public:
 	              void *data,
 	              float *pixels,
 	              const size_t pixels_size)> builtin_image_float_pixels_cb;
+	function<float3(float3 color,
+	                ustring colorspace)> builtin_colorspace_to_linear_cb;
 
 	struct Image {
 		string filename;
+		ustring color_space;
 		void *builtin_data;
 
 		bool use_alpha;
@@ -130,9 +142,18 @@ private:
 	int animation_frame;
 
 	vector<Image*> images[IMAGE_DATA_NUM_TYPES];
+
+	vector<Transform> color_transforms;
+	vector<float*> color_luts;
+	map<ustring, int> colorspaces;
+
 	void *osl_texture_system;
 	bool pack_images;
 
+	int get_colorspace_data(ustring color_space);
+	int get_colorspace_data(ustring color_space, bool is_linear, Image *img);
+
+	ImageDataType get_image_metadata(const string& filename, void *builtin_data, bool& is_linear);
 	bool file_load_image_generic(Image *img, ImageInput **in, int &width, int &height, int &depth, int &components);
 
 	template<TypeDesc::BASETYPE FileFormat,
@@ -163,6 +184,10 @@ private:
 	void device_pack_images(Device *device,
 	                        DeviceScene *dscene,
 	                        Progress& progess);
+
+	void device_update_color(Device *device,
+	                         DeviceScene *dscene,
+	                         Progress& progress);
 };
 
 CCL_NAMESPACE_END

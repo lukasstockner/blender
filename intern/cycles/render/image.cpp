@@ -105,6 +105,10 @@ ImageManager::~ImageManager()
 		for(size_t slot = 0; slot < images[type].size(); slot++)
 			assert(!images[type][slot]);
 	}
+
+	foreach(float* lut, color_luts) {
+		delete[] lut;
+	}
 }
 
 void ImageManager::set_pack_images(bool pack_images_)
@@ -131,6 +135,24 @@ bool ImageManager::set_animation_frame_update(int frame)
 	}
 
 	return false;
+}
+
+ImageManager::ImageDataType ImageManager::get_image_metadata(const string& filename,
+                                                             ustring color_space,
+                                                             void *builtin_data,
+                                                             int *colorspace_data)
+{
+	bool is_linear;
+	ImageDataType type = get_image_metadata(filename, builtin_data, is_linear);
+
+	bool is_float = (type == IMAGE_DATA_TYPE_FLOAT || type == IMAGE_DATA_TYPE_FLOAT4);
+	ustring colorspace_from = (is_float && builtin_data)? ustring("none") : color_space;
+
+	if(colorspace_data) {
+		*colorspace_data = get_colorspace_data(colorspace_from, is_linear, NULL);
+	}
+
+	return type;
 }
 
 ImageManager::ImageDataType ImageManager::get_image_metadata(const string& filename,
@@ -226,6 +248,146 @@ ImageManager::ImageDataType ImageManager::get_image_metadata(const string& filen
 	}
 }
 
+template<typename T> T identity_func(T a) { return a; }
+
+int ImageManager::get_colorspace_data(ustring color_space)
+{
+	int colorspace_data = 0;
+
+	/* Determine transformation matrix. */
+	float3 r_in_linear = builtin_colorspace_to_linear_cb(make_float3(1.0f, 0.0f, 0.0f), color_space);
+	float3 g_in_linear = builtin_colorspace_to_linear_cb(make_float3(0.0f, 1.0f, 0.0f), color_space);
+	float3 b_in_linear = builtin_colorspace_to_linear_cb(make_float3(0.0f, 0.0f, 1.0f), color_space);
+	Transform to_linear = make_transform(r_in_linear.x, g_in_linear.x, b_in_linear.x, 0.0f,
+	                                     r_in_linear.y, g_in_linear.y, b_in_linear.y, 0.0f,
+	                                     r_in_linear.z, g_in_linear.z, b_in_linear.z, 0.0f,
+	                                     0.0f, 0.0f, 0.0f, 1.0f);
+
+	/* Compare the matrix to the already allocated ones. */
+	int transform_id = -1;
+	Transform from_linear;
+	if(transform_difference(to_linear, transform_identity()) > 1e-5f) {
+		from_linear = transform_inverse(to_linear);
+
+		for(int i = 0; i < color_transforms.size(); i++) {
+			if(transform_difference(to_linear, color_transforms[i]) < 1e-5f) {
+				transform_id = i;
+				VLOG(2) << "Colorspace " << color_space << " reuses an existing transform";
+				break;
+			}
+		}
+
+		if(transform_id == -1) {
+			color_transforms.push_back(to_linear);
+			transform_id = color_transforms.size()-1;
+			VLOG(2) << "Colorspace " << color_space << " allocates new transform";
+		}
+	}
+	else {
+		from_linear = transform_identity();
+		VLOG(2) << "Colorspace " << color_space << " has a identity transform";
+	}
+
+	if(transform_id != -1) {
+		colorspace_data = COLORSPACE_USE_TRANSFORM_FLAG | ((transform_id << COLORSPACE_TRANSFORM_SHIFT) & COLORSPACE_TRANSFORM_MASK);
+	}
+
+	/* Determine LUT.
+	 * Since half and float textures are converted on the host, the LUT only needs to handle 8-bit encoding.
+	 * Therefore, 256 entries are enough to cover the color space with full precision.
+	 * The code assumes that every channel is encoded independently using the same LUT. */
+	float *lut = new float[256];
+	float3 reference_transformed = builtin_colorspace_to_linear_cb(make_float3(0.5f, 0.5f, 0.5f), color_space);
+	float3 reference = transform_direction(&from_linear, reference_transformed);
+	(void) reference;
+
+	bool is_builtin[COLORSPACE_BUILTIN_NUM] = {true, true};
+	float(*builtin_funcs[])(float) = {identity_func, color_srgb_to_linear};
+
+	bool is_existing_lut[COLORSPACE_LUT_NUM];
+	for(int i = 0; i < COLORSPACE_LUT_NUM; i++) {
+		is_existing_lut[i] = (i < color_luts.size());
+	}
+
+	for(int i = 0; i < 256; i++) {
+		float in_value = i / 255.0f;
+		float3 transformed = builtin_colorspace_to_linear_cb(make_float3(in_value, 0.5f, 0.5f), color_space);
+		float3 out_value = transform_direction(&from_linear, transformed);
+		lut[i] = out_value.x;
+
+		/* Make sure that the other two channels are independent of R. */
+		assert(fabsf(out_value.y - reference.y) < 1e-5f);
+		assert(fabsf(out_value.z - reference.z) < 1e-5f);
+
+		/* Check equivalence with the builtin functions. */
+		for(int j = 0; j < COLORSPACE_BUILTIN_NUM; j++) {
+			float diff = builtin_funcs[j](in_value) - out_value.x;
+			if(fabsf(diff) > 1e-5f) {
+				is_builtin[j] = false;
+			}
+		}
+		/* Check equivalence with the already allocated LUTs. */
+		for(int j = 0; j < color_luts.size(); j++) {
+			if(fabsf(color_luts[j][i] - out_value.x) > 1e-5f) {
+				is_existing_lut[j] = false;
+			}
+		}
+	}
+
+	/* Is any builtin function equivalent? */
+	bool needs_lut = true;
+	for(int i = 0; i < COLORSPACE_BUILTIN_NUM; i++) {
+		if(is_builtin[i]) {
+			needs_lut = false;
+			colorspace_data |= (i & COLORSPACE_LUT_MASK);
+			VLOG(2) << "Colorspace " << color_space << " uses builtin LUT " << i;
+			break;
+		}
+	}
+
+	/* Is any already allocated LUT equivalent? */
+	if(needs_lut) {
+		for(int i = 0; i < color_luts.size(); i++) {
+			if(is_existing_lut[i]) {
+				needs_lut = false;
+				colorspace_data |= COLORSPACE_USE_LUT_FLAG | (i & COLORSPACE_LUT_MASK);
+				VLOG(2) << "Colorspace " << color_space << " reuses existing LUT";
+			}
+		}
+	}
+
+	if(needs_lut) {
+		color_luts.push_back(lut);
+		colorspace_data |= COLORSPACE_USE_LUT_FLAG | ((color_luts.size() - 1) & COLORSPACE_LUT_MASK);
+		VLOG(2) << "Colorspace " << color_space << " allocates new LUT";
+	}
+	else {
+		delete[] lut;
+	}
+
+	return colorspace_data;
+}
+
+int ImageManager::get_colorspace_data(ustring color_space, bool is_linear, Image *img)
+{
+	if(color_space == "none") {
+		/* No transformation matrix, no LUT, builtin 0 (identity) */
+		return 0;
+	}
+	else if(color_space == "legacy_autodetect") {
+		if(is_linear) {
+			return 0;
+		}
+		/* No transformation matrix, no LUT, builtin 1 (sRGB) */
+		return 1;
+	}
+
+	if(!colorspaces.count(color_space)) {
+		colorspaces[color_space] = get_colorspace_data(color_space);
+	}
+	return colorspaces[color_space];
+}
+
 /* We use a consecutive slot counting scheme on the devices, in order
  * float4, byte4, half4, float, byte, half.
  * These functions convert the slot ids from ImageManager "images" ones
@@ -266,12 +428,14 @@ string ImageManager::name_from_type(int type)
 
 static bool image_equals(ImageManager::Image *image,
                          const string& filename,
+                         ustring color_space,
                          void *builtin_data,
                          InterpolationType interpolation,
                          ExtensionType extension,
                          bool use_alpha)
 {
 	return image->filename == filename &&
+	       image->color_space == color_space &&
 	       image->builtin_data == builtin_data &&
 	       image->interpolation == interpolation &&
 	       image->extension == extension &&
@@ -279,17 +443,19 @@ static bool image_equals(ImageManager::Image *image,
 }
 
 int ImageManager::add_image(const string& filename,
+                            ustring color_space,
                             void *builtin_data,
                             bool animated,
                             float frame,
                             bool& is_float,
-                            bool& is_linear,
+                            int *colorspace_data,
                             InterpolationType interpolation,
                             ExtensionType extension,
                             bool use_alpha)
 {
 	Image *img;
 	size_t slot;
+	bool is_linear;
 
 	ImageDataType type = get_image_metadata(filename, builtin_data, is_linear);
 
@@ -314,6 +480,7 @@ int ImageManager::add_image(const string& filename,
 		img = images[type][slot];
 		if(img && image_equals(img,
 		                       filename,
+		                       color_space,
 		                       builtin_data,
 		                       interpolation,
 		                       extension,
@@ -352,6 +519,7 @@ int ImageManager::add_image(const string& filename,
 	/* Add new image. */
 	img = new Image();
 	img->filename = filename;
+	img->color_space = color_space;
 	img->builtin_data = builtin_data;
 	img->need_load = true;
 	img->animated = animated;
@@ -365,6 +533,10 @@ int ImageManager::add_image(const string& filename,
 
 	need_update = true;
 
+	if(colorspace_data) {
+		ustring colorspace_from = (is_float && builtin_data)? ustring("none") : color_space;
+		*colorspace_data = get_colorspace_data(colorspace_from, is_linear, img);
+	}
 	return type_index_to_flattened_slot(slot, type);
 }
 
@@ -387,6 +559,7 @@ void ImageManager::remove_image(int flat_slot)
 }
 
 void ImageManager::remove_image(const string& filename,
+                                ustring color_space,
                                 void *builtin_data,
                                 InterpolationType interpolation,
                                 ExtensionType extension,
@@ -398,6 +571,7 @@ void ImageManager::remove_image(const string& filename,
 		for(slot = 0; slot < images[type].size(); slot++) {
 			if(images[type][slot] && image_equals(images[type][slot],
 			                                      filename,
+			                                      color_space,
 			                                      builtin_data,
 			                                      interpolation,
 			                                      extension,
@@ -415,6 +589,7 @@ void ImageManager::remove_image(const string& filename,
  * more cluttered.
  */
 void ImageManager::tag_reload_image(const string& filename,
+                                    ustring color_space,
                                     void *builtin_data,
                                     InterpolationType interpolation,
                                     ExtensionType extension,
@@ -424,6 +599,7 @@ void ImageManager::tag_reload_image(const string& filename,
 		for(size_t slot = 0; slot < images[type].size(); slot++) {
 			if(images[type][slot] && image_equals(images[type][slot],
 			                                      filename,
+			                                      color_space,
 			                                      builtin_data,
 			                                      interpolation,
 			                                      extension,
@@ -923,6 +1099,43 @@ void ImageManager::device_free_image(Device *device, DeviceScene *dscene, ImageD
 	}
 }
 
+void ImageManager::device_update_color(Device *device,
+                                       DeviceScene *dscene,
+                                       Progress& progress)
+{
+	progress.set_status("Updating Color Management");
+
+	int size = COLORSPACE_TRANSFORM_NUM * 9 +
+	           color_luts.size() * 256;
+	float *data = dscene->color_management.resize(size);
+
+	for(int i = 0; i < COLORSPACE_TRANSFORM_NUM; i++, data += 9) {
+		if(i < color_transforms.size()) {
+			Transform &t = color_transforms[i];
+			data[0] = t.x.x;
+			data[1] = t.x.y;
+			data[2] = t.x.z;
+			data[3] = t.y.x;
+			data[4] = t.y.y;
+			data[5] = t.y.z;
+			data[6] = t.z.x;
+			data[7] = t.z.y;
+			data[8] = t.z.z;
+		}
+		else {
+			data[0] = data[4] = data[8] = 1.0f;
+			data[1] = data[2] = data[3] = 0.0f;
+			data[5] = data[6] = data[7] = 0.0f;
+		}
+	}
+
+	for(int i = 0; i < color_luts.size(); i++, data += 256) {
+		memcpy(data, color_luts[i], 256*sizeof(float));
+	}
+
+	device->tex_alloc("__color_management", dscene->color_management);
+}
+
 void ImageManager::device_update(Device *device,
                                  DeviceScene *dscene,
                                  Scene *scene,
@@ -959,6 +1172,8 @@ void ImageManager::device_update(Device *device,
 
 	if(pack_images)
 		device_pack_images(device, dscene, progress);
+
+	device_update_color(device, dscene, progress);
 
 	need_update = false;
 }
@@ -1206,12 +1421,14 @@ void ImageManager::device_free(Device *device, DeviceScene *dscene)
 	device->tex_free(dscene->tex_image_byte_packed);
 	device->tex_free(dscene->tex_image_float_packed);
 	device->tex_free(dscene->tex_image_packed_info);
+	device->tex_free(dscene->color_management);
 
 	dscene->tex_image_byte4_packed.clear();
 	dscene->tex_image_float4_packed.clear();
 	dscene->tex_image_byte_packed.clear();
 	dscene->tex_image_float_packed.clear();
 	dscene->tex_image_packed_info.clear();
+	dscene->color_management.clear();
 }
 
 CCL_NAMESPACE_END

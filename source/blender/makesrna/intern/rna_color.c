@@ -703,10 +703,34 @@ static void rna_ColorSpace_transform_color(struct ColorSpace *colorspace, float 
 	}
 }
 
+static void rna_ColorSpace_transform_pixels(struct ColorSpace *colorspace, float *pixels, int width, int height, int channels, int predivide)
+{
+	IMB_colormanagement_colorspace_to_scene_linear(pixels, width, height, channels, colorspace, predivide);
+}
+
+static void rna_ColorSpace_name_get(PointerRNA *ptr, char *value)
+{
+	struct ColorSpace *colorspace = ptr->data;
+	const char *name = IMB_colormanagement_colorspace_get_name(colorspace);
+	strcpy(value, name);
+}
+
+static int rna_ColorSpace_name_length(PointerRNA *ptr)
+{
+	struct ColorSpace *colorspace = ptr->data;
+	const char *name = IMB_colormanagement_colorspace_get_name(colorspace);
+	return strlen(name);
+}
+
 static struct ColorSpace *rna_ColorManagement_get_by_role(int role)
 {
 	const char *name = IMB_colormanagement_role_colorspace_name_get(role);
 	return name? IMB_colormanagement_colorspace_get_named(name) : NULL;
+}
+
+static struct ColorSpace *rna_ColorManagement_get_by_name(const char *name)
+{
+	return IMB_colormanagement_colorspace_get_named(name);
 }
 
 #else
@@ -1201,6 +1225,24 @@ static void rna_def_colormanage(BlenderRNA *brna)
 	parm = RNA_def_float_color(func, "out_color", 3, NULL, 0.0f, 0.0f, "Output Color", "The transformed color", 0.0f, 0.0f);
 	RNA_def_function_output(func, parm);
 
+	func = RNA_def_function(srna, "transform_pixels", "rna_ColorSpace_transform_pixels");
+	parm = RNA_def_property(func, "image", PROP_FLOAT, PROP_NONE);
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+	RNA_def_property_array(parm, 0);
+	parm = RNA_def_int(func, "width", 1, 1, 65536, "Width", "The width of the image", 1, 65536);
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+	parm = RNA_def_int(func, "height", 1, 1, 65536, "Height", "The height of the image", 1, 65536);
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+	parm = RNA_def_int(func, "channels", 3, 1, 4, "Channels", "The channels of the image", 1, 4);
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+	parm = RNA_def_boolean(func, "predivide", false, "Predivide", "Whether the alpha channel should be predivided (if the image has one)");
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Name", "Name of the Colorspace");
+	RNA_def_property_string_funcs(prop, "rna_ColorSpace_name_get", "rna_ColorSpace_name_length", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
 	srna = RNA_def_struct(brna, "ColorManagement", NULL);
 
 	func = RNA_def_function(srna, "get_by_role", "rna_ColorManagement_get_by_role");
@@ -1209,6 +1251,14 @@ static void rna_def_colormanage(BlenderRNA *brna)
 	RNA_def_property_enum_items(parm, color_role_items);
 	RNA_def_property_ui_text(parm, "Color Role", "The role that will be returned");
 	RNA_def_parameter_flags(parm, PROP_ENUM_NO_CONTEXT, PARM_REQUIRED);
+	parm = RNA_def_pointer(func, "colorspace", "ColorSpace", "Color Space", "The color space belonging to this role");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "get_by_name", "rna_ColorManagement_get_by_name");
+	RNA_def_function_flag(func, FUNC_NO_SELF);
+	parm = RNA_def_property(func, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_ui_text(parm, "Colorspace Name", "The name of the colorspace that will be returned");
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	parm = RNA_def_pointer(func, "colorspace", "ColorSpace", "Color Space", "The color space belonging to this role");
 	RNA_def_function_return(func, parm);
 

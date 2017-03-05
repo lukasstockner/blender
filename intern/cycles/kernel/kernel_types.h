@@ -44,6 +44,15 @@ CCL_NAMESPACE_BEGIN
 #define PARTICLE_SIZE 		5
 #define SHADER_SIZE		5
 
+#define COLORSPACE_LUT_MASK				0xff
+#define COLORSPACE_TRANSFORM_MASK		0xff00
+#define COLORSPACE_TRANSFORM_SHIFT		8
+#define COLORSPACE_USE_LUT_FLAG			0x10000
+#define COLORSPACE_USE_TRANSFORM_FLAG	0x20000
+#define COLORSPACE_LUT_NUM				32
+#define COLORSPACE_TRANSFORM_NUM		32
+#define COLORSPACE_BUILTIN_NUM			2
+
 #define BSSRDF_MIN_RADIUS			1e-8f
 #define BSSRDF_MAX_HITS				4
 
@@ -959,9 +968,11 @@ typedef struct SubsurfaceIndirectRays
 	struct PathRadiance L[BSSRDF_MAX_HITS];
 } SubsurfaceIndirectRays;
 
-typedef enum Colorspace {
-	COLORSPACE_CUSTOM = 0,
+typedef enum BuiltinColorspace {
+	COLORSPACE_LINEAR = 0,
 	COLORSPACE_REC709 = 1,
+
+	COLORSPACE_CUSTOM = ~0,
 } Colorspace;
 
 /* Constant Kernel Data
