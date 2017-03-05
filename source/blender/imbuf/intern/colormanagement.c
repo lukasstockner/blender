@@ -2554,6 +2554,15 @@ int IMB_colormanagement_colorspace_get_named_index(const char *name)
 	return 0;
 }
 
+const char *IMB_colormanagement_colorspace_get_name(ColorSpace *colorspace)
+{
+	if (colorspace) {
+		return colorspace->name;
+	}
+
+	return "";
+}
+
 const char *IMB_colormanagement_colorspace_get_indexed_name(int index)
 {
 	ColorSpace *colorspace;

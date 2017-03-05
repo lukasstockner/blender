@@ -16,7 +16,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
+ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint use_alpha)
 {
 #ifdef __KERNEL_CPU__
 	float4 r = kernel_tex_image_interp(id, x, y);
@@ -157,14 +157,6 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 		{
 			r = min(r, make_float4(1.0f, 1.0f, 1.0f, 1.0f));
 		}
-	/* TODO(lukas): srgb only enables the sRGB nonlinear transform,
-	 * NOT the correct conversion from linear sRGB into the Scene Linear colorspace. */
-		r.w = alpha;
-	}
-
-	/* TODO(lukas): Same as above. */
-	if(srgb) {
-		r = color_srgb_to_linear_v4(r);
 	}
 
 	return r;
@@ -179,25 +171,26 @@ ccl_device_inline float3 texco_remap_square(float3 co)
 ccl_device void svm_node_tex_image(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	uint id = node.y;
-	uint co_offset, out_offset, alpha_offset, srgb;
+	uint co_offset, out_offset, alpha_offset, projection;
 
-	decode_node_uchar4(node.z, &co_offset, &out_offset, &alpha_offset, &srgb);
+	decode_node_uchar4(node.z, &co_offset, &out_offset, &alpha_offset, &projection);
 
 	float3 co = stack_load_float3(stack, co_offset);
 	float2 tex_co;
 	uint use_alpha = stack_valid(alpha_offset);
-	if(node.w == NODE_IMAGE_PROJ_SPHERE) {
+	if(projection == NODE_IMAGE_PROJ_SPHERE) {
 		co = texco_remap_square(co);
 		tex_co = map_to_sphere(co);
 	}
-	else if(node.w == NODE_IMAGE_PROJ_TUBE) {
+	else if(projection == NODE_IMAGE_PROJ_TUBE) {
 		co = texco_remap_square(co);
 		tex_co = map_to_tube(co);
 	}
 	else {
 		tex_co = make_float2(co.x, co.y);
 	}
-	float4 f = svm_image_texture(kg, id, tex_co.x, tex_co.y, srgb, use_alpha);
+	float4 f = svm_image_texture(kg, id, tex_co.x, tex_co.y, use_alpha);
+	f = color_transform(kg, f, node.w);
 
 	if(stack_valid(out_offset))
 		stack_store_float3(stack, out_offset, make_float3(f.x, f.y, f.z));
@@ -207,6 +200,9 @@ ccl_device void svm_node_tex_image(KernelGlobals *kg, ShaderData *sd, float *sta
 
 ccl_device void svm_node_tex_image_box(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
+	uint co_offset, out_offset, alpha_offset, blend_int;
+	decode_node_uchar4(node.z, &co_offset, &out_offset, &alpha_offset, &blend_int);
+
 	/* get object space normal */
 	float3 N = sd->N;
 
@@ -231,7 +227,7 @@ ccl_device void svm_node_tex_image_box(KernelGlobals *kg, ShaderData *sd, float 
 	 * 7 zones, with an if() test for each zone */
 
 	float3 weight = make_float3(0.0f, 0.0f, 0.0f);
-	float blend = __int_as_float(node.w);
+	float blend = __int_as_float(blend_int);
 	float limit = 0.5f*(1.0f + blend);
 
 	/* first test for corners with single texture */
@@ -274,9 +270,6 @@ ccl_device void svm_node_tex_image_box(KernelGlobals *kg, ShaderData *sd, float 
 	}
 
 	/* now fetch textures */
-	uint co_offset, out_offset, alpha_offset, srgb;
-	decode_node_uchar4(node.z, &co_offset, &out_offset, &alpha_offset, &srgb);
-
 	float3 co = stack_load_float3(stack, co_offset);
 	uint id = node.y;
 
@@ -284,11 +277,11 @@ ccl_device void svm_node_tex_image_box(KernelGlobals *kg, ShaderData *sd, float 
 	uint use_alpha = stack_valid(alpha_offset);
 
 	if(weight.x > 0.0f)
-		f += weight.x*svm_image_texture(kg, id, co.y, co.z, srgb, use_alpha);
+		f += weight.x*color_transform(kg, svm_image_texture(kg, id, co.y, co.z, use_alpha), node.w);
 	if(weight.y > 0.0f)
-		f += weight.y*svm_image_texture(kg, id, co.x, co.z, srgb, use_alpha);
+		f += weight.y*color_transform(kg, svm_image_texture(kg, id, co.x, co.z, use_alpha), node.w);
 	if(weight.z > 0.0f)
-		f += weight.z*svm_image_texture(kg, id, co.y, co.x, srgb, use_alpha);
+		f += weight.z*color_transform(kg, svm_image_texture(kg, id, co.y, co.x, use_alpha), node.w);
 
 	if(stack_valid(out_offset))
 		stack_store_float3(stack, out_offset, make_float3(f.x, f.y, f.z));
@@ -299,10 +292,9 @@ ccl_device void svm_node_tex_image_box(KernelGlobals *kg, ShaderData *sd, float 
 ccl_device void svm_node_tex_environment(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	uint id = node.y;
-	uint co_offset, out_offset, alpha_offset, srgb;
-	uint projection = node.w;
+	uint co_offset, out_offset, alpha_offset, projection;
 
-	decode_node_uchar4(node.z, &co_offset, &out_offset, &alpha_offset, &srgb);
+	decode_node_uchar4(node.z, &co_offset, &out_offset, &alpha_offset, &projection);
 
 	float3 co = stack_load_float3(stack, co_offset);
 	float2 uv;
@@ -315,7 +307,8 @@ ccl_device void svm_node_tex_environment(KernelGlobals *kg, ShaderData *sd, floa
 		uv = direction_to_mirrorball(co);
 
 	uint use_alpha = stack_valid(alpha_offset);
-	float4 f = svm_image_texture(kg, id, uv.x, uv.y, srgb, use_alpha);
+	float4 f = svm_image_texture(kg, id, uv.x, uv.y, use_alpha);
+	f = color_transform(kg, f, node.w);
 
 	if(stack_valid(out_offset))
 		stack_store_float3(stack, out_offset, make_float3(f.x, f.y, f.z));

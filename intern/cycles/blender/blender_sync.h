@@ -98,6 +98,13 @@ public:
 
 	static PassType get_pass_type(BL::RenderPass& b_pass);
 	static int get_denoising_pass(BL::RenderPass& b_pass);
+	float3 builtin_color_to_linear(float3 color,
+	                                    ustring colorspace);
+	void builtin_image_to_linear(float *image,
+	                             int width,
+	                             int height,
+	                             int channels,
+	                             ustring colorspace);
 
 private:
 	/* sync */
@@ -169,6 +176,7 @@ private:
 	id_map<void*, Mesh> mesh_map;
 	id_map<ObjectKey, Light> light_map;
 	id_map<ParticleSystemKey, ParticleSystem> particle_system_map;
+	map<ustring, BL::ColorSpace*> colorspace_map;
 	set<Mesh*> mesh_synced;
 	set<Mesh*> mesh_motion_synced;
 	set<float> motion_times;

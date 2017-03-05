@@ -121,6 +121,9 @@ public:
 	vector<device_vector<uchar>* > tex_byte_image;
 	vector<device_vector<half>* > tex_half_image;
 
+	/* color management */
+	device_vector<float> color_management;
+
 	KernelData data;
 };
 

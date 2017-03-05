@@ -78,6 +78,9 @@ KERNEL_TEX(float, texture_float, __lookup_table)
 /* sobol */
 KERNEL_TEX(uint, texture_uint, __sobol_directions)
 
+/* color management */
+KERNEL_TEX(float, texture_float, __color_management)
+
 #ifdef __KERNEL_CUDA__
 #  if __CUDA_ARCH__ < 300
 /* full-float image */

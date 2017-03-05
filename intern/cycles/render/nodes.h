@@ -74,6 +74,7 @@ public:
 		special_type = SHADER_SPECIAL_TYPE_IMAGE_SLOT;
 	}
 	int slot;
+	int colorspace_data;
 };
 
 class ImageTextureNode : public ImageSlotTextureNode {
@@ -85,11 +86,10 @@ public:
 
 	ImageManager *image_manager;
 	int is_float;
-	bool is_linear;
 	bool use_alpha;
 	ustring filename;
 	void *builtin_data;
-	NodeImageColorSpace color_space;
+	ustring color_space;
 	NodeImageProjection projection;
 	InterpolationType interpolation;
 	ExtensionType extension;
@@ -116,11 +116,10 @@ public:
 
 	ImageManager *image_manager;
 	int is_float;
-	bool is_linear;
 	bool use_alpha;
 	ustring filename;
 	void *builtin_data;
-	NodeImageColorSpace color_space;
+	ustring color_space;
 	NodeEnvironmentProjection projection;
 	InterpolationType interpolation;
 	bool animated;

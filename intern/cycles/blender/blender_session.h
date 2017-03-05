@@ -169,6 +169,9 @@ protected:
 	                                const size_t pixels_size,
 	                                const bool free_cache);
 
+	float3 builtin_colorspace_to_linear(float3 color,
+	                                    ustring colorspace);
+
 	/* Update tile manager to reflect resumable render settings. */
 	void update_resumable_tile_manager(int num_samples);
 };

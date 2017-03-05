@@ -238,6 +238,18 @@ static bool is_output_node(BL::Node& b_node)
 		    || b_node.is_a(&RNA_ShaderNodeOutputLamp));
 }
 
+static ustring get_image_colorspace(BL::Image& b_image, int colorspace_enum)
+{
+	if(colorspace_enum == 0) {
+		return ustring("none");
+	}
+	else if(colorspace_enum == 1 || !b_image) {
+		return ustring("legacy_autodetect");
+	}
+
+	return ustring(b_image.colorspace_settings().colorspace().name());
+}
+
 static ShaderNode *add_node(Scene *scene,
                             BL::RenderEngine& b_engine,
                             BL::BlendData& b_data,
@@ -618,6 +630,7 @@ static ShaderNode *add_node(Scene *scene,
 		BL::Image b_image(b_image_node.image());
 		BL::ImageUser b_image_user(b_image_node.image_user());
 		ImageTextureNode *image = new ImageTextureNode();
+		image->color_space = get_image_colorspace(b_image, b_image_node.color_space());
 		if(b_image) {
 			/* builtin images will use callback-based reading because
 			 * they could only be loaded correct from blender side
@@ -655,13 +668,13 @@ static ShaderNode *add_node(Scene *scene,
 			if(b_image.is_updated()) {
 				scene->image_manager->tag_reload_image(
 				        image->filename.string(),
+				        image->color_space,
 				        image->builtin_data,
 				        get_image_interpolation(b_image_node),
 				        get_image_extension(b_image_node),
 				        image->use_alpha);
 			}
 		}
-		image->color_space = (NodeImageColorSpace)b_image_node.color_space();
 		image->projection = (NodeImageProjection)b_image_node.projection();
 		image->interpolation = get_image_interpolation(b_image_node);
 		image->extension = get_image_extension(b_image_node);
@@ -675,6 +688,7 @@ static ShaderNode *add_node(Scene *scene,
 		BL::Image b_image(b_env_node.image());
 		BL::ImageUser b_image_user(b_env_node.image_user());
 		EnvironmentTextureNode *env = new EnvironmentTextureNode();
+		env->color_space = get_image_colorspace(b_image, b_env_node.color_space());
 		if(b_image) {
 			bool is_builtin = b_image.packed_file() ||
 			                  b_image.source() == BL::Image::source_GENERATED ||
@@ -703,13 +717,13 @@ static ShaderNode *add_node(Scene *scene,
 			if(b_image.is_updated()) {
 				scene->image_manager->tag_reload_image(
 				        env->filename.string(),
+				        env->color_space,
 				        env->builtin_data,
 				        get_image_interpolation(b_env_node),
 				        EXTENSION_REPEAT,
 				        env->use_alpha);
 			}
 		}
-		env->color_space = (NodeImageColorSpace)b_env_node.color_space();
 		env->interpolation = get_image_interpolation(b_env_node);
 		env->projection = (NodeEnvironmentProjection)b_env_node.projection();
 		BL::TexMapping b_texture_mapping(b_env_node.texture_mapping());
@@ -841,6 +855,7 @@ static ShaderNode *add_node(Scene *scene,
 			b_point_density_node.cache_point_density(b_scene, settings);
 			scene->image_manager->tag_reload_image(
 			        point_density->filename.string(),
+			        ustring("none"),
 			        point_density->builtin_data,
 			        point_density->interpolation,
 			        EXTENSION_CLIP,
