@@ -1390,19 +1390,5 @@ void BlenderSync::sync_shaders()
 	shader_map.post_sync(false);
 }
 
-float3 BlenderSync::builtin_colorspace_to_linear(float3 color, ustring colorspace)
-{
-	if(colorspace_map.count(colorspace) == 0) {
-		colorspace_map[colorspace] = new BL::ColorSpace(b_color.get_by_name(colorspace.c_str()));
-	}
-	if(colorspace_map[colorspace] || *colorspace_map[colorspace]) {
-		float3 out_color;
-		colorspace_map[colorspace]->transform_color(&color.x, false, &out_color.x);
-		return out_color;
-	}
-	assert(false);
-	return color;
-}
-
 CCL_NAMESPACE_END
 

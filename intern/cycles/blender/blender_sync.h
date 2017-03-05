@@ -93,8 +93,13 @@ public:
 	                                      Camera *cam,
 	                                      int width, int height);
 
-	float3 builtin_colorspace_to_linear(float3 color,
+	float3 builtin_color_to_linear(float3 color,
 	                                    ustring colorspace);
+	void builtin_image_to_linear(float *image,
+	                             int width,
+	                             int height,
+	                             int channels,
+	                             ustring colorspace);
 
 private:
 	/* sync */

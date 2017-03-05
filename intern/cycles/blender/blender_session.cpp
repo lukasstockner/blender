@@ -162,7 +162,8 @@ void BlenderSession::create_session()
 	scene->image_manager->builtin_image_info_cb = function_bind(&BlenderSession::builtin_image_info, this, _1, _2, _3, _4, _5, _6, _7);
 	scene->image_manager->builtin_image_pixels_cb = function_bind(&BlenderSession::builtin_image_pixels, this, _1, _2, _3, _4);
 	scene->image_manager->builtin_image_float_pixels_cb = function_bind(&BlenderSession::builtin_image_float_pixels, this, _1, _2, _3, _4);
-	scene->image_manager->builtin_colorspace_to_linear_cb = function_bind(&BlenderSync::builtin_colorspace_to_linear, sync, _1, _2);
+	scene->image_manager->builtin_color_to_linear_cb = function_bind(&BlenderSync::builtin_color_to_linear, sync, _1, _2);
+	scene->image_manager->builtin_image_to_linear_cb = function_bind(&BlenderSync::builtin_image_to_linear, sync, _1, _2, _3, _4, _5);
 
 	/* set buffer parameters */
 	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_v3d, b_rv3d, scene->camera, width, height);

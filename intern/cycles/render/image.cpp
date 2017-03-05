@@ -255,9 +255,9 @@ int ImageManager::get_colorspace_data(ustring color_space)
 	int colorspace_data = 0;
 
 	/* Determine transformation matrix. */
-	float3 r_in_linear = builtin_colorspace_to_linear_cb(make_float3(1.0f, 0.0f, 0.0f), color_space);
-	float3 g_in_linear = builtin_colorspace_to_linear_cb(make_float3(0.0f, 1.0f, 0.0f), color_space);
-	float3 b_in_linear = builtin_colorspace_to_linear_cb(make_float3(0.0f, 0.0f, 1.0f), color_space);
+	float3 r_in_linear = builtin_color_to_linear_cb(make_float3(1.0f, 0.0f, 0.0f), color_space);
+	float3 g_in_linear = builtin_color_to_linear_cb(make_float3(0.0f, 1.0f, 0.0f), color_space);
+	float3 b_in_linear = builtin_color_to_linear_cb(make_float3(0.0f, 0.0f, 1.0f), color_space);
 	Transform to_linear = make_transform(r_in_linear.x, g_in_linear.x, b_in_linear.x, 0.0f,
 	                                     r_in_linear.y, g_in_linear.y, b_in_linear.y, 0.0f,
 	                                     r_in_linear.z, g_in_linear.z, b_in_linear.z, 0.0f,
@@ -297,7 +297,7 @@ int ImageManager::get_colorspace_data(ustring color_space)
 	 * Therefore, 256 entries are enough to cover the color space with full precision.
 	 * The code assumes that every channel is encoded independently using the same LUT. */
 	float *lut = new float[256];
-	float3 reference_transformed = builtin_colorspace_to_linear_cb(make_float3(0.5f, 0.5f, 0.5f), color_space);
+	float3 reference_transformed = builtin_color_to_linear_cb(make_float3(0.5f, 0.5f, 0.5f), color_space);
 	float3 reference = transform_direction(&from_linear, reference_transformed);
 	(void) reference;
 
@@ -311,7 +311,7 @@ int ImageManager::get_colorspace_data(ustring color_space)
 
 	for(int i = 0; i < 256; i++) {
 		float in_value = i / 255.0f;
-		float3 transformed = builtin_colorspace_to_linear_cb(make_float3(in_value, 0.5f, 0.5f), color_space);
+		float3 transformed = builtin_color_to_linear_cb(make_float3(in_value, 0.5f, 0.5f), color_space);
 		float3 out_value = transform_direction(&from_linear, transformed);
 		lut[i] = out_value.x;
 
@@ -533,10 +533,11 @@ int ImageManager::add_image(const string& filename,
 
 	need_update = true;
 
-	if(colorspace_data) {
-		ustring colorspace_from = (is_float && builtin_data)? ustring("none") : color_space;
-		*colorspace_data = get_colorspace_data(colorspace_from, is_linear, img);
-	}
+	/* Float and half textures are converted while loading, unless they're set to legacy autodetect. */
+	bool needs_render_conversion = (color_space == ustring("legacy_autodetect")) || (type == IMAGE_DATA_TYPE_BYTE) || (type == IMAGE_DATA_TYPE_BYTE4);
+	ustring colorspace_from = needs_render_conversion? color_space : ustring("none");
+	*colorspace_data = get_colorspace_data(colorspace_from, is_linear, img);
+
 	return type_index_to_flattened_slot(slot, type);
 }
 
@@ -816,6 +817,39 @@ bool ImageManager::file_load_image(Image *img,
 		       &scaled_pixels[0],
 		       scaled_pixels.size() * sizeof(StorageType));
 	}
+
+	/* Builtin textures are already converted from Blender's side if they're float,
+	 * and all byte textures are handled in the kernel, so only float and half images loaded from disk have to be converted here. */
+	if(in && (img->color_space != ustring("none")) && (img->color_space != ustring("legacy_autodetect"))) {
+		assert(depth == 1);
+		switch(type) {
+			case IMAGE_DATA_TYPE_FLOAT:
+			case IMAGE_DATA_TYPE_FLOAT4:
+				builtin_image_to_linear_cb((float*) pixels, width, height, (type == IMAGE_DATA_TYPE_FLOAT)? 1 : 4, img->color_space);
+				break;
+			case IMAGE_DATA_TYPE_HALF:
+			case IMAGE_DATA_TYPE_HALF4:
+			{
+				int num = num_pixels * ((type == IMAGE_DATA_TYPE_HALF)? 1 : 4);
+				float *float_pixels = new float[num];
+				for(int i = 0; i < num; i++) {
+					float_pixels[i] = half_to_float((half) pixels[i]);
+				}
+				builtin_image_to_linear_cb(float_pixels, width, height, (type == IMAGE_DATA_TYPE_HALF)? 1 : 4, img->color_space);
+				for(int i = 0; i < num; i++) {
+					pixels[i] = (half) float_to_half(float_pixels[i]);
+				}
+				delete[] float_pixels;
+				break;
+			}
+			case IMAGE_DATA_TYPE_BYTE:
+			case IMAGE_DATA_TYPE_BYTE4:
+			default:
+				/* Byte textures are converted in the kernel. */
+				break;
+		}
+	}
+
 	return true;
 }
 

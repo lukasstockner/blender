@@ -117,7 +117,12 @@ public:
 	              float *pixels,
 	              const size_t pixels_size)> builtin_image_float_pixels_cb;
 	function<float3(float3 color,
-	                ustring colorspace)> builtin_colorspace_to_linear_cb;
+	                ustring colorspace)> builtin_color_to_linear_cb;
+	function<void(float *pixels,
+	              int width,
+	              int height,
+	              int channels,
+	              ustring colorspace)> builtin_image_to_linear_cb;
 
 	struct Image {
 		string filename;
