@@ -1562,15 +1562,18 @@ class CyclesRender_PT_debug(CyclesButtonsPanel, Panel):
         row.prop(cscene, "debug_use_cpu_avx", toggle=True)
         row.prop(cscene, "debug_use_cpu_avx2", toggle=True)
         col.prop(cscene, "debug_use_qbvh")
+        col.prop(cscene, "debug_use_cpu_split_kernel")
 
         col = layout.column()
         col.label('CUDA Flags:')
         col.prop(cscene, "debug_use_cuda_adaptive_compile")
+        col.prop(cscene, "debug_use_cuda_split_kernel")
 
         col = layout.column()
         col.label('OpenCL Flags:')
         col.prop(cscene, "debug_opencl_kernel_type", text="Kernel")
         col.prop(cscene, "debug_opencl_device_type", text="Device")
+        col.prop(cscene, "debug_opencl_kernel_single_program", text="Single Program")
         col.prop(cscene, "debug_use_opencl_debug", text="Debug")
 
 

@@ -21,6 +21,7 @@
 #include "util_cuda_capabilities.h"
 
 #include "../../kernel_compat_cuda.h"
+#include "kernel_config.h"
 #include "../../kernel_math.h"
 #include "../../kernel_types.h"
 #include "../../kernel_globals.h"
@@ -30,7 +31,6 @@
 #include "../../kernel_bake.h"
 
 /* kernels */
-
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_path_trace(float *buffer, uint *rng_state, int sample, int sx, int sy, int sw, int sh, int offset, int stride)

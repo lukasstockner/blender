@@ -27,10 +27,12 @@
 #include "device.h"
 #include "device_intern.h"
 #include "device_denoising.h"
+#include "device_split_kernel.h"
 
 #include "kernel.h"
 #include "kernel_compat_cpu.h"
 #include "kernel_types.h"
+#include "split/kernel_split_data.h"
 #include "kernel_globals.h"
 
 #include "filter.h"
@@ -44,6 +46,7 @@
 #include "util_foreach.h"
 #include "util_function.h"
 #include "util_logging.h"
+#include "util_map.h"
 #include "util_opengl.h"
 #include "util_progress.h"
 #include "util_system.h"
@@ -51,12 +54,19 @@
 
 CCL_NAMESPACE_BEGIN
 
+class CPUDevice;
+
 /* Has to be outside of the class to be shared across template instantiations. */
 static bool logged_architecture = false;
 
 template<typename F>
 class KernelFunctions {
 public:
+	KernelFunctions()
+	{
+		kernel = (F)NULL;
+	}
+
 	KernelFunctions(F kernel_default,
 	                F kernel_sse2,
 	                F kernel_sse3,
@@ -116,10 +126,33 @@ public:
 	}
 
 	inline F operator()() const {
+		assert(kernel);
 		return kernel;
 	}
 protected:
 	F kernel;
+};
+
+class CPUSplitKernel : public DeviceSplitKernel {
+	CPUDevice *device;
+public:
+	explicit CPUSplitKernel(CPUDevice *device);
+
+	virtual bool enqueue_split_kernel_data_init(const KernelDimensions& dim,
+	                                            RenderTile& rtile,
+	                                            int num_global_elements,
+	                                            device_memory& kernel_globals,
+	                                            device_memory& kernel_data_,
+	                                            device_memory& split_data,
+	                                            device_memory& ray_state,
+	                                            device_memory& queue_index,
+	                                            device_memory& use_queues_flag,
+	                                            device_memory& work_pool_wgs);
+
+	virtual SplitKernelFunction* get_split_kernel_function(string kernel_name, const DeviceRequestedFeatures&);
+	virtual int2 split_kernel_local_size();
+	virtual int2 split_kernel_global_size(device_memory& kg, device_memory& data, DeviceTask *task);
+	virtual uint64_t state_buffer_size(device_memory& kg, device_memory& data, size_t num_threads);
 };
 
 class CPUDevice : public Device
@@ -131,6 +164,10 @@ public:
 #ifdef WITH_OSL
 	OSLGlobals osl_globals;
 #endif
+
+	bool use_split_kernel;
+
+	DeviceRequestedFeatures requested_features;
 
 	KernelFunctions<void(*)(KernelGlobals *, float *, unsigned int *, int, int, int, int, int)>   path_trace_kernel;
 	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)>       convert_to_half_float_kernel;
@@ -152,6 +189,11 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, float*, int*, float*, float3*, int*, int*, int, int, int)> filter_nlm_construct_gramian_kernel;
 	KernelFunctions<void(*)(int, int, int, int, int, float*, int*, float*, float3*, int*, int)>                                  filter_finalize_kernel;
 
+	KernelFunctions<void(*)(KernelGlobals *, ccl_constant KernelData*, ccl_global void*, int, ccl_global char*,
+	                       ccl_global uint*, int, int, int, int, int, int, int, int, ccl_global int*, int,
+	                       ccl_global char*, ccl_global unsigned int*, unsigned int, ccl_global float*)>        data_init_kernel;
+	unordered_map<string, KernelFunctions<void(*)(KernelGlobals*, KernelData*)> > split_kernels;
+
 #define KERNEL_FUNCTIONS(name) \
 	      KERNEL_NAME_EVAL(cpu, name), \
 	      KERNEL_NAME_EVAL(cpu_sse2, name), \
@@ -162,27 +204,55 @@ public:
 
 	CPUDevice(DeviceInfo& info, Stats &stats, bool background)
 	: Device(info, stats, background),
-	  path_trace_kernel(KERNEL_FUNCTIONS(path_trace)),
-	  convert_to_half_float_kernel(KERNEL_FUNCTIONS(convert_to_half_float)),
-	  convert_to_byte_kernel(KERNEL_FUNCTIONS(convert_to_byte)),
-	  shader_kernel(KERNEL_FUNCTIONS(shader)),
-	  filter_divide_shadow_kernel(KERNEL_FUNCTIONS(filter_divide_shadow)),
-	  filter_get_feature_kernel(KERNEL_FUNCTIONS(filter_get_feature)),
-	  filter_combine_halves_kernel(KERNEL_FUNCTIONS(filter_combine_halves)),
-	  filter_divide_combined_kernel(KERNEL_FUNCTIONS(filter_divide_combined)),
-	  filter_nlm_calc_difference_kernel(KERNEL_FUNCTIONS(filter_nlm_calc_difference)),
-	  filter_nlm_blur_kernel(KERNEL_FUNCTIONS(filter_nlm_blur)),
-	  filter_nlm_calc_weight_kernel(KERNEL_FUNCTIONS(filter_nlm_calc_weight)),
-	  filter_nlm_update_output_kernel(KERNEL_FUNCTIONS(filter_nlm_update_output)),
-	  filter_nlm_normalize_kernel(KERNEL_FUNCTIONS(filter_nlm_normalize)),
-	  filter_construct_transform_kernel(KERNEL_FUNCTIONS(filter_construct_transform)),
-	  filter_nlm_construct_gramian_kernel(KERNEL_FUNCTIONS(filter_nlm_construct_gramian)),
-	  filter_finalize_kernel(KERNEL_FUNCTIONS(filter_finalize))
+#define REGISTER_KERNEL(name) name ## _kernel(KERNEL_FUNCTIONS(name))
+	  REGISTER_KERNEL(path_trace),
+	  REGISTER_KERNEL(convert_to_half_float),
+	  REGISTER_KERNEL(convert_to_byte),
+	  REGISTER_KERNEL(shader),
+	  REGISTER_KERNEL(filter_divide_shadow),
+	  REGISTER_KERNEL(filter_get_feature),
+	  REGISTER_KERNEL(filter_combine_halves),
+	  REGISTER_KERNEL(filter_divide_combined),
+	  REGISTER_KERNEL(filter_nlm_calc_difference),
+	  REGISTER_KERNEL(filter_nlm_blur),
+	  REGISTER_KERNEL(filter_nlm_calc_weight),
+	  REGISTER_KERNEL(filter_nlm_update_output),
+	  REGISTER_KERNEL(filter_nlm_normalize),
+	  REGISTER_KERNEL(filter_construct_transform),
+	  REGISTER_KERNEL(filter_nlm_construct_gramian),
+	  REGISTER_KERNEL(filter_finalize),
+	  REGISTER_KERNEL(data_init)
+#undef REGISTER_KERNEL
 	{
+
 #ifdef WITH_OSL
 		kernel_globals.osl = &osl_globals;
 #endif
 		system_enable_ftz();
+
+		use_split_kernel = DebugFlags().cpu.split_kernel;
+		if(use_split_kernel) {
+			VLOG(1) << "Will be using split kernel.";
+		}
+
+#define REGISTER_SPLIT_KERNEL(name) split_kernels[#name] = KernelFunctions<void(*)(KernelGlobals*, KernelData*)>(KERNEL_FUNCTIONS(name))
+		REGISTER_SPLIT_KERNEL(path_init);
+		REGISTER_SPLIT_KERNEL(scene_intersect);
+		REGISTER_SPLIT_KERNEL(lamp_emission);
+		REGISTER_SPLIT_KERNEL(do_volume);
+		REGISTER_SPLIT_KERNEL(queue_enqueue);
+		REGISTER_SPLIT_KERNEL(indirect_background);
+		REGISTER_SPLIT_KERNEL(shader_eval);
+		REGISTER_SPLIT_KERNEL(holdout_emission_blurring_pathtermination_ao);
+		REGISTER_SPLIT_KERNEL(subsurface_scatter);
+		REGISTER_SPLIT_KERNEL(direct_lighting);
+		REGISTER_SPLIT_KERNEL(shadow_blocked_ao);
+		REGISTER_SPLIT_KERNEL(shadow_blocked_dl);
+		REGISTER_SPLIT_KERNEL(next_iteration_setup);
+		REGISTER_SPLIT_KERNEL(indirect_subsurface);
+		REGISTER_SPLIT_KERNEL(buffer_update);
+#undef REGISTER_SPLIT_KERNEL
+#undef KERNEL_FUNCTIONS
 	}
 
 	~CPUDevice()
@@ -195,9 +265,20 @@ public:
 		return (TaskScheduler::num_threads() == 1);
 	}
 
-	void mem_alloc(device_memory& mem, MemoryType /*type*/)
+	void mem_alloc(const char *name, device_memory& mem, MemoryType /*type*/)
 	{
-		mem.device_pointer = mem.data_pointer? mem.data_pointer : ((device_ptr) new char[mem.memory_size()]);
+		if(name) {
+			VLOG(1) << "Buffer allocate: " << name << ", "
+			        << string_human_readable_number(mem.memory_size()) << " bytes. ("
+			        << string_human_readable_size(mem.memory_size()) << ")";
+		}
+
+		mem.device_pointer = mem.data_pointer;
+
+		if(!mem.device_pointer) {
+			mem.device_pointer = (device_ptr)malloc(mem.memory_size());
+		}
+
 		mem.device_size = mem.memory_size();
 		stats.mem_alloc(mem.device_size);
 	}
@@ -223,7 +304,7 @@ public:
 	{
 		if(mem.device_pointer) {
 			if(!mem.data_pointer) {
-				delete[] (char*) mem.device_pointer;
+				free((void*)mem.device_pointer);
 			}
 			mem.device_pointer = 0;
 			stats.mem_free(mem.device_size);
@@ -282,8 +363,14 @@ public:
 
 	void thread_run(DeviceTask *task)
 	{
-		if(task->type == DeviceTask::RENDER)
-			thread_render(*task);
+		if(task->type == DeviceTask::RENDER) {
+			if(!use_split_kernel) {
+				thread_render(*task);
+			}
+			else {
+				thread_path_trace_split(*task);
+			}
+		}
 		else if(task->type == DeviceTask::FILM_CONVERT)
 			thread_film_convert(*task);
 		else if(task->type == DeviceTask::SHADER)
@@ -500,6 +587,49 @@ public:
 		}
 		return true;
 	}
+ 
+	void thread_path_trace_split(DeviceTask& task)
+	{
+		if(task_pool.canceled()) {
+			if(task.need_finish_queue == false)
+				return;
+		}
+
+		RenderTile tile;
+
+		CPUSplitKernel split_kernel(this);
+
+		/* allocate buffer for kernel globals */
+		device_only_memory<KernelGlobals> kgbuffer;
+		kgbuffer.resize(1);
+		mem_alloc("kernel_globals", kgbuffer, MEM_READ_WRITE);
+
+		KernelGlobals *kg = (KernelGlobals*)kgbuffer.device_pointer;
+		*kg = thread_kernel_globals_init();
+
+		requested_features.max_closure = MAX_CLOSURE;
+		if(!split_kernel.load_kernels(requested_features)) {
+			thread_kernel_globals_free((KernelGlobals*)kgbuffer.device_pointer);
+			mem_free(kgbuffer);
+
+			return;
+		}
+
+		while(task.acquire_tile(this, tile)) {
+			device_memory data;
+			split_kernel.path_trace(&task, tile, kgbuffer, data);
+
+			task.release_tile(tile);
+
+			if(task_pool.canceled()) {
+				if(task.need_finish_queue == false)
+					break;
+			}
+		}
+
+		thread_kernel_globals_free((KernelGlobals*)kgbuffer.device_pointer);
+		mem_free(kgbuffer);
+	}
 
 	void thread_render(DeviceTask& task)
 	{
@@ -700,6 +830,10 @@ protected:
 
 	inline void thread_kernel_globals_free(KernelGlobals *kg)
 	{
+		if(kg == NULL) {
+			return;
+		}
+
 		if(kg->transparent_shadow_intersections != NULL) {
 			free(kg->transparent_shadow_intersections);
 		}
@@ -714,7 +848,121 @@ protected:
 		OSLShader::thread_free(kg);
 #endif
 	}
+
+	virtual bool load_kernels(DeviceRequestedFeatures& requested_features_) {
+		requested_features = requested_features_;
+
+		return true;
+	}
 };
+
+/* split kernel */
+
+class CPUSplitKernelFunction : public SplitKernelFunction {
+public:
+	CPUDevice* device;
+	void (*func)(KernelGlobals *kg, KernelData *data);
+
+	CPUSplitKernelFunction(CPUDevice* device) : device(device), func(NULL) {}
+	~CPUSplitKernelFunction() {}
+
+	virtual bool enqueue(const KernelDimensions& dim, device_memory& kernel_globals, device_memory& data)
+	{
+		if(!func) {
+			return false;
+		}
+
+		KernelGlobals *kg = (KernelGlobals*)kernel_globals.device_pointer;
+		kg->global_size = make_int2(dim.global_size[0], dim.global_size[1]);
+
+		for(int y = 0; y < dim.global_size[1]; y++) {
+			for(int x = 0; x < dim.global_size[0]; x++) {
+				kg->global_id = make_int2(x, y);
+
+				func(kg, (KernelData*)data.device_pointer);
+			}
+		}
+
+		return true;
+	}
+};
+
+CPUSplitKernel::CPUSplitKernel(CPUDevice *device) : DeviceSplitKernel(device), device(device)
+{
+}
+
+bool CPUSplitKernel::enqueue_split_kernel_data_init(const KernelDimensions& dim,
+                                                    RenderTile& rtile,
+                                                    int num_global_elements,
+                                                    device_memory& kernel_globals,
+                                                    device_memory& data,
+                                                    device_memory& split_data,
+                                                    device_memory& ray_state,
+                                                    device_memory& queue_index,
+                                                    device_memory& use_queues_flags,
+                                                    device_memory& work_pool_wgs)
+{
+	KernelGlobals *kg = (KernelGlobals*)kernel_globals.device_pointer;
+	kg->global_size = make_int2(dim.global_size[0], dim.global_size[1]);
+
+	for(int y = 0; y < dim.global_size[1]; y++) {
+		for(int x = 0; x < dim.global_size[0]; x++) {
+			kg->global_id = make_int2(x, y);
+
+			device->data_init_kernel()((KernelGlobals*)kernel_globals.device_pointer,
+			                           (KernelData*)data.device_pointer,
+			                           (void*)split_data.device_pointer,
+			                           num_global_elements,
+			                           (char*)ray_state.device_pointer,
+			                           (uint*)rtile.rng_state,
+			                           rtile.start_sample,
+			                           rtile.start_sample + rtile.num_samples,
+			                           rtile.x,
+			                           rtile.y,
+			                           rtile.w,
+			                           rtile.h,
+			                           rtile.offset,
+			                           rtile.stride,
+			                           (int*)queue_index.device_pointer,
+			                           dim.global_size[0] * dim.global_size[1],
+			                           (char*)use_queues_flags.device_pointer,
+			                           (uint*)work_pool_wgs.device_pointer,
+			                           rtile.num_samples,
+			                           (float*)rtile.buffer);
+		}
+	}
+
+	return true;
+}
+
+SplitKernelFunction* CPUSplitKernel::get_split_kernel_function(string kernel_name, const DeviceRequestedFeatures&)
+{
+	CPUSplitKernelFunction *kernel = new CPUSplitKernelFunction(device);
+
+	kernel->func = device->split_kernels[kernel_name]();
+	if(!kernel->func) {
+		delete kernel;
+		return NULL;
+	}
+
+	return kernel;
+}
+
+int2 CPUSplitKernel::split_kernel_local_size()
+{
+	return make_int2(1, 1);
+}
+
+int2 CPUSplitKernel::split_kernel_global_size(device_memory& /*kg*/, device_memory& /*data*/, DeviceTask *task) {
+	/* TODO(mai): this needs investigation but cpu gives incorrect render if global size doesnt match tile size */
+	return task->requested_tile_size;
+}
+
+uint64_t CPUSplitKernel::state_buffer_size(device_memory& kernel_globals, device_memory& /*data*/, size_t num_threads) {
+	KernelGlobals *kg = (KernelGlobals*)kernel_globals.device_pointer;
+
+	return split_data_buffer_size(kg, num_threads);
+}
 
 Device *device_cpu_create(DeviceInfo& info, Stats &stats, bool background)
 {

@@ -93,9 +93,9 @@ bool DenoisingTask::run_denoising()
 	buffer.h = rect.w - rect.y;
 	buffer.pass_stride = buffer.w * buffer.h;
 	buffer.mem.resize(buffer.pass_stride * buffer.passes);
-	device->mem_alloc(buffer.mem, MEM_READ_WRITE);
+	device->mem_alloc("Denoising Pixel Buffer", buffer.mem, MEM_READ_WRITE);
 
-	device->mem_alloc(tiles_mem, MEM_READ_ONLY);
+	device->mem_alloc("Denoising Tile Info", tiles_mem, MEM_READ_ONLY);
 	device->mem_copy_to(tiles_mem);
 
 	device_ptr null_ptr = (device_ptr) 0;
@@ -182,30 +182,34 @@ bool DenoisingTask::run_denoising()
 
 	storage.w = filter_area.z;
 	storage.h = filter_area.w;
-	storage.transform.resize(storage.w, storage.h, TRANSFORM_SIZE);
-	storage.rank.resize(storage.w, storage.h);
-	device->mem_alloc(storage.transform, MEM_READ_WRITE);
-	device->mem_alloc(storage.rank, MEM_READ_WRITE);
+	storage.transform.resize(storage.w*storage.h*TRANSFORM_SIZE);
+	storage.rank.resize(storage.w*storage.h);
+	device->mem_alloc("Denoising Transform", storage.transform, MEM_READ_WRITE);
+	device->mem_alloc("Denoising Rank", storage.rank, MEM_READ_WRITE);
 
 	functions.construct_transform();
 
-	device_only_memory<float> temporary_1(buffer.w, buffer.h);
-	device_only_memory<float> temporary_2(buffer.w, buffer.h);
-	device->mem_alloc(temporary_1, MEM_READ_WRITE);
-	device->mem_alloc(temporary_2, MEM_READ_WRITE);
+	device_only_memory<float> temporary_1;
+	device_only_memory<float> temporary_2;
+	temporary_1.resize(buffer.w*buffer.h);
+	temporary_2.resize(buffer.w*buffer.h);
+	device->mem_alloc("Denoising NLM temporary 1", temporary_1, MEM_READ_WRITE);
+	device->mem_alloc("Denoising NLM temporary 2", temporary_2, MEM_READ_WRITE);
 	reconstruction_state.temporary_1_ptr = temporary_1.device_pointer;
 	reconstruction_state.temporary_2_ptr = temporary_2.device_pointer;
 
-	storage.XtWX.resize(storage.w, storage.h, XTWX_SIZE);
-	storage.XtWY.resize(storage.w, storage.h, XTWY_SIZE);
-	device->mem_alloc(storage.XtWX, MEM_READ_WRITE);
-	device->mem_alloc(storage.XtWY, MEM_READ_WRITE);
+	storage.XtWX.resize(storage.w*storage.h*XTWX_SIZE);
+	storage.XtWY.resize(storage.w*storage.h*XTWY_SIZE);
+	device->mem_alloc("Denoising XtWX", storage.XtWX, MEM_READ_WRITE);
+	device->mem_alloc("Denoising XtWY", storage.XtWY, MEM_READ_WRITE);
 
 	if(use_cross_denoising) {
-		device_only_memory<float> output_a(buffer.w, buffer.h, 3);
-		device_only_memory<float> output_b(buffer.w, buffer.h, 3);
-		device->mem_alloc(output_a, MEM_READ_WRITE);
-		device->mem_alloc(output_b, MEM_READ_WRITE);
+		device_only_memory<float> output_a;
+		device_only_memory<float> output_b;
+		output_a.resize(buffer.w*buffer.h*3);
+		output_b.resize(buffer.w*buffer.h*3);
+		device->mem_alloc("Denoising Split Output A", output_a, MEM_READ_WRITE);
+		device->mem_alloc("Denoising Split Output B", output_b, MEM_READ_WRITE);
 
 
 		reconstruction_state.filter_rect   = make_int4(filter_area.x-rect.x, filter_area.y-rect.y, storage.w, storage.h);

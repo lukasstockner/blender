@@ -55,7 +55,7 @@ public:
 
 class Film : public Node {
 public:
-	NODE_DECLARE;
+	NODE_DECLARE
 
 	float exposure;
 	array<Pass> passes;

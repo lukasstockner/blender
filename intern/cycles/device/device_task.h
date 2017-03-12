@@ -51,6 +51,8 @@ public:
 	int shader_filter;
 	int shader_x, shader_w;
 
+	int passes_size;
+
 	explicit DeviceTask(Type type = RENDER);
 
 	int get_subtask_count(int num, int max_size = 0);

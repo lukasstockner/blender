@@ -37,6 +37,9 @@
 #define ccl_device_noinline static
 #define ccl_global
 #define ccl_constant
+#define ccl_local
+#define ccl_local_param
+#define ccl_private
 #define ccl_restrict __restrict
 #define __KERNEL_WITH_SSE_ALIGN__
 
@@ -103,9 +106,15 @@ typedef unsigned int uint;
 
 #endif
 
-#ifndef __KERNEL_GPU__
-
 /* Fixed Bits Types */
+
+#ifdef __KERNEL_OPENCL__
+
+typedef ulong uint64_t;
+
+#endif
+
+#ifndef __KERNEL_GPU__
 
 #ifdef _WIN32
 
@@ -295,11 +304,6 @@ public:
 
 #endif
 
-ccl_device_inline int align_up(int offset, int alignment)
-{
-	return (offset + alignment - 1) & ~(alignment - 1);
-}
-
 #define ALIGN_UP(offset, alignment) ((offset + alignment - 1) & ~(alignment - 1))
 
 #ifndef __KERNEL_GPU__
@@ -477,6 +481,21 @@ ccl_device_inline int4 make_int4(const float3& f)
 }
 
 #endif
+
+ccl_device_inline size_t align_up(size_t offset, size_t alignment)
+{
+	return (offset + alignment - 1) & ~(alignment - 1);
+}
+
+ccl_device_inline size_t round_up(size_t x, size_t multiple)
+{
+	return ((x + multiple - 1) / multiple) * multiple;
+}
+
+ccl_device_inline size_t round_down(size_t x, size_t multiple)
+{
+	return (x / multiple) * multiple;
+}
 
 /* Interpolation types for textures
  * cuda also use texture space to store other objects */
