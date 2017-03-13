@@ -16,20 +16,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline float3 ensure_finite3(float3 a)
-{
-	if(!isfinite(a.x)) a.x = 0.0f;
-	if(!isfinite(a.y)) a.y = 0.0f;
-	if(!isfinite(a.z)) a.z = 0.0f;
-	return a;
-}
-
-ccl_device_inline float ensure_finite(float a)
-{
-	if(!isfinite(a)) return 0.0f;
-	return a;
-}
-
 ccl_device_inline void kernel_write_pass_float(ccl_global float *buffer, int sample, float value)
 {
 	ccl_global float *buf = buffer;
@@ -154,7 +140,7 @@ ccl_device_inline void kernel_update_denoising_features(KernelGlobals *kg,
 		return;
 	}
 
-	L->denoising_depth += state->denoising_feature_weight * sd->ray_length;
+	L->denoising_depth += ensure_finite(state->denoising_feature_weight * sd->ray_length);
 
 	float3 normal = make_float3(0.0f, 0.0f, 0.0f);
 	float3 albedo = make_float3(0.0f, 0.0f, 0.0f);
@@ -187,8 +173,11 @@ ccl_device_inline void kernel_update_denoising_features(KernelGlobals *kg,
 
 	/* Wait for next bounce if 75% or more sample weight belongs to specular-like closures. */
 	if((sum_weight == 0.0f) || (sum_nonspecular_weight*4.0f > sum_weight)) {
-		L->denoising_normal += state->denoising_feature_weight * ensure_finite3(normal/sum_weight);
-		L->denoising_albedo += state->denoising_feature_weight * ensure_finite3(albedo);
+		if(sum_weight != 0.0f) {
+			normal /= sum_weight;
+		}
+		L->denoising_normal += ensure_finite3(state->denoising_feature_weight * normal);
+		L->denoising_albedo += ensure_finite3(state->denoising_feature_weight * albedo);
 
 		state->denoising_feature_weight = 0.0f;
 		if(!(state->flag & PATH_RAY_SHADOW_CATCHER)) {
