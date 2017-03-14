@@ -224,9 +224,7 @@ public:
 	device_only_memory()
 	{
 		data_type = device_type_traits<T>::data_type;
-		data_elements = device_type_traits<T>::num_elements;
-
-		assert(data_elements > 0);
+		data_elements = max(device_type_traits<T>::num_elements, 1);
 	}
 
 	void resize(size_t num)

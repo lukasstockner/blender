@@ -364,12 +364,7 @@ public:
 	void thread_run(DeviceTask *task)
 	{
 		if(task->type == DeviceTask::RENDER) {
-			if(!use_split_kernel) {
-				thread_render(*task);
-			}
-			else {
-				thread_path_trace_split(*task);
-			}
+			thread_render(*task);
 		}
 		else if(task->type == DeviceTask::FILM_CONVERT)
 			thread_film_convert(*task);
@@ -587,17 +582,71 @@ public:
 		}
 		return true;
 	}
- 
-	void thread_path_trace_split(DeviceTask& task)
+
+	void path_trace(DeviceTask &task, RenderTile &tile, KernelGlobals *kg)
+	{
+		float *render_buffer = (float*)tile.buffer;
+		uint *rng_state = (uint*)tile.rng_state;
+		int start_sample = tile.start_sample;
+		int end_sample = tile.start_sample + tile.num_samples;
+
+		for(int sample = start_sample; sample < end_sample; sample++) {
+#ifdef WITH_CYCLES_DEBUG_FPE
+			scoped_fpe fpe(FPE_ENABLED);
+#endif
+			if(task.get_cancel() || task_pool.canceled()) {
+				if(task.need_finish_queue == false)
+					break;
+			}
+
+			for(int y = tile.y; y < tile.y + tile.h; y++) {
+				for(int x = tile.x; x < tile.x + tile.w; x++) {
+					path_trace_kernel()(kg, render_buffer, rng_state,
+					                    sample, x, y, tile.offset, tile.stride);
+				}
+			}
+
+			tile.sample = sample + 1;
+
+#ifdef WITH_CYCLES_DEBUG_FPE
+			fpe.restore();
+#endif
+			task.update_progress(&tile, tile.w*tile.h);
+		}
+	}
+
+	void denoise(DeviceTask &task, RenderTile &tile)
+	{
+		tile.sample = tile.start_sample + tile.num_samples;
+
+		DenoisingTask denoising(this);
+		denoising.filter_area = make_int4(tile.x, tile.y, tile.w, tile.h);
+		denoising.render_buffer.samples = tile.sample;
+
+		RenderTile rtiles[9];
+		rtiles[4] = tile;
+		task.get_neighbor_tiles(rtiles);
+		denoising.tiles_from_rendertiles(rtiles);
+
+		denoising.init_from_devicetask(task);
+		denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
+		denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, _4, _5, &denoising);
+		denoising.functions.divide_shadow = function_bind(&CPUDevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
+		denoising.functions.non_local_means = function_bind(&CPUDevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.combine_halves = function_bind(&CPUDevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
+		denoising.functions.get_feature = function_bind(&CPUDevice::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
+
+		denoising.run_denoising();
+
+		task.update_progress(&tile, tile.w*tile.h);
+	}
+
+	void thread_render(DeviceTask& task)
 	{
 		if(task_pool.canceled()) {
 			if(task.need_finish_queue == false)
 				return;
 		}
-
-		RenderTile tile;
-
-		CPUSplitKernel split_kernel(this);
 
 		/* allocate buffer for kernel globals */
 		device_only_memory<KernelGlobals> kgbuffer;
@@ -607,17 +656,32 @@ public:
 		KernelGlobals *kg = (KernelGlobals*)kgbuffer.device_pointer;
 		*kg = thread_kernel_globals_init();
 
-		requested_features.max_closure = MAX_CLOSURE;
-		if(!split_kernel.load_kernels(requested_features)) {
-			thread_kernel_globals_free((KernelGlobals*)kgbuffer.device_pointer);
-			mem_free(kgbuffer);
+		CPUSplitKernel *split_kernel = NULL;
+		if(use_split_kernel) {
+			split_kernel = new CPUSplitKernel(this);
+			requested_features.max_closure = MAX_CLOSURE;
+			if(!split_kernel->load_kernels(requested_features)) {
+				thread_kernel_globals_free((KernelGlobals*)kgbuffer.device_pointer);
+				mem_free(kgbuffer);
 
-			return;
+				return;
+			}
 		}
 
+		RenderTile tile;
 		while(task.acquire_tile(this, tile)) {
-			device_memory data;
-			split_kernel.path_trace(&task, tile, kgbuffer, data);
+			if(tile.task == RenderTile::PATH_TRACE) {
+				if(use_split_kernel) {
+					device_memory data;
+					split_kernel->path_trace(&task, tile, kgbuffer, data);
+				}
+				else {
+					path_trace(task, tile, kg);
+				}
+			}
+			else if(tile.task == RenderTile::DENOISE) {
+				denoise(task, tile);
+			}
 
 			task.release_tile(tile);
 
@@ -629,104 +693,7 @@ public:
 
 		thread_kernel_globals_free((KernelGlobals*)kgbuffer.device_pointer);
 		mem_free(kgbuffer);
-	}
-
-	void thread_render(DeviceTask& task)
-	{
-		if(task_pool.canceled()) {
-			if(task.need_finish_queue == false)
-				return;
-		}
-
-		KernelGlobals kg = thread_kernel_globals_init();
-		RenderTile tile;
-
-		while(task.acquire_tile(this, tile)) {
-			float *render_buffer = (float*)tile.buffer;
-
-			if(tile.task == RenderTile::PATH_TRACE) {
-				uint *rng_state = (uint*)tile.rng_state;
-				int start_sample = tile.start_sample;
-				int end_sample = tile.start_sample + tile.num_samples;
-
-				for(int sample = start_sample; sample < end_sample; sample++) {
-#ifdef WITH_CYCLES_DEBUG_FPE
-					scoped_fpe fpe(FPE_ENABLED);
-#endif
-					if(task.get_cancel() || task_pool.canceled()) {
-						if(task.need_finish_queue == false)
-							break;
-					}
-
-					for(int y = tile.y; y < tile.y + tile.h; y++) {
-						for(int x = tile.x; x < tile.x + tile.w; x++) {
-							path_trace_kernel()(&kg, render_buffer, rng_state,
-							                    sample, x, y, tile.offset, tile.stride);
-						}
-					}
-
-					tile.sample = sample + 1;
-
-#ifdef WITH_CYCLES_DEBUG_FPE
-					fpe.restore();
-#endif
-					task.update_progress(&tile, tile.w*tile.h);
-				}
-
-				if(tile.buffers->params.overscan && !task.get_cancel()) {
-					DenoisingTask denoising(this);
-
-					int overscan = tile.buffers->params.overscan;
-					denoising.filter_area = make_int4(tile.x + overscan, tile.y + overscan, tile.w - 2*overscan, tile.h - 2*overscan);
-					denoising.render_buffer.samples = end_sample;
-
-					denoising.tiles_from_single_tile(tile);
-					denoising.init_from_devicetask(task);
-
-					denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
-					denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, _4, _5, &denoising);
-					denoising.functions.divide_shadow = function_bind(&CPUDevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
-					denoising.functions.non_local_means = function_bind(&CPUDevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
-					denoising.functions.combine_halves = function_bind(&CPUDevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
-					denoising.functions.get_feature = function_bind(&CPUDevice::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
-
-					denoising.run_denoising();
-				}
-			}
-			else if(tile.task == RenderTile::DENOISE) {
-				tile.sample = tile.start_sample + tile.num_samples;
-
-				DenoisingTask denoising(this);
-				denoising.filter_area = make_int4(tile.x, tile.y, tile.w, tile.h);
-				denoising.render_buffer.samples = tile.sample;
-
-				RenderTile rtiles[9];
-				rtiles[4] = tile;
-				task.get_neighbor_tiles(rtiles);
-				denoising.tiles_from_rendertiles(rtiles);
-
-				denoising.init_from_devicetask(task);
-				denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
-				denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, _4, _5, &denoising);
-				denoising.functions.divide_shadow = function_bind(&CPUDevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
-				denoising.functions.non_local_means = function_bind(&CPUDevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
-				denoising.functions.combine_halves = function_bind(&CPUDevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
-				denoising.functions.get_feature = function_bind(&CPUDevice::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
-
-				denoising.run_denoising();
-
-				task.update_progress(&tile, tile.w*tile.h);
-			}
-
-			task.release_tile(tile);
-
-			if(task_pool.canceled()) {
-				if(task.need_finish_queue == false)
-					break;
-			}
-		}
-
-		thread_kernel_globals_free(&kg);
+		delete split_kernel;
 	}
 
 	void thread_film_convert(DeviceTask& task)
