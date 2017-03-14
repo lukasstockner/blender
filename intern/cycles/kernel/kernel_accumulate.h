@@ -283,7 +283,7 @@ ccl_device_inline void path_radiance_accum_emission(PathRadiance *L, float3 thro
 }
 
 ccl_device_inline void path_radiance_accum_ao(PathRadiance *L,
-                                              PathState *state,
+                                              ccl_addr_space PathState *state,
                                               float3 throughput,
                                               float3 alpha,
                                               float3 bsdf,
@@ -318,7 +318,7 @@ ccl_device_inline void path_radiance_accum_ao(PathRadiance *L,
 
 ccl_device_inline void path_radiance_accum_total_ao(
         PathRadiance *L,
-        PathState *state,
+        ccl_addr_space PathState *state,
         float3 throughput,
         float3 bsdf)
 {
@@ -335,7 +335,7 @@ ccl_device_inline void path_radiance_accum_total_ao(
 }
 
 ccl_device_inline void path_radiance_accum_light(PathRadiance *L,
-                                                 PathState *state,
+                                                 ccl_addr_space PathState *state,
                                                  float3 throughput,
                                                  BsdfEval *bsdf_eval,
                                                  float3 shadow,
@@ -380,7 +380,7 @@ ccl_device_inline void path_radiance_accum_light(PathRadiance *L,
 
 ccl_device_inline void path_radiance_accum_total_light(
         PathRadiance *L,
-        PathState *state,
+        ccl_addr_space PathState *state,
         float3 throughput,
         const BsdfEval *bsdf_eval)
 {

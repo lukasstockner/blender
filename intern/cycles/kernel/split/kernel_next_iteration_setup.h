@@ -118,7 +118,8 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg,
 				                       shadow);
 			}
 			else {
-				path_radiance_accum_total_ao(L, state, _throughput, kernel_split_state.ao_bsdf[ray_index]);
+				path_radiance_accum_total_ao(L, state, _throughput,
+				                             kernel_split_state.ao_bsdf[ray_index]);
 			}
 			REMOVE_RAY_FLAG(ray_state, ray_index, RAY_SHADOW_RAY_CAST_AO);
 		}
@@ -127,8 +128,8 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg,
 			float3 shadow = kernel_split_state.light_ray[ray_index].P;
 			// TODO(mai): investigate correctness here
 			char update_path_radiance = (char)kernel_split_state.light_ray[ray_index].t;
+			BsdfEval L_light = kernel_split_state.bsdf_eval[ray_index];
 			if(update_path_radiance) {
-				BsdfEval L_light = kernel_split_state.bsdf_eval[ray_index];
 				path_radiance_accum_light(L,
 				                          state,
 				                          _throughput,
@@ -136,6 +137,9 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg,
 				                          shadow,
 				                          1.0f,
 				                          kernel_split_state.is_lamp[ray_index]);
+			}
+			else {
+				path_radiance_accum_total_light(L, state, _throughput, &L_light);
 			}
 			REMOVE_RAY_FLAG(ray_state, ray_index, RAY_SHADOW_RAY_CAST_DL);
 		}
@@ -147,9 +151,12 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg,
 		RNG rng = kernel_split_state.rng[ray_index];
 		state = &kernel_split_state.path_state[ray_index];
 		L = &kernel_split_state.path_radiance[ray_index];
+		ShaderData *sd = &kernel_split_state.sd[ray_index];
+
+		kernel_update_denoising_features(kg, sd, state, L);
 
 		/* Compute direct lighting and next bounce. */
-		if(!kernel_path_surface_bounce(kg, &rng, &kernel_split_state.sd[ray_index], throughput, state, L, ray)) {
+		if(!kernel_path_surface_bounce(kg, &rng, sd, throughput, state, L, ray)) {
 			ASSIGN_RAY_STATE(ray_state, ray_index, RAY_UPDATE_BUFFER);
 			enqueue_flag = 1;
 		}
