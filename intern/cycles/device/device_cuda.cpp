@@ -1678,60 +1678,61 @@ public:
 			/* Upload Bindless Mapping */
 			load_bindless_mapping();
 
-			if(!use_split_kernel()) {
-				/* keep rendering tiles until done */
-				while(task->acquire_tile(this, tile)) {
+			DeviceRequestedFeatures requested_features;
+			CUDASplitKernel *split_kernel = NULL;
+			if(use_split_kernel()) {
+				if(!use_adaptive_compilation()) {
+					requested_features.max_closure = 64;
+				}
+
+				split_kernel = new CUDASplitKernel(this);
+				split_kernel->load_kernels(requested_features);
+			}
+
+			/* keep rendering tiles until done */
+			while(task->acquire_tile(this, tile)) {
 				if(tile.task == RenderTile::PATH_TRACE) {
-					int start_sample = tile.start_sample;
-					int end_sample = tile.start_sample + tile.num_samples;
+					if(use_split_kernel()) {
+						device_memory void_buffer;
+						split_kernel->path_trace(task, tile, void_buffer, void_buffer);
+					}
+					else {
+						int start_sample = tile.start_sample;
+						int end_sample = tile.start_sample + tile.num_samples;
 
-					for(int sample = start_sample; sample < end_sample; sample++) {
-						if(task->get_cancel()) {
-							if(task->need_finish_queue == false)
-								break;
+						for(int sample = start_sample; sample < end_sample; sample++) {
+							if(task->get_cancel()) {
+								if(task->need_finish_queue == false)
+									break;
+							}
+
+							path_trace(tile, sample, branched);
+
+							tile.sample = sample + 1;
+
+							task->update_progress(&tile, tile.w*tile.h);
 						}
-
-						path_trace(tile, sample, branched);
-
-						tile.sample = sample + 1;
-
-						task->update_progress(&tile, tile.w*tile.h);
 					}
 
 					if(tile.buffers->params.overscan && !task->get_cancel()) { /* TODO(lukas) Works, but seems hacky? */
-						denoise(tile, *task, end_sample);
+						denoise(tile, *task, tile.start_sample + tile.num_samples);
 					}
 				}
 				else if(tile.task == RenderTile::DENOISE) {
 					int sample = tile.start_sample + tile.num_samples;
 					denoise(tile, *task, sample);
 					tile.sample = sample;
-					}
+				}
 
-					task->release_tile(tile);
+				task->release_tile(tile);
+
+				if(task->get_cancel()) {
+					if(task->need_finish_queue == false)
+						break;
 				}
 			}
-			else {
-				DeviceRequestedFeatures requested_features;
-				if(!use_adaptive_compilation()) {
-					requested_features.max_closure = 64;
-				}
 
-				CUDASplitKernel split_kernel(this);
-				split_kernel.load_kernels(requested_features);
-
-				while(task->acquire_tile(this, tile)) {
-					device_memory void_buffer;
-					split_kernel.path_trace(task, tile, void_buffer, void_buffer);
-
-					task->release_tile(tile);
-
-					if(task->get_cancel()) {
-						if(task->need_finish_queue == false)
-							break;
-					}
-				}
-			}
+			delete split_kernel;
 		}
 		else if(task->type == DeviceTask::SHADER) {
 			/* Upload Bindless Mapping */
