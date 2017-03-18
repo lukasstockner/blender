@@ -1182,7 +1182,8 @@ public:
 		                &task->rect,
 		                &task->render_buffer.pass_stride,
 		                &task->render_buffer.denoising_data_offset,
-		                &task->use_gradients};
+		                &task->use_gradients,
+		                &task->use_split_variance};
 		CUDA_LAUNCH_KERNEL(cuFilterDivideShadow, args);
 		cuda_assert(cuCtxSynchronize());
 
@@ -1217,7 +1218,8 @@ public:
 		                &task->rect,
 		                &task->render_buffer.pass_stride,
 		                &task->render_buffer.denoising_data_offset,
-		                &task->use_cross_denoising};
+		                &task->use_cross_denoising,
+		                &task->use_split_variance};
 		CUDA_LAUNCH_KERNEL(cuFilterGetFeature, args);
 		cuda_assert(cuCtxSynchronize());
 

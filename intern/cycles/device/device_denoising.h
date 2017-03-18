@@ -32,6 +32,7 @@ public:
 	float nlm_k_2;
 	bool use_cross_denoising;
 	bool use_gradients;
+	bool use_split_variance;
 
 	/* Pointer and parameters of the RenderBuffers. */
 	struct RenderBuffers {

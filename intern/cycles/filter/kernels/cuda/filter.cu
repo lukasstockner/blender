@@ -38,7 +38,8 @@ kernel_cuda_filter_divide_shadow(int sample,
                                  int4 prefilter_rect,
                                  int buffer_pass_stride,
                                  int buffer_denoising_offset,
-                                 bool use_gradients)
+                                 bool use_gradients,
+                                 bool use_split_variance)
 {
 	int x = prefilter_rect.x + blockDim.x*blockIdx.x + threadIdx.x;
 	int y = prefilter_rect.y + blockDim.y*blockIdx.y + threadIdx.y;
@@ -54,7 +55,8 @@ kernel_cuda_filter_divide_shadow(int sample,
 		                            prefilter_rect,
 		                            buffer_pass_stride,
 		                            buffer_denoising_offset,
-		                            use_gradients);
+		                            use_gradients,
+		                            use_split_variance);
 	}
 }
 
@@ -69,7 +71,8 @@ kernel_cuda_filter_get_feature(int sample,
                                int4 prefilter_rect,
                                int buffer_pass_stride,
                                int buffer_denoising_offset,
-                               bool use_cross_denoising)
+                               bool use_cross_denoising,
+                               bool use_split_variance)
 {
 	int x = prefilter_rect.x + blockDim.x*blockIdx.x + threadIdx.x;
 	int y = prefilter_rect.y + blockDim.y*blockIdx.y + threadIdx.y;
@@ -82,7 +85,8 @@ kernel_cuda_filter_get_feature(int sample,
 		                          prefilter_rect,
 		                          buffer_pass_stride,
 		                          buffer_denoising_offset,
-		                          use_cross_denoising);
+		                          use_cross_denoising,
+		                          use_split_variance);
 	}
 }
 

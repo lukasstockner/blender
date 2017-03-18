@@ -174,10 +174,10 @@ public:
 	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)>       convert_to_byte_kernel;
 	KernelFunctions<void(*)(KernelGlobals *, uint4 *, float4 *, float*, int, int, int, int, int)> shader_kernel;
 
-	KernelFunctions<void(*)(int, TilesInfo*, int, int, float*, float*, float*, float*, float*, int*, int, int, bool)> filter_divide_shadow_kernel;
-	KernelFunctions<void(*)(int, TilesInfo*, int, int, int, int, float*, float*, int*, int, int, bool)>               filter_get_feature_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                     filter_combine_halves_kernel;
-	KernelFunctions<void(*)(int, int, int, float*, int, int, int, int)>                                               filter_divide_combined_kernel;
+	KernelFunctions<void(*)(int, TilesInfo*, int, int, float*, float*, float*, float*, float*, int*, int, int, bool, bool)> filter_divide_shadow_kernel;
+	KernelFunctions<void(*)(int, TilesInfo*, int, int, int, int, float*, float*, int*, int, int, bool, bool)>               filter_get_feature_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                           filter_combine_halves_kernel;
+	KernelFunctions<void(*)(int, int, int, float*, int, int, int, int)>                                                     filter_divide_combined_kernel;
 
 	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, float, float)> filter_nlm_calc_difference_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                 filter_nlm_blur_kernel;
@@ -553,7 +553,8 @@ public:
 				                              &task->rect.x,
 				                              task->render_buffer.pass_stride,
 				                              task->render_buffer.denoising_data_offset,
-				                              task->use_gradients);
+				                              task->use_gradients,
+				                              task->use_split_variance);
 			}
 		}
 		return true;
@@ -577,7 +578,8 @@ public:
 				                            &task->rect.x,
 				                            task->render_buffer.pass_stride,
 				                            task->render_buffer.denoising_data_offset,
-				                            task->use_cross_denoising);
+				                            task->use_cross_denoising,
+				                            task->use_split_variance);
 			}
 		}
 		return true;
@@ -622,6 +624,7 @@ public:
 		DenoisingTask denoising(this);
 		denoising.filter_area = make_int4(tile.x, tile.y, tile.w, tile.h);
 		denoising.render_buffer.samples = tile.sample;
+		denoising.use_split_variance = use_split_kernel;
 
 		RenderTile rtiles[9];
 		rtiles[4] = tile;

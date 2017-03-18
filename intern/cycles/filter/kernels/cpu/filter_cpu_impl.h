@@ -46,7 +46,8 @@ void KERNEL_FUNCTION_FULL_NAME(filter_divide_shadow)(int sample,
                                                      int* prefilter_rect,
                                                      int buffer_pass_stride,
                                                      int buffer_denoising_offset,
-                                                     bool use_gradients)
+                                                     bool use_gradients,
+                                                     bool use_split_variance)
 {
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_divide_shadow);
@@ -61,7 +62,8 @@ void KERNEL_FUNCTION_FULL_NAME(filter_divide_shadow)(int sample,
                               load_int4(prefilter_rect),
                               buffer_pass_stride,
                               buffer_denoising_offset,
-                              use_gradients);
+                              use_gradients,
+                              use_split_variance);
 #endif
 }
 
@@ -75,7 +77,8 @@ void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(int sample,
                                                    int* prefilter_rect,
                                                    int buffer_pass_stride,
                                                    int buffer_denoising_offset,
-                                                   bool use_cross_denoising)
+                                                   bool use_cross_denoising,
+                                                   bool use_split_variance)
 {
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_get_feature);
@@ -85,7 +88,8 @@ void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(int sample,
                             x, y,
                             mean, variance,
                             load_int4(prefilter_rect), buffer_pass_stride,
-                            buffer_denoising_offset, use_cross_denoising);
+                            buffer_denoising_offset, use_cross_denoising,
+                            use_split_variance);
 #endif
 }
 

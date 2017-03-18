@@ -26,20 +26,6 @@ ccl_device_inline void kernel_write_pass_float(ccl_global float *buffer, int sam
 #endif  /* __SPLIT_KERNEL__ */
 }
 
-ccl_device_inline void kernel_write_pass_float_var(ccl_global float *buffer, int sample, float value)
-{
-	if(sample == 0) {
-		*buffer = value;
-		*(buffer + 1) = 0.0f;
-	}
-	else {
-		float old = *buffer;
-		buffer[0] += value;
-		/* Online single-pass variance estimation - difference to old mean multiplied by difference to new mean. */
-		buffer[1] += (value - (old / sample)) * (value - ((old + value) / (sample + 1)));
-	}
-}
-
 ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, int sample, float3 value)
 {
 #if defined(__SPLIT_KERNEL__)
@@ -54,38 +40,6 @@ ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, int sa
 	ccl_global float3 *buf = (ccl_global float3*)buffer;
 	*buf = (sample == 0)? value: *buf + value;
 #endif  /* __SPLIT_KERNEL__ */
-}
-
-ccl_device_inline void kernel_write_pass_float3_nopad(ccl_global float *buffer, int sample, float3 value)
-{
-	/* TODO somehow avoid this duplicated function */
-	buffer[0] = (sample == 0)? value.x: buffer[0] + value.x;
-	buffer[1] = (sample == 0)? value.y: buffer[1] + value.y;
-	buffer[2] = (sample == 0)? value.z: buffer[2] + value.z;
-}
-
-ccl_device_inline void kernel_write_pass_float3_var(ccl_global float *buffer, int sample, float3 value)
-{
-	if(sample == 0) {
-		buffer[0] = value.x;
-		buffer[1] = value.y;
-		buffer[2] = value.z;
-		buffer[3] = 0.0f;
-		buffer[4] = 0.0f;
-		buffer[5] = 0.0f;
-	}
-	else {
-		float old;
-		old = buffer[0];
-		buffer[0] += value.x;
-		buffer[3] += (value.x - (old / sample)) * (value.x - ((old + value.x) / (sample + 1)));
-		old = buffer[1];
-		buffer[1] += value.y;
-		buffer[4] += (value.y - (old / sample)) * (value.y - ((old + value.y) / (sample + 1)));
-		old = buffer[2];
-		buffer[2] += value.z;
-		buffer[5] += (value.z - (old / sample)) * (value.z - ((old + value.z) / (sample + 1)));
-	}
 }
 
 ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sample, float4 value)
@@ -106,6 +60,56 @@ ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sa
 #endif  /* __SPLIT_KERNEL__ */
 }
 
+#ifdef __DENOISING_FEATURES__
+ccl_device_inline void kernel_write_pass_float_variance(ccl_global float *buffer, int sample, float value)
+{
+	kernel_write_pass_float(buffer, sample, value);
+
+	/* The online one-pass variance update that's used for the megakernel can't easily be implemented
+	 * with atomics, so for the split kernel the E[x^2] - 1/N * (E[x])^2 fallback is used. */
+#  ifdef __SPLIT_KERNEL__
+	kernel_write_pass_float(buffer+1, sample, value*value);
+#  else
+	if(sample == 0) {
+		kernel_write_pass_float(buffer+1, sample, 0.0f);
+	}
+	else {
+		float new_mean = buffer[0] * (1.0f / (sample + 1));
+		float old_mean = (buffer[0] - value) * (1.0f / sample);
+		kernel_write_pass_float(buffer+1, sample, (value - new_mean) * (value - old_mean));
+	}
+#  endif
+}
+
+#  if defined(__SPLIT_KERNEL__)
+#    define kernel_write_pass_float3_unaligned kernel_write_pass_float3
+#  else
+ccl_device_inline void kernel_write_pass_float3_unaligned(ccl_global float *buffer, int sample, float3 value)
+{
+	buffer[0] = (sample == 0)? value.x: buffer[0] + value.x;
+	buffer[1] = (sample == 0)? value.y: buffer[1] + value.y;
+	buffer[2] = (sample == 0)? value.z: buffer[2] + value.z;
+}
+#  endif
+
+ccl_device_inline void kernel_write_pass_float3_variance(ccl_global float *buffer, int sample, float3 value)
+{
+	kernel_write_pass_float3_unaligned(buffer, sample, value);
+#  ifdef __SPLIT_KERNEL__
+	kernel_write_pass_float3_unaligned(buffer+3, sample, value*value);
+#  else
+	if(sample == 0) {
+		kernel_write_pass_float3_unaligned(buffer+3, sample, make_float3(0.0f, 0.0f, 0.0f));
+	}
+	else {
+		float3 sum = make_float3(buffer[0], buffer[1], buffer[2]);
+		float3 new_mean = sum * (1.0f / (sample + 1));
+		float3 old_mean = (sum - value) * (1.0f / sample);
+		kernel_write_pass_float3_unaligned(buffer+3, sample, (value - new_mean) * (value - old_mean));
+	}
+#  endif
+}
+
 ccl_device_inline void kernel_write_denoising_shadow(KernelGlobals *kg, ccl_global float *buffer,
 	int sample, float path_total, float path_total_shaded)
 {
@@ -115,20 +119,24 @@ ccl_device_inline void kernel_write_denoising_shadow(KernelGlobals *kg, ccl_glob
 	if(sample & 1) buffer += 3;
 	buffer += kernel_data.film.pass_denoising_data + 14;
 
+	kernel_write_pass_float(buffer, sample/2, path_total);
+	kernel_write_pass_float(buffer+1, sample/2, path_total_shaded);
+
+	float value = path_total_shaded / max(path_total, 1e-7f);
+#  ifdef __SPLIT_KERNEL__
+	kernel_write_pass_float(buffer+2, sample/2, value*value);
+#  else
 	if(sample < 2) {
-		buffer[0] = path_total;
-		buffer[1] = path_total_shaded;
-		buffer[2] = 0.0f; /* Sample variance */
+		kernel_write_pass_float(buffer+2, sample/2, 0.0f);
 	}
 	else {
-		float old_shadowing = buffer[1] / max(buffer[0], 1e-7f);
-		buffer[0] += path_total;
-		buffer[1] += path_total_shaded;
-		float new_shadowing = buffer[1] / max(buffer[0], 1e-7f);
-		float cur_shadowing = path_total_shaded / max(path_total, 1e-7f);
-		buffer[2] += (cur_shadowing - old_shadowing) * (cur_shadowing - new_shadowing);
+		float old_value = (buffer[1] - path_total_shaded) / max(buffer[0] - path_total, 1e-7f);
+		float new_value = buffer[1] / max(buffer[0], 1e-7f);
+		kernel_write_pass_float(buffer+2, sample, (value - new_value) * (value - old_value));
 	}
+#  endif
 }
+#endif /* __DENOISING_FEATURES__ */
 
 ccl_device_inline void kernel_update_denoising_features(KernelGlobals *kg,
                                                         ShaderData *sd,
@@ -366,22 +374,22 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *
 			if(kernel_data.film.pass_denoising_clean) {
 				float3 noisy, clean;
 				path_radiance_split_denoising(kg, L, &noisy, &clean);
-				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 20, sample, noisy);
+				kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + 20, sample, noisy);
 				if(split_passes && !(sample & 1)) {
-					kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 26, sample, noisy);
+					kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + 26, sample, noisy);
 				}
-				kernel_write_pass_float3_nopad(buffer + kernel_data.film.pass_denoising_clean, sample, clean);
+				kernel_write_pass_float3_unaligned(buffer + kernel_data.film.pass_denoising_clean, sample, clean);
 			}
 			else {
-				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 20, sample, L_sum);
+				kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + 20, sample, L_sum);
 				if(split_passes && !(sample & 1)) {
-					kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 26, sample, L_sum);
+					kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + 26, sample, L_sum);
 				}
 			}
 
-			kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data, sample, L->denoising_normal);
-			kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 6, sample, L->denoising_albedo);
-			kernel_write_pass_float_var(buffer + kernel_data.film.pass_denoising_data + 12, sample, L->denoising_depth);
+			kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data, sample, L->denoising_normal);
+			kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + 6, sample, L->denoising_albedo);
+			kernel_write_pass_float_variance(buffer + kernel_data.film.pass_denoising_data + 12, sample, L->denoising_depth);
 		}
 #endif  /* __DENOISING_FEATURES__ */
 	}
@@ -392,17 +400,17 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *
 		if(kernel_data.film.pass_denoising_data) {
 			kernel_write_denoising_shadow(kg, buffer, sample, 0.0f, 0.0f);
 
-			kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 20, sample, make_float3(0.0f, 0.0f, 0.0f));
+			kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + 20, sample, make_float3(0.0f, 0.0f, 0.0f));
 			if(split_passes && !(sample & 1)) {
-				kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 26, sample, make_float3(0.0f, 0.0f, 0.0f));
+				kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + 26, sample, make_float3(0.0f, 0.0f, 0.0f));
 			}
 
-			kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data, sample, make_float3(0.0f, 0.0f, 0.0f));
-			kernel_write_pass_float3_var(buffer + kernel_data.film.pass_denoising_data + 6, sample, make_float3(0.0f, 0.0f, 0.0f));
-			kernel_write_pass_float_var(buffer + kernel_data.film.pass_denoising_data + 12, sample, 0.0f);
+			kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data, sample, make_float3(0.0f, 0.0f, 0.0f));
+			kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + 6, sample, make_float3(0.0f, 0.0f, 0.0f));
+			kernel_write_pass_float_variance(buffer + kernel_data.film.pass_denoising_data + 12, sample, 0.0f);
 
 			if(kernel_data.film.pass_denoising_clean) {
-				kernel_write_pass_float3_nopad(buffer + kernel_data.film.pass_denoising_clean, sample, make_float3(0.0f, 0.0f, 0.0f));
+				kernel_write_pass_float3_unaligned(buffer + kernel_data.film.pass_denoising_clean, sample, make_float3(0.0f, 0.0f, 0.0f));
 			}
 		}
 #endif  /* __DENOISING_FEATURES__ */
