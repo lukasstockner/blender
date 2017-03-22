@@ -127,6 +127,8 @@ public:
 
 	ImageManager *image_manager;
 	ShaderManager *shader_manager;
+	Shader *current_shader;
+	Scene *scene;
 	bool background;
 
 protected:
@@ -212,7 +214,6 @@ protected:
 
 	vector<int4> current_svm_nodes;
 	ShaderType current_type;
-	Shader *current_shader;
 	ShaderGraph *current_graph;
 	Stack active_stack;
 	int max_stack_use;

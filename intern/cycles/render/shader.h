@@ -143,6 +143,8 @@ public:
 	 * If yes, it sets the content of emission to the constant value (color * strength), which is then used for speeding up light evaluation. */
 	bool is_constant_emission(float3* emission);
 
+	void get_uv_tiles(Scene *scene, ustring map, vector<int> &tiles, int columns);
+
 	void set_graph(ShaderGraph *graph);
 	void tag_update(Scene *scene);
 	void tag_used(Scene *scene);

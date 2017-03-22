@@ -432,6 +432,9 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ccl_a
 			case NODE_NORMAL_MAP:
 				svm_node_normal_map(kg, sd, stack, node);
 				break;
+			case NODE_TEX_UDIM:
+				svm_node_tex_udim(kg, sd, stack, node, &offset);
+				break;
 #  ifdef __EXTRA_NODES__
 			case NODE_INVERT:
 				svm_node_invert(sd, stack, node.y, node.z, node.w);

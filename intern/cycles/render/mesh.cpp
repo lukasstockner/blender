@@ -634,6 +634,66 @@ void Mesh::add_subd_face(int* corners, int num_corners, int shader_, bool smooth
 	subd_faces.push_back_reserved(face);
 }
 
+static void get_uv_tiles_from_attribute(Attribute *attr, int num, vector<int> &tiles, int columns)
+{
+	if(!attr) {
+		return;
+	}
+
+	const float3 *uv = attr->data_float3();
+	int size = tiles.size();
+	for(int i = 0; i < num; i++, uv++) {
+		float u = uv->x, v = uv->y;
+
+		int x = clamp((int) u, 0, columns-1);
+		int y = max((int) v, 0);
+
+		/* Be conservative in corners - precisely touching the right-upper corner of a tile
+		 * should not load its right-upper neighbor as well. */
+		if(x && (u == x)) x--;
+		if(y && (v == y)) y--;
+
+		int id = y*columns + x;
+		if(id >= size) {
+			tiles.resize(id+1);
+			size = id;
+		}
+		tiles[id] = 1;
+	}
+}
+
+void Mesh::get_uv_tiles(ustring map, vector<int> &tiles, int columns)
+{
+	if(map.empty()) {
+		get_uv_tiles_from_attribute(attributes.find(ATTR_STD_UV),
+		                            num_triangles()*3,
+		                            tiles,
+		                            columns);
+		get_uv_tiles_from_attribute(subd_attributes.find(ATTR_STD_UV),
+		                            subd_face_corners.size() + num_ngons,
+		                            tiles,
+		                            columns);
+		get_uv_tiles_from_attribute(curve_attributes.find(ATTR_STD_UV),
+		                            num_curves(),
+		                            tiles,
+		                            columns);
+	}
+	else {
+		get_uv_tiles_from_attribute(attributes.find(map),
+		                            num_triangles()*3,
+		                            tiles,
+		                            columns);
+		get_uv_tiles_from_attribute(subd_attributes.find(map),
+		                            subd_face_corners.size() + num_ngons,
+		                            tiles,
+		                            columns);
+		get_uv_tiles_from_attribute(curve_attributes.find(map),
+		                            num_curves(),
+		                            tiles,
+		                            columns);
+	}
+}
+
 void Mesh::compute_bounds()
 {
 	BoundBox bnds = BoundBox::empty;

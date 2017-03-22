@@ -115,6 +115,21 @@ static int node_shader_gpu_tex_image(GPUMaterial *mat, bNode *node, bNodeExecDat
 	return true;
 }
 
+static void node_shader_update_tex_image(bNodeTree *UNUSED(ntree), bNode *node)
+{
+	bNodeSocket *sock;
+	int udim = node->custom1;
+
+	for (sock = node->inputs.first; sock; sock = sock->next) {
+		if (STREQ(sock->name, "Vector")) {
+			if (udim)
+				sock->flag |= SOCK_UNAVAIL;
+			else
+				sock->flag &= ~SOCK_UNAVAIL;
+		}
+	}
+}
+
 /* node type definition */
 void register_node_type_sh_tex_image(void)
 {
@@ -126,6 +141,7 @@ void register_node_type_sh_tex_image(void)
 	node_type_init(&ntype, node_shader_init_tex_image);
 	node_type_storage(&ntype, "NodeTexImage", node_free_standard_storage, node_copy_standard_storage);
 	node_type_gpu(&ntype, node_shader_gpu_tex_image);
+	node_type_update(&ntype, node_shader_update_tex_image, NULL);
 
 	nodeRegisterType(&ntype);
 }

@@ -352,5 +352,50 @@ ccl_device void svm_node_tex_environment(KernelGlobals *kg, ShaderData *sd, floa
 		stack_store_float(stack, alpha_offset, f.w);
 }
 
+ccl_device void svm_node_tex_udim(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
+{
+	uint out_offset, alpha_offset, columns, rows;
+	decode_node_uchar4(node.y, &out_offset, &alpha_offset, &columns, &rows);
+
+	const AttributeDescriptor desc = find_attribute(kg, sd, node.z);
+	float3 uv = primitive_attribute_float3(kg, sd, desc, NULL, NULL);
+
+	int x = clamp((int) uv.x, 0, columns-1),
+	    y = clamp((int) uv.y, 0, rows-1);
+	int id = y*columns + x;
+	int node_ofs = id/4, node_element = id%4;
+
+	/* Skip to the relevant node. */
+	*offset += node_ofs;
+	/* Read the node that contains the slot. */
+	uint4 slot_node = read_node(kg, offset);
+	/* Skip the following nodes. */
+	*offset += node.w - node_ofs - 1;
+
+	int encoded;
+	switch(node_element) {
+		case 0: encoded = slot_node.x; break;
+		case 1: encoded = slot_node.y; break;
+		case 2: encoded = slot_node.z; break;
+		case 3: encoded = slot_node.w; break;
+	}
+
+	float4 f;
+	if(encoded == -1) {
+		f = make_float4(TEX_IMAGE_MISSING_R, TEX_IMAGE_MISSING_G, TEX_IMAGE_MISSING_B, TEX_IMAGE_MISSING_A);
+	}
+	else {
+		int slot = encoded & (~(1 << 31));
+		uint srgb = (encoded & (1 << 31))? 1: 0;
+		uint use_alpha = stack_valid(alpha_offset);
+		f = svm_image_texture(kg, slot, uv.x - x, uv.y - y, srgb, use_alpha);
+	}
+
+	if(stack_valid(out_offset))
+		stack_store_float3(stack, out_offset, make_float3(f.x, f.y, f.z));
+	if(stack_valid(alpha_offset))
+		stack_store_float(stack, alpha_offset, f.w);
+}
+
 CCL_NAMESPACE_END
 

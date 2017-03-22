@@ -826,23 +826,38 @@ static void node_shader_buts_tex_image(uiLayout *layout, bContext *C, PointerRNA
 {
 	PointerRNA imaptr = RNA_pointer_get(ptr, "image");
 	PointerRNA iuserptr = RNA_pointer_get(ptr, "image_user");
+	bool udim = RNA_boolean_get(ptr, "use_udim");
 
 	uiLayoutSetContextPointer(layout, "image_user", &iuserptr);
 	uiTemplateID(layout, C, ptr, "image", NULL, "IMAGE_OT_open", NULL);
 	uiItemR(layout, ptr, "color_space", 0, "", ICON_NONE);
 	uiItemR(layout, ptr, "interpolation", 0, "", ICON_NONE);
-	uiItemR(layout, ptr, "projection", 0, "", ICON_NONE);
 
-	if (RNA_enum_get(ptr, "projection") == SHD_PROJ_BOX) {
-		uiItemR(layout, ptr, "projection_blend", 0, "Blend", ICON_NONE);
+	uiItemR(layout, ptr, "use_udim", 0, NULL, ICON_NONE);
+
+	if(!udim) {
+		uiItemR(layout, ptr, "projection", 0, "", ICON_NONE);
+
+		if (RNA_enum_get(ptr, "projection") == SHD_PROJ_BOX) {
+			uiItemR(layout, ptr, "projection_blend", 0, "Blend", ICON_NONE);
+		}
 	}
 
 	uiItemR(layout, ptr, "extension", 0, "", ICON_NONE);
 
-	/* note: image user properties used directly here, unlike compositor image node,
-	 * which redefines them in the node struct RNA to get proper updates.
-	 */
-	node_buts_image_user(layout, C, &iuserptr, &imaptr, &iuserptr);
+	if(udim) {
+		PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
+		if (obptr.data && RNA_enum_get(&obptr, "type") == OB_MESH) {
+			PointerRNA dataptr = RNA_pointer_get(&obptr, "data");
+			uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_textures", "", ICON_NONE);
+		}
+	}
+	else {
+		/* note: image user properties used directly here, unlike compositor image node,
+		 * which redefines them in the node struct RNA to get proper updates.
+		 */
+		node_buts_image_user(layout, C, &iuserptr, &imaptr, &iuserptr);
+	}
 }
 
 static void node_shader_buts_tex_image_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)

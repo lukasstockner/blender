@@ -164,6 +164,7 @@ SVMCompiler::SVMCompiler(ShaderManager *shader_manager_, ImageManager *image_man
 	current_type = SHADER_TYPE_SURFACE;
 	current_shader = NULL;
 	current_graph = NULL;
+	scene = NULL;
 	background = false;
 	mix_weight_offset = SVM_STACK_INVALID;
 	compile_failed = false;
@@ -792,12 +793,14 @@ void SVMCompiler::compile_type(Shader *shader, ShaderGraph *graph, ShaderType ty
 	}
 }
 
-void SVMCompiler::compile(Scene *scene,
+void SVMCompiler::compile(Scene *scene_,
                           Shader *shader,
                           vector<int4>& svm_nodes,
                           int index,
                           Summary *summary)
 {
+	scene = scene_;
+
 	/* copy graph for shader with bump mapping */
 	ShaderNode *node = shader->graph->output();
 	int start_num_svm_nodes = svm_nodes.size();

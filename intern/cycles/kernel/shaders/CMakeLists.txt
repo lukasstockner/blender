@@ -69,6 +69,7 @@ set(SRC_OSL
 	node_toon_bsdf.osl
 	node_translucent_bsdf.osl
 	node_transparent_bsdf.osl
+	node_udim_texture.osl
 	node_value.osl
 	node_vector_curves.osl
 	node_vector_math.osl

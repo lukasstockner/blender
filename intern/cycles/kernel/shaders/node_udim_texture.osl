@@ -1,0 +1,71 @@
+/*
+ * Copyright 2011-2013 Blender Foundation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "stdosl.h"
+#include "node_color.h"
+
+color udim_texture_lookup(string filename,
+                           string color_space,
+                           float u, float v,
+                           output float Alpha,
+                           int use_alpha,
+                           int is_float,
+                           string interpolation,
+                           string extension)
+{
+	int vtile = (int)v;
+	color rgb = (color)texture(filename, u, vtile + (1.0 - (v - vtile)), "wrap", extension, "interp", interpolation, "alpha", Alpha);
+
+	if (use_alpha) {
+		rgb = color_unpremultiply(rgb, Alpha);
+	
+		if (!is_float)
+			rgb = min(rgb, 1.0);
+	}
+
+	if (color_space == "sRGB") {
+		rgb = color_srgb_to_scene_linear(rgb);
+	}
+
+	return rgb;
+}
+
+shader node_udim_texture(
+	string uv_map = "",
+	string filename = "",
+	string color_space = "sRGB",
+	string interpolation = "smartcubic",
+	string extension = "periodic",
+	int is_float = 1,
+	int use_alpha = 1,
+	output color Color = 0.0,
+	output float Alpha = 1.0)
+{
+	point UV;
+	if (uv_map == "")
+		getattribute("geom:uv", UV);
+	else
+		getattribute(uv_map, UV);
+	
+	Color = udim_texture_lookup(filename,
+	                             color_space,
+	                             UV[0], UV[1],
+	                             Alpha,
+	                             use_alpha,
+	                             is_float,
+	                             interpolation,
+	                             extension);
+}

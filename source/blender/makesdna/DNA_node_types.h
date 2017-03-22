@@ -736,6 +736,7 @@ typedef struct NodeTexImage {
 	float projection_blend;
 	int interpolation;
 	int extension;
+	char uv_map[64];
 	int pad;
 } NodeTexImage;
 

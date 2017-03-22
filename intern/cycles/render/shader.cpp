@@ -216,6 +216,15 @@ bool Shader::is_constant_emission(float3 *emission)
 	return true;
 }
 
+void Shader::get_uv_tiles(Scene *scene, ustring map, vector<int> &tiles, int columns)
+{
+	foreach(Mesh *mesh, scene->meshes) {
+		if(std::find(mesh->used_shaders.begin(), mesh->used_shaders.end(), this) != mesh->used_shaders.end()) {
+			mesh->get_uv_tiles(map, tiles, columns);
+		}
+	}
+}
+
 void Shader::set_graph(ShaderGraph *graph_)
 {
 	/* do this here already so that we can detect if mesh or object attributes

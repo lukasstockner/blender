@@ -884,6 +884,7 @@ void ImageManager::device_load_image(Device *device,
 			pixels[1] = TEX_IMAGE_MISSING_G;
 			pixels[2] = TEX_IMAGE_MISSING_B;
 			pixels[3] = TEX_IMAGE_MISSING_A;
+			VLOG(2) << "Failed to load image " << img->filename;
 		}
 
 		if(!pack_images) {

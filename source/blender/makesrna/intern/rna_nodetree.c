@@ -3019,16 +3019,7 @@ static void rna_ShaderNodeScript_update(Main *bmain, Scene *scene, PointerRNA *p
 	ED_node_tag_update_nodetree(bmain, ntree, node);
 }
 
-static void rna_ShaderNodeSubsurface_update(Main *bmain, Scene *scene, PointerRNA *ptr)
-{
-	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
-	bNode *node = (bNode *)ptr->data;
-
-	nodeUpdate(ntree, node);
-	rna_Node_update(bmain, scene, ptr);
-}
-
-static void rna_CompositorNodeScale_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_Node_custom_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
 	bNode *node = (bNode *)ptr->data;
@@ -3824,6 +3815,17 @@ static void def_sh_tex_image(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Image User",
 	                         "Parameters defining which layer, pass and frame of the image is displayed");
 	RNA_def_property_update(prop, 0, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "uv_map", PROP_STRING, PROP_NONE);
+	RNA_def_property_ui_text(prop, "UV Map", "UV coordinates to be used for mapping");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+	RNA_def_struct_sdna_from(srna, "bNode", NULL);
+
+	prop = RNA_def_property(srna, "use_udim", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "custom1", 1);
+	RNA_def_property_ui_text(prop, "Use UDIM", "Enables support for multi-tile texture maps");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_custom_update");
 }
 
 static void def_sh_tex_gradient(StructRNA *srna)
@@ -4379,7 +4381,7 @@ static void def_sh_subsurface(StructRNA *srna)
 	RNA_def_property_enum_sdna(prop, NULL, "custom1");
 	RNA_def_property_enum_items(prop, prop_subsurface_falloff_items);
 	RNA_def_property_ui_text(prop, "Falloff", "Function to determine how much light nearby points contribute based on their distance to the shading point");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_ShaderNodeSubsurface_update");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_custom_update");
 }
 
 static void def_sh_ies_light(StructRNA *srna)
@@ -5061,7 +5063,7 @@ static void def_cmp_scale(StructRNA *srna)
 	RNA_def_property_enum_sdna(prop, NULL, "custom1");
 	RNA_def_property_enum_items(prop, space_items);
 	RNA_def_property_ui_text(prop, "Space", "Coordinate space to scale relative to");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_CompositorNodeScale_update");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_custom_update");
 
 	/* expose 2 flags as a enum of 3 items */
 	prop = RNA_def_property(srna, "frame_method", PROP_ENUM, PROP_NONE);

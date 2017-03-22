@@ -133,6 +133,7 @@ typedef enum ShaderNodeType {
 	NODE_ENTER_BUMP_EVAL,
 	NODE_LEAVE_BUMP_EVAL,
 	NODE_IES,
+	NODE_TEX_UDIM,
 } ShaderNodeType;
 
 typedef enum NodeAttributeType {

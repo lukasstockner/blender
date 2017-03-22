@@ -270,6 +270,7 @@ public:
 	void add_face_normals();
 	void add_vertex_normals();
 	void add_undisplaced();
+	void get_uv_tiles(ustring map, vector<int> &tiles, int columns);
 
 	void pack_normals(Scene *scene, uint *shader, float4 *vnormal);
 	void pack_verts(const vector<uint>& tri_prim_index,

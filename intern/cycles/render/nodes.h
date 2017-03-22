@@ -67,6 +67,37 @@ public:
 	TextureMapping tex_mapping;
 };
 
+class UDIMTextureNode : public ShaderNode {
+public:
+	SHADER_NODE_NO_CLONE_CLASS(UDIMTextureNode);
+	~UDIMTextureNode();
+	ShaderNode *clone() const;
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
+
+	ImageManager *image_manager;
+
+	struct ImageTile {
+		bool is_float;
+		bool is_linear;
+		int slot;
+		ustring filename;
+		bool used;
+
+		int get_encoding(NodeImageColorSpace color_space);
+	};
+
+	bool use_alpha;
+	ustring filename;
+	NodeImageColorSpace color_space;
+	InterpolationType interpolation;
+	ExtensionType extension;
+	ustring uv_map;
+
+	int columns;
+	vector<ImageTile> tiles;
+};
+
 /* Any node which uses image manager's slot should be a subclass of this one. */
 class ImageSlotTextureNode : public TextureNode {
 public:
