@@ -84,6 +84,7 @@ public:
 		              device_ptr mean_ptr,
 		              device_ptr variance_ptr
 		              )> get_feature;
+		function<bool(device_ptr*)> set_tiles;
 	} functions;
 
 	/* Stores state of the current Reconstruction operation,

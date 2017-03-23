@@ -907,6 +907,20 @@ public:
 		}
 	}
 
+	bool denoising_set_tiles(device_ptr *buffers, DenoisingTask *task)
+	{
+		mem_alloc("Denoising Tile Info", task->tiles_mem, MEM_READ_ONLY);
+
+		TilesInfo *tiles = (TilesInfo*) task->tiles_mem.data_pointer;
+		for(int i = 0; i < 9; i++) {
+			tiles->buffers[i] = buffers[i];
+		}
+
+		mem_copy_to(task->tiles_mem);
+
+		return !have_error();
+	}
+
 #define CUDA_GET_BLOCKSIZE(func, w, h)                                                                          \
 			int threads_per_block;                                                                              \
 			cuda_assert(cuFuncGetAttribute(&threads_per_block, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, func)); \
@@ -1231,6 +1245,14 @@ public:
 	{
 		DenoisingTask denoising(this);
 
+		denoising.functions.construct_transform = function_bind(&CUDADevice::denoising_construct_transform, this, &denoising);
+		denoising.functions.reconstruct = function_bind(&CUDADevice::denoising_reconstruct, this, _1, _2, _3, _4, _5, &denoising);
+		denoising.functions.divide_shadow = function_bind(&CUDADevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
+		denoising.functions.non_local_means = function_bind(&CUDADevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.combine_halves = function_bind(&CUDADevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
+		denoising.functions.get_feature = function_bind(&CUDADevice::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.set_tiles = function_bind(&CUDADevice::denoising_set_tiles, this, _1, &denoising);
+
 		denoising.filter_area = make_int4(rtile.x, rtile.y, rtile.w, rtile.h);
 		denoising.render_buffer.samples = rtile.sample;
 
@@ -1241,12 +1263,6 @@ public:
 
 		denoising.init_from_devicetask(task);
 
-		denoising.functions.construct_transform = function_bind(&CUDADevice::denoising_construct_transform, this, &denoising);
-		denoising.functions.reconstruct = function_bind(&CUDADevice::denoising_reconstruct, this, _1, _2, _3, _4, _5, &denoising);
-		denoising.functions.divide_shadow = function_bind(&CUDADevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
-		denoising.functions.non_local_means = function_bind(&CUDADevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
-		denoising.functions.combine_halves = function_bind(&CUDADevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
-		denoising.functions.get_feature = function_bind(&CUDADevice::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
 
 		denoising.run_denoising();
 	}

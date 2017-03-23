@@ -381,6 +381,18 @@ public:
 		}
 	};
 
+	bool denoising_set_tiles(device_ptr *buffers, DenoisingTask *task)
+	{
+		mem_alloc("Denoising Tile Info", task->tiles_mem, MEM_READ_ONLY);
+
+		TilesInfo *tiles = (TilesInfo*) task->tiles_mem.data_pointer;
+		for(int i = 0; i < 9; i++) {
+			tiles->buffers[i] = buffers[i];
+		}
+
+		return true;
+	}
+
 	bool denoising_non_local_means(device_ptr image_ptr, device_ptr guide_ptr, device_ptr variance_ptr, device_ptr out_ptr,
 	                               DenoisingTask *task)
 	{
@@ -622,6 +634,15 @@ public:
 		tile.sample = tile.start_sample + tile.num_samples;
 
 		DenoisingTask denoising(this);
+
+		denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
+		denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, _4, _5, &denoising);
+		denoising.functions.divide_shadow = function_bind(&CPUDevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
+		denoising.functions.non_local_means = function_bind(&CPUDevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.combine_halves = function_bind(&CPUDevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
+		denoising.functions.get_feature = function_bind(&CPUDevice::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.set_tiles = function_bind(&CPUDevice::denoising_set_tiles, this, _1, &denoising);
+
 		denoising.filter_area = make_int4(tile.x, tile.y, tile.w, tile.h);
 		denoising.render_buffer.samples = tile.sample;
 		denoising.use_split_variance = use_split_kernel;
@@ -632,12 +653,6 @@ public:
 		denoising.tiles_from_rendertiles(rtiles);
 
 		denoising.init_from_devicetask(task);
-		denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
-		denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, _4, _5, &denoising);
-		denoising.functions.divide_shadow = function_bind(&CPUDevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
-		denoising.functions.non_local_means = function_bind(&CPUDevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
-		denoising.functions.combine_halves = function_bind(&CPUDevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
-		denoising.functions.get_feature = function_bind(&CPUDevice::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
 
 		denoising.run_denoising();
 

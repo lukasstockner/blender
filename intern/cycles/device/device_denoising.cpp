@@ -31,9 +31,6 @@ void DenoisingTask::init_from_devicetask(const DeviceTask &task)
 	render_buffer.pass_stride = task.pass_stride;
 	render_buffer.denoising_data_offset  = task.pass_denoising_data;
 	render_buffer.denoising_clean_offset = task.pass_denoising_clean;
-	render_buffer.offset = tiles->offsets[4];
-	render_buffer.stride = tiles->strides[4];
-	render_buffer.ptr    = tiles->buffers[4];
 
 	/* Expand filter_area by half_window pixels and clamp the result to the extent of the neighboring tiles */
 	rect = make_int4(max(tiles->x[0], filter_area.x - half_window),
@@ -46,8 +43,9 @@ void DenoisingTask::tiles_from_rendertiles(RenderTile *rtiles)
 {
 	tiles = (TilesInfo*) tiles_mem.resize(sizeof(TilesInfo)/sizeof(int));
 
+	device_ptr buffers[9];
 	for(int i = 0; i < 9; i++) {
-		tiles->buffers[i] = rtiles[i].buffer;
+		buffers[i] = rtiles[i].buffer;
 		tiles->offsets[i] = rtiles[i].offset;
 		tiles->strides[i] = rtiles[i].stride;
 	}
@@ -59,6 +57,12 @@ void DenoisingTask::tiles_from_rendertiles(RenderTile *rtiles)
 	tiles->y[1] = rtiles[4].y;
 	tiles->y[2] = rtiles[7].y;
 	tiles->y[3] = rtiles[7].y + rtiles[7].h;
+
+	render_buffer.offset = rtiles[4].offset;
+	render_buffer.stride = rtiles[4].stride;
+	render_buffer.ptr    = rtiles[4].buffer;
+
+	functions.set_tiles(buffers);
 }
 
 bool DenoisingTask::run_denoising()
@@ -74,9 +78,6 @@ bool DenoisingTask::run_denoising()
 	buffer.pass_stride = buffer.w * buffer.h;
 	buffer.mem.resize(buffer.pass_stride * buffer.passes);
 	device->mem_alloc("Denoising Pixel Buffer", buffer.mem, MEM_READ_WRITE);
-
-	device->mem_alloc("Denoising Tile Info", tiles_mem, MEM_READ_ONLY);
-	device->mem_copy_to(tiles_mem);
 
 	device_ptr null_ptr = (device_ptr) 0;
 

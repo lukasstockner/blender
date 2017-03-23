@@ -26,10 +26,10 @@
 typedef struct TilesInfo {
 	int offsets[9];
 	int strides[9];
-	/* TODO(lukas): CUDA doesn't have uint64_t... */
-	long long int buffers[9];
 	int x[4];
 	int y[4];
+	/* TODO(lukas): CUDA doesn't have uint64_t... */
+	long long int buffers[9];
 } TilesInfo;
 
 #endif /* __FILTER_DEFINES_H__*/
