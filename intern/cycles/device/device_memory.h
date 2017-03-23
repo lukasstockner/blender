@@ -173,9 +173,8 @@ class device_memory
 {
 public:
 	size_t memory_size() { return data_size*data_elements*datatype_size(data_type); }
-	size_t memory_offset(int element) {
-		assert(element < data_size);
-		return element*data_elements*datatype_size(data_type);
+	size_t memory_num_to_bytes(int elements) {
+		return elements*data_elements*datatype_size(data_type);
 	}
 
 	/* data information */

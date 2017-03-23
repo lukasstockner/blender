@@ -312,9 +312,9 @@ public:
 		}
 	}
 
-	virtual device_ptr mem_get_offset_ptr(device_memory& mem, int offset)
+	virtual device_ptr mem_get_offset_ptr(device_memory& mem, int offset, int /*size*/, MemoryType /*type*/)
 	{
-		return (device_ptr) (((char*) mem.device_pointer) + mem.memory_offset(offset));
+		return (device_ptr) (((char*) mem.device_pointer) + mem.memory_num_to_bytes(offset));
 	}
 
 	void const_copy_to(const char *name, void *host, size_t size)

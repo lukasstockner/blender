@@ -83,15 +83,15 @@ bool DenoisingTask::run_denoising()
 	/* Prefilter shadow feature. */
 	{
 		device_ptr unfiltered_a, unfiltered_b, sample_var, sample_var_var, buffer_var, filtered_var;
-		unfiltered_a              = device->mem_get_offset_ptr(buffer.mem, 0);
-		unfiltered_b              = device->mem_get_offset_ptr(buffer.mem, 1*buffer.pass_stride);
-		sample_var                = device->mem_get_offset_ptr(buffer.mem, 2*buffer.pass_stride);
-		sample_var_var            = device->mem_get_offset_ptr(buffer.mem, 3*buffer.pass_stride);
-		buffer_var                = device->mem_get_offset_ptr(buffer.mem, 5*buffer.pass_stride);
-		filtered_var              = device->mem_get_offset_ptr(buffer.mem, 6*buffer.pass_stride);
-		nlm_state.temporary_1_ptr = device->mem_get_offset_ptr(buffer.mem, 7*buffer.pass_stride);
-		nlm_state.temporary_2_ptr = device->mem_get_offset_ptr(buffer.mem, 8*buffer.pass_stride);
-		nlm_state.temporary_3_ptr = device->mem_get_offset_ptr(buffer.mem, 9*buffer.pass_stride);
+		unfiltered_a              = device->mem_get_offset_ptr(buffer.mem, 0,                    buffer.pass_stride, MEM_READ_WRITE);
+		unfiltered_b              = device->mem_get_offset_ptr(buffer.mem, 1*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+		sample_var                = device->mem_get_offset_ptr(buffer.mem, 2*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+		sample_var_var            = device->mem_get_offset_ptr(buffer.mem, 3*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+		buffer_var                = device->mem_get_offset_ptr(buffer.mem, 5*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+		filtered_var              = device->mem_get_offset_ptr(buffer.mem, 6*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+		nlm_state.temporary_1_ptr = device->mem_get_offset_ptr(buffer.mem, 7*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+		nlm_state.temporary_2_ptr = device->mem_get_offset_ptr(buffer.mem, 8*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+		nlm_state.temporary_3_ptr = device->mem_get_offset_ptr(buffer.mem, 9*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
 
 		/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
 		functions.divide_shadow(unfiltered_a, unfiltered_b, sample_var, sample_var_var, buffer_var);
@@ -120,23 +120,23 @@ bool DenoisingTask::run_denoising()
 		functions.non_local_means(filtered_b, filtered_a, residual_var, final_b);
 
 		/* Combine the two double-filtered halves to a final shadow feature. */
-		device_ptr shadow_pass = device->mem_get_offset_ptr(buffer.mem, 4*buffer.pass_stride);
+		device_ptr shadow_pass = device->mem_get_offset_ptr(buffer.mem, 4*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
 		functions.combine_halves(final_a, final_b, shadow_pass, null_ptr, 0, rect);
 	}
 
 	/* Prefilter general features. */
 	{
 		device_ptr unfiltered, variance, feature_pass;
-		unfiltered                = device->mem_get_offset_ptr(buffer.mem,  8*buffer.pass_stride);
-		variance                  = device->mem_get_offset_ptr(buffer.mem,  9*buffer.pass_stride);
-		nlm_state.temporary_1_ptr = device->mem_get_offset_ptr(buffer.mem, 10*buffer.pass_stride);
-		nlm_state.temporary_2_ptr = device->mem_get_offset_ptr(buffer.mem, 11*buffer.pass_stride);
-		nlm_state.temporary_3_ptr = device->mem_get_offset_ptr(buffer.mem, 12*buffer.pass_stride);
+		unfiltered                = device->mem_get_offset_ptr(buffer.mem,  8*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+		variance                  = device->mem_get_offset_ptr(buffer.mem,  9*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+		nlm_state.temporary_1_ptr = device->mem_get_offset_ptr(buffer.mem, 10*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+		nlm_state.temporary_2_ptr = device->mem_get_offset_ptr(buffer.mem, 11*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+		nlm_state.temporary_3_ptr = device->mem_get_offset_ptr(buffer.mem, 12*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
 		int mean_from[]     = { 0, 1, 2, 6,  7,  8, 12 };
 		int variance_from[] = { 3, 4, 5, 9, 10, 11, 13 };
 		int pass_to[]       = { 1, 2, 3, 0,  5,  6,  7 };
 		for(int pass = 0; pass < 7; pass++) {
-			feature_pass = device->mem_get_offset_ptr(buffer.mem, pass_to[pass]*buffer.pass_stride);
+			feature_pass = device->mem_get_offset_ptr(buffer.mem, pass_to[pass]*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
 			/* Get the unfiltered pass and its variance from the RenderBuffers. */
 			functions.get_feature(mean_from[pass], variance_from[pass], unfiltered, variance);
 			/* Smooth the pass and store the result in the denoising buffers. */
@@ -154,8 +154,8 @@ bool DenoisingTask::run_denoising()
 		int variance_to[]   = {11, 12, 13, 17, 18, 19};
 		int num_color_passes = use_cross_denoising? 6 : 3;
 		for(int pass = 0; pass < num_color_passes; pass++) {
-			color_pass     = device->mem_get_offset_ptr(buffer.mem,     mean_to[pass]*buffer.pass_stride);
-			color_var_pass = device->mem_get_offset_ptr(buffer.mem, variance_to[pass]*buffer.pass_stride);
+			color_pass     = device->mem_get_offset_ptr(buffer.mem,     mean_to[pass]*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+			color_var_pass = device->mem_get_offset_ptr(buffer.mem, variance_to[pass]*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
 			functions.get_feature(mean_from[pass], variance_from[pass], color_pass, color_var_pass);
 		}
 	}
@@ -198,10 +198,10 @@ bool DenoisingTask::run_denoising()
 		reconstruction_state.source_h = rect.w-rect.y;
 
 		device_ptr color_a_ptr, color_a_var_ptr, color_b_ptr, color_b_var_ptr;
-		color_a_ptr     = device->mem_get_offset_ptr(buffer.mem,  8*buffer.pass_stride);
-		color_a_var_ptr = device->mem_get_offset_ptr(buffer.mem, 11*buffer.pass_stride);
-		color_b_ptr     = device->mem_get_offset_ptr(buffer.mem, 14*buffer.pass_stride);
-		color_b_var_ptr = device->mem_get_offset_ptr(buffer.mem, 17*buffer.pass_stride);
+		color_a_ptr     = device->mem_get_offset_ptr(buffer.mem,  8*buffer.pass_stride, 3*buffer.pass_stride, MEM_READ_WRITE);
+		color_a_var_ptr = device->mem_get_offset_ptr(buffer.mem, 11*buffer.pass_stride, 3*buffer.pass_stride, MEM_READ_WRITE);
+		color_b_ptr     = device->mem_get_offset_ptr(buffer.mem, 14*buffer.pass_stride, 3*buffer.pass_stride, MEM_READ_WRITE);
+		color_b_var_ptr = device->mem_get_offset_ptr(buffer.mem, 17*buffer.pass_stride, 3*buffer.pass_stride, MEM_READ_WRITE);
 
 		functions.reconstruct(color_a_ptr, color_a_var_ptr, color_b_ptr, color_b_var_ptr, output_a.device_pointer);
 		functions.reconstruct(color_b_ptr, color_b_var_ptr, color_a_ptr, color_a_var_ptr, output_b.device_pointer);
@@ -211,10 +211,10 @@ bool DenoisingTask::run_denoising()
 		for(int channel = 0; channel < 3; channel++) {
 			device_ptr color_ptr, color_var_ptr, output_a_ptr, output_b_ptr;
 			/* Reuse the previously used memory since its contents aren't needed anymore. */
-			color_ptr     = device->mem_get_offset_ptr(buffer.mem, ( 8 + channel)*buffer.pass_stride);
-			color_var_ptr = device->mem_get_offset_ptr(buffer.mem, (11 + channel)*buffer.pass_stride);
-			output_a_ptr  = device->mem_get_offset_ptr(output_a, channel*buffer.pass_stride);
-			output_b_ptr  = device->mem_get_offset_ptr(output_b, channel*buffer.pass_stride);
+			color_ptr     = device->mem_get_offset_ptr(buffer.mem, ( 8 + channel)*buffer.pass_stride, 3*buffer.pass_stride, MEM_READ_WRITE);
+			color_var_ptr = device->mem_get_offset_ptr(buffer.mem, (11 + channel)*buffer.pass_stride, 3*buffer.pass_stride, MEM_READ_WRITE);
+			output_a_ptr  = device->mem_get_offset_ptr(output_a, channel*buffer.pass_stride, 3*buffer.pass_stride, MEM_READ_WRITE);
+			output_b_ptr  = device->mem_get_offset_ptr(output_b, channel*buffer.pass_stride, 3*buffer.pass_stride, MEM_READ_WRITE);
 			functions.combine_halves(output_a_ptr, output_b_ptr, color_ptr, color_var_ptr, 0, combine_rect);
 		}
 		device->mem_free(output_a);
@@ -245,8 +245,8 @@ bool DenoisingTask::run_denoising()
 		reconstruction_state.source_h = rect.w-rect.y;
 
 		device_ptr color_ptr, color_var_ptr;
-		color_ptr     = device->mem_get_offset_ptr(buffer.mem,  8*buffer.pass_stride);
-		color_var_ptr = device->mem_get_offset_ptr(buffer.mem, 11*buffer.pass_stride);
+		color_ptr     = device->mem_get_offset_ptr(buffer.mem,  8*buffer.pass_stride, 3*buffer.pass_stride, MEM_READ_WRITE);
+		color_var_ptr = device->mem_get_offset_ptr(buffer.mem, 11*buffer.pass_stride, 3*buffer.pass_stride, MEM_READ_WRITE);
 		functions.reconstruct(color_ptr, color_var_ptr, color_ptr, color_var_ptr, render_buffer.ptr);
 	}
 
