@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2017 Blender Foundation
+ * Copyright 2011-2013 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#ifndef __UTIL_CUDA_CAPABILITIES_H__
-#define __UTIL_CUDA_CAPABILITIES_H__
 
 /* device data taken from CUDA occupancy calculator */
 
@@ -84,8 +81,6 @@
 #  error "Unknown or unsupported CUDA architecture, can't determine launch bounds"
 #endif
 
-
-
 /* compute number of threads per block and minimum blocks per multiprocessor
  * given the maximum number of registers per thread */
 
@@ -113,4 +108,3 @@
 #  error "Maximum number of registers per thread exceeded"
 #endif
 
-#endif /* __UTIL_CUDA_CAPABILITIES_H__ */

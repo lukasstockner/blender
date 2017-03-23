@@ -18,7 +18,7 @@
 
 #ifdef __CUDA_ARCH__
 
-#include "util_cuda_capabilities.h"
+#include "kernel_config.h"
 
 #include "../../filter_compat_cuda.h"
 

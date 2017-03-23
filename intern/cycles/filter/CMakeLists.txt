@@ -42,9 +42,12 @@ set(SRC_KERNELS_CPU_HEADERS
 	kernels/cpu/filter_cpu_impl.h
 )
 
+set(SRC_KERNELS_CUDA_HEADERS
+	kernels/cuda/kernel_config.h
+)
+
 set(SRC_UTIL_HEADERS
 	../util/util_atomic.h
-	../util/util_cuda_capabilities.h
 	../util/util_color.h
 	../util/util_half.h
 	../util/util_hash.h
@@ -85,6 +88,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
 	set(cuda_sources kernels/cuda/filter.cu
 		${SRC_HEADERS}
 		${SRC_UTIL_HEADERS}
+		${SRC_KERNELS_CUDA_HEADERS}
 	)
 	set(cuda_cubins)
 
@@ -158,6 +162,7 @@ add_library(cycles_filter
 	${SRC}
 	${SRC_HEADERS}
 	${SRC_KERNELS_CPU_HEADERS}
+	${SRC_KERNELS_CUDA_HEADERS}
 )
 
 if(WITH_CYCLES_CUDA)
