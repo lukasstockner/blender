@@ -1718,20 +1718,15 @@ ccl_device_inline int util_max_axis(float3 vec)
 
 /* An implementation of isfinite that works in combination with -ffast-math.
  * In IEEE 754 floats, bits 24 to 31 store the exponent, and an exponent of 0xff means either inf or nan. */
-ccl_device_inline float safe_isfinite(float v)
+ccl_device_inline bool safe_isfinite(float v)
 {
-	union {
-		int i;
-		float v;
-	} u;
-	u.v = v;
-	return (u.i & 0x7f800000) != 0x7f800000;
+	return (__float_as_int(v) & 0x7f800000) != 0x7f800000;
 }
 
 ccl_device_inline float ensure_finite(float v)
 {
 	return safe_isfinite(v)? v : 0.0f;
-};
+}
 
 ccl_device_inline float3 ensure_finite3(float3 v)
 {
