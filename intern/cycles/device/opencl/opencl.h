@@ -221,7 +221,7 @@ public:
 		cl_int err = stmt; \
 		\
 		if(err != CL_SUCCESS) { \
-			string message = string_printf("OpenCL error: %s in %s", clewErrorString(err), #stmt); \
+			string message = string_printf("OpenCL error: %s in %s (%s:%d)", clewErrorString(err), #stmt, __FILE__, __LINE__); \
 			if(error_msg == "") \
 				error_msg = message; \
 			fprintf(stderr, "%s\n", message.c_str()); \
