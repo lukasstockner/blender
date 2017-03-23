@@ -1768,6 +1768,7 @@ classes = (
     CyclesRender_PT_layer_options,
     CyclesRender_PT_layer_passes,
     CyclesRender_PT_views,
+    CyclesRender_PT_denoising,
     Cycles_PT_post_processing,
     CyclesCamera_PT_dof,
     Cycles_PT_context_material,
