@@ -31,8 +31,8 @@
 
 #include "filter_prefilter.h"
 
-#ifdef __KERNEL_CUDA__
-#  include "filter_transform_cuda.h"
+#ifdef __KERNEL_GPU__
+#  include "filter_transform_gpu.h"
 #else
 #  ifdef __KERNEL_SSE3__
 #    include "filter_transform_sse.h"
@@ -51,9 +51,9 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device void kernel_filter_divide_combined(int x, int y, int sample, float *buffers, int offset, int stride, int pass_stride, int no_denoising_offset)
+ccl_device void kernel_filter_divide_combined(int x, int y, int sample, ccl_global float *buffers, int offset, int stride, int pass_stride, int no_denoising_offset)
 {
-	float *combined_buffer = buffers + (offset + y*stride + x);
+	ccl_global float *combined_buffer = buffers + (offset + y*stride + x);
 	float fac = sample / combined_buffer[3];
 	combined_buffer[0] *= fac;
 	combined_buffer[1] *= fac;

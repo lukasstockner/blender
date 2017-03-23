@@ -16,14 +16,16 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device void kernel_filter_construct_transform(int sample, float ccl_readonly_ptr buffer,
+ccl_device void kernel_filter_construct_transform(int sample,
+                                                  ccl_global float ccl_readonly_ptr buffer,
                                                   int x, int y, int4 rect,
-                                                  float *transform, int *rank,
+                                                  ccl_global float *transform,
+                                                  ccl_global int *rank,
                                                   int half_window, float pca_threshold,
                                                   int transform_stride, int localIdx)
 {
-	__shared__ float shared_features[DENOISE_FEATURES*CUDA_THREADS_BLOCK_WIDTH*CUDA_THREADS_BLOCK_WIDTH];
-	float *features = shared_features + localIdx*DENOISE_FEATURES;
+	ccl_local float shared_features[DENOISE_FEATURES*CCL_MAX_LOCAL_SIZE];
+	ccl_local_param float *features = shared_features + localIdx*DENOISE_FEATURES;
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int buffer_h = (rect.w - rect.y);
@@ -33,7 +35,7 @@ ccl_device void kernel_filter_construct_transform(int sample, float ccl_readonly
 	                      max(rect.y, y - half_window));
 	int2 high = make_int2(min(rect.z, x + half_window + 1),
 	                      min(rect.w, y + half_window + 1));
-	float ccl_readonly_ptr pixel_buffer;
+	ccl_global float ccl_readonly_ptr pixel_buffer;
 	int2 pixel;
 
 

@@ -26,13 +26,13 @@ CCL_NAMESPACE_BEGIN
  * bufferVariance: The buffer-based variance of the shadow feature. Unbiased, but quite noisy.
  */
 ccl_device void kernel_filter_divide_shadow(int sample,
-                                            TilesInfo *tiles,
+                                            ccl_global TilesInfo *tiles,
                                             int x, int y,
-                                            float *unfilteredA,
-                                            float *unfilteredB,
-                                            float *sampleVariance,
-                                            float *sampleVarianceV,
-                                            float *bufferVariance,
+                                            ccl_global float *unfilteredA,
+                                            ccl_global float *unfilteredB,
+                                            ccl_global float *sampleVariance,
+                                            ccl_global float *sampleVarianceV,
+                                            ccl_global float *bufferVariance,
                                             int4 rect,
                                             int buffer_pass_stride,
                                             int buffer_denoising_offset,
@@ -80,10 +80,11 @@ ccl_device void kernel_filter_divide_shadow(int sample,
  * - rect: The prefilter area (lower pixels inclusive, upper pixels exclusive).
  */
 ccl_device void kernel_filter_get_feature(int sample, 
-                                          TilesInfo *tiles,
+                                          ccl_global TilesInfo *tiles,
                                           int m_offset, int v_offset,
                                           int x, int y,
-                                          float *mean, float *variance,
+                                          ccl_global float *mean,
+                                          ccl_global float *variance,
                                           int4 rect, int buffer_pass_stride,
                                           int buffer_denoising_offset, bool use_cross_denoising,
                                           bool use_split_variance)
@@ -131,8 +132,10 @@ ccl_device void kernel_filter_get_feature(int sample,
 /* Combine A/B buffers.
  * Calculates the combined mean and the buffer variance. */
 ccl_device void kernel_filter_combine_halves(int x, int y,
-                                             float *mean, float *variance,
-                                             float *a, float *b,
+                                             ccl_global float *mean,
+                                             ccl_global float *variance,
+                                             ccl_global float *a,
+                                             ccl_global float *b,
                                              int4 rect, int r)
 {
 	int buffer_w = align_up(rect.z - rect.x, 4);

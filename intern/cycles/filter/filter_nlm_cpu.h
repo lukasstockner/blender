@@ -145,7 +145,7 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int dx, int dy,
 			                                buffer,
 			                                color_pass, variance_pass,
 			                                l_transform, l_rank,
-			                                weight, l_XtWX, l_XtWY);
+			                                weight, l_XtWX, l_XtWY, 0);
 		}
 	}
 }

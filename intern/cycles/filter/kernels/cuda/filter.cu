@@ -215,7 +215,16 @@ kernel_cuda_filter_nlm_construct_gramian(int dx, int dy,
 	int x = blockDim.x*blockIdx.x + threadIdx.x + max(0, rect.x-filter_rect.x);
 	int y = blockDim.y*blockIdx.y + threadIdx.y + max(0, rect.y-filter_rect.y);
 	if(x < min(filter_rect.z, rect.z-filter_rect.x) && y < min(filter_rect.w, rect.w-filter_rect.y)) {
-		kernel_filter_nlm_construct_gramian(x, y, dx, dy, differenceImage, buffer, color_pass, variance_pass, transform, rank, XtWX, XtWY, rect, filter_rect, w, h, f);
+		kernel_filter_nlm_construct_gramian(x, y,
+		                                    dx, dy,
+		                                    differenceImage,
+		                                    buffer,
+		                                    color_pass, variance_pass,
+		                                    transform, rank,
+		                                    XtWX, XtWY,
+		                                    rect, filter_rect,
+		                                    w, h, f,
+		                                    threadIdx.y*blockDim.x + threadIdx.x);
 	}
 }
 

@@ -53,19 +53,19 @@ ccl_device_inline void math_trimatrix_zero(float *A, int n)
 
 /* Elementary vector operations. */
 
-ccl_device_inline void math_vector_add(float *a, float ccl_readonly_ptr b, int n)
+ccl_device_inline void math_vector_add(float *a, ccl_local_param float ccl_readonly_ptr b, int n)
 {
 	for(int i = 0; i < n; i++)
 		a[i] += b[i];
 }
 
-ccl_device_inline void math_vector_mul(float *a, float ccl_readonly_ptr b, int n)
+ccl_device_inline void math_vector_mul(ccl_local_param float *a, float ccl_readonly_ptr b, int n)
 {
 	for(int i = 0; i < n; i++)
 		a[i] *= b[i];
 }
 
-ccl_device_inline void math_vector_mul_strided(float *a, float ccl_readonly_ptr b, int astride, int n)
+ccl_device_inline void math_vector_mul_strided(ccl_global float *a, float ccl_readonly_ptr b, int astride, int n)
 {
 	for(int i = 0; i < n; i++)
 		a[i*astride] *= b[i];
@@ -77,7 +77,7 @@ ccl_device_inline void math_vector_scale(float *a, float b, int n)
 		a[i] *= b;
 }
 
-ccl_device_inline void math_vector_max(float *a, float ccl_readonly_ptr b, int n)
+ccl_device_inline void math_vector_max(float *a, ccl_local_param float ccl_readonly_ptr b, int n)
 {
 	for(int i = 0; i < n; i++)
 		a[i] = max(a[i], b[i]);
@@ -91,7 +91,7 @@ ccl_device_inline float math_vector_dot(float ccl_readonly_ptr a, float ccl_read
 	return d;
 }
 
-ccl_device_inline float math_vector_dot_strided(float ccl_readonly_ptr a, float ccl_readonly_ptr b, int bstride, int n)
+ccl_device_inline float math_vector_dot_strided(ccl_local_param float ccl_readonly_ptr a, ccl_global float ccl_readonly_ptr b, int bstride, int n)
 {
 	float d = 0.0f;
 	for(int i = 0; i < n; i++)
@@ -105,7 +105,7 @@ ccl_device_inline void math_vec3_add(float3 *v, int n, float *x, float3 w)
 		v[i] += w*x[i];
 }
 
-ccl_device_inline void math_vec3_add_strided(float3 *v, int n, float *x, float3 w, int stride)
+ccl_device_inline void math_vec3_add_strided(ccl_global float3 *v, int n, float *x, float3 w, int stride)
 {
 	for(int i = 0; i < n; i++)
 		v[i*stride] += w*x[i];
@@ -122,7 +122,7 @@ ccl_device_inline float3 math_vector_vec3_dot(float ccl_readonly_ptr a, float3 c
 /* Elementary matrix operations.
  * Note: TriMatrix refers to a square matrix that is symmetric, and therefore its upper-triangular part isn't stored. */
 
-ccl_device_inline void math_matrix_add_diagonal(float *A, int n, float val, int stride)
+ccl_device_inline void math_matrix_add_diagonal(ccl_global float *A, int n, float val, int stride)
 {
 	for(int row = 0; row < n; row++)
 		MATS(A, n, row, row, stride) += val;
@@ -131,7 +131,7 @@ ccl_device_inline void math_matrix_add_diagonal(float *A, int n, float val, int 
 /* Add Gramian matrix of v to A.
  * The Gramian matrix of v is vt*v, so element (i,j) is v[i]*v[j].
  * Obviously, the resulting matrix is symmetric, so only the lower triangluar part is stored. */
-ccl_device_inline void math_trimatrix_add_gramian(float *A, int n, float *v, float weight)
+ccl_device_inline void math_trimatrix_add_gramian(float *A, int n, ccl_local_param float ccl_readonly_ptr v, float weight)
 {
 	for(int row = 0; row < n; row++)
 		for(int col = 0; col <= row; col++)
@@ -141,7 +141,7 @@ ccl_device_inline void math_trimatrix_add_gramian(float *A, int n, float *v, flo
 /* Add Gramian matrix of v to A.
  * The Gramian matrix of v is vt*v, so element (i,j) is v[i]*v[j].
  * Obviously, the resulting matrix is symmetric, so only the lower triangluar part is stored. */
-ccl_device_inline void math_trimatrix_add_gramian_strided(float *A, int n, float *v, float weight, int stride)
+ccl_device_inline void math_trimatrix_add_gramian_strided(ccl_global float *A, int n, float *v, float weight, int stride)
 {
 	for(int row = 0; row < n; row++)
 		for(int col = 0; col <= row; col++)
@@ -157,7 +157,7 @@ ccl_device_inline void math_trimatrix_add_gramian_strided(float *A, int n, float
 /* In-place Cholesky-Banachiewicz decomposition of the square, positive-definite matrix A
  * into a lower triangular matrix L so that A = L*L^T. A is being overwritten by L.
  * Also, only the lower triangular part of A is ever accessed. */
-ccl_device void math_trimatrix_cholesky(float *A, int n, int stride)
+ccl_device void math_trimatrix_cholesky(ccl_global float *A, int n, int stride)
 {
 	for(int row = 0; row < n; row++) {
 		for(int col = 0; col <= row; col++) {
@@ -185,7 +185,7 @@ ccl_device void math_trimatrix_cholesky(float *A, int n, int stride)
  *
  * This is useful for solving the normal equation S=inv(Xt*W*X)*Xt*W*y, since Xt*W*X is
  * symmetrical positive-semidefinite by construction, so we can just use this function with A=Xt*W*X and y=Xt*W*y. */
-ccl_device_inline void math_trimatrix_vec3_solve(float *A, float3 *y, int n, int stride)
+ccl_device_inline void math_trimatrix_vec3_solve(ccl_global float *A, ccl_global float3 *y, int n, int stride)
 {
 	math_matrix_add_diagonal(A, n, 1e-4f, stride); /* Improve the numerical stability. */
 	math_trimatrix_cholesky(A, n, stride); /* Replace A with L so that L*Lt = A. */
@@ -264,7 +264,7 @@ ccl_device float math_trimatrix_largest_eigenvalue(float *A, int n, float *vec, 
  *
  * Additionally, the function returns an estimate of the rank of A.
  */
-ccl_device int math_trimatrix_jacobi_eigendecomposition(float *A, float *V, int n, int v_stride)
+ccl_device int math_trimatrix_jacobi_eigendecomposition(float *A, ccl_global float *V, int n, int v_stride)
 {
 	const float epsilon = 1e-7f;
 	const float singular_epsilon = 1e-9f;

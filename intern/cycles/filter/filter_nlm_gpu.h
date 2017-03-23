@@ -16,7 +16,14 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline void kernel_filter_nlm_calc_difference(int x, int y, int dx, int dy, float ccl_readonly_ptr weightImage, float ccl_readonly_ptr varianceImage, float *differenceImage, int4 rect, int w, int channel_offset, float a, float k_2)
+ccl_device_inline void kernel_filter_nlm_calc_difference(int x, int y,
+                                                         int dx, int dy,
+                                                         ccl_global float ccl_readonly_ptr weightImage,
+                                                         ccl_global float ccl_readonly_ptr varianceImage,
+                                                         ccl_global float *differenceImage,
+                                                         int4 rect, int w,
+                                                         int channel_offset,
+                                                         float a, float k_2)
 {
 	float diff = 0.0f;
 	int numChannels = channel_offset? 3 : 1;
@@ -32,7 +39,10 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int x, int y, int dx, i
 	differenceImage[y*w+x] = diff;
 }
 
-ccl_device_inline void kernel_filter_nlm_blur(int x, int y, float ccl_readonly_ptr differenceImage, float *outImage, int4 rect, int w, int f)
+ccl_device_inline void kernel_filter_nlm_blur(int x, int y,
+                                              ccl_global float ccl_readonly_ptr differenceImage,
+                                              ccl_global float *outImage,
+                                              int4 rect, int w, int f)
 {
 	float sum = 0.0f;
 	const int low = max(rect.y, y-f);
@@ -44,7 +54,10 @@ ccl_device_inline void kernel_filter_nlm_blur(int x, int y, float ccl_readonly_p
 	outImage[y*w+x] = sum;
 }
 
-ccl_device_inline void kernel_filter_nlm_calc_weight(int x, int y, float ccl_readonly_ptr differenceImage, float *outImage, int4 rect, int w, int f)
+ccl_device_inline void kernel_filter_nlm_calc_weight(int x, int y,
+                                                     ccl_global float ccl_readonly_ptr differenceImage,
+                                                     ccl_global float *outImage,
+                                                     int4 rect, int w, int f)
 {
 	float sum = 0.0f;
 	const int low = max(rect.x, x-f);
@@ -58,11 +71,11 @@ ccl_device_inline void kernel_filter_nlm_calc_weight(int x, int y, float ccl_rea
 
 ccl_device_inline void kernel_filter_nlm_update_output(int x, int y,
                                                        int dx, int dy,
-                                                       float ccl_readonly_ptr differenceImage,
-                                                       float ccl_readonly_ptr image,
-                                                       float *outImage, float *accumImage,
-                                                       int4 rect, int w,
-                                                       int f)
+                                                       ccl_global float ccl_readonly_ptr differenceImage,
+                                                       ccl_global float ccl_readonly_ptr image,
+                                                       ccl_global float *outImage,
+                                                       ccl_global float *accumImage,
+                                                       int4 rect, int w, int f)
 {
 	float sum = 0.0f;
 	const int low = max(rect.x, x-f);
@@ -82,17 +95,18 @@ ccl_device_inline void kernel_filter_nlm_update_output(int x, int y,
 
 ccl_device_inline void kernel_filter_nlm_construct_gramian(int fx, int fy,
                                                            int dx, int dy,
-                                                           float ccl_readonly_ptr differenceImage,
-                                                           float ccl_readonly_ptr buffer,
-                                                           float *color_pass,
-                                                           float *variance_pass,
-                                                           float ccl_readonly_ptr transform,
-                                                           int *rank,
-                                                           float *XtWX,
-                                                           float3 *XtWY,
+                                                           ccl_global float ccl_readonly_ptr differenceImage,
+                                                           ccl_global float ccl_readonly_ptr buffer,
+                                                           ccl_global float *color_pass,
+                                                           ccl_global float *variance_pass,
+                                                           ccl_global float ccl_readonly_ptr transform,
+                                                           ccl_global int *rank,
+                                                           ccl_global float *XtWX,
+                                                           ccl_global float3 *XtWY,
                                                            int4 rect,
                                                            int4 filter_rect,
-                                                           int w, int h, int f)
+                                                           int w, int h, int f,
+                                                           int localIdx)
 {
 	int y = fy + filter_rect.y;
 	int x = fx + filter_rect.x;
@@ -116,10 +130,14 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int fx, int fy,
 	                                buffer,
 	                                color_pass, variance_pass,
 	                                transform, rank,
-	                                weight, XtWX, XtWY);
+	                                weight, XtWX, XtWY,
+	                                localIdx);
 }
 
-ccl_device_inline void kernel_filter_nlm_normalize(int x, int y, float *outImage, float ccl_readonly_ptr accumImage, int4 rect, int w)
+ccl_device_inline void kernel_filter_nlm_normalize(int x, int y,
+                                                   ccl_global float *outImage,
+                                                   ccl_global float ccl_readonly_ptr accumImage,
+                                                   int4 rect, int w)
 {
 	outImage[y*w+x] /= accumImage[y*w+x];
 }

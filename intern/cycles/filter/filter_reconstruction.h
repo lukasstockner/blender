@@ -20,14 +20,15 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
                                                        int storage_stride,
                                                        int dx, int dy,
                                                        int w, int h,
-                                                       float ccl_readonly_ptr buffer,
-                                                       float *color_pass,
-                                                       float *variance_pass,
-                                                       float ccl_readonly_ptr transform,
-                                                       int *rank,
+                                                       ccl_global float ccl_readonly_ptr buffer,
+                                                       ccl_global float *color_pass,
+                                                       ccl_global float *variance_pass,
+                                                       ccl_global float ccl_readonly_ptr transform,
+                                                       ccl_global int *rank,
                                                        float weight,
-                                                       float *XtWX,
-                                                       float3 *XtWY)
+                                                       ccl_global float *XtWX,
+                                                       ccl_global float3 *XtWY,
+                                                       int localIdx)
 {
 	const int pass_stride = w*h;
 
@@ -37,8 +38,12 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
 #ifdef __KERNEL_CPU__
 	const int stride = 1;
 	(void)storage_stride;
+	(void)localIdx;
+	float features[DENOISE_FEATURES];
 #else
 	const int stride = storage_stride;
+	ccl_local float shared_features[DENOISE_FEATURES*CCL_MAX_LOCAL_SIZE];
+	ccl_local_param float *features = shared_features + localIdx*DENOISE_FEATURES;
 #endif
 
 	float3 p_color = filter_get_pixel_color(color_pass + p_offset, pass_stride);
@@ -51,8 +56,8 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
 		return;
 	}
 
-	float feature_means[DENOISE_FEATURES], features[DENOISE_FEATURES];
-	filter_get_features(make_int2(x, y), buffer + p_offset, feature_means, NULL, pass_stride);
+	float feature_means[DENOISE_FEATURES];
+	filter_get_feature_mean(make_int2(x, y), buffer + p_offset, feature_means, pass_stride);
 
 	float design_row[DENOISE_FEATURES+1];
 	filter_get_design_row_transform(make_int2(x+dx, y+dy), buffer + q_offset, feature_means, pass_stride, features, *rank, design_row, transform, stride);
@@ -62,10 +67,13 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
 }
 
 ccl_device_inline void kernel_filter_finalize(int x, int y, int w, int h,
-                                              float *buffer,
-                                              int *rank, int storage_stride,
-                                              float *XtWX, float3 *XtWY,
-                                              int4 buffer_params, int sample)
+                                              ccl_global float *buffer,
+                                              ccl_global int *rank,
+                                              int storage_stride,
+                                              ccl_global float *XtWX,
+                                              ccl_global float3 *XtWY,
+                                              int4 buffer_params,
+                                              int sample)
 {
 #ifdef __KERNEL_CPU__
 	const int stride = 1;
@@ -78,7 +86,7 @@ ccl_device_inline void kernel_filter_finalize(int x, int y, int w, int h,
 
 	float3 final_color = XtWY[0];
 	if(buffer_params.z) {
-		float *combined_buffer = buffer + (y*buffer_params.y + x + buffer_params.x)*buffer_params.z;
+		ccl_global float *combined_buffer = buffer + (y*buffer_params.y + x + buffer_params.x)*buffer_params.z;
 		final_color *= sample;
 		if(buffer_params.w) {
 			final_color.x += combined_buffer[buffer_params.w+0];

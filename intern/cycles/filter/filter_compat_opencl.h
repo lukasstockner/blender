@@ -42,6 +42,11 @@
 #define ccl_private __private
 #define ccl_restrict restrict
 #define ccl_align(n) __attribute__((aligned(n)))
+#define ccl_readonly_ptr const * __restrict__
+#define ccl_local __local
+#define ccl_local_param __local
+
+#define CCL_MAX_LOCAL_SIZE 256
 
 /* no assert in opencl */
 #define kernel_assert(cond)

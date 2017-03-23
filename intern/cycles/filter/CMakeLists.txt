@@ -33,7 +33,7 @@ set(SRC_HEADERS
 	filter_prefilter.h
 	filter_reconstruction.h
 	filter_transform.h
-	filter_transform_cuda.h
+	filter_transform_gpu.h
 	filter_transform_sse.h
 )
 
