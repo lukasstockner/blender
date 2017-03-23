@@ -1098,7 +1098,7 @@ class CyclesObjectSettings(bpy.types.PropertyGroup):
 
         cls.is_shadow_catcher = BoolProperty(
                 name="Shadow Catcher",
-                description="This object is only catching shadows",
+                description="Only render shadows on this object, for compositing renders into real footage",
                 default=False,
                 )
 

@@ -397,16 +397,15 @@ ccl_device_inline void path_radiance_accum_total_light(
 }
 
 ccl_device_inline void path_radiance_accum_background(PathRadiance *L,
-                                                      const PathState *state,
+                                                      ccl_addr_space PathState *state,
                                                       float3 throughput,
-                                                      float3 value,
-                                                      int bounce)
+                                                      float3 value)
 {
 #ifdef __PASSES__
 	if(L->use_light_pass) {
-		if(bounce == 0)
+		if(state->bounce == 0)
 			L->background += throughput*value;
-		else if(bounce == 1)
+		else if(state->bounce == 1)
 			L->direct_emission += throughput*value;
 		else
 			L->indirect += throughput*value;

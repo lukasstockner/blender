@@ -16,42 +16,35 @@
 
 CCL_NAMESPACE_BEGIN
 
-/* Note on kernel_direct_lighting kernel.
- * This is the eighth kernel in the ray tracing logic. This is the seventh
- * of the path iteration kernels. This kernel takes care of direct lighting
- * logic. However, the "shadow ray cast" part of direct lighting is handled
+/* This kernel takes care of direct lighting logic.
+ * However, the "shadow ray cast" part of direct lighting is handled
  * in the next kernel.
  *
- * This kernels determines the rays for which a shadow_blocked() function associated with direct lighting should be executed.
- * Those rays for which a shadow_blocked() function for direct-lighting must be executed, are marked with flag RAY_SHADOW_RAY_CAST_DL and
- * enqueued into the queue QUEUE_SHADOW_RAY_CAST_DL_RAYS
+ * This kernels determines the rays for which a shadow_blocked() function
+ * associated with direct lighting should be executed. Those rays for which
+ * a shadow_blocked() function for direct-lighting must be executed, are
+ * marked with flag RAY_SHADOW_RAY_CAST_DL and enqueued into the queue
+ * QUEUE_SHADOW_RAY_CAST_DL_RAYS
  *
- * The input and output are as follows,
+ * Note on Queues:
+ * This kernel only reads from the QUEUE_ACTIVE_AND_REGENERATED_RAYS queue
+ * and processes only the rays of state RAY_ACTIVE; If a ray needs to execute
+ * the corresponding shadow_blocked part, after direct lighting, the ray is
+ * marked with RAY_SHADOW_RAY_CAST_DL flag.
  *
- * rng_coop -----------------------------------------|--- kernel_direct_lighting --|--- BSDFEval_coop
- * PathState_coop -----------------------------------|                             |--- ISLamp_coop
- * sd -----------------------------------------------|                             |--- LightRay_coop
- * ray_state ----------------------------------------|                             |--- ray_state
- * Queue_data (QUEUE_ACTIVE_AND_REGENERATED_RAYS) ---|                             |
- * kg (globals) -------------------------------------|                             |
- * queuesize ----------------------------------------|                             |
- *
- * Note on Queues :
- * This kernel only reads from the QUEUE_ACTIVE_AND_REGENERATED_RAYS queue and processes
- * only the rays of state RAY_ACTIVE; If a ray needs to execute the corresponding shadow_blocked
- * part, after direct lighting, the ray is marked with RAY_SHADOW_RAY_CAST_DL flag.
- *
- * State of queues when this kernel is called :
- * state of queues QUEUE_ACTIVE_AND_REGENERATED_RAYS and QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS will be same
- * before and after this kernel call.
- * QUEUE_SHADOW_RAY_CAST_DL_RAYS queue will be filled with rays for which a shadow_blocked function must be executed, after this
- * kernel call. Before this kernel call the QUEUE_SHADOW_RAY_CAST_DL_RAYS will be empty.
+ * State of queues when this kernel is called:
+ * - State of queues QUEUE_ACTIVE_AND_REGENERATED_RAYS and
+ *   QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS will be same before and after this
+ *   kernel call.
+ * - QUEUE_SHADOW_RAY_CAST_DL_RAYS queue will be filled with rays for which a
+ *   shadow_blocked function must be executed, after this kernel call
+ *    Before this kernel call the QUEUE_SHADOW_RAY_CAST_DL_RAYS will be empty.
  */
-ccl_device void kernel_direct_lighting(KernelGlobals *kg)
+ccl_device void kernel_direct_lighting(KernelGlobals *kg,
+                                       ccl_local_param unsigned int *local_queue_atomics)
 {
-	ccl_local unsigned int local_queue_atomics;
 	if(ccl_local_id(0) == 0 && ccl_local_id(1) == 0) {
-		local_queue_atomics = 0;
+		*local_queue_atomics = 0;
 	}
 	ccl_barrier(CCL_LOCAL_MEM_FENCE);
 
@@ -86,15 +79,32 @@ ccl_device void kernel_direct_lighting(KernelGlobals *kg)
 
 		/* direct lighting */
 #ifdef __EMISSION__
-		if((kernel_data.integrator.use_direct_light &&
-		    (sd->flag & SD_BSDF_HAS_EVAL)))
-		{
+		RNG rng = kernel_split_state.rng[ray_index];
+		bool flag = (kernel_data.integrator.use_direct_light &&
+		             (sd->flag & SD_BSDF_HAS_EVAL));
+#  ifdef __SHADOW_TRICKS__
+		if(flag && state->flag & PATH_RAY_SHADOW_CATCHER) {
+			flag = false;
+			ShaderData *emission_sd = &kernel_split_state.sd_DL_shadow[ray_index];
+			float3 throughput = kernel_split_state.throughput[ray_index];
+			PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
+			kernel_branched_path_surface_connect_light(kg,
+			                                           &rng,
+			                                           sd,
+			                                           emission_sd,
+			                                           state,
+			                                           throughput,
+			                                           1.0f,
+			                                           L,
+			                                           1);
+		}
+#  endif  /* __SHADOW_TRICKS__ */
+		if(flag) {
 			/* Sample illumination from lights to find path contribution. */
-			ccl_global RNG* rng = &kernel_split_state.rng[ray_index];
-			float light_t = path_state_rng_1D(kg, rng, state, PRNG_LIGHT);
+			float light_t = path_state_rng_1D(kg, &rng, state, PRNG_LIGHT);
 			float light_u, light_v;
-			path_state_rng_2D(kg, rng, state, PRNG_LIGHT_U, &light_u, &light_v);
-			float terminate = path_state_rng_light_termination(kg, rng, state);
+			path_state_rng_2D(kg, &rng, state, PRNG_LIGHT_U, &light_u, &light_v);
+			float terminate = path_state_rng_light_termination(kg, &rng, state);
 
 			LightSample ls;
 			if(light_sample(kg,
@@ -105,9 +115,9 @@ ccl_device void kernel_direct_lighting(KernelGlobals *kg)
 			                &ls)) {
 
 				Ray light_ray;
-#ifdef __OBJECT_MOTION__
+#  ifdef __OBJECT_MOTION__
 				light_ray.time = sd->time;
-#endif
+#  endif
 
 				BsdfEval L_light;
 				bool is_lamp;
@@ -124,6 +134,7 @@ ccl_device void kernel_direct_lighting(KernelGlobals *kg)
 				}
 			}
 		}
+		kernel_split_state.rng[ray_index] = rng;
 #endif  /* __EMISSION__ */
 	}
 
@@ -137,7 +148,7 @@ ccl_device void kernel_direct_lighting(KernelGlobals *kg)
 	                        QUEUE_SHADOW_RAY_CAST_DL_RAYS,
 	                        enqueue_flag,
 	                        kernel_split_params.queue_size,
-	                        &local_queue_atomics,
+	                        local_queue_atomics,
 	                        kernel_split_state.queue_data,
 	                        kernel_split_params.queue_index);
 #endif

@@ -295,8 +295,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 			path_radiance_accum_background(L,
 			                               state,
 			                               throughput,
-			                               L_background,
-			                               state->bounce);
+			                               L_background);
 #endif  /* __BACKGROUND__ */
 
 			break;
@@ -384,7 +383,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 
 			/* do bssrdf scatter step if we picked a bssrdf closure */
 			if(sc) {
-				uint lcg_state = lcg_state_init(rng, state, 0x68bc21eb);
+				uint lcg_state = lcg_state_init(rng, state->rng_offset, state->sample, 0x68bc21eb);
 
 				float bssrdf_u, bssrdf_v;
 				path_state_rng_2D(kg,
@@ -480,7 +479,7 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 			}
 
 			extmax = kernel_data.curve.maximum_width;
-			lcg_state = lcg_state_init(rng, &state, 0x51633e2d);
+			lcg_state = lcg_state_init(rng, state.rng_offset, state.sample, 0x51633e2d);
 		}
 
 		if(state.bounce > kernel_data.integrator.ao_bounces) {
@@ -625,7 +624,7 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 #ifdef __BACKGROUND__
 			/* sample background shader */
 			float3 L_background = indirect_background(kg, &emission_sd, &state, &ray);
-			path_radiance_accum_background(L, &state, throughput, L_background, state.bounce);
+			path_radiance_accum_background(L, &state, throughput, L_background);
 #endif  /* __BACKGROUND__ */
 
 			break;
@@ -641,7 +640,7 @@ ccl_device_inline float kernel_path_integrate(KernelGlobals *kg,
 
 #ifdef __SHADOW_TRICKS__
 		if((sd.object_flag & SD_OBJECT_SHADOW_CATCHER)) {
-			if (state.flag & PATH_RAY_CAMERA) {
+			if(state.flag & PATH_RAY_CAMERA) {
 				state.flag |= (PATH_RAY_SHADOW_CATCHER | PATH_RAY_SHADOW_CATCHER_ONLY);
 				state.catcher_object = sd.object;
 				if(!kernel_data.background.transparent) {
