@@ -119,6 +119,9 @@ ccl_device_inline void kernel_write_denoising_shadow(KernelGlobals *kg, ccl_glob
 	if(sample & 1) buffer += 3;
 	buffer += kernel_data.film.pass_denoising_data + 14;
 
+	path_total = ensure_finite(path_total);
+	path_total_shaded = ensure_finite(path_total_shaded);
+
 	kernel_write_pass_float(buffer, sample/2, path_total);
 	kernel_write_pass_float(buffer+1, sample/2, path_total_shaded);
 

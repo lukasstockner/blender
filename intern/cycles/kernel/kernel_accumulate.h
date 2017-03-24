@@ -612,6 +612,9 @@ ccl_device_inline void path_radiance_split_denoising(KernelGlobals *kg, PathRadi
 	*noisy = *L;
 	*clean = make_float3(0.0f, 0.0f, 0.0f);
 #endif
+
+	*noisy = ensure_finite3(*noisy);
+	*clean = ensure_finite3(*clean);
 }
 
 ccl_device_inline void path_radiance_accum_sample(PathRadiance *L, PathRadiance *L_sample, int num_samples)
