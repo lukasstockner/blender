@@ -228,8 +228,6 @@ public:
 #ifdef WITH_OSL
 		kernel_globals.osl = &osl_globals;
 #endif
-		system_enable_ftz();
-
 		use_split_kernel = DebugFlags().cpu.split_kernel;
 		if(use_split_kernel) {
 			VLOG(1) << "Will be using split kernel.";
