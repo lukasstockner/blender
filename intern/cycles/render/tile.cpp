@@ -145,7 +145,6 @@ void TileManager::reset(BufferParams& params_, int num_samples_)
 	state.global_buffers = NULL;
 	state.sample = range_start_sample - 1;
 	state.num_tiles = 0;
-	state.num_rendered_tiles = 0;
 	state.num_samples = 0;
 	state.resolution_divider = get_divider(params.width, params.height, start_resolution);
 	state.render_tiles.clear();
@@ -470,7 +469,6 @@ bool TileManager::next_tile(Tile* &tile, int device)
 	int idx = state.render_tiles[logical_device].front();
 	state.render_tiles[logical_device].pop_front();
 	tile = &state.tiles[idx];
-	state.num_rendered_tiles++;
 	return true;
 }
 
