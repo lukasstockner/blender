@@ -58,11 +58,6 @@ ccl_device_inline void filter_get_features(int2 pixel, ccl_global float ccl_read
 		for(int i = 0; i < DENOISE_FEATURES; i++)
 			features[i] -= mean[i];
 	}
-#ifdef DENOISE_SECOND_ORDER_SCREEN
-	features[10] = features[0]*features[0];
-	features[11] = features[1]*features[1];
-	features[12] = features[0]*features[1];
-#endif
 }
 
 ccl_device_inline void filter_get_feature_scales(int2 pixel, ccl_global float ccl_readonly_ptr buffer, ccl_local_param float *scales, float ccl_readonly_ptr mean, int pass_stride)

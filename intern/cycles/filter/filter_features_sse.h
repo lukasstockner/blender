@@ -47,17 +47,10 @@ ccl_device_inline void filter_get_features_sse(__m128 x, __m128 y, __m128 active
 	features[9] = ccl_get_feature_sse(7);
 	if(mean) {
 		for(int i = 0; i < DENOISE_FEATURES; i++)
-			features[i] = _mm_mask_ps(_mm_sub_ps(features[i], mean[i]), active_pixels);
+			features[i] = _mm_sub_ps(features[i], mean[i]);
 	}
-	else {
-		for(int i = 0; i < DENOISE_FEATURES; i++)
-			features[i] = _mm_mask_ps(features[i], active_pixels);
-	}
-#ifdef DENOISE_SECOND_ORDER_SCREEN
-	features[10] = _mm_mul_ps(features[0], features[0]);
-	features[11] = _mm_mul_ps(features[1], features[1]);
-	features[12] = _mm_mul_ps(features[0], features[1]);
-#endif
+	for(int i = 0; i < DENOISE_FEATURES; i++)
+		features[i] = _mm_mask_ps(features[i], active_pixels);
 }
 
 ccl_device_inline void filter_get_feature_scales_sse(__m128 x, __m128 y, __m128 active_pixels, float ccl_readonly_ptr buffer, __m128 *scales, __m128 ccl_readonly_ptr mean, int pass_stride)
@@ -93,7 +86,7 @@ ccl_device_inline void filter_calculate_scale_sse(__m128 *scale)
 	scale[1] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(scale[1]), _mm_set1_ps(0.01f)));
 	scale[2] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(scale[2]), _mm_set1_ps(0.01f)));
 	scale[6] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(scale[4]), _mm_set1_ps(0.01f)));
-	
+
 	scale[7] = scale[8] = scale[9] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(_mm_sqrt_ps(scale[5])), _mm_set1_ps(0.01f)));
 	scale[3] = scale[4] = scale[5] = _mm_rcp_ps(_mm_max_ps(_mm_hmax_ps(_mm_sqrt_ps(scale[3])), _mm_set1_ps(0.01f)));
 }
