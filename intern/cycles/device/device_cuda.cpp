@@ -1902,7 +1902,7 @@ uint64_t CUDASplitKernel::state_buffer_size(device_memory& /*kg*/, device_memory
 	cuda_assert(cuLaunchKernel(state_buffer_size,
 	                           1, 1, 1,
 	                           1, 1, 1,
-	                           0, 0, (void**) &args, 0));
+	                           0, 0, (void**)&args, 0));
 
 	device->cuda_pop_context();
 
