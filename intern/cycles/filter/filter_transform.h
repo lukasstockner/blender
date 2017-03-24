@@ -19,7 +19,7 @@ CCL_NAMESPACE_BEGIN
 ccl_device void kernel_filter_construct_transform(int sample, float ccl_readonly_ptr buffer,
                                                   int x, int y, int4 rect,
                                                   float *transform, int *rank,
-                                                  int half_window, float pca_threshold)
+                                                  int radius, float pca_threshold)
 {
 	float features[DENOISE_FEATURES];
 
@@ -37,10 +37,10 @@ ccl_device void kernel_filter_construct_transform(int sample, float ccl_readonly
 
 
 	/* === Calculate denoising window. === */
-	int2 low  = make_int2(max(rect.x, x - half_window),
-	                      max(rect.y, y - half_window));
-	int2 high = make_int2(min(rect.z, x + half_window + 1),
-	                      min(rect.w, y + half_window + 1));
+	int2 low  = make_int2(max(rect.x, x - radius),
+	                      max(rect.y, y - radius));
+	int2 high = make_int2(min(rect.z, x + radius + 1),
+	                      min(rect.w, y + radius + 1));
 
 
 

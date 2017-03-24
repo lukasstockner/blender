@@ -669,7 +669,7 @@ bool OpenCLDeviceBase::denoising_construct_transform(DenoisingTask *task)
 	                rank_mem,
 	                task->filter_area,
 	                task->rect,
-	                task->half_window,
+	                task->radius,
 	                task->pca_threshold);
 
 	enqueue_kernel(ckFilterConstructTransform,
@@ -711,7 +711,7 @@ bool OpenCLDeviceBase::denoising_reconstruct(device_ptr color_ptr,
 	cl_mem difference     = CL_MEM_PTR(task->reconstruction_state.temporary_1_ptr);
 	cl_mem blurDifference = CL_MEM_PTR(task->reconstruction_state.temporary_2_ptr);
 
-	int r = task->half_window;
+	int r = task->radius;
 	int f = 4;
 	float a = 1.0f;
 	for(int i = 0; i < (2*r+1)*(2*r+1); i++) {

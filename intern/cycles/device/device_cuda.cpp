@@ -1021,7 +1021,7 @@ public:
 		                &task->storage.rank.device_pointer,
 		                &task->filter_area,
 		                &task->rect,
-		                &task->half_window,
+		                &task->radius,
 		                &task->pca_threshold};
 		CUDA_LAUNCH_KERNEL(cuFilterConstructTransform, args);
 		cuda_assert(cuCtxSynchronize());
@@ -1065,7 +1065,7 @@ public:
 		CUdeviceptr difference     = task->reconstruction_state.temporary_1_ptr;
 		CUdeviceptr blurDifference = task->reconstruction_state.temporary_2_ptr;
 
-		int r = task->half_window;
+		int r = task->radius;
 		int f = 4;
 		float a = 1.0f;
 		for(int i = 0; i < (2*r+1)*(2*r+1); i++) {

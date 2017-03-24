@@ -27,7 +27,7 @@ CCL_NAMESPACE_BEGIN
 class DenoisingTask {
 public:
 	/* Parameters of the denoising algorithm. */
-	int half_window;
+	int radius;
 	float pca_threshold;
 	float nlm_k_2;
 	bool use_cross_denoising;

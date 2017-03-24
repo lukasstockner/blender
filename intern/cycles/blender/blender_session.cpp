@@ -520,7 +520,7 @@ void BlenderSession::render()
 		scene->film->denoising_split_pass = b_layer_iter->filter_cross();
 		buffer_params.denoising_clean_pass = scene->film->denoising_clean_pass;
 		buffer_params.denoising_split_pass = scene->film->denoising_split_pass;
-		session->params.denoising_half_window = b_layer_iter->half_window();
+		session->params.denoising_radius = b_layer_iter->denoising_radius();
 		session->params.denoising_pca_threshold = (b_layer_iter->filter_strength() == 0.0f)? 1e-3f : copysignf(powf(10.0f, -fabsf(b_layer_iter->filter_strength())*2.0f), b_layer_iter->filter_strength());
 		session->params.denoising_weight_adjust = powf(2.0f, b_layer_iter->filter_weighting_adjust() - 1.0f);
 		session->params.denoising_use_gradients = b_layer_iter->filter_gradients();

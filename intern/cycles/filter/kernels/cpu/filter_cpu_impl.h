@@ -116,7 +116,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(int sample,
                                                            float *transform,
                                                            int *rank,
                                                            int* prefilter_rect,
-                                                           int half_window,
+                                                           int radius,
                                                            float pca_threshold)
 {
 #ifdef KERNEL_STUB
@@ -127,7 +127,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(int sample,
 	kernel_filter_construct_transform(sample, buffer,
                                     x, y, load_int4(prefilter_rect),
                                     transform, rank,
-                                    half_window, pca_threshold);
+                                    radius, pca_threshold);
 #endif
 }
 

@@ -5147,10 +5147,10 @@ static void rna_def_scene_render_layer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Filter weighting adjust", "Controls neighbor pixel weighting for the denoising filter (lower values preserve more detail, but aren't as smooth)");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "half_window", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "denoise_half_window");
+	prop = RNA_def_property(srna, "denoising_radius", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "denoising_radius");
 	RNA_def_property_range(prop, 1, 50);
-	RNA_def_property_ui_text(prop, "Half window", "Size of the filter window (the pixel area used for denoising one pixel). Higher values get rid of more noise, but might lose detail and are slower");
+	RNA_def_property_ui_text(prop, "Denoising Radius", "Size of the image area that's used to denoise a pixel. Higher values get rid of more noise, but might lose detail and are slower");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "filter_gradients", PROP_BOOLEAN, PROP_NONE);

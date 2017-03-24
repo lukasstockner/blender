@@ -59,7 +59,7 @@ public:
 
 	bool display_buffer_linear;
 
-	int denoising_half_window;
+	int denoising_radius;
 	float denoising_pca_threshold;
 	float denoising_weight_adjust;
 	bool denoising_use_gradients;
@@ -90,7 +90,7 @@ public:
 
 		display_buffer_linear = false;
 
-		denoising_half_window = 8;
+		denoising_radius = 8;
 		denoising_pca_threshold = 1e-3f;
 		denoising_weight_adjust = 0.5f;
 		denoising_use_gradients = false;
@@ -117,7 +117,7 @@ public:
 		&& start_resolution == params.start_resolution
 		&& threads == params.threads
 		&& denoise_result == params.denoise_result
-		&& denoising_half_window == params.denoising_half_window
+		&& denoising_radius == params.denoising_radius
 		&& denoising_pca_threshold == params.denoising_pca_threshold
 		&& denoising_weight_adjust == params.denoising_weight_adjust
 		&& denoising_use_gradients == params.denoising_use_gradients

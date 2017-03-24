@@ -106,7 +106,7 @@ CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_filter_construct_transform(int sample, float const* __restrict__ buffer,
                                        float *transform, int *rank,
                                        int4 filter_area, int4 rect,
-                                       int half_window, float pca_threshold)
+                                       int radius, float pca_threshold)
 {
 	int x = blockDim.x*blockIdx.x + threadIdx.x;
 	int y = blockDim.y*blockIdx.y + threadIdx.y;
@@ -116,7 +116,7 @@ kernel_cuda_filter_construct_transform(int sample, float const* __restrict__ buf
 		kernel_filter_construct_transform(sample, buffer,
 		                                  x + filter_area.x, y + filter_area.y,
 		                                  rect, l_transform, l_rank,
-		                                  half_window, pca_threshold,
+		                                  radius, pca_threshold,
 		                                  filter_area.z*filter_area.w,
 		                                  threadIdx.y*blockDim.x + threadIdx.x);
 	}

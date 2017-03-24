@@ -67,7 +67,7 @@ public:
 	function<bool(void)> get_cancel;
 	function<void(RenderTile*)> get_neighbor_tiles;
 
-	int denoising_half_window;
+	int denoising_radius;
 	float denoising_pca_threshold;
 	float denoising_weight_adjust;
 	bool denoising_use_cross;

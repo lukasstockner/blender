@@ -22,7 +22,7 @@ CCL_NAMESPACE_BEGIN
 
 void DenoisingTask::init_from_devicetask(const DeviceTask &task)
 {
-	half_window = task.denoising_half_window;
+	radius = task.denoising_radius;
 	pca_threshold = task.denoising_pca_threshold;
 	nlm_k_2 = task.denoising_weight_adjust;
 	use_cross_denoising = task.denoising_use_cross;
@@ -32,11 +32,11 @@ void DenoisingTask::init_from_devicetask(const DeviceTask &task)
 	render_buffer.denoising_data_offset  = task.pass_denoising_data;
 	render_buffer.denoising_clean_offset = task.pass_denoising_clean;
 
-	/* Expand filter_area by half_window pixels and clamp the result to the extent of the neighboring tiles */
-	rect = make_int4(max(tiles->x[0], filter_area.x - half_window),
-	                 max(tiles->y[0], filter_area.y - half_window),
-	                 min(tiles->x[3], filter_area.x + filter_area.z + half_window),
-	                 min(tiles->y[3], filter_area.y + filter_area.w + half_window));
+	/* Expand filter_area by radius pixels and clamp the result to the extent of the neighboring tiles */
+	rect = make_int4(max(tiles->x[0], filter_area.x - radius),
+	                 max(tiles->y[0], filter_area.y - radius),
+	                 min(tiles->x[3], filter_area.x + filter_area.z + radius),
+	                 min(tiles->y[3], filter_area.y + filter_area.w + radius));
 }
 
 void DenoisingTask::tiles_from_rendertiles(RenderTile *rtiles)

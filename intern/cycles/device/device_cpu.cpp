@@ -456,7 +456,7 @@ public:
 				                                    (float*) task->storage.transform.device_pointer,
 				                                    (int*)   task->storage.rank.device_pointer,
 				                                    &task->rect.x,
-				                                    task->half_window,
+				                                    task->radius,
 				                                    task->pca_threshold);
 			}
 		}
@@ -476,7 +476,7 @@ public:
 		float *difference     = (float*) task->reconstruction_state.temporary_1_ptr;
 		float *blurDifference = (float*) task->reconstruction_state.temporary_2_ptr;
 
-		int r = task->half_window;
+		int r = task->radius;
 		for(int i = 0; i < (2*r+1)*(2*r+1); i++) {
 			int dy = i / (2*r+1) - r;
 			int dx = i % (2*r+1) - r;

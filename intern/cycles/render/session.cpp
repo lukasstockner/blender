@@ -965,7 +965,7 @@ void Session::render()
 	task.passes_size = tile_manager.params.get_passes_size();
 
 	if(params.denoise_result) {
-		task.denoising_half_window = params.denoising_half_window;
+		task.denoising_radius = params.denoising_radius;
 		task.denoising_pca_threshold = params.denoising_pca_threshold;
 		task.denoising_weight_adjust = params.denoising_weight_adjust;
 		task.denoising_use_cross = params.denoising_use_cross;

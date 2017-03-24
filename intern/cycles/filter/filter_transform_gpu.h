@@ -21,7 +21,7 @@ ccl_device void kernel_filter_construct_transform(int sample,
                                                   int x, int y, int4 rect,
                                                   ccl_global float *transform,
                                                   ccl_global int *rank,
-                                                  int half_window, float pca_threshold,
+                                                  int radius, float pca_threshold,
                                                   int transform_stride, int localIdx)
 {
 	ccl_local float shared_features[DENOISE_FEATURES*CCL_MAX_LOCAL_SIZE];
@@ -31,10 +31,10 @@ ccl_device void kernel_filter_construct_transform(int sample,
 	int buffer_h = (rect.w - rect.y);
 	int pass_stride = buffer_h * buffer_w;
 	/* === Calculate denoising window. === */
-	int2 low  = make_int2(max(rect.x, x - half_window),
-	                      max(rect.y, y - half_window));
-	int2 high = make_int2(min(rect.z, x + half_window + 1),
-	                      min(rect.w, y + half_window + 1));
+	int2 low  = make_int2(max(rect.x, x - radius),
+	                      max(rect.y, y - radius));
+	int2 high = make_int2(min(rect.z, x + radius + 1),
+	                      min(rect.w, y + radius + 1));
 	ccl_global float ccl_readonly_ptr pixel_buffer;
 	int2 pixel;
 
