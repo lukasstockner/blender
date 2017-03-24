@@ -609,7 +609,7 @@ ccl_device_inline void path_radiance_split_denoising(KernelGlobals *kg, PathRadi
 	ADD_COMPONENT(DENOISING_CLEAN_SUBSURFACE_IND,   L->indirect_subsurface);
 #  undef ADD_COMPONENT
 #else
-	*noisy = *L;
+	*noisy = L->emission;
 	*clean = make_float3(0.0f, 0.0f, 0.0f);
 #endif
 
