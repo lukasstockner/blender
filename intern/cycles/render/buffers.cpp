@@ -84,7 +84,7 @@ int BufferParams::get_passes_size()
 	return align_up(size, 4);
 }
 
-int BufferParams::get_denoise_offset()
+int BufferParams::get_denoising_offset()
 {
 	int offset = 0;
 

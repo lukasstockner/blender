@@ -1406,16 +1406,16 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 	}
 	
 	{
-		if (!DNA_struct_elem_find(fd->filesdna, "SceneRenderLayer", "int", "denoiseflag")) {
+		if (!DNA_struct_elem_find(fd->filesdna, "SceneRenderLayer", "int", "denoising_flag")) {
 			Scene *sce;
 
 			for (sce = main->scene.first; sce; sce = sce->id.next) {
 				SceneRenderLayer *rl;
 				for (rl = sce->r.layers.first; rl; rl = rl->next) {
-					rl->denoiseflag = SCE_DENOISE_PASS_DIFFDIR|SCE_DENOISE_PASS_GLOSSDIR|SCE_DENOISE_PASS_TRANSDIR|SCE_DENOISE_PASS_SUBDIR|
-					                  SCE_DENOISE_PASS_DIFFIND|SCE_DENOISE_PASS_GLOSSIND|SCE_DENOISE_PASS_TRANSIND|SCE_DENOISE_PASS_SUBIND;
+					rl->denoising_flag = SCE_DENOISING_PASS_DIFFDIR|SCE_DENOISING_PASS_GLOSSDIR|SCE_DENOISING_PASS_TRANSDIR|SCE_DENOISING_PASS_SUBDIR|
+					                  SCE_DENOISING_PASS_DIFFIND|SCE_DENOISING_PASS_GLOSSIND|SCE_DENOISING_PASS_TRANSIND|SCE_DENOISING_PASS_SUBIND;
 					rl->denoising_radius = 8;
-					rl->denoise_strength = 0.0f;
+					rl->denoising_strength = 0.0f;
 				}
 			}
 		}

@@ -583,7 +583,7 @@ class CyclesRender_PT_denoising(CyclesButtonsPanel, Panel):
     def draw_header(self, context):
         rd = context.scene.render
         rl = rd.layers.active
-        self.layout.prop(rl, "denoise_result", text="")
+        self.layout.prop(rl, "use_denoising", text="")
 
     def draw(self, context):
         layout = self.layout
@@ -595,23 +595,23 @@ class CyclesRender_PT_denoising(CyclesButtonsPanel, Panel):
         col = layout.column()
 
         sub = col.column(align=True)
-        sub.prop(rl, "radius")
-        sub.prop(rl, "filter_strength", slider=True)
-        sub.prop(rl, "filter_weighting_adjust", slider=True)
-        sub.prop(rl, "filter_gradients")
-        sub.prop(rl, "filter_cross")
+        sub.prop(rl, "denoising_radius")
+        sub.prop(rl, "denoising_strength", slider=True)
+        sub.prop(rl, "denoising_weighting_adjust", slider=True)
+        sub.prop(rl, "denoising_gradients")
+        sub.prop(rl, "denoising_cross")
 
         sub = col.column(align=True)
         row = sub.row(align=True)
-        row.prop(rl, "denoise_diffuse_direct", toggle=True)
-        row.prop(rl, "denoise_glossy_direct", toggle=True)
-        row.prop(rl, "denoise_transmission_direct", toggle=True)
-        row.prop(rl, "denoise_subsurface_direct", toggle=True)
+        row.prop(rl, "denoising_diffuse_direct", toggle=True)
+        row.prop(rl, "denoising_glossy_direct", toggle=True)
+        row.prop(rl, "denoising_transmission_direct", toggle=True)
+        row.prop(rl, "denoising_subsurface_direct", toggle=True)
         row = sub.row(align=True)
-        row.prop(rl, "denoise_diffuse_indirect", toggle=True)
-        row.prop(rl, "denoise_glossy_indirect", toggle=True)
-        row.prop(rl, "denoise_transmission_indirect", toggle=True)
-        row.prop(rl, "denoise_subsurface_indirect", toggle=True)
+        row.prop(rl, "denoising_diffuse_indirect", toggle=True)
+        row.prop(rl, "denoising_glossy_indirect", toggle=True)
+        row.prop(rl, "denoising_transmission_indirect", toggle=True)
+        row.prop(rl, "denoising_subsurface_indirect", toggle=True)
 
 
 class Cycles_PT_post_processing(CyclesButtonsPanel, Panel):

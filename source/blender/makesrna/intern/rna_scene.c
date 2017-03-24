@@ -5090,61 +5090,61 @@ static void rna_def_scene_render_layer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Freestyle Settings", "");
 
 	/* Cycles denoising */
-	prop = RNA_def_property(srna, "denoise_result", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_RESULT);
+	prop = RNA_def_property(srna, "use_denoising", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoising_flag", SCE_DENOISING_USE);
 	RNA_def_property_ui_text(prop, "Denoise Render Result", "Denoise the rendered image during rendering");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "denoise_diffuse_direct", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_DIFFDIR);
+	prop = RNA_def_property(srna, "denoising_diffuse_direct", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoising_flag", SCE_DENOISING_PASS_DIFFDIR);
 	RNA_def_property_ui_text(prop, "Diffuse Direct", "Denoise the direct diffuse lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "denoise_diffuse_indirect", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_DIFFIND);
+	prop = RNA_def_property(srna, "denoising_diffuse_indirect", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoising_flag", SCE_DENOISING_PASS_DIFFIND);
 	RNA_def_property_ui_text(prop, "Diffuse Indirect", "Denoise the indirect diffuse lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "denoise_glossy_direct", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_GLOSSDIR);
+	prop = RNA_def_property(srna, "denoising_glossy_direct", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoising_flag", SCE_DENOISING_PASS_GLOSSDIR);
 	RNA_def_property_ui_text(prop, "Glossy Direct", "Denoise the direct glossy lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "denoise_glossy_indirect", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_GLOSSIND);
+	prop = RNA_def_property(srna, "denoising_glossy_indirect", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoising_flag", SCE_DENOISING_PASS_GLOSSIND);
 	RNA_def_property_ui_text(prop, "Glossy Indirect", "Denoise the indirect glossy lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "denoise_transmission_direct", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_TRANSDIR);
+	prop = RNA_def_property(srna, "denoising_transmission_direct", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoising_flag", SCE_DENOISING_PASS_TRANSDIR);
 	RNA_def_property_ui_text(prop, "Transmission Direct", "Denoise the direct transmission lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "denoise_transmission_indirect", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_TRANSIND);
+	prop = RNA_def_property(srna, "denoising_transmission_indirect", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoising_flag", SCE_DENOISING_PASS_TRANSIND);
 	RNA_def_property_ui_text(prop, "Transmission Indirect", "Denoise the indirect transmission lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "denoise_subsurface_direct", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_SUBDIR);
+	prop = RNA_def_property(srna, "denoising_subsurface_direct", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoising_flag", SCE_DENOISING_PASS_SUBDIR);
 	RNA_def_property_ui_text(prop, "Subsurface Direct", "Denoise the direct subsurface lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "denoise_subsurface_indirect", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_PASS_SUBIND);
+	prop = RNA_def_property(srna, "denoising_subsurface_indirect", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoising_flag", SCE_DENOISING_PASS_SUBIND);
 	RNA_def_property_ui_text(prop, "Subsurface Indirect", "Denoise the indirect subsurface lighting");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "filter_strength", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "denoise_strength");
+	prop = RNA_def_property(srna, "denoising_strength", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "denoising_strength");
 	RNA_def_property_range(prop, -4.0f, 4.0f);
-	RNA_def_property_ui_text(prop, "Filter strength", "Controls feature variance weight for the denoising filter (lower values preserve more detail, but aren't as smooth)");
+	RNA_def_property_ui_text(prop, "Denoising strength", "Controls feature variance weight for the denoising filter (lower values preserve more detail, but aren't as smooth)");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "filter_weighting_adjust", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "denoise_weighting");
+	prop = RNA_def_property(srna, "denoising_weighting_adjust", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "denoising_weighting");
 	RNA_def_property_range(prop, -4.0f, 4.0f);
-	RNA_def_property_ui_text(prop, "Filter weighting adjust", "Controls neighbor pixel weighting for the denoising filter (lower values preserve more detail, but aren't as smooth)");
+	RNA_def_property_ui_text(prop, "Denoising weighting adjust", "Controls neighbor pixel weighting for the denoising filter (lower values preserve more detail, but aren't as smooth)");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "denoising_radius", PROP_INT, PROP_NONE);
@@ -5153,13 +5153,13 @@ static void rna_def_scene_render_layer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Denoising Radius", "Size of the image area that's used to denoise a pixel. Higher values get rid of more noise, but might lose detail and are slower");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "filter_gradients", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_GRADIENTS);
+	prop = RNA_def_property(srna, "denoising_gradients", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoising_flag", SCE_DENOISING_GRADIENTS);
 	RNA_def_property_ui_text(prop, "Use gradients for denoising", "Use aditional predictions of neighboring pixels using the fitted gradients to get a cleaner result. Might cause visible tile borders.");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "filter_cross", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "denoiseflag", SCE_DENOISE_CROSS);
+	prop = RNA_def_property(srna, "denoising_cross", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "denoising_flag", SCE_DENOISING_CROSS);
 	RNA_def_property_ui_text(prop, "Use cross-denoising", "Use cross-pass denoising. Improves quality, but increases denoise time and memory requirements");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 }

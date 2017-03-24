@@ -55,10 +55,9 @@ public:
 	int start_resolution;
 	int threads;
 
-	bool denoise_result;
-
 	bool display_buffer_linear;
 
+	bool use_denoising;
 	int denoising_radius;
 	float denoising_pca_threshold;
 	float denoising_weight_adjust;
@@ -86,7 +85,7 @@ public:
 		start_resolution = INT_MAX;
 		threads = 0;
 
-		denoise_result = false;
+		use_denoising = false;
 
 		display_buffer_linear = false;
 
@@ -116,7 +115,7 @@ public:
 		&& tile_size == params.tile_size
 		&& start_resolution == params.start_resolution
 		&& threads == params.threads
-		&& denoise_result == params.denoise_result
+		&& use_denoising == params.use_denoising
 		&& denoising_radius == params.denoising_radius
 		&& denoising_pca_threshold == params.denoising_pca_threshold
 		&& denoising_weight_adjust == params.denoising_weight_adjust

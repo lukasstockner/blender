@@ -227,10 +227,10 @@ typedef struct SceneRenderLayer {
 	int passflag;			/* pass_xor has to be after passflag */
 	int pass_xor;
 
-	int denoiseflag;
+	int denoising_flag;
 	int denoising_radius;
-	float denoise_strength;
-	float denoise_weighting;
+	float denoising_strength;
+	float denoising_weighting;
 
 	int samples;
 	float pass_alpha_threshold;
@@ -255,19 +255,19 @@ typedef struct SceneRenderLayer {
 #define SCE_LAY_ZMASK		0x40000
 #define SCE_LAY_NEG_ZMASK	0x80000
 
-typedef enum SceneDenoiseFlag {
-	SCE_DENOISE_RESULT                = (1 << 0),
-	SCE_DENOISE_PASS_DIFFDIR          = (1 << 2),
-	SCE_DENOISE_PASS_DIFFIND          = (1 << 3),
-	SCE_DENOISE_PASS_GLOSSDIR         = (1 << 4),
-	SCE_DENOISE_PASS_GLOSSIND         = (1 << 5),
-	SCE_DENOISE_PASS_TRANSDIR         = (1 << 6),
-	SCE_DENOISE_PASS_TRANSIND         = (1 << 7),
-	SCE_DENOISE_PASS_SUBDIR           = (1 << 8),
-	SCE_DENOISE_PASS_SUBIND           = (1 << 9),
-	SCE_DENOISE_GRADIENTS             = (1 << 11),
-	SCE_DENOISE_CROSS                 = (1 << 12),
-} SceneDenoiseFlag;
+typedef enum SceneDenoisingFlag {
+	SCE_DENOISING_USE                = (1 << 0),
+	SCE_DENOISING_PASS_DIFFDIR          = (1 << 2),
+	SCE_DENOISING_PASS_DIFFIND          = (1 << 3),
+	SCE_DENOISING_PASS_GLOSSDIR         = (1 << 4),
+	SCE_DENOISING_PASS_GLOSSIND         = (1 << 5),
+	SCE_DENOISING_PASS_TRANSDIR         = (1 << 6),
+	SCE_DENOISING_PASS_TRANSIND         = (1 << 7),
+	SCE_DENOISING_PASS_SUBDIR           = (1 << 8),
+	SCE_DENOISING_PASS_SUBIND           = (1 << 9),
+	SCE_DENOISING_GRADIENTS             = (1 << 11),
+	SCE_DENOISING_CROSS                 = (1 << 12),
+} SceneDenoisingFlag;
 
 /* srl->passflag */
 typedef enum ScenePassType {

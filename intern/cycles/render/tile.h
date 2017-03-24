@@ -84,7 +84,7 @@ public:
 		 * when acquiring a new tile for the device.
 		 * Each list in each vector is for one logical device. */
 		vector<list<int> > render_tiles;
-		vector<list<int> > denoise_tiles;
+		vector<list<int> > denoising_tiles;
 	} state;
 
 	int num_samples;

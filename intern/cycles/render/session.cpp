@@ -964,7 +964,7 @@ void Session::render()
 	task.requested_tile_size = params.tile_size;
 	task.passes_size = tile_manager.params.get_passes_size();
 
-	if(params.denoise_result) {
+	if(params.use_denoising) {
 		task.denoising_radius = params.denoising_radius;
 		task.denoising_pca_threshold = params.denoising_pca_threshold;
 		task.denoising_weight_adjust = params.denoising_weight_adjust;

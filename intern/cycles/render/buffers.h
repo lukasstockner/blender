@@ -64,7 +64,7 @@ public:
 	bool modified(const BufferParams& params);
 	void add_pass(PassType type);
 	int get_passes_size();
-	int get_denoise_offset();
+	int get_denoising_offset();
 };
 
 /* Render Buffers */

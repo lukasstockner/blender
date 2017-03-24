@@ -149,7 +149,7 @@ void TileManager::reset(BufferParams& params_, int num_samples_)
 	state.num_samples = 0;
 	state.resolution_divider = get_divider(params.width, params.height, start_resolution);
 	state.render_tiles.clear();
-	state.denoise_tiles.clear();
+	state.denoising_tiles.clear();
 	state.tiles.clear();
 }
 
@@ -199,9 +199,9 @@ int TileManager::gen_tiles(bool sliced)
 	state.tiles.clear();
 	state.tiles.resize(tile_w*tile_h);
 	state.render_tiles.clear();
-	state.denoise_tiles.clear();
+	state.denoising_tiles.clear();
 	state.render_tiles.resize(num);
-	state.denoise_tiles.resize(num);
+	state.denoising_tiles.resize(num);
 	state.tile_stride = tile_w;
 	vector<list<int> >::iterator tile_list;
 	tile_list = state.render_tiles.begin();
@@ -402,7 +402,7 @@ bool TileManager::return_tile(int index, bool &delete_tile)
 				}
 				if(can_be_denoised) {
 					state.tiles[nindex].state = Tile::DENOISE;
-					state.denoise_tiles[state.tiles[nindex].device].push_back(nindex);
+					state.denoising_tiles[state.tiles[nindex].device].push_back(nindex);
 				}
 			}
 			return false;
@@ -457,9 +457,9 @@ bool TileManager::next_tile(Tile* &tile, int device)
 	if(logical_device >= state.render_tiles.size())
 		return false;
 
-	if(!state.denoise_tiles[logical_device].empty()) {
-		int idx = state.denoise_tiles[logical_device].front();
-		state.denoise_tiles[logical_device].pop_front();
+	if(!state.denoising_tiles[logical_device].empty()) {
+		int idx = state.denoising_tiles[logical_device].front();
+		state.denoising_tiles[logical_device].pop_front();
 		tile = &state.tiles[idx];
 		return true;
 	}

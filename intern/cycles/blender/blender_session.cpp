@@ -503,28 +503,28 @@ void BlenderSession::render()
 		}
 
 		buffer_params.passes = passes;
-		buffer_params.denoising_data_pass = b_layer_iter->denoise_result();
-		session->tile_manager.schedule_denoising = b_layer_iter->denoise_result();
-		session->params.denoise_result = b_layer_iter->denoise_result();
+		buffer_params.denoising_data_pass = b_layer_iter->use_denoising();
+		session->tile_manager.schedule_denoising = b_layer_iter->use_denoising();
+		session->params.use_denoising = b_layer_iter->use_denoising();
 		scene->film->denoising_data_pass = buffer_params.denoising_data_pass;
 		scene->film->denoising_flags = 0;
-		if(!b_layer_iter->denoise_diffuse_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_DIR;
-		if(!b_layer_iter->denoise_diffuse_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_IND;
-		if(!b_layer_iter->denoise_glossy_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_DIR;
-		if(!b_layer_iter->denoise_glossy_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_IND;
-		if(!b_layer_iter->denoise_transmission_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_DIR;
-		if(!b_layer_iter->denoise_transmission_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_IND;
-		if(!b_layer_iter->denoise_subsurface_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_DIR;
-		if(!b_layer_iter->denoise_subsurface_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_IND;
+		if(!b_layer_iter->denoising_diffuse_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_DIR;
+		if(!b_layer_iter->denoising_diffuse_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_IND;
+		if(!b_layer_iter->denoising_glossy_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_DIR;
+		if(!b_layer_iter->denoising_glossy_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_IND;
+		if(!b_layer_iter->denoising_transmission_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_DIR;
+		if(!b_layer_iter->denoising_transmission_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_IND;
+		if(!b_layer_iter->denoising_subsurface_direct()) scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_DIR;
+		if(!b_layer_iter->denoising_subsurface_indirect()) scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_IND;
 		scene->film->denoising_clean_pass = (scene->film->denoising_flags & DENOISING_CLEAN_ALL_PASSES);
-		scene->film->denoising_split_pass = b_layer_iter->filter_cross();
+		scene->film->denoising_split_pass = b_layer_iter->denoising_cross();
 		buffer_params.denoising_clean_pass = scene->film->denoising_clean_pass;
 		buffer_params.denoising_split_pass = scene->film->denoising_split_pass;
 		session->params.denoising_radius = b_layer_iter->denoising_radius();
-		session->params.denoising_pca_threshold = (b_layer_iter->filter_strength() == 0.0f)? 1e-3f : copysignf(powf(10.0f, -fabsf(b_layer_iter->filter_strength())*2.0f), b_layer_iter->filter_strength());
-		session->params.denoising_weight_adjust = powf(2.0f, b_layer_iter->filter_weighting_adjust() - 1.0f);
-		session->params.denoising_use_gradients = b_layer_iter->filter_gradients();
-		session->params.denoising_use_cross = b_layer_iter->filter_cross();
+		session->params.denoising_pca_threshold = (b_layer_iter->denoising_strength() == 0.0f)? 1e-3f : copysignf(powf(10.0f, -fabsf(b_layer_iter->denoising_strength())*2.0f), b_layer_iter->denoising_strength());
+		session->params.denoising_weight_adjust = powf(2.0f, b_layer_iter->denoising_weighting_adjust() - 1.0f);
+		session->params.denoising_use_gradients = b_layer_iter->denoising_gradients();
+		session->params.denoising_use_cross = b_layer_iter->denoising_cross();
 
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes);
