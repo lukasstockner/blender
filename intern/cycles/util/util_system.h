@@ -42,26 +42,6 @@ bool system_cpu_support_sse41();
 bool system_cpu_support_avx();
 bool system_cpu_support_avx2();
 
-void system_enable_ftz();
-
-#ifdef WITH_CYCLES_DEBUG_FPE
-typedef enum FPEState
-{
-	FPE_ENABLED,
-	FPE_DISABLED,
-} FPEState;
-
-class scoped_fpe
-{
-public:
-	explicit scoped_fpe(FPEState state);
-	void restore();
-	~scoped_fpe();
-private:
-	bool was_enabled;
-};
-#endif
-
 CCL_NAMESPACE_END
 
 #endif /* __UTIL_SYSTEM_H__ */

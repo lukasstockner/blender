@@ -21,12 +21,6 @@
 #include <iostream>
 
 #include "util_static_assert.h"
-#include "util_vector.h"
-
-#ifdef WITH_CYCLES_DEBUG_FILTER
-#include "OpenImageIO/imageio.h"
-OIIO_NAMESPACE_USING
-#endif
 
 CCL_NAMESPACE_BEGIN
 
@@ -165,32 +159,6 @@ inline DebugFlags& DebugFlags() {
 
 std::ostream& operator <<(std::ostream &os,
                           DebugFlagsConstRef debug_flags);
-
-class DebugPasses {
-public:
-
-#ifdef WITH_CYCLES_DEBUG_FILTER
-	DebugPasses(int w, int h, int channels, int pixelstride, int linestride)
-	: w(w),
-	  h(h),
-	  pixelstride(pixelstride),
-	  linestride(linestride)
-	{
-		pixels.resize(w*h*channels);
-	}
-
-	void add_pass(std::string name, float *data);
-	bool write(std::string name);
-
-	int w, h, pixelstride, linestride;
-	vector<float> pixels;
-	vector<std::string> passnames;
-#else
-	DebugPasses(int, int, int, int, int) {}
-	void add_pass(std::string, float*) {}
-	bool write(std::string) { return true; }
-#endif
-};
 
 CCL_NAMESPACE_END
 

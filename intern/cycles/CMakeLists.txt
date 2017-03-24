@@ -109,10 +109,6 @@ if(CXX_HAS_AVX2)
 	add_definitions(-DWITH_KERNEL_AVX2)
 endif()
 
-if(WITH_CYCLES_DEBUG_FPE)
-	add_definitions(-DWITH_CYCLES_DEBUG_FPE)
-endif()
-
 if(WITH_CYCLES_OSL)
 	if(WIN32 AND MSVC)
 		set(RTTI_DISABLE_FLAGS "/GR- -DBOOST_NO_RTTI -DBOOST_NO_TYPEID")
@@ -202,10 +198,6 @@ endif()
 # Debugging capabilities (debug passes etc).
 if(WITH_CYCLES_DEBUG)
 	add_definitions(-DWITH_CYCLES_DEBUG)
-endif()
-
-if(WITH_CYCLES_DEBUG_FILTER)
-	add_definitions(-DWITH_CYCLES_DEBUG_FILTER)
 endif()
 
 include_directories(

@@ -605,9 +605,6 @@ public:
 		int end_sample = tile.start_sample + tile.num_samples;
 
 		for(int sample = start_sample; sample < end_sample; sample++) {
-#ifdef WITH_CYCLES_DEBUG_FPE
-			scoped_fpe fpe(FPE_ENABLED);
-#endif
 			if(task.get_cancel() || task_pool.canceled()) {
 				if(task.need_finish_queue == false)
 					break;
@@ -622,9 +619,6 @@ public:
 
 			tile.sample = sample + 1;
 
-#ifdef WITH_CYCLES_DEBUG_FPE
-			fpe.restore();
-#endif
 			task.update_progress(&tile, tile.w*tile.h);
 		}
 	}

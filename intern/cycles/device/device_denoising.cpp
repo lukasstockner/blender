@@ -67,10 +67,6 @@ void DenoisingTask::tiles_from_rendertiles(RenderTile *rtiles)
 
 bool DenoisingTask::run_denoising()
 {
-#ifdef WITH_CYCLES_DEBUG_FPE
-	scoped_fpe fpe(FPE_ENABLED);
-#endif
-
 	/* Allocate denoising buffer. */
 	buffer.passes = use_cross_denoising? 20 : 14;
 	buffer.w = align_up(rect.z - rect.x, 4);
