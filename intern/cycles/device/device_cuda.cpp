@@ -1022,7 +1022,8 @@ public:
 		                &task->filter_area,
 		                &task->rect,
 		                &task->radius,
-		                &task->pca_threshold};
+		                &task->pca_threshold,
+		                &task->buffer.pass_stride};
 		CUDA_LAUNCH_KERNEL(cuFilterConstructTransform, args);
 		cuda_assert(cuCtxSynchronize());
 
@@ -1117,7 +1118,8 @@ public:
 			                                  &task->reconstruction_state.filter_rect,
 			                                  &task->buffer.w,
 			                                  &task->buffer.h,
-			                                  &f};
+			                                  &f,
+		                                      &task->buffer.pass_stride};
 			CUDA_LAUNCH_KERNEL(cuNLMConstructGramian, construct_gramian_args);
 		}
 

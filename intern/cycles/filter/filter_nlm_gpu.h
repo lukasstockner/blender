@@ -106,6 +106,7 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int fx, int fy,
                                                            int4 rect,
                                                            int4 filter_rect,
                                                            int w, int h, int f,
+                                                           int pass_stride,
                                                            int localIdx)
 {
 	int y = fy + filter_rect.y;
@@ -127,6 +128,7 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int fx, int fy,
 	kernel_filter_construct_gramian(x, y,
 	                                filter_rect.z*filter_rect.w,
 	                                dx, dy, w, h,
+	                                pass_stride,
 	                                buffer,
 	                                color_pass, variance_pass,
 	                                transform, rank,

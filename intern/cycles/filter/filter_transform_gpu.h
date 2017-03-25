@@ -19,17 +19,17 @@ CCL_NAMESPACE_BEGIN
 ccl_device void kernel_filter_construct_transform(int sample,
                                                   ccl_global float ccl_readonly_ptr buffer,
                                                   int x, int y, int4 rect,
+                                                  int pass_stride,
                                                   ccl_global float *transform,
                                                   ccl_global int *rank,
                                                   int radius, float pca_threshold,
                                                   int transform_stride, int localIdx)
 {
+	int buffer_w = align_up(rect.z - rect.x, 4);
+
 	ccl_local float shared_features[DENOISE_FEATURES*CCL_MAX_LOCAL_SIZE];
 	ccl_local_param float *features = shared_features + localIdx*DENOISE_FEATURES;
 
-	int buffer_w = align_up(rect.z - rect.x, 4);
-	int buffer_h = (rect.w - rect.y);
-	int pass_stride = buffer_h * buffer_w;
 	/* === Calculate denoising window. === */
 	int2 low  = make_int2(max(rect.x, x - radius),
 	                      max(rect.y, y - radius));

@@ -71,7 +71,7 @@ bool DenoisingTask::run_denoising()
 	buffer.passes = use_cross_denoising? 20 : 14;
 	buffer.w = align_up(rect.z - rect.x, 4);
 	buffer.h = rect.w - rect.y;
-	buffer.pass_stride = buffer.w * buffer.h;
+	buffer.pass_stride = align_up(buffer.w * buffer.h, device->mem_get_offset_alignment());
 	buffer.mem.resize(buffer.pass_stride * buffer.passes);
 	device->mem_alloc("Denoising Pixel Buffer", buffer.mem, MEM_READ_WRITE);
 

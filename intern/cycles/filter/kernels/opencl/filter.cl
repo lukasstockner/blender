@@ -102,6 +102,7 @@ __kernel void kernel_ocl_filter_construct_transform(int sample,
                                                     ccl_global int *rank,
                                                     int4 filter_area,
                                                     int4 rect,
+                                                    int pass_stride,
                                                     int radius,
                                                     float pca_threshold)
 {
@@ -112,7 +113,8 @@ __kernel void kernel_ocl_filter_construct_transform(int sample,
 		ccl_global float *l_transform = transform + y*filter_area.z + x;
 		kernel_filter_construct_transform(sample, buffer,
 		                                  x + filter_area.x, y + filter_area.y,
-		                                  rect, l_transform, l_rank,
+		                                  rect, pass_stride,
+		                                  l_transform, l_rank,
 		                                  radius, pca_threshold,
 		                                  filter_area.z*filter_area.w,
 		                                  get_local_id(1)*get_local_size(0) + get_local_id(0));
@@ -217,7 +219,8 @@ __kernel void kernel_ocl_filter_nlm_construct_gramian(int dx,
                                                       int4 filter_rect,
                                                       int w,
                                                       int h,
-                                                      int f) {
+                                                      int f,
+                                                      int pass_stride) {
 	int x = get_global_id(0) + max(0, rect.x-filter_rect.x);
 	int y = get_global_id(1) + max(0, rect.y-filter_rect.y);
 	if(x < min(filter_rect.z, rect.z-filter_rect.x) && y < min(filter_rect.w, rect.w-filter_rect.y)) {
@@ -230,6 +233,7 @@ __kernel void kernel_ocl_filter_nlm_construct_gramian(int dx,
 		                                    XtWX, XtWY,
 		                                    rect, filter_rect,
 		                                    w, h, f,
+		                                    pass_stride,
 		                                    get_local_id(1)*get_local_size(0) + get_local_id(0));
 	}
 }

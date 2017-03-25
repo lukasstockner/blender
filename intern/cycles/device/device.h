@@ -256,6 +256,7 @@ public:
 		int y, int w, int h, int elem) = 0;
 	virtual void mem_zero(device_memory& mem) = 0;
 	virtual void mem_free(device_memory& mem) = 0;
+	virtual int mem_get_offset_alignment() { return 1; }
 	virtual device_ptr mem_get_offset_ptr(device_memory& mem, int offset, int size, MemoryType type)
 	{
 		/* Only required for devices that implement denoising. */

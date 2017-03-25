@@ -417,6 +417,11 @@ void OpenCLDeviceBase::mem_free(device_memory& mem)
 	}
 }
 
+int OpenCLDeviceBase::mem_get_offset_alignment()
+{
+	return OpenCLInfo::get_base_align_bytes(cdDevice);
+}
+
 device_ptr OpenCLDeviceBase::mem_get_offset_ptr(device_memory& mem, int offset, int size, MemoryType type)
 {
 	cl_mem_flags mem_flag;
@@ -669,6 +674,7 @@ bool OpenCLDeviceBase::denoising_construct_transform(DenoisingTask *task)
 	                rank_mem,
 	                task->filter_area,
 	                task->rect,
+	                task->buffer.pass_stride,
 	                task->radius,
 	                task->pca_threshold);
 
@@ -774,7 +780,8 @@ bool OpenCLDeviceBase::denoising_reconstruct(device_ptr color_ptr,
 		                task->reconstruction_state.filter_rect,
 		                task->buffer.w,
 		                task->buffer.h,
-		                f);
+		                f,
+	                    task->buffer.pass_stride);
 		enqueue_kernel(ckNLMConstructGramian,
 		               task->reconstruction_state.source_w,
 		               task->reconstruction_state.source_h,

@@ -106,7 +106,8 @@ CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_filter_construct_transform(int sample, float const* __restrict__ buffer,
                                        float *transform, int *rank,
                                        int4 filter_area, int4 rect,
-                                       int radius, float pca_threshold)
+                                       int radius, float pca_threshold,
+                                       int pass_stride)
 {
 	int x = blockDim.x*blockIdx.x + threadIdx.x;
 	int y = blockDim.y*blockIdx.y + threadIdx.y;
@@ -115,7 +116,8 @@ kernel_cuda_filter_construct_transform(int sample, float const* __restrict__ buf
 		float *l_transform = transform + y*filter_area.z + x;
 		kernel_filter_construct_transform(sample, buffer,
 		                                  x + filter_area.x, y + filter_area.y,
-		                                  rect, l_transform, l_rank,
+		                                  rect, pass_stride,
+		                                  l_transform, l_rank,
 		                                  radius, pca_threshold,
 		                                  filter_area.z*filter_area.w,
 		                                  threadIdx.y*blockDim.x + threadIdx.x);
@@ -211,7 +213,8 @@ kernel_cuda_filter_nlm_construct_gramian(int dx, int dy,
                                          float3 *XtWY,
                                          int4 rect,
                                          int4 filter_rect,
-                                         int w, int h, int f) {
+                                         int w, int h, int f,
+                                         int pass_stride) {
 	int x = blockDim.x*blockIdx.x + threadIdx.x + max(0, rect.x-filter_rect.x);
 	int y = blockDim.y*blockIdx.y + threadIdx.y + max(0, rect.y-filter_rect.y);
 	if(x < min(filter_rect.z, rect.z-filter_rect.x) && y < min(filter_rect.w, rect.w-filter_rect.y)) {
@@ -224,6 +227,7 @@ kernel_cuda_filter_nlm_construct_gramian(int dx, int dy,
 		                                    XtWX, XtWY,
 		                                    rect, filter_rect,
 		                                    w, h, f,
+		                                    pass_stride,
 		                                    threadIdx.y*blockDim.x + threadIdx.x);
 	}
 }

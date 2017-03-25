@@ -185,9 +185,9 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int)>       filter_nlm_update_output_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int)>                                      filter_nlm_normalize_kernel;
 
-	KernelFunctions<void(*)(int, float*, int, int, int, float*, int*, int*, int, float)>                                         filter_construct_transform_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, float*, int*, float*, float3*, int*, int*, int, int, int)> filter_nlm_construct_gramian_kernel;
-	KernelFunctions<void(*)(int, int, int, int, int, float*, int*, float*, float3*, int*, int)>                                  filter_finalize_kernel;
+	KernelFunctions<void(*)(int, float*, int, int, int, float*, int*, int*, int, int, float)>                                         filter_construct_transform_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, float*, int*, float*, float3*, int*, int*, int, int, int, int)> filter_nlm_construct_gramian_kernel;
+	KernelFunctions<void(*)(int, int, int, int, int, float*, int*, float*, float3*, int*, int)>                                       filter_finalize_kernel;
 
 	KernelFunctions<void(*)(KernelGlobals *, ccl_constant KernelData*, ccl_global void*, int, ccl_global char*,
 	                       ccl_global uint*, int, int, int, int, int, int, int, int, ccl_global int*, int,
@@ -454,6 +454,7 @@ public:
 				                                    (float*) task->storage.transform.device_pointer,
 				                                    (int*)   task->storage.rank.device_pointer,
 				                                    &task->rect.x,
+				                                    task->buffer.pass_stride,
 				                                    task->radius,
 				                                    task->pca_threshold);
 			}
@@ -507,7 +508,8 @@ public:
 			                                      &task->reconstruction_state.filter_rect.x,
 			                                      task->buffer.w,
 			                                      task->buffer.h,
-			                                      4);
+			                                      4,
+			                                      task->buffer.pass_stride);
 		}
 		for(int y = 0; y < task->filter_area.w; y++) {
 			for(int x = 0; x < task->filter_area.z; x++) {

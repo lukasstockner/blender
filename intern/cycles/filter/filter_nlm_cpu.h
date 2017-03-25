@@ -120,7 +120,8 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int dx, int dy,
                                                            float3 *XtWY,
                                                            int4 rect,
                                                            int4 filter_rect,
-                                                           int w, int h, int f)
+                                                           int w, int h, int f,
+                                                           int pass_stride)
 {
 	/* fy and fy are in filter-window-relative coordinates, while x and y are in feature-window-relative coordinates. */
 	for(int fy = max(0, rect.y-filter_rect.y); fy < min(filter_rect.w, rect.w-filter_rect.y); fy++) {
@@ -141,7 +142,9 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int dx, int dy,
 			float3 *l_XtWY = XtWY + storage_ofs*XTWY_SIZE;
 			int    *l_rank = rank + storage_ofs;
 
-			kernel_filter_construct_gramian(x, y, 1, dx, dy, w, h,
+			kernel_filter_construct_gramian(x, y, 1,
+			                                dx, dy, w, h,
+			                                pass_stride,
 			                                buffer,
 			                                color_pass, variance_pass,
 			                                l_transform, l_rank,

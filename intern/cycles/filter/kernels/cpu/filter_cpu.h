@@ -61,6 +61,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(int sample,
                                                            float *transform,
                                                            int *rank,
                                                            int* rect,
+                                                           int pass_stride,
                                                            int radius,
                                                            float pca_threshold);
 
@@ -121,7 +122,8 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_construct_gramian)(int dx,
                                                              int *filter_rect,
                                                              int w,
                                                              int h,
-                                                             int f);
+                                                             int f,
+                                                             int pass_stride);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_nlm_normalize)(float *outImage,
                                                      float *accumImage,

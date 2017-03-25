@@ -20,6 +20,7 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
                                                        int storage_stride,
                                                        int dx, int dy,
                                                        int w, int h,
+                                                       int pass_stride,
                                                        ccl_global float ccl_readonly_ptr buffer,
                                                        ccl_global float *color_pass,
                                                        ccl_global float *variance_pass,
@@ -30,8 +31,6 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
                                                        ccl_global float3 *XtWY,
                                                        int localIdx)
 {
-	const int pass_stride = w*h;
-
 	int p_offset =  y    *w +  x;
 	int q_offset = (y+dy)*w + (x+dx);
 

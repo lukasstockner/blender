@@ -133,6 +133,8 @@ public:
 	                            cl_int* error = NULL);
 	static cl_device_type get_device_type(cl_device_id device_id);
 
+	static int get_base_align_bytes(cl_device_id device_id);
+
 	/* Get somewhat more readable device name.
 	 * Main difference is AMD OpenCL here which only gives code name
 	 * for the regular device name. This will give more sane device
@@ -324,7 +326,8 @@ public:
 	void mem_copy_from(device_memory& mem, int y, int w, int h, int elem);
 	void mem_zero(device_memory& mem);
 	void mem_free(device_memory& mem);
-	virtual device_ptr mem_get_offset_ptr(device_memory& mem, int offset, int size, MemoryType type);
+	int mem_get_offset_alignment();
+	device_ptr mem_get_offset_ptr(device_memory& mem, int offset, int size, MemoryType type);
 	void const_copy_to(const char *name, void *host, size_t size);
 	void tex_alloc(const char *name,
 	               device_memory& mem,
