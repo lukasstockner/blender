@@ -58,8 +58,8 @@ ccl_device void kernel_filter_divide_shadow(int sample,
 	int odd_sample = (sample+1)/2;
 	int even_sample = sample/2;
 	if(use_split_variance) {
-		varA = (center_buffer[16] - unfilteredA[idx]*unfilteredA[idx]*odd_sample) / (odd_sample - 1);
-		varB = (center_buffer[19] - unfilteredB[idx]*unfilteredB[idx]*even_sample) / (even_sample - 1);
+		varA = max(0.0f, (center_buffer[16] - unfilteredA[idx]*unfilteredA[idx]*odd_sample) / (odd_sample - 1));
+		varB = max(0.0f, (center_buffer[19] - unfilteredB[idx]*unfilteredB[idx]*even_sample) / (even_sample - 1));
 	}
 	else {
 		varA = center_buffer[16] / (odd_sample - 1);
@@ -102,26 +102,26 @@ ccl_device void kernel_filter_get_feature(int sample,
 		int odd_sample = sample/2;
 		mean[idx] = (center_buffer[m_offset] - center_buffer[m_offset+6]) / odd_sample;
 		if(use_split_variance) {
-			variance[idx] = (center_buffer[v_offset] - center_buffer[m_offset]/sample) / (odd_sample * (sample-1));
+			variance[idx] = max(0.0f, (center_buffer[v_offset] - center_buffer[v_offset+6] - mean[idx]*mean[idx]*odd_sample) / (odd_sample * (sample-1)));
 		}
 		else {
-			variance[idx] = center_buffer[v_offset] / (odd_sample * (sample-1));
+			variance[idx] = (center_buffer[v_offset] - center_buffer[v_offset+6]) / (odd_sample * (sample-1));
 		}
 	}
 	else if(m_offset >= 26) {
 		int even_sample = (sample+1)/2;
 		mean[idx] = center_buffer[m_offset] / even_sample;
 		if(use_split_variance) {
-			variance[idx] = (center_buffer[v_offset-6] - center_buffer[m_offset-6]/sample) / (even_sample * (sample-1));
+			variance[idx] = max(0.0f, (center_buffer[v_offset] - mean[idx]*mean[idx]*even_sample) / (even_sample * (sample-1)));
 		}
 		else {
-			variance[idx] = center_buffer[v_offset-6] / (even_sample * (sample-1));
+			variance[idx] = center_buffer[v_offset] / (even_sample * (sample-1));
 		}
 	}
 	else {
 		mean[idx] = center_buffer[m_offset] / sample;
 		if(use_split_variance) {
-			variance[idx] = (center_buffer[v_offset] - mean[idx]) / (sample * (sample-1));
+			variance[idx] = max(0.0f, (center_buffer[v_offset] - mean[idx]*mean[idx]*sample) / (sample * (sample-1)));
 		}
 		else {
 			variance[idx] = center_buffer[v_offset] / (sample * (sample-1));
