@@ -299,6 +299,40 @@ public:
 		return -1;
 	}
 
+	void map_neighbor_tiles(Device * sub_device, RenderTile * tiles)
+	{
+		for(int i = 0; i < 9; i++) {
+			/* If the tile isn't already allocated on the current device,
+			 * allocate anc copy it now.
+			 * Note that this temporarily modifies the RenderBuffers,
+			 * so this function is not threadsafe. */
+			if(tiles[i].buffers->device != sub_device) {
+				device_vector<float> &mem = tiles[i].buffers->buffer;
+
+				device_ptr original_ptr = mem.device_pointer;
+				mem.device_pointer = 0;
+				sub_device->mem_alloc("Temporary memory for neighboring tile", mem, MEM_READ_WRITE);
+				sub_device->mem_copy_to(mem);
+				tiles[i].buffer = mem.device_pointer;
+				mem.device_pointer = original_ptr;
+			}
+		}
+	}
+
+	void unmap_neighbor_tiles(Device * sub_device, RenderTile * tiles)
+	{
+		for(int i = 0; i < 9; i++) {
+			if(tiles[i].buffers->device != sub_device) {
+				device_vector<float> &mem = tiles[i].buffers->buffer;
+
+				device_ptr original_ptr = mem.device_pointer;
+				mem.device_pointer = tiles[i].buffer;
+				sub_device->mem_free(mem);
+				mem.device_pointer = original_ptr;
+			}
+		}
+	}
+
 	int get_split_task_count(DeviceTask& task)
 	{
 		int total_tasks = 0;

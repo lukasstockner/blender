@@ -79,6 +79,8 @@ public:
 	/* random number generator state */
 	device_vector<uint> rng_state;
 
+	Device *device;
+
 	explicit RenderBuffers(Device *device);
 	~RenderBuffers();
 
@@ -89,8 +91,6 @@ public:
 
 protected:
 	void device_free();
-
-	Device *device;
 };
 
 /* Display Buffer

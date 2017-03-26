@@ -501,8 +501,10 @@ void Session::release_tile(RenderTile& rtile)
 	update_status_time();
 }
 
-void Session::get_neighbor_tiles(RenderTile *tiles)
+void Session::get_neighbor_tiles(RenderTile *tiles, Device *tile_device)
 {
+	thread_scoped_lock buffers_lock(buffers_mutex);
+
 	int center_idx = tiles[4].tile_index;
 	assert(tile_manager.state.tiles[center_idx].state == Tile::DENOISE);
 	BufferParams buffer_params = tile_manager.params;
@@ -538,6 +540,13 @@ void Session::get_neighbor_tiles(RenderTile *tiles)
 	}
 
 	assert(tiles[4].buffers);
+	device->map_neighbor_tiles(tile_device, tiles);
+}
+
+void Session::release_neighbor_tiles(RenderTile *tiles, Device *tile_device)
+{
+	thread_scoped_lock buffers_lock(buffers_mutex);
+	device->unmap_neighbor_tiles(tile_device, tiles);
 }
 
 void Session::run_cpu()
@@ -955,7 +964,8 @@ void Session::render()
 	
 	task.acquire_tile = function_bind(&Session::acquire_tile, this, _1, _2);
 	task.release_tile = function_bind(&Session::release_tile, this, _1);
-	task.get_neighbor_tiles = function_bind(&Session::get_neighbor_tiles, this, _1);
+	task.get_neighbor_tiles = function_bind(&Session::get_neighbor_tiles, this, _1, _2);
+	task.release_neighbor_tiles = function_bind(&Session::release_neighbor_tiles, this, _1, _2);
 	task.get_cancel = function_bind(&Progress::get_cancel, &this->progress);
 	task.update_tile_sample = function_bind(&Session::update_tile_sample, this, _1);
 	task.update_progress_sample = function_bind(&Progress::add_samples, &this->progress, _1, _2);

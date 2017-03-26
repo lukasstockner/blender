@@ -198,7 +198,9 @@ protected:
 	bool acquire_tile(Device *tile_device, RenderTile& tile);
 	void update_tile_sample(RenderTile& tile);
 	void release_tile(RenderTile& tile);
-	void get_neighbor_tiles(RenderTile *tiles);
+
+	void get_neighbor_tiles(RenderTile *tiles, Device *tile_device);
+	void release_neighbor_tiles(RenderTile *tiles, Device *tile_device);
 
 	bool device_use_gl;
 

@@ -643,12 +643,14 @@ public:
 
 		RenderTile rtiles[9];
 		rtiles[4] = tile;
-		task.get_neighbor_tiles(rtiles);
+		task.get_neighbor_tiles(rtiles, this);
 		denoising.tiles_from_rendertiles(rtiles);
 
 		denoising.init_from_devicetask(task);
 
 		denoising.run_denoising();
+
+		task.release_neighbor_tiles(rtiles, this);
 
 		task.update_progress(&tile, tile.w*tile.h);
 	}
