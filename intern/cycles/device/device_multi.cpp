@@ -302,8 +302,11 @@ public:
 	void map_neighbor_tiles(Device * sub_device, RenderTile * tiles)
 	{
 		for(int i = 0; i < 9; i++) {
+			if(!tiles[i].buffers) {
+				continue;
+			}
 			/* If the tile isn't already allocated on the current device,
-			 * allocate anc copy it now.
+			 * allocate and copy it now.
 			 * Note that this temporarily modifies the RenderBuffers,
 			 * so this function is not threadsafe. */
 			if(tiles[i].buffers->device != sub_device) {
@@ -322,6 +325,9 @@ public:
 	void unmap_neighbor_tiles(Device * sub_device, RenderTile * tiles)
 	{
 		for(int i = 0; i < 9; i++) {
+			if(!tiles[i].buffers) {
+				continue;
+			}
 			if(tiles[i].buffers->device != sub_device) {
 				device_vector<float> &mem = tiles[i].buffers->buffer;
 

@@ -532,6 +532,7 @@ void Session::get_neighbor_tiles(RenderTile *tiles, Device *tile_device)
 			}
 			else {
 				tiles[i].buffer = (device_ptr)NULL;
+				tiles[i].buffers = NULL;
 				tiles[i].x = clamp(px, image_region.x, image_region.z);
 				tiles[i].y = clamp(py, image_region.y, image_region.w);
 				tiles[i].w = tiles[i].h = 0;
