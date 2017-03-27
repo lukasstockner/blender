@@ -160,12 +160,16 @@ void RenderBuffers::reset(Device *device, BufferParams& params_)
 	device->mem_alloc("rng_state", rng_state, MEM_READ_WRITE);
 }
 
-bool RenderBuffers::copy_from_device()
+bool RenderBuffers::copy_from_device(Device *from_device)
 {
+	if(!from_device) {
+		from_device = device;
+	}
+
 	if(!buffer.device_pointer)
 		return false;
 
-	device->mem_copy_from(buffer, 0, params.width, params.height, params.get_passes_size()*sizeof(float));
+	from_device->mem_copy_from(buffer, 0, params.width, params.height, params.get_passes_size()*sizeof(float));
 
 	return true;
 }

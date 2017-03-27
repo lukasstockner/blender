@@ -333,8 +333,19 @@ public:
 
 				device_ptr original_ptr = mem.device_pointer;
 				mem.device_pointer = tiles[i].buffer;
+
+				/* Copy denoised tile to the host device. */
+				if(i == 4) {
+					tiles[i].buffers->copy_from_device(sub_device);
+				}
+
 				sub_device->mem_free(mem);
 				mem.device_pointer = original_ptr;
+
+				/* Copy denoised tile to the original device. */
+				if(i == 4) {
+					sub_device->mem_copy_to(mem);
+				}
 			}
 		}
 	}
