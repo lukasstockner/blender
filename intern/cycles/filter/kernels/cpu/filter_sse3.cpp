@@ -31,6 +31,6 @@
 #  endif
 #endif  /* WITH_CYCLES_OPTIMIZED_KERNEL_SSE3 */
 
-#include "filter.h"
+#include "../filter/filter.h"
 #define KERNEL_ARCH cpu_sse3
 #include "filter_cpu_impl.h"

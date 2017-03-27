@@ -56,6 +56,6 @@
     /* do nothing */
 #endif
 
-#include "filter.h"
+#include "../filter/filter.h"
 #define KERNEL_ARCH cpu
 #include "filter_cpu_impl.h"

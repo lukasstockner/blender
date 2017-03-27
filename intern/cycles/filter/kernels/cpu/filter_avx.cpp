@@ -34,6 +34,6 @@
 #  endif
 #endif  /* WITH_CYCLES_OPTIMIZED_KERNEL_AVX */
 
-#include "filter.h"
+#include "../filter/filter.h"
 #define KERNEL_ARCH cpu_avx
 #include "filter_cpu_impl.h"
