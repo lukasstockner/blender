@@ -503,7 +503,7 @@ void Session::release_tile(RenderTile& rtile)
 
 void Session::get_neighbor_tiles(RenderTile *tiles, Device *tile_device)
 {
-	thread_scoped_lock buffers_lock(buffers_mutex);
+	thread_scoped_lock tile_lock(tile_mutex);
 
 	int center_idx = tiles[4].tile_index;
 	assert(tile_manager.state.tiles[center_idx].state == Tile::DENOISE);
@@ -546,7 +546,7 @@ void Session::get_neighbor_tiles(RenderTile *tiles, Device *tile_device)
 
 void Session::release_neighbor_tiles(RenderTile *tiles, Device *tile_device)
 {
-	thread_scoped_lock buffers_lock(buffers_mutex);
+	thread_scoped_lock tile_lock(tile_mutex);
 	device->unmap_neighbor_tiles(tile_device, tiles);
 }
 
