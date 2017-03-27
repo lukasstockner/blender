@@ -4219,6 +4219,23 @@ static void def_glass(StructRNA *srna)
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_principled(StructRNA *srna)
+{
+	static EnumPropertyItem prop_principled_distribution_items[] = {
+		{ SHD_GLOSSY_GGX, "GGX", 0, "GGX", "" },
+		{ SHD_GLOSSY_MULTI_GGX, "MULTI_GGX", 0, "Multiscatter GGX", "" },
+		{ 0, NULL, 0, NULL, NULL }
+	};
+
+	PropertyRNA *prop;
+
+	prop = RNA_def_property(srna, "distribution", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "custom1");
+	RNA_def_property_enum_items(prop, prop_principled_distribution_items);
+	RNA_def_property_ui_text(prop, "Distribution", "");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_custom_update");
+}
+
 static void def_refraction(StructRNA *srna)
 {
 	PropertyRNA *prop;
