@@ -643,6 +643,7 @@ ccl_device_inline void path_radiance_accum_sample(PathRadiance *L, PathRadiance 
 }
 
 #ifdef __SHADOW_TRICKS__
+/* Calculate current shadow of the path. */
 ccl_device_inline float path_radiance_sum_shadow(const PathRadiance *L)
 {
 	float path_total = average(L->path_total);
@@ -652,7 +653,23 @@ ccl_device_inline float path_radiance_sum_shadow(const PathRadiance *L)
 	}
 	return 1.0f;
 }
+
+/* Calculate final light sum and transparency for shadow catcher object. */
+ccl_device_inline float3 path_radiance_sum_shadowcatcher(KernelGlobals *kg,
+                                                         const PathRadiance *L,
+                                                         float* alpha)
+{
+	const float shadow = path_radiance_sum_shadow(L);
+	float3 L_sum;
+	if(kernel_data.background.transparent) {
+		*alpha = 1.0f-shadow;
+		L_sum = make_float3(0.0f, 0.0f, 0.0f);
+	}
+	else {
+		L_sum = L->shadow_color * shadow;
+	}
+	return L_sum;
+}
 #endif
 
 CCL_NAMESPACE_END
-

@@ -351,11 +351,7 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *
 		float3 L_sum;
 #ifdef __SHADOW_TRICKS__
 		if(is_shadow_catcher) {
-			float shadow = path_radiance_sum_shadow(L);
-			L_sum = L->shadow_color * shadow;
-			if(kernel_data.background.transparent) {
-				alpha = 1.0f - shadow;
-			}
+			L_sum = path_radiance_sum_shadowcatcher(kg, L, &alpha);
 		}
 		else
 #endif  /* __SHADOW_TRICKS__ */
