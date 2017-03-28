@@ -184,6 +184,52 @@ ccl_device float2 regular_polygon_sample(float corners, float rotation, float u,
 	return make_float2(cr*p.x - sr*p.y, sr*p.x + cr*p.y);
 }
 
+/* Ensure that I reflected on the surface with normal N has a Z component of at least 0.05
+ * in a coordinate system where Ng is the Z axis.
+ *
+ * This is done by rotating N towards Ng until the goal is fulfilled.
+ * To find the new normal, we enter a coordinate system where Ng is the Z axis
+ * and N lies in the X-Z-plane (by finding the part of N that's perpendicular
+ * to Ng and normalizing it to get the X axis).
+ *
+ * Now, our goal is to find a N' so that dot(Ng, 2*dot(N', I)*N' - I) = 0.05.
+ * Due to how the coordinate system was constructed, N'.y=0 and Ng=(0, 0, 1).
+ * Therefore, the equation is simplified to 2*(N'.x*I.x + N'.z*I.z)*N'.z - I.z = 0.05.
+ *
+ * Now, since N' is supposed to be normalized, N'.x = +-sqrt(1.0 - N'.z*N'.z).
+ * With this, the equation only has one unknown and can be solved. */
+ccl_device float3 ensure_valid_reflection(float3 Ng, float3 I, float3 N)
+{
+	const float min_angle = 0.05f;
+
+	/* Check if the reflection is above the minimum angle. */
+	float3 R = 2*dot(N, I)*N - I;
+	if (dot(Ng, R) >= min_angle) {
+		return N;
+	}
+
+	/* Form coordinate system with Ng as the Z axis and N inside the X-Z-plane.
+	 * The X axis is found by normalizing the component of N that's orthogonal to Ng.
+	 * The Y axis isn't actually needed. */
+	float3 X = normalize(N - dot(N, Ng)*Ng);
+
+	/* Calculate N.z in the local coordinate system. */
+	float Ix = dot(I, X), Iz = dot(I, Ng);
+	float Ix2 = Ix*Ix, Iz2 = Iz*Iz;
+	float Ix2Iz2 = Ix2 + Iz2;
+
+	float a = sqrtf(Ix2*(Ix2Iz2 - min_angle*min_angle));
+	float b = Iz*min_angle + Ix2Iz2;
+	float c = (a + b > 0.0f) ? (a + b) : (-a + b);
+
+	float Nz = sqrtf(0.5f * (1.0f / Ix2Iz2) * c);
+	/* N remains in the X-Z-plane, so N.y = 0, so calculating N.x is easy since N is normalized. */
+	float Nx = sqrtf(1.0f - Nz*Nz);
+
+	/* Transform back to global coordinates and return. */
+	return Nz*Ng + Nx*X;
+}
+
 CCL_NAMESPACE_END
 
 #endif /* __KERNEL_MONTECARLO_CL__ */
