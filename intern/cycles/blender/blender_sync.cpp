@@ -90,7 +90,9 @@ bool BlenderSync::sync_recalc()
 	for(b_data.materials.begin(b_mat); b_mat != b_data.materials.end(); ++b_mat) {
 		shader_map.check_recalc(*b_mat, *b_mat);
 		BL::ID nodetree = b_mat->node_tree();
-		shader_map.check_recalc(*b_mat, nodetree);
+		if(nodetree) {
+			shader_map.check_recalc(*b_mat, nodetree);
+		}
 
 		Shader *shader = shader_map.find(*b_mat);
 		if(has_updated_objects && shader != NULL && shader->has_object_dependency) {
@@ -103,7 +105,9 @@ bool BlenderSync::sync_recalc()
 	for(b_data.lamps.begin(b_lamp); b_lamp != b_data.lamps.end(); ++b_lamp) {
 		shader_map.check_recalc(*b_lamp, *b_lamp);
 		BL::ID nodetree = b_lamp->node_tree();
-		shader_map.check_recalc(*b_lamp, nodetree);
+		if(nodetree) {
+			shader_map.check_recalc(*b_lamp, nodetree);
+		}
 	}
 
 	bool dicing_prop_changed = false;
@@ -143,7 +147,9 @@ bool BlenderSync::sync_recalc()
 		}
 		else if(object_is_light(*b_ob)) {
 			BL::ID data = b_ob->data();
-			light_map.check_recalc(*b_ob, data);
+			if(data) {
+				light_map.check_recalc(*b_ob, data);
+			}
 		}
 
 		if(is_updated) {
