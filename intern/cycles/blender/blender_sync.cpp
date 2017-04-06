@@ -70,6 +70,8 @@ BlenderSync::BlenderSync(BL::RenderEngine& b_engine,
 	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
 	dicing_rate = preview ? RNA_float_get(&cscene, "preview_dicing_rate") : RNA_float_get(&cscene, "dicing_rate");
 	max_subdivisions = RNA_int_get(&cscene, "max_subdivisions");
+	world_update_id = -1;
+	world_node_update_id = -1;
 }
 
 BlenderSync::~BlenderSync()
@@ -86,22 +88,23 @@ bool BlenderSync::sync_recalc()
 	BL::BlendData::materials_iterator b_mat;
 	bool has_updated_objects = b_data.objects.is_updated();
 	for(b_data.materials.begin(b_mat); b_mat != b_data.materials.end(); ++b_mat) {
-		if(b_mat->is_updated() || (b_mat->node_tree() && b_mat->node_tree().is_updated())) {
+		shader_map.check_recalc(*b_mat, *b_mat);
+		BL::ID nodetree = b_mat->node_tree();
+		shader_map.check_recalc(*b_mat, nodetree);
+
+		Shader *shader = shader_map.find(*b_mat);
+		if(has_updated_objects && shader != NULL && shader->has_object_dependency) {
 			shader_map.set_recalc(*b_mat);
-		}
-		else {
-			Shader *shader = shader_map.find(*b_mat);
-			if(has_updated_objects && shader != NULL && shader->has_object_dependency) {
-				shader_map.set_recalc(*b_mat);
-			}
 		}
 	}
 
 	BL::BlendData::lamps_iterator b_lamp;
 
-	for(b_data.lamps.begin(b_lamp); b_lamp != b_data.lamps.end(); ++b_lamp)
-		if(b_lamp->is_updated() || (b_lamp->node_tree() && b_lamp->node_tree().is_updated()))
-			shader_map.set_recalc(*b_lamp);
+	for(b_data.lamps.begin(b_lamp); b_lamp != b_data.lamps.end(); ++b_lamp) {
+		shader_map.check_recalc(*b_lamp, *b_lamp);
+		BL::ID nodetree = b_lamp->node_tree();
+		shader_map.check_recalc(*b_lamp, nodetree);
+	}
 
 	bool dicing_prop_changed = false;
 
@@ -127,10 +130,8 @@ bool BlenderSync::sync_recalc()
 	BL::BlendData::objects_iterator b_ob;
 
 	for(b_data.objects.begin(b_ob); b_ob != b_data.objects.end(); ++b_ob) {
-		if(b_ob->is_updated()) {
-			object_map.set_recalc(*b_ob);
-			light_map.set_recalc(*b_ob);
-		}
+		bool is_updated = object_map.check_recalc(*b_ob, *b_ob);
+		light_map.check_recalc(*b_ob, *b_ob);
 
 		if(object_is_mesh(*b_ob)) {
 			if(b_ob->is_updated_data() || b_ob->data().is_updated() ||
@@ -141,31 +142,29 @@ bool BlenderSync::sync_recalc()
 			}
 		}
 		else if(object_is_light(*b_ob)) {
-			if(b_ob->is_updated_data() || b_ob->data().is_updated())
-				light_map.set_recalc(*b_ob);
+			BL::ID data = b_ob->data();
+			light_map.check_recalc(*b_ob, data);
 		}
-		
-		if(b_ob->is_updated_data()) {
+
+		if(is_updated) {
 			BL::Object::particle_systems_iterator b_psys;
 			for(b_ob->particle_systems.begin(b_psys); b_psys != b_ob->particle_systems.end(); ++b_psys)
-				particle_system_map.set_recalc(*b_ob);
+				particle_system_map.check_recalc(*b_ob, *b_ob);
 		}
 	}
 
 	BL::BlendData::meshes_iterator b_mesh;
 
 	for(b_data.meshes.begin(b_mesh); b_mesh != b_data.meshes.end(); ++b_mesh) {
-		if(b_mesh->is_updated()) {
-			mesh_map.set_recalc(*b_mesh);
-		}
+		mesh_map.check_recalc(*b_mesh, *b_mesh);
 	}
 
 	BL::BlendData::worlds_iterator b_world;
 
 	for(b_data.worlds.begin(b_world); b_world != b_data.worlds.end(); ++b_world) {
 		if(world_map == b_world->ptr.data) {
-			if(b_world->is_updated() ||
-			   (b_world->node_tree() && b_world->node_tree().is_updated()))
+			if((b_world->update_id() != world_update_id) ||
+			   (b_world->node_tree() && (b_world->node_tree().update_id() != world_node_update_id)))
 			{
 				world_recalc = true;
 			}
@@ -174,6 +173,10 @@ bool BlenderSync::sync_recalc()
 				if(has_updated_objects && shader->has_object_dependency) {
 					world_recalc = true;
 				}
+			}
+			world_update_id = b_world->update_id();
+			if(b_world->node_tree()) {
+				world_node_update_id = b_world->node_tree().update_id();
 			}
 		}
 	}

@@ -616,8 +616,21 @@ public:
 		return NULL;
 	}
 
-	void set_recalc(const BL::ID& id)
+	/* If data has changed since the last sync,
+	 * tag id for resyncing. */
+	bool check_recalc(BL::ID& id, BL::ID& data)
 	{
+		if(b_update_id[data.ptr.data] == data.update_id()) {
+			return false;
+		}
+		b_update_id[data.ptr.data] = data.update_id();
+		b_recalc.insert(id.ptr.data);
+		return true;
+	}
+
+	void set_recalc(BL::ID& id)
+	{
+		b_update_id[id.ptr.data] = id.update_id();
 		b_recalc.insert(id.ptr.data);
 	}
 
@@ -631,12 +644,12 @@ public:
 		used_set.clear();
 	}
 
-	bool sync(T **r_data, const BL::ID& id)
+	bool sync(T **r_data, BL::ID& id)
 	{
 		return sync(r_data, id, id, id.ptr.id.data);
 	}
 
-	bool sync(T **r_data, const BL::ID& id, const BL::ID& parent, const K& key)
+	bool sync(T **r_data, BL::ID& id, const BL::ID& parent, const K& key)
 	{
 		T *data = find(key);
 		bool recalc;
@@ -655,6 +668,9 @@ public:
 		}
 
 		used(data);
+
+		/* Mark as updated. */
+		b_update_id[id.ptr.data] = id.update_id();
 
 		*r_data = data;
 		return recalc;
@@ -721,6 +737,7 @@ protected:
 	map<K, T*> b_map;
 	set<T*> used_set;
 	set<void*> b_recalc;
+	map<void*, int> b_update_id;
 };
 
 /* Object Key */

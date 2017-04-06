@@ -81,6 +81,7 @@ public:
 	SHADER_NODE_NO_CLONE_CLASS(ImageTextureNode)
 	~ImageTextureNode();
 	ShaderNode *clone() const;
+	void clear_non_persistent();
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
 
 	ImageManager *image_manager;
@@ -111,6 +112,7 @@ public:
 	SHADER_NODE_NO_CLONE_CLASS(EnvironmentTextureNode)
 	~EnvironmentTextureNode();
 	ShaderNode *clone() const;
+	void clear_non_persistent();
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
 	virtual int get_group() { return NODE_GROUP_LEVEL_2; }
 
@@ -255,6 +257,7 @@ public:
 
 	~PointDensityTextureNode();
 	ShaderNode *clone() const;
+	void clear_non_persistent();
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
 
 	bool has_spatial_varying() { return true; }

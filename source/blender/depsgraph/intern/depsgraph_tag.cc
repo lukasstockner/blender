@@ -83,12 +83,14 @@ namespace {
 void lib_id_recalc_tag(Main *bmain, ID *id)
 {
 	id->tag |= LIB_TAG_ID_RECALC;
+	id->update_id++;
 	DEG_id_type_tag(bmain, GS(id->name));
 }
 
 void lib_id_recalc_data_tag(Main *bmain, ID *id)
 {
 	id->tag |= LIB_TAG_ID_RECALC_DATA;
+	id->update_id++;
 	DEG_id_type_tag(bmain, GS(id->name));
 }
 

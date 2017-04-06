@@ -269,13 +269,17 @@ ImageTextureNode::~ImageTextureNode()
 	}
 }
 
+void ImageTextureNode::clear_non_persistent() {
+	image_manager = NULL;
+	slot = -1;
+	is_float = -1;
+	is_linear = false;
+}
+
 ShaderNode *ImageTextureNode::clone() const
 {
 	ImageTextureNode *node = new ImageTextureNode(*this);
-	node->image_manager = NULL;
-	node->slot = -1;
-	node->is_float = -1;
-	node->is_linear = false;
+	node->clear_non_persistent();
 	return node;
 }
 
@@ -469,13 +473,17 @@ EnvironmentTextureNode::~EnvironmentTextureNode()
 	}
 }
 
+void EnvironmentTextureNode::clear_non_persistent() {
+	image_manager = NULL;
+	slot = -1;
+	is_float = -1;
+	is_linear = false;
+}
+
 ShaderNode *EnvironmentTextureNode::clone() const
 {
 	EnvironmentTextureNode *node = new EnvironmentTextureNode(*this);
-	node->image_manager = NULL;
-	node->slot = -1;
-	node->is_float = -1;
-	node->is_linear = false;
+	node->clear_non_persistent();
 	return node;
 }
 
@@ -1389,11 +1397,15 @@ PointDensityTextureNode::~PointDensityTextureNode()
 	}
 }
 
+void PointDensityTextureNode::clear_non_persistent() {
+	image_manager = NULL;
+	slot = -1;
+}
+
 ShaderNode *PointDensityTextureNode::clone() const
 {
 	PointDensityTextureNode *node = new PointDensityTextureNode(*this);
-	node->image_manager = NULL;
-	node->slot = -1;
+	node->clear_non_persistent();
 	return node;
 }
 

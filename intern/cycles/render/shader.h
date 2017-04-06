@@ -172,6 +172,8 @@ public:
 	void device_update_common(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
 	void device_free_common(Device *device, DeviceScene *dscene, Scene *scene);
 
+	void clear_non_persistent(Scene *scene);
+
 	/* get globally unique id for a type of attribute */
 	uint get_attribute_id(ustring name);
 	uint get_attribute_id(AttributeStandard std);

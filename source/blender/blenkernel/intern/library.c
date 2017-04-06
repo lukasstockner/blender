@@ -2146,6 +2146,11 @@ void BKE_id_tag_set_atomic(ID *id, int tag)
 	atomic_fetch_and_or_uint32((uint32_t *)&id->tag, tag);
 }
 
+void BKE_id_update_inc_atomic(ID *id)
+{
+	atomic_fetch_and_add_uint32((uint32_t *)&id->tag, 1);
+}
+
 void BKE_id_tag_clear_atomic(ID *id, int tag)
 {
 	atomic_fetch_and_and_uint32((uint32_t *)&id->tag, ~tag);

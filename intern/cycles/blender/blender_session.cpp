@@ -201,7 +201,6 @@ void BlenderSession::reset_session(BL::BlendData& b_data_, BL::Scene& b_scene_)
 	}
 
 	session->progress.reset();
-	scene->reset();
 
 	session->tile_manager.set_tile_order(session_params.tile_order);
 
@@ -210,8 +209,19 @@ void BlenderSession::reset_session(BL::BlendData& b_data_, BL::Scene& b_scene_)
 	 */
 	session->stats.mem_peak = session->stats.mem_used;
 
-	/* sync object should be re-created */
-	sync = new BlenderSync(b_engine, b_data, b_scene, scene, !background, session->progress, is_cpu);
+	if(!scene_params.persistent_data) {
+		/* If the session isn't persistent, clear the old sync object if there is one. */
+		delete sync;
+		sync = NULL;
+		scene->reset();
+	}
+
+	if(sync == NULL) {
+		sync = new BlenderSync(b_engine, b_data, b_scene, scene, !background, session->progress, is_cpu);
+	}
+	else {
+		sync->sync_recalc();
+	}
 
 	/* for final render we will do full data sync per render layer, only
 	 * do some basic syncing here, no objects or materials for speed */
@@ -576,8 +586,10 @@ void BlenderSession::render()
 
 	session->device_free();
 
-	delete sync;
-	sync = NULL;
+	if(!scene->params.persistent_data) {
+		delete sync;
+		sync = NULL;
+	}
 }
 
 static void populate_bake_data(BakeData *data, const

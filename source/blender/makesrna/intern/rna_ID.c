@@ -974,6 +974,11 @@ static void rna_def_ID(BlenderRNA *brna)
 	                         "Tools can use this to tag data for their own purposes "
 	                         "(initial state is undefined)");
 
+	prop = RNA_def_property(srna, "update_id", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "update_id");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Update index", "Incremented every time this data-block is tagged for recalculation");
+
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "tag", LIB_TAG_ID_RECALC);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);

@@ -130,7 +130,8 @@ typedef struct ID {
 	 * LIB_TAG_... tags (runtime only, cleared at read time).
 	 */
 	short tag;
-	short pad_s1;
+	/* Gets incremented with each update. */
+	short update_id;
 	int us;
 	int icon_id;
 	IDProperty *properties;

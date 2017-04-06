@@ -133,6 +133,7 @@ void BKE_library_make_local(
         const bool untagged_only, const bool set_fake);
 
 void BKE_id_tag_set_atomic(struct ID *id, int tag);
+void BKE_id_update_inc_atomic(struct ID *id);
 void BKE_id_tag_clear_atomic(struct ID *id, int tag);
 
 /* use when "" is given to new_id() */

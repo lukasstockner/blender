@@ -168,6 +168,7 @@ private:
 	set<float> motion_times;
 	void *world_map;
 	bool world_recalc;
+	int world_update_id, world_node_update_id;
 
 	Scene *scene;
 	bool preview;
