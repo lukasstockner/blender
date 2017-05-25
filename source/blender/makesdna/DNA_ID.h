@@ -132,6 +132,9 @@ typedef struct ID {
 	int us;
 	int icon_id;
 	IDProperty *properties;
+	/* Gets incremented with each update. */
+	unsigned int update_id;
+	int pad_i1;
 } ID;
 
 /**

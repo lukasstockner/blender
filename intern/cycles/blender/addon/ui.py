@@ -422,7 +422,7 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
         col.separator()
 
         col.label(text="Final Render:")
-        col.prop(rd, "use_persistent_data", text="Persistent Images")
+        col.prop(rd, "use_persistent_data", text="Persistent Data")
 
         col.separator()
 

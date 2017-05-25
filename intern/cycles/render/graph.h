@@ -135,6 +135,7 @@ public:
 	ShaderOutput *output(ustring name);
 
 	virtual ShaderNode *clone() const = 0;
+	virtual void clear_non_persistent() {}
 	virtual void attributes(Shader *shader, AttributeRequestSet *attributes);
 	virtual void compile(SVMCompiler& compiler) = 0;
 	virtual void compile(OSLCompiler& compiler) = 0;

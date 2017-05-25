@@ -516,10 +516,26 @@ void ShaderManager::device_free_common(Device *device, DeviceScene *dscene, Scen
 	dscene->shader_flag.clear();
 }
 
+void ShaderManager::clear_non_persistent(Scene *scene)
+{
+	foreach(Shader *shader, scene->shaders) {
+		if(shader->graph) {
+			foreach(ShaderNode *node, shader->graph->nodes) {
+				node->clear_non_persistent();
+			}
+		}
+		if(shader->graph_bump) {
+			foreach(ShaderNode *node, shader->graph_bump->nodes) {
+				node->clear_non_persistent();
+			}
+		}
+	}
+}
+
 void ShaderManager::add_default(Scene *scene)
 {
 	/* default surface */
-	{
+	if(!scene->default_surface) {
 		ShaderGraph *graph = new ShaderGraph();
 
 		DiffuseBsdfNode *diffuse = new DiffuseBsdfNode();
@@ -536,7 +552,7 @@ void ShaderManager::add_default(Scene *scene)
 	}
 
 	/* default light */
-	{
+	if(!scene->default_light) {
 		ShaderGraph *graph = new ShaderGraph();
 
 		EmissionNode *emission = new EmissionNode();
@@ -554,7 +570,7 @@ void ShaderManager::add_default(Scene *scene)
 	}
 
 	/* default background */
-	{
+	if(!scene->default_background) {
 		ShaderGraph *graph = new ShaderGraph();
 
 		Shader *shader = new Shader();
@@ -565,7 +581,7 @@ void ShaderManager::add_default(Scene *scene)
 	}
 
 	/* default empty */
-	{
+	if(!scene->default_empty) {
 		ShaderGraph *graph = new ShaderGraph();
 
 		Shader *shader = new Shader();

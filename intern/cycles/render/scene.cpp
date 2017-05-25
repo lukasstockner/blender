@@ -59,6 +59,11 @@ Scene::Scene(const SceneParams& params_, const DeviceInfo& device_info_)
 	curve_system_manager = new CurveSystemManager();
 	bake_manager = new BakeManager();
 
+	default_surface = NULL;
+	default_light = NULL;
+	default_background = NULL;
+	default_empty = NULL;
+
 	/* OSL only works on the CPU */
 	if(device_info_.type == DEVICE_CPU)
 		shader_manager = ShaderManager::create(this, params.shadingsystem);
@@ -73,45 +78,52 @@ Scene::~Scene()
 
 void Scene::free_memory(bool final)
 {
-	foreach(Shader *s, shaders)
-		delete s;
-	foreach(Mesh *m, meshes)
-		delete m;
-	foreach(Object *o, objects)
-		delete o;
-	foreach(Light *l, lights)
-		delete l;
-	foreach(ParticleSystem *p, particle_systems)
-		delete p;
+	if(!params.persistent_data || final) {
+		foreach(Shader *s, shaders)
+			delete s;
+		foreach(Mesh *m, meshes)
+			delete m;
+		foreach(Object *o, objects)
+			delete o;
+		foreach(Light *l, lights)
+			delete l;
+		foreach(ParticleSystem *p, particle_systems)
+			delete p;
 
-	shaders.clear();
-	meshes.clear();
-	objects.clear();
-	lights.clear();
-	particle_systems.clear();
+		shaders.clear();
+		meshes.clear();
+		objects.clear();
+		lights.clear();
+		particle_systems.clear();
+	}
+	else {
+		shader_manager->clear_non_persistent(this);
+	}
 
 	if(device) {
-		camera->device_free(device, &dscene, this);
-		film->device_free(device, &dscene, this);
-		background->device_free(device, &dscene);
-		integrator->device_free(device, &dscene);
+		if(!params.persistent_data || final) {
+			camera->device_free(device, &dscene, this);
+			film->device_free(device, &dscene, this);
+			background->device_free(device, &dscene);
+			integrator->device_free(device, &dscene);
 
-		object_manager->device_free(device, &dscene);
-		mesh_manager->device_free(device, &dscene);
-		shader_manager->device_free(device, &dscene, this);
-		light_manager->device_free(device, &dscene);
+			object_manager->device_free(device, &dscene);
+			mesh_manager->device_free(device, &dscene);
+			shader_manager->device_free(device, &dscene, this);
+			light_manager->device_free(device, &dscene);
 
-		particle_system_manager->device_free(device, &dscene);
-		curve_system_manager->device_free(device, &dscene);
+			particle_system_manager->device_free(device, &dscene);
+			curve_system_manager->device_free(device, &dscene);
 
-		bake_manager->device_free(device, &dscene);
+			bake_manager->device_free(device, &dscene);
 
-		if(!params.persistent_data || final)
 			image_manager->device_free(device, &dscene);
-		else
-			image_manager->device_free_builtin(device, &dscene);
 
-		lookup_tables->device_free(device, &dscene);
+			lookup_tables->device_free(device, &dscene);
+		}
+		else {
+			image_manager->device_free_builtin(device, &dscene);
+		}
 	}
 
 	if(final) {
