@@ -2893,6 +2893,24 @@ void node_geometry(
 	pointiness = 0.5;
 }
 
+void node_tangent_radial_x(
+		vec3 attr_orco, out vec3 tangent)
+{
+	tangent = normalize(vec3(0.0, -attr_orco.z, attr_orco.y));
+}
+
+void node_tangent_radial_y(
+		vec3 attr_orco, out vec3 tangent)
+{
+	tangent = normalize(vec3(-attr_orco.z, 0.0, attr_orco.x));
+}
+
+void node_tangent_radial_z(
+		vec3 attr_orco, out vec3 tangent)
+{
+	tangent = normalize(vec3(-attr_orco.y, attr_orco.x, 0.0));
+}
+
 void node_tex_coord(
         vec3 I, vec3 N, mat4 viewinvmat, mat4 obinvmat, vec4 camerafac,
         vec3 attr_orco, vec3 attr_uv,

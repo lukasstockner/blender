@@ -258,6 +258,7 @@ public:
 	void relink(ShaderNode *node, ShaderOutput *from, ShaderOutput *to);
 
 	void remove_proxy_nodes();
+	void fold_tangent_nodes();
 	void simplify(Scene *scene);
 	void finalize(Scene *scene,
 	              bool do_bump = false,

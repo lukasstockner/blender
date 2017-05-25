@@ -32,6 +32,7 @@
 static bNodeSocketTemplate sh_node_normal_map_in[] = {
 	{   SOCK_FLOAT, 1, N_("Strength"),	1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 10.0f},
 	{	SOCK_RGBA, 1, N_("Color"), 0.5f, 0.5f, 1.0f, 1.0f, 0.0f, 1.0f},
+	{	SOCK_VECTOR, 1, N_("Tangent"),	0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, PROP_NONE, SOCK_HIDE_VALUE},
 	{	-1, 0, ""	}
 };
 
@@ -129,6 +130,7 @@ static int gpu_shader_normal_map(GPUMaterial *mat, bNode *node, bNodeExecData *U
 	GPUNodeLink *negnorm;
 	GPUNodeLink *realnorm;
 	GPUNodeLink *strength;
+	GPUNodeLink *tangent;
 
 	float d[4] = {0, 0, 0, 0};
 
@@ -142,6 +144,13 @@ static int gpu_shader_normal_map(GPUMaterial *mat, bNode *node, bNodeExecData *U
 	else
 		realnorm = GPU_uniform(in[1].vec);
 
+	if (nm->space == SHD_NORMAL_MAP_TANGENT)
+		tangent = GPU_attribute(CD_TANGENT, nm->uv_map);
+	else if (in[2].link)
+		tangent = in[2].link;
+	else if (nm->space == SHD_NORMAL_MAP_TANGENT_INPUT)
+		tangent = GPU_uniform(in[2].vec);
+
 	negnorm = GPU_builtin(GPU_VIEW_NORMAL);
 	GPU_link(mat, "math_max", strength, GPU_uniform(d), &strength);
 
@@ -154,8 +163,9 @@ static int gpu_shader_normal_map(GPUMaterial *mat, bNode *node, bNodeExecData *U
 			color_to_normal_fnc_name = "color_to_blender_normal_new_shading";
 		switch (nm->space) {
 			case SHD_NORMAL_MAP_TANGENT:
+			case SHD_NORMAL_MAP_TANGENT_INPUT:
 				GPU_link(mat, "color_to_normal_new_shading", realnorm, &realnorm);
-				GPU_link(mat, "node_normal_map", GPU_attribute(CD_TANGENT, nm->uv_map), negnorm, realnorm, &realnorm);
+				GPU_link(mat, "node_normal_map", tangent, negnorm, realnorm, &realnorm);
 				GPU_link(mat, "vec_math_mix", strength, realnorm, GPU_builtin(GPU_VIEW_NORMAL), &out[0].link);
 				/* for uniform scale this is sufficient to match Cycles */
 				GPU_link(mat, "direction_transform_m4v3", out[0].link, GPU_builtin(GPU_INVERSE_VIEW_MATRIX), &out[0].link);
@@ -185,7 +195,8 @@ static int gpu_shader_normal_map(GPUMaterial *mat, bNode *node, bNodeExecData *U
 
 		switch (nm->space) {
 			case SHD_NORMAL_MAP_TANGENT:
-				GPU_link(mat, "node_normal_map", GPU_attribute(CD_TANGENT, nm->uv_map), negnorm, realnorm, &realnorm);
+			case SHD_NORMAL_MAP_TANGENT_INPUT:
+				GPU_link(mat, "node_normal_map", tangent, negnorm, realnorm, &realnorm);
 				break;
 			case SHD_NORMAL_MAP_OBJECT:
 			case SHD_NORMAL_MAP_BLENDER_OBJECT:
@@ -204,6 +215,22 @@ static int gpu_shader_normal_map(GPUMaterial *mat, bNode *node, bNodeExecData *U
 	return true;
 }
 
+static void node_shader_update_normal_map(bNodeTree *UNUSED(ntree), bNode *node)
+{
+	bNodeSocket *sock;
+	NodeShaderNormalMap *nm = node->storage;
+
+	for (sock = node->inputs.first; sock; sock = sock->next) {
+		if (STREQ(sock->name, "Tangent")) {
+			if (nm->space == SHD_NORMAL_MAP_TANGENT_INPUT)
+				sock->flag &= ~SOCK_UNAVAIL;
+			else
+				sock->flag |= SOCK_UNAVAIL;
+
+		}
+	}
+}
+
 /* node type definition */
 void register_node_type_sh_normal_map(void)
 {
@@ -217,6 +244,7 @@ void register_node_type_sh_normal_map(void)
 	node_type_storage(&ntype, "NodeShaderNormalMap", node_free_standard_storage, node_copy_standard_storage);
 	node_type_gpu(&ntype, gpu_shader_normal_map);
 	node_type_exec(&ntype, NULL, NULL, node_shader_exec_normal_map);
+	node_type_update(&ntype, node_shader_update_normal_map, NULL);
 
 	nodeRegisterType(&ntype);
 }

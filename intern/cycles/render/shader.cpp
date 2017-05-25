@@ -234,8 +234,10 @@ void Shader::set_graph(ShaderGraph *graph_)
 	/* do this here already so that we can detect if mesh or object attributes
 	 * are needed, since the node attribute callbacks check if their sockets
 	 * are connected but proxy nodes should not count */
-	if(graph_)
+	if(graph_) {
 		graph_->remove_proxy_nodes();
+		graph_->fold_tangent_nodes();
+	}
 
 	/* assign graph */
 	delete graph;

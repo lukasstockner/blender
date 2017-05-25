@@ -41,6 +41,32 @@ static void node_shader_init_tangent(bNodeTree *UNUSED(ntree), bNode *node)
 	node->storage = attr;
 }
 
+static int gpu_shader_tangent(GPUMaterial *mat, bNode *node, bNodeExecData *UNUSED(execdata), GPUNodeStack *UNUSED(in), GPUNodeStack *out)
+{
+	NodeShaderTangent *tangent = node->storage;
+
+	if(tangent->direction_type == SHD_TANGENT_RADIAL) {
+		const char *shader;
+		switch(tangent->axis) {
+			case SHD_TANGENT_AXIS_X:
+				shader = "node_tangent_radial_x";
+				break;
+			case SHD_TANGENT_AXIS_Y:
+				shader = "node_tangent_radial_y";
+				break;
+			case SHD_TANGENT_AXIS_Z:
+				shader = "node_tangent_radial_z";
+				break;
+		}
+		GPU_link(mat, shader, GPU_attribute(CD_ORCO, ""), &out[0].link);
+	}
+	else {
+		GPU_link(mat, "texco_tangent", GPU_attribute(CD_TANGENT, tangent->uv_map), &out[0].link);
+	}
+
+	return true;
+}
+
 /* node type definition */
 void register_node_type_sh_tangent(void)
 {
@@ -51,6 +77,7 @@ void register_node_type_sh_tangent(void)
 	node_type_socket_templates(&ntype, NULL, sh_node_tangent_out);
 	node_type_size_preset(&ntype, NODE_SIZE_MIDDLE);
 	node_type_init(&ntype, node_shader_init_tangent);
+	node_type_gpu(&ntype, gpu_shader_tangent);
 	node_type_storage(&ntype, "NodeShaderTangent", node_free_standard_storage, node_copy_standard_storage);
 
 	nodeRegisterType(&ntype);

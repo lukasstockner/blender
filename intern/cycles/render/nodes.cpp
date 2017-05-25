@@ -5513,6 +5513,7 @@ NODE_DEFINE(NormalMapNode)
 	SOCKET_IN_NORMAL(normal_osl, "NormalIn", make_float3(0.0f, 0.0f, 0.0f), SocketType::LINK_NORMAL | SocketType::OSL_INTERNAL);
 	SOCKET_IN_FLOAT(strength, "Strength", 1.0f);
 	SOCKET_IN_COLOR(color, "Color", make_float3(0.5f, 0.5f, 1.0f));
+	SOCKET_IN_NORMAL(tangent_virtual, "Tangent", make_float3(0.0f, 0.0f, 0.0f));
 
 	SOCKET_OUT_NORMAL(normal, "Normal");
 

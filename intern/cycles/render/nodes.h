@@ -1023,6 +1023,7 @@ public:
 	float strength;
 	float3 color;
 	float3 normal_osl;
+	float3 tangent_virtual;
 };
 
 class TangentNode : public ShaderNode {

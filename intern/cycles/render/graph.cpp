@@ -423,6 +423,29 @@ void ShaderGraph::copy_nodes(ShaderNodeSet& nodes, ShaderNodeMap& nnodemap)
 /* Graph simplification */
 /* ******************** */
 
+void ShaderGraph::fold_tangent_nodes()
+{
+	foreach(ShaderNode *node, nodes) {
+		if(node->type == NormalMapNode::node_type) {
+			NormalMapNode *map = static_cast<NormalMapNode*>(node);
+			if(map->space == NODE_NORMAL_MAP_TANGENT_INPUT) {
+				map->space = NODE_NORMAL_MAP_TANGENT;
+
+				ShaderInput *tangent_in = map->input("Tangent");
+				if(!tangent_in->link) continue;
+
+				ShaderNode *tangent_node = tangent_in->link->parent;
+				disconnect(tangent_in);
+				if(tangent_node->type != TangentNode::node_type) continue;
+				TangentNode *tangent = static_cast<TangentNode*>(node);
+
+				if(tangent->direction_type != NODE_TANGENT_UVMAP) continue;
+				map->attribute = tangent->attribute;
+			}
+		}
+	}
+}
+
 /* Remove proxy nodes.
  *
  * These only exists temporarily when exporting groups, and we must remove them

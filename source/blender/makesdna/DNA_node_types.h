@@ -1032,6 +1032,7 @@ typedef struct NodeSunBeams {
 #define SHD_NORMAL_MAP_WORLD			2
 #define SHD_NORMAL_MAP_BLENDER_OBJECT	3
 #define SHD_NORMAL_MAP_BLENDER_WORLD	4
+#define SHD_NORMAL_MAP_TANGENT_INPUT		5
 
 /* math node clamp */
 #define SHD_MATH_CLAMP		1

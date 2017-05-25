@@ -4339,6 +4339,7 @@ static void def_sh_normal_map(StructRNA *srna)
 {
 	static EnumPropertyItem prop_space_items[] = {
 		{SHD_NORMAL_MAP_TANGENT, "TANGENT", 0, "Tangent Space", "Tangent space normal mapping"},
+		{SHD_NORMAL_MAP_TANGENT_INPUT, "TANGENT_INPUT", 0, "Tangent Input", "Tangent space normal mapping with an input socket"},
 		{SHD_NORMAL_MAP_OBJECT, "OBJECT", 0, "Object Space", "Object space normal mapping"},
 		{SHD_NORMAL_MAP_WORLD, "WORLD", 0, "World Space", "World space normal mapping"},
 		{SHD_NORMAL_MAP_BLENDER_OBJECT, "BLENDER_OBJECT", 0, "Blender Object Space", "Object space normal mapping, compatible with Blender render baking"},
@@ -4353,7 +4354,7 @@ static void def_sh_normal_map(StructRNA *srna)
 	prop = RNA_def_property(srna, "space", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, prop_space_items);
 	RNA_def_property_ui_text(prop, "Space", "Space of the input normal");
-	RNA_def_property_update(prop, 0, "rna_Node_update");
+	RNA_def_property_update(prop, 0, "rna_Node_custom_update");
 
 	prop = RNA_def_property(srna, "uv_map", PROP_STRING, PROP_NONE);
 	RNA_def_property_ui_text(prop, "UV Map", "UV Map for tangent space maps");

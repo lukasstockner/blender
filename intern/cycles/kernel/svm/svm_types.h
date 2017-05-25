@@ -351,6 +351,7 @@ typedef enum NodeNormalMapSpace {
 	NODE_NORMAL_MAP_WORLD,
 	NODE_NORMAL_MAP_BLENDER_OBJECT,
 	NODE_NORMAL_MAP_BLENDER_WORLD,
+	NODE_NORMAL_MAP_TANGENT_INPUT,
 } NodeNormalMapSpace;
 
 typedef enum NodeImageColorSpace {
