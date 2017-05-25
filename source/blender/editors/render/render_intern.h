@@ -94,13 +94,15 @@ void render_view3d_update(struct RenderEngine *engine, const struct bContext *C)
 void render_view3d_draw(struct RenderEngine *engine, const struct bContext *C);
 
 /* render_view.c */
-struct ScrArea *render_view_open(struct bContext *C, int mx, int my, struct ReportList *reports);
+struct ScrArea *render_view_open(struct bContext *C, int mx, int my, struct ReportList *reports, struct ScrArea *skip);
 
 void RENDER_OT_view_show(struct wmOperatorType *ot);
 void RENDER_OT_view_cancel(struct wmOperatorType *ot);
 
 /* render_opengl.c */
 void RENDER_OT_opengl(struct wmOperatorType *ot);
+
+void RENDER_OT_save_preview(struct wmOperatorType *ot);
 
 #endif /* __RENDER_INTERN_H__ */
 

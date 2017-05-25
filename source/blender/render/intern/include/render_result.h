@@ -53,6 +53,7 @@ struct ColorManagedViewSettings;
 
 /* New */
 
+struct RenderResult *render_result_new_preview(struct rcti *partrct);
 struct RenderResult *render_result_new(struct Render *re,
 	struct rcti *partrct, int crop, int savebuffers, const char *layername, const char *viewname);
 struct RenderResult *render_result_new_full_sample(struct Render *re,

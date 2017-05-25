@@ -140,6 +140,7 @@ bool BKE_scene_use_new_shading_nodes(const struct Scene *scene);
 bool BKE_scene_use_shading_nodes_custom(struct Scene *scene);
 bool BKE_scene_use_world_space_shading(struct Scene *scene);
 bool BKE_scene_use_spherical_stereo(struct Scene *scene);
+bool BKE_scene_use_preview_save(struct Scene *scene);
 
 bool BKE_scene_uses_blender_internal(const struct Scene *scene);
 bool BKE_scene_uses_blender_game(const struct Scene *scene);

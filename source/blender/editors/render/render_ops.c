@@ -94,6 +94,7 @@ void ED_operatortypes_render(void)
 	WM_operatortype_append(RENDER_OT_render);
 	WM_operatortype_append(RENDER_OT_view_cancel);
 	WM_operatortype_append(RENDER_OT_shutter_curve_preset);
+	WM_operatortype_append(RENDER_OT_save_preview);
 
 	/* render_opengl.c */
 	WM_operatortype_append(RENDER_OT_opengl);

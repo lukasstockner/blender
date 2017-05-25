@@ -59,6 +59,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_view3d_types.h"
 
 #include "BKE_appdir.h"
 #include "BKE_brush.h"
@@ -94,6 +95,9 @@
 
 #include "ED_datafiles.h"
 #include "ED_render.h"
+#include "ED_screen.h"
+
+#include "render_intern.h"
 
 #ifndef NDEBUG
 /* Used for database init assert(). */
@@ -1293,3 +1297,51 @@ void ED_preview_kill_jobs(wmWindowManager *wm, Main *bmain)
 	ED_viewport_render_kill_jobs(wm, bmain, false);
 }
 
+static int save_preview_poll(bContext *C)
+{
+	Scene *scene = CTX_data_scene(C);
+	View3D *v3d = CTX_wm_view3d(C);
+	RegionView3D *rv3d = CTX_wm_region_view3d(C);
+
+	if (!ED_operator_areaactive(C)) return 0;
+	if (!v3d || v3d->drawtype != OB_RENDER) return 0;
+	if (!rv3d || !rv3d->render_engine) return 0;
+	if (!BKE_scene_use_preview_save(scene)) return 0;
+
+	return 1;
+}
+
+static int save_preview_exec(bContext *C, wmOperator *op)
+{
+	Scene *scene = CTX_data_scene(C);
+	RegionView3D *rv3d = CTX_wm_region_view3d(C);
+	Image *ima;
+	RenderResult *rr;
+	Render *re = RE_NewRender(scene->id.name);
+
+	render_view_open(C, 0, 0, op->reports, CTX_wm_area(C));
+
+	ima = BKE_image_verify_viewer(IMA_TYPE_R_RESULT, "Render Result");
+	BKE_image_signal(ima, NULL, IMA_SIGNAL_FREE);
+	BKE_image_backup_render(scene, ima, true);
+
+	rr = rv3d->render_engine->type->save_preview(rv3d->render_engine);
+	RE_SetResult(re, rr);
+
+	WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+void RENDER_OT_save_preview(wmOperatorType *ot)
+{
+        /* identifiers */
+	ot->name = "Save Preview Render";
+        ot->description = "Save active viewport render session as a rendered image";
+        ot->idname = "RENDER_OT_save_preview";
+
+        /* api callbacks */
+        ot->exec = save_preview_exec;
+
+        ot->poll = save_preview_poll;
+}
