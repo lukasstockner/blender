@@ -275,6 +275,7 @@ void BlenderSync::sync_integrator()
 			integrator->use_dithered_sampling = false;
 			break;
 	}
+	integrator->scrambling_distance = get_float(cscene, "scrambling_distance");
 
 	integrator->sample_clamp_direct = get_float(cscene, "sample_clamp_direct");
 	integrator->sample_clamp_indirect = get_float(cscene, "sample_clamp_indirect");

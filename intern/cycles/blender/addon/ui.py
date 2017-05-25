@@ -203,7 +203,10 @@ class CYCLES_RENDER_PT_sampling(CyclesButtonsPanel, Panel):
             col.prop(cscene, "sample_all_lights_direct")
             col.prop(cscene, "sample_all_lights_indirect")
 
-        layout.row().prop(cscene, "sampling_pattern", text="Pattern")
+        col = layout.row().column()
+        col.prop(cscene, "sampling_pattern", text="Pattern")
+        col.prop(cscene, "scrambling_distance")
+
 
         for rl in scene.render.layers:
             if rl.samples > 0:
