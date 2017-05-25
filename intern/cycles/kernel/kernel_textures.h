@@ -77,6 +77,7 @@ KERNEL_TEX(float, texture_float, __lookup_table)
 
 /* sobol */
 KERNEL_TEX(uint, texture_uint, __sobol_directions)
+KERNEL_TEX(float2, texture_float2, __sobol_dither)
 
 #ifdef __KERNEL_CUDA__
 #  if __CUDA_ARCH__ < 300
@@ -179,7 +180,6 @@ KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_633)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_641)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_649)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_657)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_665)
 
 #  else
 /* bindless textures */

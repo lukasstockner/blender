@@ -112,6 +112,7 @@ public:
 
 	/* integrator */
 	device_vector<uint> sobol_directions;
+	device_vector<float2> sobol_dither;
 
 	/* cpu images */
 	vector<device_vector<float4>* > tex_float4_image;

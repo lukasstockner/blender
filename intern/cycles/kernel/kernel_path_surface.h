@@ -50,7 +50,7 @@ ccl_device_noinline void kernel_branched_path_surface_connect_light(
 
 			int num_samples = ceil_to_int(num_samples_adjust*light_select_num_samples(kg, i));
 			float num_samples_inv = num_samples_adjust/(num_samples*kernel_data.integrator.num_all_lights);
-			RNG lamp_rng = cmj_hash(*rng, i);
+			RNG lamp_rng = path_rng_hash(*rng, i);
 
 			for(int j = 0; j < num_samples; j++) {
 				float light_u, light_v;
