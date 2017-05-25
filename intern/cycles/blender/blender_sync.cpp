@@ -545,13 +545,6 @@ PassType BlenderSync::get_pass_type(BL::RenderPass& b_pass)
 	MAP_PASS("Env", PASS_BACKGROUND);
 	MAP_PASS("AO", PASS_AO);
 	MAP_PASS("Shadow", PASS_SHADOW);
-
-#ifdef __KERNEL_DEBUG__
-	MAP_PASS("Debug BVH Traversed Nodes", PASS_BVH_TRAVERSED_NODES);
-	MAP_PASS("Debug BVH Traversed Instances", PASS_BVH_TRAVERSED_INSTANCES);
-	MAP_PASS("Debug BVH Intersections", PASS_BVH_INTERSECTIONS);
-	MAP_PASS("Debug Ray Bounces", PASS_RAY_BOUNCES);
-#endif
 #undef MAP_PASS
 
 	return PASS_NONE;
@@ -626,24 +619,6 @@ void BlenderSync::sync_film(BL::RenderLayer& b_rlay,
 			b_engine.add_pass("Denoising Image",           3, "RGB", b_srlay.name().c_str());
 			b_engine.add_pass("Denoising Image Variance",  3, "RGB", b_srlay.name().c_str());
 		}
-#ifdef __KERNEL_DEBUG__
-		if(get_boolean(crl, "pass_debug_bvh_traversed_nodes")) {
-			b_engine.add_pass("Debug BVH Traversed Nodes", 1, "X", b_srlay.name().c_str());
-			passes.add(PASS_BVH_TRAVERSED_NODES);
-		}
-		if(get_boolean(crl, "pass_debug_bvh_traversed_instances")) {
-			b_engine.add_pass("Debug BVH Traversed Instances", 1, "X", b_srlay.name().c_str());
-			passes.add(PASS_BVH_TRAVERSED_INSTANCES);
-		}
-		if(get_boolean(crl, "pass_debug_bvh_intersections")) {
-			b_engine.add_pass("Debug BVH Intersections", 1, "X", b_srlay.name().c_str());
-			passes.add(PASS_BVH_INTERSECTIONS);
-		}
-		if(get_boolean(crl, "pass_debug_ray_bounces")) {
-			b_engine.add_pass("Debug Ray Bounces", 1, "X", b_srlay.name().c_str());
-			passes.add(PASS_RAY_BOUNCES);
-		}
-#endif
 	}
 
 	scene->film->denoising_flags = 0;

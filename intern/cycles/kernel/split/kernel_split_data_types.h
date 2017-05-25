@@ -56,13 +56,7 @@ typedef struct SplitParams {
 
 /* SPLIT_DATA_ENTRY(type, name, num) */
 
-#if defined(WITH_CYCLES_DEBUG) || defined(__KERNEL_DEBUG__)
-/* DebugData memory */
-#  define SPLIT_DATA_DEBUG_ENTRIES \
-	SPLIT_DATA_ENTRY(DebugData, debug_data, 1)
-#else
 #  define SPLIT_DATA_DEBUG_ENTRIES
-#endif  /* DEBUG */
 
 #ifdef __BRANCHED_PATH__
 

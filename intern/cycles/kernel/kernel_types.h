@@ -199,10 +199,6 @@ CCL_NAMESPACE_BEGIN
 #  define __BAKING__
 #endif
 
-#ifdef WITH_CYCLES_DEBUG
-#  define __KERNEL_DEBUG__
-#endif
-
 /* Scene-based selective features compilation. */
 #ifdef __NO_CAMERA_MOTION__
 #  undef __CAMERA_MOTION__
@@ -393,12 +389,6 @@ typedef enum PassType {
 	PASS_SUBSURFACE_INDIRECT = (1 << 23),
 	PASS_SUBSURFACE_COLOR = (1 << 24),
 	PASS_LIGHT = (1 << 25), /* no real pass, used to force use_light_pass */
-#ifdef __KERNEL_DEBUG__
-	PASS_BVH_TRAVERSED_NODES = (1 << 26),
-	PASS_BVH_TRAVERSED_INSTANCES = (1 << 27),
-	PASS_BVH_INTERSECTIONS = (1 << 28),
-	PASS_RAY_BOUNCES = (1 << 29),
-#endif
 	PASS_AOV_COLOR = (1 << 30), /* virtual passes */
 	PASS_AOV_VALUE = (1 << 31),
 } PassType;
@@ -649,12 +639,6 @@ typedef struct Intersection {
 	int prim;
 	int object;
 	int type;
-
-#ifdef __KERNEL_DEBUG__
-	int num_traversed_nodes;
-	int num_traversed_instances;
-	int num_intersections;
-#endif
 } Intersection;
 
 /* Primitives */
@@ -1200,13 +1184,6 @@ typedef struct KernelFilm {
 	int pass_aov[32];
 
 	int pad1, pad2;
-
-#ifdef __KERNEL_DEBUG__
-	int pass_bvh_traversed_nodes;
-	int pass_bvh_traversed_instances;
-	int pass_bvh_intersections;
-	int pass_ray_bounces;
-#endif
 } KernelFilm;
 static_assert_align(KernelFilm, 16);
 
@@ -1350,18 +1327,6 @@ typedef struct KernelData {
 	KernelTables tables;
 } KernelData;
 static_assert_align(KernelData, 16);
-
-#ifdef __KERNEL_DEBUG__
-/* NOTE: This is a runtime-only struct, alignment is not
- * really important here.
- */
-typedef ccl_addr_space struct DebugData {
-	int num_bvh_traversed_nodes;
-	int num_bvh_traversed_instances;
-	int num_bvh_intersections;
-	int num_ray_bounces;
-} DebugData;
-#endif
 
 /* Declarations required for split kernel */
 

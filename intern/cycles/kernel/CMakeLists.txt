@@ -79,7 +79,6 @@ set(SRC_HEADERS
 	kernel_compat_cpu.h
 	kernel_compat_cuda.h
 	kernel_compat_opencl.h
-	kernel_debug.h
 	kernel_differential.h
 	kernel_emission.h
 	kernel_film.h
@@ -355,12 +354,6 @@ if(WITH_CYCLES_CUDA_BINARIES)
 
 		set(cuda_cubin ${name}_${arch}.cubin)
 
-		if(WITH_CYCLES_DEBUG)
-			set(cuda_debug_flags "-D__KERNEL_DEBUG__")
-		else()
-			set(cuda_debug_flags "")
-		endif()
-
 		set(cuda_nvcc_command ${CUDA_NVCC_EXECUTABLE})
 		set(cuda_nvcc_version ${CUDA_VERSION})
 
@@ -382,7 +375,6 @@ if(WITH_CYCLES_CUDA_BINARIES)
 					${cuda_version_flags}
 					${cuda_math_flags}
 					${flags}
-					${cuda_debug_flags}
 					-I${CMAKE_CURRENT_SOURCE_DIR}/..
 					-DCCL_NAMESPACE_BEGIN=
 					-DCCL_NAMESPACE_END=
@@ -393,7 +385,6 @@ if(WITH_CYCLES_CUDA_BINARIES)
 		list(APPEND cuda_cubins ${cuda_cubin})
 
 		unset(cuda_extra_flags)
-		unset(cuda_debug_flags)
 
 		unset(cuda_nvcc_command)
 		unset(cuda_nvcc_version)

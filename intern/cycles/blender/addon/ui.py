@@ -581,13 +581,6 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
             sub.active = crl.use_denoising
             sub.prop(crl, "denoising_store_passes", text="Denoising")
 
-        if _cycles.with_cycles_debug:
-            col = layout.column()
-            col.prop(crl, "pass_debug_bvh_traversed_nodes")
-            col.prop(crl, "pass_debug_bvh_traversed_instances")
-            col.prop(crl, "pass_debug_bvh_intersections")
-            col.prop(crl, "pass_debug_ray_bounces")
-
         layout.label("AOVs:")
         crl = rl.cycles
         row = layout.row()

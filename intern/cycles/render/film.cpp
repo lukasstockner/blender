@@ -169,15 +169,6 @@ void PassSettings::add(PassType type)
 			pass.components = 0;
 			pass.is_virtual = true;
 			break;
-#ifdef WITH_CYCLES_DEBUG
-		case PASS_BVH_TRAVERSED_NODES:
-		case PASS_BVH_TRAVERSED_INSTANCES:
-		case PASS_BVH_INTERSECTIONS:
-		case PASS_RAY_BOUNCES:
-			pass.components = 1;
-			pass.exposure = false;
-			break;
-#endif
 		case PASS_AOV_COLOR:
 			pass.components = 4;
 			pass.is_virtual = true;
@@ -535,20 +526,6 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 				kfilm->use_light_pass = 1;
 				break;
 
-#ifdef WITH_CYCLES_DEBUG
-			case PASS_BVH_TRAVERSED_NODES:
-				kfilm->pass_bvh_traversed_nodes = kfilm->pass_stride;
-				break;
-			case PASS_BVH_TRAVERSED_INSTANCES:
-				kfilm->pass_bvh_traversed_instances = kfilm->pass_stride;
-				break;
-			case PASS_BVH_INTERSECTIONS:
-				kfilm->pass_bvh_intersections = kfilm->pass_stride;
-				break;
-			case PASS_RAY_BOUNCES:
-				kfilm->pass_ray_bounces = kfilm->pass_stride;
-				break;
-#endif
 			case PASS_AOV_COLOR:
 				for(int j = 0; j < passes.aovs.size(); j++) {
 					if(passes.aovs[j].is_color) {

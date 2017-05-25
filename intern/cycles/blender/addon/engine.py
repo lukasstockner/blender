@@ -239,10 +239,6 @@ def register_passes(engine, scene, srl):
     if srl.use_pass_environment:           engine.register_pass(scene, srl, "Env",           3, "RGB",  'COLOR')
 
     crl = srl.cycles
-    if crl.pass_debug_bvh_traversed_nodes:     engine.register_pass(scene, srl, "Debug BVH Traversed Nodes",     1, "X", 'VALUE')
-    if crl.pass_debug_bvh_traversed_instances: engine.register_pass(scene, srl, "Debug BVH Traversed Instances", 1, "X", 'VALUE')
-    if crl.pass_debug_bvh_intersections:       engine.register_pass(scene, srl, "Debug BVH Intersections",       1, "X", 'VALUE')
-    if crl.pass_debug_ray_bounces:             engine.register_pass(scene, srl, "Debug Ray Bounces",             1, "X", 'VALUE')
 
     cscene = scene.cycles
     if crl.use_denoising and crl.denoising_store_passes and not cscene.use_progressive_refine:

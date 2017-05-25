@@ -1103,10 +1103,6 @@ string OpenCLDeviceBase::kernel_build_options(const string *debug_src)
 	if(OpenCLInfo::use_debug())
 		build_options += "-D__KERNEL_OPENCL_DEBUG__ ";
 
-#ifdef WITH_CYCLES_DEBUG
-	build_options += "-D__KERNEL_DEBUG__ ";
-#endif
-
 	return build_options;
 }
 

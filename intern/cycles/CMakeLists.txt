@@ -200,11 +200,6 @@ if(WITH_CYCLES_LOGGING)
 	)
 endif()
 
-# Debugging capabilities (debug passes etc).
-if(WITH_CYCLES_DEBUG)
-	add_definitions(-DWITH_CYCLES_DEBUG)
-endif()
-
 include_directories(
 	SYSTEM
 	${BOOST_INCLUDE_DIR}
