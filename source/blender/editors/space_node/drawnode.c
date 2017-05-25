@@ -3597,6 +3597,25 @@ void node_draw_link_straight(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 }
 #endif
 
+static bool node_link_types_valid(bNodeLink *link)
+{
+	eNodeSocketDatatype from, to;
+
+	if(!link->fromsock || !link->tosock)
+		return true;
+
+	from = link->fromsock->type;
+	to = link->tosock->type;
+
+	/* These two types can only be connected to another socket of the same type. */
+	if(ELEM(from, SOCK_SHADER, SOCK_STRING) ||
+	   ELEM(to,   SOCK_SHADER, SOCK_STRING)) {
+		return (from == to);
+	}
+
+	return true;
+}
+
 /* note; this is used for fake links in groups too */
 void node_draw_link(View2D *v2d, SpaceNode *snode, bNodeLink *link)
 {
@@ -3619,7 +3638,7 @@ void node_draw_link(View2D *v2d, SpaceNode *snode, bNodeLink *link)
 		if (link->fromsock->flag & SOCK_UNAVAIL)
 			return;
 
-		if (link->flag & NODE_LINK_VALID) {
+		if (link->flag & NODE_LINK_VALID && node_link_types_valid(link)) {
 			/* special indicated link, on drop-node */
 			if (link->flag & NODE_LINKFLAG_HILITE) {
 				th_col1 = th_col2 = TH_ACTIVE;
