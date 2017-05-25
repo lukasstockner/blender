@@ -407,7 +407,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 #if defined(__EMISSION__)
 		if(kernel_data.integrator.use_direct_light) {
 			int all = (kernel_data.integrator.sample_all_lights_indirect) ||
-			          (state->flag & PATH_RAY_SHADOW_CATCHER);
+			          ((state->flag & PATH_RAY_SHADOW_CATCHER) && !(kernel_data.film.pass_flag & PASS_SHADOWCATCHER));
 			kernel_branched_path_surface_connect_light(kg,
 			                                           rng,
 			                                           sd,

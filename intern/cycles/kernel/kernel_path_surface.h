@@ -226,7 +226,7 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg, RNG 
 		return;
 
 #ifdef __SHADOW_TRICKS__
-	if(state->flag & PATH_RAY_SHADOW_CATCHER) {
+	if((state->flag & PATH_RAY_SHADOW_CATCHER) && !(kernel_data.film.pass_flag & PASS_SHADOWCATCHER)) {
 		kernel_branched_path_surface_connect_light(kg,
 		                                           rng,
 		                                           sd,

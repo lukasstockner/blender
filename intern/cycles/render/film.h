@@ -128,6 +128,7 @@ public:
 
 	bool use_light_visibility;
 	bool use_sample_clamp;
+	bool use_shadowcatcher_pass;
 
 	bool need_update;
 

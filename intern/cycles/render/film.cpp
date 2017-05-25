@@ -169,6 +169,9 @@ void PassSettings::add(PassType type)
 			pass.components = 0;
 			pass.is_virtual = true;
 			break;
+		case PASS_SHADOWCATCHER:
+			pass.components = 3;
+			break;
 		case PASS_AOV_COLOR:
 			pass.components = 4;
 			pass.is_virtual = true;
@@ -526,6 +529,9 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 				kfilm->use_light_pass = 1;
 				break;
 
+			case PASS_SHADOWCATCHER:
+				kfilm->pass_shadowcatcher = kfilm->pass_stride;
+				break;
 			case PASS_AOV_COLOR:
 				for(int j = 0; j < passes.aovs.size(); j++) {
 					if(passes.aovs[j].is_color) {

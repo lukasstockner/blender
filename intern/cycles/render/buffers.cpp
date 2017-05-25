@@ -327,6 +327,25 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 				pixels[3] = f.w*invw;
 			}
 		}
+		else if(type == PASS_COMBINED) {
+			bool has_shadowcatcher = params.passes.get_pass(PASS_SHADOWCATCHER, pass_offset);
+
+			for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {
+				float4 f = make_float4(in[0], in[1], in[2], in[3]);
+
+				pixels[0] = f.x*scale_exposure;
+				pixels[1] = f.y*scale_exposure;
+				pixels[2] = f.z*scale_exposure;
+
+				/* clamp since alpha might be > 1.0 due to russian roulette */
+				float alpha = f.w*scale;
+				if(has_shadowcatcher) {
+					float shadow = in[pass_offset + 1] / max(in[pass_offset], 1e-7f);
+					alpha += in[pass_offset + 2] * scale * (1.0f - shadow);
+				}
+				pixels[3] = saturate(alpha);
+			}
+		}
 		else {
 			for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {
 				float4 f = make_float4(in[0], in[1], in[2], in[3]);

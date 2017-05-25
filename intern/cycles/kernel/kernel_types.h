@@ -389,6 +389,7 @@ typedef enum PassType {
 	PASS_SUBSURFACE_INDIRECT = (1 << 23),
 	PASS_SUBSURFACE_COLOR = (1 << 24),
 	PASS_LIGHT = (1 << 25), /* no real pass, used to force use_light_pass */
+	PASS_SHADOWCATCHER = (1 << 29),
 	PASS_AOV_COLOR = (1 << 30), /* virtual passes */
 	PASS_AOV_VALUE = (1 << 31),
 } PassType;
@@ -1172,6 +1173,7 @@ typedef struct KernelFilm {
 	int pass_shadow;
 	float pass_shadow_scale;
 	int filter_table_offset;
+	int pass_shadowcatcher;
 
 	int pass_mist;
 	float mist_start;
@@ -1183,7 +1185,7 @@ typedef struct KernelFilm {
 	int denoising_flags;
 	int pass_aov[32];
 
-	int pad1, pad2;
+	int pad;
 } KernelFilm;
 static_assert_align(KernelFilm, 16);
 

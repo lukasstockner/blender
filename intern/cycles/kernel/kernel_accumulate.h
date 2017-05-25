@@ -679,6 +679,11 @@ ccl_device_inline float3 path_radiance_sum_shadowcatcher(KernelGlobals *kg,
                                                          const PathRadiance *L,
                                                          float* alpha)
 {
+	if(kernel_data.film.pass_flag & PASS_SHADOWCATCHER) {
+		*alpha = 0.0f;
+		return make_float3(0.0f, 0.0f, 0.0f);
+	}
+
 	const float shadow = path_radiance_sum_shadow(L);
 	float3 L_sum;
 	if(kernel_data.background.transparent) {

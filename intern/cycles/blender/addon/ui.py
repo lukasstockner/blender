@@ -86,6 +86,16 @@ def use_sample_all_lights(context):
 
     return cscene.sample_all_lights_direct or cscene.sample_all_lights_indirect
 
+def enable_sample_shadowcatcher_lights(context):
+    cscene = context.scene.cycles
+
+    if not cscene.film_transparent:
+        return False
+
+    if use_branched_path(context):
+        return not (cscene.sample_all_lights_direct and cscene.sample_all_lights_indirect)
+    return True
+
 def show_device_active(context):
     cscene = context.scene.cycles
     if cscene.device != 'GPU':
@@ -179,6 +189,9 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
             sub.label(text="Samples:")
             sub.prop(cscene, "samples", text="Render")
             sub.prop(cscene, "preview_samples", text="Preview")
+            subsub = sub.column()
+            subsub.active = enable_sample_shadowcatcher_lights(context)
+            subsub.prop(cscene, "sample_all_lights_shadowcatcher")
         else:
             sub.label(text="AA Samples:")
             sub.prop(cscene, "aa_samples", text="Render")
@@ -202,6 +215,9 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
             col = layout.column(align=True)
             col.prop(cscene, "sample_all_lights_direct")
             col.prop(cscene, "sample_all_lights_indirect")
+            subsub = col.column()
+            subsub.active = enable_sample_shadowcatcher_lights(context)
+            subsub.prop(cscene, "sample_all_lights_shadowcatcher")
 
         col = layout.row().column()
         col.prop(cscene, "sampling_pattern", text="Pattern")

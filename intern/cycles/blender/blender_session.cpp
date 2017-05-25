@@ -409,6 +409,15 @@ void BlenderSession::render()
 		BL::RenderLayer b_rlay = *b_single_rlay;
 
 		sync->sync_film(b_rlay, *b_layer_iter, session_params);
+		PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
+		bool use_shadowcatcher_pass = get_boolean(cscene, "film_transparent");
+		if((Integrator::Method)get_enum(cscene, "progressive") == Integrator::BRANCHED_PATH) {
+			use_shadowcatcher_pass &= !(get_boolean(cscene, "sample_all_lights_direct") && get_boolean(cscene, "sample_all_lights_indirect"));
+		}
+		use_shadowcatcher_pass &= !get_boolean(cscene, "sample_all_lights_shadowcatcher");
+		if(use_shadowcatcher_pass) {
+			scene->film->passes.add(PASS_SHADOWCATCHER);
+		}
 		buffer_params.passes = scene->film->passes;
 
 		PointerRNA crl = RNA_pointer_get(&b_layer_iter->ptr, "cycles");

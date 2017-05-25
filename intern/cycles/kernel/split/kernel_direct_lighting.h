@@ -75,7 +75,7 @@ ccl_device void kernel_direct_lighting(KernelGlobals *kg,
 #  endif  /* __BRANCHED_PATH__ */
 
 #  ifdef __SHADOW_TRICKS__
-		if(flag && state->flag & PATH_RAY_SHADOW_CATCHER) {
+		if(flag && (state->flag & PATH_RAY_SHADOW_CATCHER) && !(kernel_data.film.pass_flag & PASS_SHADOWCATCHER)) {
 			flag = false;
 			enqueue_flag = 1;
 		}

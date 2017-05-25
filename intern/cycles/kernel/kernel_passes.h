@@ -205,10 +205,23 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global fl
 #endif
 }
 
-ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L, int sample)
+ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L, bool use_shadowcatcher, int sample)
 {
 #ifdef __PASSES__
 	int flag = kernel_data.film.pass_flag;
+
+	if(flag & PASS_SHADOWCATCHER) {
+		if(use_shadowcatcher) {
+			kernel_write_pass_float(buffer + kernel_data.film.pass_shadowcatcher, sample, average(L->path_total));
+			kernel_write_pass_float(buffer + kernel_data.film.pass_shadowcatcher + 1, sample, average(L->path_total_shaded));
+			kernel_write_pass_float(buffer + kernel_data.film.pass_shadowcatcher + 2, sample, 1.0f);
+		}
+		else {
+			kernel_write_pass_float(buffer + kernel_data.film.pass_shadowcatcher, sample, 0.0f);
+			kernel_write_pass_float(buffer + kernel_data.film.pass_shadowcatcher + 1, sample, 0.0f);
+			kernel_write_pass_float(buffer + kernel_data.film.pass_shadowcatcher + 2, sample, 0.0f);
+		}
+	}
 
 	if(!kernel_data.film.use_light_pass)
 		return;
@@ -272,7 +285,7 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *
 
 		kernel_write_pass_float4(buffer, sample, make_float4(L_sum.x, L_sum.y, L_sum.z, alpha));
 
-		kernel_write_light_passes(kg, buffer, L, sample);
+		kernel_write_light_passes(kg, buffer, L, is_shadow_catcher, sample);
 
 #ifdef __DENOISING_FEATURES__
 		if(kernel_data.film.pass_denoising_data) {

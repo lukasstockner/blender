@@ -286,6 +286,11 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 default='USE',
                 )
 
+        cls.sample_all_lights_shadowcatcher = BoolProperty(
+                name="Sample All Shadowcatcher Lights",
+                description="Sample all lights when using the shadowcatcher, rather than randomly picking one",
+                default=True,
+                )
         cls.sample_all_lights_direct = BoolProperty(
                 name="Sample All Direct Lights",
                 description="Sample all lights (for direct samples), rather than randomly picking one",
