@@ -50,19 +50,13 @@ public:
 	int full_height;
 
 	/* passes */
-	array<Pass> passes;
-	bool denoising_data_pass;
-	/* If only some light path types should be denoised, an additional pass is needed. */
-	bool denoising_clean_pass;
+	PassSettings passes;
 
 	/* functions */
 	BufferParams();
 
 	void get_offset_stride(int& offset, int& stride);
 	bool modified(const BufferParams& params);
-	void add_pass(PassType type);
-	int get_passes_size();
-	int get_denoising_offset();
 };
 
 /* Render Buffers */
@@ -86,6 +80,7 @@ public:
 
 	bool copy_from_device(Device *from_device = NULL);
 	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels);
+	bool get_aov_rect(ustring name, float exposure, int sample, int components, float *pixels);
 	bool get_denoising_pass_rect(int offset, float exposure, int sample, int components, float *pixels);
 
 protected:

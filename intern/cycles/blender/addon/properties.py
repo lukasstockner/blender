@@ -141,6 +141,11 @@ enum_texture_limit = (
     ('8192', "8192", "Limit texture size to 8192 pixels", 7),
     )
 
+enum_aov_types = (
+    ('VALUE', "Value", "Write a Value pass", 0),
+    ('COLOR', "Color", "Write a color pass", 1),
+    )
+
 class CyclesRenderSettings(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
@@ -1188,6 +1193,14 @@ def update_render_passes(self, context):
     rl = rd.layers.active
     rl.update_render_passes()
 
+
+class CyclesAOVSettings(bpy.types.PropertyGroup):
+    @classmethod
+    def register(cls):
+        cls.name = StringProperty(name="Name", update=update_render_passes)
+        cls.type = EnumProperty(name="Type", update=update_render_passes, items=enum_aov_types, default='COLOR')
+
+
 class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
@@ -1220,6 +1233,9 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
                 default=False,
                 update=update_render_passes,
                 )
+
+        cls.aovs = bpy.props.CollectionProperty(type=CyclesAOVSettings)
+        cls.active_aov = IntProperty(default=0)
 
         cls.use_denoising = BoolProperty(
                 name="Use Denoising",
@@ -1447,6 +1463,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
 
 def register():
+    bpy.utils.register_class(CyclesAOVSettings)
     bpy.utils.register_class(CyclesRenderSettings)
     bpy.utils.register_class(CyclesCameraSettings)
     bpy.utils.register_class(CyclesMaterialSettings)
@@ -1463,6 +1480,7 @@ def register():
 
 
 def unregister():
+    bpy.utils.unregister_class(CyclesAOVSettings)
     bpy.utils.unregister_class(CyclesRenderSettings)
     bpy.utils.unregister_class(CyclesCameraSettings)
     bpy.utils.unregister_class(CyclesMaterialSettings)

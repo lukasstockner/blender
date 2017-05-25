@@ -256,3 +256,7 @@ def register_passes(engine, scene, srl):
         engine.register_pass(scene, srl, "Denoising Shadow B",        3, "XYV", 'VECTOR')
         engine.register_pass(scene, srl, "Denoising Image",           3, "RGB", 'COLOR')
         engine.register_pass(scene, srl, "Denoising Image Variance",  3, "RGB", 'COLOR')
+
+    for aov in crl.aovs:
+        v = (aov.type == 'VALUE')
+        engine.register_pass(scene, srl, "AOV "+aov.name, 1 if v else 3, "X" if v else "RGB", 'VALUE' if v else 'COLOR')
