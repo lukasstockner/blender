@@ -52,8 +52,8 @@
 
 #include "kernel/kernel_projection.h"
 #include "kernel/kernel_accumulate.h"
+#include "kernel/kernel_passes_write.h"
 #include "kernel/kernel_shader.h"
-#include "kernel/kernel_passes.h"
 
 #ifdef WITH_PTEX
 #  include <Ptexture.h>

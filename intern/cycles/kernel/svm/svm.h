@@ -182,7 +182,7 @@ CCL_NAMESPACE_END
 #include "kernel/svm/svm_vector_transform.h"
 #include "kernel/svm/svm_voxel.h"
 #include "kernel/svm/svm_bump.h"
-#include "kernel/svm/svm_aov.h"
+#include "svm_aov.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -191,12 +191,12 @@ CCL_NAMESPACE_BEGIN
 
 /* Main Interpreter Loop */
 ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
-										ShaderData *sd,
-										ccl_addr_space PathState *state,
-										ShaderType type,
-										int path_flag,
-										ccl_global float *buffer,
-										int sample)
+                                        ShaderData *sd,
+                                        ccl_addr_space PathState *state,
+                                        ShaderType type,
+                                        int path_flag,
+                                        ccl_global float *buffer,
+                                        int sample)
 {
 	float stack[SVM_STACK_SIZE];
 	int offset = sd->shader & SHADER_MASK;

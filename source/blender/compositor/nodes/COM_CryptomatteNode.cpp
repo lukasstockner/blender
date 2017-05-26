@@ -181,7 +181,7 @@ static inline float hash_to_float(uint32_t hash) {
 	sign = sign << 31;
 	uint32_t float_bits = sign | exponent | mantissa;
 	float f;
-	std::memcpy(&f, &float_bits, 4);
+	memcpy(&f, &float_bits, 4);
 	return f;
 }
 
@@ -191,7 +191,7 @@ extern "C" void cryptomatte_add(NodeCryptomatte* n, float f)
 	std::snprintf(number, sizeof(number), "<%.9g>", f);
 	if(::strnlen(n->matte_id, sizeof(n->matte_id)) == 0)
 	{
-		std::strncpy(n->matte_id, number, sizeof(n->matte_id));
+		::strncpy(n->matte_id, number, sizeof(n->matte_id));
 		return;
 	}
 	
