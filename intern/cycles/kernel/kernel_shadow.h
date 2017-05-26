@@ -54,8 +54,8 @@ ccl_device_forceinline bool shadow_handle_transparent_isect(
 		                    0.0f,
 		                    PATH_RAY_SHADOW,
 		                    SHADER_CONTEXT_SHADOW,
-							NULL,
-							0);
+		                    NULL,
+		                    0);
 		path_state_modify_bounce(state, false);
 		*throughput *= shader_bsdf_transparency(kg, shadow_sd);
 	}

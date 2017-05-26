@@ -42,6 +42,8 @@ static bool compare_pass_order(const Pass& a, const Pass& b)
 PassSettings::PassSettings()
 {
 	add(PASS_COMBINED);
+	denoising_data_pass = false;
+	denoising_clean_pass = false;
 }
 
 void PassSettings::add(AOV aov)
@@ -211,7 +213,7 @@ bool PassSettings::modified(const PassSettings& other) const
 	         aovs == other.aovs);
 }
 
-int PassSettings::get_size() const
+int PassSettings::get_denoising_offset() const
 {
 	int size = 0;
 
@@ -223,6 +225,19 @@ int PassSettings::get_size() const
 
 	for(size_t i = 0; i < aovs.size(); i++) {
 		size += aovs[i].is_color? 4 : 1;
+	}
+
+	return size;
+}
+
+
+int PassSettings::get_size() const
+{
+	int size = get_denoising_offset();
+
+	if(denoising_data_pass) {
+		size += DENOISING_PASS_SIZE_BASE;
+		if(denoising_clean_pass) size += DENOISING_PASS_SIZE_CLEAN;
 	}
 
 	return align_up(size, 4);
@@ -374,6 +389,8 @@ NODE_DEFINE(Film)
 	SOCKET_FLOAT(mist_falloff, "Mist Falloff", 1.0f);
 
 	SOCKET_BOOLEAN(use_sample_clamp, "Use Sample Clamp", false);
+
+	SOCKET_INT(denoising_flags, "Denoising Flags", 0);
 
 	return type;
 }
@@ -539,13 +556,26 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 					}
 				}
 				break;
-
 			case PASS_NONE:
 				break;
 		}
 
 		if(!pass.is_virtual) {
 			kfilm->pass_stride += pass.components;
+		}
+	}
+
+	kfilm->pass_denoising_data = 0;
+	kfilm->pass_denoising_clean = 0;
+	kfilm->denoising_flags = 0;
+	if(passes.denoising_data_pass) {
+		kfilm->pass_denoising_data = kfilm->pass_stride;
+		kfilm->pass_stride += DENOISING_PASS_SIZE_BASE;
+		kfilm->denoising_flags = denoising_flags;
+		if(passes.denoising_clean_pass) {
+			kfilm->pass_denoising_clean = kfilm->pass_stride;
+			kfilm->pass_stride += DENOISING_PASS_SIZE_CLEAN;
+			kfilm->use_light_pass = 1;
 		}
 	}
 
@@ -562,6 +592,10 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	kfilm->mist_start = mist_start;
 	kfilm->mist_inv_depth = (mist_depth > 0.0f)? 1.0f/mist_depth: 0.0f;
 	kfilm->mist_falloff = mist_falloff;
+
+	pass_stride = kfilm->pass_stride;
+	denoising_data_offset = kfilm->pass_denoising_data;
+	denoising_clean_offset = kfilm->pass_denoising_clean;
 
 	need_update = false;
 }

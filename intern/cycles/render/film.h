@@ -43,12 +43,10 @@ bool operator==(const array<T>& A, const array<T>& B)
 {
 	if(A.size() != B.size())
 		return false;
-
 	for(int i = 0; i < A.size(); i++)
 		if(A[i].type != B[i].type)
 			return false;
 }
-
 struct Pass {
 public:
 	PassType type;
@@ -72,6 +70,7 @@ public:
 	bool modified(const PassSettings& other) const;
 
 	int get_size() const;
+	int get_denoising_offset() const;
 	Pass* get_pass(PassType type, int &offset);
 	AOV* get_aov(ustring name, int &offset);
 
@@ -79,6 +78,8 @@ public:
 	void add(PassType type);
 	void add(AOV aov);
 
+	bool denoising_data_pass;
+	bool denoising_clean_pass;
 protected:
 	array<Pass> passes;
 	array<AOV> aovs;
@@ -91,8 +92,14 @@ public:
 	NODE_DECLARE
 
 	float exposure;
+	int denoising_flags;
 	PassSettings passes;
+
 	float pass_alpha_threshold;
+
+	int pass_stride;
+	int denoising_data_offset;
+	int denoising_clean_offset;
 
 	FilterType filter_type;
 	float filter_width;

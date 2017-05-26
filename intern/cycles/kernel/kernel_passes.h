@@ -16,48 +16,90 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline void kernel_write_pass_float(ccl_global float *buffer, int sample, float value)
+#ifdef __DENOISING_FEATURES__
+
+ccl_device_inline void kernel_write_denoising_shadow(KernelGlobals *kg, ccl_global float *buffer,
+	int sample, float path_total, float path_total_shaded)
 {
-	ccl_global float *buf = buffer;
-#if defined(__SPLIT_KERNEL__)
-	atomic_add_and_fetch_float(buf, value);
-#else
-	*buf = (sample == 0)? value: *buf + value;
-#endif  /* __SPLIT_KERNEL__ */
+	if(kernel_data.film.pass_denoising_data == 0)
+		return;
+
+	buffer += (sample & 1)? DENOISING_PASS_SHADOW_B : DENOISING_PASS_SHADOW_A;
+
+	path_total = ensure_finite(path_total);
+	path_total_shaded = ensure_finite(path_total_shaded);
+
+	kernel_write_pass_float(buffer, sample/2, path_total);
+	kernel_write_pass_float(buffer+1, sample/2, path_total_shaded);
+
+	float value = path_total_shaded / max(path_total, 1e-7f);
+#  ifdef __SPLIT_KERNEL__
+	kernel_write_pass_float(buffer+2, sample/2, value*value);
+#  else
+	if(sample < 2) {
+		kernel_write_pass_float(buffer+2, sample/2, 0.0f);
+	}
+	else {
+		float old_value = (buffer[1] - path_total_shaded) / max(buffer[0] - path_total, 1e-7f);
+		float new_value = buffer[1] / max(buffer[0], 1e-7f);
+		kernel_write_pass_float(buffer+2, sample, (value - new_value) * (value - old_value));
+	}
+#  endif
 }
+#endif /* __DENOISING_FEATURES__ */
 
-ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, int sample, float3 value)
+ccl_device_inline void kernel_update_denoising_features(KernelGlobals *kg,
+                                                        ShaderData *sd,
+                                                        ccl_global PathState *state,
+                                                        PathRadiance *L)
 {
-#if defined(__SPLIT_KERNEL__)
-	ccl_global float *buf_x = buffer + 0;
-	ccl_global float *buf_y = buffer + 1;
-	ccl_global float *buf_z = buffer + 2;
+#ifdef __DENOISING_FEATURES__
+	if(state->denoising_feature_weight == 0.0f) {
+		return;
+	}
 
-	atomic_add_and_fetch_float(buf_x, value.x);
-	atomic_add_and_fetch_float(buf_y, value.y);
-	atomic_add_and_fetch_float(buf_z, value.z);
+	L->denoising_depth += ensure_finite(state->denoising_feature_weight * sd->ray_length);
+
+	/* Skip implicitly transparent surfaces. */
+	if(sd->flag & SD_HAS_ONLY_VOLUME) {
+		return;
+	}
+
+	float3 normal = make_float3(0.0f, 0.0f, 0.0f);
+	float3 albedo = make_float3(0.0f, 0.0f, 0.0f);
+	float sum_weight = 0.0f, sum_nonspecular_weight = 0.0f;
+
+	for(int i = 0; i < sd->num_closure; i++) {
+		ShaderClosure *sc = &sd->closure[i];
+
+		if(!CLOSURE_IS_BSDF_OR_BSSRDF(sc->type))
+			continue;
+
+		/* All closures contribute to the normal feature, but only diffuse-like ones to the albedo. */
+		normal += sc->N * sc->sample_weight;
+		sum_weight += sc->sample_weight;
+		if(!bsdf_is_specular_like(sc)) {
+			albedo += sc->weight;
+			sum_nonspecular_weight += sc->sample_weight;
+		}
+	}
+
+	/* Wait for next bounce if 75% or more sample weight belongs to specular-like closures. */
+	if((sum_weight == 0.0f) || (sum_nonspecular_weight*4.0f > sum_weight)) {
+		if(sum_weight != 0.0f) {
+			normal /= sum_weight;
+		}
+		L->denoising_normal += ensure_finite3(state->denoising_feature_weight * normal);
+		L->denoising_albedo += ensure_finite3(state->denoising_feature_weight * albedo);
+
+		state->denoising_feature_weight = 0.0f;
+	}
 #else
-	ccl_global float3 *buf = (ccl_global float3*)buffer;
-	*buf = (sample == 0)? value: *buf + value;
-#endif  /* __SPLIT_KERNEL__ */
-}
-
-ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sample, float4 value)
-{
-#if defined(__SPLIT_KERNEL__)
-	ccl_global float *buf_x = buffer + 0;
-	ccl_global float *buf_y = buffer + 1;
-	ccl_global float *buf_z = buffer + 2;
-	ccl_global float *buf_w = buffer + 3;
-
-	atomic_add_and_fetch_float(buf_x, value.x);
-	atomic_add_and_fetch_float(buf_y, value.y);
-	atomic_add_and_fetch_float(buf_z, value.z);
-	atomic_add_and_fetch_float(buf_w, value.w);
-#else
-	ccl_global float4 *buf = (ccl_global float4*)buffer;
-	*buf = (sample == 0)? value: *buf + value;
-#endif  /* __SPLIT_KERNEL__ */
+	(void) kg;
+	(void) sd;
+	(void) state;
+	(void) L;
+#endif  /* __DENOISING_FEATURES__ */
 }
 
 ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L,
@@ -211,6 +253,89 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global f
 	if(flag & PASS_MIST)
 		kernel_write_pass_float(buffer + kernel_data.film.pass_mist, sample, 1.0f - L->mist);
 #endif
+}
+
+ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *buffer,
+	int sample, PathRadiance *L, float alpha, bool is_shadow_catcher)
+{
+	if(L) {
+		float3 L_sum;
+#ifdef __SHADOW_TRICKS__
+		if(is_shadow_catcher) {
+			L_sum = path_radiance_sum_shadowcatcher(kg, L, &alpha);
+		}
+		else
+#endif  /* __SHADOW_TRICKS__ */
+		{
+			L_sum = path_radiance_clamp_and_sum(kg, L);
+		}
+
+		kernel_write_pass_float4(buffer, sample, make_float4(L_sum.x, L_sum.y, L_sum.z, alpha));
+
+		kernel_write_light_passes(kg, buffer, L, sample);
+
+#ifdef __DENOISING_FEATURES__
+		if(kernel_data.film.pass_denoising_data) {
+#  ifdef __SHADOW_TRICKS__
+			kernel_write_denoising_shadow(kg, buffer + kernel_data.film.pass_denoising_data, sample, average(L->path_total), average(L->path_total_shaded));
+#  else
+			kernel_write_denoising_shadow(kg, buffer + kernel_data.film.pass_denoising_data, sample, 0.0f, 0.0f);
+#  endif
+			if(kernel_data.film.pass_denoising_clean) {
+				float3 noisy, clean;
+#ifdef __SHADOW_TRICKS__
+				if(is_shadow_catcher) {
+					noisy = L_sum;
+					clean = make_float3(0.0f, 0.0f, 0.0f);
+				}
+				else
+#endif  /* __SHADOW_TRICKS__ */
+				{
+					path_radiance_split_denoising(kg, L, &noisy, &clean);
+				}
+				kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
+				                                  sample, noisy);
+				kernel_write_pass_float3_unaligned(buffer + kernel_data.film.pass_denoising_clean,
+				                                   sample, clean);
+			}
+			else {
+				kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
+				                                  sample, ensure_finite3(L_sum));
+			}
+
+			kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_NORMAL,
+			                                  sample, L->denoising_normal);
+			kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_ALBEDO,
+			                                  sample, L->denoising_albedo);
+			kernel_write_pass_float_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_DEPTH,
+			                                 sample, L->denoising_depth);
+		}
+#endif  /* __DENOISING_FEATURES__ */
+	}
+	else {
+		kernel_write_pass_float4(buffer, sample, make_float4(0.0f, 0.0f, 0.0f, 0.0f));
+
+#ifdef __DENOISING_FEATURES__
+		if(kernel_data.film.pass_denoising_data) {
+			kernel_write_denoising_shadow(kg, buffer + kernel_data.film.pass_denoising_data, sample, 0.0f, 0.0f);
+
+			kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
+			                                  sample, make_float3(0.0f, 0.0f, 0.0f));
+
+			kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_NORMAL,
+			                                  sample, make_float3(0.0f, 0.0f, 0.0f));
+			kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_ALBEDO,
+			                                  sample, make_float3(0.0f, 0.0f, 0.0f));
+			kernel_write_pass_float_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_DEPTH,
+			                                 sample, 0.0f);
+
+			if(kernel_data.film.pass_denoising_clean) {
+				kernel_write_pass_float3_unaligned(buffer + kernel_data.film.pass_denoising_clean,
+				                                   sample, make_float3(0.0f, 0.0f, 0.0f));
+			}
+		}
+#endif  /* __DENOISING_FEATURES__ */
+	}
 }
 
 CCL_NAMESPACE_END

@@ -445,6 +445,8 @@ class CyclesRender_AOV_add(bpy.types.Operator):
         crl = rl.cycles
 
         crl.aovs.add()
+
+        rl.update_render_passes()
         return {'FINISHED'}
 
 class CyclesRender_AOV_delete(bpy.types.Operator):
@@ -459,6 +461,8 @@ class CyclesRender_AOV_delete(bpy.types.Operator):
         crl = rl.cycles
 
         crl.aovs.remove(crl.active_aov)
+
+        rl.update_render_passes()
         return {'FINISHED'}
 
 class CyclesAOVList(bpy.types.UIList):
@@ -565,6 +569,12 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
         col.prop(rl, "use_pass_emit", text="Emission")
         col.prop(rl, "use_pass_environment")
 
+        if context.scene.cycles.feature_set == 'EXPERIMENTAL':
+           col.separator()
+           sub = col.column()
+           sub.active = crl.use_denoising
+           sub.prop(crl, "denoising_store_passes", text="Denoising")
+
         if _cycles.with_cycles_debug:
           col = layout.column()
           col.prop(crl, "pass_debug_bvh_traversed_nodes")
@@ -579,6 +589,7 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
         sub = row.column(align=True)
         sub.operator("scenerenderlayer.aov_add", icon='ZOOMIN', text="")
         sub.operator("scenerenderlayer.aov_delete", icon='ZOOMOUT', text="")
+
 
 class CyclesRender_PT_views(CyclesButtonsPanel, Panel):
     bl_label = "Views"
@@ -621,6 +632,71 @@ class CyclesRender_PT_views(CyclesButtonsPanel, Panel):
             row = layout.row()
             row.label(text="Camera Suffix:")
             row.prop(rv, "camera_suffix", text="")
+
+
+class CyclesRender_PT_denoising(CyclesButtonsPanel, Panel):
+    bl_label = "Denoising"
+    bl_context = "render_layer"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        rd = context.scene.render
+        rl = rd.layers.active
+        crl = rl.cycles
+        cscene = context.scene.cycles
+        layout = self.layout
+
+        layout.active = not cscene.use_progressive_refine
+        layout.prop(crl, "use_denoising", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        cscene = scene.cycles
+        rd = scene.render
+        rl = rd.layers.active
+        crl = rl.cycles
+
+        layout.active = crl.use_denoising and not cscene.use_progressive_refine
+
+        split = layout.split()
+
+        col = split.column()
+        sub = col.column(align=True)
+        sub.prop(crl, "denoising_radius", text="Radius")
+        sub.prop(crl, "denoising_strength", slider=True, text="Strength")
+
+        col = split.column()
+        sub = col.column(align=True)
+        sub.prop(crl, "denoising_feature_strength", slider=True, text="Feature Strength")
+        sub.prop(crl, "denoising_relative_pca")
+
+        layout.separator()
+
+        row = layout.row()
+        row.label(text="Diffuse:")
+        sub = row.row(align=True)
+        sub.prop(crl, "denoising_diffuse_direct", text="Direct", toggle=True)
+        sub.prop(crl, "denoising_diffuse_indirect", text="Indirect", toggle=True)
+
+        row = layout.row()
+        row.label(text="Glossy:")
+        sub = row.row(align=True)
+        sub.prop(crl, "denoising_glossy_direct", text="Direct", toggle=True)
+        sub.prop(crl, "denoising_glossy_indirect", text="Indirect", toggle=True)
+
+        row = layout.row()
+        row.label(text="Transmission:")
+        sub = row.row(align=True)
+        sub.prop(crl, "denoising_transmission_direct", text="Direct", toggle=True)
+        sub.prop(crl, "denoising_transmission_indirect", text="Indirect", toggle=True)
+
+        row = layout.row()
+        row.label(text="Subsurface:")
+        sub = row.row(align=True)
+        sub.prop(crl, "denoising_subsurface_direct", text="Direct", toggle=True)
+        sub.prop(crl, "denoising_subsurface_indirect", text="Indirect", toggle=True)
 
 
 class Cycles_PT_post_processing(CyclesButtonsPanel, Panel):
@@ -1776,6 +1852,7 @@ classes = (
     CyclesRender_PT_layer_options,
     CyclesRender_PT_layer_passes,
     CyclesRender_PT_views,
+    CyclesRender_PT_denoising,
     Cycles_PT_post_processing,
     CyclesCamera_PT_dof,
     Cycles_PT_context_material,

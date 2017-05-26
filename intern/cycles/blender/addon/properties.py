@@ -1171,11 +1171,19 @@ class CyclesCurveRenderSettings(bpy.types.PropertyGroup):
     def unregister(cls):
         del bpy.types.Scene.cycles_curves
 
+def update_render_passes(self, context):
+    scene = context.scene
+    rd = scene.render
+    rl = rd.layers.active
+    rl.update_render_passes()
+
+
 class CyclesAOVSettings(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
-        cls.name = StringProperty(name="Name")
-        cls.type = EnumProperty(name="Type", items=enum_aov_types, default='COLOR')
+        cls.name = StringProperty(name="Name", update=update_render_passes)
+        cls.type = EnumProperty(name="Type", update=update_render_passes, items=enum_aov_types, default='COLOR')
+
 
 class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
     @classmethod
@@ -1189,24 +1197,104 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
                 name="Debug BVH Traversed Nodes",
                 description="Store Debug BVH Traversed Nodes pass",
                 default=False,
+                update=update_render_passes,
                 )
         cls.pass_debug_bvh_traversed_instances = BoolProperty(
                 name="Debug BVH Traversed Instances",
                 description="Store Debug BVH Traversed Instances pass",
                 default=False,
+                update=update_render_passes,
                 )
         cls.pass_debug_bvh_intersections = BoolProperty(
                 name="Debug BVH Intersections",
                 description="Store Debug BVH Intersections",
                 default=False,
+                update=update_render_passes,
                 )
         cls.pass_debug_ray_bounces = BoolProperty(
                 name="Debug Ray Bounces",
                 description="Store Debug Ray Bounces pass",
                 default=False,
+                update=update_render_passes,
                 )
+
         cls.aovs = bpy.props.CollectionProperty(type=CyclesAOVSettings)
         cls.active_aov = IntProperty(default=0)
+
+        cls.use_denoising = BoolProperty(
+                name="Use Denoising",
+                description="Denoise the rendered image",
+                default=False,
+                )
+        cls.denoising_diffuse_direct = BoolProperty(
+                name="Diffuse Direct",
+                description="Denoise the direct diffuse lighting",
+                default=True,
+                )
+        cls.denoising_diffuse_indirect = BoolProperty(
+                name="Diffuse Indirect",
+                description="Denoise the indirect diffuse lighting",
+                default=True,
+                )
+        cls.denoising_glossy_direct = BoolProperty(
+                name="Glossy Direct",
+                description="Denoise the direct glossy lighting",
+                default=True,
+                )
+        cls.denoising_glossy_indirect = BoolProperty(
+                name="Glossy Indirect",
+                description="Denoise the indirect glossy lighting",
+                default=True,
+                )
+        cls.denoising_transmission_direct = BoolProperty(
+                name="Transmission Direct",
+                description="Denoise the direct transmission lighting",
+                default=True,
+                )
+        cls.denoising_transmission_indirect = BoolProperty(
+                name="Transmission Indirect",
+                description="Denoise the indirect transmission lighting",
+                default=True,
+                )
+        cls.denoising_subsurface_direct = BoolProperty(
+                name="Subsurface Direct",
+                description="Denoise the direct subsurface lighting",
+                default=True,
+                )
+        cls.denoising_subsurface_indirect = BoolProperty(
+                name="Subsurface Indirect",
+                description="Denoise the indirect subsurface lighting",
+                default=True,
+                )
+        cls.denoising_strength = FloatProperty(
+                name="Denoising Strength",
+                description="Controls neighbor pixel weighting for the denoising filter (lower values preserve more detail, but aren't as smooth)",
+                min=0.0, max=1.0,
+                default=0.5,
+                )
+        cls.denoising_feature_strength = FloatProperty(
+                name="Denoising Feature Strength",
+                description="Controls removal of noisy image feature passes (lower values preserve more detail, but aren't as smooth)",
+                min=0.0, max=1.0,
+                default=0.5,
+                )
+        cls.denoising_radius = IntProperty(
+                name="Denoising Radius",
+                description="Size of the image area that's used to denoise a pixel (higher values are smoother, but might lose detail and are slower)",
+                min=1, max=25,
+                default=8,
+        )
+        cls.denoising_relative_pca = BoolProperty(
+                name="Relative filter",
+                description="When removing pixels that don't carry information, use a relative threshold instead of an absolute one (can help to reduce artifacts, but might cause detail loss around edges)",
+                default=False,
+        )
+        cls.denoising_store_passes = BoolProperty(
+                name="Store denoising passes",
+                description="Store the denoising feature passes and the noisy image",
+                default=False,
+                update=update_render_passes,
+        )
 
     @classmethod
     def unregister(cls):
@@ -1358,6 +1446,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
 
 def register():
+    bpy.utils.register_class(CyclesAOVSettings)
     bpy.utils.register_class(CyclesRenderSettings)
     bpy.utils.register_class(CyclesCameraSettings)
     bpy.utils.register_class(CyclesMaterialSettings)
@@ -1370,11 +1459,11 @@ def register():
     bpy.utils.register_class(CyclesCurveSettings)
     bpy.utils.register_class(CyclesDeviceSettings)
     bpy.utils.register_class(CyclesPreferences)
-    bpy.utils.register_class(CyclesAOVSettings)
     bpy.utils.register_class(CyclesRenderLayerSettings)
 
 
 def unregister():
+    bpy.utils.unregister_class(CyclesAOVSettings)
     bpy.utils.unregister_class(CyclesRenderSettings)
     bpy.utils.unregister_class(CyclesCameraSettings)
     bpy.utils.unregister_class(CyclesMaterialSettings)
@@ -1387,5 +1476,4 @@ def unregister():
     bpy.utils.unregister_class(CyclesCurveSettings)
     bpy.utils.unregister_class(CyclesDeviceSettings)
     bpy.utils.unregister_class(CyclesPreferences)
-    bpy.utils.unregister_class(CyclesAOVSettings)
     bpy.utils.unregister_class(CyclesRenderLayerSettings)

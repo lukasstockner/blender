@@ -238,3 +238,19 @@ def register_passes(engine, scene, srl):
     if crl.pass_debug_bvh_traversed_instances: engine.register_pass(scene, srl, "Debug BVH Traversed Instances", 1, "X", 'VALUE')
     if crl.pass_debug_bvh_intersections:       engine.register_pass(scene, srl, "Debug BVH Intersections",       1, "X", 'VALUE')
     if crl.pass_debug_ray_bounces:             engine.register_pass(scene, srl, "Debug Ray Bounces",             1, "X", 'VALUE')
+
+    if crl.use_denoising and crl.denoising_store_passes:
+        engine.register_pass(scene, srl, "Denoising Normal",          3, "XYZ", 'VECTOR')
+        engine.register_pass(scene, srl, "Denoising Normal Variance", 3, "XYZ", 'VECTOR')
+        engine.register_pass(scene, srl, "Denoising Albedo",          3, "RGB", 'COLOR')
+        engine.register_pass(scene, srl, "Denoising Albedo Variance", 3, "RGB", 'COLOR')
+        engine.register_pass(scene, srl, "Denoising Depth",           1, "Z",   'VALUE')
+        engine.register_pass(scene, srl, "Denoising Depth Variance",  1, "Z",   'VALUE')
+        engine.register_pass(scene, srl, "Denoising Shadow A",        3, "XYV", 'VECTOR')
+        engine.register_pass(scene, srl, "Denoising Shadow B",        3, "XYV", 'VECTOR')
+        engine.register_pass(scene, srl, "Denoising Image",           3, "RGB", 'COLOR')
+        engine.register_pass(scene, srl, "Denoising Image Variance",  3, "RGB", 'COLOR')
+
+    for aov in crl.aovs:
+        v = (aov.type == 'VALUE')
+        engine.register_pass(scene, srl, "AOV "+aov.name, 1 if v else 3, "X" if v else "RGB", 'VALUE' if v else 'COLOR')
