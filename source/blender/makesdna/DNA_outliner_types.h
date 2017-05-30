@@ -96,6 +96,7 @@ typedef struct TreeStore {
 #define TSE_KEYMAP_ITEM     35  /* NO ID */
 #define TSE_ID_BASE         36  /* NO ID */
 #define TSE_GP_LAYER        37  /* NO ID */
+#define TSE_LINKED_WORLD    38
 
 
 /* Check whether given TreeStoreElem should have a real ID in its ->id member. */

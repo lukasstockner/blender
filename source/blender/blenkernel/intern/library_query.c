@@ -427,6 +427,9 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 					if (srl->light_override) {
 						CALLBACK_INVOKE(srl->light_override, IDWALK_CB_USER);
 					}
+					if (srl->world_override) {
+						CALLBACK_INVOKE(srl->world_override, IDWALK_CB_USER);
+					}
 					for (fmc = srl->freestyleConfig.modules.first; fmc; fmc = fmc->next) {
 						if (fmc->script) {
 							CALLBACK_INVOKE(fmc->script, IDWALK_CB_NOP);

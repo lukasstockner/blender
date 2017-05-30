@@ -353,8 +353,12 @@ void BlenderSync::sync_film()
 	                                         FILTER_BLACKMAN_HARRIS);
 	film->filter_width = (film->filter_type == FILTER_BOX)? 1.0f: get_float(cscene, "filter_width");
 
-	if(b_scene.world()) {
-		BL::WorldMistSettings b_mist = b_scene.world().mist_settings();
+	BL::World b_world = render_layer.world_override;
+	if(!b_world) {
+		b_world = b_scene.world();
+	}
+	if(b_world) {
+		BL::WorldMistSettings b_mist = b_world.mist_settings();
 
 		film->mist_start = b_mist.start();
 		film->mist_depth = b_mist.depth();
@@ -396,6 +400,7 @@ void BlenderSync::sync_render_layers(BL::SpaceView3D& b_v3d, const char *layer)
 			render_layer.exclude_layer = 0;
 			render_layer.holdout_layer = 0;
 			render_layer.material_override = PointerRNA_NULL;
+			render_layer.world_override = PointerRNA_NULL;
 			render_layer.use_background_shader = true;
 			render_layer.use_background_ao = true;
 			render_layer.use_hair = true;
@@ -429,6 +434,7 @@ void BlenderSync::sync_render_layers(BL::SpaceView3D& b_v3d, const char *layer)
 			render_layer.layer |= render_layer.holdout_layer;
 
 			render_layer.material_override = b_rlay->material_override();
+			render_layer.world_override = b_rlay->world_override();
 			render_layer.use_background_shader = b_rlay->use_sky();
 			render_layer.use_background_ao = b_rlay->use_ao();
 			render_layer.use_surfaces = b_rlay->use_solid();

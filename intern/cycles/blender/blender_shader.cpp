@@ -1265,7 +1265,10 @@ void BlenderSync::sync_world(bool update_all)
 	Background *background = scene->background;
 	Background prevbackground = *background;
 
-	BL::World b_world = b_scene.world();
+	BL::World b_world = render_layer.world_override;
+	if(!b_world) {
+		b_world = b_scene.world();
+	}
 
 	if(world_recalc || update_all || b_world.ptr.data != world_map) {
 		Shader *shader = scene->default_background;

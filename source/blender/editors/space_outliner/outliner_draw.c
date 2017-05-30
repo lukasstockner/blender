@@ -1204,6 +1204,8 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 				UI_icon_draw(x, y, ICON_LAMP_DATA); break;
 			case TSE_LINKED_MAT:
 				UI_icon_draw(x, y, ICON_MATERIAL_DATA); break;
+			case TSE_LINKED_WORLD:
+				UI_icon_draw(x, y, ICON_WORLD_DATA); break;
 			case TSE_POSEGRP_BASE:
 				UI_icon_draw(x, y, ICON_GROUP_BONE); break;
 			case TSE_SEQUENCE:

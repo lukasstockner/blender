@@ -460,6 +460,8 @@ class CyclesRender_PT_layer_options(CyclesButtonsPanel, Panel):
         col = split.column()
         col.label(text="Material:")
         col.prop(rl, "material_override", text="")
+        col.label(text="World:")
+        col.prop(rl, "world_override", text="")
         col.separator()
         col.prop(rl, "samples")
 

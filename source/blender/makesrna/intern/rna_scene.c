@@ -5112,6 +5112,14 @@ static void rna_def_scene_render_layer(BlenderRNA *brna)
 
 	rna_def_render_layer_common(srna, 1);
 
+	prop = RNA_def_property(srna, "world_override", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "world_override");
+	RNA_def_property_struct_type(prop, "World");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "World Override",
+	                         "World to use in this render layer instead of the regular one");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_SceneRenderLayer_pass_update");
+
 	func = RNA_def_function(srna, "update_render_passes", "rna_SceneRenderLayer_update_render_passes");
 	RNA_def_function_ui_description(func, "Requery the enabled render passes from the render engine");
 	RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_NO_SELF);

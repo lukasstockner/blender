@@ -196,7 +196,10 @@ void BlenderSync::sync_light(BL::Object& b_parent,
 
 void BlenderSync::sync_background_light(bool use_portal)
 {
-	BL::World b_world = b_scene.world();
+	BL::World b_world = render_layer.world_override;
+	if(!b_world) {
+		b_world = b_scene.world();
+	}
 
 	if(b_world) {
 		PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
