@@ -109,6 +109,36 @@ ccl_device_inline void kernel_write_pass_float3_variance(ccl_global float *buffe
 	}
 #  endif
 }
+
+#  if defined(__SPLIT_KERNEL__)
+#    define kernel_write_pass_float4_unaligned kernel_write_pass_float4
+#  else
+ccl_device_inline void kernel_write_pass_float4_unaligned(ccl_global float *buffer, int sample, float4 value)
+{
+	buffer[0] = (sample == 0)? value.x: buffer[0] + value.x;
+	buffer[1] = (sample == 0)? value.y: buffer[1] + value.y;
+	buffer[2] = (sample == 0)? value.z: buffer[2] + value.z;
+	buffer[3] = (sample == 0)? value.w: buffer[3] + value.w;
+}
+#  endif
+
+ccl_device_inline void kernel_write_pass_float4_variance(ccl_global float *buffer, int sample, float4 value)
+{
+	kernel_write_pass_float4_unaligned(buffer, sample, value);
+#  ifdef __SPLIT_KERNEL__
+	kernel_write_pass_float4_unaligned(buffer+4, sample, value*value);
+#  else
+	if(sample == 0) {
+		kernel_write_pass_float4_unaligned(buffer+4, sample, make_float4(0.0f, 0.0f, 0.0f, 0.0f));
+	}
+	else {
+		float4 sum = make_float4(buffer[0], buffer[1], buffer[2], buffer[3]);
+		float4 new_mean = sum * (1.0f / (sample + 1));
+		float4 old_mean = (sum - value) * (1.0f / sample);
+		kernel_write_pass_float4_unaligned(buffer+4, sample, (value - new_mean) * (value - old_mean));
+	}
+#  endif
+}
 #endif /* __DENOISING_FEATURES__ */
 
 CCL_NAMESPACE_END

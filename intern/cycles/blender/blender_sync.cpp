@@ -608,16 +608,16 @@ void BlenderSync::sync_film(BL::RenderLayer& b_rlay,
 		if(get_boolean(crl, "denoising_store_passes") &&
 		   get_boolean(crl, "use_denoising") &&
 		   !session_params.progressive_refine) {
-			b_engine.add_pass("Denoising Normal",          3, "XYZ", b_srlay.name().c_str());
-			b_engine.add_pass("Denoising Normal Variance", 3, "XYZ", b_srlay.name().c_str());
-			b_engine.add_pass("Denoising Albedo",          3, "RGB", b_srlay.name().c_str());
-			b_engine.add_pass("Denoising Albedo Variance", 3, "RGB", b_srlay.name().c_str());
-			b_engine.add_pass("Denoising Depth",           1, "Z",   b_srlay.name().c_str());
-			b_engine.add_pass("Denoising Depth Variance",  1, "Z",   b_srlay.name().c_str());
-			b_engine.add_pass("Denoising Shadow A",        3, "XYV", b_srlay.name().c_str());
-			b_engine.add_pass("Denoising Shadow B",        3, "XYV", b_srlay.name().c_str());
-			b_engine.add_pass("Denoising Image",           3, "RGB", b_srlay.name().c_str());
-			b_engine.add_pass("Denoising Image Variance",  3, "RGB", b_srlay.name().c_str());
+			b_engine.add_pass("Denoising Normal",          3, "XYZ",  b_srlay.name().c_str());
+			b_engine.add_pass("Denoising Normal Variance", 3, "XYZ",  b_srlay.name().c_str());
+			b_engine.add_pass("Denoising Albedo",          3, "RGB",  b_srlay.name().c_str());
+			b_engine.add_pass("Denoising Albedo Variance", 3, "RGB",  b_srlay.name().c_str());
+			b_engine.add_pass("Denoising Depth",           1, "Z",    b_srlay.name().c_str());
+			b_engine.add_pass("Denoising Depth Variance",  1, "Z",    b_srlay.name().c_str());
+			b_engine.add_pass("Denoising Shadow A",        3, "XYV",  b_srlay.name().c_str());
+			b_engine.add_pass("Denoising Shadow B",        3, "XYV",  b_srlay.name().c_str());
+			b_engine.add_pass("Denoising Image",           4, "RGBA", b_srlay.name().c_str());
+			b_engine.add_pass("Denoising Image Variance",  4, "RGBA", b_srlay.name().c_str());
 		}
 	}
 

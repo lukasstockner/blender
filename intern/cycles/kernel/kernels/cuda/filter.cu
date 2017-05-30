@@ -88,9 +88,35 @@ kernel_cuda_filter_get_feature(int sample,
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter_divide_shadowcatcher(int sample,
+                               TilesInfo *tiles,
+                               int m_offset,
+                               int s_offset,
+                               float *mean,
+                               float *variance,
+                               int4 prefilter_rect,
+                               int buffer_pass_stride,
+                               int buffer_denoising_offset)
+{
+	int x = prefilter_rect.x + blockDim.x*blockIdx.x + threadIdx.x;
+	int y = prefilter_rect.y + blockDim.y*blockIdx.y + threadIdx.y;
+	if(x < prefilter_rect.z && y < prefilter_rect.w) {
+		kernel_filter_divide_shadowcatcher(sample,
+		                          tiles,
+		                          m_offset, s_offset,
+		                          x, y,
+		                          mean,
+		                          variance,
+		                          prefilter_rect,
+		                          buffer_pass_stride,
+		                          buffer_denoising_offset);
+	}
+}
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_filter_detect_outliers(float *image,
                                    float *variance,
-                                   float *depth,
                                    float *output,
                                    int4 prefilter_rect,
                                    int pass_stride)
@@ -98,7 +124,7 @@ kernel_cuda_filter_detect_outliers(float *image,
 	int x = prefilter_rect.x + blockDim.x*blockIdx.x + threadIdx.x;
 	int y = prefilter_rect.y + blockDim.y*blockIdx.y + threadIdx.y;
 	if(x < prefilter_rect.z && y < prefilter_rect.w) {
-		kernel_filter_detect_outliers(x, y, image, variance, depth, output, prefilter_rect, pass_stride);
+		kernel_filter_detect_outliers(x, y, image, variance, output, prefilter_rect, pass_stride);
 	}
 }
 
@@ -210,7 +236,7 @@ kernel_cuda_filter_nlm_construct_gramian(int dx, int dy,
                                          float const* __restrict__ transform,
                                          int *rank,
                                          float *XtWX,
-                                         float3 *XtWY,
+                                         float4 *XtWY,
                                          int4 rect,
                                          int4 filter_rect,
                                          int w, int h, int f,
@@ -236,7 +262,7 @@ extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_filter_finalize(int w, int h,
                             float *buffer, int *rank,
-                            float *XtWX, float3 *XtWY,
+                            float *XtWX, float4 *XtWY,
                             int4 filter_area, int4 buffer_params,
                             int sample)
 {

@@ -29,7 +29,7 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int dx, int dy,
 	for(int y = rect.y; y < rect.w; y++) {
 		for(int x = rect.x; x < rect.z; x++) {
 			float diff = 0.0f;
-			int numChannels = channel_offset? 3 : 1;
+			int numChannels = channel_offset? 4 : 1;
 			for(int c = 0; c < numChannels; c++) {
 				float cdiff = weight_image[c*channel_offset + y*w+x] - weight_image[c*channel_offset + (y+dy)*w+(x+dx)];
 				float pvar = variance_image[c*channel_offset + y*w+x];
@@ -136,7 +136,7 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int dx, int dy,
                                                            float *transform,
                                                            int *rank,
                                                            float *XtWX,
-                                                           float3 *XtWY,
+                                                           float4 *XtWY,
                                                            int4 rect,
                                                            int4 filter_rect,
                                                            int w, int h, int f,
@@ -158,7 +158,7 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int dx, int dy,
 			int storage_ofs = fy*filter_rect.z + fx;
 			float  *l_transform = transform + storage_ofs*TRANSFORM_SIZE;
 			float  *l_XtWX = XtWX + storage_ofs*XTWX_SIZE;
-			float3 *l_XtWY = XtWY + storage_ofs*XTWY_SIZE;
+			float4 *l_XtWY = XtWY + storage_ofs*XTWY_SIZE;
 			int    *l_rank = rank + storage_ofs;
 
 			kernel_filter_construct_gramian(x, y, 1,

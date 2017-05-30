@@ -110,10 +110,32 @@ ccl_device void kernel_filter_get_feature(int sample,
 	}
 }
 
+ccl_device void kernel_filter_divide_shadowcatcher(int sample,
+                                                   ccl_global TilesInfo *tiles,
+                                                   int m_offset, int s_offset,
+                                                   int x, int y,
+                                                   ccl_global float *mean,
+                                                   ccl_global float *variance,
+                                                   int4 rect, int buffer_pass_stride,
+                                                   int buffer_denoising_offset)
+{
+	int xtile = (x < tiles->x[1])? 0: ((x < tiles->x[2])? 1: 2);
+	int ytile = (y < tiles->y[1])? 0: ((y < tiles->y[2])? 1: 2);
+	int tile = ytile*3+xtile;
+	ccl_global float *center_buffer = ((ccl_global float*) tiles->buffers[tile]) + (tiles->offsets[tile] + y*tiles->strides[tile] + x)*buffer_pass_stride + buffer_denoising_offset;
+	s_offset -= buffer_denoising_offset;
+
+	int buffer_w = align_up(rect.z - rect.x, 4);
+	int idx = (y-rect.y)*buffer_w + (x - rect.x);
+
+	mean[idx] = (center_buffer[m_offset] + center_buffer[s_offset + 2] * (1.0f - center_buffer[s_offset + 1] / max(center_buffer[s_offset], 1e-7f)))/sample;
+	float frac = center_buffer[s_offset + 2]/sample;
+	variance[idx] *= 0.25f*frac*frac;
+}
+
 ccl_device void kernel_filter_detect_outliers(int x, int y,
                                               ccl_global float *image,
                                               ccl_global float *variance,
-                                              ccl_global float *depth,
                                               ccl_global float *out,
                                               int4 rect,
                                               int pass_stride)
@@ -123,9 +145,12 @@ ccl_device void kernel_filter_detect_outliers(int x, int y,
 	int idx = (y-rect.y)*buffer_w + (x-rect.x);
 	float3 color = make_float3(image[idx], image[idx+pass_stride], image[idx+2*pass_stride]);
 
+	/* Copy alpha value. */
+	out[idx+3*pass_stride] = image[idx+3*pass_stride];
+
 	float fac = 1.0f;
 	if(color.x < 0.0f || color.y < 0.0f || color.z < 0.0f) {
-		depth[idx] = -depth[idx];
+		out[idx+3*pass_stride] = -out[idx+3*pass_stride];
 		fac = 0.0f;
 	}
 	else {
@@ -152,7 +177,7 @@ ccl_device void kernel_filter_detect_outliers(int x, int y,
 			}
 		}
 
-		float ref = 2.0f*values[(int)(n*0.75f)];
+		float ref = 2.0f*values[(int)(n*0.75f)] + 1e-3f;
 		if(L > ref) {
 			/* The pixel appears to be an outlier.
 			 * However, it may just be a legitimate highlight. Therefore, it is checked how likely it is that the pixel
@@ -162,9 +187,9 @@ ccl_device void kernel_filter_detect_outliers(int x, int y,
 			 */
 			float stddev = sqrtf(average(make_float3(variance[idx], variance[idx+pass_stride], variance[idx+2*pass_stride])));
 			if(L - 3*stddev < ref) {
-				/* The pixel is an outlier, so negate the depth value to mark it as one.
+				/* The pixel is an outlier, so negate the alpha value to mark it as one.
 				 * Also, scale its brightness down to the outlier threshold to avoid trouble with the NLM weights. */
-				depth[idx] = -depth[idx];
+				out[idx+3*pass_stride] = -out[idx+3*pass_stride];
 				fac = ref/L;
 				variance[idx              ] *= fac*fac;
 				variance[idx + pass_stride] *= fac*fac;

@@ -34,6 +34,7 @@ void DenoisingTask::init_from_devicetask(const DeviceTask &task)
 	render_buffer.pass_stride = task.pass_stride;
 	render_buffer.denoising_data_offset  = task.pass_denoising_data;
 	render_buffer.denoising_clean_offset = task.pass_denoising_clean;
+	render_buffer.shadow_offset = task.pass_shadow;
 
 	/* Expand filter_area by radius pixels and clamp the result to the extent of the neighboring tiles */
 	rect = make_int4(max(tiles->x[0], filter_area.x - radius),
@@ -71,7 +72,7 @@ void DenoisingTask::tiles_from_rendertiles(RenderTile *rtiles)
 bool DenoisingTask::run_denoising()
 {
 	/* Allocate denoising buffer. */
-	buffer.passes = 14;
+	buffer.passes = 16;
 	buffer.w = align_up(rect.z - rect.x, 4);
 	buffer.h = rect.w - rect.y;
 	buffer.pass_stride = align_up(buffer.w * buffer.h, divide_up(device->mem_address_alignment(), sizeof(float)));
@@ -87,7 +88,7 @@ bool DenoisingTask::run_denoising()
 		device_sub_ptr sample_var     (device, buffer.mem, 2*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
 		device_sub_ptr sample_var_var (device, buffer.mem, 3*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
 		device_sub_ptr buffer_var     (device, buffer.mem, 5*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
-		device_sub_ptr filtered_var   (device, buffer.mem, 6*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+		device_sub_ptr filtered_var   (device, buffer.mem, 15*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
 		device_sub_ptr nlm_temporary_1(device, buffer.mem, 7*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
 		device_sub_ptr nlm_temporary_2(device, buffer.mem, 8*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
 		device_sub_ptr nlm_temporary_3(device, buffer.mem, 9*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
@@ -154,27 +155,30 @@ bool DenoisingTask::run_denoising()
 
 	/* Copy color passes. */
 	{
-		int mean_from[]     = {20, 21, 22};
-		int variance_from[] = {23, 24, 25};
-		int mean_to[]       = { 8,  9, 10};
-		int variance_to[]   = {11, 12, 13};
-		int num_color_passes = 3;
+		int mean_from[]     = {20, 21, 22, 23};
+		int variance_from[] = {24, 25, 26, 27};
+		int mean_to[]       = { 8,  9, 10, 11};
+		int variance_to[]   = {12, 13, 14, 15};
 
 		device_only_memory<float> temp_color;
-		temp_color.resize(3*buffer.pass_stride);
+		temp_color.resize(4*buffer.pass_stride);
 		device->mem_alloc("Denoising temporary color", temp_color, MEM_READ_WRITE);
 
-		for(int pass = 0; pass < num_color_passes; pass++) {
+		for(int pass = 0; pass < (render_buffer.shadow_offset? 3 : 4); pass++) {
 			device_sub_ptr color_pass(device, temp_color, pass*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
 			device_sub_ptr color_var_pass(device, buffer.mem, variance_to[pass]*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
 			functions.get_feature(mean_from[pass], variance_from[pass], *color_pass, *color_var_pass);
 		}
+		if(render_buffer.shadow_offset) {
+			device_sub_ptr color_pass(device, temp_color, 3*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+			device_sub_ptr color_var_pass(device, buffer.mem, variance_to[3]*buffer.pass_stride, buffer.pass_stride, MEM_READ_WRITE);
+			functions.divide_shadowcatcher(mean_from[3], render_buffer.shadow_offset, *color_pass, *color_var_pass);
+		}
 
 		{
-			device_sub_ptr depth_pass    (device, buffer.mem,                                 0,   buffer.pass_stride, MEM_READ_WRITE);
-			device_sub_ptr color_var_pass(device, buffer.mem, variance_to[0]*buffer.pass_stride, 3*buffer.pass_stride, MEM_READ_WRITE);
-			device_sub_ptr output_pass   (device, buffer.mem,     mean_to[0]*buffer.pass_stride, 3*buffer.pass_stride, MEM_READ_WRITE);
-			functions.detect_outliers(temp_color.device_pointer, *color_var_pass, *depth_pass, *output_pass);
+			device_sub_ptr color_var_pass(device, buffer.mem, variance_to[0]*buffer.pass_stride, 4*buffer.pass_stride, MEM_READ_WRITE);
+			device_sub_ptr output_pass   (device, buffer.mem,     mean_to[0]*buffer.pass_stride, 4*buffer.pass_stride, MEM_READ_WRITE);
+			functions.detect_outliers(temp_color.device_pointer, *color_var_pass, *output_pass);
 		}
 
 		device->mem_free(temp_color);
@@ -213,8 +217,8 @@ bool DenoisingTask::run_denoising()
 	reconstruction_state.source_h = rect.w-rect.y;
 
 	{
-		device_sub_ptr color_ptr    (device, buffer.mem,  8*buffer.pass_stride, 3*buffer.pass_stride, MEM_READ_WRITE);
-		device_sub_ptr color_var_ptr(device, buffer.mem, 11*buffer.pass_stride, 3*buffer.pass_stride, MEM_READ_WRITE);
+		device_sub_ptr color_ptr    (device, buffer.mem,  8*buffer.pass_stride, 4*buffer.pass_stride, MEM_READ_WRITE);
+		device_sub_ptr color_var_ptr(device, buffer.mem, 12*buffer.pass_stride, 4*buffer.pass_stride, MEM_READ_WRITE);
 		functions.reconstruct(*color_ptr, *color_var_ptr, render_buffer.ptr);
 	}
 

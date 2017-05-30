@@ -95,7 +95,7 @@ ccl_device_inline void math_vec3_add(float3 *v, int n, float *x, float3 w)
 	}
 }
 
-ccl_device_inline void math_vec3_add_strided(ccl_global float3 *v, int n, float *x, float3 w, int stride)
+ccl_device_inline void math_vec4_add_strided(ccl_global float4 *v, int n, float *x, float4 w, int stride)
 {
 	for(int i = 0; i < n; i++) {
 		v[i*stride] += w*x[i];
@@ -186,7 +186,7 @@ ccl_device void math_trimatrix_cholesky(ccl_global float *A, int n, int stride)
  *
  * This is useful for solving the normal equation S=inv(Xt*W*X)*Xt*W*y, since Xt*W*X is
  * symmetrical positive-semidefinite by construction, so we can just use this function with A=Xt*W*X and y=Xt*W*y. */
-ccl_device_inline void math_trimatrix_vec3_solve(ccl_global float *A, ccl_global float3 *y, int n, int stride)
+ccl_device_inline void math_trimatrix_vec4_solve(ccl_global float *A, ccl_global float4 *y, int n, int stride)
 {
 	/* Since the first entry of the design row is always 1, the upper-left element of XtWX is a good
 	 * heuristic for the amount of pixels considered (with weighting), therefore the amount of correction
@@ -196,7 +196,7 @@ ccl_device_inline void math_trimatrix_vec3_solve(ccl_global float *A, ccl_global
 
 	/* Use forward substitution to solve L*b = y, replacing y by b. */
 	for(int row = 0; row < n; row++) {
-		float3 sum = VECS(y, row, stride);
+		float4 sum = VECS(y, row, stride);
 		for(int col = 0; col < row; col++)
 			sum -= MATHS(A, row, col, stride) * VECS(y, col, stride);
 		VECS(y, row, stride) = sum / MATHS(A, row, row, stride);
@@ -204,7 +204,7 @@ ccl_device_inline void math_trimatrix_vec3_solve(ccl_global float *A, ccl_global
 
 	/* Use backward substitution to solve Lt*S = b, replacing b by S. */
 	for(int row = n-1; row >= 0; row--) {
-		float3 sum = VECS(y, row, stride);
+		float4 sum = VECS(y, row, stride);
 		for(int col = row+1; col < n; col++)
 			sum -= MATHS(A, col, row, stride) * VECS(y, col, stride);
 		VECS(y, row, stride) = sum / MATHS(A, row, row, stride);

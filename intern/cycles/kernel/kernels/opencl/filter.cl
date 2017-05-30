@@ -78,9 +78,33 @@ __kernel void kernel_ocl_filter_get_feature(int sample,
 	}
 }
 
+__kernel void kernel_ocl_filter_divide_shadowcatcher(int sample,
+                                            ccl_global TilesInfo *tiles,
+                                            int m_offset,
+                                            int s_offset,
+                                            ccl_global float *mean,
+                                            ccl_global float *variance,
+                                            int4 prefilter_rect,
+                                            int buffer_pass_stride,
+                                            int buffer_denoising_offset)
+{
+	int x = prefilter_rect.x + get_global_id(0);
+	int y = prefilter_rect.y + get_global_id(1);
+	if(x < prefilter_rect.z && y < prefilter_rect.w) {
+		kernel_filter_divide_shadowcatcher(sample,
+		                          tiles,
+		                          m_offset, s_offset,
+		                          x, y,
+		                          mean,
+		                          variance,
+		                          prefilter_rect,
+		                          buffer_pass_stride,
+		                          buffer_denoising_offset);
+	}
+}
+
 __kernel void kernel_ocl_filter_detect_outliers(ccl_global float *image,
                                                 ccl_global float *variance,
-                                                ccl_global float *depth,
                                                 ccl_global float *output,
                                                 int4 prefilter_rect,
                                                 int pass_stride)
@@ -88,7 +112,7 @@ __kernel void kernel_ocl_filter_detect_outliers(ccl_global float *image,
 	int x = prefilter_rect.x + get_global_id(0);
 	int y = prefilter_rect.y + get_global_id(1);
 	if(x < prefilter_rect.z && y < prefilter_rect.w) {
-		kernel_filter_detect_outliers(x, y, image, variance, depth, output, prefilter_rect, pass_stride);
+		kernel_filter_detect_outliers(x, y, image, variance, output, prefilter_rect, pass_stride);
 	}
 }
 
@@ -210,7 +234,7 @@ __kernel void kernel_ocl_filter_nlm_construct_gramian(int dx,
                                                       const ccl_global float *ccl_restrict transform,
                                                       ccl_global int *rank,
                                                       ccl_global float *XtWX,
-                                                      ccl_global float3 *XtWY,
+                                                      ccl_global float4 *XtWY,
                                                       int4 rect,
                                                       int4 filter_rect,
                                                       int w,
@@ -239,7 +263,7 @@ __kernel void kernel_ocl_filter_finalize(int w,
                                          ccl_global float *buffer,
                                          ccl_global int *rank,
                                          ccl_global float *XtWX,
-                                         ccl_global float3 *XtWY,
+                                         ccl_global float4 *XtWY,
                                          int4 filter_area,
                                          int4 buffer_params,
                                          int sample)

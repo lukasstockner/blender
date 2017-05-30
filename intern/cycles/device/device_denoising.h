@@ -36,6 +36,7 @@ public:
 	struct RenderBuffers {
 		int denoising_data_offset;
 		int denoising_clean_offset;
+		int shadow_offset;
 		int pass_stride;
 		int offset;
 		int stride;
@@ -80,9 +81,13 @@ public:
 		              device_ptr mean_ptr,
 		              device_ptr variance_ptr
 		              )> get_feature;
+		function<bool(int mean_offset,
+		              int shadow_offset,
+		              device_ptr mean_ptr,
+		              device_ptr variance_ptr
+		              )> divide_shadowcatcher;
 		function<bool(device_ptr image_ptr,
 		              device_ptr variance_ptr,
-		              device_ptr depth_ptr,
 		              device_ptr output_ptr
 		              )> detect_outliers;
 		function<bool(device_ptr*)> set_tiles;
@@ -120,7 +125,7 @@ public:
 		device_only_memory<float>  transform;
 		device_only_memory<int>    rank;
 		device_only_memory<float>  XtWX;
-		device_only_memory<float3> XtWY;
+		device_only_memory<float4> XtWY;
 		int w;
 		int h;
 	} storage;

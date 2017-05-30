@@ -211,12 +211,15 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global f
 	int flag = kernel_data.film.pass_flag;
 
 	if(flag & PASS_SHADOWCATCHER) {
+#ifdef __SHADOW_TRICKS__
 		if(use_shadowcatcher) {
 			kernel_write_pass_float(buffer + kernel_data.film.pass_shadowcatcher, sample, average(L->path_total));
 			kernel_write_pass_float(buffer + kernel_data.film.pass_shadowcatcher + 1, sample, average(L->path_total_shaded));
 			kernel_write_pass_float(buffer + kernel_data.film.pass_shadowcatcher + 2, sample, 1.0f);
 		}
-		else {
+		else
+#endif
+		{
 			kernel_write_pass_float(buffer + kernel_data.film.pass_shadowcatcher, sample, 0.0f);
 			kernel_write_pass_float(buffer + kernel_data.film.pass_shadowcatcher + 1, sample, 0.0f);
 			kernel_write_pass_float(buffer + kernel_data.film.pass_shadowcatcher + 2, sample, 0.0f);
@@ -306,14 +309,15 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *
 				{
 					path_radiance_split_denoising(kg, L, &noisy, &clean);
 				}
-				kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
-				                                  sample, noisy);
+				kernel_write_pass_float4_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
+				                                  sample, make_float4(noisy.x, noisy.y, noisy.z, alpha));
 				kernel_write_pass_float3_unaligned(buffer + kernel_data.film.pass_denoising_clean,
 				                                   sample, clean);
 			}
 			else {
-				kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
-				                                  sample, ensure_finite3(L_sum));
+				L_sum = ensure_finite3(L_sum);
+				kernel_write_pass_float4_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
+				                                  sample, make_float4(L_sum.x, L_sum.y, L_sum.z, alpha));
 			}
 
 			kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_NORMAL,
@@ -332,8 +336,8 @@ ccl_device_inline void kernel_write_result(KernelGlobals *kg, ccl_global float *
 		if(kernel_data.film.pass_denoising_data) {
 			kernel_write_denoising_shadow(kg, buffer + kernel_data.film.pass_denoising_data, sample, 0.0f, 0.0f);
 
-			kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
-			                                  sample, make_float3(0.0f, 0.0f, 0.0f));
+			kernel_write_pass_float4_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_COLOR,
+			                                  sample, make_float4(0.0f, 0.0f, 0.0f, 0.0f));
 
 			kernel_write_pass_float3_variance(buffer + kernel_data.film.pass_denoising_data + DENOISING_PASS_NORMAL,
 			                                  sample, make_float3(0.0f, 0.0f, 0.0f));

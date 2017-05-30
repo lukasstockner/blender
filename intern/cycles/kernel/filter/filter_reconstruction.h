@@ -26,7 +26,7 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
                                                        ccl_global int *rank,
                                                        float weight,
                                                        ccl_global float *XtWX,
-                                                       ccl_global float3 *XtWY,
+                                                       ccl_global float4 *XtWY,
                                                        int localIdx)
 {
 	if(weight < 1e-3f) {
@@ -50,10 +50,10 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
 	float design_row[DENOISE_FEATURES+1];
 #endif
 
-	float3 q_color = filter_get_color(buffer + q_offset, pass_stride);
+	float4 q_color = filter_get_color(buffer + q_offset, pass_stride);
 
 	/* If the pixel was flagged as an outlier during prefiltering, skip it. */
-	if(ccl_get_feature(buffer + q_offset, 0) < 0.0f) {
+	if(q_color.w < 0.0f) {
 		return;
 	}
 
@@ -62,7 +62,7 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
 	                                pass_stride, *rank, design_row, transform, stride);
 
 	math_trimatrix_add_gramian_strided(XtWX, (*rank)+1, design_row, weight, stride);
-	math_vec3_add_strided(XtWY, (*rank)+1, design_row, weight * q_color, stride);
+	math_vec4_add_strided(XtWY, (*rank)+1, design_row, weight * q_color, stride);
 }
 
 ccl_device_inline void kernel_filter_finalize(int x, int y, int w, int h,
@@ -70,7 +70,7 @@ ccl_device_inline void kernel_filter_finalize(int x, int y, int w, int h,
                                               ccl_global int *rank,
                                               int storage_stride,
                                               ccl_global float *XtWX,
-                                              ccl_global float3 *XtWY,
+                                              ccl_global float4 *XtWY,
                                               int4 buffer_params,
                                               int sample)
 {
@@ -90,17 +90,18 @@ ccl_device_inline void kernel_filter_finalize(int x, int y, int w, int h,
 	/* The weighted average of pixel colors (essentially, the NLM-filtered image).
 	 * In case the solution of the linear model fails due to numerical issues,
 	 * fall back to this value. */
-	float3 mean_color = XtWY[0]/XtWX[0];
+	float4 mean_color = XtWY[0]/XtWX[0];
 
-	math_trimatrix_vec3_solve(XtWX, XtWY, (*rank)+1, stride);
+	math_trimatrix_vec4_solve(XtWX, XtWY, (*rank)+1, stride);
 
-	float3 final_color = XtWY[0];
-	if(!isfinite3_safe(final_color)) {
+	float4 final_color = XtWY[0];
+	if(!isfinite4_safe(final_color)) {
 		final_color = mean_color;
 	}
+	final_color.w = saturate(final_color.w);
 
 	/* Clamp pixel value to positive values. */
-	final_color = max(final_color, make_float3(0.0f, 0.0f, 0.0f));
+	final_color = max(final_color, make_float4(0.0f, 0.0f, 0.0f, 0.0f));
 
 	ccl_global float *combined_buffer = buffer + (y*buffer_params.y + x + buffer_params.x)*buffer_params.z;
 	final_color *= sample;
@@ -109,9 +110,20 @@ ccl_device_inline void kernel_filter_finalize(int x, int y, int w, int h,
 		final_color.y += combined_buffer[buffer_params.w+1];
 		final_color.z += combined_buffer[buffer_params.w+2];
 	}
+
+	/* Avoid color bleeding into transparent areas. */
+	if(combined_buffer[0] < 1e-7f &&
+	   combined_buffer[1] < 1e-7f &&
+	   combined_buffer[2] < 1e-7f) {
+		final_color.x = 0.0f;
+		final_color.y = 0.0f;
+		final_color.z = 0.0f;
+	}
+
 	combined_buffer[0] = final_color.x;
 	combined_buffer[1] = final_color.y;
 	combined_buffer[2] = final_color.z;
+	combined_buffer[3] = final_color.w;
 }
 
 CCL_NAMESPACE_END

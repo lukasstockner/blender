@@ -1000,6 +1000,7 @@ void Session::render()
 		task.pass_stride = scene->film->pass_stride;
 		task.pass_denoising_data = scene->film->denoising_data_offset;
 		task.pass_denoising_clean = scene->film->denoising_clean_offset;
+		task.pass_shadow = scene->film->pass_shadow;
 	}
 
 	device->task_add(task);

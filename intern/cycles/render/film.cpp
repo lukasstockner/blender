@@ -426,6 +426,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	kfilm->pass_stride = 0;
 	kfilm->use_light_pass = use_light_visibility || use_sample_clamp;
 
+	pass_shadow = 0;
 	for(size_t i = 0; i < passes.passes.size(); i++) {
 		Pass& pass = passes.passes[i];
 		kfilm->pass_flag |= pass.type;
@@ -531,6 +532,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 
 			case PASS_SHADOWCATCHER:
 				kfilm->pass_shadowcatcher = kfilm->pass_stride;
+				pass_shadow = kfilm->pass_stride;
 				break;
 			case PASS_AOV_COLOR:
 				for(int j = 0; j < passes.aovs.size(); j++) {

@@ -170,6 +170,15 @@ bool RenderBuffers::get_denoising_pass_rect(int offset, float exposure, int samp
 		}
 		return true;
 	}
+	else if(components == 4) {
+		for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {
+			pixels[0] = in[0]*scale;
+			pixels[1] = in[1]*scale;
+			pixels[2] = in[2]*scale;
+			pixels[3] = in[3]*scale;
+		}
+		return true;
+	}
 
 	return false;
 }
@@ -339,7 +348,7 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 
 				/* clamp since alpha might be > 1.0 due to russian roulette */
 				float alpha = f.w*scale;
-				if(has_shadowcatcher) {
+				if(has_shadowcatcher && !params.passes.denoising_data_pass) {
 					float shadow = in[pass_offset + 1] / max(in[pass_offset], 1e-7f);
 					alpha += in[pass_offset + 2] * scale * (1.0f - shadow);
 				}

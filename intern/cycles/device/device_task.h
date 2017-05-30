@@ -75,6 +75,7 @@ public:
 	int pass_stride;
 	int pass_denoising_data;
 	int pass_denoising_clean;
+	int pass_shadow;
 
 	bool need_finish_queue;
 	bool integrator_branched;

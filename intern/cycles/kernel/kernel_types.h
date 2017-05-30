@@ -406,9 +406,9 @@ typedef enum DenoisingPassOffsets {
 	DENOISING_PASS_SHADOW_A           = 14,
 	DENOISING_PASS_SHADOW_B           = 17,
 	DENOISING_PASS_COLOR              = 20,
-	DENOISING_PASS_COLOR_VAR          = 23,
+	DENOISING_PASS_COLOR_VAR          = 24,
 
-	DENOISING_PASS_SIZE_BASE          = 26,
+	DENOISING_PASS_SIZE_BASE          = 28,
 	DENOISING_PASS_SIZE_CLEAN         = 3,
 } DenoisingPassOffsets;
 

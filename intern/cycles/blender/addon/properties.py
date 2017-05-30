@@ -1214,10 +1214,6 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
                 description="Cycles SceneRenderLayer Settings",
                 type=cls,
                 )
-                update=update_render_passes,
-                update=update_render_passes,
-                update=update_render_passes,
-                update=update_render_passes,
 
         cls.aovs = bpy.props.CollectionProperty(type=CyclesAOVSettings)
         cls.active_aov = IntProperty(default=0)

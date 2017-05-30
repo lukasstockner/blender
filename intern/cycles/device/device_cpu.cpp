@@ -177,7 +177,8 @@ public:
 
 	KernelFunctions<void(*)(int, TilesInfo*, int, int, float*, float*, float*, float*, float*, int*, int, int, bool)> filter_divide_shadow_kernel;
 	KernelFunctions<void(*)(int, TilesInfo*, int, int, int, int, float*, float*, int*, int, int, bool)>               filter_get_feature_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                     filter_detect_outliers_kernel;
+	KernelFunctions<void(*)(int, TilesInfo*, int, int, int, int, float*, float*, int*, int, int)>                filter_divide_shadowcatcher_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int)>                                             filter_detect_outliers_kernel;
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                     filter_combine_halves_kernel;
 
 	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, float, float)> filter_nlm_calc_difference_kernel;
@@ -187,8 +188,8 @@ public:
 	KernelFunctions<void(*)(float*, float*, int*, int)>                                      filter_nlm_normalize_kernel;
 
 	KernelFunctions<void(*)(float*, int, int, int, float*, int*, int*, int, int, float)>                              filter_construct_transform_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, float*, float3*, int*, int*, int, int, int, int)> filter_nlm_construct_gramian_kernel;
-	KernelFunctions<void(*)(int, int, int, int, int, float*, int*, float*, float3*, int*, int)>                       filter_finalize_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, float*, float4*, int*, int*, int, int, int, int)> filter_nlm_construct_gramian_kernel;
+	KernelFunctions<void(*)(int, int, int, int, int, float*, int*, float*, float4*, int*, int)>                        filter_finalize_kernel;
 
 	KernelFunctions<void(*)(KernelGlobals *, ccl_constant KernelData*, ccl_global void*, int, ccl_global char*,
 	                       ccl_global uint*, int, int, int, int, int, int, int, int, ccl_global int*, int,
@@ -212,6 +213,7 @@ public:
 	  REGISTER_KERNEL(shader),
 	  REGISTER_KERNEL(filter_divide_shadow),
 	  REGISTER_KERNEL(filter_get_feature),
+	  REGISTER_KERNEL(filter_divide_shadowcatcher),
 	  REGISTER_KERNEL(filter_detect_outliers),
 	  REGISTER_KERNEL(filter_combine_halves),
 	  REGISTER_KERNEL(filter_nlm_calc_difference),
@@ -502,7 +504,7 @@ public:
 			                                      (float*)  task->storage.transform.device_pointer,
 			                                      (int*)    task->storage.rank.device_pointer,
 			                                      (float*)  task->storage.XtWX.device_pointer,
-			                                      (float3*) task->storage.XtWY.device_pointer,
+			                                      (float4*) task->storage.XtWY.device_pointer,
 			                                      local_rect,
 			                                      &task->reconstruction_state.filter_rect.x,
 			                                      task->buffer.w,
@@ -520,7 +522,7 @@ public:
 				                         (float*)  output_ptr,
 				                         (int*)    task->storage.rank.device_pointer,
 				                         (float*)  task->storage.XtWX.device_pointer,
-				                         (float3*) task->storage.XtWY.device_pointer,
+				                         (float4*) task->storage.XtWY.device_pointer,
 				                         &task->reconstruction_state.buffer_params.x,
 				                         task->render_buffer.samples);
 			}
@@ -593,9 +595,30 @@ public:
 		return true;
 	}
 
+	bool denoising_divide_shadowcatcher(int mean_offset,int shadow_offset,
+	                           device_ptr mean_ptr,
+	                           device_ptr variance_ptr,
+	                           DenoisingTask *task)
+	{
+		for(int y = task->rect.y; y < task->rect.w; y++) {
+			for(int x = task->rect.x; x < task->rect.z; x++) {
+				filter_divide_shadowcatcher_kernel()(task->render_buffer.samples,
+				                            task->tiles,
+				                            mean_offset,
+				                            shadow_offset,
+				                            x, y,
+				                            (float*) mean_ptr,
+				                            (float*) variance_ptr,
+				                            &task->rect.x,
+				                            task->render_buffer.pass_stride,
+				                            task->render_buffer.denoising_data_offset);
+			}
+		}
+		return true;
+	}
+
 	bool denoising_detect_outliers(device_ptr image_ptr,
 	                               device_ptr variance_ptr,
-	                               device_ptr depth_ptr,
 	                               device_ptr output_ptr,
 	                               DenoisingTask *task)
 	{
@@ -604,7 +627,6 @@ public:
 				filter_detect_outliers_kernel()(x, y,
 				                                (float*) image_ptr,
 				                                (float*) variance_ptr,
-				                                (float*) depth_ptr,
 				                                (float*) output_ptr,
 				                                &task->rect.x,
 				                                task->buffer.pass_stride);
@@ -651,7 +673,8 @@ public:
 		denoising.functions.non_local_means = function_bind(&CPUDevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
 		denoising.functions.combine_halves = function_bind(&CPUDevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
 		denoising.functions.get_feature = function_bind(&CPUDevice::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
-		denoising.functions.detect_outliers = function_bind(&CPUDevice::denoising_detect_outliers, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.divide_shadowcatcher = function_bind(&CPUDevice::denoising_divide_shadowcatcher, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.detect_outliers = function_bind(&CPUDevice::denoising_detect_outliers, this, _1, _2, _3, &denoising);
 		denoising.functions.set_tiles = function_bind(&CPUDevice::denoising_set_tiles, this, _1, &denoising);
 
 		denoising.filter_area = make_int4(tile.x, tile.y, tile.w, tile.h);

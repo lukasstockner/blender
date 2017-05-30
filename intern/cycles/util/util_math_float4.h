@@ -37,7 +37,9 @@ ccl_device_inline float4 operator/(const float4& a, const float4& b);
 ccl_device_inline float4 operator+(const float4& a, const float4& b);
 ccl_device_inline float4 operator-(const float4& a, const float4& b);
 ccl_device_inline float4 operator+=(float4& a, const float4& b);
+ccl_device_inline float4 operator-=(float4& a, const float4& b);
 ccl_device_inline float4 operator*=(float4& a, const float4& b);
+ccl_device_inline float4 operator*=(float4& a, float f);
 ccl_device_inline float4 operator/=(float4& a, float f);
 
 ccl_device_inline int4 operator<(const float4& a, const float4& b);
@@ -57,6 +59,7 @@ ccl_device_inline float4 normalize(const float4& a);
 ccl_device_inline float4 safe_normalize(const float4& a);
 ccl_device_inline float4 min(const float4& a, const float4& b);
 ccl_device_inline float4 max(const float4& a, const float4& b);
+ccl_device_inline float4 fabs(const float4& a);
 #endif  /* !__KERNEL_OPENCL__*/
 
 #ifdef __KERNEL_SSE__
@@ -158,9 +161,19 @@ ccl_device_inline float4 operator+=(float4& a, const float4& b)
 	return a = a + b;
 }
 
+ccl_device_inline float4 operator-=(float4& a, const float4& b)
+{
+	return a = a - b;
+}
+
 ccl_device_inline float4 operator*=(float4& a, const float4& b)
 {
 	return a = a * b;
+}
+
+ccl_device_inline float4 operator*=(float4& a, float f)
+{
+	return a = a * f;
 }
 
 ccl_device_inline float4 operator/=(float4& a, float f)
@@ -309,6 +322,16 @@ ccl_device_inline float4 max(const float4& a, const float4& b)
 	                   max(a.w, b.w));
 #endif
 }
+
+ccl_device_inline float4 fabs(const float4& a)
+{
+#ifdef __KERNEL_SSE__
+	__m128 mask = _mm_castsi128_ps(_mm_set1_epi32(0x7fffffff));
+	return float4(_mm_and_ps(a.m128, mask));
+#else
+	return make_float4(fabsf(a.x), fabsf(a.y), fabsf(a.z), fabsf(a.w));
+#endif
+}
 #endif  /* !__KERNEL_OPENCL__*/
 
 #ifdef __KERNEL_SSE__
@@ -387,6 +410,14 @@ ccl_device_inline float4 reduce_add(const float4& a)
 }
 #endif
 #endif  /* !__KERNEL_GPU__ */
+
+ccl_device_inline bool isfinite4_safe(float4 v)
+{
+	return isfinite_safe(v.x) &&
+	       isfinite_safe(v.y) &&
+	       isfinite_safe(v.z) &&
+	       isfinite_safe(v.w);
+}
 
 CCL_NAMESPACE_END
 

@@ -78,23 +78,48 @@ void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(int sample,
                                                    bool use_split_variance)
 {
 #ifdef KERNEL_STUB
-	STUB_ASSERT(KERNEL_ARCH, filter_get_feature);
+  STUB_ASSERT(KERNEL_ARCH, filter_get_feature);
 #else
-	kernel_filter_get_feature(sample, tiles,
-	                          m_offset, v_offset,
-	                          x, y,
-	                          mean, variance,
-	                          load_int4(prefilter_rect),
-	                          buffer_pass_stride,
-	                          buffer_denoising_offset,
-	                          use_split_variance);
+  kernel_filter_get_feature(sample, tiles,
+                            m_offset, v_offset,
+                            x, y,
+                            mean, variance,
+                            load_int4(prefilter_rect),
+                            buffer_pass_stride,
+                            buffer_denoising_offset,
+                            use_split_variance);
+#endif
+}
+
+void KERNEL_FUNCTION_FULL_NAME(filter_divide_shadowcatcher)(int sample,
+                                                            TilesInfo *tiles,
+                                                            int m_offset,
+                                                            int s_offset,
+                                                            int x,
+                                                            int y,
+                                                            float *mean,
+                                                            float *variance,
+                                                            int* prefilter_rect,
+                                                            int buffer_pass_stride,
+                                                            int buffer_denoising_offset)
+{
+#ifdef KERNEL_STUB
+  STUB_ASSERT(KERNEL_ARCH, filter_divide_shadowcatcher);
+#else
+  kernel_filter_divide_shadowcatcher(sample, tiles,
+                            m_offset,  s_offset,
+                            x, y,
+                            mean,
+                            variance,
+                            load_int4(prefilter_rect),
+                            buffer_pass_stride,
+                            buffer_denoising_offset);
 #endif
 }
 
 void KERNEL_FUNCTION_FULL_NAME(filter_detect_outliers)(int x, int y,
                                                        ccl_global float *image,
                                                        ccl_global float *variance,
-                                                       ccl_global float *depth,
                                                        ccl_global float *output,
                                                        int *rect,
                                                        int pass_stride)
@@ -102,7 +127,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_detect_outliers)(int x, int y,
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_detect_outliers);
 #else
-	kernel_filter_detect_outliers(x, y, image, variance, depth, output, load_int4(rect), pass_stride);
+	kernel_filter_detect_outliers(x, y, image, variance, output, load_int4(rect), pass_stride);
 #endif
 }
 
@@ -216,7 +241,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_construct_gramian)(int dx,
                                                              float *transform,
                                                              int *rank,
                                                              float *XtWX,
-                                                             float3 *XtWY,
+                                                             float4 *XtWY,
                                                              int *rect,
                                                              int *filter_rect,
                                                              int w,
@@ -251,7 +276,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_finalize)(int x,
                                                 float *buffer,
                                                 int *rank,
                                                 float *XtWX,
-                                                float3 *XtWY,
+                                                float4 *XtWY,
                                                 int *buffer_params,
                                                 int sample)
 {

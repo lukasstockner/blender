@@ -36,7 +36,7 @@ ccl_device_inline void filter_get_features(int2 pixel,
 {
 	features[0] = pixel.x;
 	features[1] = pixel.y;
-	features[2] = fabsf(ccl_get_feature(buffer, 0));
+	features[2] = ccl_get_feature(buffer, 0);
 	features[3] = ccl_get_feature(buffer, 1);
 	features[4] = ccl_get_feature(buffer, 2);
 	features[5] = ccl_get_feature(buffer, 3);
@@ -58,7 +58,7 @@ ccl_device_inline void filter_get_feature_scales(int2 pixel,
 {
 	scales[0] = fabsf(pixel.x - mean[0]);
 	scales[1] = fabsf(pixel.y - mean[1]);
-	scales[2] = fabsf(fabsf(ccl_get_feature(buffer, 0)) - mean[2]);
+	scales[2] = fabsf(ccl_get_feature(buffer, 0) - mean[2]);
 	scales[3] = len_squared(make_float3(ccl_get_feature(buffer, 1) - mean[3],
 	                                    ccl_get_feature(buffer, 2) - mean[4],
 	                                    ccl_get_feature(buffer, 3) - mean[5]));
@@ -78,10 +78,10 @@ ccl_device_inline void filter_calculate_scale(float *scale)
 	scale[3] = scale[4] = scale[5] = 1.0f/max(sqrtf(scale[3]), 0.01f);
 }
 
-ccl_device_inline float3 filter_get_color(const ccl_global float *ccl_restrict buffer,
+ccl_device_inline float4 filter_get_color(const ccl_global float *ccl_restrict buffer,
                                           int pass_stride)
 {
-	return make_float3(ccl_get_feature(buffer, 8), ccl_get_feature(buffer, 9), ccl_get_feature(buffer, 10));
+	return make_float4(ccl_get_feature(buffer, 8), ccl_get_feature(buffer, 9), ccl_get_feature(buffer, 10), ccl_get_feature(buffer, 11));
 }
 
 ccl_device_inline void design_row_add(float *design_row,
@@ -111,7 +111,7 @@ ccl_device_inline void filter_get_design_row_transform(int2 p_pixel,
 	math_vector_zero(design_row+1, rank);
 	design_row_add(design_row, rank, transform, stride, 0, q_pixel.x - p_pixel.x);
 	design_row_add(design_row, rank, transform, stride, 1, q_pixel.y - p_pixel.y);
-	design_row_add(design_row, rank, transform, stride, 2, fabsf(ccl_get_feature(q_buffer, 0)) - fabsf(ccl_get_feature(p_buffer, 0)));
+	design_row_add(design_row, rank, transform, stride, 2, ccl_get_feature(q_buffer, 0) - ccl_get_feature(p_buffer, 0));
 	design_row_add(design_row, rank, transform, stride, 3, ccl_get_feature(q_buffer, 1) - ccl_get_feature(p_buffer, 1));
 	design_row_add(design_row, rank, transform, stride, 4, ccl_get_feature(q_buffer, 2) - ccl_get_feature(p_buffer, 2));
 	design_row_add(design_row, rank, transform, stride, 5, ccl_get_feature(q_buffer, 3) - ccl_get_feature(p_buffer, 3));

@@ -1251,9 +1251,41 @@ public:
 		return !have_error();
 	}
 
+	bool denoising_divide_shadowcatcher(int mean_offset,int shadow_offset,
+	                           device_ptr mean_ptr,
+	                           device_ptr variance_ptr,
+	                           DenoisingTask *task)
+	{
+		if(have_error())
+			return false;
+
+		cuda_push_context();
+
+		CUfunction cuFilterDivideShadowcatcher;
+		cuda_assert(cuModuleGetFunction(&cuFilterDivideShadowcatcher, cuFilterModule, "kernel_cuda_filter_divide_shadowcatcher"));
+		cuda_assert(cuFuncSetCacheConfig(cuFilterDivideShadowcatcher, CU_FUNC_CACHE_PREFER_L1));
+		CUDA_GET_BLOCKSIZE(cuFilterDivideShadowcatcher,
+		                   task->rect.z-task->rect.x,
+		                   task->rect.w-task->rect.y);
+
+		void *args[] = {&task->render_buffer.samples,
+		                &task->tiles_mem.device_pointer,
+				        &mean_offset,
+				        &shadow_offset,
+		                &mean_ptr,
+		                &variance_ptr,
+		                &task->rect,
+		                &task->render_buffer.pass_stride,
+		                &task->render_buffer.denoising_data_offset};
+		CUDA_LAUNCH_KERNEL(cuFilterDivideShadowcatcher, args);
+		cuda_assert(cuCtxSynchronize());
+
+		cuda_pop_context();
+		return !have_error();
+	}
+
 	bool denoising_detect_outliers(device_ptr image_ptr,
 	                               device_ptr variance_ptr,
-	                               device_ptr depth_ptr,
 	                               device_ptr output_ptr,
 	                               DenoisingTask *task)
 	{
@@ -1271,7 +1303,6 @@ public:
 
 		void *args[] = {&image_ptr,
 		                &variance_ptr,
-		                &depth_ptr,
 		                &output_ptr,
 		                &task->rect,
 		                &task->buffer.pass_stride};
@@ -1293,7 +1324,8 @@ public:
 		denoising.functions.non_local_means = function_bind(&CUDADevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
 		denoising.functions.combine_halves = function_bind(&CUDADevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
 		denoising.functions.get_feature = function_bind(&CUDADevice::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
-		denoising.functions.detect_outliers = function_bind(&CUDADevice::denoising_detect_outliers, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.divide_shadowcatcher = function_bind(&CUDADevice::denoising_divide_shadowcatcher, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.detect_outliers = function_bind(&CUDADevice::denoising_detect_outliers, this, _1, _2, _3, &denoising);
 		denoising.functions.set_tiles = function_bind(&CUDADevice::denoising_set_tiles, this, _1, &denoising);
 
 		denoising.filter_area = make_int4(rtile.x, rtile.y, rtile.w, rtile.h);

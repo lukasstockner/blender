@@ -117,6 +117,7 @@ public:
 	int pass_stride;
 	int denoising_data_offset;
 	int denoising_clean_offset;
+	int pass_shadow;
 
 	FilterType filter_type;
 	float filter_width;
