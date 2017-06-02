@@ -35,6 +35,7 @@
 #include "kernel/osl/osl_shader.h"
 
 #include "util/util_foreach.h"
+#include "util/util_hash.h"
 #include "util/util_logging.h"
 #include "util/util_string.h"
 

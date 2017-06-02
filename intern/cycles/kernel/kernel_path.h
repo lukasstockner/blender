@@ -24,6 +24,8 @@
 #include "kernel/kernel_differential.h"
 #include "kernel/kernel_camera.h"
 
+#include "kernel/kernel_path_common.h"
+
 #include "kernel/geom/geom.h"
 #include "kernel/bvh/bvh.h"
 
@@ -44,7 +46,6 @@
 #include "kernel/kernel_path_state.h"
 #include "kernel/kernel_shadow.h"
 #include "kernel/kernel_emission.h"
-#include "kernel/kernel_path_common.h"
 #include "kernel/kernel_path_surface.h"
 #include "kernel/kernel_path_volume.h"
 #include "kernel/kernel_path_subsurface.h"

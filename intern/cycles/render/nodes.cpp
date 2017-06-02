@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "util/util_hash.h"
+
 #include "render/film.h"
 #include "render/image.h"
 #include "render/integrator.h"
@@ -4902,6 +4904,7 @@ NODE_DEFINE(MathNode)
 	type_enum.insert("greater_than", NODE_MATH_GREATER_THAN);
 	type_enum.insert("modulo", NODE_MATH_MODULO);
 	type_enum.insert("absolute", NODE_MATH_ABSOLUTE);
+	type_enum.insert("hash", NODE_MATH_HASH);
 	SOCKET_ENUM(type, "Type", type_enum, NODE_MATH_ADD);
 
 	SOCKET_BOOLEAN(use_clamp, "Use Clamp", false);

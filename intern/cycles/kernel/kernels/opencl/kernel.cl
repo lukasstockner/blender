@@ -25,6 +25,7 @@
 #include "kernel/kernel_film.h"
 
 #include "kernel/kernel_passes_write.h"
+#include "util/util_hash.h"
 
 #if defined(__COMPILE_ONLY_MEGAKERNEL__) || !defined(__NO_BAKING__)
 #  include "kernel/kernel_path.h"

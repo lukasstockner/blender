@@ -133,6 +133,7 @@ EnumPropertyItem rna_enum_node_math_items[] = {
 	{NODE_MATH_GREATER, "GREATER_THAN", 0, "Greater Than", ""},
 	{NODE_MATH_MOD,     "MODULO",       0, "Modulo",       ""},
 	{NODE_MATH_ABS,     "ABSOLUTE",     0, "Absolute",     ""},
+	{NODE_MATH_HASH,    "HASH",         0, "Hash",         ""},
 	{0, NULL, 0, NULL, NULL}
 };
 

@@ -94,6 +94,8 @@ ccl_device float svm_math(NodeMath type, float Fac1, float Fac2)
 		Fac = fabsf(Fac1);
 	else if(type == NODE_MATH_CLAMP)
 		Fac = saturate(Fac1);
+	else if(type == NODE_MATH_HASH)
+		Fac = hash_int_2d(__float_as_uint(Fac1), __float_as_uint(Fac2)) / ((float) 0xffffffff);
 	else
 		Fac = 0.0f;
 	
