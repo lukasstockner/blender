@@ -667,6 +667,7 @@ static ShaderNode *add_node(Scene *scene,
 		}
 		else {
 			ImageTextureNode *image = new ImageTextureNode();
+			image->color_space = (NodeImageColorSpace)b_image_node.color_space();
 			if(b_image) {
 				/* builtin images will use callback-based reading because
 				 * they could only be loaded correct from blender side
@@ -698,10 +699,10 @@ static ShaderNode *add_node(Scene *scene,
 					        image->builtin_data,
 					        get_image_interpolation(b_image_node),
 					        get_image_extension(b_image_node),
-					        image->use_alpha);
+					        image->use_alpha,
+					        COLORSPACE_IS_GRAY(image->color_space));
 				}
 			}
-			image->color_space = (NodeImageColorSpace)b_image_node.color_space();
 			image->projection = (NodeImageProjection)b_image_node.projection();
 			image->interpolation = get_image_interpolation(b_image_node);
 			image->extension = get_image_extension(b_image_node);
@@ -716,6 +717,7 @@ static ShaderNode *add_node(Scene *scene,
 		BL::Image b_image(b_env_node.image());
 		BL::ImageUser b_image_user(b_env_node.image_user());
 		EnvironmentTextureNode *env = new EnvironmentTextureNode();
+		env->color_space = (NodeImageColorSpace)b_env_node.color_space();
 		if(b_image) {
 			bool is_builtin = b_image.packed_file() ||
 			                  b_image.source() == BL::Image::source_GENERATED ||
@@ -747,10 +749,10 @@ static ShaderNode *add_node(Scene *scene,
 				        env->builtin_data,
 				        get_image_interpolation(b_env_node),
 				        EXTENSION_REPEAT,
-				        env->use_alpha);
+				        env->use_alpha,
+				        COLORSPACE_IS_GRAY(env->color_space));
 			}
 		}
-		env->color_space = (NodeImageColorSpace)b_env_node.color_space();
 		env->interpolation = get_image_interpolation(b_env_node);
 		env->projection = (NodeEnvironmentProjection)b_env_node.projection();
 		BL::TexMapping b_texture_mapping(b_env_node.texture_mapping());
@@ -898,7 +900,8 @@ static ShaderNode *add_node(Scene *scene,
 			        point_density->builtin_data,
 			        point_density->interpolation,
 			        EXTENSION_CLIP,
-			        true);
+			        true,
+			        false);
 		}
 		node = point_density;
 

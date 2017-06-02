@@ -116,6 +116,7 @@ bool ImageManager::set_animation_frame_update(int frame)
 ImageDataType ImageManager::get_image_metadata(const string& filename,
                                                void *builtin_data,
                                                bool& is_linear,
+                                               bool is_grayscale,
                                                bool& builtin_free_cache)
 {
 	bool is_float = false, is_half = false;
@@ -129,12 +130,14 @@ ImageDataType ImageManager::get_image_metadata(const string& filename,
 			builtin_image_info_cb(filename, builtin_data, is_float, width, height, depth, channels, builtin_free_cache);
 		}
 
+		bool is_rgba = (channels > 1) && !is_grayscale;
+
 		if(is_float) {
 			is_linear = true;
-			return (channels > 1) ? IMAGE_DATA_TYPE_FLOAT4 : IMAGE_DATA_TYPE_FLOAT;
+			return is_rgba ? IMAGE_DATA_TYPE_FLOAT4 : IMAGE_DATA_TYPE_FLOAT;
 		}
 		else {
-			return (channels > 1) ? IMAGE_DATA_TYPE_BYTE4 : IMAGE_DATA_TYPE_BYTE;
+			return is_rgba ? IMAGE_DATA_TYPE_BYTE4 : IMAGE_DATA_TYPE_BYTE;
 		}
 	}
 
@@ -197,14 +200,16 @@ ImageDataType ImageManager::get_image_metadata(const string& filename,
 		delete in;
 	}
 
+	bool is_rgba = (channels > 1) && !is_grayscale;
+
 	if(is_half) {
-		return (channels > 1) ? IMAGE_DATA_TYPE_HALF4 : IMAGE_DATA_TYPE_HALF;
+		return is_rgba ? IMAGE_DATA_TYPE_HALF4 : IMAGE_DATA_TYPE_HALF;
 	}
 	else if(is_float) {
-		return (channels > 1) ? IMAGE_DATA_TYPE_FLOAT4 : IMAGE_DATA_TYPE_FLOAT;
+		return is_rgba ? IMAGE_DATA_TYPE_FLOAT4 : IMAGE_DATA_TYPE_FLOAT;
 	}
 	else {
-		return (channels > 1) ? IMAGE_DATA_TYPE_BYTE4 : IMAGE_DATA_TYPE_BYTE;
+		return is_rgba ? IMAGE_DATA_TYPE_BYTE4 : IMAGE_DATA_TYPE_BYTE;
 	}
 }
 
@@ -253,13 +258,15 @@ static bool image_equals(ImageManager::Image *image,
                          void *builtin_data,
                          InterpolationType interpolation,
                          ExtensionType extension,
-                         bool use_alpha)
+                         bool use_alpha,
+                         bool use_grayscale)
 {
 	return image->filename == filename &&
 	       image->builtin_data == builtin_data &&
 	       image->interpolation == interpolation &&
 	       image->extension == extension &&
-	       image->use_alpha == use_alpha;
+	       image->use_alpha == use_alpha &&
+	       image->use_grayscale == use_grayscale;
 }
 
 int ImageManager::add_image(const string& filename,
@@ -270,13 +277,14 @@ int ImageManager::add_image(const string& filename,
                             bool& is_linear,
                             InterpolationType interpolation,
                             ExtensionType extension,
-                            bool use_alpha)
+                            bool use_alpha,
+                            bool use_grayscale)
 {
 	Image *img;
 	size_t slot;
 	bool builtin_free_cache;
 
-	ImageDataType type = get_image_metadata(filename, builtin_data, is_linear, builtin_free_cache);
+	ImageDataType type = get_image_metadata(filename, builtin_data, is_linear, use_grayscale, builtin_free_cache);
 
 	thread_scoped_lock device_lock(device_mutex);
 
@@ -310,7 +318,8 @@ int ImageManager::add_image(const string& filename,
 		                       builtin_data,
 		                       interpolation,
 		                       extension,
-		                       use_alpha))
+		                       use_alpha,
+		                       use_grayscale))
 		{
 			if(img->frame != frame) {
 				img->frame = frame;
@@ -370,6 +379,7 @@ int ImageManager::add_image(const string& filename,
 	img->extension = extension;
 	img->users = 1;
 	img->use_alpha = use_alpha;
+	img->use_grayscale = use_grayscale;
 
 	images[type][slot] = img;
 
@@ -402,7 +412,8 @@ void ImageManager::remove_image(const string& filename,
                                 void *builtin_data,
                                 InterpolationType interpolation,
                                 ExtensionType extension,
-                                bool use_alpha)
+                                bool use_alpha,
+                                bool use_grayscale)
 {
 	size_t slot;
 
@@ -413,7 +424,8 @@ void ImageManager::remove_image(const string& filename,
 			                                      builtin_data,
 			                                      interpolation,
 			                                      extension,
-			                                      use_alpha))
+			                                      use_alpha,
+			                                      use_grayscale))
 			{
 				remove_image(type_index_to_flattened_slot(slot, (ImageDataType)type));
 				return;
@@ -430,7 +442,8 @@ void ImageManager::tag_reload_image(const string& filename,
                                     void *builtin_data,
                                     InterpolationType interpolation,
                                     ExtensionType extension,
-                                    bool use_alpha)
+                                    bool use_alpha,
+                                    bool use_grayscale)
 {
 	for(size_t type = 0; type < IMAGE_DATA_NUM_TYPES; type++) {
 		for(size_t slot = 0; slot < images[type].size(); slot++) {
@@ -439,7 +452,8 @@ void ImageManager::tag_reload_image(const string& filename,
 			                                      builtin_data,
 			                                      interpolation,
 			                                      extension,
-			                                      use_alpha))
+			                                      use_alpha,
+			                                      use_grayscale))
 			{
 				images[type][slot]->need_load = true;
 				break;
@@ -518,6 +532,10 @@ bool ImageManager::file_load_image(Image *img,
                                    int texture_limit,
                                    device_vector<DeviceType>& tex_img)
 {
+	bool is_rgba = (type == IMAGE_DATA_TYPE_FLOAT4 ||
+	                type == IMAGE_DATA_TYPE_HALF4 ||
+	                type == IMAGE_DATA_TYPE_BYTE4);
+
 	const StorageType alpha_one = (FileFormat == TypeDesc::UINT8)? 255 : 1;
 	ImageInput *in = NULL;
 	int width, height, depth, components;
@@ -532,7 +550,8 @@ bool ImageManager::file_load_image(Image *img,
 		/* Don't bother with invalid images. */
 		return false;
 	}
-	if(texture_limit > 0 && max_size > texture_limit) {
+	const bool need_rescale = (texture_limit > 0 && max_size > texture_limit);
+	if(need_rescale || (components > 1 && !is_rgba)) {
 		pixels_storage.resize(((size_t)width)*height*depth*4);
 		pixels = &pixels_storage[0];
 	}
@@ -596,12 +615,10 @@ bool ImageManager::file_load_image(Image *img,
 			/* TODO(dingto): Support half for ImBuf. */
 		}
 	}
+
 	/* Check if we actually have a float4 slot, in case components == 1,
 	 * but device doesn't support single channel textures.
 	 */
-	bool is_rgba = (type == IMAGE_DATA_TYPE_FLOAT4 ||
-	                type == IMAGE_DATA_TYPE_HALF4 ||
-	                type == IMAGE_DATA_TYPE_BYTE4);
 	if(is_rgba) {
 		if(cmyk) {
 			/* CMYK */
@@ -645,6 +662,20 @@ bool ImageManager::file_load_image(Image *img,
 			}
 		}
 	}
+	else if(components > 1) {
+		StorageType *grayscale;
+		if(need_rescale) {
+			grayscale = pixels;
+		}
+		else {
+			grayscale = (StorageType*)tex_img.resize(width, height, depth);
+		}
+
+		for(size_t i = 0; i < num_pixels; i++) {
+			grayscale[i] = pixels[i*components];
+		}
+	}
+
 	/* Make sure we don't have buggy values. */
 	if(FileFormat == TypeDesc::FLOAT) {
 		/* For RGBA buffers we put all channels to 0 if either of them is not
@@ -676,7 +707,7 @@ bool ImageManager::file_load_image(Image *img,
 		}
 	}
 	/* Scale image down if needed. */
-	if(pixels_storage.size() > 0) {
+	if(need_rescale) {
 		float scale_factor = 1.0f;
 		while(max_size * scale_factor > texture_limit) {
 			scale_factor *= 0.5f;

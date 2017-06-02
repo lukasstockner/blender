@@ -359,7 +359,12 @@ typedef enum NodeNormalMapSpace {
 typedef enum NodeImageColorSpace {
 	NODE_COLOR_SPACE_NONE  = 0,
 	NODE_COLOR_SPACE_COLOR = 1,
+	NODE_COLOR_SPACE_GRAY  = 2,
+	NODE_COLOR_SPACE_DATA  = 3,
 } NodeImageColorSpace;
+
+#define COLORSPACE_IS_LINEAR(type) ((type) == NODE_COLOR_SPACE_NONE || (type) == NODE_COLOR_SPACE_DATA)
+#define COLORSPACE_IS_GRAY(type)   ((type) == NODE_COLOR_SPACE_GRAY || (type) == NODE_COLOR_SPACE_DATA)
 
 typedef enum NodeImageProjection {
 	NODE_IMAGE_PROJ_FLAT   = 0,

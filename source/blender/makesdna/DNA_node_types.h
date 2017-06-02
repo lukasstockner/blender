@@ -996,6 +996,8 @@ typedef struct NodeSunBeams {
 /* image/environment texture */
 #define SHD_COLORSPACE_NONE		0
 #define SHD_COLORSPACE_COLOR	1
+#define SHD_COLORSPACE_GRAY		2
+#define SHD_COLORSPACE_DATA		3
 
 /* environment texture */
 #define SHD_PROJ_EQUIRECTANGULAR	0

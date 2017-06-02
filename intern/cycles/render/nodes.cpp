@@ -214,6 +214,8 @@ NODE_DEFINE(UDIMTextureNode)
 	static NodeEnum color_space_enum;
 	color_space_enum.insert("none", NODE_COLOR_SPACE_NONE);
 	color_space_enum.insert("color", NODE_COLOR_SPACE_COLOR);
+	color_space_enum.insert("gray", NODE_COLOR_SPACE_GRAY);
+	color_space_enum.insert("data", NODE_COLOR_SPACE_DATA);
 	SOCKET_ENUM(color_space, "Color Space", color_space_enum, NODE_COLOR_SPACE_COLOR);
 
 	SOCKET_BOOLEAN(use_alpha, "Use Alpha", true);
@@ -256,7 +258,8 @@ UDIMTextureNode::~UDIMTextureNode()
 				                            tile.builtin_data,
 				                            interpolation,
 				                            extension,
-				                            use_alpha);
+				                            use_alpha,
+				                            COLORSPACE_IS_GRAY(color_space));
 			}
 		}
 	}
@@ -271,10 +274,10 @@ ShaderNode *UDIMTextureNode::clone() const
 }
 
 int UDIMTextureNode::Tile::get_encoding(NodeImageColorSpace color_space) {
-	if(!slot) {
+	if(slot == -1) {
 		return -1;
 	}
-	int srgb = (is_linear || color_space != NODE_COLOR_SPACE_COLOR)? 0: 1;
+	int srgb = (is_linear || COLORSPACE_IS_LINEAR(color_space))? 0: 1;
 	return (slot & ~(1 << 31)) | (srgb? (1 << 31) : 0);
 }
 
@@ -297,8 +300,8 @@ void UDIMTextureNode::compile(SVMCompiler& compiler)
 			                                     tile.is_linear,
 			                                     interpolation,
 			                                     extension,
-			                                     use_alpha);
-			tile.added = true;
+			                                     use_alpha,
+			                                     COLORSPACE_IS_GRAY(color_space));
 		}
 		max_row = max(max_row, tile.id / tiles_per_row);
 		max_col = max(max_col, tile.id % tiles_per_row);
@@ -342,14 +345,14 @@ void UDIMTextureNode::compile(OSLCompiler& compiler)
 	ImageDataType type;
 	bool is_linear;
 	bool builtin_free_cache;
-	type = image_manager->get_image_metadata(tiles[0].filename, NULL, is_linear, builtin_free_cache);
+	type = image_manager->get_image_metadata(tiles[0].filename, NULL, is_linear, COLORSPACE_IS_GRAY(color_space), builtin_free_cache);
 	bool is_float = (type == IMAGE_DATA_TYPE_FLOAT || type == IMAGE_DATA_TYPE_FLOAT4);
 
 	string file = tiles[0].filename;
 	string_replace(file, "1001", "<UDIM>");
 	compiler.parameter("filename", file.c_str());
 
-	if(is_linear || color_space != NODE_COLOR_SPACE_COLOR)
+	if(is_linear || COLORSPACE_IS_LINEAR(color_space))
 		compiler.parameter("color_space", "linear");
 	else
 		compiler.parameter("color_space", "sRGB");
@@ -374,6 +377,8 @@ NODE_DEFINE(ImageTextureNode)
 	static NodeEnum color_space_enum;
 	color_space_enum.insert("none", NODE_COLOR_SPACE_NONE);
 	color_space_enum.insert("color", NODE_COLOR_SPACE_COLOR);
+	color_space_enum.insert("gray", NODE_COLOR_SPACE_GRAY);
+	color_space_enum.insert("data", NODE_COLOR_SPACE_DATA);
 	SOCKET_ENUM(color_space, "Color Space", color_space_enum, NODE_COLOR_SPACE_COLOR);
 
 	SOCKET_BOOLEAN(use_alpha, "Use Alpha", true);
@@ -426,7 +431,8 @@ ImageTextureNode::~ImageTextureNode()
 		                            builtin_data,
 		                            interpolation,
 		                            extension,
-		                            use_alpha);
+		                            use_alpha,
+		                            COLORSPACE_IS_GRAY(color_space));
 	}
 }
 
@@ -476,12 +482,13 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 		                                is_linear,
 		                                interpolation,
 		                                extension,
-		                                use_alpha);
+		                                use_alpha,
+		                                COLORSPACE_IS_GRAY(color_space));
 		is_float = (int)is_float_bool;
 	}
 
 	if(slot != -1) {
-		int srgb = (is_linear || color_space != NODE_COLOR_SPACE_COLOR)? 0: 1;
+		int srgb = (is_linear || COLORSPACE_IS_LINEAR(color_space))? 0: 1;
 		int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
 
 		if(projection != NODE_IMAGE_PROJ_BOX) {
@@ -531,7 +538,7 @@ void ImageTextureNode::compile(OSLCompiler& compiler)
 		if(builtin_data == NULL) {
 			ImageDataType type;
 			bool builtin_free_cache;
-			type = image_manager->get_image_metadata(filename.string(), NULL, is_linear, builtin_free_cache);
+			type = image_manager->get_image_metadata(filename.string(), NULL, is_linear, COLORSPACE_IS_GRAY(color_space), builtin_free_cache);
 			if(type == IMAGE_DATA_TYPE_FLOAT || type == IMAGE_DATA_TYPE_FLOAT4)
 				is_float = 1;
 		}
@@ -545,7 +552,8 @@ void ImageTextureNode::compile(OSLCompiler& compiler)
 			                                is_linear,
 			                                interpolation,
 			                                extension,
-			                                use_alpha);
+			                                use_alpha,
+			                                COLORSPACE_IS_GRAY(color_space));
 			is_float = (int)is_float_bool;
 		}
 	}
@@ -562,7 +570,7 @@ void ImageTextureNode::compile(OSLCompiler& compiler)
 		 */
 		compiler.parameter("filename", string_printf("@%d", slot).c_str());
 	}
-	if(is_linear || color_space != NODE_COLOR_SPACE_COLOR)
+	if(is_linear || COLORSPACE_IS_LINEAR(color_space))
 		compiler.parameter("color_space", "linear");
 	else
 		compiler.parameter("color_space", "sRGB");
@@ -589,6 +597,8 @@ NODE_DEFINE(EnvironmentTextureNode)
 	static NodeEnum color_space_enum;
 	color_space_enum.insert("none", NODE_COLOR_SPACE_NONE);
 	color_space_enum.insert("color", NODE_COLOR_SPACE_COLOR);
+	color_space_enum.insert("gray", NODE_COLOR_SPACE_GRAY);
+	color_space_enum.insert("data", NODE_COLOR_SPACE_DATA);
 	SOCKET_ENUM(color_space, "Color Space", color_space_enum, NODE_COLOR_SPACE_COLOR);
 
 	SOCKET_BOOLEAN(use_alpha, "Use Alpha", true);
@@ -631,7 +641,8 @@ EnvironmentTextureNode::~EnvironmentTextureNode()
 		                            builtin_data,
 		                            interpolation,
 		                            EXTENSION_REPEAT,
-		                            use_alpha);
+		                            use_alpha,
+		                            COLORSPACE_IS_GRAY(color_space));
 	}
 }
 
@@ -679,12 +690,13 @@ void EnvironmentTextureNode::compile(SVMCompiler& compiler)
 		                                is_linear,
 		                                interpolation,
 		                                EXTENSION_REPEAT,
-		                                use_alpha);
+		                                use_alpha,
+		                                COLORSPACE_IS_GRAY(color_space));
 		is_float = (int)is_float_bool;
 	}
 
 	if(slot != -1) {
-		int srgb = (is_linear || color_space != NODE_COLOR_SPACE_COLOR)? 0: 1;
+		int srgb = (is_linear || COLORSPACE_IS_LINEAR(color_space))? 0: 1;
 		int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
 
 		compiler.add_node(NODE_TEX_ENVIRONMENT,
@@ -725,7 +737,7 @@ void EnvironmentTextureNode::compile(OSLCompiler& compiler)
 		if(builtin_data == NULL) {
 			ImageDataType type;
 			bool builtin_free_cache;
-			type = image_manager->get_image_metadata(filename.string(), NULL, is_linear, builtin_free_cache);
+			type = image_manager->get_image_metadata(filename.string(), NULL, is_linear, COLORSPACE_IS_GRAY(color_space), builtin_free_cache);
 			if(type == IMAGE_DATA_TYPE_FLOAT || type == IMAGE_DATA_TYPE_FLOAT4)
 				is_float = 1;
 		}
@@ -739,7 +751,8 @@ void EnvironmentTextureNode::compile(OSLCompiler& compiler)
 			                                is_linear,
 			                                interpolation,
 			                                EXTENSION_REPEAT,
-			                                use_alpha);
+			                                use_alpha,
+			                                COLORSPACE_IS_GRAY(color_space));
 			is_float = (int)is_float_bool;
 		}
 	}
@@ -751,7 +764,7 @@ void EnvironmentTextureNode::compile(OSLCompiler& compiler)
 		compiler.parameter("filename", string_printf("@%d", slot).c_str());
 	}
 	compiler.parameter(this, "projection");
-	if(is_linear || color_space != NODE_COLOR_SPACE_COLOR)
+	if(is_linear || COLORSPACE_IS_LINEAR(color_space))
 		compiler.parameter("color_space", "linear");
 	else
 		compiler.parameter("color_space", "sRGB");
@@ -1562,7 +1575,8 @@ PointDensityTextureNode::~PointDensityTextureNode()
 		                            builtin_data,
 		                            interpolation,
 		                            EXTENSION_CLIP,
-		                            true);
+		                            true,
+		                            false); //TODO(lukas): use true instead?
 	}
 }
 
@@ -1606,7 +1620,8 @@ void PointDensityTextureNode::compile(SVMCompiler& compiler)
 			                                is_float, is_linear,
 			                                interpolation,
 			                                EXTENSION_CLIP,
-			                                true);
+			                                true,
+			                                false); //TODO(lukas): use true instead?
 		}
 
 		if(slot != -1) {
@@ -1658,7 +1673,8 @@ void PointDensityTextureNode::compile(OSLCompiler& compiler)
 			                                is_float, is_linear,
 			                                interpolation,
 			                                EXTENSION_CLIP,
-			                                true);
+			                                true,
+			                                false); //TODO(lukas): use true instead?
 		}
 
 		if(slot != -1) {

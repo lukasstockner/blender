@@ -45,21 +45,25 @@ public:
 	              bool& is_linear,
 	              InterpolationType interpolation,
 	              ExtensionType extension,
-	              bool use_alpha);
+	              bool use_alpha,
+	              bool use_grayscale);
 	void remove_image(int flat_slot);
 	void remove_image(const string& filename,
 	                  void *builtin_data,
 	                  InterpolationType interpolation,
 	                  ExtensionType extension,
-	                  bool use_alpha);
+	                  bool use_alpha,
+	                  bool use_grayscale);
 	void tag_reload_image(const string& filename,
 	                      void *builtin_data,
 	                      InterpolationType interpolation,
 	                      ExtensionType extension,
-	                      bool use_alpha);
+	                      bool use_alpha,
+	                      bool use_grayscale);
 	ImageDataType get_image_metadata(const string& filename,
 	                                 void *builtin_data,
 	                                 bool& is_linear,
+	                                 bool is_grayscale,
 	                                 bool& builtin_free_cache);
 
 	void device_prepare_update(DeviceScene *dscene);
@@ -110,6 +114,7 @@ public:
 		bool builtin_free_cache;
 
 		bool use_alpha;
+		bool use_grayscale;
 		bool need_load;
 		bool animated;
 		float frame;

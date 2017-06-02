@@ -62,7 +62,8 @@ static int node_shader_gpu_tex_image(GPUMaterial *mat, bNode *node, bNodeExecDat
 
 	GPUNodeLink *norm;
 
-	int isdata = tex->color_space == SHD_COLORSPACE_NONE;
+	int isdata = (tex->color_space == SHD_COLORSPACE_NONE) ||
+	             (tex->color_space == SHD_COLORSPACE_DATA);
 	float blend = tex->projection_blend;
 
 	if (!ima)

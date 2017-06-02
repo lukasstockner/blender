@@ -3706,6 +3706,10 @@ static const EnumPropertyItem sh_tex_prop_color_space_items[] = {
 	{SHD_COLORSPACE_NONE, "NONE", 0, "Non-Color Data",
 	                      "Image contains non-color data, for example a displacement or normal map, "
 	                      "and will not be converted"},
+	{SHD_COLORSPACE_GRAY, "GRAY", 0, "Grayscale",
+	                      "Same as the Color option, but the image will be converted to grayscale for rendering"},
+	{SHD_COLORSPACE_DATA, "DATA", 0, "Grayscale Data",
+	                      "Same as the Non-Color Data option, but the image will be converted to grayscale for rendering"},
 	{0, NULL, 0, NULL, NULL}
 };
 
