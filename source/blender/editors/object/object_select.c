@@ -833,9 +833,10 @@ static int object_select_grouped_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	Object *ob;
 	const int type = RNA_enum_get(op->ptr, "type");
-	bool changed = false, extend;
+	bool changed = false, extend, with_children;
 
 	extend = RNA_boolean_get(op->ptr, "extend");
+	with_children = RNA_boolean_get(op->ptr, "with_children");
 
 	if (extend == 0) {
 		CTX_DATA_BEGIN (C, Base *, base, visible_bases)
@@ -900,6 +901,14 @@ static int object_select_grouped_exec(bContext *C, wmOperator *op)
 			break;
 	}
 
+	if (with_children) {
+		CTX_DATA_BEGIN (C, Object *, ob, selected_objects)
+		{
+			changed |= select_grouped_children(C, ob, true);
+		}
+		CTX_DATA_END;
+	}
+
 	if (changed) {
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 		return OPERATOR_FINISHED;
@@ -925,6 +934,7 @@ void OBJECT_OT_select_grouped(wmOperatorType *ot)
 	
 	/* properties */
 	RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend selection instead of deselecting everything first");
+	RNA_def_boolean(ot->srna, "with_children", false, "With Children", "Select the children of all selected objects as well");
 	ot->prop = RNA_def_enum(ot->srna, "type", prop_select_grouped_types, 0, "Type", "");
 }
 

@@ -138,6 +138,7 @@ NODE_DEFINE(Light)
 
 	SOCKET_INT(samples, "Samples", 1);
 	SOCKET_INT(max_bounces, "Max Bounces", 1024);
+	SOCKET_UINT(random_id, "Random ID", 0);
 
 	SOCKET_BOOLEAN(is_portal, "Is Portal", false);
 	SOCKET_BOOLEAN(is_enabled, "Is Enabled", true);
@@ -647,6 +648,7 @@ void LightManager::device_update_points(Device *device,
 		int shader_id = scene->shader_manager->get_shader_id(shader);
 		float samples = __int_as_float(light->samples);
 		float max_bounces = __int_as_float(light->max_bounces);
+		float random = (float)light->random_id * (1.0f/(float)0xFFFFFFFF);
 
 		if(!light->cast_shadow)
 			shader_id &= ~SHADER_CAST_SHADOW;
@@ -767,7 +769,7 @@ void LightManager::device_update_points(Device *device,
 			light_data[light_index*LIGHT_SIZE + 3] = make_float4(samples, 0.0f, 0.0f, 0.0f);
 		}
 
-		light_data[light_index*LIGHT_SIZE + 4] = make_float4(max_bounces, 0.0f, 0.0f, 0.0f);
+		light_data[light_index*LIGHT_SIZE + 4] = make_float4(max_bounces, random, 0.0f, 0.0f);
 
 		Transform tfm = light->tfm;
 		Transform itfm = transform_inverse(tfm);
