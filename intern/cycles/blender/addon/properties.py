@@ -671,6 +671,11 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
             min=0, max=1024,
             )
 
+        cls.missing_image_error = BoolProperty(
+            name="Missing Image Error",
+            default=True,
+            description="Stop the render and display an error message when an image can not be loaded",
+            )
         # Various fine-tuning debug flags
 
         def devices_update_callback(self, context):

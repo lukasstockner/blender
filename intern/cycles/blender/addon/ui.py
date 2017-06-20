@@ -453,6 +453,8 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
         row.active = not cscene.debug_use_spatial_splits
         row.prop(cscene, "debug_bvh_time_steps")
 
+        layout.prop(cscene, "missing_image_error")
+
 class CyclesRender_AOV_add(bpy.types.Operator):
     """Add an AOV pass"""
     bl_idname="scenerenderlayer.aov_add"

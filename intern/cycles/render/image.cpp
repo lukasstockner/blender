@@ -77,6 +77,8 @@ ImageManager::ImageManager(const DeviceInfo& info)
 	for(size_t type = 0; type < IMAGE_DATA_NUM_TYPES; type++) {
 		tex_num_images[type] = 0;
 	}
+
+	missing_image_error = true;
 }
 
 ImageManager::~ImageManager()
@@ -467,22 +469,30 @@ bool ImageManager::file_load_image_generic(Image *img,
                                            int &width,
                                            int &height,
                                            int &depth,
-                                           int &components)
+                                           int &components,
+                                           Progress *progress)
 {
 	if(img->filename == "")
 		return false;
 
+	string fileonly = path_filename(img->filename);
+
 	if(!img->builtin_data) {
 		/* NOTE: Error logging is done in meta data acquisition. */
 		if(!path_exists(img->filename) || path_is_directory(img->filename)) {
+			if(missing_image_error) {
+				progress->set_error(string_printf("Image %s not found.", fileonly.c_str()));
+			}
 			return false;
 		}
 
 		/* load image from file through OIIO */
 		*in = ImageInput::create(img->filename);
 
-		if(!*in)
+		if(!*in) {
+			progress->set_error(string_printf("Image %s couldn't be opened.", fileonly.c_str()));
 			return false;
+		}
 
 		ImageSpec spec = ImageSpec();
 		ImageSpec config = ImageSpec();
@@ -493,6 +503,7 @@ bool ImageManager::file_load_image_generic(Image *img,
 		if(!(*in)->open(img->filename, spec, config)) {
 			delete *in;
 			*in = NULL;
+			progress->set_error(string_printf("Image %s couldn't be opened.", fileonly.c_str()));
 			return false;
 		}
 
@@ -518,6 +529,7 @@ bool ImageManager::file_load_image_generic(Image *img,
 			*in = NULL;
 		}
 
+		progress->set_error(string_printf("Image %s has wrong number of channels.", fileonly.c_str()));
 		return false;
 	}
 
@@ -530,7 +542,8 @@ template<TypeDesc::BASETYPE FileFormat,
 bool ImageManager::file_load_image(Image *img,
                                    ImageDataType type,
                                    int texture_limit,
-                                   device_vector<DeviceType>& tex_img)
+                                   device_vector<DeviceType>& tex_img,
+                                   Progress *progress)
 {
 	bool is_rgba = (type == IMAGE_DATA_TYPE_FLOAT4 ||
 	                type == IMAGE_DATA_TYPE_HALF4 ||
@@ -539,7 +552,7 @@ bool ImageManager::file_load_image(Image *img,
 	const StorageType alpha_one = (FileFormat == TypeDesc::UINT8)? 255 : 1;
 	ImageInput *in = NULL;
 	int width, height, depth, components;
-	if(!file_load_image_generic(img, &in, width, height, depth, components)) {
+	if(!file_load_image_generic(img, &in, width, height, depth, components, progress)) {
 		return false;
 	}
 	/* Read RGBA pixels. */
@@ -770,7 +783,8 @@ void ImageManager::device_load_image(Device *device,
 		if(!file_load_image<TypeDesc::FLOAT, float>(img,
 		                                            type,
 		                                            texture_limit,
-		                                            tex_img))
+		                                            tex_img,
+		                                            progress))
 		{
 			/* on failure to load, we set a 1x1 pixels pink image */
 			float *pixels = (float*)tex_img.resize(1, 1);
@@ -802,7 +816,8 @@ void ImageManager::device_load_image(Device *device,
 		if(!file_load_image<TypeDesc::FLOAT, float>(img,
 		                                            type,
 		                                            texture_limit,
-		                                            tex_img))
+		                                            tex_img,
+		                                            progress))
 		{
 			/* on failure to load, we set a 1x1 pixels pink image */
 			float *pixels = (float*)tex_img.resize(1, 1);
@@ -831,7 +846,8 @@ void ImageManager::device_load_image(Device *device,
 		if(!file_load_image<TypeDesc::UINT8, uchar>(img,
 		                                            type,
 		                                            texture_limit,
-		                                            tex_img))
+		                                            tex_img,
+		                                            progress))
 		{
 			/* on failure to load, we set a 1x1 pixels pink image */
 			uchar *pixels = (uchar*)tex_img.resize(1, 1);
@@ -863,7 +879,8 @@ void ImageManager::device_load_image(Device *device,
 		if(!file_load_image<TypeDesc::UINT8, uchar>(img,
 		                                            type,
 		                                            texture_limit,
-		                                            tex_img)) {
+		                                            tex_img,
+		                                            progress)) {
 			/* on failure to load, we set a 1x1 pixels pink image */
 			uchar *pixels = (uchar*)tex_img.resize(1, 1);
 
@@ -891,7 +908,8 @@ void ImageManager::device_load_image(Device *device,
 		if(!file_load_image<TypeDesc::HALF, half>(img,
 		                                          type,
 		                                          texture_limit,
-		                                          tex_img)) {
+		                                          tex_img,
+		                                          progress)) {
 			/* on failure to load, we set a 1x1 pixels pink image */
 			half *pixels = (half*)tex_img.resize(1, 1);
 
@@ -922,7 +940,8 @@ void ImageManager::device_load_image(Device *device,
 		if(!file_load_image<TypeDesc::HALF, half>(img,
 		                                          type,
 		                                          texture_limit,
-		                                          tex_img)) {
+		                                          tex_img,
+		                                          progress)) {
 			/* on failure to load, we set a 1x1 pixels pink image */
 			half *pixels = (half*)tex_img.resize(1, 1);
 

@@ -64,6 +64,8 @@ Scene::Scene(const SceneParams& params_, const DeviceInfo& device_info_)
 	default_background = NULL;
 	default_empty = NULL;
 
+	image_manager->missing_image_error = params.missing_image_error;
+
 	/* OSL only works on the CPU */
 	if(device_info_.type == DEVICE_CPU)
 		shader_manager = ShaderManager::create(this, params.shadingsystem);

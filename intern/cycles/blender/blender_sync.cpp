@@ -699,6 +699,8 @@ SceneParams BlenderSync::get_scene_params(BL::Scene& b_scene,
 		params.use_qbvh = false;
 	}
 
+	params.missing_image_error = RNA_boolean_get(&cscene, "missing_image_error");
+
 	return params;
 }
 

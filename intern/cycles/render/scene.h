@@ -149,6 +149,7 @@ public:
 	bool use_qbvh;
 	bool persistent_data;
 	int texture_limit;
+	bool missing_image_error;
 
 	SceneParams()
 	{
@@ -160,6 +161,7 @@ public:
 		use_qbvh = false;
 		persistent_data = false;
 		texture_limit = 0;
+		missing_image_error = true;
 	}
 
 	bool modified(const SceneParams& params)
@@ -170,7 +172,8 @@ public:
 		&& num_bvh_time_steps == params.num_bvh_time_steps
 		&& use_qbvh == params.use_qbvh
 		&& persistent_data == params.persistent_data
-		&& texture_limit == params.texture_limit); }
+		&& texture_limit == params.texture_limit
+		&& missing_image_error == params.missing_image_error); }
 };
 
 /* Scene */

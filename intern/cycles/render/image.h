@@ -124,6 +124,8 @@ public:
 		int users;
 	};
 
+	bool missing_image_error;
+
 private:
 	int tex_num_images[IMAGE_DATA_NUM_TYPES];
 	int max_num_images;
@@ -142,7 +144,8 @@ private:
 	                             int &width,
 	                             int &height,
 	                             int &depth,
-	                             int &components);
+	                             int &components,
+	                             Progress *progress);
 
 	template<TypeDesc::BASETYPE FileFormat,
 	         typename StorageType,
@@ -150,7 +153,8 @@ private:
 	bool file_load_image(Image *img,
 	                     ImageDataType type,
 	                     int texture_limit,
-	                     device_vector<DeviceType>& tex_img);
+	                     device_vector<DeviceType>& tex_img,
+	                     Progress *progress);
 
 	int max_flattened_slot(ImageDataType type);
 	int type_index_to_flattened_slot(int slot, ImageDataType type);
