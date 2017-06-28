@@ -27,7 +27,7 @@ ccl_device_noinline float brick_noise(int n) /* fast integer noise */
 	return 0.5f * ((float)nn / 1073741824.0f);
 }
 
-ccl_device_noinline float2 svm_brick(float3 p, float mortar_size, float mortar_smooth, float bias,
+ccl_device_noinline float3 svm_brick(float3 p, float mortar_size, float mortar_smooth, float bias,
 	float brick_width, float row_height, float offset_amount, int offset_frequency,
 	float squash_amount, int squash_frequency)
 {
@@ -48,6 +48,7 @@ ccl_device_noinline float2 svm_brick(float3 p, float mortar_size, float mortar_s
 	y = p.y - row_height*rownum;
 
 	float tint = saturate((brick_noise((rownum << 16) + (bricknum & 0xFFFF)) + bias));
+	float random = brick_noise((~rownum << 16) | (~bricknum & 0xFFFF));
 	float min_dist = min(min(x, y), min(brick_width - x, row_height - y));
 
 	float mortar;
@@ -62,7 +63,7 @@ ccl_device_noinline float2 svm_brick(float3 p, float mortar_size, float mortar_s
 		mortar = (min_dist < mortar_smooth)? smoothstepf(min_dist / mortar_smooth) : 1.0f;
 	}
 
-	return make_float2(tint, mortar);
+	return make_float3(tint, mortar, random);
 }
 
 ccl_device void svm_node_tex_brick(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
@@ -74,7 +75,7 @@ ccl_device void svm_node_tex_brick(KernelGlobals *kg, ShaderData *sd, float *sta
 	/* Input and Output Sockets */
 	uint co_offset, color1_offset, color2_offset, mortar_offset, scale_offset;
 	uint mortar_size_offset, bias_offset, brick_width_offset, row_height_offset;
-	uint color_offset, fac_offset, mortar_smooth_offset;
+	uint color_offset, fac_offset, random_offset, mortar_smooth_offset;
 	
 	/* RNA properties */
 	uint offset_frequency, squash_frequency;
@@ -83,7 +84,7 @@ ccl_device void svm_node_tex_brick(KernelGlobals *kg, ShaderData *sd, float *sta
 	decode_node_uchar4(node.z, &scale_offset, &mortar_size_offset, &bias_offset, &brick_width_offset);
 	decode_node_uchar4(node.w, &row_height_offset, &color_offset, &fac_offset, &mortar_smooth_offset);
 	
-	decode_node_uchar4(node2.x, &offset_frequency, &squash_frequency, NULL, NULL);
+	decode_node_uchar4(node2.x, &offset_frequency, &squash_frequency, &random_offset, NULL);
 
 	float3 co = stack_load_float3(stack, co_offset);
 	
@@ -100,11 +101,12 @@ ccl_device void svm_node_tex_brick(KernelGlobals *kg, ShaderData *sd, float *sta
 	float offset_amount = __int_as_float(node3.z);
 	float squash_amount = __int_as_float(node3.w);
 	
-	float2 f2 = svm_brick(co*scale, mortar_size, mortar_smooth, bias, brick_width, row_height,
+	float3 f3 = svm_brick(co*scale, mortar_size, mortar_smooth, bias, brick_width, row_height,
 		offset_amount, offset_frequency, squash_amount, squash_frequency);
 
-	float tint = f2.x;
-	float f = f2.y;
+	float tint = f3.x;
+	float f = f3.y;
+	float random = f3.z;
 	
 	if(f != 1.0f) {
 		float facm = 1.0f - tint;
@@ -115,6 +117,8 @@ ccl_device void svm_node_tex_brick(KernelGlobals *kg, ShaderData *sd, float *sta
 		stack_store_float3(stack, color_offset, color1*(1.0f-f) + mortar*f);
 	if(stack_valid(fac_offset))
 		stack_store_float(stack, fac_offset, f);
+	if(stack_valid(random_offset))
+		stack_store_float(stack, random_offset, random);
 }
 
 CCL_NAMESPACE_END

@@ -1280,6 +1280,7 @@ NODE_DEFINE(BrickTextureNode)
 
 	SOCKET_OUT_COLOR(color, "Color");
 	SOCKET_OUT_FLOAT(fac, "Fac");
+	SOCKET_OUT_FLOAT(random, "Random");
 
 	return type;
 }
@@ -1304,6 +1305,7 @@ void BrickTextureNode::compile(SVMCompiler& compiler)
 	
 	ShaderOutput *color_out = output("Color");
 	ShaderOutput *fac_out = output("Fac");
+	ShaderOutput *random_out = output("Random");
 
 	int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
 
@@ -1324,7 +1326,11 @@ void BrickTextureNode::compile(SVMCompiler& compiler)
 			compiler.stack_assign_if_linked(fac_out),
 			compiler.stack_assign_if_linked(mortar_smooth_in)));
 			
-	compiler.add_node(compiler.encode_uchar4(offset_frequency, squash_frequency),
+	compiler.add_node(
+		compiler.encode_uchar4(
+			offset_frequency,
+			squash_frequency,
+			compiler.stack_assign_if_linked(random_out)),
 		__float_as_int(scale),
 		__float_as_int(mortar_size),
 		__float_as_int(bias));
