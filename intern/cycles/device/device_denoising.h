@@ -59,7 +59,8 @@ public:
 		              )> non_local_means;
 		function<bool(device_ptr color_ptr,
 		              device_ptr color_variance_ptr,
-		              device_ptr output_ptr
+		              device_ptr output_ptr,
+		              int shadow_offset
 		              )> reconstruct;
 		function<bool()> construct_transform;
 

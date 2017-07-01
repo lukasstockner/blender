@@ -1050,6 +1050,7 @@ public:
 	bool denoising_reconstruct(device_ptr color_ptr,
 	                           device_ptr color_variance_ptr,
 	                           device_ptr output_ptr,
+	                           int shadow_offset,
 	                           DenoisingTask *task)
 	{
 		if(have_error())
@@ -1138,12 +1139,13 @@ public:
 		void *finalize_args[] = {&task->buffer.w,
 		                         &task->buffer.h,
 		                         &output_ptr,
-				                 &task->storage.rank.device_pointer,
-				                 &task->storage.XtWX.device_pointer,
-				                 &task->storage.XtWY.device_pointer,
-				                 &task->filter_area,
-				                 &task->reconstruction_state.buffer_params.x,
-				                 &task->render_buffer.samples};
+		                         &task->storage.rank.device_pointer,
+		                         &task->storage.XtWX.device_pointer,
+		                         &task->storage.XtWY.device_pointer,
+		                         &task->filter_area,
+		                         &task->reconstruction_state.buffer_params.x,
+		                         &task->render_buffer.samples,
+		                         &shadow_offset};
 		CUDA_LAUNCH_KERNEL(cuFinalize, finalize_args);
 		cuda_assert(cuCtxSynchronize());
 
@@ -1319,7 +1321,7 @@ public:
 		DenoisingTask denoising(this);
 
 		denoising.functions.construct_transform = function_bind(&CUDADevice::denoising_construct_transform, this, &denoising);
-		denoising.functions.reconstruct = function_bind(&CUDADevice::denoising_reconstruct, this, _1, _2, _3, &denoising);
+		denoising.functions.reconstruct = function_bind(&CUDADevice::denoising_reconstruct, this, _1, _2, _3, _4, &denoising);
 		denoising.functions.divide_shadow = function_bind(&CUDADevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
 		denoising.functions.non_local_means = function_bind(&CUDADevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
 		denoising.functions.combine_halves = function_bind(&CUDADevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);

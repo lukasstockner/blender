@@ -264,7 +264,7 @@ kernel_cuda_filter_finalize(int w, int h,
                             float *buffer, int *rank,
                             float *XtWX, float4 *XtWY,
                             int4 filter_area, int4 buffer_params,
-                            int sample)
+                            int sample, int shadow_offset)
 {
 	int x = blockDim.x*blockIdx.x + threadIdx.x;
 	int y = blockDim.y*blockIdx.y + threadIdx.y;
@@ -273,7 +273,7 @@ kernel_cuda_filter_finalize(int w, int h,
 		rank += storage_ofs;
 		XtWX += storage_ofs;
 		XtWY += storage_ofs;
-		kernel_filter_finalize(x, y, w, h, buffer, rank, filter_area.z*filter_area.w, XtWX, XtWY, buffer_params, sample);
+		kernel_filter_finalize(x, y, w, h, buffer, rank, filter_area.z*filter_area.w, XtWX, XtWY, buffer_params, sample, shadow_offset);
 	}
 }
 

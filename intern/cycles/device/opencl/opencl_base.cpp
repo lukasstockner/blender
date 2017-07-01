@@ -715,6 +715,7 @@ bool OpenCLDeviceBase::denoising_construct_transform(DenoisingTask *task)
 bool OpenCLDeviceBase::denoising_reconstruct(device_ptr color_ptr,
                                              device_ptr color_variance_ptr,
                                              device_ptr output_ptr,
+                                             int shadow_offset,
                                              DenoisingTask *task)
 {
 	mem_zero(task->storage.XtWX);
@@ -817,7 +818,8 @@ bool OpenCLDeviceBase::denoising_reconstruct(device_ptr color_ptr,
 	                XtWY_mem,
 	                task->filter_area,
 	                task->reconstruction_state.buffer_params,
-	                task->render_buffer.samples);
+	                task->render_buffer.samples,
+	                shadow_offset);
 	enqueue_kernel(ckFinalize,
 	               task->reconstruction_state.source_w,
 	               task->reconstruction_state.source_h);
@@ -1002,7 +1004,7 @@ void OpenCLDeviceBase::denoise(RenderTile &rtile, const DeviceTask &task)
 
 	denoising.functions.set_tiles = function_bind(&OpenCLDeviceBase::denoising_set_tiles, this, _1, &denoising);
 	denoising.functions.construct_transform = function_bind(&OpenCLDeviceBase::denoising_construct_transform, this, &denoising);
-	denoising.functions.reconstruct = function_bind(&OpenCLDeviceBase::denoising_reconstruct, this, _1, _2, _3, &denoising);
+	denoising.functions.reconstruct = function_bind(&OpenCLDeviceBase::denoising_reconstruct, this, _1, _2, _3, _4, &denoising);
 	denoising.functions.divide_shadow = function_bind(&OpenCLDeviceBase::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
 	denoising.functions.non_local_means = function_bind(&OpenCLDeviceBase::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
 	denoising.functions.combine_halves = function_bind(&OpenCLDeviceBase::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);

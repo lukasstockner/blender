@@ -219,7 +219,7 @@ bool DenoisingTask::run_denoising()
 	{
 		device_sub_ptr color_ptr    (device, buffer.mem,  8*buffer.pass_stride, 4*buffer.pass_stride, MEM_READ_WRITE);
 		device_sub_ptr color_var_ptr(device, buffer.mem, 12*buffer.pass_stride, 4*buffer.pass_stride, MEM_READ_WRITE);
-		functions.reconstruct(*color_ptr, *color_var_ptr, render_buffer.ptr);
+		functions.reconstruct(*color_ptr, *color_var_ptr, render_buffer.ptr, render_buffer.shadow_offset);
 	}
 
 	device->mem_free(storage.XtWX);

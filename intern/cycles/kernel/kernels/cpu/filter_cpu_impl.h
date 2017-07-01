@@ -278,7 +278,8 @@ void KERNEL_FUNCTION_FULL_NAME(filter_finalize)(int x,
                                                 float *XtWX,
                                                 float4 *XtWY,
                                                 int *buffer_params,
-                                                int sample)
+                                                int sample,
+                                                int shadow_offset)
 {
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_finalize);
@@ -286,7 +287,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_finalize)(int x,
 	XtWX += storage_ofs*XTWX_SIZE;
 	XtWY += storage_ofs*XTWY_SIZE;
 	rank += storage_ofs;
-	kernel_filter_finalize(x, y, w, h, buffer, rank, 1, XtWX, XtWY, load_int4(buffer_params), sample);
+	kernel_filter_finalize(x, y, w, h, buffer, rank, 1, XtWX, XtWY, load_int4(buffer_params), sample, shadow_offset);
 #endif
 }
 

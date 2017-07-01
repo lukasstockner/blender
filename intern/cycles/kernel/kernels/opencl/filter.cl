@@ -259,14 +259,15 @@ __kernel void kernel_ocl_filter_nlm_construct_gramian(int dx,
 }
 
 __kernel void kernel_ocl_filter_finalize(int w,
-	                                     int h,
+                                         int h,
                                          ccl_global float *buffer,
                                          ccl_global int *rank,
                                          ccl_global float *XtWX,
                                          ccl_global float4 *XtWY,
                                          int4 filter_area,
                                          int4 buffer_params,
-                                         int sample)
+                                         int sample,
+                                         int shadow_offset)
 {
 	int x = get_global_id(0);
 	int y = get_global_id(1);
@@ -275,7 +276,7 @@ __kernel void kernel_ocl_filter_finalize(int w,
 		rank += storage_ofs;
 		XtWX += storage_ofs;
 		XtWY += storage_ofs;
-		kernel_filter_finalize(x, y, w, h, buffer, rank, filter_area.z*filter_area.w, XtWX, XtWY, buffer_params, sample);
+		kernel_filter_finalize(x, y, w, h, buffer, rank, filter_area.z*filter_area.w, XtWX, XtWY, buffer_params, sample, shadow_offset);
 	}
 }
 

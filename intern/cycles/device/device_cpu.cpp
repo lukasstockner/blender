@@ -189,7 +189,7 @@ public:
 
 	KernelFunctions<void(*)(float*, int, int, int, float*, int*, int*, int, int, float)>                              filter_construct_transform_kernel;
 	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, float*, float4*, int*, int*, int, int, int, int)> filter_nlm_construct_gramian_kernel;
-	KernelFunctions<void(*)(int, int, int, int, int, float*, int*, float*, float4*, int*, int)>                        filter_finalize_kernel;
+	KernelFunctions<void(*)(int, int, int, int, int, float*, int*, float*, float4*, int*, int, int)>                  filter_finalize_kernel;
 
 	KernelFunctions<void(*)(KernelGlobals *, ccl_constant KernelData*, ccl_global void*, int, ccl_global char*,
 	                       ccl_global uint*, int, int, int, int, int, int, int, int, ccl_global int*, int,
@@ -470,6 +470,7 @@ public:
 	bool denoising_reconstruct(device_ptr color_ptr,
 	                           device_ptr color_variance_ptr,
 	                           device_ptr output_ptr,
+	                           int shadow_offset,
 	                           DenoisingTask *task)
 	{
 		mem_zero(task->storage.XtWX);
@@ -524,7 +525,8 @@ public:
 				                         (float*)  task->storage.XtWX.device_pointer,
 				                         (float4*) task->storage.XtWY.device_pointer,
 				                         &task->reconstruction_state.buffer_params.x,
-				                         task->render_buffer.samples);
+				                         task->render_buffer.samples,
+				                         shadow_offset);
 			}
 		}
 		return true;
@@ -668,7 +670,7 @@ public:
 		DenoisingTask denoising(this);
 
 		denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
-		denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, &denoising);
+		denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, _4, &denoising);
 		denoising.functions.divide_shadow = function_bind(&CPUDevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
 		denoising.functions.non_local_means = function_bind(&CPUDevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
 		denoising.functions.combine_halves = function_bind(&CPUDevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);

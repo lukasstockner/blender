@@ -72,7 +72,8 @@ ccl_device_inline void kernel_filter_finalize(int x, int y, int w, int h,
                                               ccl_global float *XtWX,
                                               ccl_global float4 *XtWY,
                                               int4 buffer_params,
-                                              int sample)
+                                              int sample,
+                                              int shadow_offset)
 {
 #ifdef __KERNEL_GPU__
 	const int stride = storage_stride;
@@ -109,6 +110,11 @@ ccl_device_inline void kernel_filter_finalize(int x, int y, int w, int h,
 		final_color.x += combined_buffer[buffer_params.w+0];
 		final_color.y += combined_buffer[buffer_params.w+1];
 		final_color.z += combined_buffer[buffer_params.w+2];
+	}
+
+	if(combined_buffer[shadow_offset + 2] < 1e-4f) {
+		/* Don't denoise alpha in regions that had no shadowcatcher in them. */
+		final_color.w = combined_buffer[3];
 	}
 
 	/* Avoid color bleeding into transparent areas. */

@@ -144,6 +144,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_finalize)(int x,
                                                 float *XtWX,
                                                 float4 *XtWY,
                                                 int *buffer_params,
-                                                int sample);
+                                                int sample,
+                                                int shadow_offset);
 
 #undef KERNEL_ARCH
