@@ -455,6 +455,9 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
 
         layout.prop(cscene, "missing_image_error")
 
+        if use_cuda(context):
+            layout.prop(cscene, "cuda_max_host_memory")
+
 class CyclesRender_AOV_add(bpy.types.Operator):
     """Add an AOV pass"""
     bl_idname="scenerenderlayer.aov_add"

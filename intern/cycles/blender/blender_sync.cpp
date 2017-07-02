@@ -894,6 +894,8 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 		params.progressive_update_timeout = 0.1;
 	}
 
+	params.max_pinned_fraction = get_float(cscene, "cuda_max_host_memory") / 100.0f;
+
 	return params;
 }
 

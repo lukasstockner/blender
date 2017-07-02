@@ -98,7 +98,14 @@ typedef struct KernelGlobals {
 #  ifdef __KERNEL_CUDA_TEX_STORAGE__
 #    define KERNEL_TEX(type, ttype, name) ttype name;
 #  else
-#    define KERNEL_TEX(type, ttype, name) const __constant__ __device__ type *name;
+	template <class T> class CudaTextureObject
+	{
+	public:
+		cudaTextureObject_t tex;
+		__device__ T texfetch(int index) { return tex1Dfetch<T>(tex, index); }
+		
+	};
+#    define KERNEL_TEX(type, ttype, name) __device__ CudaTextureObject<type> name;
 #  endif
 #  define KERNEL_IMAGE_TEX(type, ttype, name) ttype name;
 #  include "kernel/kernel_textures.h"

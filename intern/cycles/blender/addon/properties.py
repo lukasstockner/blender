@@ -676,6 +676,16 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
             default=True,
             description="Stop the render and display an error message when an image can not be loaded",
             )
+			
+        cls.cuda_max_host_memory = FloatProperty(
+            name="Pinned Memory",
+            default=0,
+            description="Fraction of system memory that may be pinned by CUDA to extend the GPU memory"
+                        "(Note that setting this too high may freeze the entire system)",
+            min=0.0, max = 100.0,
+            subtype='PERCENTAGE',
+            )
+
         # Various fine-tuning debug flags
 
         def devices_update_callback(self, context):

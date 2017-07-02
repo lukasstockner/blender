@@ -130,6 +130,8 @@ public:
 	/* Denoising features. */
 	bool use_denoising;
 
+	float max_pinned_fraction;
+
 	DeviceRequestedFeatures()
 	{
 		/* TODO(sergey): Find more meaningful defaults. */
@@ -149,6 +151,7 @@ public:
 		use_shadow_tricks = false;
 		use_principled = false;
 		use_denoising = false;
+		max_pinned_fraction = 0.5f;
 	}
 
 	bool modified(const DeviceRequestedFeatures& requested_features)
@@ -168,7 +171,8 @@ public:
 		         use_transparent == requested_features.use_transparent &&
 		         use_shadow_tricks == requested_features.use_shadow_tricks &&
 		         use_principled == requested_features.use_principled &&
-		         use_denoising == requested_features.use_denoising);
+		         use_denoising == requested_features.use_denoising &&
+		         max_pinned_fraction == requested_features.max_pinned_fraction);
 	}
 
 	/* Convert the requested features structure to a build options,

@@ -726,6 +726,8 @@ DeviceRequestedFeatures Session::get_requested_device_features()
 	requested_features.use_transparent &= scene->integrator->transparent_shadows;
 	requested_features.use_denoising = params.use_denoising;
 
+	requested_features.max_pinned_fraction = params.max_pinned_fraction;
+
 	return requested_features;
 }
 

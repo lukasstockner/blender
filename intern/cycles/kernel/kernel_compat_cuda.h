@@ -132,10 +132,7 @@ typedef texture<uchar4, 2, cudaReadModeNormalizedFloat> texture_image_uchar4;
 /* Macros to handle different memory storage on different devices */
 
 /* On Fermi cards (4xx and 5xx), we use regular textures for both data and images.
- * On Kepler (6xx) and above, we use Bindless Textures for images and arrays for data.
- *
- * Arrays are necessary in order to use the full VRAM on newer cards, and it's slightly faster.
- * Using Arrays on Fermi turned out to be slower.*/
+ * On Kepler (6xx) and above, we use Bindless Textures for images and data. */
 
 /* Fermi */
 #if __CUDA_ARCH__ < 300
@@ -147,7 +144,7 @@ typedef texture<uchar4, 2, cudaReadModeNormalizedFloat> texture_image_uchar4;
 
 /* Kepler */
 #else
-#  define kernel_tex_fetch(t, index) t[(index)]
+#  define kernel_tex_fetch(t, index) t.texfetch(index)
 
 #  define kernel_tex_image_interp_float4(t, x, y) tex2D<float4>(t, x, y)
 #  define kernel_tex_image_interp_float(t, x, y) tex2D<float>(t, x, y)

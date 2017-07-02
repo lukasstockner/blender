@@ -58,6 +58,8 @@ public:
 
 	bool display_buffer_linear;
 
+	float max_pinned_fraction;
+
 	bool use_denoising;
 	int denoising_radius;
 	float denoising_strength;
@@ -93,6 +95,8 @@ public:
 
 		display_buffer_linear = false;
 
+		max_pinned_fraction = 0.5f;
+
 		cancel_timeout = 0.1;
 		reset_timeout = 0.1;
 		text_timeout = 1.0;
@@ -120,7 +124,8 @@ public:
 		&& text_timeout == params.text_timeout
 		&& progressive_update_timeout == params.progressive_update_timeout
 		&& tile_order == params.tile_order
-		&& shadingsystem == params.shadingsystem); }
+		&& shadingsystem == params.shadingsystem
+		&& max_pinned_fraction == params.max_pinned_fraction); }
 
 };
 

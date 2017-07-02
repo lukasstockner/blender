@@ -120,6 +120,11 @@ public:
 	CUmodule cuModule, cuFilterModule;
 	map<device_ptr, bool> tex_interp_map;
 	map<device_ptr, uint> tex_bindless_map;
+	map<device_ptr, void*> tex_pinned_map;
+	size_t device_memory_headroom;
+	size_t mapped_texture_used;
+	size_t mapped_texture_limit;
+	int can_map_host;
 	int cuDevId;
 	int cuDevArchitecture;
 	bool first_error;
@@ -244,13 +249,13 @@ public:
 		CUresult result;
 
 		if(background) {
-			result = cuCtxCreate(&cuContext, 0, cuDevice);
+			result = cuCtxCreate(&cuContext, CU_CTX_MAP_HOST|CU_CTX_LMEM_RESIZE_TO_MAX, cuDevice);
 		}
 		else {
-			result = cuGLCtxCreate(&cuContext, 0, cuDevice);
+			result = cuGLCtxCreate(&cuContext, CU_CTX_MAP_HOST|CU_CTX_LMEM_RESIZE_TO_MAX, cuDevice);
 
 			if(result != CUDA_SUCCESS) {
-				result = cuCtxCreate(&cuContext, 0, cuDevice);
+				result = cuCtxCreate(&cuContext, CU_CTX_MAP_HOST|CU_CTX_LMEM_RESIZE_TO_MAX, cuDevice);
 				background = true;
 			}
 		}
@@ -263,6 +268,11 @@ public:
 		cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, cuDevId);
 		cuDevArchitecture = major*100 + minor*10;
 
+		device_memory_headroom = 0;
+		can_map_host = 0;
+		mapped_texture_limit = 0;
+		mapped_texture_used = 0;
+		
 		cuda_pop_context();
 	}
 
@@ -293,7 +303,36 @@ public:
 
 		return true;
 	}
-
+	
+	device_ptr mem_alloc_internal(size_t size)
+	{
+		CUdeviceptr device_pointer = 0;
+		size_t total = 0, free = 0;
+		cuMemGetInfo(&free, &total);
+		
+		if ((size + device_memory_headroom) < free) {
+			cuda_assert(cuMemAlloc(&device_pointer, size));
+		}
+		else if (can_map_host && mapped_texture_used + size < mapped_texture_limit) {
+			void *host_pointer = 0;
+			cuda_assert(cuMemHostAlloc(&host_pointer, size, CU_MEMHOSTALLOC_DEVICEMAP | CU_MEMHOSTALLOC_WRITECOMBINED));
+			cuda_assert(cuMemHostGetDevicePointer_v2(&device_pointer, host_pointer, 0));
+			tex_pinned_map[device_pointer] = host_pointer;
+			mapped_texture_used += size;
+		}
+		return device_pointer;
+	}
+	
+	void mem_free_internal(const device_memory& mem)
+	{
+		if (tex_pinned_map.find(mem.device_pointer) != tex_pinned_map.end()) {
+			cuMemFreeHost(tex_pinned_map[mem.device_pointer]);
+			tex_pinned_map.erase(mem.device_pointer);
+			mapped_texture_used -= mem.device_size;
+		} else
+			cuMemFree(mem.device_pointer);
+	}
+	
 	bool use_adaptive_compilation()
 	{
 		return DebugFlags().cuda.adaptive_compile;
@@ -537,6 +576,52 @@ public:
 		if(cuda_error_(result, "cuModuleLoad"))
 			cuda_error_message(string_printf("Failed loading CUDA kernel %s.", filter_cubin.c_str()));
 
+		if (result == CUDA_SUCCESS) {
+			cuda_assert(cuDeviceGetAttribute(&can_map_host, CU_DEVICE_ATTRIBUTE_CAN_MAP_HOST_MEMORY, cuDevice));
+			can_map_host = can_map_host && (requested_features.max_pinned_fraction > 0);
+
+			if (can_map_host) {
+				mapped_texture_limit = 4 * 1024 * 1024 * 1024LL; // 4GB default
+				if (system_physical_ram() > 0)
+					mapped_texture_limit = (size_t) (system_physical_ram() * requested_features.max_pinned_fraction);
+				mapped_texture_used = 0;
+				
+				/* calculate the run time memory requirements of the kernel
+				 that tells us the VRAM we need to keep free
+				 Look at the branched PT kernel, since that one's larger
+				 Currently, the number of threads per SM is limited by the register count,
+				 so estimate the number of threads in flight based on register usage. */
+				
+				int num_registers = 63;
+				int local_size = 34600;
+				if (!use_split_kernel()) {
+					CUfunction cuPathTrace;
+					cuda_assert(cuModuleGetFunction(&cuPathTrace, cuModule, "kernel_cuda_branched_path_trace"));
+					cuda_assert(cuFuncGetAttribute(&num_registers, CU_FUNC_ATTRIBUTE_NUM_REGS, cuPathTrace));
+					cuda_assert(cuFuncGetAttribute(&local_size, CU_FUNC_ATTRIBUTE_LOCAL_SIZE_BYTES, cuPathTrace));
+				}
+				int register_limit = 0;
+				cuda_assert(cuDeviceGetAttribute(&register_limit, CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_MULTIPROCESSOR, cuDevice));
+				
+				int thread_limit = 0;
+				cuda_assert(cuDeviceGetAttribute(&thread_limit, CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_MULTIPROCESSOR, cuDevice));
+				
+				int max_threads = register_limit / num_registers;
+				if (thread_limit < max_threads)
+					max_threads = thread_limit;
+				
+				int multiprocessor_count = 0;
+				cuda_assert(cuDeviceGetAttribute(&multiprocessor_count, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, cuDevice));
+				/* this is the magic multiplier for extra space */
+				const int magic_number = 3;
+				
+				device_memory_headroom = multiprocessor_count * max_threads * local_size * magic_number;
+			}
+			else {
+				device_memory_headroom = 0;
+			}
+		}
+		
 		cuda_pop_context();
 
 		return (result == CUDA_SUCCESS);
@@ -562,7 +647,7 @@ public:
 		cuda_push_context();
 		CUdeviceptr device_pointer;
 		size_t size = mem.memory_size();
-		cuda_assert(cuMemAlloc(&device_pointer, size));
+		device_pointer = mem_alloc_internal(size);
 		mem.device_pointer = (device_ptr)device_pointer;
 		mem.device_size = size;
 		stats.mem_alloc(size);
@@ -572,8 +657,9 @@ public:
 	void mem_copy_to(device_memory& mem)
 	{
 		cuda_push_context();
-		if(mem.device_pointer)
+		if(mem.device_pointer) {
 			cuda_assert(cuMemcpyHtoD(cuda_device_ptr(mem.device_pointer), (void*)mem.data_pointer, mem.memory_size()));
+		}
 		cuda_pop_context();
 	}
 
@@ -600,8 +686,9 @@ public:
 		}
 
 		cuda_push_context();
-		if(mem.device_pointer)
+		if(mem.device_pointer) {
 			cuda_assert(cuMemsetD8(cuda_device_ptr(mem.device_pointer), 0, mem.memory_size()));
+		}
 		cuda_pop_context();
 	}
 
@@ -609,7 +696,7 @@ public:
 	{
 		if(mem.device_pointer) {
 			cuda_push_context();
-			cuda_assert(cuMemFree(cuda_device_ptr(mem.device_pointer)));
+			mem_free_internal(mem);
 			cuda_pop_context();
 
 			mem.device_pointer = 0;
@@ -646,8 +733,11 @@ public:
 		        << string_human_readable_size(mem.memory_size()) << ")";
 
 		/* Check if we are on sm_30 or above.
-		 * We use arrays and bindles textures for storage there */
+		 * We use bindless textures for storage there */
 		bool has_bindless_textures = info.has_bindless_textures;
+		
+		bool interpolation_none = interpolation == INTERPOLATION_NONE;
+		int flags = interpolation_none ? CU_TRSF_READ_AS_INTEGER : CU_TRSF_NORMALIZED_COORDINATES;
 
 		/* General variables for both architectures */
 		string bind_name = name;
@@ -671,7 +761,7 @@ public:
 		}
 
 		CUfilter_mode filter_mode;
-		if(interpolation == INTERPOLATION_CLOSEST) {
+		if(interpolation == INTERPOLATION_CLOSEST || interpolation_none) {
 			filter_mode = CU_TR_FILTER_MODE_POINT;
 		}
 		else {
@@ -711,150 +801,148 @@ public:
 				return;
 			}
 		}
-
-		/* Data Storage */
-		if(interpolation == INTERPOLATION_NONE) {
-			if(has_bindless_textures) {
-				mem_alloc(NULL, mem, MEM_READ_ONLY);
-				mem_copy_to(mem);
-
-				cuda_push_context();
-
-				CUdeviceptr cumem;
-				size_t cubytes;
-
-				cuda_assert(cuModuleGetGlobal(&cumem, &cubytes, cuModule, bind_name.c_str()));
-
-				if(cubytes == 8) {
-					/* 64 bit device pointer */
-					uint64_t ptr = mem.device_pointer;
-					cuda_assert(cuMemcpyHtoD(cumem, (void*)&ptr, cubytes));
-				}
-				else {
-					/* 32 bit device pointer */
-					uint32_t ptr = (uint32_t)mem.device_pointer;
-					cuda_assert(cuMemcpyHtoD(cumem, (void*)&ptr, cubytes));
-				}
-
-				cuda_pop_context();
-			}
-			else {
-				mem_alloc(NULL, mem, MEM_READ_ONLY);
-				mem_copy_to(mem);
-
-				cuda_push_context();
-
-				cuda_assert(cuTexRefSetAddress(NULL, texref, cuda_device_ptr(mem.device_pointer), size));
-				cuda_assert(cuTexRefSetFilterMode(texref, CU_TR_FILTER_MODE_POINT));
-				cuda_assert(cuTexRefSetFlags(texref, CU_TRSF_READ_AS_INTEGER));
-
-				cuda_pop_context();
-			}
-		}
-		/* Texture Storage */
-		else {
-			CUarray handle = NULL;
-
-			cuda_push_context();
-
-			if(mem.data_depth > 1) {
-				CUDA_ARRAY3D_DESCRIPTOR desc;
-
-				desc.Width = mem.data_width;
-				desc.Height = mem.data_height;
-				desc.Depth = mem.data_depth;
-				desc.Format = format;
-				desc.NumChannels = mem.data_elements;
-				desc.Flags = 0;
-
-				cuda_assert(cuArray3DCreate(&handle, &desc));
-			}
-			else {
-				CUDA_ARRAY_DESCRIPTOR desc;
-
-				desc.Width = mem.data_width;
-				desc.Height = mem.data_height;
-				desc.Format = format;
-				desc.NumChannels = mem.data_elements;
-
-				cuda_assert(cuArrayCreate(&handle, &desc));
-			}
-
+		
+		CUarray handle = NULL;
+		size_t pitch = mem.data_width*dsize*mem.data_elements;
+		
+		cuda_push_context();
+		
+		/* Volume textures are in arrays for now, other textures can be allocated as linear memory */
+		if (mem.data_depth > 1) {
+			CUDA_ARRAY3D_DESCRIPTOR desc;
+			
+			desc.Width = mem.data_width;
+			desc.Height = mem.data_height;
+			desc.Depth = mem.data_depth;
+			desc.Format = format;
+			desc.NumChannels = mem.data_elements;
+			desc.Flags = 0;
+			
+			cuda_assert(cuArray3DCreate(&handle, &desc));
+			
 			if(!handle) {
 				cuda_pop_context();
 				return;
 			}
-
-			/* Allocate 3D, 2D or 1D memory */
-			if(mem.data_depth > 1) {
-				CUDA_MEMCPY3D param;
-				memset(&param, 0, sizeof(param));
-				param.dstMemoryType = CU_MEMORYTYPE_ARRAY;
-				param.dstArray = handle;
-				param.srcMemoryType = CU_MEMORYTYPE_HOST;
-				param.srcHost = (void*)mem.data_pointer;
-				param.srcPitch = mem.data_width*dsize*mem.data_elements;
-				param.WidthInBytes = param.srcPitch;
-				param.Height = mem.data_height;
-				param.Depth = mem.data_depth;
-
-				cuda_assert(cuMemcpy3D(&param));
-			}
-			else if(mem.data_height > 1) {
-				CUDA_MEMCPY2D param;
-				memset(&param, 0, sizeof(param));
-				param.dstMemoryType = CU_MEMORYTYPE_ARRAY;
-				param.dstArray = handle;
-				param.srcMemoryType = CU_MEMORYTYPE_HOST;
-				param.srcHost = (void*)mem.data_pointer;
-				param.srcPitch = mem.data_width*dsize*mem.data_elements;
-				param.WidthInBytes = param.srcPitch;
-				param.Height = mem.data_height;
-
-				cuda_assert(cuMemcpy2D(&param));
-			}
-			else
-				cuda_assert(cuMemcpyHtoA(handle, 0, (void*)mem.data_pointer, size));
-
+			
+			CUDA_MEMCPY3D param;
+			memset(&param, 0, sizeof(param));
+			param.dstMemoryType = CU_MEMORYTYPE_ARRAY;
+			param.dstArray = handle;
+			param.srcMemoryType = CU_MEMORYTYPE_HOST;
+			param.srcHost = (void*)mem.data_pointer;
+			param.srcPitch = mem.data_width*dsize*mem.data_elements;
+			param.WidthInBytes = param.srcPitch;
+			param.Height = mem.data_height;
+			param.Depth = mem.data_depth;
+			
+			cuda_assert(cuMemcpy3D(&param));
+			
 			/* Fermi and Kepler */
 			mem.device_pointer = (device_ptr)handle;
-			mem.device_size = size;
+		}
+		/* Texture Storage */
+		else {
+			if(mem.data_height > 1) {
+				int alignment = 0;
+				cuda_assert(cuDeviceGetAttribute(&alignment, CU_DEVICE_ATTRIBUTE_TEXTURE_PITCH_ALIGNMENT, cuDevice));
+				size_t remainder = pitch % alignment;
+				if (remainder > 0)
+					pitch = pitch - (pitch % alignment) + alignment;
+				size = pitch * mem.data_height;
+				
+				mem.device_pointer = mem_alloc_internal(size);
+				if (mem.device_pointer == 0)
+					cuda_error_message("Out of device or mapped host memory.");
+				
+				CUDA_MEMCPY2D param;
+				memset(&param, 0, sizeof(param));
+				param.srcMemoryType = CU_MEMORYTYPE_HOST;
+				param.srcHost = (void*)mem.data_pointer;
+				param.srcPitch = mem.data_width * dsize * mem.data_elements;
+				param.dstMemoryType = CU_MEMORYTYPE_DEVICE;
+				param.dstDevice = mem.device_pointer;
+				param.dstPitch = pitch;
+				param.WidthInBytes = param.srcPitch;
+				param.Height = mem.data_height;
+				cuda_assert(cuMemcpy2DUnaligned(&param));
+			}
+			else {
+				mem.device_pointer = mem_alloc_internal(size);
+				if (mem.device_pointer == 0)
+					cuda_error_message("Out of device or mapped host memory.");
+				
+				cuda_assert(cuMemcpyHtoD(mem.device_pointer, (void*)mem.data_pointer, size));
+			}
+		}
+		mem.device_size = size;
+		stats.mem_alloc(size);
+		
+		/* Now attach the texture memory to a texture object or a texture reference */
 
-			stats.mem_alloc(size);
+		/* Bindless Textures - Kepler */
+		if(has_bindless_textures) {
+			int flat_slot = -1;
+			if(string_startswith(name, "__tex_image")) {
+				int pos =  string(name).rfind("_");
+				flat_slot = atoi(name + pos + 1);
+			}
 
-			/* Bindless Textures - Kepler */
-			if(has_bindless_textures) {
-				int flat_slot = 0;
-				if(string_startswith(name, "__tex_image")) {
-					int pos =  string(name).rfind("_");
-					flat_slot = atoi(name + pos + 1);
-				}
-				else {
-					assert(0);
-				}
-
-				CUDA_RESOURCE_DESC resDesc;
-				memset(&resDesc, 0, sizeof(resDesc));
+			CUDA_RESOURCE_DESC resDesc;
+			memset(&resDesc, 0, sizeof(resDesc));
+			if(mem.data_depth > 1) {
 				resDesc.resType = CU_RESOURCE_TYPE_ARRAY;
 				resDesc.res.array.hArray = handle;
 				resDesc.flags = 0;
-
-				CUDA_TEXTURE_DESC texDesc;
-				memset(&texDesc, 0, sizeof(texDesc));
-				texDesc.addressMode[0] = address_mode;
-				texDesc.addressMode[1] = address_mode;
-				texDesc.addressMode[2] = address_mode;
-				texDesc.filterMode = filter_mode;
-				texDesc.flags = CU_TRSF_NORMALIZED_COORDINATES;
-
-				CUtexObject tex = 0;
-				cuda_assert(cuTexObjectCreate(&tex, &resDesc, &texDesc, NULL));
-
-				/* Safety check */
-				if((uint)tex > UINT_MAX) {
-					assert(0);
+			}
+			else {
+				if (mem.data_height > 1) {
+					resDesc.resType = CU_RESOURCE_TYPE_PITCH2D;
+					resDesc.res.pitch2D.devPtr = mem.device_pointer;
+					resDesc.res.pitch2D.format = format;
+					resDesc.res.pitch2D.numChannels = mem.data_elements;
+					resDesc.res.pitch2D.height = mem.data_height;
+					resDesc.res.pitch2D.width = mem.data_width;
+					resDesc.res.pitch2D.pitchInBytes = pitch;
 				}
+				else {
+					resDesc.resType = CU_RESOURCE_TYPE_LINEAR;
+					resDesc.res.linear.devPtr = mem.device_pointer;
+					resDesc.res.linear.format = format;
+					resDesc.res.linear.numChannels = mem.data_elements;
+					resDesc.res.linear.sizeInBytes = mem.device_size;
+				}
+			}
 
+			CUDA_TEXTURE_DESC texDesc;
+			memset(&texDesc, 0, sizeof(texDesc));
+			texDesc.addressMode[0] = address_mode;
+			texDesc.addressMode[1] = address_mode;
+			texDesc.addressMode[2] = address_mode;
+			texDesc.filterMode = filter_mode;
+			texDesc.flags = flags;
+
+			CUtexObject tex = 0;
+			cuda_assert(cuTexObjectCreate(&tex, &resDesc, &texDesc, NULL));
+
+			/* Safety check */
+			if((uint)tex > UINT_MAX) {
+				assert(0);
+			}
+
+			/* Update the kernel variable with the texture object */
+			if (flat_slot == -1) {
+				CUdeviceptr cumem;
+				size_t cubytes;
+				
+				cuda_assert(cuModuleGetGlobal(&cumem, &cubytes, cuModule, bind_name.c_str()));
+				
+				if(cubytes == sizeof(tex)) {
+					cuda_assert(cuMemcpyHtoD(cumem, (void*)&tex, cubytes));
+				} else
+					assert(0);
+			}
+			else {
 				/* Resize once */
 				if(flat_slot >= bindless_mapping.size()) {
 					/* Allocate some slots in advance, to reduce amount
@@ -865,62 +953,58 @@ public:
 
 				/* Set Mapping and tag that we need to (re-)upload to device */
 				bindless_mapping.get_data()[flat_slot] = (uint)tex;
-				tex_bindless_map[mem.device_pointer] = (uint)tex;
 				need_bindless_mapping = true;
 			}
-			/* Regular Textures - Fermi */
-			else {
-				cuda_assert(cuTexRefSetArray(texref, handle, CU_TRSA_OVERRIDE_FORMAT));
-				cuda_assert(cuTexRefSetFilterMode(texref, filter_mode));
-				cuda_assert(cuTexRefSetFlags(texref, CU_TRSF_NORMALIZED_COORDINATES));
-			}
-
-			cuda_pop_context();
+			tex_bindless_map[mem.device_pointer] = (uint)tex;
 		}
-
-		/* Fermi, Data and Image Textures */
-		if(!has_bindless_textures) {
-			cuda_push_context();
-
+		/* Regular Textures - Fermi */
+		else {
+			if(mem.data_depth > 1) {
+				cuda_assert(cuTexRefSetArray(texref, handle, CU_TRSA_OVERRIDE_FORMAT));
+			} else if (mem.data_height > 1) {
+				CUDA_ARRAY_DESCRIPTOR array_desc;
+				array_desc.Format = format;
+				array_desc.Height = mem.data_height;
+				array_desc.Width = mem.data_width;
+				array_desc.NumChannels = mem.data_elements;
+				cuda_assert(cuTexRefSetAddress2D_v3(texref, &array_desc, mem.device_pointer, pitch));
+			}
+			else {
+				cuda_assert(cuTexRefSetAddress(NULL, texref, cuda_device_ptr(mem.device_pointer), size));
+			}
+			
+			cuda_assert(cuTexRefSetFilterMode(texref, filter_mode));
+			cuda_assert(cuTexRefSetFlags(texref, flags));
+			cuda_assert(cuTexRefSetFormat(texref, format, mem.data_elements));
 			cuda_assert(cuTexRefSetAddressMode(texref, 0, address_mode));
 			cuda_assert(cuTexRefSetAddressMode(texref, 1, address_mode));
 			if(mem.data_depth > 1) {
 				cuda_assert(cuTexRefSetAddressMode(texref, 2, address_mode));
 			}
-
-			cuda_assert(cuTexRefSetFormat(texref, format, mem.data_elements));
-
-			cuda_pop_context();
 		}
 
-		/* Fermi and Kepler */
-		tex_interp_map[mem.device_pointer] = (interpolation != INTERPOLATION_NONE);
+		cuda_pop_context();
 	}
 
 	void tex_free(device_memory& mem)
 	{
 		if(mem.device_pointer) {
-			if(tex_interp_map[mem.device_pointer]) {
-				cuda_push_context();
+			cuda_push_context();
+			if (mem.data_depth > 1)
 				cuArrayDestroy((CUarray)mem.device_pointer);
-				cuda_pop_context();
-
-				/* Free CUtexObject (Bindless Textures) */
-				if(info.has_bindless_textures && tex_bindless_map[mem.device_pointer]) {
-					uint flat_slot = tex_bindless_map[mem.device_pointer];
-					cuTexObjectDestroy(flat_slot);
-				}
-
-				tex_interp_map.erase(tex_interp_map.find(mem.device_pointer));
-				mem.device_pointer = 0;
-
-				stats.mem_free(mem.device_size);
-				mem.device_size = 0;
+			else
+				mem_free_internal(mem);
+			stats.mem_free(mem.device_size);
+			
+			/* Free CUtexObject (Bindless Textures) */
+			if(info.has_bindless_textures && tex_bindless_map[mem.device_pointer]) {
+				uint flat_slot = tex_bindless_map[mem.device_pointer];
+				cuTexObjectDestroy(flat_slot);
 			}
-			else {
-				tex_interp_map.erase(tex_interp_map.find(mem.device_pointer));
-				mem_free(mem);
-			}
+
+			mem.device_pointer = 0;
+			mem.device_size = 0;
+			cuda_pop_context();
 		}
 	}
 
