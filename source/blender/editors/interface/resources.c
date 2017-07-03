@@ -866,6 +866,9 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tui.yaxis,   0, 220,   0, 255);
 	rgba_char_args_set(btheme->tui.zaxis,   0,   0, 220, 255);
 
+	rgba_char_args_set(btheme->tui.wcol_state.inner_changed, 240, 134, 35, 255);
+	rgba_char_args_set(btheme->tui.wcol_state.inner_changed_sel, 201, 104, 29, 255);
+
 	btheme->tui.menu_shadow_fac = 0.5f;
 	btheme->tui.menu_shadow_width = 12;
 	
@@ -2774,6 +2777,14 @@ void init_userdef_do_versions(void)
 		    USER_GL_RENDER_DEPRECATED_3 | USER_GL_RENDER_DEPRECATED_4);
 
 		U.uiflag |= USER_LOCK_CURSOR_ADJUST;
+	}
+
+	if (!USER_VERSION_ATLEAST(279, 1)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_set(btheme->tui.wcol_state.inner_changed, 240, 134, 35, 255);
+			rgba_char_args_set(btheme->tui.wcol_state.inner_changed_sel, 201, 104, 29, 255);
+		}
 	}
 
 	/**

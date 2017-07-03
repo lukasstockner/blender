@@ -1967,7 +1967,9 @@ static void widget_state(uiWidgetType *wt, int state)
 	if (state & UI_SELECT) {
 		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
 
-		if (state & UI_BUT_ANIMATED_KEY)
+		if (state & UI_BUT_ANIMATED_CHANGE)
+			widget_state_blend(wt->wcol.inner, wcol_state->inner_changed_sel, wcol_state->blend);
+		else if (state & UI_BUT_ANIMATED_KEY)
 			widget_state_blend(wt->wcol.inner, wcol_state->inner_key_sel, wcol_state->blend);
 		else if (state & UI_BUT_ANIMATED)
 			widget_state_blend(wt->wcol.inner, wcol_state->inner_anim_sel, wcol_state->blend);
@@ -1980,7 +1982,9 @@ static void widget_state(uiWidgetType *wt, int state)
 			SWAP(short, wt->wcol.shadetop, wt->wcol.shadedown);
 	}
 	else {
-		if (state & UI_BUT_ANIMATED_KEY)
+		if (state & UI_BUT_ANIMATED_CHANGE)
+			widget_state_blend(wt->wcol.inner, wcol_state->inner_changed, wcol_state->blend);
+		else if (state & UI_BUT_ANIMATED_KEY)
 			widget_state_blend(wt->wcol.inner, wcol_state->inner_key, wcol_state->blend);
 		else if (state & UI_BUT_ANIMATED)
 			widget_state_blend(wt->wcol.inner, wcol_state->inner_anim, wcol_state->blend);
@@ -2025,7 +2029,9 @@ static void widget_state_numslider(uiWidgetType *wt, int state)
 	/* TODO: maybe we should have separate settings for the blending colors used for this case? */
 	if (state & UI_SELECT) {
 		
-		if (state & UI_BUT_ANIMATED_KEY)
+		if (state & UI_BUT_ANIMATED_CHANGE)
+			widget_state_blend(wt->wcol.item, wcol_state->inner_changed_sel, blend);
+		else if (state & UI_BUT_ANIMATED_KEY)
 			widget_state_blend(wt->wcol.item, wcol_state->inner_key_sel, blend);
 		else if (state & UI_BUT_ANIMATED)
 			widget_state_blend(wt->wcol.item, wcol_state->inner_anim_sel, blend);
@@ -2036,7 +2042,9 @@ static void widget_state_numslider(uiWidgetType *wt, int state)
 			SWAP(short, wt->wcol.shadetop, wt->wcol.shadedown);
 	}
 	else {
-		if (state & UI_BUT_ANIMATED_KEY)
+		if (state & UI_BUT_ANIMATED_CHANGE)
+			widget_state_blend(wt->wcol.item, wcol_state->inner_changed, blend);
+		else if (state & UI_BUT_ANIMATED_KEY)
 			widget_state_blend(wt->wcol.item, wcol_state->inner_key, blend);
 		else if (state & UI_BUT_ANIMATED)
 			widget_state_blend(wt->wcol.item, wcol_state->inner_anim, blend);

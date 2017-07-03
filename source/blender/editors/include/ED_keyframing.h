@@ -121,6 +121,8 @@ short insert_keyframe(struct ReportList *reports, struct ID *id, struct bAction 
  */
 short delete_keyframe(struct ReportList *reports, struct ID *id, struct bAction *act, const char group[], const char rna_path[], int array_index, float cfra, short flag);
 
+bool check_fcurve_changed(struct PointerRNA ptr, struct PropertyRNA *prop, struct FCurve *fcu, float cfra);
+
 /* ************ Keying Sets ********************** */
 
 /* forward decl. for this struct which is declared a bit later... */

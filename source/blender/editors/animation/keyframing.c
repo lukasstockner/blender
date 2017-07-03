@@ -1090,6 +1090,19 @@ short insert_keyframe(ReportList *reports, ID *id, bAction *act, const char grou
 	return ret;
 }
 
+bool check_fcurve_changed(PointerRNA ptr, PropertyRNA *prop, FCurve *fcu, float cfra)
+{
+	PathResolvedRNA anim_rna;
+	anim_rna.ptr = ptr;
+	anim_rna.prop = prop;
+	anim_rna.prop_index = fcu->array_index;
+
+	float fcurve_val = calculate_fcurve(&anim_rna, fcu, cfra);
+	float cur_val = setting_get_rna_value(&ptr, prop, fcu->array_index);
+
+	return fcurve_val != cur_val;
+}
+
 /* ************************************************** */
 /* KEYFRAME DELETION */
 
