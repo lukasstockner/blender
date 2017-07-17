@@ -652,6 +652,16 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Main *bmain, Sc
 				}
 			}
 		}
+		if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group_render) {
+			GroupObject *go;
+			for (go = ob->dup_group_render->gobject.first; go; go = go->next) {
+				if (go->ob) {
+					node2 = dag_get_node(dag, go->ob);
+					/* node2 changes node1, this keeps animations updated in groups?? not logical? */
+					dag_add_relation(dag, node2, node, DAG_RL_OB_OB, "Dupligroup");
+				}
+			}
+		}
 	}
 
 	/* rigidbody force fields  */
@@ -919,6 +929,8 @@ static void build_dag_group(DagForest *dag, DagNode *scenenode, Main *bmain, Sce
 		build_dag_object(dag, scenenode, bmain, scene, go->ob, mask);
 		if (go->ob->dup_group)
 			build_dag_group(dag, scenenode, bmain, scene, go->ob->dup_group, mask);
+		if (go->ob->dup_group_render)
+			build_dag_group(dag, scenenode, bmain, scene, go->ob->dup_group_render, mask);
 	}
 }
 
@@ -959,6 +971,8 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 			build_dag_object(dag, scenenode, bmain, sce, ob->proxy, mask);
 		if (ob->dup_group) 
 			build_dag_group(dag, scenenode, bmain, sce, ob->dup_group, mask);
+		if (ob->dup_group_render)
+			build_dag_group(dag, scenenode, bmain, sce, ob->dup_group_render, mask);
 	}
 
 	/* There might be situations when object from current scene depends on
@@ -986,6 +1000,8 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 					build_dag_object(dag, scenenode, bmain, sce, ob->proxy, mask);
 				if (ob->dup_group)
 					build_dag_group(dag, scenenode, bmain, sce, ob->dup_group, mask);
+				if (ob->dup_group_render)
+					build_dag_group(dag, scenenode, bmain, sce, ob->dup_group_render, mask);
 			}
 		}
 	}
@@ -2329,6 +2345,8 @@ static void dag_group_update_flags(Main *bmain, Scene *scene, Group *group, cons
 			dag_object_time_update_flags(bmain, scene, go->ob);
 		if (go->ob->dup_group)
 			dag_group_update_flags(bmain, scene, go->ob->dup_group, do_time);
+		if (go->ob->dup_group_render)
+			dag_group_update_flags(bmain, scene, go->ob->dup_group_render, do_time);
 	}
 }
 
@@ -2361,6 +2379,8 @@ void DAG_scene_update_flags(Main *bmain, Scene *scene, unsigned int lay, const b
 		/* recursively tag groups with LIB_TAG_DOIT, and update flags for objects */
 		if (ob->dup_group)
 			dag_group_update_flags(bmain, scene, ob->dup_group, do_time);
+		if (ob->dup_group_render)
+			dag_group_update_flags(bmain, scene, ob->dup_group_render, do_time);
 	}
 
 	for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set)
@@ -2489,6 +2509,8 @@ static void dag_group_on_visible_update(Scene *scene, Group *group)
 
 		if (go->ob->dup_group)
 			dag_group_on_visible_update(scene, go->ob->dup_group);
+		if (go->ob->dup_group_render)
+			dag_group_on_visible_update(scene, go->ob->dup_group_render);
 	}
 }
 
@@ -2549,6 +2571,8 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 				}
 				if (ob->dup_group)
 					dag_group_on_visible_update(scene, ob->dup_group);
+				if (ob->dup_group_render)
+					dag_group_on_visible_update(scene, ob->dup_group_render);
 			}
 		}
 

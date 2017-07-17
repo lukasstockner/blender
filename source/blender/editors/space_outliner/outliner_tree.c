@@ -653,6 +653,8 @@ static void outliner_add_object_contents(SpaceOops *soops, TreeElement *te, Tree
 	/* duplicated group */
 	if (ob->dup_group)
 		outliner_add_element(soops, &te->subtree, ob->dup_group, te, 0, 0);
+	if (ob->dup_group_render)
+		outliner_add_element(soops, &te->subtree, ob->dup_group_render, te, 0, 0);
 }
 
 

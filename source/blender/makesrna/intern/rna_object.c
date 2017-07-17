@@ -538,6 +538,25 @@ static void rna_Object_dup_group_set(PointerRNA *ptr, PointerRNA value)
 	}
 }
 
+static void rna_Object_dup_group_render_set(PointerRNA *ptr, PointerRNA value)
+{
+	Object *ob = (Object *)ptr->data;
+	Group *grp = (Group *)value.data;
+	
+	/* must not let this be set if the object belongs in this group already,
+	 * thus causing a cycle/infinite-recursion leading to crashes on load [#25298]
+	 */
+	if (BKE_group_object_exists(grp, ob) == 0) {
+		id_us_min(&ob->dup_group_render->id);
+		ob->dup_group_render = grp;
+		id_us_plus(&ob->dup_group_render->id);
+	}
+	else {
+		BKE_report(NULL, RPT_ERROR,
+		           "Cannot set dupli-group as object belongs in group being instanced, thus causing a cycle");
+	}
+}
+
 static void rna_VertexGroup_name_set(PointerRNA *ptr, const char *value)
 {
 	Object *ob = (Object *)ptr->id.data;
@@ -2688,6 +2707,13 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_pointer_funcs(prop, NULL, "rna_Object_dup_group_set", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Dupli Group", "Instance an existing group");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
+
+	prop = RNA_def_property(srna, "dupli_group_render", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "dup_group_render");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_Object_dup_group_render_set", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Dupli Group", "Instance an existing group (used for rendering when specified)");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
 
 	prop = RNA_def_property(srna, "dupli_frames_start", PROP_INT, PROP_NONE | PROP_UNIT_TIME);

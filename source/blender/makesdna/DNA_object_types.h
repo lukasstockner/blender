@@ -299,6 +299,7 @@ typedef struct Object {
 	LodLevel *currentlod;
 
 	struct PreviewImage *preview;
+	struct Group *dup_group_render;
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */

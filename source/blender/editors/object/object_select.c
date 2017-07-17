@@ -902,9 +902,9 @@ static int object_select_grouped_exec(bContext *C, wmOperator *op)
 	}
 
 	if (with_children) {
-		CTX_DATA_BEGIN (C, Object *, ob, selected_objects)
+		CTX_DATA_BEGIN (C, Object *, ob_sel, selected_objects)
 		{
-			changed |= select_grouped_children(C, ob, true);
+			changed |= select_grouped_children(C, ob_sel, true);
 		}
 		CTX_DATA_END;
 	}

@@ -557,6 +557,7 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 
 				CALLBACK_INVOKE(object->gpd, IDWALK_CB_USER);
 				CALLBACK_INVOKE(object->dup_group, IDWALK_CB_USER);
+				CALLBACK_INVOKE(object->dup_group_render, IDWALK_CB_USER);
 
 				if (object->pd) {
 					CALLBACK_INVOKE(object->pd->tex, IDWALK_CB_USER);

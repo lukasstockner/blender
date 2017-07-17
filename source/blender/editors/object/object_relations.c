@@ -1600,7 +1600,7 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 
 						/* now add in the groups from the link nodes */
 						for (group_node = ob_groups; group_node; group_node = group_node->next) {
-							if (ob_dst->dup_group != group_node->link) {
+							if ((ob_dst->dup_group != group_node->link) && (ob_dst->dup_group_render != group_node->link)) {
 								BKE_group_object_add(group_node->link, ob_dst, scene, base_dst);
 							}
 							else {
@@ -1613,6 +1613,11 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 						ob_dst->dup_group = ob_src->dup_group;
 						if (ob_dst->dup_group) {
 							id_us_plus(&ob_dst->dup_group->id);
+							ob_dst->transflag |= OB_DUPLIGROUP;
+						}
+						ob_dst->dup_group_render = ob_src->dup_group_render;
+						if (ob_dst->dup_group_render) {
+							id_us_plus(&ob_dst->dup_group_render->id);
 							ob_dst->transflag |= OB_DUPLIGROUP;
 						}
 						break;

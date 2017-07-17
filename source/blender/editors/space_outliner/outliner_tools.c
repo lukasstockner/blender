@@ -231,6 +231,7 @@ static void unlink_group_cb(
 		if (GS(tsep->id->name) == ID_OB) {
 			Object *ob = (Object *)tsep->id;
 			ob->dup_group = NULL;
+			ob->dup_group_render = NULL;
 		}
 	}
 	else {

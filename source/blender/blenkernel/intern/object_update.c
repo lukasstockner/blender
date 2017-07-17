@@ -296,12 +296,13 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 	/* quick cache removed */
 }
 
-void BKE_object_eval_uber_transform(EvaluationContext *UNUSED(eval_ctx),
+void BKE_object_eval_uber_transform(EvaluationContext *eval_ctx,
                                     Scene *UNUSED(scene),
                                     Object *ob)
 {
 	/* TODO(sergey): Currently it's a duplicate of logic in BKE_object_handle_update_ex(). */
 	// XXX: it's almost redundant now...
+	bool for_render = (eval_ctx->mode == DAG_EVAL_RENDER);
 
 	/* Handle proxy copy for target, */
 	if (ID_IS_LINKED_DATABLOCK(ob) && ob->proxy_from) {
@@ -312,8 +313,10 @@ void BKE_object_eval_uber_transform(EvaluationContext *UNUSED(eval_ctx),
 			invert_m4_m4(imat, obg->obmat);
 			mul_m4_m4m4(ob->obmat, imat, ob->proxy_from->obmat);
 			/* Should always be true. */
-			if (obg->dup_group) {
-				add_v3_v3(ob->obmat[3], obg->dup_group->dupli_ofs);
+			Group *dup_group = for_render? obg->dup_group_render : NULL;
+			if (!dup_group) dup_group = obg->dup_group;
+			if (dup_group) {
+				add_v3_v3(ob->obmat[3], dup_group->dupli_ofs);
 			}
 		}
 		else

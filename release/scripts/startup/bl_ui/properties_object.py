@@ -321,6 +321,7 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
 
         elif ob.dupli_type == 'GROUP':
             layout.prop(ob, "dupli_group", text="Group")
+            layout.prop(ob, "dupli_group_render", text="Render Group")
 
 
 from bl_ui.properties_animviz import (

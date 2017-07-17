@@ -431,6 +431,9 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 	if (ob->dup_group != NULL) {
 		build_group(scene, base, ob->dup_group);
 	}
+	if (ob->dup_group_render != NULL) {
+		build_group(scene, base, ob->dup_group_render);
+	}
 }
 
 void DepsgraphNodeBuilder::build_object_transform(Scene *scene, Object *ob)

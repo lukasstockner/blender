@@ -104,7 +104,7 @@ class Group(bpy_types.ID):
         """The dupli group this group is used in"""
         import bpy
         return tuple(obj for obj in bpy.data.objects
-                     if self == obj.dupli_group)
+                     if self == obj.dupli_group or self == obj.dupli_group_render)
 
 
 class Object(bpy_types.ID):

@@ -1363,6 +1363,16 @@ static void scene_depsgraph_hack(EvaluationContext *eval_ctx, Scene *scene, Scen
 				}
 				BKE_group_handle_recalc_and_update(eval_ctx, scene_parent, ob, ob->dup_group);
 			}
+
+			if (ob->dup_group_render && (ob->transflag & OB_DUPLIGROUP)) {
+				GroupObject *go;
+				
+				for (go = ob->dup_group_render->gobject.first; go; go = go->next) {
+					if (go->ob)
+						go->ob->recalc |= recalc;
+				}
+				BKE_group_handle_recalc_and_update(eval_ctx, scene_parent, ob, ob->dup_group_render);
+			}
 		}
 	}
 }
@@ -1474,6 +1484,9 @@ static void scene_update_all_bases(EvaluationContext *eval_ctx, Scene *scene, Sc
 
 		if (object->dup_group && (object->transflag & OB_DUPLIGROUP))
 			BKE_group_handle_recalc_and_update(eval_ctx, scene_parent, object, object->dup_group);
+
+		if (object->dup_group_render && (object->transflag & OB_DUPLIGROUP))
+			BKE_group_handle_recalc_and_update(eval_ctx, scene_parent, object, object->dup_group_render);
 
 		/* always update layer, so that animating layers works (joshua july 2010) */
 		/* XXX commented out, this has depsgraph issues anyway - and this breaks setting scenes

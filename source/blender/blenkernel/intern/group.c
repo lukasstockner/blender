@@ -173,10 +173,10 @@ static int group_object_unlink_internal(Group *group, Object *ob)
 	return removed;
 }
 
-static bool group_object_cyclic_check_internal(Object *object, Group *group)
+static bool group_object_cyclic_check_internal(Object *object, Group *group, bool render)
 {
-	if (object->dup_group) {
-		Group *dup_group = object->dup_group;
+	Group *dup_group = render? object->dup_group_render : object->dup_group;
+	if (dup_group) {
 		if ((dup_group->id.tag & LIB_TAG_DOIT) == 0) {
 			/* Cycle already exists in groups, let's prevent further crappyness */
 			return true;
@@ -189,7 +189,7 @@ static bool group_object_cyclic_check_internal(Object *object, Group *group)
 		else {
 			GroupObject *gob;
 			for (gob = dup_group->gobject.first; gob; gob = gob->next) {
-				if (group_object_cyclic_check_internal(gob->ob, group)) {
+				if (group_object_cyclic_check_internal(gob->ob, group, render)) {
 					return true;
 				}
 			}
@@ -207,7 +207,8 @@ bool BKE_group_object_cyclic_check(Main *bmain, Object *object, Group *group)
 	/* first flag all groups */
 	BKE_main_id_tag_listbase(&bmain->group, LIB_TAG_DOIT, true);
 
-	return group_object_cyclic_check_internal(object, group);
+	return group_object_cyclic_check_internal(object, group, false);
+	return group_object_cyclic_check_internal(object, group, true);
 }
 
 bool BKE_group_object_unlink(Group *group, Object *object, Scene *scene, Base *base)

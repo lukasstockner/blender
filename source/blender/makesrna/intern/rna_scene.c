@@ -1828,6 +1828,13 @@ static void object_simplify_update(Object *ob)
 		for (gob = ob->dup_group->gobject.first; gob; gob = gob->next)
 			object_simplify_update(gob->ob);
 	}
+
+	if (ob->dup_group_render) {
+		GroupObject *gob;
+
+		for (gob = ob->dup_group_render->gobject.first; gob; gob = gob->next)
+			object_simplify_update(gob->ob);
+	}
 }
 
 static void rna_Scene_use_simplify_update(Main *bmain, Scene *scene, PointerRNA *ptr)

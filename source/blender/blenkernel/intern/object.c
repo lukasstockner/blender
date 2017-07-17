@@ -1148,6 +1148,7 @@ Object *BKE_object_copy_ex(Main *bmain, const Object *ob, bool copy_caches)
 	id_us_plus((ID *)obn->poselib);
 	id_us_plus((ID *)obn->gpd);
 	id_us_plus((ID *)obn->dup_group);
+	id_us_plus((ID *)obn->dup_group_render);
 
 	for (a = 0; a < obn->totcol; a++) id_us_plus((ID *)obn->mat[a]);
 	

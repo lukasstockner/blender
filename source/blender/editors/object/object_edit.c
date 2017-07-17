@@ -912,6 +912,9 @@ static void copy_attr(Main *bmain, Scene *scene, View3D *v3d, short event)
 					base->object->dup_group = ob->dup_group;
 					if (ob->dup_group)
 						id_us_plus(&ob->dup_group->id);
+					base->object->dup_group_render = ob->dup_group_render;
+					if (ob->dup_group_render)
+						id_us_plus(&ob->dup_group_render->id);
 				}
 				else if (event == 7) {    /* mass */
 					base->object->mass = ob->mass;

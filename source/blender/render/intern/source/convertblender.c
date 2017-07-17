@@ -110,6 +110,13 @@
 #  pragma GCC diagnostic ignored "-Wdouble-promotion"
 #endif
 
+static Group *get_dup_group(Render *re, Object *ob)
+{
+	Group *dup_group = (re->r.scemode & R_VIEWPORT_PREVIEW)? NULL : ob->dup_group_render;
+	if (!dup_group) dup_group = ob->dup_group;
+	return dup_group;
+}
+
 /* ------------------------------------------------------------------------- */
 /* tool functions/defines for ad hoc simplification and possible future 
  * cleanup      */
@@ -4937,8 +4944,8 @@ static void dupli_render_particle_set(Render *re, Object *ob, int timeoffset, in
 		}
 	}
 
-	if (ob->dup_group==NULL) return;
-	group= ob->dup_group;
+	group= get_dup_group(re, ob);
+	if (!group) return;
 
 	for (go= group->gobject.first; go; go= go->next)
 		dupli_render_particle_set(re, go->ob, timeoffset, level+1, enable);
@@ -4975,8 +4982,9 @@ static void add_group_render_dupli_obs(Render *re, Group *group, int nolamps, in
 					init_render_object(re, ob, NULL, NULL, NULL, timeoffset);
 					ob->transflag &= ~OB_RENDER_DUPLI;
 
-					if (ob->dup_group)
-						add_group_render_dupli_obs(re, ob->dup_group, nolamps, onlyselected, actob, timeoffset, level+1);
+					Group *dup_group = get_dup_group(re, ob);
+					if (dup_group)
+						add_group_render_dupli_obs(re, dup_group, nolamps, onlyselected, actob, timeoffset, level+1);
 				}
 			}
 		}

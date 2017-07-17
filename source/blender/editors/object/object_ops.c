@@ -338,9 +338,9 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "OBJECT_OT_select_less", PADMINUS, KM_PRESS, KM_CTRL, 0);
 
 	WM_keymap_add_item(keymap, "OBJECT_OT_select_linked", LKEY, KM_PRESS, KM_SHIFT, 0);
-	kmi =WM_keymap_add_item(keymap, "OBJECT_OT_select_grouped", GKEY, KM_PRESS, KM_SHIFT, 0);
+	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_select_grouped", GKEY, KM_PRESS, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "with_children", false);
-	kmi =WM_keymap_add_item(keymap, "OBJECT_OT_select_grouped", GKEY, KM_PRESS, KM_SHIFT | KM_ALT, 0);
+	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_select_grouped", GKEY, KM_PRESS, KM_ALT | KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "with_children", true);
 	WM_keymap_add_item(keymap, "OBJECT_OT_select_mirror", MKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
 	
@@ -377,8 +377,10 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_scale_clear", SKEY, KM_PRESS, KM_ALT, 0);
 	RNA_boolean_set(kmi->ptr, "clear_delta", false);
 	
+#if 0 /* Conflicts with OBJECT_OT_select_grouped. */
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_location_clear", GKEY, KM_PRESS, KM_ALT | KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "clear_delta", true);
+#endif
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_rotation_clear", RKEY, KM_PRESS, KM_ALT | KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "clear_delta", true);
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_scale_clear", SKEY, KM_PRESS, KM_ALT | KM_SHIFT, 0);

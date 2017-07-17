@@ -567,6 +567,9 @@ void DepsgraphRelationBuilder::build_object(Main *bmain, Scene *scene, Object *o
 	if (ob->dup_group != NULL) {
 		build_group(bmain, scene, ob, ob->dup_group);
 	}
+	if (ob->dup_group_render != NULL) {
+		build_group(bmain, scene, ob, ob->dup_group_render);
+	}
 }
 
 void DepsgraphRelationBuilder::build_object_parent(Object *ob)

@@ -118,6 +118,15 @@ static void init_context(DupliContext *r_ctx, EvaluationContext *eval_ctx, Scene
 	r_ctx->duplilist = NULL;
 }
 
+static Group *get_dupli_group(const DupliContext *ctx, Object *ob)
+{
+	bool for_render = ctx->eval_ctx->mode == DAG_EVAL_RENDER;
+
+	Group *render_grp = for_render? ob->dup_group_render : NULL;
+
+	return render_grp? render_grp : ob->dup_group;
+}
+
 /* create sub-context for recursive duplis */
 static void copy_dupli_context(DupliContext *r_ctx, const DupliContext *ctx, Object *ob, float mat[4][4], int index, bool animated)
 {
@@ -127,7 +136,7 @@ static void copy_dupli_context(DupliContext *r_ctx, const DupliContext *ctx, Obj
 
 	/* XXX annoying, previously was done by passing an ID* argument, this at least is more explicit */
 	if (ctx->gen->type == OB_DUPLIGROUP)
-		r_ctx->group = ctx->object->dup_group;
+		r_ctx->group = get_dupli_group(ctx, ctx->object);
 
 	r_ctx->object = ob;
 	if (mat)
@@ -291,8 +300,8 @@ static void make_duplis_group(const DupliContext *ctx)
 	int id;
 	bool animated, hide;
 
-	if (ob->dup_group == NULL) return;
-	group = ob->dup_group;
+	group = get_dupli_group(ctx, ob);
+	if (group == NULL) return;
 
 	/* combine group offset and obmat */
 	unit_m4(group_mat);
