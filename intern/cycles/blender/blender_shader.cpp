@@ -796,7 +796,14 @@ static ShaderNode *add_node(Scene *scene,
 		BL::ShaderNodeTexSky b_sky_node(b_node);
 		SkyTextureNode *sky = new SkyTextureNode();
 		sky->type = (NodeSkyType)b_sky_node.sky_type();
-		sky->sun_direction = normalize(get_float3(b_sky_node.sun_direction()));
+		BL::Object b_sun_ob = b_sky_node.sun_object();
+		if(b_sun_ob) {
+			Transform tfm = get_transform(b_sun_ob.matrix_world());
+			sky->sun_direction = normalize(transform_get_column(&tfm, 2));
+		}
+		else {
+			sky->sun_direction = normalize(get_float3(b_sky_node.sun_direction()));
+		}
 		sky->turbidity = b_sky_node.turbidity();
 		sky->ground_albedo = b_sky_node.ground_albedo();
 		BL::TexMapping b_texture_mapping(b_sky_node.texture_mapping());

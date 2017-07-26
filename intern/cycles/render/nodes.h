@@ -140,6 +140,7 @@ public:
 	SHADER_NODE_CLASS(SkyTextureNode)
 
 	virtual int get_group() { return NODE_GROUP_LEVEL_2; }
+	bool has_object_dependency() { return true; }
 
 	NodeSkyType type;
 	float3 sun_direction;

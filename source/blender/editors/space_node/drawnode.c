@@ -910,8 +910,13 @@ static void node_shader_buts_tex_environment_ex(uiLayout *layout, bContext *C, P
 
 static void node_shader_buts_tex_sky(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {	
+	PointerRNA sun_ob_ptr = RNA_pointer_get(ptr, "sun_object");
+
 	uiItemR(layout, ptr, "sky_type", 0, "", ICON_NONE);
-	uiItemR(layout, ptr, "sun_direction", 0, "", ICON_NONE);
+	if(sun_ob_ptr.data == NULL) {
+		uiItemR(layout, ptr, "sun_direction", 0, "", ICON_NONE);
+	}
+	uiItemR(layout, ptr, "sun_object", 0, "", ICON_NONE);
 	uiItemR(layout, ptr, "turbidity", 0, NULL, ICON_NONE);
 
 	if (RNA_enum_get(ptr, "sky_type") == SHD_SKY_NEW)

@@ -3670,6 +3670,14 @@ static void def_sh_tex_sky(StructRNA *srna)
 	static float default_dir[3] = {0.0f, 0.0f, 1.0f};
 	
 	PropertyRNA *prop;
+
+	prop = RNA_def_property(srna, "sun_object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "id");
+	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_Lamp_object_poll");
+	RNA_def_property_ui_text(prop, "Sun Object", "Use local Z axis of this object as sun direction (overrides direct option if set)");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 	
 	RNA_def_struct_sdna_from(srna, "NodeTexSky", "storage");
 	def_sh_tex(srna);
