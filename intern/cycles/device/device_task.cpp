@@ -30,9 +30,13 @@ CCL_NAMESPACE_BEGIN
 
 DeviceTask::DeviceTask(Type type_)
 : type(type_), x(0), y(0), w(0), h(0), rgba_byte(0), rgba_half(0), buffer(0),
-  sample(0), num_samples(1),
+  sample(0), num_samples(1), offset(0), stride(0),
   shader_input(0), shader_output(0), shader_output_luma(0),
-  shader_eval_type(0), shader_filter(0), shader_x(0), shader_w(0)
+  shader_eval_type(0), shader_filter(0), shader_x(0), shader_w(0), passes_size(0),
+  denoising_radius(0), denoising_strength(0.0f), denoising_feature_strength(0.0f),
+  denoising_relative_pca(false), pass_stride(0), pass_denoising_data(0),
+  pass_denoising_clean(0),
+  need_finish_queue(false), integrator_branched(0), requested_tile_size(make_int2(0, 0))
 {
 	last_update_time = time_dt();
 }

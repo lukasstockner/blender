@@ -357,6 +357,7 @@ static void options_parse(int argc, const char **argv)
 	ArgParse ap;
 	bool help = false, debug = false, version = false;
 	int verbosity = 1;
+	string servers;
 
 	ap.options ("Usage: cycles [options] file.xml",
 		"%*", files_parse, "",
@@ -374,6 +375,9 @@ static void options_parse(int argc, const char **argv)
 		"--tile-width %d", &options.session_params.tile_size.x, "Tile width in pixels",
 		"--tile-height %d", &options.session_params.tile_size.y, "Tile height in pixels",
 		"--list-devices", &list, "List information about all available devices",
+#ifdef WITH_NETWORK
+		"--servers", &servers, "Network rendering servers",
+#endif
 #ifdef WITH_CYCLES_LOGGING
 		"--debug", &debug, "Enable debug logging",
 		"--verbose %d", &verbosity, "Set verbosity of the logger",
@@ -394,7 +398,7 @@ static void options_parse(int argc, const char **argv)
 	}
 
 	if(list) {
-		vector<DeviceInfo>& devices = Device::available_devices();
+		vector<DeviceInfo>& devices = Device::available_devices(servers);
 		printf("Devices:\n");
 
 		foreach(DeviceInfo& info, devices) {
@@ -429,7 +433,7 @@ static void options_parse(int argc, const char **argv)
 
 	/* find matching device */
 	DeviceType device_type = Device::type_from_string(devicename.c_str());
-	vector<DeviceInfo>& devices = Device::available_devices();
+	vector<DeviceInfo>& devices = Device::available_devices(servers);
 	DeviceInfo device_info;
 	bool device_available = false;
 

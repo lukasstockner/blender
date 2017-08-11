@@ -54,20 +54,6 @@ public:
 			device = Device::create(subinfo, sub_stats_, background);
 			devices.push_back(SubDevice(device));
 		}
-
-#ifdef WITH_NETWORK
-		/* try to add network devices */
-		ServerDiscovery discovery(true);
-		time_sleep(1.0);
-
-		vector<string> servers = discovery.get_server_list();
-
-		foreach(string& server, servers) {
-			device = device_network_create(info, stats, server.c_str());
-			if(device)
-				devices.push_back(SubDevice(device));
-		}
-#endif
 	}
 
 	~MultiDevice()
@@ -95,6 +81,25 @@ public:
 			return false;
 		}
 		return devices.front().device->show_samples();
+	}
+
+	virtual bool use_qbvh() const
+	{
+		foreach(const SubDevice& sub, devices) {
+			if(!sub.device->use_qbvh()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	virtual int num_active_tiles() const
+	{
+		int num = 0;
+		foreach(const SubDevice& sub, devices) {
+			num += sub.device->num_active_tiles();
+		}
+		return num;
 	}
 
 	bool load_kernels(const DeviceRequestedFeatures& requested_features)

@@ -55,8 +55,9 @@ public:
 	bool advanced_shading;
 	bool pack_images;
 	bool has_bindless_textures; /* flag for GPU and Multi device */
-	bool use_split_kernel; /* Denotes if the device is going to run cycles using split-kernel */
 	vector<DeviceInfo> multi_devices;
+	string address;
+	int port;
 
 	DeviceInfo()
 	{
@@ -67,7 +68,8 @@ public:
 		advanced_shading = true;
 		pack_images = false;
 		has_bindless_textures = false;
-		use_split_kernel = false;
+		address = "127.0.0.1";
+		port = 0;
 	}
 
 	bool operator==(const DeviceInfo &info) {
@@ -274,6 +276,8 @@ public:
 		fflush(stderr);
 	}
 	virtual bool show_samples() const { return false; }
+	virtual bool use_qbvh() const { return false; }
+	virtual int num_active_tiles() const { return 1; }
 
 	/* statistics */
 	Stats &stats;
@@ -329,7 +333,7 @@ public:
 
 #ifdef WITH_NETWORK
 	/* networking */
-	void server_run();
+	void server_run(string announce_address);
 #endif
 
 	/* multi device */
@@ -344,7 +348,7 @@ public:
 	static DeviceType type_from_string(const char *name);
 	static string string_from_type(DeviceType type);
 	static vector<DeviceType>& available_types();
-	static vector<DeviceInfo>& available_devices();
+	static vector<DeviceInfo>& available_devices(string servers = "");
 	static string device_capabilities();
 	static DeviceInfo get_multi_device(vector<DeviceInfo> subdevices);
 
@@ -355,6 +359,7 @@ public:
 private:
 	/* Indicted whether device types and devices lists were initialized. */
 	static bool need_types_update, need_devices_update;
+	static string last_servers;
 	static vector<DeviceType> types;
 	static vector<DeviceInfo> devices;
 };

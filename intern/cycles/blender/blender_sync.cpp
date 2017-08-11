@@ -47,8 +47,7 @@ BlenderSync::BlenderSync(BL::RenderEngine& b_engine,
                          BL::Scene& b_scene,
                          Scene *scene,
                          bool preview,
-                         Progress &progress,
-                         bool is_cpu)
+                         Progress &progress)
 : b_engine(b_engine),
   b_data(b_data),
   b_scene(b_scene),
@@ -62,7 +61,6 @@ BlenderSync::BlenderSync(BL::RenderEngine& b_engine,
   scene(scene),
   preview(preview),
   experimental(false),
-  is_cpu(is_cpu),
   dicing_rate(1.0f),
   max_subdivisions(12),
   progress(progress)
@@ -644,8 +642,7 @@ void BlenderSync::sync_film(BL::RenderLayer& b_rlay,
 /* Scene Parameters */
 
 SceneParams BlenderSync::get_scene_params(BL::Scene& b_scene,
-                                          bool background,
-                                          bool is_cpu)
+                                          bool background)
 {
 	BL::RenderSettings r = b_scene.render();
 	SceneParams params;
@@ -689,16 +686,6 @@ SceneParams BlenderSync::get_scene_params(BL::Scene& b_scene,
 		params.texture_limit = 0;
 	}
 
-#if !(defined(__GNUC__) && (defined(i386) || defined(_M_IX86)))
-	if(is_cpu) {
-		params.use_qbvh = DebugFlags().cpu.qbvh && system_cpu_support_sse2();
-	}
-	else
-#endif
-	{
-		params.use_qbvh = false;
-	}
-
 	params.missing_image_error = RNA_boolean_get(&cscene, "missing_image_error");
 
 	return params;
@@ -724,8 +711,12 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 	params.experimental = (get_enum(cscene, "feature_set") != 0);
 
 	/* device type */
-	vector<DeviceInfo>& devices = Device::available_devices();
-	
+	string servers = "";
+#ifdef WITH_NETWORK
+	servers = get_string(cscene, "network_servers");
+#endif
+	vector<DeviceInfo>& devices = Device::available_devices(servers);
+
 	/* device default CPU */
 	foreach(DeviceInfo& device, devices) {
 		if(device.type == DEVICE_CPU) {
@@ -733,14 +724,25 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 			break;
 		}
 	}
-
+#ifdef WITH_NETWORK
 	if(get_enum(cscene, "device") == 2) {
 		/* find network device */
-		foreach(DeviceInfo& info, devices)
-			if(info.type == DEVICE_NETWORK)
-				params.device = info;
+		vector<DeviceInfo> used_devices;
+		foreach(DeviceInfo& info, devices) {
+			if(info.type == DEVICE_NETWORK) {
+				used_devices.push_back(info);
+			}
+		}
+		if(used_devices.size() == 1) {
+			params.device = used_devices[0];
+		}
+		else if(used_devices.size() > 1) {
+			params.device = Device::get_multi_device(used_devices);
+		}
 	}
-	else if(get_enum(cscene, "device") == 1) {
+	else
+#endif
+	if(get_enum(cscene, "device") == 1) {
 		PointerRNA b_preferences;
 
 		BL::UserPreferences::addons_iterator b_addon_iter;
