@@ -95,8 +95,6 @@ void device_opencl_info(vector<DeviceInfo>& devices)
 		/* We don't know if it's used for display, but assume it is. */
 		info.display_device = true;
 		info.advanced_shading = OpenCLInfo::kernel_use_advanced_shading(platform_name);
-		info.use_split_kernel = OpenCLInfo::kernel_use_split(platform_name,
-		                                                     device_type);
 		info.id = string("OPENCL_") + platform_name + "_" + device_name + "_" + hardware_id;
 		devices.push_back(info);
 		num_devices++;

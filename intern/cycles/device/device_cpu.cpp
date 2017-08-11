@@ -268,6 +268,20 @@ public:
 		return (TaskScheduler::num_threads() == 1);
 	}
 
+	virtual bool use_qbvh() const
+	{
+#if !(defined(__GNUC__) && (defined(i386) || defined(_M_IX86)))
+		return DebugFlags().cpu.qbvh && system_cpu_support_sse2();
+#else
+		return false;
+#endif
+	}
+
+	virtual int num_active_tiles() const
+	{
+		return TaskScheduler::num_threads();
+	}
+
 	void mem_alloc(const char *name, device_memory& mem, MemoryType /*type*/)
 	{
 		if(name) {

@@ -164,6 +164,12 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 name="Open Shading Language",
                 description="Use Open Shading Language (CPU rendering only)",
                 )
+        cls.network_servers = StringProperty(
+                name="Network Servers",
+                description="Servers used for network rendering, delimited by semicolons "
+                            "(each server as <address> or <address>:<port>)",
+                default="127.0.0.1",
+                )
 
         cls.progressive = EnumProperty(
                 name="Integrator",

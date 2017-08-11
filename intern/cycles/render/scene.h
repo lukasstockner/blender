@@ -138,7 +138,6 @@ public:
 	bool use_bvh_spatial_split;
 	bool use_bvh_unaligned_nodes;
 	int num_bvh_time_steps;
-	bool use_qbvh;
 	bool persistent_data;
 	int texture_limit;
 
@@ -149,7 +148,6 @@ public:
 		use_bvh_spatial_split = false;
 		use_bvh_unaligned_nodes = true;
 		num_bvh_time_steps = 0;
-		use_qbvh = false;
 		persistent_data = false;
 		texture_limit = 0;
 	}
@@ -160,7 +158,6 @@ public:
 		&& use_bvh_spatial_split == params.use_bvh_spatial_split
 		&& use_bvh_unaligned_nodes == params.use_bvh_unaligned_nodes
 		&& num_bvh_time_steps == params.num_bvh_time_steps
-		&& use_qbvh == params.use_qbvh
 		&& persistent_data == params.persistent_data
 		&& texture_limit == params.texture_limit); }
 };

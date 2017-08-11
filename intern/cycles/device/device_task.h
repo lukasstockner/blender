@@ -79,7 +79,6 @@ public:
 	bool need_finish_queue;
 	bool integrator_branched;
 	int2 requested_tile_size;
-protected:
 	double last_update_time;
 };
 

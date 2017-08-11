@@ -365,6 +365,11 @@ if(WITH_BOOST)
 				optimized libboost_locale-${BOOST_POSTFIX}
 				debug libboost_locale-${BOOST_DEBUG_POSTFIX})
 		endif()
+		if(WITH_CYCLES_NETWORK)
+			set(BOOST_LIBRARIES ${BOOST_LIBRARIES}
+				optimized libboost_serialization-${BOOST_POSTFIX}
+				debug libboost_serialization-${BOOST_DEBUG_POSTFIX})
+		endif()
 	else() # we found boost using find_package
 		set(BOOST_INCLUDE_DIR ${Boost_INCLUDE_DIRS})
 		set(BOOST_LIBRARIES ${Boost_LIBRARIES})

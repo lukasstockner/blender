@@ -36,6 +36,7 @@ if(WITH_CYCLES_OSL)
 endif()
 
 if(NOT CYCLES_STANDALONE_REPOSITORY)
+	add_definitions(-DWITH_BLENDER)
 	list(APPEND LIBRARIES bf_intern_glew_mx bf_intern_guardedalloc)
 endif()
 
@@ -88,6 +89,7 @@ macro(cycles_target_link_libraries target)
 		${BOOST_LIBRARIES}
 		${CMAKE_DL_LIBS}
 		${PLATFORM_LINKLIBS}
+		extern_openjpeg
 	)
 endmacro()
 

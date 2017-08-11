@@ -1705,6 +1705,11 @@ def draw_device(self, context):
         if engine.with_osl() and use_cpu(context):
             layout.prop(cscene, "shading_system")
 
+        if cscene.device == 'NETWORK':
+            col = layout.column()
+            col.label("Network Servers:")
+            col.prop(cscene, "network_servers", text="")
+
 
 def draw_pause(self, context):
     layout = self.layout

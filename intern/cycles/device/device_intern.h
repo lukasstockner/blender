@@ -26,13 +26,13 @@ bool device_opencl_init(void);
 Device *device_opencl_create(DeviceInfo& info, Stats &stats, bool background);
 bool device_cuda_init(void);
 Device *device_cuda_create(DeviceInfo& info, Stats &stats, bool background);
-Device *device_network_create(DeviceInfo& info, Stats &stats, const char *address);
+Device *device_network_create(DeviceInfo& info, Stats &stats, bool background);
 Device *device_multi_create(DeviceInfo& info, Stats &stats, bool background);
 
 void device_cpu_info(vector<DeviceInfo>& devices);
 void device_opencl_info(vector<DeviceInfo>& devices);
 void device_cuda_info(vector<DeviceInfo>& devices);
-void device_network_info(vector<DeviceInfo>& devices);
+void device_network_info(vector<DeviceInfo>& devices, string servers);
 
 string device_cpu_capabilities(void);
 string device_opencl_capabilities(void);

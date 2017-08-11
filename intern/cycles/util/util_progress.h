@@ -35,6 +35,7 @@ public:
 	Progress()
 	{
 		pixel_samples = 0;
+		remaining_time = 0.0;
 		total_pixel_samples = 0;
 		current_tile_sample = 0;
 		rendered_tiles = 0;
@@ -66,6 +67,7 @@ public:
 		progress.get_status(status, substatus);
 
 		pixel_samples = progress.pixel_samples;
+		remaining_time = 0.0;
 		total_pixel_samples = progress.total_pixel_samples;
 		current_tile_sample = progress.get_current_sample();
 
@@ -75,6 +77,7 @@ public:
 	void reset()
 	{
 		pixel_samples = 0;
+		remaining_time = 0.0;
 		total_pixel_samples = 0;
 		current_tile_sample = 0;
 		rendered_tiles = 0;
@@ -168,14 +171,19 @@ public:
 		}
 	}
 
-	void get_time(double& total_time_, double& render_time_)
+	void get_time(double& total_time_, double& remaining_time_)
 	{
 		thread_scoped_lock lock(progress_mutex);
 
 		double time = (end_time > 0) ? end_time : time_dt();
 
 		total_time_ = time - start_time;
-		render_time_ = time - render_start_time;
+		if(remaining_time > 0.0 && end_time == 0.0) {
+			remaining_time_ = max(remaining_time - (time - remaining_time_update), 0.0);
+		}
+		else {
+			remaining_time_ = 0.0;
+		}
 	}
 
 	void set_end_time()
@@ -188,6 +196,7 @@ public:
 		thread_scoped_lock lock(progress_mutex);
 
 		pixel_samples = 0;
+		remaining_time = 0.0;
 		current_tile_sample = 0;
 		rendered_tiles = 0;
 		denoised_tiles = 0;
@@ -214,6 +223,13 @@ public:
 
 		pixel_samples += pixel_samples_;
 		current_tile_sample = tile_sample;
+
+		double progress = (double) get_progress();
+		if(progress > 0) {
+			double time = time_dt();
+			remaining_time = (1.0 - progress) * ((time - render_start_time) / progress);
+			remaining_time_update = time;
+		}
 	}
 
 	void add_samples_update(uint64_t pixel_samples_, int tile_sample)
@@ -349,6 +365,11 @@ protected:
 	double start_time, render_start_time;
 	/* End time written when render is done, so it doesn't keep increasing on redraws. */
 	double end_time;
+
+	/* To get a more accurate estimation, only update the remaining time
+	 * whenever we get new samples. Then, to get the current remaining time,
+	 * subtract how much time has passed since then. */
+	double remaining_time, remaining_time_update;
 
 	string status;
 	string substatus;

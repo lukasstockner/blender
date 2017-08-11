@@ -115,8 +115,7 @@ void BlenderSession::create()
 void BlenderSession::create_session()
 {
 	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
-	bool is_cpu = session_params.device.type == DEVICE_CPU;
-	SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background, is_cpu);
+	SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background);
 	bool session_pause = BlenderSync::get_session_pause(b_scene, background);
 
 	/* reset status/progress */
@@ -141,7 +140,7 @@ void BlenderSession::create_session()
 	session->set_pause(session_pause);
 
 	/* create sync */
-	sync = new BlenderSync(b_engine, b_data, b_scene, scene, !background, session->progress, is_cpu);
+	sync = new BlenderSync(b_engine, b_data, b_scene, scene, !background, session->progress);
 	BL::Object b_camera_override(b_engine.camera_override());
 	if(b_v3d) {
 		if(session_pause == false) {
@@ -179,8 +178,7 @@ void BlenderSession::reset_session(BL::BlendData& b_data_, BL::Scene& b_scene_)
 	b_scene = b_scene_;
 
 	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
-	const bool is_cpu = session_params.device.type == DEVICE_CPU;
-	SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background, is_cpu);
+	SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background);
 
 	width = render_resolution_x(b_render);
 	height = render_resolution_y(b_render);
@@ -211,7 +209,7 @@ void BlenderSession::reset_session(BL::BlendData& b_data_, BL::Scene& b_scene_)
 	session->stats.mem_peak = session->stats.mem_used;
 
 	/* sync object should be re-created */
-	sync = new BlenderSync(b_engine, b_data, b_scene, scene, !background, session->progress, is_cpu);
+	sync = new BlenderSync(b_engine, b_data, b_scene, scene, !background, session->progress);
 
 	/* for final render we will do full data sync per render layer, only
 	 * do some basic syncing here, no objects or materials for speed */
@@ -736,8 +734,7 @@ void BlenderSession::synchronize()
 
 	/* on session/scene parameter changes, we recreate session entirely */
 	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
-	const bool is_cpu = session_params.device.type == DEVICE_CPU;
-	SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background, is_cpu);
+	SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background);
 	bool session_pause = BlenderSync::get_session_pause(b_scene, background);
 
 	if(session->params.modified(session_params) ||
@@ -876,9 +873,9 @@ void BlenderSession::get_status(string& status, string& substatus)
 	session->progress.get_status(status, substatus);
 }
 
-void BlenderSession::get_progress(float& progress, double& total_time, double& render_time)
+void BlenderSession::get_progress(float& progress, double& total_time, double& remaining_time)
 {
-	session->progress.get_time(total_time, render_time);
+	session->progress.get_time(total_time, remaining_time);
 	progress = session->progress.get_progress();
 }
 
@@ -897,16 +894,13 @@ void BlenderSession::update_status_progress()
 	string timestatus, status, substatus;
 	string scene = "";
 	float progress;
-	double total_time, remaining_time = 0, render_time;
+	double total_time, remaining_time;
 	char time_str[128];
 	float mem_used = (float)session->stats.mem_used / 1024.0f / 1024.0f;
 	float mem_peak = (float)session->stats.mem_peak / 1024.0f / 1024.0f;
 
 	get_status(status, substatus);
-	get_progress(progress, total_time, render_time);
-
-	if(progress > 0)
-		remaining_time = (1.0 - (double)progress) * (render_time / (double)progress);
+	get_progress(progress, total_time, remaining_time);
 
 	if(background) {
 		scene += " | " + b_scene.name();

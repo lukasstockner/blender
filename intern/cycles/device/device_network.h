@@ -39,6 +39,7 @@
 #include "util/util_list.h"
 #include "util/util_map.h"
 #include "util/util_string.h"
+#include "util/util_time.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -49,11 +50,12 @@ using std::setw;
 using std::exception;
 
 using boost::asio::ip::tcp;
+using boost::asio::ip::udp;
 
 static const int SERVER_PORT = 5120;
 static const int DISCOVER_PORT = 5121;
-static const string DISCOVER_REQUEST_MSG = "REQUEST_RENDER_SERVER_IP";
-static const string DISCOVER_REPLY_MSG = "REPLY_RENDER_SERVER_IP";
+static const string DISCOVER_REQUEST_MSG = "REQUEST_RENDER_SERVER";
+static const string DISCOVER_REPLY_MSG = "REPLY_RENDER_SERVER";
 
 #if 0
 typedef boost::archive::text_oarchive o_archive;
@@ -85,6 +87,7 @@ public:
 	~NetworkError() {}
 
 	void network_error(const string& message) {
+		assert(false);
 		error = message;
 		error_count += 1;
 	}
@@ -108,7 +111,7 @@ public:
 	{
 		archive & name_;
 		error_func = e;
-		fprintf(stderr, "rpc send %s\n", name.c_str());
+		//fprintf(stderr, "rpc send %s\n", name.c_str());
 	}
 
 	~RPCSend()
@@ -129,19 +132,22 @@ public:
 	void add(const DeviceTask& task)
 	{
 		int type = (int)task.type;
-		archive & type & task.x & task.y & task.w & task.h;
-		archive & task.rgba_byte & task.rgba_half & task.buffer & task.sample & task.num_samples;
-		archive & task.offset & task.stride;
-		archive & task.shader_input & task.shader_output & task.shader_output_luma & task.shader_eval_type;
-		archive & task.shader_x & task.shader_w;
-		archive & task.need_finish_queue;
+
+		archive & type & task.x & task.y & task.w & task.h & task.rgba_byte;
+		archive & task.rgba_half & task.buffer & task.sample & task.num_samples & task.offset;
+		archive & task.stride & task.shader_input & task.shader_output & task.shader_output_luma & task.shader_eval_type;
+		archive & task.shader_filter & task.shader_x & task.shader_w & task.passes_size;
+		archive & task.denoising_radius & task.denoising_strength & task.denoising_feature_strength & task.denoising_relative_pca;
+		archive & task.pass_stride & task.pass_denoising_data & task.pass_denoising_clean;
+		archive & task.need_finish_queue & task.integrator_branched & task.requested_tile_size.x & task.requested_tile_size.y & task.last_update_time;
 	}
 
 	void add(const RenderTile& tile)
 	{
-		archive & tile.x & tile.y & tile.w & tile.h;
-		archive & tile.start_sample & tile.num_samples & tile.sample;
-		archive & tile.resolution & tile.offset & tile.stride;
+		int task = (int) tile.task;
+		archive & task & tile.x & tile.y & tile.w;
+		archive & tile.h & tile.start_sample & tile.num_samples & tile.sample;
+		archive & tile.resolution & tile.offset & tile.stride & tile.tile_index;
 		archive & tile.buffer & tile.rng_state;
 	}
 
@@ -237,7 +243,7 @@ public:
 					archive = new i_archive(*archive_stream);
 
 					*archive & name;
-					fprintf(stderr, "rpc receive %s\n", name.c_str());
+					//fprintf(stderr, "rpc receive %s\n", name.c_str());
 				}
 				else {
 					error_func->network_error("Network receive error: data size doesn't match header");
@@ -288,24 +294,28 @@ public:
 	{
 		int type;
 
-		*archive & type & task.x & task.y & task.w & task.h;
-		*archive & task.rgba_byte & task.rgba_half & task.buffer & task.sample & task.num_samples;
-		*archive & task.offset & task.stride;
-		*archive & task.shader_input & task.shader_output & task.shader_output_luma & task.shader_eval_type;
-		*archive & task.shader_x & task.shader_w;
-		*archive & task.need_finish_queue;
+		*archive & type & task.x & task.y & task.w & task.h & task.rgba_byte;
+		*archive & task.rgba_half & task.buffer & task.sample & task.num_samples & task.offset;
+		*archive & task.stride & task.shader_input & task.shader_output & task.shader_output_luma & task.shader_eval_type;
+		*archive & task.shader_filter & task.shader_x & task.shader_w & task.passes_size;
+		*archive & task.denoising_radius & task.denoising_strength & task.denoising_feature_strength & task.denoising_relative_pca;
+		*archive & task.pass_stride & task.pass_denoising_data & task.pass_denoising_clean;
+		*archive & task.need_finish_queue & task.integrator_branched & task.requested_tile_size.x & task.requested_tile_size.y & task.last_update_time;
 
-		task.type = (DeviceTask::Type)type;
+		task.type = (DeviceTask::Type) type;
 	}
 
 	void read(RenderTile& tile)
 	{
-		*archive & tile.x & tile.y & tile.w & tile.h;
-		*archive & tile.start_sample & tile.num_samples & tile.sample;
-		*archive & tile.resolution & tile.offset & tile.stride;
+		int task;
+
+		*archive & task & tile.x & tile.y & tile.w;
+		*archive & tile.h & tile.start_sample & tile.num_samples & tile.sample;
+		*archive & tile.resolution & tile.offset & tile.stride & tile.tile_index;
 		*archive & tile.buffer & tile.rng_state;
 
 		tile.buffers = NULL;
+		tile.task = (RenderTile::Task) task;
 	}
 
 	string name;
@@ -322,7 +332,7 @@ protected:
 
 class ServerDiscovery {
 public:
-	explicit ServerDiscovery(bool discover = false)
+	explicit ServerDiscovery(bool discover = false, string announce_to = "")
 	: listen_socket(io_service), collect_servers(false)
 	{
 		/* setup listen socket */
@@ -350,13 +360,25 @@ public:
 		/* start thread */
 		work = new boost::asio::io_service::work(io_service);
 		thread = new boost::thread(boost::bind(&boost::asio::io_service::run, &io_service));
+
+		if(announce_to != "") {
+			announce_thread = new boost::thread(boost::bind(&ServerDiscovery::announce, this, announce_to));
+		}
+		else {
+			announce_thread = NULL;
+		}
 	}
 
 	~ServerDiscovery()
 	{
 		io_service.stop();
 		thread->join();
+		if(announce_thread) {
+			announce_thread->interrupt();
+			announce_thread->join();
+		}
 		delete thread;
+		delete announce_thread;
 		delete work;
 	}
 
@@ -372,6 +394,23 @@ public:
 	}
 
 private:
+	void announce(string address)
+	{
+		udp::resolver resolver(io_service);
+		udp::resolver::query query(udp::v4(), address, string_printf("%d", DISCOVER_PORT));
+		udp::endpoint endpoint = *resolver.resolve(query);
+
+		udp::socket socket(io_service);
+		//boost::asio::socket_base::reuse_address option(true);
+		//socket.set_option(option);
+		socket.open(udp::v4());
+
+		for(;;) {
+			socket.send_to(boost::asio::buffer(DISCOVER_REPLY_MSG), endpoint);
+			boost::this_thread::sleep_for(boost::chrono::milliseconds(250));
+		}
+	}
+
 	void handle_receive_from(const boost::system::error_code& error, size_t size)
 	{
 		if(error) {
@@ -440,7 +479,7 @@ private:
 	boost::asio::ip::udp::socket listen_socket;
 
 	/* threading */
-	boost::thread *thread;
+	boost::thread *thread, *announce_thread;
 	boost::asio::io_service::work *work;
 	boost::mutex mutex;
 
