@@ -73,34 +73,47 @@ static int node_shader_gpu_tex_image(GPUMaterial *mat, bNode *node, bNodeExecDat
 
 	node_shader_gpu_tex_mapping(mat, node, in, out);
 
-	switch (tex->projection) {
-		case SHD_PROJ_FLAT:
-			GPU_stack_link(mat, "node_tex_image", in, out, GPU_image(ima, iuser, isdata));
-			break;
-		case SHD_PROJ_BOX:
-			GPU_link(mat, "direction_transform_m4v3", GPU_builtin(GPU_VIEW_NORMAL),
-			                                          GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
-			                                          &norm);
-			GPU_link(mat, "direction_transform_m4v3", norm,
-			                                          GPU_builtin(GPU_INVERSE_OBJECT_MATRIX),
-			                                          &norm);
-			GPU_link(mat, "node_tex_image_box", in[0].link,
-			                                    norm,
-			                                    GPU_image(ima, iuser, isdata),
-			                                    GPU_uniform(&blend),
-			                                    &out[0].link,
-			                                    &out[1].link);
-			break;
-		case SHD_PROJ_SPHERE:
-			GPU_link(mat, "point_texco_remap_square", in[0].link, &in[0].link);
-			GPU_link(mat, "point_map_to_sphere", in[0].link, &in[0].link);
-			GPU_stack_link(mat, "node_tex_image", in, out, GPU_image(ima, iuser, isdata));
-			break;
-		case SHD_PROJ_TUBE:
-			GPU_link(mat, "point_texco_remap_square", in[0].link, &in[0].link);
-			GPU_link(mat, "point_map_to_tube", in[0].link, &in[0].link);
-			GPU_stack_link(mat, "node_tex_image", in, out, GPU_image(ima, iuser, isdata));
-			break;
+	if (ima->numtiles > 0) {
+		GPU_link(mat, "node_tex_image", in[0].link, GPU_image(ima, iuser, isdata), &out[0].link, &out[1].link);
+		for (int i = 1; i < ima->numtiles; i++) {
+			Image *tima = BKE_image_get_tile(ima, i);
+			if (!tima) continue;
+
+			float pos[2] = {i % ima->rowtiles, i / ima->rowtiles};
+			GPU_link(mat, "node_tex_image_udim", in[0].link, GPU_uniform(pos), GPU_image(tima, iuser, isdata), out[0].link, &out[0].link, &out[1].link);
+		}
+	}
+	else {
+
+		switch (tex->projection) {
+			case SHD_PROJ_FLAT:
+				GPU_stack_link(mat, "node_tex_image", in, out, GPU_image(ima, iuser, isdata));
+				break;
+			case SHD_PROJ_BOX:
+				GPU_link(mat, "direction_transform_m4v3", GPU_builtin(GPU_VIEW_NORMAL),
+				                                          GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
+				                                          &norm);
+				GPU_link(mat, "direction_transform_m4v3", norm,
+				                                          GPU_builtin(GPU_INVERSE_OBJECT_MATRIX),
+				                                          &norm);
+				GPU_link(mat, "node_tex_image_box", in[0].link,
+				                                    norm,
+				                                    GPU_image(ima, iuser, isdata),
+				                                    GPU_uniform(&blend),
+				                                    &out[0].link,
+				                                    &out[1].link);
+				break;
+			case SHD_PROJ_SPHERE:
+				GPU_link(mat, "point_texco_remap_square", in[0].link, &in[0].link);
+				GPU_link(mat, "point_map_to_sphere", in[0].link, &in[0].link);
+				GPU_stack_link(mat, "node_tex_image", in, out, GPU_image(ima, iuser, isdata));
+				break;
+			case SHD_PROJ_TUBE:
+				GPU_link(mat, "point_texco_remap_square", in[0].link, &in[0].link);
+				GPU_link(mat, "point_map_to_tube", in[0].link, &in[0].link);
+				GPU_stack_link(mat, "node_tex_image", in, out, GPU_image(ima, iuser, isdata));
+				break;
+		}
 	}
 
 	ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, NULL);

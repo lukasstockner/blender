@@ -3044,6 +3044,13 @@ static void rna_def_space_image(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Pivot", "Rotation/Scaling Pivot");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, NULL);
 
+	/* udim */
+	prop = RNA_def_property(srna, "udim_rows", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 0, 100);
+	RNA_def_property_int_sdna(prop, NULL, "udim_rows");
+	RNA_def_property_ui_text(prop, "UDIM Rows", "How many rows of UDIM grid to draw");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, NULL);
+
 	/* grease pencil */
 	prop = RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "gpd");

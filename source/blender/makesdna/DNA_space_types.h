@@ -900,7 +900,7 @@ typedef struct SpaceImage {
 
 	/* Filter settings when editor shows other object's UVs. */
 	int other_uv_filter;
-	int pad2;
+	int udim_rows;
 
 	MaskSpaceInfo mask_info;
 } SpaceImage;

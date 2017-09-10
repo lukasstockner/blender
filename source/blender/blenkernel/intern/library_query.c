@@ -980,9 +980,16 @@ void BKE_library_foreach_ID_link(Main *bmain, ID *id, LibraryIDLinkCallback call
 				}
 				break;
 			}
+			case ID_IM:
+			{
+				Image *ima = (Image *) id;
+
+				for (int a = 0; a < ima->numtiles; a++) {
+					CALLBACK_INVOKE(ima->tiles[a], IDWALK_CB_USER);
+				}
+			}
 
 			/* Nothing needed for those... */
-			case ID_IM:
 			case ID_VF:
 			case ID_TXT:
 			case ID_SO:

@@ -266,6 +266,9 @@ static void image_operatortypes(void)
 	WM_operatortype_append(IMAGE_OT_read_renderlayers);
 	WM_operatortype_append(IMAGE_OT_render_border);
 	WM_operatortype_append(IMAGE_OT_clear_render_border);
+
+	WM_operatortype_append(IMAGE_OT_find_udim_tiles);
+	WM_operatortype_append(IMAGE_OT_find_udim_tiles_disk);
 }
 
 static void image_keymap(struct wmKeyConfig *keyconf)

@@ -495,6 +495,14 @@ static void rna_render_slots_active_index_set(PointerRNA *ptr, int value)
 	CLAMP(image->render_slot, 0, IMA_MAX_RENDER_SLOT - 1);
 }
 
+int rna_ImageTile_assign_int(PointerRNA *ptr, int key, const PointerRNA *assign_ptr)
+{
+	Image *ima = (Image *)ptr->id.data;
+	Image *tile = (Image *) assign_ptr->id.data;
+	BKE_image_set_tile(ima, key, tile);
+	return 1;
+}
+
 #else
 
 static void rna_def_imageuser(BlenderRNA *brna)
@@ -863,6 +871,20 @@ static void rna_def_image(BlenderRNA *brna)
 	RNA_def_property_collection_funcs(prop, "rna_Image_render_slots_begin", "rna_iterator_array_next",
 	                                  "rna_iterator_array_end", "rna_iterator_array_get", NULL, NULL, NULL, NULL);
 	RNA_def_property_srna(prop, "RenderSlots");
+
+	prop = RNA_def_property(srna, "tiles_per_row", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "rowtiles");
+	RNA_def_property_ui_text(prop, "Tiles per row", "How many tiles each row of tiles has");
+	RNA_def_property_range(prop, 1, 100);
+	RNA_def_property_int_default(prop, 1);
+	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
+
+	prop = RNA_def_property(srna, "tiles", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "tiles", "numtiles");
+	RNA_def_property_struct_type(prop, "Image");
+	RNA_def_property_collection_funcs(prop, NULL, NULL, NULL, NULL, NULL, NULL, NULL, "rna_ImageTile_assign_int");
+	RNA_def_property_ui_text(prop, "Tiles", "The other tiles belonging to this image");
+	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
 
 	/*
 	 * Image.has_data and Image.depth are temporary,

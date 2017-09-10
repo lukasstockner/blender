@@ -67,6 +67,64 @@ public:
 	TextureMapping tex_mapping;
 };
 
+class UDIMTextureNode : public TextureNode {
+public:
+	SHADER_NODE_NO_CLONE_CLASS(UDIMTextureNode);
+	~UDIMTextureNode();
+	ShaderNode *clone() const;
+	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
+
+	ImageManager *image_manager;
+
+	class Tile {
+	public:
+		int id;
+		string filename;
+		void *builtin_data;
+		Tile() {
+			added = false;
+			id = 0;
+			builtin_data = NULL;
+			filename = "";
+			slot = -1;
+		}
+		int slot;
+		bool operator==(const Tile &other) {
+			return filename == other.filename &&
+				builtin_data == other.builtin_data &&
+				id == other.id;
+		}
+	protected:
+		bool is_float;
+		bool is_linear;
+		bool added;
+
+		int get_encoding(NodeImageColorSpace color_space);
+
+		friend class UDIMTextureNode;
+	};
+
+	virtual bool equals(const ShaderNode& other)
+	{
+		if (!TextureNode::equals(other)) return false;
+		const UDIMTextureNode& udim_node = (const UDIMTextureNode&)other;
+		if (tiles.size() != udim_node.tiles.size()) return false;
+		for (int i = 0; i < tiles.size(); i++) {
+			if (!(tiles[i] == udim_node.tiles[i])) return false;
+		}
+		return true;
+	}
+
+	int tiles_per_row;
+	ccl::vector<Tile> tiles;
+
+	bool use_alpha;
+	NodeImageColorSpace color_space;
+	InterpolationType interpolation;
+	ExtensionType extension;
+	float3 vector;
+};
+
 /* Any node which uses image manager's slot should be a subclass of this one. */
 class ImageSlotTextureNode : public TextureNode {
 public:

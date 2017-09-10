@@ -113,6 +113,13 @@ void    BKE_image_make_local(struct Main *bmain, struct Image *ima, const bool l
 
 void    BKE_image_tag_time(struct Image *ima);
 
+void BKE_image_set_tile(struct Image *ima, int index, struct Image *tile);
+struct Image *BKE_image_get_tile(struct Image *ima, int index);
+int BKE_image_compare_udim_names(const char *main_name, const char *tile_name);
+void BKE_image_find_udim_tiles(struct Main *bmain, struct Image *ima);
+bool BKE_image_is_udim_name(struct Image *ima);
+void BKE_image_find_udim_tiles_disk(struct Main *bmain, struct Image *ima);
+
 /* ********************************** NEW IMAGE API *********************** */
 
 /* ImageUser is in Texture, in Nodes, Background Image, Image Window, .... */

@@ -598,6 +598,11 @@ class IMAGE_PT_image_properties(Panel):
 
         layout.template_image(sima, "image", iuser, multiview=True)
 
+        if sima.image and ("1001" in sima.image.name):
+            row = layout.row()
+            row.operator("image.find_udim_tiles")
+            row.operator("image.find_udim_tiles_disk")
+
 
 class IMAGE_PT_game_properties(Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -679,6 +684,9 @@ class IMAGE_PT_view_properties(Panel):
         elif show_uvedit:
             col.label(text="Coordinates:")
             col.prop(uvedit, "show_normalized_coords", text="Normalized")
+
+        col = layout.column()
+        col.prop(sima, "udim_rows")
 
         if show_uvedit or show_maskedit:
             col = layout.column()

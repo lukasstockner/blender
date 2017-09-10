@@ -679,6 +679,13 @@ static void outliner_add_id_contents(SpaceOops *soops, TreeElement *te, TreeStor
 			outliner_add_object_contents(soops, te, tselem, (Object *)id);
 			break;
 		}
+		case ID_IM:
+		{
+			Image *ima = (Image *)id;
+			for (int a = 0; a < ima->numtiles; a++)
+				outliner_add_element(soops, &te->subtree, ima->tiles[a], te, 0, a);
+			break;
+		}
 		case ID_ME:
 		{
 			Mesh *me = (Mesh *)id;

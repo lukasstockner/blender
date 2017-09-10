@@ -677,6 +677,41 @@ static void draw_image_buffer_repeated(const bContext *C, SpaceImage *sima, AReg
 	}
 }
 
+static void draw_image_buffers_udim(const bContext *C, SpaceImage *sima, ARegion *ar, Scene *scene, Image *ima, ImBuf *ibuf, float zoomx, float zoomy)
+{
+	draw_image_buffer(C, sima, ar, scene, ibuf, 0, 0, zoomx, zoomy);
+
+	if (ima->numtiles == 0) {
+		return;
+	}
+
+	for (int i = 1; i < ima->numtiles; i++) {
+		Image *tima = BKE_image_get_tile(ima, i);
+
+		if (!tima) continue;
+		int x = i % ima->rowtiles;
+		int y = i / ima->rowtiles;
+
+		ImageUser iuser;
+		iuser.frames = 1;
+		iuser.sfra = 1;
+		iuser.framenr = 1;
+		iuser.offset = 0;
+		iuser.fie_ima = 2;
+		iuser.scene = scene;
+		BKE_image_init_imageuser(tima, &iuser);
+
+		void *lock;
+		ImBuf *tibuf = BKE_image_acquire_ibuf(tima, &iuser, &lock);
+		if (tibuf) {
+			float facx = zoomx*((float)ibuf->x)/tibuf->x;
+			float facy = zoomy*((float)ibuf->y)/tibuf->y;
+			draw_image_buffer(C, sima, ar, scene, tibuf, x, y, facx, facy);
+		}
+		BKE_image_release_ibuf(tima, tibuf, lock);
+	}
+}
+
 /* draw uv edit */
 
 /* draw grease pencil */
@@ -833,6 +868,76 @@ static void draw_image_paint_helpers(const bContext *C, ARegion *ar, Scene *scen
 	}
 }
 
+static bool draw_image_udim_grid(ARegion *ar, SpaceImage *sima, float zoomx, float zoomy, bool draw_tilegrids)
+{
+	Image *ima = ED_space_image(sima);
+
+	int maxrow = 0, maxcol = 0;
+	if (ima && ima->numtiles > 0) {
+		maxcol = ima->rowtiles;
+		maxrow = (ima->numtiles + ima->rowtiles - 1) / ima->rowtiles;
+	}
+	if (sima->udim_rows > 0) {
+		maxcol = MAX2(maxcol, 10);
+		maxrow = MAX2(maxrow, sima->udim_rows);
+	}
+	if (!maxcol || !maxrow) return false;
+
+	const int xmin = MAX2(floor(ar->v2d.cur.xmin), 0);
+	const int ymin = MAX2(floor(ar->v2d.cur.ymin), 0);
+	const int xmax = MIN2(ceil(ar->v2d.cur.xmax), maxcol);
+	const int ymax = MIN2(ceil(ar->v2d.cur.ymax), maxrow);
+
+	float stepx = BLI_rcti_size_x(&ar->v2d.mask) / BLI_rctf_size_x(&ar->v2d.cur);
+	float stepy = BLI_rcti_size_y(&ar->v2d.mask) / BLI_rctf_size_y(&ar->v2d.cur);
+
+	float x1, y1;
+	UI_view2d_view_to_region_fl(&ar->v2d, 0.0f, 0.0f, &x1, &y1);
+	int x, y;
+
+	if (draw_tilegrids) {
+		for (y = ymin; y < ymax; y++) {
+			for (x = xmin; x < xmax; x++) {
+				ED_region_grid_draw(ar, zoomx, zoomy, x, y);
+			}
+		}
+	}
+
+	UI_ThemeColorShade(TH_BACK, -20);
+	glBegin(GL_LINES);
+	for (x = xmin; x <= xmax; x++) {
+		glVertex2f((int) (x1 + x*stepx), MAX2(y1 + ymin*stepy, ar->v2d.mask.ymin));
+		glVertex2f((int) (x1 + x*stepx), MIN2(y1 + ymax*stepy, ar->v2d.mask.ymax));
+	}
+	for (y = ymin; y <= ymax; y++) {
+		glVertex2f(MAX2(x1 + xmin*stepx, ar->v2d.mask.xmin), (int) (y1 + y*stepy));
+		glVertex2f(MIN2(x1 + xmax*stepx, ar->v2d.mask.xmax), (int) (y1 + y*stepy));
+	}
+	glEnd();
+
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
+	BLF_size(blf_mono_font, 25 * U.pixelsize, U.dpi);
+
+	char id[256];
+	for (y = ymin; y < ymax; y++) {
+		for (x = xmin; x < xmax; x++) {
+			BLI_snprintf(id, sizeof(id), "%d", 1001 + y*maxcol + x);
+			int textwidth = BLF_width(blf_mono_font, id, sizeof(id)) + 10;
+			float opacity;
+			if (textwidth < 0.5f*(stepx - 10)) opacity = 1.0f;
+			else if (textwidth < (stepx - 10)) opacity = 2.0f - 2.0f*(textwidth / (stepx - 10));
+			else opacity = 0.0f;
+			glColor4ub(220, 220, 220, 150*opacity);
+			BLF_position(blf_mono_font, (int) (x1 + x*stepx + 10), (int) (y1 + y*stepy + 10), 0);
+			BLF_draw_ascii(blf_mono_font, id, sizeof(id));
+		}
+	}
+	glDisable(GL_BLEND);
+
+	return true;
+}
+
 /* draw main image region */
 
 void draw_image_main(const bContext *C, ARegion *ar)
@@ -894,9 +999,11 @@ void draw_image_main(const bContext *C, ARegion *ar)
 
 	ibuf = ED_space_image_acquire_buffer(sima, &lock);
 
-	/* draw the image or grid */
+	/* draw the image and/or grid */
 	if (ibuf == NULL) {
-		ED_region_grid_draw(ar, zoomx, zoomy);
+		if (!draw_image_udim_grid(ar, sima, zoomx, zoomy, true)) {
+			ED_region_grid_draw(ar, zoomx, zoomy, 0.0f, 0.0f);
+		}
 	}
 	else {
 
@@ -904,6 +1011,8 @@ void draw_image_main(const bContext *C, ARegion *ar)
 			draw_image_buffer_repeated(C, sima, ar, scene, ima, ibuf, zoomx, zoomy);
 		else if (ima && (ima->tpageflag & IMA_TILES))
 			draw_image_buffer_tiled(sima, ar, scene, ima, ibuf, 0.0f, 0.0, zoomx, zoomy);
+		else if (ima && ima->numtiles > 0)
+			draw_image_buffers_udim(C, sima, ar, scene, ima, ibuf, zoomx, zoomy);
 		else
 			draw_image_buffer(C, sima, ar, scene, ibuf, 0.0f, 0.0f, zoomx, zoomy);
 		
@@ -916,6 +1025,8 @@ void draw_image_main(const bContext *C, ARegion *ar)
 
 			ED_region_image_metadata_draw(x, y, ibuf, &frame, zoomx, zoomy);
 		}
+
+		draw_image_udim_grid(ar, sima, zoomx, zoomy, false);
 	}
 
 	ED_space_image_release_buffer(sima, ibuf, lock);

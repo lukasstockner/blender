@@ -32,6 +32,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <math.h>
+#include <ctype.h>
 #ifndef WIN32
 #  include <unistd.h>
 #else
@@ -66,6 +67,7 @@
 #include "BLI_threads.h"
 #include "BLI_timecode.h"  /* for stamp timecode format */
 #include "BLI_utildefines.h"
+#include "BLI_fileops_types.h"
 
 #include "BKE_bmfont.h"
 #include "BKE_colortools.h"
@@ -354,6 +356,10 @@ void BKE_image_free(Image *ima)
 		}
 	}
 
+	for (a = 0; a < ima->numtiles; a++) {
+		id_us_min(&ima->tiles[a]->id);
+	}
+
 	BKE_image_free_views(ima);
 	MEM_SAFE_FREE(ima->stereo3d_format);
 
@@ -375,6 +381,8 @@ static void image_init(Image *ima, short source, short type)
 
 	ima->source = source;
 	ima->type = type;
+
+	ima->rowtiles = 1;
 
 	if (source == IMA_SRC_VIEWER)
 		ima->flag |= IMA_VIEW_AS_RENDER;
@@ -459,6 +467,16 @@ Image *BKE_image_copy(Main *bmain, const Image *ima)
 	nima->gen_y = ima->gen_y;
 	nima->gen_type = ima->gen_type;
 	copy_v4_v4(nima->gen_color, ima->gen_color);
+
+	nima->rowtiles = ima->rowtiles;
+	nima->numtiles = ima->numtiles;
+	if(ima->tiles) {
+		nima->tiles = MEM_mallocN(sizeof(Image*)*ima->numtiles, "Image Tiles");
+		for(int a = 0; a < ima->numtiles; a++) {
+			nima->tiles[a] = ima->tiles[a];
+			id_us_plus(&nima->tiles[a]->id);
+		}
+	}
 
 	nima->animspeed = ima->animspeed;
 
@@ -4721,4 +4739,164 @@ static void image_update_views_format(Image *ima, ImageUser *iuser)
 			BKE_image_free_views(ima);
 		}
 	}
+}
+
+void BKE_image_set_tile(Image *ima, int index, Image *tile)
+{
+	if (ima->tiles == NULL) {
+		/* This is the first tile, so allocate the tile storage. */
+		ima->numtiles = index+1;
+		ima->tiles = MEM_callocN(ima->numtiles * sizeof(Image*), "Image Tiles");
+	}
+	else if (ima->numtiles <= index) {
+		/* The tile storage is too small, so resize it. */
+		ima->numtiles = index+1;
+		ima->tiles = MEM_recallocN_id(ima->tiles, ima->numtiles * sizeof(Image*), "Image Tiles");
+	}
+
+	if (ima->tiles[index]) {
+		id_us_min(&ima->tiles[index]->id);
+	}
+	ima->tiles[index] = tile;
+	if (tile) {
+		id_us_plus(&tile->id);
+	}
+	else if (ima->numtiles - 1 == index) {
+		/* Shrink the tile storage. */
+		ima->numtiles = index;
+		while(ima->numtiles > 0 && ima->tiles[ima->numtiles-1] == NULL) {
+			ima->numtiles--;
+		}
+		if(ima->numtiles > 0) {
+			ima->tiles = MEM_reallocN_id(ima->tiles, ima->numtiles * sizeof(Image*), "Image Tiles");
+		}
+		else {
+			MEM_freeN(ima->tiles);
+			ima->tiles = NULL;
+		}
+	}
+}
+
+Image *BKE_image_get_tile(Image *ima, int index)
+{
+	if (index >= ima->numtiles) {
+		return NULL;
+	}
+	else {
+		return ima->tiles[index];
+	}
+}
+
+int BKE_image_compare_udim_names(const char *main_name, const char *tile_name)
+{
+	char *pos = strstr(main_name, "1001");
+	if (!pos) return -1;
+
+	int offset = pos - main_name;
+	/* Compare the strings up to the tile ID.
+	 * No explicit check for \0 needed here since main_name is guaranteed to be longer
+	 * than offset, to the comparison catches a shorter tile_name anyways. */
+	for (int i = 0; i < offset; i++, main_name++, tile_name++) {
+		if (*main_name != *tile_name) break;
+	}
+	if (*main_name != *tile_name) return -1;
+
+	/* Get the tile ID. */
+	char other_id[5];
+	bool valid_id = true;
+	for (int i = 0; i < 4; i++) {
+		other_id[i] = tile_name[i];
+		if (!isdigit(other_id[i]) || tile_name[i] == '\0') {
+			valid_id = false;
+			break;
+		}
+	}
+	if (!valid_id) return -1;
+	other_id[4] = '\0';
+	main_name += 4;
+	tile_name += 4;
+
+	/* Compare the remaining string until one of them ends. */
+	for (; *main_name != '\0' && *tile_name != '\0'; main_name++, tile_name++) {
+		if (*main_name != *tile_name) break;
+	}
+	if (*main_name != *tile_name) return -1;
+
+	/* Names were identical except for the ID, so this is a tile. */
+	int id = atoi(other_id);
+	if(id <= 1001 || id > 1999) return -1;
+
+	return id;
+}
+
+bool BKE_image_is_udim_name(Image *ima)
+{
+	if (ima == NULL) return false;
+
+	char *pos = strstr(ima->name, "1001");
+	if (!pos) return false;
+
+	int offset = pos - ima->name;
+	/* 1001 should not be surrounded by other digits. */
+	if ((offset && isdigit(ima->name[offset-1])) || isdigit(ima->name[offset+4])) {
+		return false;
+	}
+
+	return true;
+}
+
+void BKE_image_find_udim_tiles(Main *bmain, Image *ima)
+{
+	if(!BKE_image_is_udim_name(ima)) return;
+
+	for (Image *tima = bmain->image.first; tima; tima = tima->id.next) {
+		if (ima == tima) continue;
+
+		int id = BKE_image_compare_udim_names(ima->name, tima->name);
+		if (id < 0) continue;
+
+		ima->rowtiles = 10;
+		BKE_image_set_tile(ima, id - 1001, tima);
+	}
+}
+
+void BKE_image_find_udim_tiles_disk(Main *bmain, Image *ima)
+{
+	ima->flag |= IMA_HAVE_SCANNED_DISK;
+
+	if(!BKE_image_is_udim_name(ima)) return;
+
+	char filepath[FILE_MAX];
+	BLI_strncpy(filepath, ima->name, FILE_MAX);
+	bool main_is_rel = BLI_path_is_rel(filepath);
+	BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &ima->id));
+
+	char dir[FILE_MAX], file[FILE_MAX];
+	BLI_split_dirfile(filepath, dir, file, FILE_MAX, FILE_MAX);
+
+	struct direntry *files;
+	int numfiles = BLI_filelist_dir_contents(dir, &files);
+	for (int i = 0; i < numfiles; i++) {
+		if (!(files[i].type & S_IFREG)) continue;
+		int id = BKE_image_compare_udim_names(file, files[i].relname);
+		if (id < 0) continue;
+
+		char tilepath[FILE_MAX];
+		BLI_join_dirfile(tilepath, FILE_MAX, dir, files[i].relname);
+
+		bool exists = false;
+		Image *tima = BKE_image_load_exists_ex(tilepath, &exists);
+		if (!exists) {
+			tima->flag &= ~IMA_USE_VIEWS;
+			BKE_image_free_views(tima);
+			if (main_is_rel) {
+				BLI_path_rel(tima->name, bmain->name);
+			}
+		}
+
+		BKE_image_set_tile(ima, id - 1001, tima);
+		ima->rowtiles = 10;
+	}
+
+	BLI_filelist_free(files, numfiles);
 }

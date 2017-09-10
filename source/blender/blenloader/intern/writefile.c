@@ -2339,6 +2339,8 @@ static void write_image(WriteData *wd, Image *ima)
 		writestruct(wd, ID_IM, Image, 1, ima);
 		write_iddata(wd, &ima->id);
 
+		writedata(wd, DATA, sizeof(void *) * ima->numtiles, ima->tiles);
+
 		for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next) {
 			writestruct(wd, DATA, ImagePackedFile, 1, imapf);
 			if (imapf->packedfile) {

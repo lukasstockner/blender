@@ -203,6 +203,164 @@ void TextureMapping::compile(OSLCompiler &compiler)
 	}
 }
 
+/* UDIM Texture */
+
+NODE_DEFINE(UDIMTextureNode)
+{
+	NodeType* type = NodeType::add("udim_texture", create, NodeType::SHADER);
+
+	TEXTURE_MAPPING_DEFINE(UDIMTextureNode);
+
+	static NodeEnum color_space_enum;
+	color_space_enum.insert("none", NODE_COLOR_SPACE_NONE);
+	color_space_enum.insert("color", NODE_COLOR_SPACE_COLOR);
+	SOCKET_ENUM(color_space, "Color Space", color_space_enum, NODE_COLOR_SPACE_COLOR);
+
+	SOCKET_BOOLEAN(use_alpha, "Use Alpha", true);
+
+	static NodeEnum interpolation_enum;
+	interpolation_enum.insert("closest", INTERPOLATION_CLOSEST);
+	interpolation_enum.insert("linear", INTERPOLATION_LINEAR);
+	interpolation_enum.insert("cubic", INTERPOLATION_CUBIC);
+	interpolation_enum.insert("smart", INTERPOLATION_SMART);
+	SOCKET_ENUM(interpolation, "Interpolation", interpolation_enum, INTERPOLATION_LINEAR);
+
+	static NodeEnum extension_enum;
+	extension_enum.insert("periodic", EXTENSION_REPEAT);
+	extension_enum.insert("clamp", EXTENSION_EXTEND);
+	extension_enum.insert("black", EXTENSION_CLIP);
+	SOCKET_ENUM(extension, "Extension", extension_enum, EXTENSION_REPEAT);
+
+	SOCKET_IN_POINT(vector, "Vector", make_float3(0.0f, 0.0f, 0.0f), SocketType::LINK_TEXTURE_UV);
+	SOCKET_INT(tiles_per_row, "Tiles per Row", 10);
+
+	SOCKET_OUT_COLOR(color, "Color");
+	SOCKET_OUT_FLOAT(alpha, "Alpha");
+
+	return type;
+}
+
+UDIMTextureNode::UDIMTextureNode()
+: TextureNode(node_type)
+{
+	image_manager = NULL;
+	special_type = SHADER_SPECIAL_TYPE_UDIM;
+}
+
+UDIMTextureNode::~UDIMTextureNode()
+{
+	if(image_manager) {
+		foreach(Tile &tile, tiles) {
+			if(tile.added) {
+				image_manager->remove_image(tile.filename,
+				                            tile.builtin_data,
+				                            interpolation,
+				                            extension,
+				                            use_alpha);
+			}
+		}
+	}
+}
+
+ShaderNode *UDIMTextureNode::clone() const
+{
+	UDIMTextureNode *node = new UDIMTextureNode(*this);
+	node->image_manager = NULL;
+	node->tiles.clear();
+	return node;
+}
+
+int UDIMTextureNode::Tile::get_encoding(NodeImageColorSpace color_space) {
+	if(!slot) {
+		return -1;
+	}
+	int srgb = (is_linear || color_space != NODE_COLOR_SPACE_COLOR)? 0: 1;
+	return (slot & ~(1 << 31)) | (srgb? (1 << 31) : 0);
+}
+
+void UDIMTextureNode::compile(SVMCompiler& compiler)
+{
+	ShaderOutput *color_out = output("Color");
+	ShaderOutput *alpha_out = output("Alpha");
+	ShaderInput *vector_in = input("Vector");
+
+	image_manager = compiler.image_manager;
+
+	int max_row = 0, max_col = 0;
+	foreach(Tile &tile, tiles) {
+		if(!tile.added) {
+			tile.slot = image_manager->add_image(tile.filename,
+			                                     tile.builtin_data,
+			                                     false,
+			                                     0,
+			                                     tile.is_float,
+			                                     tile.is_linear,
+			                                     interpolation,
+			                                     extension,
+			                                     use_alpha);
+			tile.added = true;
+		}
+		max_row = max(max_row, tile.id / tiles_per_row);
+		max_col = max(max_col, tile.id % tiles_per_row);
+	}
+	max_row++;
+	max_col++;
+
+	int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
+	compiler.add_node(NODE_TEX_UDIM,
+		compiler.encode_uchar4(
+			compiler.stack_assign_if_linked(color_out),
+			compiler.stack_assign_if_linked(alpha_out),
+			max_col,
+			max_row),
+		vector_offset,
+		divide_up(max_row * max_col, 4));
+
+	/* Encode all tiles into an integer, and ensure that they're a multiple
+	 * of 4 since SVM nodes are int4. */
+	ccl::vector<int> encoded(align_up(max_row * max_col, 4), -1);
+	foreach(Tile &tile, tiles) {
+		int x = tile.id % tiles_per_row;
+		int y = tile.id / tiles_per_row;
+		encoded[y*max_col + x] = tile.get_encoding(color_space);
+	}
+
+	for(int i = 0; i < encoded.size(); i += 4) {
+		compiler.add_node(encoded[i], encoded[i+1], encoded[i+2], encoded[i+3]);
+	}
+}
+
+void UDIMTextureNode::compile(OSLCompiler& compiler)
+{
+	/* TODO: Tiles */
+	ShaderOutput *alpha_out = output("Alpha");
+
+	tex_mapping.compile(compiler);
+
+	image_manager = compiler.image_manager;
+
+	ImageDataType type;
+	bool is_linear;
+	bool builtin_free_cache;
+	type = image_manager->get_image_metadata(tiles[0].filename, NULL, is_linear, builtin_free_cache);
+	bool is_float = (type == IMAGE_DATA_TYPE_FLOAT || type == IMAGE_DATA_TYPE_FLOAT4);
+
+	string file = tiles[0].filename;
+	string_replace(file, "1001", "<UDIM>");
+	compiler.parameter("filename", file.c_str());
+
+	if(is_linear || color_space != NODE_COLOR_SPACE_COLOR)
+		compiler.parameter("color_space", "linear");
+	else
+		compiler.parameter("color_space", "sRGB");
+	compiler.parameter("is_float", is_float);
+	compiler.parameter("use_alpha", !alpha_out->links.empty());
+	compiler.parameter(this, "interpolation");
+	compiler.parameter(this, "extension");
+
+	compiler.add(this, "node_udim_texture");
+}
+
 /* Image Texture */
 
 NODE_DEFINE(ImageTextureNode)

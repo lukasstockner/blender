@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <ctype.h>
 #ifndef WIN32
 #  include <unistd.h>
 #else
@@ -1074,6 +1075,8 @@ typedef struct ImageFrameRange {
 typedef struct ImageFrame {
 	struct ImageFrame *next, *prev;
 	int framenr;
+	char name[FILE_MAX];
+	char head[FILE_MAX], tail[FILE_MAX];
 } ImageFrame;
 
 static void image_open_init(bContext *C, wmOperator *op)
@@ -1090,6 +1093,11 @@ static void image_open_cancel(bContext *UNUSED(C), wmOperator *op)
 	op->customdata = NULL;
 }
 
+static int compare_imageframes(const void *a, const void *b)
+{
+	return (((ImageFrame*) a)->framenr < ((ImageFrame*) b)->framenr)? -1 : 1;
+}
+
 /**
  * \brief Get a list of frames from the list of image files matching the first file name sequence pattern
  * \param ptr [in] the RNA pointer containing the "directory" entry and "files" collection
@@ -1101,40 +1109,52 @@ static void image_sequence_get_frame_ranges(PointerRNA *ptr, ListBase *frames_al
 	const bool do_frame_range = RNA_boolean_get(ptr, "use_sequence_detection");
 	ImageFrameRange *frame_range = NULL;
 
+	ListBase frames;
+	BLI_listbase_clear(&frames);
 	RNA_string_get(ptr, "directory", dir);
 	RNA_BEGIN (ptr, itemptr, "files")
 	{
-		char base_head[FILE_MAX], base_tail[FILE_MAX];
-		char head[FILE_MAX], tail[FILE_MAX];
 		unsigned short digits;
-		char *filename = RNA_string_get_alloc(&itemptr, "name", NULL, 0);
 		ImageFrame *frame = MEM_callocN(sizeof(ImageFrame), "image_frame");
 
+		char *filename = RNA_string_get_alloc(&itemptr, "name", NULL, 0);
+		BLI_join_dirfile(frame->name, sizeof(frame->name), dir, filename);
+
 		/* use the first file in the list as base filename */
-		frame->framenr = BLI_stringdec(filename, head, tail, &digits);
-
-		/* still in the same sequence */
-		if (do_frame_range &&
-		    (frame_range != NULL) &&
-		    (STREQLEN(base_head, head, FILE_MAX)) &&
-		    (STREQLEN(base_tail, tail, FILE_MAX)))
-		{
-			/* pass */
-		}
-		else {
-			/* start a new frame range */
-			frame_range = MEM_callocN(sizeof(*frame_range), __func__);
-			BLI_join_dirfile(frame_range->filepath, sizeof(frame_range->filepath), dir, filename);
-			BLI_addtail(frames_all, frame_range);
-
-			BLI_strncpy(base_head, head, sizeof(base_head));
-			BLI_strncpy(base_tail, tail, sizeof(base_tail));
-		}
-
-		BLI_addtail(&frame_range->frames, frame);
+		frame->framenr = BLI_stringdec(filename, frame->head, frame->tail, &digits);
 		MEM_freeN(filename);
+
+		BLI_addtail(&frames, frame);
 	}
 	RNA_END
+
+	BLI_listbase_sort(&frames, compare_imageframes);
+
+	ImageFrame *frame = frames.first;
+	while (frame) {
+		/* start a new frame range */
+		frame_range = MEM_callocN(sizeof(*frame_range), __func__);
+		BLI_strncpy(frame_range->filepath, frame->name, sizeof(frame_range->filepath));
+		BLI_addtail(frames_all, frame_range);
+
+		BLI_remlink(&frames, frame);
+		BLI_addtail(&frame_range->frames, frame);
+
+		if (do_frame_range) {
+			ImageFrame *frame2 = frames.first;
+			while (frame2) {
+				ImageFrame *nextframe2 = frame2->next;
+				if ((STREQLEN(frame2->head, frame->head, FILE_MAX)) && (STREQLEN(frame2->tail, frame->tail, FILE_MAX)))
+				{
+					BLI_remlink(&frames, frame2);
+					BLI_addtail(&frame_range->frames, frame2);
+				}
+				frame2 = nextframe2;
+			}
+		}
+
+		frame = frames.first;
+	}
 }
 
 static int image_cmp_frame(const void *a, const void *b)
@@ -1156,8 +1176,6 @@ static int image_cmp_frame(const void *a, const void *b)
 static int image_sequence_get_len(ListBase *frames, int *ofs)
 {
 	ImageFrame *frame;
-
-	BLI_listbase_sort(frames, image_cmp_frame);
 
 	frame = frames->first;
 	if (frame) {
@@ -1235,6 +1253,7 @@ static int image_open_exec(bContext *C, wmOperator *op)
 
 	const bool is_relative_path = RNA_boolean_get(op->ptr, "relative_path");
 	const bool use_multiview    = RNA_boolean_get(op->ptr, "use_multiview");
+	const bool detect_udim      = RNA_boolean_get(op->ptr, "detect_udim");
 
 	if (!op->customdata)
 		image_open_init(C, op);
@@ -1250,20 +1269,45 @@ static int image_open_exec(bContext *C, wmOperator *op)
 		BLI_listbase_clear(&frame_ranges_all);
 		image_sequence_get_frame_ranges(op->ptr, &frame_ranges_all);
 		for (ImageFrameRange *frame_range = frame_ranges_all.first; frame_range; frame_range = frame_range->next) {
+			BLI_listbase_sort(&frame_range->frames, image_cmp_frame);
+
+			Image *ima_range = NULL;
 			int frame_range_ofs;
-			int frame_range_seq_len = image_sequence_get_len(&frame_range->frames, &frame_range_ofs);
-			BLI_freelistN(&frame_range->frames);
-
-			char filepath_range[FILE_MAX];
-			BLI_strncpy(filepath_range, frame_range->filepath, sizeof(filepath_range));
-
-			if (was_relative) {
-				BLI_path_rel(filepath_range, bmain->name);
+			int frame_range_seq_len;
+			if (detect_udim && ((ImageFrame*) frame_range->frames.first)->framenr == 1001) {
+				for (ImageFrame *frame = frame_range->frames.first; frame; frame = frame->next) {
+					if (was_relative) {
+						BLI_path_rel(frame->name, bmain->name);
+					}
+					Image *tima = image_open_single(op, frame->name, bmain->name, is_relative_path, use_multiview, 1);
+					if (ima_range == NULL && frame->framenr == 1001) {
+						ima_range = tima;
+						tima->rowtiles = 10;
+					}
+					else if (ima_range) {
+						BKE_image_set_tile(ima_range, frame->framenr - 1001, tima);
+					}
+				}
+				BLI_freelistN(&frame_range->frames);
+				frame_range_ofs = 0;
+				frame_range_seq_len = 1;
+				BKE_image_find_udim_tiles_disk(bmain, ima_range);
 			}
+			else {
+				frame_range_seq_len = image_sequence_get_len(&frame_range->frames, &frame_range_ofs);
+				BLI_freelistN(&frame_range->frames);
 
-			Image *ima_range = image_open_single(
-			         op, filepath_range, bmain->name,
-			         is_relative_path, use_multiview, frame_range_seq_len);
+				char filepath_range[FILE_MAX];
+				BLI_strncpy(filepath_range, frame_range->filepath, sizeof(filepath_range));
+
+				if (was_relative) {
+					BLI_path_rel(filepath_range, bmain->name);
+				}
+
+				ima_range = image_open_single(
+				         op, filepath_range, bmain->name,
+				         is_relative_path, use_multiview, frame_range_seq_len);
+			}
 
 			/* take the first image */
 			if ((ima == NULL) && ima_range) {
@@ -1458,6 +1502,9 @@ void IMAGE_OT_open(wmOperatorType *ot)
 
 	RNA_def_boolean(ot->srna, "use_sequence_detection", true, "Detect Sequences",
 	                "Automatically detect animated sequences in selected images (based on file names)");
+
+	RNA_def_boolean(ot->srna, "detect_udim", true, "Detect UDIMs",
+	                "Automatically detect UDIM tile sets in selected images (based on file names)");
 }
 
 /******************** Match movie length operator ********************/
@@ -3719,6 +3766,70 @@ void IMAGE_OT_clear_render_border(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = clear_render_border_exec;
 	ot->poll = image_cycle_render_slot_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/* ********************* Find UDIM tiles operator ****************** */
+
+static int find_udim_tiles_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Main *bmain = CTX_data_main(C);
+	Image *ima = CTX_data_edit_image(C);
+
+	BKE_image_find_udim_tiles(bmain, ima);
+
+	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
+
+	return OPERATOR_FINISHED;
+}
+
+static int find_udim_tiles_poll(bContext *C)
+{
+	return BKE_image_is_udim_name(CTX_data_edit_image(C))? 1 : 0;
+}
+
+void IMAGE_OT_find_udim_tiles(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Find UDIM Tiles";
+	ot->description = "Find all opened images that have a similar name but different UDIM IDs and assigns them as tiles";
+	ot->idname = "IMAGE_OT_find_udim_tiles";
+
+	/* api callbacks */
+	ot->exec = find_udim_tiles_exec;
+	ot->poll = find_udim_tiles_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+
+/* ********************* Find UDIM tiles operator ****************** */
+
+static int find_udim_tiles_disk_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Main *bmain = CTX_data_main(C);
+	Image *ima = CTX_data_edit_image(C);
+
+	BKE_image_find_udim_tiles_disk(bmain, ima);
+
+	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
+
+	return OPERATOR_FINISHED;
+}
+
+void IMAGE_OT_find_udim_tiles_disk(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Find UDIM Tiles on Disk";
+	ot->description = "Find all images in the same folder that have a similar name but different UDIM IDs and assigns them as tiles";
+	ot->idname = "IMAGE_OT_find_udim_tiles_disk";
+
+	/* api callbacks */
+	ot->exec = find_udim_tiles_disk_exec;
+	ot->poll = find_udim_tiles_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

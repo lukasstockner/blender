@@ -843,6 +843,13 @@ static void node_shader_buts_tex_image(uiLayout *layout, bContext *C, PointerRNA
 	 * which redefines them in the node struct RNA to get proper updates.
 	 */
 	node_buts_image_user(layout, C, &iuserptr, &imaptr, &iuserptr);
+
+	if (imaptr.data) {
+		Image *ima = imaptr.id.data;
+		if (ima->numtiles) {
+			uiItemL(layout, "With UDIMs", ICON_RENDERLAYERS);
+		}
+	}
 }
 
 static void node_shader_buts_tex_image_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)

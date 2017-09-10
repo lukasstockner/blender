@@ -3725,6 +3725,10 @@ static void lib_link_image(FileData *fd, Main *main)
 	for (Image *ima = main->image.first; ima; ima = ima->id.next) {
 		if (ima->id.tag & LIB_TAG_NEED_LINK) {
 			IDP_LibLinkProperty(ima->id.properties, fd);
+
+			for (int a = 0; a < ima->numtiles; a++) {
+				ima->tiles[a] = newlibadr_us(fd, ima->id.lib, ima->tiles[a]);
+			}
 			
 			ima->id.tag &= ~LIB_TAG_NEED_LINK;
 		}
@@ -3740,6 +3744,12 @@ static void direct_link_image(FileData *fd, Image *ima)
 		ima->cache = newimaadr(fd, ima->cache);
 	else
 		ima->cache = NULL;
+
+	ima->tiles = newdataadr(fd, ima->tiles);
+	test_pointer_array(fd, (void **)&ima->tiles);
+	if (!ima->tiles) {
+		ima->numtiles = 0;
+	}
 
 	/* if not restored, we keep the binded opengl index */
 	if (!ima->cache) {
@@ -9306,6 +9316,13 @@ static void expand_mball(FileData *fd, Main *mainvar, MetaBall *mb)
 		expand_animdata(fd, mainvar, mb->adt);
 }
 
+static void expand_image(FileData *fd, Main *mainvar, Image *ima)
+{
+	for (int a = 0; a < ima->numtiles; a++) {
+		expand_doit(fd, mainvar, ima->tiles[a]);
+	}
+}
+
 static void expand_curve(FileData *fd, Main *mainvar, Curve *cu)
 {
 	int a;
@@ -9847,6 +9864,9 @@ void BLO_expand_main(void *fdhandle, Main *mainvar)
 						break;
 					case ID_MB:
 						expand_mball(fd, mainvar, (MetaBall *)id);
+						break;
+					case ID_IM:
+						expand_image(fd, mainvar, (Image *)id);
 						break;
 					case ID_SCE:
 						expand_scene(fd, mainvar, (Scene *)id);

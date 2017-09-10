@@ -3133,6 +3133,18 @@ void node_tex_image(vec3 co, sampler2D ima, out vec4 color, out float alpha)
 	alpha = color.a;
 }
 
+void node_tex_image_udim(vec3 co, vec2 tile_co, sampler2D ima, vec4 in_color, out vec4 out_color, out float alpha)
+{
+	vec2 local_co = co.xy - tile_co.xy;
+	if (local_co.x >= 0 && local_co.x <= 1 && local_co.y >= 0 && local_co.y <= 1) {
+		out_color = texture2D(ima, local_co);
+	}
+	else {
+		out_color = in_color;
+	}
+	alpha = out_color.a;
+}
+
 void node_tex_image_box(vec3 texco,
                         vec3 nob,
                         sampler2D ima,

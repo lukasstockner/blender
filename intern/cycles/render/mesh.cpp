@@ -1922,23 +1922,34 @@ void MeshManager::device_update_displacement_images(Device *device,
 					continue;
 				}
 				foreach(ShaderNode* node, shader->graph->nodes) {
-					if(node->special_type != SHADER_SPECIAL_TYPE_IMAGE_SLOT) {
-						continue;
+					if (node->special_type == SHADER_SPECIAL_TYPE_IMAGE_SLOT) {
+						if(device->info.pack_images) {
+							/* If device requires packed images we need to update all
+							 * images now, even if they're not used for displacement.
+							 */
+							image_manager->device_update(device,
+							                             dscene,
+							                             scene,
+							                             progress);
+							return;
+						}
+						ImageSlotTextureNode *image_node = static_cast<ImageSlotTextureNode*>(node);
+						int slot = image_node->slot;
+						if (slot != -1) {
+							bump_images.insert(slot);
+						}
 					}
-					if(device->info.pack_images) {
-						/* If device requires packed images we need to update all
-						 * images now, even if they're not used for displacement.
-						 */
-						image_manager->device_update(device,
-						                             dscene,
-						                             scene,
-						                             progress);
-						return;
-					}
-					ImageSlotTextureNode *image_node = static_cast<ImageSlotTextureNode*>(node);
-					int slot = image_node->slot;
-					if(slot != -1) {
-						bump_images.insert(slot);
+					else if (node->special_type == SHADER_SPECIAL_TYPE_UDIM) {
+						if(device->info.pack_images) {
+							image_manager->device_update(device, dscene, scene, progress);
+							return;
+						}
+						UDIMTextureNode *image_node = static_cast<UDIMTextureNode*>(node);
+						foreach(UDIMTextureNode::Tile &tile, image_node->tiles) {
+							if (tile.slot != -1) {
+								bump_images.insert(tile.slot);
+							}
+						}
 					}
 				}
 			}

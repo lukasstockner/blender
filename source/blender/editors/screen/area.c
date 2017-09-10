@@ -2339,17 +2339,17 @@ void ED_region_image_metadata_draw(int x, int y, ImBuf *ibuf, const rctf *frame,
 	glPopMatrix();
 }
 
-void ED_region_grid_draw(ARegion *ar, float zoomx, float zoomy)
+void ED_region_grid_draw(ARegion *ar, float zoomx, float zoomy, float x0, float y0)
 {
 	float gridsize, gridstep = 1.0f / 32.0f;
 	float fac, blendfac;
 	int x1, y1, x2, y2;
 
-	/* the image is located inside (0, 0), (1, 1) as set by view2d */
+	/* the image is located inside (x0, y0), (x0+1, y0+1) as set by view2d */
 	UI_ThemeColorShade(TH_BACK, 20);
 
-	UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &x1, &y1);
-	UI_view2d_view_to_region(&ar->v2d, 1.0f, 1.0f, &x2, &y2);
+	UI_view2d_view_to_region(&ar->v2d, x0,      y0,      &x1, &y1);
+	UI_view2d_view_to_region(&ar->v2d, x0+1.0f, y0+1.0f, &x2, &y2);
 	glRectf(x1, y1, x2, y2);
 
 	/* gridsize adapted to zoom level */

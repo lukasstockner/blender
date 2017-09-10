@@ -135,6 +135,7 @@ typedef enum ShaderNodeType {
 	NODE_END_IF_NO_AOVS,
 	NODE_AOV_WRITE_FLOAT,
 	NODE_AOV_WRITE_FLOAT3,
+	NODE_TEX_UDIM,
 } ShaderNodeType;
 
 typedef enum NodeAttributeType {

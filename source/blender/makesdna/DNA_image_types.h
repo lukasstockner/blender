@@ -156,6 +156,10 @@ typedef struct Image {
 	struct Stereo3dFormat *stereo3d_format;
 
 	RenderSlot render_slots[8];  /* 8 = IMA_MAX_RENDER_SLOT */
+
+	int rowtiles;
+	int numtiles;
+	struct Image **tiles;
 } Image;
 
 
