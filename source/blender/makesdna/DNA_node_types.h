@@ -944,6 +944,12 @@ typedef struct NodeSunBeams {
 #define SHD_HAIR_REFLECTION		0
 #define SHD_HAIR_TRANSMISSION		1
 
+/* new hair parametrization */
+#define SHD_NEWHAIR_ABSORPTION		0
+#define SHD_NEWHAIR_PHYSICAL		1
+#define SHD_NEWHAIR_COLOR			2
+#define SHD_NEWHAIR_HUMAN			3
+
 /* blend texture */
 #define SHD_BLEND_LINEAR			0
 #define SHD_BLEND_QUADRATIC			1

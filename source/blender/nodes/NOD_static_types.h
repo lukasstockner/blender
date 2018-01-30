@@ -127,6 +127,7 @@ DefNode( ShaderNode,     SH_NODE_UVALONGSTROKE,      def_sh_uvalongstroke,   "UV
 DefNode( ShaderNode,     SH_NODE_SEPXYZ,             0,                      "SEPXYZ",             SeparateXYZ,      "Separate XYZ",      ""       )
 DefNode( ShaderNode,     SH_NODE_COMBXYZ,            0,                      "COMBXYZ",            CombineXYZ,       "Combine XYZ",       ""       )
 DefNode( ShaderNode,     SH_NODE_BEVEL,              def_sh_bevel,           "BEVEL",              Bevel,            "Bevel",             ""       )
+DefNode( ShaderNode,     SH_NODE_BSDF_NEWHAIR,       def_newhair,            "BSDF_NEWHAIR",       BsdfNewHair,      "NewHair BSDF",      ""       )
 
 DefNode( CompositorNode, CMP_NODE_VIEWER,         def_cmp_viewer,         "VIEWER",         Viewer,           "Viewer",            ""              )
 DefNode( CompositorNode, CMP_NODE_RGB,            0,                      "RGB",            RGB,              "RGB",               ""              )

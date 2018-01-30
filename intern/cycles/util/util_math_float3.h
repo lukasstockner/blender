@@ -117,7 +117,7 @@ ccl_device_inline float3 operator*(const float f, const float3& a)
 
 ccl_device_inline float3 operator/(const float f, const float3& a)
 {
-#if defined(__KERNEL_SSE__)
+#if defined(__KERNEL_SSE__) && false
 	return float3(_mm_div_ps(_mm_set1_ps(f), a.m128));
 #else
 	return make_float3(f / a.x, f / a.y, f / a.z);
@@ -132,7 +132,7 @@ ccl_device_inline float3 operator/(const float3& a, const float f)
 
 ccl_device_inline float3 operator/(const float3& a, const float3& b)
 {
-#if defined(__KERNEL_SSE__)
+#if defined(__KERNEL_SSE__) && false
 	return float3(_mm_div_ps(a.m128, b.m128));
 #else
 	return make_float3(a.x / b.x, a.y / b.y, a.z / b.z);
@@ -372,6 +372,16 @@ ccl_device_inline float3 ensure_finite3(float3 v)
 	if(!isfinite_safe(v.y)) v.y = 0.0f;
 	if(!isfinite_safe(v.z)) v.z = 0.0f;
 	return v;
+}
+
+ccl_device_inline float3 exp3(float3 v)
+{
+	return make_float3(expf(v.x), expf(v.y), expf(v.z));
+}
+
+ccl_device_inline float3 log3(float3 v)
+{
+	return make_float3(logf(v.x), logf(v.y), logf(v.z));
 }
 
 CCL_NAMESPACE_END

@@ -62,6 +62,10 @@ ccl_device void svm_node_tex_coord(KernelGlobals *kg,
 			break;
 		}
 		case NODE_TEXCO_WINDOW: {
+			data.x = sd->u;
+			data.y = sd->v;
+			data.z = 0.0f;
+			break;
 			if((path_flag & PATH_RAY_CAMERA) && sd->object == OBJECT_NONE && kernel_data.cam.type == CAMERA_ORTHOGRAPHIC)
 				data = camera_world_to_ndc(kg, sd, sd->ray_P);
 			else

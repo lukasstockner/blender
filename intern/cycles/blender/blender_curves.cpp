@@ -556,6 +556,70 @@ static void ExportCurveTriangleGeometry(Mesh *mesh,
 	/* texture coords still needed */
 }
 
+static void ImportMitsHair(Scene *scene, Mesh *mesh, string filename, float radius)
+{
+	FILE *f = fopen(filename.c_str(), "rb");
+
+	char magic[12];
+	fread(magic, 1, 11, f);
+	magic[11] = '\0';
+	if(strcmp(magic, "BINARY_HAIR")) {
+		printf("Invalid file!\n");
+		return;
+	}
+
+	uint32_t num_keys;
+	fread(&num_keys, sizeof(uint32_t), 1, f);
+
+	int datastart = ftell(f);
+	fseek(f, 0, SEEK_END);
+	int len = ftell(f);
+	fseek(f, datastart, SEEK_SET);
+
+	if((len-datastart) % sizeof(float)) {
+		printf("Data length not a multiple of float size!\n");
+		return;
+	}
+	int num_floats = (len - datastart) / sizeof(float);
+	float *data = new float[num_floats];
+	fread(data, sizeof(float), num_floats, f);
+
+	int num_curves = 0;
+	for(int i = 0; i < num_floats; i++) {
+		if(isinf(data[i])) {
+			num_curves++;
+		}
+		else {
+			i += 2;
+		}
+	}
+
+	printf("File has %d keys and %d curves!\n", num_keys, num_curves);
+
+	Attribute *attr_intercept = NULL;
+	if(mesh->need_attribute(scene, ATTR_STD_CURVE_INTERCEPT))
+		attr_intercept = mesh->curve_attributes.add(ATTR_STD_CURVE_INTERCEPT);
+	mesh->reserve_curves(mesh->num_curves() + num_curves, mesh->curve_keys.size() + num_keys);
+
+	int start_key = 0;
+	num_keys = 0;
+	num_curves = 0;
+	for(int i = 0; i < num_floats; i++) {
+		if(isinf(data[i])) {
+			mesh->add_curve(start_key, 0);
+			num_curves++;
+			start_key = num_keys;
+		}
+		else {
+			mesh->add_curve_key(make_float3(data[i], data[i+1], data[i+2]), radius);
+			num_keys++;
+			if(attr_intercept)
+				attr_intercept->add(0.0f);
+			i += 2;
+		}
+	}
+}
+
 static void ExportCurveSegments(Scene *scene, Mesh *mesh, ParticleCurveData *CData)
 {
 	int num_keys = 0;
@@ -889,6 +953,14 @@ void BlenderSync::sync_curves(Mesh *mesh,
 		mesh->curve_first_key.clear();
 		mesh->curve_shader.clear();
 		mesh->curve_attributes.clear();
+	}
+
+	PointerRNA cob = RNA_pointer_get(&b_ob.ptr, "cycles");
+
+	string mits = get_string(cob, "mits_file");
+	if(mits != "") {
+		ImportMitsHair(scene, mesh, mits, get_float(cob, "mits_radius"));
+		return;
 	}
 
 	/* obtain general settings */

@@ -239,6 +239,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeSubsurfaceScattering", poll=object_shader_nodes_poll),
         NodeItem("ShaderNodeEmission", poll=object_shader_nodes_poll),
         NodeItem("ShaderNodeBsdfHair", poll=object_shader_nodes_poll),
+        NodeItem("ShaderNodeBsdfNewHair", poll=object_shader_nodes_poll),
         NodeItem("ShaderNodeBackground", poll=world_shader_nodes_poll),
         NodeItem("ShaderNodeAmbientOcclusion", poll=object_shader_nodes_poll),
         NodeItem("ShaderNodeHoldout", poll=object_shader_nodes_poll),

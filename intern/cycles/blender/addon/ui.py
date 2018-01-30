@@ -891,6 +891,9 @@ class CYCLES_OBJECT_PT_cycles_settings(CyclesButtonsPanel, Panel):
         sub.active = scene.render.use_simplify and cscene.use_distance_cull
         sub.prop(cob, "use_distance_cull")
 
+        layout.prop(cob, "mits_file")
+        layout.prop(cob, "mits_radius")
+
 
 class CYCLES_OT_use_shading_nodes(Operator):
     """Enable nodes on a material, world or lamp"""

@@ -247,7 +247,7 @@ ccl_device float4 color_srgb_to_scene_linear_v4(float4 c)
 
 ccl_device float linear_rgb_to_gray(float3 c)
 {
-	return c.x*0.2126f + c.y*0.7152f + c.z*0.0722f;
+	return c.x*0.212671f + c.y*0.715160f + c.z*0.072169f;
 }
 
 CCL_NAMESPACE_END

@@ -3286,6 +3286,14 @@ static const EnumPropertyItem node_hair_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+static const EnumPropertyItem node_newhair_items[] = {
+	{SHD_NEWHAIR_ABSORPTION, "ABSORPTION", 0, "Absorption", ""},
+	{SHD_NEWHAIR_PHYSICAL,   "PHYSICAL",   0, "Physical", ""},
+	{SHD_NEWHAIR_COLOR,      "COLOR",      0, "Color", ""},
+	{SHD_NEWHAIR_HUMAN,      "HUMAN",      0, "Human", ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
 static const EnumPropertyItem node_script_mode_items[] = {
 	{NODE_SCRIPT_INTERNAL, "INTERNAL", 0, "Internal", "Use internal text data-block"},
 	{NODE_SCRIPT_EXTERNAL, "EXTERNAL", 0, "External", "Use external .osl or .oso file"},
@@ -4294,6 +4302,17 @@ static void def_hair(StructRNA *srna)
 	RNA_def_property_enum_sdna(prop, NULL, "custom1");
 	RNA_def_property_enum_items(prop, node_hair_items);
 	RNA_def_property_ui_text(prop, "Component", "");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_newhair(StructRNA *srna)
+{
+	PropertyRNA *prop;
+	
+	prop = RNA_def_property(srna, "parametrization", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "custom1");
+	RNA_def_property_enum_items(prop, node_newhair_items);
+	RNA_def_property_ui_text(prop, "Parametrization", "");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 

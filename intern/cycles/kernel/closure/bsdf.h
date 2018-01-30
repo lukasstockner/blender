@@ -27,6 +27,7 @@
 #include "kernel/closure/bsdf_ashikhmin_shirley.h"
 #include "kernel/closure/bsdf_toon.h"
 #include "kernel/closure/bsdf_hair.h"
+#include "kernel/closure/bsdf_newhair.h"
 #include "kernel/closure/bsdf_principled_diffuse.h"
 #include "kernel/closure/bsdf_principled_sheen.h"
 #include "kernel/closure/bssrdf.h"
@@ -151,6 +152,9 @@ ccl_device_forceinline int bsdf_sample(KernelGlobals *kg,
 			label = bsdf_hair_transmission_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
+		case CLOSURE_BSDF_NEWHAIR_ID:
+			label = bsdf_newhair_sample(sd, sc, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
+			break;
 #ifdef __PRINCIPLED__
 		case CLOSURE_BSDF_PRINCIPLED_DIFFUSE_ID:
 		case CLOSURE_BSDF_BSSRDF_PRINCIPLED_ID:
@@ -200,7 +204,10 @@ float3 bsdf_eval(KernelGlobals *kg,
 {
 	float3 eval;
 
-	if(dot(sd->Ng, omega_in) >= 0.0f) {
+	if(sc->type == CLOSURE_BSDF_NEWHAIR_ID) {
+		eval = bsdf_newhair_eval(sd, sc, omega_in, pdf);
+	}
+	else if(dot(sd->Ng, omega_in) >= 0.0f) {
 		switch(sc->type) {
 			case CLOSURE_BSDF_DIFFUSE_ID:
 			case CLOSURE_BSDF_BSSRDF_ID:

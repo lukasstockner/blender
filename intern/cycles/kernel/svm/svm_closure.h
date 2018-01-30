@@ -735,6 +735,48 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 			}
 			break;
 		}
+		case CLOSURE_BSDF_NEWHAIR_ID: {
+			float3 weight = sd->svm_closure_weight * mix_weight;
+
+			uint offset_ofs, ior_ofs, color_ofs, parametrization;
+			decode_node_uchar4(data_node.y, &offset_ofs, &ior_ofs, &color_ofs, &parametrization);
+
+			float alpha = (stack_valid(offset_ofs))? stack_load_float(stack, offset_ofs): __uint_as_float(data_node.z);
+			float ior = (stack_valid(ior_ofs))? stack_load_float(stack, ior_ofs): __uint_as_float(data_node.w);
+
+			NewHairBsdf *bsdf = (NewHairBsdf*)bsdf_alloc(sd, sizeof(NewHairBsdf), weight);
+			if(bsdf) {
+				bsdf->N = N;
+				bsdf->v = param1;
+				bsdf->s = param2;
+				bsdf->alpha = alpha;
+				bsdf->eta = ior;
+
+				float3 color = stack_load_float3(stack, color_ofs);
+				switch(parametrization) {
+					case NODE_NEW_HAIR_ABSORPTION:
+						bsdf->sigma = color;
+						break;
+					case NODE_NEW_HAIR_PHYSICAL:
+						bsdf->sigma = -log3(max(color, make_float3(1e-5f, 1e-5f, 1e-5f)));
+						break;
+					case NODE_NEW_HAIR_HUMAN:
+						bsdf->sigma = color.x*make_float3(0.419f, 0.697f, 1.37f) + color.y*make_float3(0.187f, 0.4f, 1.05f);
+						break;
+					default:
+						kernel_assert(!"Invalid NewHair parametrization!");
+						//fallthrough
+					case NODE_NEW_HAIR_COLOR:
+						float roughness_fac = (((((0.245f*param2) + 5.574f)*param2 - 10.73f)*param2 + 2.532f)*param2 - 0.215f)*param2 + 5.969f;
+						bsdf->sigma = log3(color)/roughness_fac;
+						bsdf->sigma *= bsdf->sigma;
+						break;
+				}
+
+				sd->flag |= bsdf_newhair_setup(kg, sd, bsdf);
+			}
+			break;
+		}
 #ifdef __HAIR__
 		case CLOSURE_BSDF_HAIR_REFLECTION_ID:
 		case CLOSURE_BSDF_HAIR_TRANSMISSION_ID: {

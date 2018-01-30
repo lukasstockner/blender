@@ -1123,6 +1123,16 @@ class CyclesObjectSettings(bpy.types.PropertyGroup):
                 default=False,
                 )
 
+        cls.mits_file = StringProperty(
+                name="Mits File",
+                default="",
+                subtype='FILE_PATH'
+                )
+        cls.mits_radius = FloatProperty(
+                name="Mits Radius",
+                default=0.000444,
+                )
+
 
     @classmethod
     def unregister(cls):

@@ -23,6 +23,33 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __HAIR__
 
+/* Interpolation of curve geometry */
+
+ccl_device_inline float3 curvetangent(float t, float3 p0, float3 p1, float3 p2, float3 p3)
+{
+	float fc = 0.71f;
+	float data[4];
+	float t2 = t * t;
+	data[0] = -3.0f * fc          * t2  + 4.0f * fc * t                  - fc;
+	data[1] =  3.0f * (2.0f - fc) * t2  + 2.0f * (fc - 3.0f) * t;
+	data[2] =  3.0f * (fc - 2.0f) * t2  + 2.0f * (3.0f - 2.0f * fc) * t  + fc;
+	data[3] =  3.0f * fc          * t2  - 2.0f * fc * t;
+	return data[0] * p0 + data[1] * p1 + data[2] * p2 + data[3] * p3;
+}
+
+ccl_device_inline float3 curvepoint(float t, float3 p0, float3 p1, float3 p2, float3 p3)
+{
+	float data[4];
+	float fc = 0.71f;
+	float t2 = t * t;
+	float t3 = t2 * t;
+	data[0] = -fc          * t3  + 2.0f * fc          * t2 - fc * t;
+	data[1] =  (2.0f - fc) * t3  + (fc - 3.0f)        * t2 + 1.0f;
+	data[2] =  (fc - 2.0f) * t3  + (3.0f - 2.0f * fc) * t2 + fc * t;
+	data[3] =  fc          * t3  - fc * t2;
+	return data[0] * p0 + data[1] * p1 + data[2] * p2 + data[3] * p3;
+}
+
 /* Reading attributes on various curve elements */
 
 ccl_device float curve_attribute_float(KernelGlobals *kg, const ShaderData *sd, const AttributeDescriptor desc, float *dx, float *dy)
@@ -97,6 +124,59 @@ ccl_device float3 curve_attribute_float3(KernelGlobals *kg, const ShaderData *sd
 
 		return make_float3(0.0f, 0.0f, 0.0f);
 	}
+}
+
+ccl_device float curve_core_distance(KernelGlobals *kg, ShaderData *sd, float3 *curve_P, float3 *dPdCD)
+{
+	if((sd->type & PRIMITIVE_ALL_CURVE) == 0) {
+		return 0.0f;
+	}
+
+	int flag = kernel_data.curve.curveflags;
+	float4 curvedata = kernel_tex_fetch(__curves, sd->prim);
+	int k0 = __float_as_int(curvedata.x) + PRIMITIVE_UNPACK_SEGMENT(sd->type);
+	int k1 = k0 + 1;
+
+	float curve_r;
+	if(flag & CURVE_KN_INTERPOLATE) {
+		int ka = max(k0 - 1, __float_as_int(curvedata.x));
+		int kb = min(k1 + 1, __float_as_int(curvedata.x) + __float_as_int(curvedata.y) - 1);
+
+		float4 P_curve[4];
+		if(sd->type & PRIMITIVE_CURVE) {
+			P_curve[0] = kernel_tex_fetch(__curve_keys, ka);
+			P_curve[1] = kernel_tex_fetch(__curve_keys, k0);
+			P_curve[2] = kernel_tex_fetch(__curve_keys, k1);
+			P_curve[3] = kernel_tex_fetch(__curve_keys, kb);
+		}
+		else {
+			motion_cardinal_curve_keys(kg, sd->object, sd->prim, sd->time, ka, k0, k1, kb, P_curve);
+		}
+
+		*curve_P = curvepoint(sd->u,
+		                     float4_to_float3(P_curve[0]),
+		                     float4_to_float3(P_curve[1]),
+		                     float4_to_float3(P_curve[2]),
+		                     float4_to_float3(P_curve[3]));
+		curve_r = mix(P_curve[1].w, P_curve[2].w, sd->u);
+	}
+	else {
+		float4 P_curve[2];
+		if(sd->type & PRIMITIVE_CURVE) {
+			P_curve[0] = kernel_tex_fetch(__curve_keys, k0);
+			P_curve[1] = kernel_tex_fetch(__curve_keys, k1);
+		}
+		else {
+			motion_curve_keys(kg, sd->object, sd->prim, sd->time, k0, k1, P_curve);
+		}
+		*curve_P = mix(float4_to_float3(P_curve[0]), float4_to_float3(P_curve[1]), sd->u);
+		curve_r = mix(P_curve[0].w, P_curve[1].w, sd->u);
+	}
+
+	*dPdCD = normalize(cross(sd->dPdu, sd->I));
+	float h = dot(*dPdCD, sd->P - *curve_P)/curve_r;
+	assert(fabsf(h) <= 2.f);
+	return h;
 }
 
 /* Curve thickness */

@@ -567,6 +567,21 @@ public:
 	float3 tangent;
 };
 
+class NewHairBsdfNode : public BsdfBaseNode {
+public:
+	SHADER_NODE_CLASS(NewHairBsdfNode)
+
+	float roughness_u;
+	float roughness_v;
+	float ior;
+	float offset;
+	float3 color;
+
+	float3 normal;
+	float surface_mix_weight;
+	NodeNewHairParametrization parametrization;
+};
+
 class GeometryNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(GeometryNode)

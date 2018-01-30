@@ -521,6 +521,12 @@ static ShaderNode *add_node(Scene *scene,
 		}
 		node = hair;
 	}
+	else if(b_node.is_a(&RNA_ShaderNodeBsdfNewHair)) {
+		BL::ShaderNodeBsdfNewHair b_newhair_node(b_node);
+		NewHairBsdfNode *newhair = new NewHairBsdfNode();
+		newhair->parametrization = (NodeNewHairParametrization) get_enum(b_newhair_node.ptr, "parametrization", NODE_NEW_HAIR_NUM, NODE_NEW_HAIR_COLOR);
+		node = newhair;
+	}
 	else if(b_node.is_a(&RNA_ShaderNodeBsdfPrincipled)) {
 		BL::ShaderNodeBsdfPrincipled b_principled_node(b_node);
 		PrincipledBsdfNode *principled = new PrincipledBsdfNode();
