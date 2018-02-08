@@ -47,6 +47,7 @@ public:
 
 	device_ptr shader_input;
 	device_ptr shader_output;
+	device_ptr shader_denoising;
 	int shader_eval_type;
 	int shader_filter;
 	int shader_x, shader_w;
@@ -73,6 +74,7 @@ public:
 	float denoising_feature_strength;
 	bool denoising_relative_pca;
 	int pass_stride;
+	int target_pass_stride;
 	int pass_denoising_data;
 	int pass_denoising_clean;
 

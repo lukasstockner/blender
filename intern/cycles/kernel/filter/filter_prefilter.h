@@ -45,7 +45,7 @@ ccl_device void kernel_filter_divide_shadow(int sample,
 	int stride = tiles->strides[tile];
 	const ccl_global float *ccl_restrict center_buffer = (ccl_global float*) tiles->buffers[tile];
 	center_buffer += (y*stride + x + offset)*buffer_pass_stride;
-	center_buffer += buffer_denoising_offset + 14;
+	center_buffer += buffer_denoising_offset? (buffer_denoising_offset + 14) : 12;
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);
@@ -96,21 +96,24 @@ ccl_device void kernel_filter_get_feature(int sample,
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);
 
 	mean[idx] = center_buffer[m_offset] / sample;
-	if(sample > 1) {
-		/* Approximate variance as E[x^2] - 1/N * (E[x])^2, since online variance
-		 * update does not work efficiently with atomics in the kernel. */
-		variance[idx] = max(0.0f, (center_buffer[v_offset] - mean[idx]*mean[idx]*sample) / (sample * (sample-1)));
-	}
-	else {
-		/* Can't compute variance with single sample, just set it very high. */
-		variance[idx] = 1e10f;
+
+	if(v_offset >= 0) {
+		if(sample > 1) {
+			/* Approximate variance as E[x^2] - 1/N * (E[x])^2, since online variance
+			* update does not work efficiently with atomics in the kernel. */
+			variance[idx] = max(0.0f, (center_buffer[v_offset] - mean[idx]*mean[idx]*sample) / (sample * (sample-1)));
+		}
+		else {
+			/* Can't compute variance with single sample, just set it very high. */
+			variance[idx] = 1e10f;
+		}
 	}
 }
 
 ccl_device void kernel_filter_detect_outliers(int x, int y,
                                               ccl_global float *image,
                                               ccl_global float *variance,
-                                              ccl_global float *depth,
+                                              ccl_global float *shadowing,
                                               ccl_global float *out,
                                               int4 rect,
                                               int pass_stride)
@@ -156,9 +159,9 @@ ccl_device void kernel_filter_detect_outliers(int x, int y,
 		 */
 		float stddev = sqrtf(average(make_float3(variance[idx], variance[idx+pass_stride], variance[idx+2*pass_stride])));
 		if(L - 3*stddev < ref) {
-			/* The pixel is an outlier, so negate the depth value to mark it as one.
+			/* The pixel is an outlier, so negate the shadowing value to mark it as one.
 			 * Also, scale its brightness down to the outlier threshold to avoid trouble with the NLM weights. */
-			depth[idx] = -depth[idx];
+			shadowing[idx] = -shadowing[idx];
 			float fac = ref/L;
 			color *= fac;
 			variance[idx              ] *= fac*fac;

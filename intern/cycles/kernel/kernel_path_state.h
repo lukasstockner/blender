@@ -21,7 +21,8 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
                                        ccl_addr_space PathState *state,
                                        uint rng_hash,
                                        int sample,
-                                       ccl_addr_space Ray *ray)
+                                       ccl_addr_space Ray *ray,
+                                       bool do_denoising)
 {
 	state->flag = PATH_RAY_CAMERA|PATH_RAY_MIS_SKIP|PATH_RAY_TRANSPARENT_BACKGROUND;
 
@@ -38,7 +39,7 @@ ccl_device_inline void path_state_init(KernelGlobals *kg,
 	state->transparent_bounce = 0;
 
 #ifdef __DENOISING_FEATURES__
-	if(kernel_data.film.pass_denoising_data) {
+	if(do_denoising) {
 		state->flag |= PATH_RAY_STORE_SHADOW_INFO;
 		state->denoising_feature_weight = 1.0f;
 	}

@@ -65,6 +65,7 @@ public:
 	          const int custom_flag,
 	          const int object_id,
 	          BL::BakePixel& pixel_array,
+	          BL::BakeImages& bake_images,
 	          const size_t num_pixels,
 	          const int depth,
 	          float pixels[]);

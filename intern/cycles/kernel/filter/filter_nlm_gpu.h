@@ -162,6 +162,7 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int x, int y,
                                                            int4 filter_window,
                                                            int stride, int f,
                                                            int pass_stride,
+                                                           int feature_mode,
                                                            int localIdx)
 {
 	const int low = max(rect.x, x-f);
@@ -185,6 +186,7 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int x, int y,
 	                                dx, dy,
 	                                stride,
 	                                pass_stride,
+	                                feature_mode,
 	                                buffer,
 	                                transform, rank,
 	                                weight, XtWX, XtWY,

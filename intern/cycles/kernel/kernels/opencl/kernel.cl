@@ -121,6 +121,7 @@ __kernel void kernel_ocl_bake(
 	ccl_constant KernelData *data,
 	ccl_global uint4 *input,
 	ccl_global float4 *output,
+	ccl_global float *denoising,
 
 	KERNEL_BUFFER_PARAMS,
 
@@ -139,7 +140,7 @@ __kernel void kernel_ocl_bake(
 #ifdef __NO_BAKING__
 		output[x] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 #else
-		kernel_bake_evaluate(kg, input, output, (ShaderEvalType)type, filter, x, offset, sample);
+		kernel_bake_evaluate(kg, input, output, denoising, (ShaderEvalType)type, filter, x, offset, sample);
 #endif
 	}
 }

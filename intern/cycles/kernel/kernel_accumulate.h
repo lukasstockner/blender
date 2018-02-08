@@ -233,6 +233,7 @@ ccl_device_inline void path_radiance_init(PathRadiance *L, int use_light_pass)
 #ifdef __DENOISING_FEATURES__
 	L->denoising_normal = make_float3(0.0f, 0.0f, 0.0f);
 	L->denoising_albedo = make_float3(0.0f, 0.0f, 0.0f);
+	L->denoising_pos    = make_float3(0.0f, 0.0f, 0.0f);
 	L->denoising_depth = 0.0f;
 #endif
 

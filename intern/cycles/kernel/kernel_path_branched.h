@@ -446,7 +446,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg,
 	ShaderData indirect_sd;
 
 	PathState state;
-	path_state_init(kg, emission_sd, &state, rng_hash, sample, &ray);
+	path_state_init(kg, emission_sd, &state, rng_hash, sample, &ray, kernel_data.film.pass_denoising_data);
 
 	/* Main Loop
 	 * Here we only handle transparency intersections from the camera ray.

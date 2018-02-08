@@ -44,7 +44,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(int sample,
 void KERNEL_FUNCTION_FULL_NAME(filter_detect_outliers)(int x, int y,
                                                        ccl_global float *image,
                                                        ccl_global float *variance,
-                                                       ccl_global float *depth,
+                                                       ccl_global float *shadowing,
                                                        ccl_global float *output,
                                                        int *rect,
                                                        int pass_stride);
@@ -65,6 +65,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(float* buffer,
                                                            int *rank,
                                                            int* rect,
                                                            int pass_stride,
+                                                           int feature_mode,
                                                            int radius,
                                                            float pca_threshold);
 
@@ -113,7 +114,8 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_construct_gramian)(int dx,
                                                              int *filter_window,
                                                              int stride,
                                                              int f,
-                                                             int pass_stride);
+                                                             int pass_stride,
+                                                             int feature_mode);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_nlm_normalize)(float *out_image,
                                                      float *accum_image,

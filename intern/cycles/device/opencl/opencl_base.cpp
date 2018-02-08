@@ -832,6 +832,7 @@ bool OpenCLDeviceBase::denoising_construct_transform(DenoisingTask *task)
 	                task->filter_area,
 	                task->rect,
 	                task->buffer.pass_stride,
+	                task->buffer.mode,
 	                task->radius,
 	                task->pca_threshold);
 
@@ -912,7 +913,8 @@ bool OpenCLDeviceBase::denoising_reconstruct(device_ptr color_ptr,
 	                w, h, stride,
 	                shift_stride,
 	                task->radius, 4,
-	                task->buffer.pass_stride);
+	                task->buffer.pass_stride,
+	                task->buffer.mode);
 
 	enqueue_kernel(ckNLMCalcDifference,   w*h, num_shifts, true);
 	enqueue_kernel(ckNLMBlur,             w*h, num_shifts, true);
@@ -1031,13 +1033,13 @@ bool OpenCLDeviceBase::denoising_get_feature(int mean_offset,
 
 bool OpenCLDeviceBase::denoising_detect_outliers(device_ptr image_ptr,
                                                  device_ptr variance_ptr,
-                                                 device_ptr depth_ptr,
+                                                 device_ptr shadowing_ptr,
                                                  device_ptr output_ptr,
                                                  DenoisingTask *task)
 {
 	cl_mem image_mem = CL_MEM_PTR(image_ptr);
 	cl_mem variance_mem = CL_MEM_PTR(variance_ptr);
-	cl_mem depth_mem = CL_MEM_PTR(depth_ptr);
+	cl_mem shadowing_mem = CL_MEM_PTR(shadowing_ptr);
 	cl_mem output_mem = CL_MEM_PTR(output_ptr);
 
 	cl_kernel ckFilterDetectOutliers = denoising_program(ustring("filter_detect_outliers"));
@@ -1045,7 +1047,7 @@ bool OpenCLDeviceBase::denoising_detect_outliers(device_ptr image_ptr,
 	kernel_set_args(ckFilterDetectOutliers, 0,
 	                image_mem,
 	                variance_mem,
-	                depth_mem,
+	                shadowing_mem,
 	                output_mem,
 	                task->rect,
 	                task->buffer.pass_stride);
@@ -1090,7 +1092,7 @@ void OpenCLDeviceBase::denoise(RenderTile &rtile, DenoisingTask& denoising, cons
 	denoising.filter_area = make_int4(rtile.x, rtile.y, rtile.w, rtile.h);
 	denoising.render_buffer.samples = rtile.sample;
 
-	RenderTile rtiles[9];
+	RenderTile rtiles[10];
 	rtiles[4] = rtile;
 	task.map_neighbor_tiles(rtiles, this);
 	denoising.tiles_from_rendertiles(rtiles);
@@ -1108,6 +1110,7 @@ void OpenCLDeviceBase::shader(DeviceTask& task)
 	cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
 	cl_mem d_input = CL_MEM_PTR(task.shader_input);
 	cl_mem d_output = CL_MEM_PTR(task.shader_output);
+	cl_mem d_denoising = CL_MEM_PTR(task.shader_denoising);
 	cl_int d_shader_eval_type = task.shader_eval_type;
 	cl_int d_shader_filter = task.shader_filter;
 	cl_int d_shader_x = task.shader_x;
@@ -1132,6 +1135,10 @@ void OpenCLDeviceBase::shader(DeviceTask& task)
 		                d_data,
 		                d_input,
 		                d_output);
+
+	if(task.shader_eval_type >= SHADER_EVAL_BAKE) {
+		start_arg_index += kernel_set_args(kernel, start_arg_index, d_denoising);
+	}
 
 	set_kernel_arg_buffers(kernel, &start_arg_index);
 

@@ -76,7 +76,7 @@ __kernel void kernel_ocl_filter_get_feature(int sample,
 
 __kernel void kernel_ocl_filter_detect_outliers(ccl_global float *image,
                                                 ccl_global float *variance,
-                                                ccl_global float *depth,
+                                                ccl_global float *shadowing,
                                                 ccl_global float *output,
                                                 int4 prefilter_rect,
                                                 int pass_stride)
@@ -84,7 +84,7 @@ __kernel void kernel_ocl_filter_detect_outliers(ccl_global float *image,
 	int x = prefilter_rect.x + get_global_id(0);
 	int y = prefilter_rect.y + get_global_id(1);
 	if(x < prefilter_rect.z && y < prefilter_rect.w) {
-		kernel_filter_detect_outliers(x, y, image, variance, depth, output, prefilter_rect, pass_stride);
+		kernel_filter_detect_outliers(x, y, image, variance, shadowing, output, prefilter_rect, pass_stride);
 	}
 }
 
@@ -108,6 +108,7 @@ __kernel void kernel_ocl_filter_construct_transform(const ccl_global float *ccl_
                                                     int4 filter_area,
                                                     int4 rect,
                                                     int pass_stride,
+                                                    int feature_mode,
                                                     int radius,
                                                     float pca_threshold)
 {
@@ -118,7 +119,7 @@ __kernel void kernel_ocl_filter_construct_transform(const ccl_global float *ccl_
 		ccl_global float *l_transform = transform + y*filter_area.z + x;
 		kernel_filter_construct_transform(buffer,
 		                                  x + filter_area.x, y + filter_area.y,
-		                                  rect, pass_stride,
+		                                  rect, pass_stride, feature_mode,
 		                                  l_transform, l_rank,
 		                                  radius, pca_threshold,
 		                                  filter_area.z*filter_area.w,
@@ -237,7 +238,8 @@ __kernel void kernel_ocl_filter_nlm_construct_gramian(const ccl_global float *cc
                                                       int shift_stride,
                                                       int r,
                                                       int f,
-                                                      int pass_stride)
+                                                      int pass_stride,
+                                                      int feature_mode)
 {
 	int4 co, rect;
 	int ofs;
@@ -251,6 +253,7 @@ __kernel void kernel_ocl_filter_nlm_construct_gramian(const ccl_global float *cc
 		                                    rect, filter_window,
 		                                    stride, f,
 		                                    pass_stride,
+		                                    feature_mode,
 		                                    get_local_id(1)*get_local_size(0) + get_local_id(0));
 	}
 }

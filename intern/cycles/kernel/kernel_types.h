@@ -574,6 +574,7 @@ typedef ccl_addr_space struct PathRadiance {
 #ifdef __DENOISING_FEATURES__
 	float3 denoising_normal;
 	float3 denoising_albedo;
+	float3 denoising_pos;
 	float denoising_depth;
 #endif  /* __DENOISING_FEATURES__ */
 
@@ -1244,8 +1245,10 @@ typedef struct KernelFilm {
 	int pass_denoising_data;
 	int pass_denoising_clean;
 	int denoising_flags;
+	/* Used only for baking. */
+	int denoising_radius;
 
-	int pad1, pad2, pad3;
+	int pad1, pad2;
 
 #ifdef __KERNEL_DEBUG__
 	int pass_bvh_traversed_nodes;

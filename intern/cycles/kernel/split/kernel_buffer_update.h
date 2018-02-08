@@ -127,7 +127,8 @@ ccl_device void kernel_buffer_update(KernelGlobals *kg,
 				                state,
 				                rng_hash,
 				                sample,
-				                ray);
+				                ray,
+				                kernel_data.film.pass_denoising_data);
 #ifdef __SUBSURFACE__
 				kernel_path_subsurface_init_indirect(&kernel_split_state.ss_rays[ray_index]);
 #endif

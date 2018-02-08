@@ -498,6 +498,9 @@ void Session::map_neighbor_tiles(RenderTile *tiles, Device *tile_device)
 		}
 	}
 
+	/* The denoised result is written back to the original tile. */
+	tiles[9] = tiles[4];
+
 	assert(tiles[4].buffers);
 	device->map_neighbor_tiles(tile_device, tiles);
 }
@@ -957,6 +960,7 @@ void Session::render()
 
 		assert(!scene->film->need_update);
 		task.pass_stride = scene->film->pass_stride;
+		task.target_pass_stride = scene->film->pass_stride;
 		task.pass_denoising_data = scene->film->denoising_data_offset;
 		task.pass_denoising_clean = scene->film->denoising_clean_offset;
 	}

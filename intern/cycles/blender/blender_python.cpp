@@ -297,11 +297,11 @@ static PyObject *render_func(PyObject * /*self*/, PyObject *value)
 static PyObject *bake_func(PyObject * /*self*/, PyObject *args)
 {
 	PyObject *pysession, *pyobject;
-	PyObject *pypixel_array, *pyresult;
+	PyObject *pypixel_array, *pybake_images, *pyresult;
 	const char *pass_type;
 	int num_pixels, depth, object_id, pass_filter;
 
-	if(!PyArg_ParseTuple(args, "OOsiiOiiO", &pysession, &pyobject, &pass_type, &pass_filter, &object_id, &pypixel_array, &num_pixels, &depth, &pyresult))
+	if(!PyArg_ParseTuple(args, "OOsiiOOiiO", &pysession, &pyobject, &pass_type, &pass_filter, &object_id, &pypixel_array, &pybake_images, &num_pixels, &depth, &pyresult))
 		return NULL;
 
 	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(pysession);
@@ -312,13 +312,15 @@ static PyObject *bake_func(PyObject * /*self*/, PyObject *args)
 
 	void *b_result = PyLong_AsVoidPtr(pyresult);
 
-	PointerRNA bakepixelptr;
+	PointerRNA bakepixelptr, bakeimagesptr;
 	RNA_pointer_create(NULL, &RNA_BakePixel, PyLong_AsVoidPtr(pypixel_array), &bakepixelptr);
+	RNA_pointer_create(NULL, &RNA_BakeImages, PyLong_AsVoidPtr(pybake_images), &bakeimagesptr);
 	BL::BakePixel b_bake_pixel(bakepixelptr);
+	BL::BakeImages b_bake_images(bakeimagesptr);
 
 	python_thread_state_save(&session->python_thread_state);
 
-	session->bake(b_object, pass_type, pass_filter, object_id, b_bake_pixel, (size_t)num_pixels, depth, (float *)b_result);
+	session->bake(b_object, pass_type, pass_filter, object_id, b_bake_pixel, b_bake_images, (size_t)num_pixels, depth, (float *)b_result);
 
 	python_thread_state_restore(&session->python_thread_state);
 

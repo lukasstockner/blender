@@ -134,7 +134,8 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int dx, int dy,
                                                            int4 rect,
                                                            int4 filter_window,
                                                            int stride, int f,
-                                                           int pass_stride)
+                                                           int pass_stride,
+                                                           int feature_mode)
 {
 	int4 clip_area = rect_clip(rect, filter_window);
 	/* fy and fy are in filter-window-relative coordinates, while x and y are in feature-window-relative coordinates. */
@@ -158,6 +159,7 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int dx, int dy,
 			                                dx, dy,
 			                                stride,
 			                                pass_stride,
+			                                feature_mode,
 			                                buffer,
 			                                l_transform, l_rank,
 			                                weight, l_XtWX, l_XtWY, 0);

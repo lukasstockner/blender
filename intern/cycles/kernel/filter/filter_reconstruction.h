@@ -21,6 +21,7 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
                                                        int dx, int dy,
                                                        int buffer_stride,
                                                        int pass_stride,
+                                                       int feature_mode,
                                                        const ccl_global float *ccl_restrict buffer,
                                                        const ccl_global float *ccl_restrict transform,
                                                        ccl_global int *rank,
@@ -50,16 +51,27 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
 	float design_row[DENOISE_FEATURES+1];
 #endif
 
-	float3 q_color = filter_get_color(buffer + q_offset, pass_stride);
+	float radius2;
+	if(feature_mode != FEATURE_MODE_RENDER) {
+		radius2 = min(ccl_get_feature(buffer + p_offset, 13), ccl_get_feature(buffer + q_offset, 13));
+		if(radius2 == 0.0f) return;
+	}
+
+	float3 q_color = filter_get_color(buffer + q_offset, pass_stride, feature_mode);
 
 	/* If the pixel was flagged as an outlier during prefiltering, skip it. */
-	if(ccl_get_feature(buffer + q_offset, 0) < 0.0f) {
+	if(ccl_get_feature(buffer + q_offset, (feature_mode == FEATURE_MODE_RENDER)? 4 : 6) < 0.0f) {
 		return;
 	}
 
+	float3 Pdiff;
 	filter_get_design_row_transform(make_int2(x, y),       buffer + p_offset,
 	                                make_int2(x+dx, y+dy), buffer + q_offset,
-	                                pass_stride, *rank, design_row, transform, stride);
+	                                pass_stride, *rank, design_row, transform, stride, feature_mode, &Pdiff);
+
+	if((feature_mode != FEATURE_MODE_RENDER) && (len_squared(Pdiff) > radius2)) {
+		return;
+	}
 
 	math_trimatrix_add_gramian_strided(XtWX, (*rank)+1, design_row, weight, stride);
 	math_vec3_add_strided(XtWY, (*rank)+1, design_row, weight * q_color, stride);
@@ -103,12 +115,15 @@ ccl_device_inline void kernel_filter_finalize(int x, int y,
 	final_color = max(final_color, make_float3(0.0f, 0.0f, 0.0f));
 
 	ccl_global float *combined_buffer = buffer + (y*buffer_params.y + x + buffer_params.x)*buffer_params.z;
-	final_color *= sample;
-	if(buffer_params.w) {
-		final_color.x += combined_buffer[buffer_params.w+0];
-		final_color.y += combined_buffer[buffer_params.w+1];
-		final_color.z += combined_buffer[buffer_params.w+2];
+	if(buffer_params.w >= 0) {
+		final_color *= sample;
+		if(buffer_params.w > 0) {
+			final_color.x += combined_buffer[buffer_params.w+0];
+			final_color.y += combined_buffer[buffer_params.w+1];
+			final_color.z += combined_buffer[buffer_params.w+2];
+		}
 	}
+
 	combined_buffer[0] = final_color.x;
 	combined_buffer[1] = final_color.y;
 	combined_buffer[2] = final_color.z;

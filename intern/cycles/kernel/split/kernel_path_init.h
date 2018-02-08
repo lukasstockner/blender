@@ -68,7 +68,8 @@ ccl_device void kernel_path_init(KernelGlobals *kg) {
 		                &kernel_split_state.path_state[ray_index],
 		                rng_hash,
 		                sample,
-		                &kernel_split_state.ray[ray_index]);
+		                &kernel_split_state.ray[ray_index],
+		                kernel_data.film.pass_denoising_data);
 #ifdef __SUBSURFACE__
 		kernel_path_subsurface_init_indirect(&kernel_split_state.ss_rays[ray_index]);
 #endif

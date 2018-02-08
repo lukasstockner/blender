@@ -94,9 +94,6 @@ ccl_device_inline void kernel_write_pass_float3_variance(ccl_global float *buffe
 ccl_device_inline void kernel_write_denoising_shadow(KernelGlobals *kg, ccl_global float *buffer,
 	int sample, float path_total, float path_total_shaded)
 {
-	if(kernel_data.film.pass_denoising_data == 0)
-		return;
-
 	buffer += (sample & 1)? DENOISING_PASS_SHADOW_B : DENOISING_PASS_SHADOW_A;
 
 	path_total = ensure_finite(path_total);
@@ -153,6 +150,7 @@ ccl_device_inline void kernel_update_denoising_features(KernelGlobals *kg,
 		}
 		L->denoising_normal += ensure_finite3(state->denoising_feature_weight * normal);
 		L->denoising_albedo += ensure_finite3(state->denoising_feature_weight * albedo);
+		L->denoising_pos    += ensure_finite3(state->denoising_feature_weight * sd->P);
 
 		state->denoising_feature_weight = 0.0f;
 	}

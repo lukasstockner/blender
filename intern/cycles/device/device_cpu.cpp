@@ -174,10 +174,10 @@ public:
 
 	DeviceRequestedFeatures requested_features;
 
-	KernelFunctions<void(*)(KernelGlobals *, float *, int, int, int, int, int)>             path_trace_kernel;
-	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)> convert_to_half_float_kernel;
-	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)> convert_to_byte_kernel;
-	KernelFunctions<void(*)(KernelGlobals *, uint4 *, float4 *, int, int, int, int, int)>   shader_kernel;
+	KernelFunctions<void(*)(KernelGlobals *, float *, int, int, int, int, int)>                    path_trace_kernel;
+	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)>        convert_to_half_float_kernel;
+	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)>        convert_to_byte_kernel;
+	KernelFunctions<void(*)(KernelGlobals *, uint4 *, float4 *, float *, int, int, int, int, int)> shader_kernel;
 
 	KernelFunctions<void(*)(int, TilesInfo*, int, int, float*, float*, float*, float*, float*, int*, int, int)> filter_divide_shadow_kernel;
 	KernelFunctions<void(*)(int, TilesInfo*, int, int, int, int, float*, float*, int*, int, int)>               filter_get_feature_kernel;
@@ -190,9 +190,9 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int)>       filter_nlm_update_output_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int)>                                      filter_nlm_normalize_kernel;
 
-	KernelFunctions<void(*)(float*, int, int, int, float*, int*, int*, int, int, float)>                         filter_construct_transform_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, float*, float3*, int*, int*, int, int, int)> filter_nlm_construct_gramian_kernel;
-	KernelFunctions<void(*)(int, int, int, float*, int*, float*, float3*, int*, int)>                            filter_finalize_kernel;
+	KernelFunctions<void(*)(float*, int, int, int, float*, int*, int*, int, int, int, float)>                         filter_construct_transform_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, float*, float3*, int*, int*, int, int, int, int)> filter_nlm_construct_gramian_kernel;
+	KernelFunctions<void(*)(int, int, int, float*, int*, float*, float3*, int*, int)>                                 filter_finalize_kernel;
 
 	KernelFunctions<void(*)(KernelGlobals *, ccl_constant KernelData*, ccl_global void*, int, ccl_global char*,
 	                       int, int, int, int, int, int, int, int, ccl_global int*, int,
@@ -534,6 +534,7 @@ public:
 				                                    (int*)   task->storage.rank.device_pointer,
 				                                    &task->rect.x,
 				                                    task->buffer.pass_stride,
+				                                    task->buffer.mode,
 				                                    task->radius,
 				                                    task->pca_threshold);
 			}
@@ -583,7 +584,8 @@ public:
 			                                      &task->reconstruction_state.filter_window.x,
 			                                      task->buffer.stride,
 			                                      4,
-			                                      task->buffer.pass_stride);
+			                                      task->buffer.pass_stride,
+			                                      task->buffer.mode);
 		}
 		for(int y = 0; y < task->filter_area.w; y++) {
 			for(int x = 0; x < task->filter_area.z; x++) {
@@ -666,7 +668,7 @@ public:
 
 	bool denoising_detect_outliers(device_ptr image_ptr,
 	                               device_ptr variance_ptr,
-	                               device_ptr depth_ptr,
+	                               device_ptr shadowing_ptr,
 	                               device_ptr output_ptr,
 	                               DenoisingTask *task)
 	{
@@ -675,7 +677,7 @@ public:
 				filter_detect_outliers_kernel()(x, y,
 				                                (float*) image_ptr,
 				                                (float*) variance_ptr,
-				                                (float*) depth_ptr,
+				                                (float*) shadowing_ptr,
 				                                (float*) output_ptr,
 				                                &task->rect.x,
 				                                task->buffer.pass_stride);
@@ -727,7 +729,7 @@ public:
 		denoising.filter_area = make_int4(tile.x, tile.y, tile.w, tile.h);
 		denoising.render_buffer.samples = tile.sample;
 
-		RenderTile rtiles[9];
+		RenderTile rtiles[10];
 		rtiles[4] = tile;
 		task.map_neighbor_tiles(rtiles, this);
 		denoising.tiles_from_rendertiles(rtiles);
@@ -827,6 +829,7 @@ public:
 				shader_kernel()(&kg,
 				                (uint4*)task.shader_input,
 				                (float4*)task.shader_output,
+				                (float*)task.shader_denoising,
 				                task.shader_eval_type,
 				                task.shader_filter,
 				                x,

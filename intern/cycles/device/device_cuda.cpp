@@ -1440,7 +1440,8 @@ public:
 		                &task->rect,
 		                &task->radius,
 		                &task->pca_threshold,
-		                &task->buffer.pass_stride};
+		                &task->buffer.pass_stride,
+		                &task->buffer.mode};
 		CUDA_LAUNCH_KERNEL(cuFilterConstructTransform, args);
 		cuda_assert(cuCtxSynchronize());
 
@@ -1511,7 +1512,8 @@ public:
 			                                  &w, &h, &stride,
 			                                  &shift_stride, &r,
 			                                  &f,
-		                                      &task->buffer.pass_stride};
+		                                      &task->buffer.pass_stride,
+		                                      &task->buffer.mode};
 
 			CUDA_LAUNCH_KERNEL_1D(cuNLMCalcDifference, calc_difference_args);
 			CUDA_LAUNCH_KERNEL_1D(cuNLMBlur, blur_args);
@@ -1639,7 +1641,7 @@ public:
 
 	bool denoising_detect_outliers(device_ptr image_ptr,
 	                               device_ptr variance_ptr,
-	                               device_ptr depth_ptr,
+	                               device_ptr shadowing_ptr,
 	                               device_ptr output_ptr,
 	                               DenoisingTask *task)
 	{
@@ -1657,7 +1659,7 @@ public:
 
 		void *args[] = {&image_ptr,
 		                &variance_ptr,
-		                &depth_ptr,
+		                &shadowing_ptr,
 		                &output_ptr,
 		                &task->rect,
 		                &task->buffer.pass_stride};
@@ -1682,7 +1684,7 @@ public:
 		denoising.filter_area = make_int4(rtile.x, rtile.y, rtile.w, rtile.h);
 		denoising.render_buffer.samples = rtile.sample;
 
-		RenderTile rtiles[9];
+		RenderTile rtiles[10];
 		rtiles[4] = rtile;
 		task.map_neighbor_tiles(rtiles, this);
 		denoising.tiles_from_rendertiles(rtiles);
@@ -1841,6 +1843,7 @@ public:
 		CUfunction cuShader;
 		CUdeviceptr d_input = cuda_device_ptr(task.shader_input);
 		CUdeviceptr d_output = cuda_device_ptr(task.shader_output);
+		CUdeviceptr d_denoising = cuda_device_ptr(task.shader_denoising);
 
 		/* get kernel function */
 		if(task.shader_eval_type >= SHADER_EVAL_BAKE) {
@@ -1869,6 +1872,9 @@ public:
 				int arg = 0;
 				args[arg++] = &d_input;
 				args[arg++] = &d_output;
+				if(task.shader_eval_type >= SHADER_EVAL_BAKE) {
+					args[arg++] = &d_denoising;
+				}
 				args[arg++] = &task.shader_eval_type;
 				if(task.shader_eval_type >= SHADER_EVAL_BAKE) {
 					args[arg++] = &task.shader_filter;

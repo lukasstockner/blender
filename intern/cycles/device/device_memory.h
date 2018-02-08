@@ -467,6 +467,11 @@ public:
 		return ptr;
 	}
 
+	device_ptr get() const
+	{
+		return ptr;
+	}
+
 protected:
 	/* No copying. */
 	device_sub_ptr& operator = (const device_sub_ptr&);

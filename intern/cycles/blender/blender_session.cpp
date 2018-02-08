@@ -564,6 +564,7 @@ void BlenderSession::bake(BL::Object& b_object,
                           const int pass_filter,
                           const int object_id,
                           BL::BakePixel& pixel_array,
+                          BL::BakeImages& bake_images,
                           const size_t num_pixels,
                           const int /*depth*/,
                           float result[])
@@ -646,19 +647,49 @@ void BlenderSession::bake(BL::Object& b_object,
 		session->progress.set_update_callback(function_bind(&BlenderSession::update_bake_progress, this));
 	}
 
+	BL::SceneRenderLayer active_layer = b_render.layers.active();
+	PointerRNA crl = RNA_pointer_get(&active_layer.ptr, "cycles");
+	scene->bake_manager->use_denoising = get_boolean(crl, "use_denoising") && (bake_pass_filter & ~BAKE_FILTER_COLOR);
+	scene->bake_manager->denoising_radius = get_int(crl, "denoising_radius");
+	scene->bake_manager->denoising_strength = get_float(crl, "denoising_strength");
+	scene->bake_manager->denoising_feature_strength = get_float(crl, "denoising_feature_strength");
+	scene->bake_manager->denoising_relative_pca = get_boolean(crl, "denoising_relative_pca");
+	scene->bake_manager->denoising_tile_size = make_int2(b_engine.tile_x(), b_engine.tile_y());
+
+	device_vector<float> denoising_data(scene->device, "denoising_data", MEM_READ_WRITE);
+
 	/* Perform bake. Check cancel to avoid crash with incomplete scene data. */
 	if(!session->progress.get_cancel()) {
-		scene->bake_manager->bake(scene->device, &scene->dscene, scene, session->progress, shader_type, bake_pass_filter, bake_data, result);
+		scene->bake_manager->bake(scene->device, &scene->dscene, scene, session->progress, shader_type, bake_pass_filter, bake_data, result, denoising_data);
 	}
 
 	/* free all memory used (host and device), so we wouldn't leave render
 	 * engine with extra memory allocated
 	 */
-
 	session->device_free();
 
 	delete sync;
 	sync = NULL;
+
+	if(scene->bake_manager->use_denoising) {
+		BL::BakeImages::images_iterator b_bake_image;
+		for(bake_images.images.begin(b_bake_image); b_bake_image != bake_images.images.end(); ++b_bake_image) {
+			if(session->progress.get_cancel()) {
+				break;
+			}
+
+			scene->bake_manager->denoise(scene->device,
+										session->progress,
+										bake_data,
+										denoising_data,
+										result,
+										b_bake_image->offset(),
+										b_bake_image->width(),
+										b_bake_image->height());
+		}
+	}
+
+	denoising_data.free();
 }
 
 void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,

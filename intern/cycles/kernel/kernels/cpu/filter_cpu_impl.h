@@ -89,7 +89,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(int sample,
 void KERNEL_FUNCTION_FULL_NAME(filter_detect_outliers)(int x, int y,
                                                        ccl_global float *image,
                                                        ccl_global float *variance,
-                                                       ccl_global float *depth,
+                                                       ccl_global float *shadowing,
                                                        ccl_global float *output,
                                                        int *rect,
                                                        int pass_stride)
@@ -97,7 +97,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_detect_outliers)(int x, int y,
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_detect_outliers);
 #else
-	kernel_filter_detect_outliers(x, y, image, variance, depth, output, load_int4(rect), pass_stride);
+	kernel_filter_detect_outliers(x, y, image, variance, shadowing, output, load_int4(rect), pass_stride);
 #endif
 }
 
@@ -124,6 +124,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(float* buffer,
                                                            int *rank,
                                                            int* prefilter_rect,
                                                            int pass_stride,
+                                                           int feature_mode,
                                                            int radius,
                                                            float pca_threshold)
 {
@@ -136,6 +137,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(float* buffer,
 	                                  x, y,
 	                                  load_int4(prefilter_rect),
 	                                  pass_stride,
+	                                  feature_mode,
 	                                  transform,
 	                                  rank,
 	                                  radius,
@@ -216,12 +218,13 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_construct_gramian)(int dx,
                                                              int *filter_window,
                                                              int stride,
                                                              int f,
-                                                             int pass_stride)
+                                                             int pass_stride,
+                                                             int feature_mode)
 {
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_nlm_construct_gramian);
 #else
-	kernel_filter_nlm_construct_gramian(dx, dy, difference_image, buffer, transform, rank, XtWX, XtWY, load_int4(rect), load_int4(filter_window), stride, f, pass_stride);
+	kernel_filter_nlm_construct_gramian(dx, dy, difference_image, buffer, transform, rank, XtWX, XtWY, load_int4(rect), load_int4(filter_window), stride, f, pass_stride, feature_mode);
 #endif
 }
 

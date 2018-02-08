@@ -709,7 +709,7 @@ ccl_device void kernel_path_trace(KernelGlobals *kg,
 	ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
 
 	PathState state;
-	path_state_init(kg, emission_sd, &state, rng_hash, sample, &ray);
+	path_state_init(kg, emission_sd, &state, rng_hash, sample, &ray, kernel_data.film.pass_denoising_data);
 
 	/* Integrate. */
 	kernel_path_integrate(kg,

@@ -32,16 +32,21 @@ public:
 	float nlm_k_2;
 	float pca_threshold;
 
-	/* Pointer and parameters of the RenderBuffers. */
+	/* Parameters of the RenderBuffers. */
 	struct RenderBuffers {
 		int denoising_data_offset;
-		int denoising_clean_offset;
 		int pass_stride;
-		int offset;
-		int stride;
-		device_ptr ptr;
 		int samples;
 	} render_buffer;
+
+	/* Pointer and parameters of the target buffer. */
+	struct TargetBuffer {
+		int offset;
+		int stride;
+		int pass_stride;
+		int denoising_clean_offset;
+		device_ptr ptr;
+	} target_buffer;
 
 	TilesInfo *tiles;
 	device_vector<int> tiles_mem;
@@ -82,7 +87,7 @@ public:
 		              )> get_feature;
 		function<bool(device_ptr image_ptr,
 		              device_ptr variance_ptr,
-		              device_ptr depth_ptr,
+		              device_ptr shadowing_ptr,
 		              device_ptr output_ptr
 		              )> detect_outliers;
 		function<bool(device_ptr*)> set_tiles;
@@ -151,6 +156,7 @@ public:
 		int stride;
 		int h;
 		int width;
+		int mode;
 		device_only_memory<float> mem;
 
 		DenoiseBuffers(Device *device)

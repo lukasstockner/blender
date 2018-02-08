@@ -63,7 +63,9 @@ public:
 
 	void set_shader_limit(const size_t x, const size_t y);
 
-	bool bake(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress, ShaderEvalType shader_type, const int pass_filter, BakeData *bake_data, float result[]);
+	bool bake(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress, ShaderEvalType shader_type, const int pass_filter, BakeData *bake_data, float result[], device_vector<float> &denoising_data);
+
+	bool denoise(Device *device, Progress& progress, BakeData *bake_data, device_vector<float> &denoising_data, float result[], int offset, int width, int height);
 
 	void device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
 	void device_free(Device *device, DeviceScene *dscene);
@@ -75,10 +77,29 @@ public:
 
 	size_t total_pixel_samples;
 
+	bool use_denoising;
+	int denoising_radius;
+	float denoising_feature_strength;
+	float denoising_strength;
+	bool denoising_relative_pca;
+	int2 denoising_tile_size;
+
 private:
 	BakeData *m_bake_data;
 	bool m_is_baking;
 	size_t m_shader_limit;
+
+	int num_samples;
+	int denoising_channels;
+
+	list<RenderTile> denoising_tiles;
+	map<int, device_vector<float>*> denoising_targets;
+	thread_mutex denoising_tiles_mutex, denoising_targets_mutex;
+
+	bool acquire_tile(Device *device, Device *tile_device, RenderTile &tile);
+	void map_neighboring_tiles(RenderTile *tiles, Device *tile_device, int width, int height);
+	void unmap_neighboring_tiles(RenderTile *tiles, int width, float *result);
+	void release_tile();
 };
 
 CCL_NAMESPACE_END

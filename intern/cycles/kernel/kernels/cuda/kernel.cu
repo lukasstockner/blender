@@ -129,13 +129,13 @@ kernel_cuda_background(uint4 *input,
 #ifdef __BAKING__
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
-kernel_cuda_bake(uint4 *input, float4 *output, int type, int filter, int sx, int sw, int offset, int sample)
+kernel_cuda_bake(uint4 *input, float4 *output, float *denoising, int type, int filter, int sx, int sw, int offset, int sample)
 {
 	int x = sx + blockDim.x*blockIdx.x + threadIdx.x;
 
 	if(x < sx + sw) {
 		KernelGlobals kg;
-		kernel_bake_evaluate(&kg, input, output, (ShaderEvalType)type, filter, x, offset, sample);
+		kernel_bake_evaluate(&kg, input, output, denoising, (ShaderEvalType)type, filter, x, offset, sample);
 	}
 }
 #endif

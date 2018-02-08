@@ -43,6 +43,7 @@
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
+#include "RE_bake.h"
 
 #include "ED_render.h"
 
@@ -183,6 +184,7 @@ static void engine_render(RenderEngine *engine, struct Scene *scene)
 static void engine_bake(RenderEngine *engine, struct Scene *scene,
                         struct Object *object, const int pass_type, const int pass_filter,
                         const int object_id, const struct BakePixel *pixel_array,
+                        const BakeImages *bake_images,
                         const int num_pixels, const int depth, void *result)
 {
 	extern FunctionRNA rna_RenderEngine_bake_func;
@@ -200,6 +202,7 @@ static void engine_bake(RenderEngine *engine, struct Scene *scene,
 	RNA_parameter_set_lookup(&list, "pass_filter", &pass_filter);
 	RNA_parameter_set_lookup(&list, "object_id", &object_id);
 	RNA_parameter_set_lookup(&list, "pixel_array", &pixel_array);
+	RNA_parameter_set_lookup(&list, "bake_images", &bake_images);
 	RNA_parameter_set_lookup(&list, "num_pixels", &num_pixels);
 	RNA_parameter_set_lookup(&list, "depth", &depth);
 	RNA_parameter_set_lookup(&list, "result", &result);
@@ -442,6 +445,13 @@ static PointerRNA rna_BakePixel_next_get(PointerRNA *ptr)
 	return rna_pointer_inherit_refine(ptr, &RNA_BakePixel, bp + 1);
 }
 
+static void rna_BakeImages_images_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	BakeImages *bi = (BakeImages *)ptr->data;
+
+	rna_iterator_array_begin(iter, bi->data, sizeof(BakeImage), bi->size, 0, NULL);
+}
+
 static RenderPass *rna_RenderPass_find_by_type(RenderLayer *rl, int passtype, const char *view)
 {
 	return RE_pass_find_by_type(rl, passtype, view);
@@ -502,6 +512,8 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	parm = RNA_def_int(func, "object_id", 0, 0, INT_MAX, "Object Id", "Id of the current object being baked in relation to the others", 0, INT_MAX);
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	parm = RNA_def_pointer(func, "pixel_array", "BakePixel", "", "");
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+	parm = RNA_def_pointer(func, "bake_images", "BakeImages", "", "");
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	parm = RNA_def_int(func, "num_pixels", 0, 0, INT_MAX, "Number of Pixels", "Size of the baking batch", 0, INT_MAX);
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
@@ -953,6 +965,55 @@ static void rna_def_render_pass(BlenderRNA *brna)
 	RNA_define_verify_sdna(1);
 }
 
+static void rna_def_render_bake_images(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "BakeImages", NULL);
+	RNA_def_struct_ui_text(srna, "Bake Images", "");
+
+	RNA_define_verify_sdna(0);
+
+	prop = RNA_def_property(srna, "images", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_struct_type(prop, "BakeImage");
+	RNA_def_property_collection_funcs(prop, "rna_BakeImages_images_begin", "rna_iterator_array_next",
+	                                  "rna_iterator_array_end", "rna_iterator_array_get", NULL, NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Images", "Bake Images");
+
+	RNA_define_verify_sdna(1);
+}
+
+static void rna_def_render_bake_image(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "BakeImage", NULL);
+	RNA_def_struct_ui_text(srna, "Bake Image", "");
+
+	RNA_define_verify_sdna(0);
+
+	prop = RNA_def_property(srna, "width", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "width");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop = RNA_def_property(srna, "height", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "height");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop = RNA_def_property(srna, "offset", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "offset");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop = RNA_def_property(srna, "image", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "image");
+	RNA_def_property_struct_type(prop, "Image");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	RNA_define_verify_sdna(1);
+}
+
 static void rna_def_render_bake_pixel(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -1008,6 +1069,8 @@ void RNA_def_render(BlenderRNA *brna)
 	rna_def_render_layer(brna);
 	rna_def_render_pass(brna);
 	rna_def_render_bake_pixel(brna);
+	rna_def_render_bake_image(brna);
+	rna_def_render_bake_images(brna);
 }
 
 #endif /* RNA_RUNTIME */

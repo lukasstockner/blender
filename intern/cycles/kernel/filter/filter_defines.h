@@ -22,11 +22,19 @@
 #define XTWX_SIZE      (((DENOISE_FEATURES+1)*(DENOISE_FEATURES+2))/2)
 #define XTWY_SIZE      (DENOISE_FEATURES+1)
 
+/* X, Y, Normals (3x), Depth, Shadowing, Albedo (3x) => 10x*/
+#define FEATURE_MODE_RENDER 0
+/* X, Y, Z, Normals (3x), Shadowing => 7x */
+#define FEATURE_MODE_BAKING 1
+/* X, Y, Z, Normals (3x), Shadowing, Albedo (3x) => 10x */
+#define FEATURE_MODE_BAKING_ALBEDO 2
+
 typedef struct TilesInfo {
 	int offsets[9];
 	int strides[9];
 	int x[4];
 	int y[4];
+	char is_baking;
 	/* TODO(lukas): CUDA doesn't have uint64_t... */
 #ifdef __KERNEL_OPENCL__
 	ccl_global float *buffers[9];
