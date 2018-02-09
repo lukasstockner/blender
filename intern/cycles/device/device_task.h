@@ -73,8 +73,14 @@ public:
 	float denoising_feature_strength;
 	bool denoising_relative_pca;
 	int pass_stride;
+	int target_pass_stride;
 	int pass_denoising_data;
 	int pass_denoising_clean;
+	bool denoising_from_render;
+	typedef enum { DENOISE_BOTH, DENOISE_PREFILTER, DENOISE_FILTER } DenoisingType;
+	DenoisingType denoising_type;
+	int denoising_frame_stride;
+	vector<int> denoising_frames;
 
 	bool need_finish_queue;
 	bool integrator_branched;

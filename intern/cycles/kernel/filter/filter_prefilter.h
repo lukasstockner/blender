@@ -35,7 +35,7 @@ ccl_device void kernel_filter_divide_shadow(int sample,
                                             ccl_global float *bufferVariance,
                                             int4 rect,
                                             int buffer_pass_stride,
-                                            int buffer_denoising_offset)
+                                            int buffer_offset)
 {
 	int xtile = (x < tiles->x[1])? 0: ((x < tiles->x[2])? 1: 2);
 	int ytile = (y < tiles->y[1])? 0: ((y < tiles->y[2])? 1: 2);
@@ -45,7 +45,7 @@ ccl_device void kernel_filter_divide_shadow(int sample,
 	int stride = tiles->strides[tile];
 	const ccl_global float *ccl_restrict center_buffer = (ccl_global float*) tiles->buffers[tile];
 	center_buffer += (y*stride + x + offset)*buffer_pass_stride;
-	center_buffer += buffer_denoising_offset + 14;
+	center_buffer += buffer_offset + 14;
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);
@@ -85,26 +85,54 @@ ccl_device void kernel_filter_get_feature(int sample,
                                           ccl_global float *mean,
                                           ccl_global float *variance,
                                           int4 rect, int buffer_pass_stride,
-                                          int buffer_denoising_offset)
+                                          int buffer_offset)
 {
 	int xtile = (x < tiles->x[1])? 0: ((x < tiles->x[2])? 1: 2);
 	int ytile = (y < tiles->y[1])? 0: ((y < tiles->y[2])? 1: 2);
 	int tile = ytile*3+xtile;
-	ccl_global float *center_buffer = ((ccl_global float*) tiles->buffers[tile]) + (tiles->offsets[tile] + y*tiles->strides[tile] + x)*buffer_pass_stride + buffer_denoising_offset;
+	ccl_global float *center_buffer = ((ccl_global float*) tiles->buffers[tile]) + (tiles->offsets[tile] + y*tiles->strides[tile] + x)*buffer_pass_stride + buffer_offset;
 
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);
 
-	mean[idx] = center_buffer[m_offset] / sample;
-	if(sample > 1) {
-		/* Approximate variance as E[x^2] - 1/N * (E[x])^2, since online variance
-		 * update does not work efficiently with atomics in the kernel. */
-		variance[idx] = max(0.0f, (center_buffer[v_offset] - mean[idx]*mean[idx]*sample) / (sample * (sample-1)));
+	float val = center_buffer[m_offset];
+	if(tiles->from_render) {
+		val /= sample;
 	}
-	else {
-		/* Can't compute variance with single sample, just set it very high. */
-		variance[idx] = 1e10f;
+	mean[idx] = val;
+
+	if(v_offset >= 0) {
+		if(sample > 1) {
+			if(tiles->from_render) {
+				/* Approximate variance as E[x^2] - 1/N * (E[x])^2, since online variance
+				 * update does not work efficiently with atomics in the kernel. */
+				variance[idx] = max(0.0f, (center_buffer[v_offset] - mean[idx]*mean[idx]*sample) / (sample*(sample-1)));
+			}
+			else {
+				variance[idx] = center_buffer[v_offset] / (sample - 1);
+			}
+		}
+		else {
+			/* Can't compute variance with single sample, just set it very high. */
+			variance[idx] = 1e10f;
+		}
 	}
+}
+
+ccl_device void kernel_filter_write_feature(int sample,
+                                            int x, int y,
+                                            int4 buffer_params,
+                                            ccl_global float *from,
+                                            ccl_global float *buffer,
+                                            int to_pass,
+                                            int4 rect)
+{
+	ccl_global float *combined_buffer = buffer + (y*buffer_params.y + x + buffer_params.x)*buffer_params.z;
+
+	int buffer_w = align_up(rect.z - rect.x, 4);
+	int idx = (y-rect.y)*buffer_w + (x - rect.x);
+
+	combined_buffer[to_pass] = from[idx];
 }
 
 ccl_device void kernel_filter_detect_outliers(int x, int y,

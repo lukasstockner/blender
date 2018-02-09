@@ -219,7 +219,7 @@ protected:
 	/* Device memory allocation and copying. */
 	void device_alloc();
 	void device_free();
-	void device_copy_to();
+	void device_copy_to(int y, int w, int h, int elem);
 	void device_copy_from(int y, int w, int h, int elem);
 	void device_zero();
 };
@@ -396,9 +396,14 @@ public:
 		return data()[i];
 	}
 
+	void copy_to_device(int y, int w, int h)
+	{
+		device_copy_to(y, w, h, sizeof(T));
+	}
+
 	void copy_to_device()
 	{
-		device_copy_to();
+		device_copy_to(0, 1, data_size, sizeof(T));
 	}
 
 	void copy_from_device(int y, int w, int h)

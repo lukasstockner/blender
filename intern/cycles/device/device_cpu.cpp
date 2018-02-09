@@ -181,18 +181,19 @@ public:
 
 	KernelFunctions<void(*)(int, TilesInfo*, int, int, float*, float*, float*, float*, float*, int*, int, int)> filter_divide_shadow_kernel;
 	KernelFunctions<void(*)(int, TilesInfo*, int, int, int, int, float*, float*, int*, int, int)>               filter_get_feature_kernel;
+	KernelFunctions<void(*)(int, int, int, int*, float*, float*, int, int*)>                                    filter_write_feature_kernel;
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                               filter_detect_outliers_kernel;
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                               filter_combine_halves_kernel;
 
-	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, float, float)> filter_nlm_calc_difference_kernel;
-	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                 filter_nlm_blur_kernel;
-	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                 filter_nlm_calc_weight_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int)>       filter_nlm_update_output_kernel;
-	KernelFunctions<void(*)(float*, float*, int*, int)>                                      filter_nlm_normalize_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, int, float, float)> filter_nlm_calc_difference_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                      filter_nlm_blur_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                      filter_nlm_calc_weight_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int)>            filter_nlm_update_output_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int)>                                           filter_nlm_normalize_kernel;
 
-	KernelFunctions<void(*)(float*, int, int, int, float*, int*, int*, int, int, float)>                         filter_construct_transform_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, float*, float3*, int*, int*, int, int, int)> filter_nlm_construct_gramian_kernel;
-	KernelFunctions<void(*)(int, int, int, float*, int*, float*, float3*, int*, int)>                            filter_finalize_kernel;
+	KernelFunctions<void(*)(float*, TilesInfo*, int, int, int, float*, int*, int*, int, int, int, int, float)>                  filter_construct_transform_kernel;
+	KernelFunctions<void(*)(int, int, int, float*, float*, float*, int*, float*, float3*, int*, int*, int, int, int, int, int)> filter_nlm_construct_gramian_kernel;
+	KernelFunctions<void(*)(int, int, int, float*, int*, float*, float3*, int*, int)>                                           filter_finalize_kernel;
 
 	KernelFunctions<void(*)(KernelGlobals *, ccl_constant KernelData*, ccl_global void*, int, ccl_global char*,
 	                       int, int, int, int, int, int, int, int, ccl_global int*, int,
@@ -217,6 +218,7 @@ public:
 	  REGISTER_KERNEL(shader),
 	  REGISTER_KERNEL(filter_divide_shadow),
 	  REGISTER_KERNEL(filter_get_feature),
+	  REGISTER_KERNEL(filter_write_feature),
 	  REGISTER_KERNEL(filter_detect_outliers),
 	  REGISTER_KERNEL(filter_combine_halves),
 	  REGISTER_KERNEL(filter_nlm_calc_difference),
@@ -312,7 +314,9 @@ public:
 		}
 	}
 
-	void mem_copy_to(device_memory& mem)
+	void mem_copy_to(device_memory& mem,
+	                 int /*y*/, int /*w*/, int /*h*/,
+	                 int /*elem*/)
 	{
 		if(mem.type == MEM_TEXTURE) {
 			tex_free(mem);
@@ -500,7 +504,7 @@ public:
 			                                    (float*) variance_ptr,
 			                                    difference,
 			                                    local_rect,
-			                                    w, 0,
+			                                    w, 0, 0,
 			                                    a, k_2);
 
 			filter_nlm_blur_kernel()       (difference, blurDifference, local_rect, w, f);
@@ -527,6 +531,7 @@ public:
 		for(int y = 0; y < task->filter_area.w; y++) {
 			for(int x = 0; x < task->filter_area.z; x++) {
 				filter_construct_transform_kernel()((float*) task->buffer.mem.device_pointer,
+				                                    task->tiles,
 				                                    x + task->filter_area.x,
 				                                    y + task->filter_area.y,
 				                                    y*task->filter_area.z + x,
@@ -534,6 +539,8 @@ public:
 				                                    (int*)   task->storage.rank.device_pointer,
 				                                    &task->rect.x,
 				                                    task->buffer.pass_stride,
+				                                    task->buffer.frame_stride,
+				                                    task->buffer.mode,
 				                                    task->radius,
 				                                    task->pca_threshold);
 			}
@@ -541,18 +548,16 @@ public:
 		return true;
 	}
 
-	bool denoising_reconstruct(device_ptr color_ptr,
-	                           device_ptr color_variance_ptr,
-	                           device_ptr output_ptr,
-	                           DenoisingTask *task)
+	bool denoising_accumulate(device_ptr color_ptr,
+	                          device_ptr color_variance_ptr,
+	                          int frame,
+	                          DenoisingTask *task)
 	{
-		mem_zero(task->storage.XtWX);
-		mem_zero(task->storage.XtWY);
-
 		float *difference     = (float*) task->reconstruction_state.temporary_1_ptr;
 		float *blurDifference = (float*) task->reconstruction_state.temporary_2_ptr;
 
 		int r = task->radius;
+		int frame_offset = task->buffer.frame_stride * frame;
 		for(int i = 0; i < (2*r+1)*(2*r+1); i++) {
 			int dy = i / (2*r+1) - r;
 			int dx = i % (2*r+1) - r;
@@ -567,12 +572,14 @@ public:
 			                                    local_rect,
 			                                    task->buffer.stride,
 			                                    task->buffer.pass_stride,
+			                                    frame_offset,
 			                                    1.0f,
 			                                    task->nlm_k_2);
 			filter_nlm_blur_kernel()(difference, blurDifference, local_rect, task->buffer.stride, 4);
 			filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, task->buffer.stride, 4);
 			filter_nlm_blur_kernel()(difference, blurDifference, local_rect, task->buffer.stride, 4);
 			filter_nlm_construct_gramian_kernel()(dx, dy,
+			                                      task->tiles->frames[frame],
 			                                      blurDifference,
 			                                      (float*)  task->buffer.mem.device_pointer,
 			                                      (float*)  task->storage.transform.device_pointer,
@@ -583,8 +590,17 @@ public:
 			                                      &task->reconstruction_state.filter_window.x,
 			                                      task->buffer.stride,
 			                                      4,
-			                                      task->buffer.pass_stride);
+			                                      task->buffer.pass_stride,
+			                                      frame_offset,
+			                                      task->buffer.mode);
 		}
+
+		return true;
+	}
+
+	bool denoising_solve(device_ptr output_ptr,
+	                     DenoisingTask *task)
+	{
 		for(int y = 0; y < task->filter_area.w; y++) {
 			for(int x = 0; x < task->filter_area.z; x++) {
 				filter_finalize_kernel()(x,
@@ -635,7 +651,7 @@ public:
 				                              (float*) buffer_variance_ptr,
 				                              &task->rect.x,
 				                              task->render_buffer.pass_stride,
-				                              task->render_buffer.denoising_data_offset);
+				                              task->render_buffer.offset);
 			}
 		}
 		return true;
@@ -658,7 +674,27 @@ public:
 				                            (float*) variance_ptr,
 				                            &task->rect.x,
 				                            task->render_buffer.pass_stride,
-				                            task->render_buffer.denoising_data_offset);
+				                            task->render_buffer.offset);
+			}
+		}
+		return true;
+	}
+
+	bool denoising_write_feature(int to_pass,
+	                             device_ptr from_ptr,
+	                             device_ptr buffer_ptr,
+	                             DenoisingTask *task)
+	{
+		for(int y = 0; y < task->filter_area.w; y++) {
+			for(int x = 0; x < task->filter_area.z; x++) {
+				filter_write_feature_kernel()(task->render_buffer.samples,
+				                              x + task->filter_area.x,
+				                              y + task->filter_area.y,
+				                              &task->reconstruction_state.buffer_params.x,
+				                              (float*) from_ptr,
+				                              (float*) buffer_ptr,
+				                              to_pass,
+				                              &task->rect.x);
 			}
 		}
 		return true;
@@ -716,25 +752,25 @@ public:
 		tile.sample = tile.start_sample + tile.num_samples;
 
 		denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
-		denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, &denoising);
+		denoising.functions.accumulate = function_bind(&CPUDevice::denoising_accumulate, this, _1, _2, _3, &denoising);
+		denoising.functions.solve = function_bind(&CPUDevice::denoising_solve, this, _1, &denoising);
 		denoising.functions.divide_shadow = function_bind(&CPUDevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
 		denoising.functions.non_local_means = function_bind(&CPUDevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
 		denoising.functions.combine_halves = function_bind(&CPUDevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
 		denoising.functions.get_feature = function_bind(&CPUDevice::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.write_feature = function_bind(&CPUDevice::denoising_write_feature, this, _1, _2, _3, &denoising);
 		denoising.functions.detect_outliers = function_bind(&CPUDevice::denoising_detect_outliers, this, _1, _2, _3, _4, &denoising);
 		denoising.functions.set_tiles = function_bind(&CPUDevice::denoising_set_tiles, this, _1, &denoising);
 
 		denoising.filter_area = make_int4(tile.x, tile.y, tile.w, tile.h);
 		denoising.render_buffer.samples = tile.sample;
 
-		RenderTile rtiles[9];
+		RenderTile rtiles[10];
 		rtiles[4] = tile;
 		task.map_neighbor_tiles(rtiles, this);
-		denoising.tiles_from_rendertiles(rtiles);
+		denoising.set_render_buffer(rtiles);
 
-		denoising.init_from_devicetask(task);
-
-		denoising.run_denoising();
+		denoising.run();
 
 		task.unmap_neighbor_tiles(rtiles, this);
 
@@ -766,7 +802,7 @@ public:
 		}
 
 		RenderTile tile;
-		DenoisingTask denoising(this);
+		DenoisingTask denoising(this, task);
 
 		while(task.acquire_tile(this, tile)) {
 			if(tile.task == RenderTile::PATH_TRACE) {

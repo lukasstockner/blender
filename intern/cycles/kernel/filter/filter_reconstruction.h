@@ -18,9 +18,11 @@ CCL_NAMESPACE_BEGIN
 
 ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
                                                        int storage_stride,
-                                                       int dx, int dy,
+                                                       int dx, int dy, int t,
                                                        int buffer_stride,
                                                        int pass_stride,
+                                                       int frame_offset,
+                                                       int feature_mode,
                                                        const ccl_global float *ccl_restrict buffer,
                                                        const ccl_global float *ccl_restrict transform,
                                                        ccl_global int *rank,
@@ -34,7 +36,7 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
 	}
 
 	int p_offset =  y     * buffer_stride +  x;
-	int q_offset = (y+dy) * buffer_stride + (x+dx);
+	int q_offset = (y+dy) * buffer_stride + (x+dx) + frame_offset;
 
 #ifdef __KERNEL_GPU__
 	const int stride = storage_stride;
@@ -50,16 +52,16 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
 	float design_row[DENOISE_FEATURES+1];
 #endif
 
-	float3 q_color = filter_get_color(buffer + q_offset, pass_stride);
+	float3 q_color = filter_get_color(buffer + q_offset, pass_stride, feature_mode);
 
 	/* If the pixel was flagged as an outlier during prefiltering, skip it. */
 	if(ccl_get_feature(buffer + q_offset, 0) < 0.0f) {
 		return;
 	}
 
-	filter_get_design_row_transform(make_int2(x, y),       buffer + p_offset,
-	                                make_int2(x+dx, y+dy), buffer + q_offset,
-	                                pass_stride, *rank, design_row, transform, stride);
+	filter_get_design_row_transform(make_int3(x, y, 0),       buffer + p_offset,
+	                                make_int3(x+dx, y+dy, t), buffer + q_offset,
+	                                pass_stride, *rank, design_row, transform, stride, feature_mode);
 
 	math_trimatrix_add_gramian_strided(XtWX, (*rank)+1, design_row, weight, stride);
 	math_vec3_add_strided(XtWY, (*rank)+1, design_row, weight * q_color, stride);
@@ -103,12 +105,15 @@ ccl_device_inline void kernel_filter_finalize(int x, int y,
 	final_color = max(final_color, make_float3(0.0f, 0.0f, 0.0f));
 
 	ccl_global float *combined_buffer = buffer + (y*buffer_params.y + x + buffer_params.x)*buffer_params.z;
-	final_color *= sample;
-	if(buffer_params.w) {
-		final_color.x += combined_buffer[buffer_params.w+0];
-		final_color.y += combined_buffer[buffer_params.w+1];
-		final_color.z += combined_buffer[buffer_params.w+2];
+	if(buffer_params.w >= 0) {
+		final_color *= sample;
+		if(buffer_params.w > 0) {
+			final_color.x += combined_buffer[buffer_params.w+0];
+			final_color.y += combined_buffer[buffer_params.w+1];
+			final_color.z += combined_buffer[buffer_params.w+2];
+		}
 	}
+
 	combined_buffer[0] = final_color.x;
 	combined_buffer[1] = final_color.y;
 	combined_buffer[2] = final_color.z;

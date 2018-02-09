@@ -17,16 +17,27 @@
 #ifndef __FILTER_DEFINES_H__
 #define __FILTER_DEFINES_H__
 
-#define DENOISE_FEATURES 10
+/* Highest feature count of all feature modes. */
+#define DENOISE_FEATURES 11
 #define TRANSFORM_SIZE (DENOISE_FEATURES*DENOISE_FEATURES)
 #define XTWX_SIZE      (((DENOISE_FEATURES+1)*(DENOISE_FEATURES+2))/2)
 #define XTWY_SIZE      (DENOISE_FEATURES+1)
+
+/* X, Y, Depth, Normals (3x), Shadowing, Albedo (3x) => 10x */
+#define FEATURE_MODE_RENDER 0
+/* X, Y, T, Depth, Normals (3x), Shadowing, Albedo (3x) => 11x */
+#define FEATURE_MODE_MULTIFRAME 1
+
+#define MAX_SECONDARY_FRAMES 16
 
 typedef struct TilesInfo {
 	int offsets[9];
 	int strides[9];
 	int x[4];
 	int y[4];
+	char from_render;
+	int frames[MAX_SECONDARY_FRAMES+1];
+	int num_frames;
 	/* TODO(lukas): CUDA doesn't have uint64_t... */
 #ifdef __KERNEL_OPENCL__
 	ccl_global float *buffers[9];

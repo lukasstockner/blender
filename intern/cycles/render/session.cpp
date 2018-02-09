@@ -498,6 +498,9 @@ void Session::map_neighbor_tiles(RenderTile *tiles, Device *tile_device)
 		}
 	}
 
+	/* The denoised result is written back to the original tile. */
+	tiles[9] = tiles[4];
+
 	assert(tiles[4].buffers);
 	device->map_neighbor_tiles(tile_device, tiles);
 }
@@ -954,9 +957,14 @@ void Session::render()
 		task.denoising_strength = params.denoising_strength;
 		task.denoising_feature_strength = params.denoising_feature_strength;
 		task.denoising_relative_pca = params.denoising_relative_pca;
+		task.denoising_type = DeviceTask::DENOISE_BOTH;
+		task.denoising_from_render = true;
+		task.denoising_frames.clear();
+		task.denoising_frame_stride = 0;
 
 		assert(!scene->film->need_update);
 		task.pass_stride = scene->film->pass_stride;
+		task.target_pass_stride = scene->film->pass_stride;
 		task.pass_denoising_data = scene->film->denoising_data_offset;
 		task.pass_denoising_clean = scene->film->denoising_clean_offset;
 	}

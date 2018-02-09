@@ -130,7 +130,7 @@ public:
 		stats.mem_alloc(mem.device_size);
 	}
 
-	void mem_copy_to(device_memory& mem)
+	void mem_copy_to(device_memory& mem, int y, int w, int h, int elem)
 	{
 		device_ptr existing_key = mem.device_pointer;
 		device_ptr key = (existing_key)? existing_key: unique_key++;
@@ -141,7 +141,7 @@ public:
 			mem.device_pointer = (existing_key)? sub.ptr_map[existing_key]: 0;
 			mem.device_size = existing_size;
 
-			sub.device->mem_copy_to(mem);
+			sub.device->mem_copy_to(mem, y, w, h, elem);
 			sub.ptr_map[key] = mem.device_pointer;
 		}
 

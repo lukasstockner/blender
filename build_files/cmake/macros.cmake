@@ -1305,7 +1305,17 @@ function(delayed_install
 			set_property(GLOBAL APPEND PROPERTY DELAYED_INSTALL_FILES ${base}/${f})
 		endif()
 		set_property(GLOBAL APPEND PROPERTY DELAYED_INSTALL_DESTINATIONS ${destination})
+		set_property(GLOBAL APPEND PROPERTY DELAYED_INSTALL_TARGET "NO")
 	endforeach()
+endfunction()
+
+function(delayed_install_target
+	target
+	destination)
+
+	set_property(GLOBAL APPEND PROPERTY DELAYED_INSTALL_FILES ${target})
+	set_property(GLOBAL APPEND PROPERTY DELAYED_INSTALL_DESTINATIONS ${destination})
+	set_property(GLOBAL APPEND PROPERTY DELAYED_INSTALL_TARGET "YES")
 endfunction()
 
 # note this is a function instead of a macro so that ${BUILD_TYPE} in targetdir
@@ -1315,6 +1325,7 @@ function(delayed_do_install
 
 	get_property(files GLOBAL PROPERTY DELAYED_INSTALL_FILES)
 	get_property(destinations GLOBAL PROPERTY DELAYED_INSTALL_DESTINATIONS)
+	get_property(is_target GLOBAL PROPERTY DELAYED_INSTALL_TARGET)
 
 	if(files)
 		list(LENGTH files n)
@@ -1323,7 +1334,12 @@ function(delayed_do_install
 		foreach(i RANGE ${n})
 			list(GET files ${i} f)
 			list(GET destinations ${i} d)
-			install(FILES ${f} DESTINATION ${targetdir}/${d})
+			list(GET is_target ${i} t)
+			if(t)
+				install(PROGRAMS $<TARGET_FILE:${f}> DESTINATION ${d})
+			else ()
+				install(FILES ${f} DESTINATION ${targetdir}/${d})
+			endif()
 		endforeach()
 	endif()
 endfunction()

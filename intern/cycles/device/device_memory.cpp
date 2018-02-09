@@ -84,10 +84,10 @@ void device_memory::device_free()
 	}
 }
 
-void device_memory::device_copy_to()
+void device_memory::device_copy_to(int y, int w, int h, int elem)
 {
 	if(host_pointer) {
-		device->mem_copy_to(*this);
+		device->mem_copy_to(*this, y, w, h, elem);
 	}
 }
 

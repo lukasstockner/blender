@@ -32,23 +32,32 @@ public:
 	float nlm_k_2;
 	float pca_threshold;
 
-	/* Pointer and parameters of the RenderBuffers. */
+	/* Parameters of the RenderBuffers. */
 	struct RenderBuffers {
-		int denoising_data_offset;
-		int denoising_clean_offset;
+		int offset;
 		int pass_stride;
+		int frame_stride;
+		int samples;
+		bool from_render;
+		vector<int> frames;
+	} render_buffer;
+
+	/* Pointer and parameters of the target buffer. */
+	struct TargetBuffer {
 		int offset;
 		int stride;
+		int pass_stride;
+		int denoising_clean_offset;
 		device_ptr ptr;
-		int samples;
-	} render_buffer;
+	} target_buffer;
 
 	TilesInfo *tiles;
 	device_vector<int> tiles_mem;
-	void tiles_from_rendertiles(RenderTile *rtiles);
 
 	int4 rect;
 	int4 filter_area;
+
+	DeviceTask::DenoisingType type;
 
 	struct DeviceFunctions {
 		function<bool(device_ptr image_ptr,    /* Contains the values that are smoothed. */
@@ -58,8 +67,10 @@ public:
 		              )> non_local_means;
 		function<bool(device_ptr color_ptr,
 		              device_ptr color_variance_ptr,
-		              device_ptr output_ptr
-		              )> reconstruct;
+		              int frame
+		              )> accumulate;
+		function<bool(device_ptr output_ptr
+		              )> solve;
 		function<bool()> construct_transform;
 
 		function<bool(device_ptr a_ptr,
@@ -80,6 +91,10 @@ public:
 		              device_ptr mean_ptr,
 		              device_ptr variance_ptr
 		              )> get_feature;
+		function<bool(int to_pass,
+		              device_ptr from_ptr,
+		              device_ptr buffer_ptr
+		              )> write_feature;
 		function<bool(device_ptr image_ptr,
 		              device_ptr variance_ptr,
 		              device_ptr depth_ptr,
@@ -138,19 +153,21 @@ public:
 		{}
 	} storage;
 
-	DenoisingTask(Device *device);
+	DenoisingTask(Device *device, const DeviceTask &task);
 	~DenoisingTask();
 
-	void init_from_devicetask(const DeviceTask &task);
+	void set_render_buffer(RenderTile *rtiles);
 
-	bool run_denoising();
+	bool run();
 
 	struct DenoiseBuffers {
 		int pass_stride;
+		int frame_stride;
 		int passes;
 		int stride;
 		int h;
 		int width;
+		int mode;
 		device_only_memory<float> mem;
 
 		DenoiseBuffers(Device *device)
@@ -160,6 +177,19 @@ public:
 
 protected:
 	Device *device;
+
+	void setup_denoising_buffer();
+	void prefilter_shadowing();
+	void prefilter_features();
+	void prefilter_color();
+	void construct_transform();
+	void reconstruct();
+	void load_buffer();
+	void write_buffer();
+
+	bool run_denoising();
+	bool run_prefiltering();
+	bool run_filtering();
 };
 
 CCL_NAMESPACE_END

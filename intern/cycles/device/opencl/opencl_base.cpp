@@ -344,7 +344,7 @@ void OpenCLDeviceBase::mem_alloc(device_memory& mem)
 	mem.device_size = size;
 }
 
-void OpenCLDeviceBase::mem_copy_to(device_memory& mem)
+void OpenCLDeviceBase::mem_copy_to(device_memory& mem, int y, int w, int h, int elem)
 {
 	if(mem.type == MEM_TEXTURE) {
 		tex_free(mem);
@@ -356,14 +356,16 @@ void OpenCLDeviceBase::mem_copy_to(device_memory& mem)
 		}
 
 		/* this is blocking */
-		size_t size = mem.memory_size();
+		size_t offset = elem*y*w;
+		size_t size = elem*w*h;
+		assert(size <= mem.memory_size());
 		if(size != 0) {
 			opencl_assert(clEnqueueWriteBuffer(cqCommandQueue,
 			                                   CL_MEM_PTR(mem.device_pointer),
 			                                   CL_TRUE,
-			                                   0,
+			                                   offset,
 			                                   size,
-			                                   mem.host_pointer,
+			                                   (uchar*)mem.host_pointer + offset,
 			                                   0,
 			                                   NULL, NULL));
 		}
@@ -779,7 +781,8 @@ bool OpenCLDeviceBase::denoising_non_local_means(device_ptr image_ptr,
 	                difference,
 	                w, h, stride,
 	                shift_stride,
-	                r, 0, a, k_2);
+	                r, 0, 0,
+	                a, k_2);
 	kernel_set_args(ckNLMBlur, 0,
 	                difference,
 	                blurDifference,
@@ -823,15 +826,20 @@ bool OpenCLDeviceBase::denoising_construct_transform(DenoisingTask *task)
 	cl_mem transform_mem = CL_MEM_PTR(task->storage.transform.device_pointer);
 	cl_mem rank_mem = CL_MEM_PTR(task->storage.rank.device_pointer);
 
+	cl_mem tiles_mem = CL_MEM_PTR(task->tiles_mem.device_pointer);
+
 	cl_kernel ckFilterConstructTransform = denoising_program(ustring("filter_construct_transform"));
 
 	kernel_set_args(ckFilterConstructTransform, 0,
 	                buffer_mem,
+	                tiles_mem,
 	                transform_mem,
 	                rank_mem,
 	                task->filter_area,
 	                task->rect,
 	                task->buffer.pass_stride,
+	                task->buffer.frame_stride,
+	                task->buffer.mode,
 	                task->radius,
 	                task->pca_threshold);
 
@@ -843,17 +851,13 @@ bool OpenCLDeviceBase::denoising_construct_transform(DenoisingTask *task)
 	return true;
 }
 
-bool OpenCLDeviceBase::denoising_reconstruct(device_ptr color_ptr,
-                                             device_ptr color_variance_ptr,
-                                             device_ptr output_ptr,
-                                             DenoisingTask *task)
+bool OpenCLDeviceBase::denoising_accumulate(device_ptr color_ptr,
+                                            device_ptr color_variance_ptr,
+                                            int frame,
+                                            DenoisingTask *task)
 {
-	mem_zero(task->storage.XtWX);
-	mem_zero(task->storage.XtWY);
-
 	cl_mem color_mem = CL_MEM_PTR(color_ptr);
 	cl_mem color_variance_mem = CL_MEM_PTR(color_variance_ptr);
-	cl_mem output_mem = CL_MEM_PTR(output_ptr);
 
 	cl_mem buffer_mem = CL_MEM_PTR(task->buffer.mem.device_pointer);
 	cl_mem transform_mem = CL_MEM_PTR(task->storage.transform.device_pointer);
@@ -865,11 +869,13 @@ bool OpenCLDeviceBase::denoising_reconstruct(device_ptr color_ptr,
 	cl_kernel ckNLMBlur             = denoising_program(ustring("filter_nlm_blur"));
 	cl_kernel ckNLMCalcWeight       = denoising_program(ustring("filter_nlm_calc_weight"));
 	cl_kernel ckNLMConstructGramian = denoising_program(ustring("filter_nlm_construct_gramian"));
-	cl_kernel ckFinalize            = denoising_program(ustring("filter_finalize"));
 
 	int w = task->reconstruction_state.source_w;
 	int h = task->reconstruction_state.source_h;
 	int stride = task->buffer.stride;
+
+	int frame_offset = task->buffer.frame_stride * frame;
+	int t = task->tiles->frames[frame];
 
 	int shift_stride = stride*h;
 	int num_shifts = (2*task->radius + 1)*(2*task->radius + 1);
@@ -888,6 +894,7 @@ bool OpenCLDeviceBase::denoising_reconstruct(device_ptr color_ptr,
 	                shift_stride,
 	                task->radius,
 	                task->buffer.pass_stride,
+	                frame_offset,
 	                1.0f, task->nlm_k_2);
 	kernel_set_args(ckNLMBlur, 0,
 	                difference,
@@ -902,6 +909,7 @@ bool OpenCLDeviceBase::denoising_reconstruct(device_ptr color_ptr,
 	                shift_stride,
 	                task->radius, 4);
 	kernel_set_args(ckNLMConstructGramian, 0,
+	                t,
 	                blurDifference,
 	                buffer_mem,
 	                transform_mem,
@@ -912,7 +920,9 @@ bool OpenCLDeviceBase::denoising_reconstruct(device_ptr color_ptr,
 	                w, h, stride,
 	                shift_stride,
 	                task->radius, 4,
-	                task->buffer.pass_stride);
+	                task->buffer.pass_stride,
+	                frame_offset,
+	                task->buffer.mode);
 
 	enqueue_kernel(ckNLMCalcDifference,   w*h, num_shifts, true);
 	enqueue_kernel(ckNLMBlur,             w*h, num_shifts, true);
@@ -923,6 +933,19 @@ bool OpenCLDeviceBase::denoising_reconstruct(device_ptr color_ptr,
 	opencl_assert(clReleaseMemObject(difference));
 	opencl_assert(clReleaseMemObject(blurDifference));
 
+	return true;
+}
+
+bool OpenCLDeviceBase::denoising_solve(device_ptr output_ptr,
+                                       DenoisingTask *task)
+{
+	cl_mem output_mem = CL_MEM_PTR(output_ptr);
+
+	cl_mem rank_mem = CL_MEM_PTR(task->storage.rank.device_pointer);
+	cl_mem XtWX_mem = CL_MEM_PTR(task->storage.XtWX.device_pointer);
+	cl_mem XtWY_mem = CL_MEM_PTR(task->storage.XtWY.device_pointer);
+
+	cl_kernel ckFinalize = denoising_program(ustring("filter_finalize"));
 	kernel_set_args(ckFinalize, 0,
 	                output_mem,
 	                rank_mem,
@@ -931,7 +954,7 @@ bool OpenCLDeviceBase::denoising_reconstruct(device_ptr color_ptr,
 	                task->filter_area,
 	                task->reconstruction_state.buffer_params,
 	                task->render_buffer.samples);
-	enqueue_kernel(ckFinalize, w, h);
+	enqueue_kernel(ckFinalize, task->reconstruction_state.source_w, task->reconstruction_state.source_h);
 
 	return true;
 }
@@ -991,7 +1014,7 @@ bool OpenCLDeviceBase::denoising_divide_shadow(device_ptr a_ptr,
 	                buffer_variance_mem,
 	                task->rect,
 	                task->render_buffer.pass_stride,
-	                task->render_buffer.denoising_data_offset);
+	                task->render_buffer.offset);
 	enqueue_kernel(ckFilterDivideShadow,
 	               task->rect.z-task->rect.x,
 	               task->rect.w-task->rect.y);
@@ -1021,10 +1044,35 @@ bool OpenCLDeviceBase::denoising_get_feature(int mean_offset,
 	                variance_mem,
 	                task->rect,
 	                task->render_buffer.pass_stride,
-	                task->render_buffer.denoising_data_offset);
+	                task->render_buffer.offset);
 	enqueue_kernel(ckFilterGetFeature,
 	               task->rect.z-task->rect.x,
 	               task->rect.w-task->rect.y);
+
+	return true;
+}
+
+bool OpenCLDeviceBase::denoising_write_feature(int to_pass,
+                                               device_ptr from_ptr,
+                                               device_ptr buffer_ptr,
+                                               DenoisingTask *task)
+{
+	cl_mem from_mem = CL_MEM_PTR(from_ptr);
+	cl_mem buffer_mem = CL_MEM_PTR(buffer_ptr);
+
+	cl_kernel ckFilterWriteFeature = denoising_program(ustring("filter_write_feature"));
+
+	kernel_set_args(ckFilterWriteFeature, 0,
+	                task->render_buffer.samples,
+	                task->reconstruction_state.buffer_params,
+	                task->filter_area,
+	                from_mem,
+	                buffer_mem,
+	                to_pass,
+	                task->rect);
+	enqueue_kernel(ckFilterWriteFeature,
+	               task->filter_area.z,
+	               task->filter_area.w);
 
 	return true;
 }
@@ -1080,24 +1128,24 @@ void OpenCLDeviceBase::denoise(RenderTile &rtile, DenoisingTask& denoising, cons
 {
 	denoising.functions.set_tiles = function_bind(&OpenCLDeviceBase::denoising_set_tiles, this, _1, &denoising);
 	denoising.functions.construct_transform = function_bind(&OpenCLDeviceBase::denoising_construct_transform, this, &denoising);
-	denoising.functions.reconstruct = function_bind(&OpenCLDeviceBase::denoising_reconstruct, this, _1, _2, _3, &denoising);
+	denoising.functions.accumulate = function_bind(&OpenCLDeviceBase::denoising_accumulate, this, _1, _2, _3, &denoising);
+	denoising.functions.solve = function_bind(&OpenCLDeviceBase::denoising_solve, this, _1, &denoising);
 	denoising.functions.divide_shadow = function_bind(&OpenCLDeviceBase::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
 	denoising.functions.non_local_means = function_bind(&OpenCLDeviceBase::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
 	denoising.functions.combine_halves = function_bind(&OpenCLDeviceBase::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
 	denoising.functions.get_feature = function_bind(&OpenCLDeviceBase::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
+	denoising.functions.write_feature = function_bind(&OpenCLDeviceBase::denoising_write_feature, this, _1, _2, _3, &denoising);
 	denoising.functions.detect_outliers = function_bind(&OpenCLDeviceBase::denoising_detect_outliers, this, _1, _2, _3, _4, &denoising);
 
 	denoising.filter_area = make_int4(rtile.x, rtile.y, rtile.w, rtile.h);
 	denoising.render_buffer.samples = rtile.sample;
 
-	RenderTile rtiles[9];
+	RenderTile rtiles[10];
 	rtiles[4] = rtile;
 	task.map_neighbor_tiles(rtiles, this);
-	denoising.tiles_from_rendertiles(rtiles);
+	denoising.set_render_buffer(rtiles);
 
-	denoising.init_from_devicetask(task);
-
-	denoising.run_denoising();
+	denoising.run();
 
 	task.unmap_neighbor_tiles(rtiles, this);
 }

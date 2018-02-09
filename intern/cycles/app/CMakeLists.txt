@@ -46,6 +46,10 @@ if(WITH_CYCLES_LOGGING)
 	)
 endif()
 
+if(WITH_CYCLES_BLENDER)
+	add_definitions(-DCYCLES_DATA_PATH="${TARGETDIR_VER}/${CYCLES_INSTALL_PATH}")
+endif()
+
 if(WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI)
 	list(APPEND LIBRARIES ${GLUT_LIBRARIES})
 endif()
@@ -118,6 +122,26 @@ if(WITH_CYCLES_NETWORK)
 	if(UNIX AND NOT APPLE)
 		set_target_properties(cycles_server PROPERTIES INSTALL_RPATH $ORIGIN/lib)
 	endif()
+	unset(SRC)
+endif()
+
+if(WITH_CYCLES_STANDALONE_DENOISER)
+	set(SRC
+		cycles_denoiser.cpp
+	)
+	add_executable(cycles_denoiser ${SRC})
+	cycles_target_link_libraries(cycles_denoiser)
+
+	if(UNIX AND NOT APPLE)
+		set_target_properties(cycles_denoiser PROPERTIES INSTALL_RPATH $ORIGIN/lib)
+	endif()
+
+	IF(UNIX AND NOT WITH_INSTALL_PORTABLE AND NOT APPLE)
+		delayed_install_target(cycles_denoiser bin)
+	else()
+		delayed_install_target(cycles_denoiser ".")
+	endif()
+
 	unset(SRC)
 endif()
 

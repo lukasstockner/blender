@@ -30,6 +30,7 @@
 #  include <sys/types.h>
 #else
 #  include <unistd.h>
+#  include <sys/ioctl.h>
 #endif
 
 CCL_NAMESPACE_BEGIN
@@ -309,6 +310,52 @@ size_t system_physical_ram()
 	size_t pn = sysconf(_SC_PHYS_PAGES);
 	return ps * pn;
 #endif
+}
+
+bool system_console_shape(int *rows, int *cols)
+{
+#ifdef _WIN32
+	CONSOLE_SCREEN_BUFFER_INFO info;
+
+	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
+	*cols = info.srWindow.Right - info.srWindow.Left + 1;
+	*rows = info.srWindow.Bottom - info.srWindow.Top + 1;
+#else
+	struct winsize w;
+	ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+	*rows = w.ws_row;
+	*cols = w.ws_col;
+#endif
+	return true;
+}
+
+string system_get_executable_path()
+{
+	char exe[1024];
+	ssize_t len = 1024;
+#ifdef _WIN32
+	len = GetModuleFileName(NULL, exe, 1024);
+#elif defined(__FreeBSD__)
+	char link[1024];
+	int mib[4];
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_PATHNAME;
+	mib[3] = -1;
+	if(sysctl(mib, 4, link, &len, NULL, 0) != 0) return "";
+	len = readlink(link, exe, sizeof(exe));
+#elif defined(__APPLE__)
+	char link[1024];
+	if(_NSGetExecutablePath(link, &len) != 0) return "";
+	if(realpath(link, exe) == NULL) return "";
+	len = strlen(exe);
+#else
+	len = readlink("/proc/self/exe", exe, sizeof(exe));
+#endif
+	if(len <= 0 || len == sizeof(exe)) return "";
+	exe[len] = '\0';
+
+	return string(exe);
 }
 
 CCL_NAMESPACE_END

@@ -104,13 +104,17 @@ public:
 		snd.write();
 	}
 
-	void mem_copy_to(device_memory& mem)
+	void mem_copy_to(device_memory& mem, int y, int w, int h, int elem)
 	{
 		thread_scoped_lock lock(rpc_lock);
 
 		RPCSend snd(socket, &error_func, "mem_copy_to");
 
 		snd.add(mem);
+		snd.add(y);
+		snd.add(w);
+		snd.add(h);
+		snd.add(elem);
 		snd.write();
 		snd.write_buffer(mem.host_pointer, mem.memory_size());
 	}
@@ -450,7 +454,12 @@ protected:
 		else if(rcv.name == "mem_copy_to") {
 			string name;
 			network_device_memory mem(device);
+			int y, w, h, elem;
 			rcv.read(mem, name);
+			rcv.read(y);
+			rcv.read(w);
+			rcv.read(h);
+			rcv.read(elem);
 			lock.unlock();
 
 			size_t data_size = mem.memory_size();
@@ -474,7 +483,7 @@ protected:
 			rcv.read_buffer((uint8_t*)mem.host_pointer, data_size);
 
 			/* Copy the data from the memory buffer to the device buffer. */
-			device->mem_copy_to(mem);
+			device->mem_copy_to(mem, y, w, h, elem);
 
 			if(!client_pointer) {
 				/* Store a mapping to/from client_pointer and real device pointer. */

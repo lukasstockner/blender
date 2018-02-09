@@ -341,7 +341,7 @@ public:
 	                          vector<OpenCLProgram*> &programs) = 0;
 
 	void mem_alloc(device_memory& mem);
-	void mem_copy_to(device_memory& mem);
+	void mem_copy_to(device_memory& mem, int y, int w, int h, int elem);
 	void mem_copy_from(device_memory& mem, int y, int w, int h, int elem);
 	void mem_zero(device_memory& mem);
 	void mem_free(device_memory& mem);
@@ -410,10 +410,12 @@ protected:
 	                               device_ptr out_ptr,
 	                               DenoisingTask *task);
 	bool denoising_construct_transform(DenoisingTask *task);
-	bool denoising_reconstruct(device_ptr color_ptr,
-	                           device_ptr color_variance_ptr,
-	                           device_ptr output_ptr,
-	                           DenoisingTask *task);
+	bool denoising_accumulate(device_ptr color_ptr,
+	                          device_ptr color_variance_ptr,
+	                          int frame,
+	                          DenoisingTask *task);
+	bool denoising_solve(device_ptr output_ptr,
+	                     DenoisingTask *task);
 	bool denoising_combine_halves(device_ptr a_ptr,
 	                              device_ptr b_ptr,
 	                              device_ptr mean_ptr,
@@ -431,6 +433,10 @@ protected:
 	                           device_ptr mean_ptr,
 	                           device_ptr variance_ptr,
 	                           DenoisingTask *task);
+	bool denoising_write_feature(int to_offset,
+	                             device_ptr from_ptr,
+	                             device_ptr buffer_ptr,
+	                             DenoisingTask *task);
 	bool denoising_detect_outliers(device_ptr image_ptr,
 	                               device_ptr variance_ptr,
 	                               device_ptr depth_ptr,

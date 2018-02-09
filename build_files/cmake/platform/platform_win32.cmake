@@ -581,3 +581,5 @@ if(WITH_CYCLES_OSL)
 		set(WITH_CYCLES_OSL OFF)
 	endif()
 endif()
+
+set(TARGETDIR_VER ${BLENDER_VERSION})

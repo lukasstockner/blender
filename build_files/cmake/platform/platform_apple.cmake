@@ -424,3 +424,11 @@ set(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
 set(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
 set(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
 set(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
+
+if(WITH_PYTHON_MODULE)
+	set(TARGETDIR_VER ${BLENDER_VERSION})
+else()
+	set(TARGETDIR_VER blender.app/Contents/Resources/${BLENDER_VERSION})
+endif()
+# Skip relinking on cpack / install
+set_target_properties(blender PROPERTIES BUILD_WITH_INSTALL_RPATH true)

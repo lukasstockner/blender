@@ -282,38 +282,6 @@ endif()
 
 
 # -----------------------------------------------------------------------------
-# Platform Specific Var: TARGETDIR_VER
-
-if(UNIX AND NOT APPLE)
-	if(WITH_PYTHON_MODULE)
-		if(WITH_INSTALL_PORTABLE)
-			set(TARGETDIR_VER ${BLENDER_VERSION})
-		else()
-			set(TARGETDIR_VER ${PYTHON_SITE_PACKAGES}/${BLENDER_VERSION})
-		endif()
-	else()
-		if(WITH_INSTALL_PORTABLE)
-			set(TARGETDIR_VER ${BLENDER_VERSION})
-		else()
-			set(TARGETDIR_VER share/blender/${BLENDER_VERSION})
-		endif()
-	endif()
-
-elseif(WIN32)
-	set(TARGETDIR_VER ${BLENDER_VERSION})
-
-elseif(APPLE)
-	if(WITH_PYTHON_MODULE)
-		set(TARGETDIR_VER ${BLENDER_VERSION})
-	else()
-		set(TARGETDIR_VER blender.app/Contents/Resources/${BLENDER_VERSION})
-	endif()
-	# Skip relinking on cpack / install
-	set_target_properties(blender PROPERTIES BUILD_WITH_INSTALL_RPATH true)
-endif()
-
-
-# -----------------------------------------------------------------------------
 # Install Targets (Generic, All Platforms)
 
 

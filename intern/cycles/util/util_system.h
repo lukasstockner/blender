@@ -30,6 +30,11 @@ int system_cpu_group_thread_count(int group);
 /* Get total number of threads in all groups. */
 int system_cpu_thread_count();
 
+/* Get width and height in characters of the current console output. */
+bool system_console_shape(int *rows, int *cols);
+
+string system_get_executable_path();
+
 /* Get current process groups. */
 unsigned short system_cpu_process_groups(unsigned short max_groups,
                                          unsigned short *grpups);
