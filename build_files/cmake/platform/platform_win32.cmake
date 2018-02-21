@@ -208,6 +208,14 @@ if(NOT JPEG_FOUND)
 	set(JPEG_LIBRARIES ${LIBDIR}/jpeg/lib/libjpeg.lib)
 endif()
 
+set(OPENJPEG_NAMES ${OPENJPEG_NAMES} libopenjpeg)
+windows_find_package(openjpeg REQUIRED)
+if(NOT OPENJPEG_FOUND)
+	warn_hardcoded_paths(openjpeg)
+	set(OPENJPEG_INCLUDE_DIR ${LIBDIR}/openjpeg/include)
+	set(OPENJPEG_LIBRARY ${LIBDIR}/openjpeg/lib/openjpeg.lib)
+endif()
+
 set(PTHREADS_INCLUDE_DIRS ${LIBDIR}/pthreads/include)
 set(PTHREADS_LIBRARIES ${LIBDIR}/pthreads/lib/pthreadVC2.lib)
 
