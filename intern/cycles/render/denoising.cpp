@@ -189,8 +189,10 @@ bool StandaloneDenoiser::parse_channel_name(string name, string &renderlayer, st
 	return true;
 }
 
-void StandaloneDenoiser::parse_channels(const std::vector<string> &channels)
+void StandaloneDenoiser::parse_channels(const ImageSpec &in_spec)
 {
+	const std::vector<string> &channels = in_spec.channelnames;
+
 	out_passthrough.clear();
 	out_channels.clear();
 	layers.clear();
@@ -227,6 +229,21 @@ void StandaloneDenoiser::parse_channels(const std::vector<string> &channels)
 			printf("Directly denoising isn't supported yet, please prefilter the input first!\n");
 		}
 		if((layer.has_denoising && prefilter) || (layer.has_prefiltered && !prefilter)) {
+			layer.samples = samples;
+			/* If the sample value isn't set yet, check if there is a layer-specific one in the input file. */
+			if(layer.samples < 1) {
+				string sample_string = in_spec.get_string_attribute("Cycles Samples " + i->first, "");
+				if(sample_string != "") {
+					if(!sscanf(sample_string.c_str(), "%d", &layer.samples)) {
+						printf("Failed to parse samples metadata %s!\n", sample_string.c_str());
+					}
+				}
+			}
+			if(layer.samples < 1) {
+				printf("No sample number specified in the file for layer %s or on the command line!\n", i->first.c_str());
+				continue;
+			}
+
 			layer.generate_map(buffer_pass_stride);
 			layer.name = i->first;
 			process_layer = true;
@@ -456,7 +473,7 @@ DeviceTask StandaloneDenoiser::create_task()
 			tile.w = min(width - tile.x, tile_size.x);
 			tile.h = min(height - tile.y, tile_size.y);
 			tile.start_sample = 0;
-			tile.num_samples = samples;
+			tile.num_samples = layers[current_layer].samples;
 			tile.sample = 0;
 			tile.offset = 0;
 			tile.stride = width;
@@ -490,7 +507,17 @@ bool StandaloneDenoiser::open_frames(string in_filename, string out_filename)
 	height = in_spec.height;
 	nchannels = in_spec.nchannels;
 
-	parse_channels(in_spec.channelnames);
+	/* If the sample value isn't set already, check whether the input file contains it. */
+	if(samples < 1) {
+		string sample_string = in_spec.get_string_attribute("Cycles Samples", "");
+		if(sample_string != "") {
+			if(!sscanf(sample_string.c_str(), "%d", &samples)) {
+				printf("Failed to parse samples metadata %s!\n", sample_string.c_str());
+			}
+		}
+	}
+
+	parse_channels(in_spec);
 
 	if(layers.size() == 0) {
 		error = "Didn't find a RenderLayer containing denoising info!";

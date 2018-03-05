@@ -38,7 +38,7 @@ public:
 	{
 		views = false;
 		prefilter = false;
-		samples = 128;
+		samples = 0;
 		tile_size = make_int2(64, 64);
 
 		radius = 8;
@@ -88,6 +88,9 @@ public:
 		/* Channel offset of the corresponding buffer channel if the channel is used for processing, -1 otherwise. */
 		vector<int> buffer_offsets;
 
+		/* Sample amount that was used for rendering this layer. */
+		int samples;
+
 		/* Buffer channel i will be set to file channel buffer_to_file_map[i].
 		 * Generated from file_offsets and buffer_offsets in parse_channels(). */
 		vector<int> buffer_to_file_map;
@@ -127,7 +130,7 @@ protected:
 
 	/* Parse input file channels, separate them into RenderLayers, detect RenderLayers with full channel sets,
 	 * fill layers and set up the output channels and passthrough map. */
-	void parse_channels(const std::vector<string> &channels);
+	void parse_channels(const ImageSpec &in_spec);
 
 	/* Load a slice of the given image and fill the buffer pointed to by mem according to the given channel map.
 	 * If write_out is true, also passthrough unused input channels directly to the output image. */
