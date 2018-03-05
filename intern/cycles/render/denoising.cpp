@@ -572,6 +572,16 @@ bool FilterTask::open_frames(string in_filename, string out_filename)
 	/* Pass through the attributes of the input frame. */
 	out_spec.extra_attribs = in_spec.extra_attribs;
 
+	/* Ensure that the output frame contains sample information even if the input didn't. */
+	if(!out_spec.find_attribute("Cycles Samples", TypeDesc::STRING)) {
+		for(int i = 0; i < layers.size(); i++) {
+			string name = "Cycles Samples " + layers[i].name;
+			if(!out_spec.find_attribute(name, TypeDesc::STRING)) {
+				out_spec.attribute(name, TypeDesc::STRING, string_printf("%d", layers[i].samples));
+			}
+		}
+	}
+
 	out->open(out_filename, out_spec);
 
 	out_pass_stride = out_channels.size();
