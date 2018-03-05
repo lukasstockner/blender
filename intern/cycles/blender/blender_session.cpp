@@ -478,14 +478,16 @@ void BlenderSession::render()
 				break;
 		}
 
+		BL::RenderResult b_full_rr = b_engine.get_result();
+		string num_aa_samples = string_printf("%d", session->params.samples);
+		b_full_rr.stamp_data_add_field(("Cycles Samples " + b_rlay_name).c_str(),
+		                               num_aa_samples.c_str());
 		if(is_single_layer) {
-			BL::RenderResult b_rr = b_engine.get_result();
-			string num_aa_samples = string_printf("%d", session->params.samples);
-			b_rr.stamp_data_add_field("Cycles Samples", num_aa_samples.c_str());
-			/* TODO(sergey): Report whether we're doing resumable render
-			 * and also start/end sample if so.
-			 */
+			b_full_rr.stamp_data_add_field("Cycles Samples", num_aa_samples.c_str());
 		}
+		/* TODO(sergey): Report whether we're doing resumable render
+		 * and also start/end sample if so.
+		 */
 
 		/* free result without merging */
 		end_render_result(b_engine, b_rr, true, true, false);
