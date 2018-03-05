@@ -142,7 +142,7 @@ int main(int argc, const char **argv)
 	}
 
 	Stats stats;
-	StandaloneDenoiser denoiser(filenames[0], filenames[1], Device::create(device_info, stats, true));
+	StandaloneDenoiser denoiser(Device::create(device_info, stats, true));
 	denoiser.views = views;
 	denoiser.tile_size = tile_size;
 	denoiser.samples = samples;
@@ -152,6 +152,8 @@ int main(int argc, const char **argv)
 	denoiser.feature_strength = feature_strength;
 	denoiser.relative_pca = relative_pca;
 	denoiser.radius = radius;
+	denoiser.in_path = filenames[0];
+	denoiser.out_path = filenames[1];
 	if(prefilter) {
 		if(!denoiser.run_prefilter()) {
 			fprintf(stderr, "%s\n", denoiser.error.c_str());
