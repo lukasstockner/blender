@@ -56,6 +56,7 @@ int main(int argc, const char **argv)
 
 	ArgParse ap;
 	bool help = false, debug = false, version = false, list = false, prefilter = false, views = false, relative_pca = false;
+	bool no_passthrough_additional = false, no_passthrough_unknown = false, no_passthrough_incomplete = false;
 	int verbosity = 1, threads = 0, samples = 0, frame_radius = 2, radius = 8;
 	float strength = 0.5f, feature_strength = 0.5f;
 	int2 tile_size = make_int2(64, 64);
@@ -76,6 +77,9 @@ int main(int argc, const char **argv)
 		"--strength %f", &strength, "Denoising strength (between 0 and 1, default is 0.5)",
 		"--feature-strength %f", &feature_strength, "Denoising feature strength (between 0 and 1, default is 0.5)",
 		"--relative-pca", &relative_pca, "Use relative PCA (default is off)",
+		"--no-passthrough-additional", &no_passthrough_additional, "Don't passthrough non-denoising channels of processed render layers",
+		"--no-passthrough-incomplete", &no_passthrough_incomplete, "Don't passthrough render layers without a full set of denoising channels",
+		"--no-passthrough-unknown", &no_passthrough_unknown, "Don't passthrough channels that couldn't be parsed",
 #ifdef WITH_CYCLES_LOGGING
 		"--debug", &debug, "Enable debug logging",
 		"--verbose %d", &verbosity, "Set verbosity of the logger",
@@ -155,6 +159,9 @@ int main(int argc, const char **argv)
 	denoiser.radius = radius;
 	denoiser.in_path = filenames[0];
 	denoiser.out_path = filenames[1];
+	denoiser.passthrough_incomplete = !no_passthrough_incomplete;
+	denoiser.passthrough_additional = !no_passthrough_additional;
+	denoiser.passthrough_unknown = !no_passthrough_unknown;
 	if(prefilter) {
 		if(!denoiser.run_prefilter()) {
 			fprintf(stderr, "%s\n", denoiser.error.c_str());

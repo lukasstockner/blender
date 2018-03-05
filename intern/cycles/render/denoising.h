@@ -78,6 +78,13 @@ public:
 	float feature_strength;
 	bool relative_pca;
 
+	/* Controls whether render layers that miss all or some of the required channels are passed through. */
+	bool passthrough_incomplete;
+	/* Controls whether channels that could not be parsed are passed through. */
+	bool passthrough_unknown;
+	/* Controls whether channels of a render layer that aren't used for denoising are passed through. */
+	bool passthrough_additional;
+
 protected:
 	Device *device;
 };
@@ -100,6 +107,10 @@ public:
 		strength = sd->strength;
 		feature_strength = sd->feature_strength;
 		relative_pca = sd->relative_pca;
+
+		passthrough_incomplete = sd->passthrough_incomplete;
+		passthrough_unknown = sd->passthrough_unknown;
+		passthrough_additional = sd->passthrough_additional;
 	}
 
 	~FilterTask()
@@ -119,6 +130,10 @@ public:
 	float strength;
 	float feature_strength;
 	bool relative_pca;
+
+	bool passthrough_incomplete;
+	bool passthrough_unknown;
+	bool passthrough_additional;
 
 	string error;
 

@@ -248,9 +248,14 @@ void FilterTask::parse_channels(const ImageSpec &in_spec)
 		in_channels.push_back(channels[i]);
 		string layer, pass, channel;
 		if(!parse_channel_name(channels[i], layer, pass, channel, views)) {
-			out_passthrough.push_back(i);
-			out_channels.push_back(channels[i]);
-			printf("Couldn't decode channel name %s, passing through to output!\n", channels[i].c_str());
+			if(passthrough_unknown) {
+				out_passthrough.push_back(i);
+				out_channels.push_back(channels[i]);
+				printf("Couldn't decode channel name %s, passing through to output!\n", channels[i].c_str());
+			}
+			else {
+				printf("Couldn't decode channel name %s, ignoring!\n", channels[i].c_str());
+			}
 			continue;
 		}
 		file_layers[layer].channels.push_back(pass+"."+channel);
@@ -291,6 +296,10 @@ void FilterTask::parse_channels(const ImageSpec &in_spec)
 			layer.name = i->first;
 			process_layer = true;
 			layers.push_back(layer);
+		}
+
+		if(!(process_layer? passthrough_additional : passthrough_incomplete)) {
+			continue;
 		}
 
 		/* Detect unused passes. */
