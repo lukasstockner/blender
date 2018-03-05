@@ -46,7 +46,7 @@ public:
 
 		error = "";
 
-		center_frame = 1;
+		center_frame = "";
 		frame_radius = 2;
 
 		DeviceRequestedFeatures req;
@@ -65,7 +65,7 @@ public:
 	int samples;
 	int2 tile_size;
 
-	int center_frame;
+	string center_frame;
 	int frame_radius;
 
 	int radius;
@@ -102,7 +102,7 @@ public:
 		free();
 	}
 
-	bool run_filter(string in_pattern, string out_file, int center_frame, std::vector<int> frames);
+	bool run_filter(string in_pattern, string out_file, int center_frame, vector<int> frames);
 	bool run_prefilter(string in_file, string out_file);
 
 

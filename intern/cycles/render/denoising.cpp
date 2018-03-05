@@ -586,7 +586,7 @@ bool FilterTask::open_frames(string in_filename, string out_filename)
 
 /****** DENOISER OPERATIONS ******/
 
-bool FilterTask::run_filter(string in_pattern, string out_file, int center_frame, std::vector<int> frame_range)
+bool FilterTask::run_filter(string in_pattern, string out_file, int center_frame, vector<int> frame_range)
 {
 	prefilter = false;
 	buffer_pass_stride = 14;
@@ -750,41 +750,53 @@ bool StandaloneDenoiser::run_filter()
 		error = "Malformed input pattern!";
 		return false;
 	}
-
-	/* Determine frame range that should be used for filtering. */
-	std::vector<int> frame_range;
 	if(in_framestring != "") {
-		if(!Filesystem::enumerate_sequence(in_framestring, frame_range)) {
-			printf("Couldn't parse frame sequence %s, falling back to regular interval!\n", in_framestring.c_str());
-		}
-	}
-	if(frame_range.size() == 0) {
-		for(int f = center_frame - frame_radius; f <= center_frame + frame_radius; f++) {
-			frame_range.push_back(f);
-		}
-	}
-
-	/* Remove center frame from list of secondary frames. */
-	std::vector<int>::iterator center_frame_iter = find(frame_range.begin(), frame_range.end(), center_frame);
-	if(center_frame_iter != frame_range.end()) {
-		frame_range.erase(center_frame_iter);
+		printf("Ignoring input path frame range!\n");
 	}
 
 	/* If the output path contains a pattern, substitute the center frame.
 	 * Otherwise, just use it as it is. */
 	string out_filename = out_path;
-	string out_pattern, out_framestring;
-	if(Filesystem::parse_pattern(out_path.c_str(), 0, out_pattern, out_framestring)) {
-		out_filename = string_printf(out_pattern.c_str(), center_frame);
-		if(out_framestring != "") {
-			printf("Ignoring output file frame range!\n");
-		}
+	string out_pattern, out_framestring = "";
+	if(!Filesystem::parse_pattern(out_path.c_str(), 0, out_pattern, out_framestring)) {
+		out_pattern = "";
+	}
+	else if(out_framestring != "") {
+		printf("Ignoring output path frame range!\n");
 	}
 
-	FilterTask task(device, this);
-	if(!task.run_filter(in_pattern, out_filename, center_frame, frame_range)) {
-		error = task.error;
+	if(center_frame == "") {
+		error = "No center frame(s) specified!";
 		return false;
+	}
+	std::vector<int> center_frames;
+	if(!Filesystem::enumerate_sequence(center_frame, center_frames)) {
+		error = "Failed to parse center frame(s)!";
+		return false;
+	}
+
+	foreach(int frame, center_frames) {
+		/* Determine frame range that should be used for filtering. */
+		vector<int> frame_range;
+		for(int f = frame - frame_radius; f <= frame + frame_radius; f++) {
+			frame_range.push_back(f);
+		}
+
+		/* Remove center frame from list of secondary frames. */
+		vector<int>::iterator center_frame_iter = find(frame_range.begin(), frame_range.end(), frame);
+		if(center_frame_iter != frame_range.end()) {
+			frame_range.erase(center_frame_iter);
+		}
+
+		if(out_pattern != "") {
+			out_filename = string_printf(out_pattern.c_str(), frame);
+		}
+
+		FilterTask task(device, this);
+		if(!task.run_filter(in_pattern, out_filename, frame, frame_range)) {
+			error = task.error;
+			return false;
+		}
 	}
 	return true;
 }

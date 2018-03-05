@@ -56,9 +56,10 @@ int main(int argc, const char **argv)
 
 	ArgParse ap;
 	bool help = false, debug = false, version = false, list = false, prefilter = false, views = false, relative_pca = false;
-	int verbosity = 1, threads = 0, samples = 0, center_frame = 1, frame_radius = 2, radius = 8;
+	int verbosity = 1, threads = 0, samples = 0, frame_radius = 2, radius = 8;
 	float strength = 0.5f, feature_strength = 0.5f;
 	int2 tile_size = make_int2(64, 64);
+	string center_frame;
 
 	ap.options ("Usage: cycles_denoiser [options] --samples <spp> <input> <output>",
 		"%*", files_parse, "",
@@ -69,7 +70,7 @@ int main(int argc, const char **argv)
 		"--tile-height %d", &tile_size.y, "Tile height in pixels",
 		"--list-devices", &list, "List information about all available devices and exit",
 		"--samples %d", &samples, "Override for the number of samples that the image was rendered with",
-		"--center-frame %d", &center_frame, "Frame to be denoised",
+		"--center-frame %s", &center_frame, "Frame(s) to be denoised",
 		"--frame-radius %d", &frame_radius, "How many frames to denoise before and after the center frame (overridden by frame sequences in the input pattern)",
 		"--radius %d", &radius, "Denoising radius in pixels (default is 8)",
 		"--strength %f", &strength, "Denoising strength (between 0 and 1, default is 0.5)",
