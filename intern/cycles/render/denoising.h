@@ -61,13 +61,18 @@ public:
 
 	string error;
 
+	/* Do the frames contain multiple views? */
 	bool views;
+	/* Sample number override, takes precedence over values from input frames. */
 	int samples;
 	int2 tile_size;
 
+	/* Frame or OIIO frame range of frames that are filtered. */
 	string center_frame;
+	/* How many frames before and after the current center frame are included? */
 	int frame_radius;
 
+	/* Equivalent to the settings in the regular denoiser. */
 	int radius;
 	float strength;
 	float feature_strength;
@@ -105,7 +110,7 @@ public:
 	bool run_filter(string in_pattern, string out_file, int center_frame, vector<int> frames);
 	bool run_prefilter(string in_file, string out_file);
 
-
+	/* Equivalent to the options in the StandaloneDenoiser. */
 	bool views;
 	int samples;
 	int2 tile_size;
