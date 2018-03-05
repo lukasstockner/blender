@@ -247,8 +247,8 @@ void FilterTask::parse_channels(const ImageSpec &in_spec)
 	for(int i = 0; i < channels.size(); i++) {
 		in_channels.push_back(channels[i]);
 		string layer, pass, channel;
-		if(!parse_channel_name(channels[i], layer, pass, channel, views)) {
-			if(passthrough_unknown) {
+		if(!parse_channel_name(channels[i], layer, pass, channel, sd->views)) {
+			if(sd->passthrough_unknown) {
 				out_passthrough.push_back(i);
 				out_channels.push_back(channels[i]);
 				printf("Couldn't decode channel name %s, passing through to output!\n", channels[i].c_str());
@@ -298,7 +298,7 @@ void FilterTask::parse_channels(const ImageSpec &in_spec)
 			layers.push_back(layer);
 		}
 
-		if(!(process_layer? passthrough_additional : passthrough_incomplete)) {
+		if(!(process_layer? sd->passthrough_additional : sd->passthrough_incomplete)) {
 			continue;
 		}
 
@@ -323,7 +323,7 @@ void FilterTask::parse_channels(const ImageSpec &in_spec)
 		/* Determine output channel names. */
 		string renderlayer = layers[i].name;
 		string view = "";
-		if(views) {
+		if(sd->views) {
 			split_last_dot(renderlayer, view);
 			view = "."+view;
 		}
@@ -380,10 +380,10 @@ void FilterTask::map_neighboring_tiles(RenderTile *tiles, Device *tile_device)
 
 		int dx = (i%3)-1;
 		int dy = (i/3)-1;
-		tiles[i].x = clamp(tiles[4].x +  dx   *tile_size.x, 0,  width);
-		tiles[i].w = clamp(tiles[4].x + (dx+1)*tile_size.x, 0,  width) - tiles[i].x;
-		tiles[i].y = clamp(tiles[4].y +  dy   *tile_size.y, 0, height);
-		tiles[i].h = clamp(tiles[4].y + (dy+1)*tile_size.y, 0, height) - tiles[i].y;
+		tiles[i].x = clamp(tiles[4].x +  dx   *sd->tile_size.x, 0,  width);
+		tiles[i].w = clamp(tiles[4].x + (dx+1)*sd->tile_size.x, 0,  width) - tiles[i].x;
+		tiles[i].y = clamp(tiles[4].y +  dy   *sd->tile_size.y, 0, height);
+		tiles[i].h = clamp(tiles[4].y + (dy+1)*sd->tile_size.y, 0, height) - tiles[i].y;
 
 		tiles[i].buffer = tiles[4].buffer;
 		tiles[i].offset = tiles[4].offset;
@@ -446,10 +446,10 @@ DeviceTask FilterTask::create_task()
 	task.unmap_neighbor_tiles = function_bind(&FilterTask::unmap_neighboring_tiles, this, _1);
 	task.release_tile = function_bind(&FilterTask::release_tile, this);
 	task.get_cancel = function_bind(&FilterTask::get_cancel, this);
-	task.denoising_radius = radius;
-	task.denoising_feature_strength = feature_strength;
-	task.denoising_strength = strength;
-	task.denoising_relative_pca = relative_pca;
+	task.denoising_radius = sd->radius;
+	task.denoising_feature_strength = sd->feature_strength;
+	task.denoising_strength = sd->strength;
+	task.denoising_relative_pca = sd->relative_pca;
 	task.pass_stride = buffer_pass_stride;
 	task.target_pass_stride = target_pass_stride;
 	task.pass_denoising_data = 0;
@@ -465,14 +465,14 @@ DeviceTask FilterTask::create_task()
 	tiles.clear();
 	target_mems.clear();
 
-	int tiles_x = divide_up(width, tile_size.x), tiles_y = divide_up(height, tile_size.y);
+	int tiles_x = divide_up(width, sd->tile_size.x), tiles_y = divide_up(height, sd->tile_size.y);
 	for(int ty = 0; ty < tiles_y; ty++) {
 		for(int tx = 0; tx < tiles_x; tx++) {
 			RenderTile tile;
-			tile.x = tx * tile_size.x;
-			tile.y = ty * tile_size.y;
-			tile.w = min(width - tile.x, tile_size.x);
-			tile.h = min(height - tile.y, tile_size.y);
+			tile.x = tx * sd->tile_size.x;
+			tile.y = ty * sd->tile_size.y;
+			tile.w = min(width - tile.x, sd->tile_size.x);
+			tile.h = min(height - tile.y, sd->tile_size.y);
 			tile.start_sample = 0;
 			tile.num_samples = layers[current_layer].samples;
 			tile.sample = 0;

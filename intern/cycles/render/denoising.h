@@ -92,25 +92,14 @@ protected:
 
 class FilterTask {
 public:
-	FilterTask(Device *device, const StandaloneDenoiser *sd)
-	 : device(device), buffer(device, "prefilter buffer", MEM_READ_ONLY)
+	FilterTask(Device *device, StandaloneDenoiser *sd)
+	 : sd(sd), device(device), buffer(device, "prefilter buffer", MEM_READ_ONLY)
 	{
 		out_buffer = NULL;
 		in = NULL;
 		out = NULL;
 
-		views = sd->views;
 		samples = sd->samples;
-		tile_size = sd->tile_size;
-
-		radius = sd->radius;
-		strength = sd->strength;
-		feature_strength = sd->feature_strength;
-		relative_pca = sd->relative_pca;
-
-		passthrough_incomplete = sd->passthrough_incomplete;
-		passthrough_unknown = sd->passthrough_unknown;
-		passthrough_additional = sd->passthrough_additional;
 	}
 
 	~FilterTask()
@@ -122,18 +111,8 @@ public:
 	bool run_prefilter(string in_file, string out_file);
 
 	/* Equivalent to the options in the StandaloneDenoiser. */
-	bool views;
+	StandaloneDenoiser *sd;
 	int samples;
-	int2 tile_size;
-
-	int radius;
-	float strength;
-	float feature_strength;
-	bool relative_pca;
-
-	bool passthrough_incomplete;
-	bool passthrough_unknown;
-	bool passthrough_additional;
 
 	string error;
 
