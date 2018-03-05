@@ -581,8 +581,17 @@ bool StandaloneDenoiser::run_filter()
 		frame_range.erase(center_frame_iter);
 	}
 
+	string out_filename = out_path;
+	string out_framestring;
+	if(Filesystem::parse_pattern(out_path.c_str(), 0, out_filename, out_framestring)) {
+		out_filename = string_printf(out_filename.c_str(), center_frame);
+		if(out_framestring != "") {
+			printf("Ignoring output file frame range!\n");
+		}
+	}
+
 	string center_filename = string_printf(pattern.c_str(), center_frame);
-	if(!open_frames(center_filename, out_path)) {
+	if(!open_frames(center_filename, out_filename)) {
 		return false;
 	}
 
