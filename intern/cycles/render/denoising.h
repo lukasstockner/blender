@@ -51,10 +51,24 @@ public:
 
 		DeviceRequestedFeatures req;
 		device->load_kernels(req);
+
+		time_file_load = 0.0;
+		time_file_read = 0.0;
+		time_file_reorder = 0.0;
+		time_file_passthrough = 0.0;
+
+		time_file_open = 0.0;
+		time_channel_parse = 0.0;
+
+		time_file_write = 0.0;
+		time_scan_frames = 0.0;
+		time_processing = 0.0;
 	}
 
 	bool run_filter();
 	bool run_prefilter();
+
+	void output_profiling();
 
 	string in_path;
 	string out_path;
@@ -86,7 +100,21 @@ public:
 	bool passthrough_additional;
 
 protected:
+	friend class FilterTask;
+
 	Device *device;
+
+	double time_file_load;
+	double time_file_read;
+	double time_file_reorder;
+	double time_file_passthrough;
+
+	double time_file_open;
+	double time_channel_parse;
+
+	double time_file_write;
+	double time_scan_frames;
+	double time_processing;
 };
 
 

@@ -56,7 +56,7 @@ int main(int argc, const char **argv)
 
 	ArgParse ap;
 	bool help = false, debug = false, version = false, list = false, prefilter = false, views = false, relative_pca = false;
-	bool no_passthrough_additional = false, no_passthrough_unknown = false, no_passthrough_incomplete = false;
+	bool no_passthrough_additional = false, no_passthrough_unknown = false, no_passthrough_incomplete = false, profiling = false;
 	int verbosity = 1, threads = 0, samples = 0, frame_radius = 2, radius = 8;
 	float strength = 0.5f, feature_strength = 0.5f;
 	int2 tile_size = make_int2(64, 64);
@@ -80,6 +80,7 @@ int main(int argc, const char **argv)
 		"--no-passthrough-additional", &no_passthrough_additional, "Don't passthrough non-denoising channels of processed render layers",
 		"--no-passthrough-incomplete", &no_passthrough_incomplete, "Don't passthrough render layers without a full set of denoising channels",
 		"--no-passthrough-unknown", &no_passthrough_unknown, "Don't passthrough channels that couldn't be parsed",
+		"--profiling", &profiling, "Output profiling information",
 #ifdef WITH_CYCLES_LOGGING
 		"--debug", &debug, "Enable debug logging",
 		"--verbose %d", &verbosity, "Set verbosity of the logger",
@@ -162,6 +163,7 @@ int main(int argc, const char **argv)
 	denoiser.passthrough_incomplete = !no_passthrough_incomplete;
 	denoiser.passthrough_additional = !no_passthrough_additional;
 	denoiser.passthrough_unknown = !no_passthrough_unknown;
+
 	if(prefilter) {
 		if(!denoiser.run_prefilter()) {
 			fprintf(stderr, "%s\n", denoiser.error.c_str());
@@ -173,6 +175,10 @@ int main(int argc, const char **argv)
 			fprintf(stderr, "%s\n", denoiser.error.c_str());
 			exit(EXIT_FAILURE);
 		}
+	}
+
+	if(profiling) {
+		denoiser.output_profiling();
 	}
 
 	return 0;

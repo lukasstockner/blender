@@ -29,7 +29,8 @@ void time_sleep(double t);
 
 class scoped_timer {
 public:
-	explicit scoped_timer(double *value = NULL) : value_(value)
+	explicit scoped_timer(double *value = NULL, bool accumulate = false)
+	 : value_(value), accumulate(accumulate)
 	{
 		time_start_ = time_dt();
 	}
@@ -37,7 +38,12 @@ public:
 	~scoped_timer()
 	{
 		if(value_ != NULL) {
-			*value_ = get_time();
+			if(accumulate) {
+				*value_ += get_time();
+			}
+			else {
+				*value_ = get_time();
+			}
 		}
 	}
 
@@ -54,6 +60,7 @@ public:
 protected:
 	double *value_;
 	double time_start_;
+	bool accumulate;
 };
 
 CCL_NAMESPACE_END

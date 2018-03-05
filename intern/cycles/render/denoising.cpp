@@ -5,6 +5,7 @@
 #include "util/util_foreach.h"
 #include "util/util_map.h"
 #include "util/util_system.h"
+#include "util/util_time.h"
 
 #include <OpenImageIO/filesystem.h>
 
@@ -234,6 +235,8 @@ bool FilterTask::RenderLayer::match_channels(int frame,
 
 void FilterTask::parse_channels(const ImageSpec &in_spec)
 {
+	scoped_timer timer(&sd->time_channel_parse, true);
+
 	const std::vector<string> &channels = in_spec.channelnames;
 
 	out_passthrough.clear();
@@ -498,23 +501,32 @@ DeviceTask FilterTask::create_task()
 
 bool FilterTask::load_file(ImageInput *in_image, const vector<int> &buffer_to_file_map, float *mem, bool write_out, int y0, int y1)
 {
+	scoped_timer timer(&sd->time_file_load, true);
+
 	/* Read all channels of the file into temporary memory.
 	 * Reading all at once and then shuffling in memory is faster than reading each channel individually. */
 	float *tempmem = new float[width*(y1 - y0)*nchannels];
-	if(!in_image->read_scanlines(y0, y1, 0, TypeDesc::FLOAT, tempmem)) {
-		delete[] tempmem;
-		return false;
+	{
+		scoped_timer subtimer(&sd->time_file_read, true);
+		if(!in_image->read_scanlines(y0, y1, 0, TypeDesc::FLOAT, tempmem)) {
+			delete[] tempmem;
+			return false;
+		}
 	}
 
 	/* Shuffle image data into correct channels. */
-	mem += y0*buffer_pass_stride*width;
-	for(int i = 0; i < (y1-y0)*width; i++) {
-		for(int j = 0; j < buffer_pass_stride; j++) {
-			mem[i*buffer_pass_stride + j] = tempmem[i*nchannels + buffer_to_file_map[j]];
+	{
+		scoped_timer subtimer(&sd->time_file_reorder, true);
+		mem += y0*buffer_pass_stride*width;
+		for(int i = 0; i < (y1-y0)*width; i++) {
+			for(int j = 0; j < buffer_pass_stride; j++) {
+				mem[i*buffer_pass_stride + j] = tempmem[i*nchannels + buffer_to_file_map[j]];
+			}
 		}
 	}
 
 	if(write_out) {
+		scoped_timer subtimer(&sd->time_file_passthrough, true);
 		/* Passthrough unused channels directly into the output frame. */
 		int passthrough_channels = out_passthrough.size();
 		float *out = out_buffer + y0*out_pass_stride*width;
@@ -531,6 +543,8 @@ bool FilterTask::load_file(ImageInput *in_image, const vector<int> &buffer_to_fi
 
 bool FilterTask::open_frames(string in_filename, string out_filename)
 {
+	scoped_timer timer(&sd->time_file_open, true);
+
 	if(!Filesystem::is_regular(in_filename)) {
 		error = "Couldn't find a file called " + in_filename + "!";
 		return false;
@@ -617,48 +631,51 @@ bool FilterTask::run_filter(string in_pattern, string out_file, int center_frame
 	}
 
 	vector<ImageInput*> in_frames;
-	foreach(int frame, frame_range) {
-		string filename = string_printf(in_pattern.c_str(), frame);
+	{
+		scoped_timer timer(&sd->time_scan_frames, true);
+		foreach(int frame, frame_range) {
+			string filename = string_printf(in_pattern.c_str(), frame);
 
-		if(!Filesystem::is_regular(filename)) {
-			printf("Couldn't find frame %s, skipping...\n", filename.c_str());
-			continue;
-		}
+			if(!Filesystem::is_regular(filename)) {
+				printf("Couldn't find frame %s, skipping...\n", filename.c_str());
+				continue;
+			}
 
-		ImageInput *in_frame = ImageInput::open(filename);
-		if(!in_frame) {
-			printf("Couldn't open frame %s, skipping...\n", filename.c_str());
-			continue;
-		}
+			ImageInput *in_frame = ImageInput::open(filename);
+			if(!in_frame) {
+				printf("Couldn't open frame %s, skipping...\n", filename.c_str());
+				continue;
+			}
 
-		const ImageSpec &in_spec = in_frame->spec();
-		if(in_spec.width != width || in_spec.height != height) {
-			printf("Frame %s has wrong dimensions, skipping...\n", filename.c_str());
-			in_frame->close();
-			ImageInput::destroy(in_frame);
-			continue;
-		}
+			const ImageSpec &in_spec = in_frame->spec();
+			if(in_spec.width != width || in_spec.height != height) {
+				printf("Frame %s has wrong dimensions, skipping...\n", filename.c_str());
+				in_frame->close();
+				ImageInput::destroy(in_frame);
+				continue;
+			}
 
-		bool missing_channels = false;
-		for(current_layer = 0; current_layer < layers.size(); current_layer++) {
-			if(!layers[current_layer].match_channels(frame, in_channels, in_spec.channelnames)) {
-				missing_channels = true;
+			bool missing_channels = false;
+			for(current_layer = 0; current_layer < layers.size(); current_layer++) {
+				if(!layers[current_layer].match_channels(frame, in_channels, in_spec.channelnames)) {
+					missing_channels = true;
+					break;
+				}
+			}
+			if(missing_channels) {
+				printf("Frame %s misses channels, skipping...\n", filename.c_str());
+				in_frame->close();
+				ImageInput::destroy(in_frame);
+				continue;
+			}
+
+			in_frames.push_back(in_frame);
+			frames.push_back(frame);
+
+			if(frames.size() == MAX_SECONDARY_FRAMES) {
+				printf("Reached maximum of %d secondary frames, will skip following ones...\n", MAX_SECONDARY_FRAMES);
 				break;
 			}
-		}
-		if(missing_channels) {
-			printf("Frame %s misses channels, skipping...\n", filename.c_str());
-			in_frame->close();
-			ImageInput::destroy(in_frame);
-			continue;
-		}
-
-		in_frames.push_back(in_frame);
-		frames.push_back(frame);
-
-		if(frames.size() == MAX_SECONDARY_FRAMES) {
-			printf("Reached maximum of %d secondary frames, will skip following ones...\n", MAX_SECONDARY_FRAMES);
-			break;
 		}
 	}
 
@@ -685,14 +702,20 @@ bool FilterTask::run_filter(string in_pattern, string out_file, int center_frame
 
 		buffer.copy_to_device();
 
-		DeviceTask task = create_task();
+		{
+			scoped_timer timer(&sd->time_processing, true);
+			DeviceTask task = create_task();
+			device->task_add(task);
+			device->task_wait();
+		}
 
-		device->task_add(task);
-		device->task_wait();
 		printf("\n");
 	}
 
-	out->write_image(TypeDesc::FLOAT, out_buffer);
+	{
+		scoped_timer timer(&sd->time_file_write, true);
+		out->write_image(TypeDesc::FLOAT, out_buffer);
+	}
 
 	free();
 
@@ -721,14 +744,20 @@ bool FilterTask::run_prefilter(string in_file, string out_file)
 
 		buffer.copy_to_device();
 
-		DeviceTask task = create_task();
+		{
+			scoped_timer timer(&sd->time_processing, true);
+			DeviceTask task = create_task();
+			device->task_add(task);
+			device->task_wait();
+		}
 
-		device->task_add(task);
-		device->task_wait();
 		printf("\n");
 	}
 
-	out->write_image(TypeDesc::FLOAT, out_buffer);
+	{
+		scoped_timer timer(&sd->time_file_write, true);
+		out->write_image(TypeDesc::FLOAT, out_buffer);
+	}
 
 	free();
 
@@ -881,6 +910,20 @@ bool StandaloneDenoiser::run_prefilter()
 	}
 
 	return true;
+}
+
+void StandaloneDenoiser::output_profiling()
+{
+	printf("Profiling info:\n");
+	printf("  Scanning for frames: %f sec\n", time_scan_frames);
+	printf("  File opening:        %f sec\n", time_file_open);
+	printf("    Channel parsing:   %f sec\n", time_channel_parse);
+	printf("  File loading:        %f sec\n", time_file_load);
+	printf("    File reading:      %f sec\n", time_file_read);
+	printf("    File reordering:   %f sec\n", time_file_reorder);
+	printf("    File passthrough:  %f sec\n", time_file_passthrough);
+	printf("  Processing:          %f sec\n", time_processing);
+	printf("  File writing:        %f sec\n", time_file_write);
 }
 
 CCL_NAMESPACE_END
