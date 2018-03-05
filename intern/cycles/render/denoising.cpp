@@ -505,9 +505,15 @@ bool StandaloneDenoiser::open_frames(string in_filename, string out_filename)
 
 	ImageSpec out_spec(width, height, out_channels.size(), TypeDesc::FLOAT);
 	out_spec.channelnames.clear();
+
+	/* Set the channels of the output image based on the input parsing result. */
 	foreach(string channel, out_channels) {
 		out_spec.channelnames.push_back(channel);
 	}
+
+	/* Pass through the attributes of the input frame. */
+	out_spec.extra_attribs = in_spec.extra_attribs;
+
 	out->open(out_filename, out_spec);
 
 	out_pass_stride = out_channels.size();
