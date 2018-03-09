@@ -18,7 +18,42 @@
 
 #include "kernel/filter/filter_defines.h"
 
+#include "util/util_time.h"
+
 CCL_NAMESPACE_BEGIN
+
+void DenoisingTiming::add(const DenoisingTiming *other)
+{
+	/* REALLY hacky, should do this properly somehow. */
+	static_assert(sizeof(DenoisingTiming) == 19*sizeof(double));
+	for(int i = 0; i < 19; i++) {
+		((double*) this)[i] += ((const double*) other)[i];
+	}
+}
+
+void DenoisingTiming::print(string prefix)
+{
+	const char *p = prefix.c_str();
+	printf("%sDenoising:           %f sec\n", p, denoising);
+	printf("%sPrefiltering:        %f sec\n", p, prefiltering);
+	printf("%sFiltering:           %f sec\n", p, filtering);
+	printf("%sShadowing:           %f sec\n", p, shadowing);
+	printf("%s  Dividing:          %f sec\n", p, shadowing_divide);
+	printf("%s  Smooth Variance:   %f sec\n", p, shadowing_smooth_variance);
+	printf("%s  First Cross Pass:  %f sec\n", p, shadowing_first_cross);
+	printf("%s  Estimate Residual: %f sec\n", p, shadowing_estimate_residual);
+	printf("%s  Second Cross Pass: %f sec\n", p, shadowing_second_cross);
+	printf("%s  Combining:         %f sec\n", p, shadowing_combining);
+	printf("%sPrefilter Features:  %f sec\n", p, prefilter_features);
+	printf("%sPrefilter Color:     %f sec\n", p, prefilter_color);
+	printf("%s  Outlier Detection: %f sec\n", p, outlier_detection);
+	printf("%sWrite Buffer:        %f sec\n", p, write_buffer);
+	printf("%sLoad Buffer:         %f sec\n", p, load_buffer);
+	printf("%sConstruct Transform: %f sec\n", p, transform);
+	printf("%sReconstruct:         %f sec\n", p, reconstruct);
+	printf("%s  Accumulate:        %f sec\n", p, reconstruct_accumulate);
+	printf("%s  Solve:             %f sec\n", p, reconstruct_solve);
+}
 
 DenoisingTask::DenoisingTask(Device *device, const DeviceTask &task)
 : tiles_mem(device, "denoising tiles_mem", MEM_READ_WRITE),
@@ -119,6 +154,7 @@ void DenoisingTask::setup_denoising_buffer()
 
 void DenoisingTask::prefilter_shadowing()
 {
+	scoped_timer timer(&timing.shadowing, true);
 	device_ptr null_ptr = (device_ptr) 0;
 
 	device_sub_ptr unfiltered_a   (buffer.mem, 0,                    buffer.pass_stride);
@@ -135,39 +171,59 @@ void DenoisingTask::prefilter_shadowing()
 	nlm_state.temporary_2_ptr = *nlm_temporary_2;
 	nlm_state.temporary_3_ptr = *nlm_temporary_3;
 
-	/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
-	functions.divide_shadow(*unfiltered_a, *unfiltered_b, *sample_var, *sample_var_var, *buffer_var);
+	{
+		scoped_timer subtimer(&timing.shadowing_divide, true);
+		/* Get the A/B unfiltered passes, the combined sample variance, the estimated variance of the sample variance and the buffer variance. */
+		functions.divide_shadow(*unfiltered_a, *unfiltered_b, *sample_var, *sample_var_var, *buffer_var);
+	}
 
-	/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
-	nlm_state.set_parameters(6, 3, 4.0f, 1.0f);
-	functions.non_local_means(*buffer_var, *sample_var, *sample_var_var, *filtered_var);
+	{
+		scoped_timer subtimer(&timing.shadowing_smooth_variance, true);
+		/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
+		nlm_state.set_parameters(6, 3, 4.0f, 1.0f);
+		functions.non_local_means(*buffer_var, *sample_var, *sample_var_var, *filtered_var);
+	}
 
-	/* Reuse memory, the previous data isn't needed anymore. */
 	device_ptr filtered_a = *buffer_var,
-				filtered_b = *sample_var;
-	/* Use the smoothed variance to filter the two shadow half images using each other for weight calculation. */
-	nlm_state.set_parameters(5, 3, 1.0f, 0.25f);
-	functions.non_local_means(*unfiltered_a, *unfiltered_b, *filtered_var, filtered_a);
-	functions.non_local_means(*unfiltered_b, *unfiltered_a, *filtered_var, filtered_b);
+	           filtered_b = *sample_var;
+	{
+		scoped_timer subtimer(&timing.shadowing_first_cross, true);
+		/* Reuse memory, the previous data isn't needed anymore. */
+		/* Use the smoothed variance to filter the two shadow half images using each other for weight calculation. */
+		nlm_state.set_parameters(5, 3, 1.0f, 0.25f);
+		functions.non_local_means(*unfiltered_a, *unfiltered_b, *filtered_var, filtered_a);
+		functions.non_local_means(*unfiltered_b, *unfiltered_a, *filtered_var, filtered_b);
+	}
 
 	device_ptr residual_var = *sample_var_var;
-	/* Estimate the residual variance between the two filtered halves. */
-	functions.combine_halves(filtered_a, filtered_b, null_ptr, residual_var, 2, rect);
+	{
+		scoped_timer subtimer(&timing.shadowing_estimate_residual, true);
+		/* Estimate the residual variance between the two filtered halves. */
+		functions.combine_halves(filtered_a, filtered_b, null_ptr, residual_var, 2, rect);
+	}
 
 	device_ptr final_a = *unfiltered_a,
-				final_b = *unfiltered_b;
-	/* Use the residual variance for a second filter pass. */
-	nlm_state.set_parameters(4, 2, 1.0f, 0.5f);
-	functions.non_local_means(filtered_a, filtered_b, residual_var, final_a);
-	functions.non_local_means(filtered_b, filtered_a, residual_var, final_b);
+	           final_b = *unfiltered_b;
+	{
+		scoped_timer subtimer(&timing.shadowing_second_cross, true);
+		/* Use the residual variance for a second filter pass. */
+		nlm_state.set_parameters(4, 2, 1.0f, 0.5f);
+		functions.non_local_means(filtered_a, filtered_b, residual_var, final_a);
+		functions.non_local_means(filtered_b, filtered_a, residual_var, final_b);
+	}
 
-	/* Combine the two double-filtered halves to a final shadow feature. */
-	device_sub_ptr shadow_pass(buffer.mem, 4*buffer.pass_stride, buffer.pass_stride);
-	functions.combine_halves(final_a, final_b, *shadow_pass, null_ptr, 0, rect);
+	{
+		scoped_timer subtimer(&timing.shadowing_combining, true);
+		/* Combine the two double-filtered halves to a final shadow feature. */
+		device_sub_ptr shadow_pass(buffer.mem, 4*buffer.pass_stride, buffer.pass_stride);
+		functions.combine_halves(final_a, final_b, *shadow_pass, null_ptr, 0, rect);
+	}
 }
 
 void DenoisingTask::prefilter_features()
 {
+	scoped_timer timer(&timing.prefilter_features, true);
+
 	device_sub_ptr unfiltered     (buffer.mem,  8*buffer.pass_stride, buffer.pass_stride);
 	device_sub_ptr variance       (buffer.mem,  9*buffer.pass_stride, buffer.pass_stride);
 	device_sub_ptr nlm_temporary_1(buffer.mem, 10*buffer.pass_stride, buffer.pass_stride);
@@ -193,6 +249,8 @@ void DenoisingTask::prefilter_features()
 
 void DenoisingTask::prefilter_color()
 {
+	scoped_timer timer(&timing.prefilter_color, true);
+
 	int mean_from[]     = {20, 21, 22};
 	int variance_from[] = {23, 24, 25};
 	int mean_to[]       = { 8,  9, 10};
@@ -208,6 +266,7 @@ void DenoisingTask::prefilter_color()
 	}
 
 	{
+		scoped_timer subtimer(&timing.outlier_detection, true);
 		device_sub_ptr depth_pass    (buffer.mem,                                 0,   buffer.pass_stride);
 		device_sub_ptr color_var_pass(buffer.mem, variance_to[0]*buffer.pass_stride, 3*buffer.pass_stride);
 		device_sub_ptr output_pass   (buffer.mem,     mean_to[0]*buffer.pass_stride, 3*buffer.pass_stride);
@@ -217,6 +276,8 @@ void DenoisingTask::prefilter_color()
 
 void DenoisingTask::construct_transform()
 {
+	scoped_timer timer(&timing.transform, true);
+
 	storage.w = filter_area.z;
 	storage.h = filter_area.w;
 
@@ -228,6 +289,8 @@ void DenoisingTask::construct_transform()
 
 void DenoisingTask::reconstruct()
 {
+	scoped_timer timer(&timing.reconstruct, true);
+
 	device_only_memory<float> temporary_1(device, "Denoising NLM temporary 1");
 	device_only_memory<float> temporary_2(device, "Denoising NLM temporary 2");
 	temporary_1.alloc_to_device(buffer.pass_stride, false);
@@ -250,6 +313,7 @@ void DenoisingTask::reconstruct()
 	reconstruction_state.source_h = rect.w-rect.y;
 
 	{
+		scoped_timer subtimer(&timing.reconstruct_accumulate, true);
 		device_sub_ptr color_ptr    (buffer.mem, 8*buffer.pass_stride, 3*buffer.pass_stride);
 		device_sub_ptr color_var_ptr(buffer.mem, 11*buffer.pass_stride, 3*buffer.pass_stride);
 		for(int f = 0; f < tiles->num_frames; f++) {
@@ -257,11 +321,16 @@ void DenoisingTask::reconstruct()
 		}
 	}
 
-	functions.solve(target_buffer.ptr);
+	{
+		scoped_timer subtimer(&timing.reconstruct_solve, true);
+		functions.solve(target_buffer.ptr);
+	}
 }
 
 void DenoisingTask::load_buffer()
 {
+	scoped_timer timer(&timing.load_buffer, true);
+
 	device_ptr null_ptr = (device_ptr) 0;
 
 	int original_offset = render_buffer.offset;
@@ -279,6 +348,8 @@ void DenoisingTask::load_buffer()
 
 void DenoisingTask::write_buffer()
 {
+	scoped_timer timer(&timing.write_buffer, true);
+
 	reconstruction_state.buffer_params = make_int4(target_buffer.offset,
 	                                               target_buffer.stride,
 	                                               target_buffer.pass_stride,
@@ -291,6 +362,8 @@ void DenoisingTask::write_buffer()
 
 bool DenoisingTask::run_prefiltering()
 {
+	scoped_timer timer(&timing.prefiltering, true);
+
 	setup_denoising_buffer();
 
 	prefilter_shadowing();
@@ -304,6 +377,8 @@ bool DenoisingTask::run_prefiltering()
 
 bool DenoisingTask::run_filtering()
 {
+	scoped_timer timer(&timing.filtering, true);
+
 	setup_denoising_buffer();
 
 	load_buffer();
@@ -316,6 +391,8 @@ bool DenoisingTask::run_filtering()
 
 bool DenoisingTask::run_denoising()
 {
+	scoped_timer timer(&timing.denoising, true);
+
 	setup_denoising_buffer();
 
 	prefilter_shadowing();

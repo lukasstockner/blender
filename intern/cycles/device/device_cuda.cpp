@@ -2158,6 +2158,10 @@ public:
 				}
 			}
 
+			if(task->report_denoising_timing) {
+				task->report_denoising_timing(&denoising.timing);
+			}
+
 			work_tiles.free();
 		}
 		else if(task->type == DeviceTask::SHADER) {

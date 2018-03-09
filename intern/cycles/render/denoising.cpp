@@ -441,6 +441,13 @@ bool FilterTask::get_cancel()
 	return false;
 }
 
+void FilterTask::report_timing(DenoisingTiming *timing)
+{
+	thread_scoped_lock lock(sd->timing_mutex);
+
+	sd->timing.add(timing);
+}
+
 DeviceTask FilterTask::create_task()
 {
 	DeviceTask task(DeviceTask::RENDER);
@@ -449,6 +456,7 @@ DeviceTask FilterTask::create_task()
 	task.unmap_neighbor_tiles = function_bind(&FilterTask::unmap_neighboring_tiles, this, _1);
 	task.release_tile = function_bind(&FilterTask::release_tile, this);
 	task.get_cancel = function_bind(&FilterTask::get_cancel, this);
+	task.report_denoising_timing = function_bind(&FilterTask::report_timing, this, _1);
 	task.denoising_radius = sd->radius;
 	task.denoising_feature_strength = sd->feature_strength;
 	task.denoising_strength = sd->strength;
@@ -923,6 +931,7 @@ void StandaloneDenoiser::output_profiling()
 	printf("    File reordering:   %f sec\n", time_file_reorder);
 	printf("    File passthrough:  %f sec\n", time_file_passthrough);
 	printf("  Processing:          %f sec\n", time_processing);
+	timing.print("    ");
 	printf("  File writing:        %f sec\n", time_file_write);
 }
 

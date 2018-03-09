@@ -15,6 +15,7 @@
  */
 
 #include "device/device.h"
+#include "device/device_denoising.h"
 
 #include "render/buffers.h"
 
@@ -115,6 +116,9 @@ protected:
 	double time_file_write;
 	double time_scan_frames;
 	double time_processing;
+
+	thread_mutex timing_mutex;
+	DenoisingTiming timing;
 };
 
 
@@ -241,6 +245,7 @@ protected:
 	void unmap_neighboring_tiles(RenderTile *tiles);
 	void release_tile();
 	bool get_cancel();
+	void report_timing(DenoisingTiming *timing);
 };
 
 CCL_NAMESPACE_END

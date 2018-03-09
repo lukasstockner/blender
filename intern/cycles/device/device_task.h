@@ -31,6 +31,7 @@ class Device;
 class RenderBuffers;
 class RenderTile;
 class Tile;
+class DenoisingTiming;
 
 class DeviceTask : public Task {
 public:
@@ -67,6 +68,7 @@ public:
 	function<bool(void)> get_cancel;
 	function<void(RenderTile*, Device*)> map_neighbor_tiles;
 	function<void(RenderTile*, Device*)> unmap_neighbor_tiles;
+	function<void(DenoisingTiming*)> report_denoising_timing;
 
 	int denoising_radius;
 	float denoising_strength;

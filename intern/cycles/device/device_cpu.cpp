@@ -826,6 +826,10 @@ public:
 			}
 		}
 
+		if(task.report_denoising_timing) {
+			task.report_denoising_timing(&denoising.timing);
+		}
+
 		thread_kernel_globals_free((KernelGlobals*)kgbuffer.device_pointer);
 		kg->~KernelGlobals();
 		kgbuffer.free();

@@ -166,6 +166,10 @@ public:
 				task->release_tile(tile);
 			}
 
+			if(task->report_denoising_timing) {
+				task->report_denoising_timing(&denoising.timing);
+			}
+
 			kgbuffer.free();
 		}
 	}

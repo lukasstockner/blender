@@ -25,6 +25,36 @@
 
 CCL_NAMESPACE_BEGIN
 
+struct DenoisingTiming {
+	DenoisingTiming()
+	{
+		memset(this, 0, sizeof(DenoisingTiming));
+	}
+
+	void add(const DenoisingTiming *other);
+	void print(string prefix);
+
+	double shadowing;
+	double shadowing_divide;
+	double shadowing_smooth_variance;
+	double shadowing_first_cross;
+	double shadowing_estimate_residual;
+	double shadowing_second_cross;
+	double shadowing_combining;
+	double prefilter_features;
+	double prefilter_color;
+	double outlier_detection;
+	double transform;
+	double reconstruct;
+	double reconstruct_accumulate;
+	double reconstruct_solve;
+	double load_buffer;
+	double write_buffer;
+	double prefiltering;
+	double filtering;
+	double denoising;
+};
+
 class DenoisingTask {
 public:
 	/* Parameters of the denoising algorithm. */
@@ -58,6 +88,8 @@ public:
 	int4 filter_area;
 
 	DeviceTask::DenoisingType type;
+
+	DenoisingTiming timing;
 
 	struct DeviceFunctions {
 		function<bool(device_ptr image_ptr,    /* Contains the values that are smoothed. */
