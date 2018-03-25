@@ -627,11 +627,13 @@ bool FilterTask::open_frames(string in_filename, string out_filename)
 
 /****** DENOISER OPERATIONS ******/
 
-bool FilterTask::run_filter(string in_pattern, string out_file, int center_frame, vector<int> frame_range)
+bool FilterTask::run_filter(string in_pattern, string out_file, int center_frame_, vector<int> frame_range)
 {
 	prefilter = false;
 	buffer_pass_stride = 14;
 	target_pass_stride = 3;
+
+	center_frame = center_frame_;
 
 	string center_filename = string_printf(in_pattern.c_str(), center_frame);
 	if(!open_frames(center_filename, out_file)) {
