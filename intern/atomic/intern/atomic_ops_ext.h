@@ -211,4 +211,23 @@ ATOMIC_INLINE float atomic_add_and_fetch_fl(float *p, const float x)
 	return newval;
 }
 
+ATOMIC_INLINE double atomic_add_and_fetch_double(double *p, const double x)
+{
+#if (LG_SIZEOF_PTR == 8 || LG_SIZEOF_INT == 8)
+	double oldval, newval;
+	uint64_t prevval;
+
+	do {  /* Note that since collisions are unlikely, loop will nearly always run once. */
+		oldval = *p;
+		newval = oldval + x;
+		prevval = atomic_cas_uint64((uint64_t *)p, *(uint64_t *)(&oldval), *(uint64_t *)(&newval));
+	} while (UNLIKELY(prevval != *(uint64_t *)(&oldval)));
+
+	return newval;
+#else
+	/* TODO: Fallback */
+	*p += x;
+#endif
+}
+
 #endif /* __ATOMIC_OPS_EXT_H__ */

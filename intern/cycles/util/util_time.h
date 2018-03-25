@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "util/util_atomic.h"
+
 #ifndef __UTIL_TIME_H__
 #define __UTIL_TIME_H__
 
@@ -39,7 +41,7 @@ public:
 	{
 		if(value_ != NULL) {
 			if(accumulate) {
-				*value_ += get_time();
+				atomic_add_and_fetch_double(value_, get_time());
 			}
 			else {
 				*value_ = get_time();

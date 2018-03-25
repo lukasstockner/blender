@@ -138,6 +138,8 @@ ATOMIC_INLINE float atomic_cas_float(float *v, float old, float _new);
  *          working on the same pointer at the same time is very low). */
 ATOMIC_INLINE float atomic_add_and_fetch_fl(float *p, const float x);
 
+ATOMIC_INLINE double atomic_add_and_fetch_double(double *p, const double x);
+
 /******************************************************************************/
 /* Include system-dependent implementations. */
 
