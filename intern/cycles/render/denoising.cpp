@@ -467,8 +467,12 @@ DeviceTask FilterTask::create_task()
 	task.pass_denoising_clean = -1;
 	task.denoising_type = prefilter? DeviceTask::DENOISE_PREFILTER : DeviceTask::DENOISE_FILTER;
 	task.denoising_from_render = false;
-	task.denoising_frames = frames;
 	task.denoising_frame_stride = buffer_frame_stride;
+
+	task.denoising_frames.resize(frames.size());
+	for(int i = 0; i < frames.size(); i++) {
+		task.denoising_frames[i] = frames[i]-center_frame;
+	}
 
 	thread_scoped_lock tile_lock(tiles_mutex);
 	thread_scoped_lock targets_lock(targets_mutex);
