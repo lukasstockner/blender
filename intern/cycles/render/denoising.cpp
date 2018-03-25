@@ -714,6 +714,11 @@ bool FilterTask::run_filter(string in_pattern, string out_file, int center_frame
 			          0, height);
 		}
 
+		foreach(ImageInput *i, in_frames) {
+			i->close();
+			ImageInput::destroy(i);
+		}
+
 		buffer.copy_to_device();
 
 		{
