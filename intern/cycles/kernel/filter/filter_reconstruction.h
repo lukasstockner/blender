@@ -63,8 +63,13 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
 	                                make_int3(x+dx, y+dy, t), buffer + q_offset,
 	                                pass_stride, *rank, design_row, transform, stride, feature_mode);
 
+#ifdef __KERNEL_GPU__
 	math_trimatrix_add_gramian_strided(XtWX, (*rank)+1, design_row, weight, stride);
 	math_vec3_add_strided(XtWY, (*rank)+1, design_row, weight * q_color, stride);
+#else
+	math_trimatrix_add_gramian(XtWX, (*rank)+1, design_row, weight);
+	math_vec3_add(XtWY, (*rank)+1, design_row, weight * q_color);
+#endif
 }
 
 ccl_device_inline void kernel_filter_finalize(int x, int y,
