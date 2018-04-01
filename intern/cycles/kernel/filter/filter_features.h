@@ -161,7 +161,7 @@ ccl_device_inline void filter_get_design_row_transform(int3 p_pixel,
                                                        int stride,
                                                        int feature_mode)
 {
-	const int feature_num = 10;
+	const int feature_num = (feature_mode == FEATURE_MODE_MULTIFRAME)? 11 : 10;
 	design_row[0] = 1.0f;
 	math_vector_zero(design_row+1, rank);
 #define DESIGN_ROW_ADD(I, F) design_row_add(design_row, rank, transform, stride, I, F, feature_num);
