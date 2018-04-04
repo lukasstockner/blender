@@ -69,6 +69,16 @@ __forceinline float& float4::operator[](int i)
 	return *(&x + i);
 }
 
+ccl_device_inline float4 load_float4(float *f)
+{
+#ifdef __KERNEL_SSE__
+	float4 a(_mm_loadu_ps(f));
+#else
+	float4 a = {f[0], f[1], f[2], f[3]};
+#endif
+	return a;
+}
+
 ccl_device_inline float4 make_float4(float f)
 {
 #ifdef __KERNEL_SSE__

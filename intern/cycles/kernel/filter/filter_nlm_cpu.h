@@ -27,20 +27,27 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int dx, int dy,
                                                          float a,
                                                          float k_2)
 {
+	/* Strides need to be aligned to 16 bytes. */
+	kernel_assert((stride % 4) == 0 && (channel_offset % 4) == 0);
+
+	int aligned_lowx = rect.x & (~3);
+	const int numChannels = (channel_offset > 0)? 3 : 1;
+	const float4 channel_fac = make_float4(1.0f / numChannels);
+
 	for(int y = rect.y; y < rect.w; y++) {
-		for(int x = rect.x; x < rect.z; x++) {
-			float diff = 0.0f;
-			int numChannels = channel_offset? 3 : 1;
+		int idx_p = y*stride, idx_q = (y+dy)*stride + dx + frame_offset;
+		for(int x = aligned_lowx; x < rect.z; x += 4) {
+			float4 diff = make_float4(0.0f);
 			for(int c = 0; c < numChannels; c++) {
-				float cdiff = weight_image[c*channel_offset + y*stride + x] - weight_image[c*channel_offset + (y+dy)*stride + (x+dx) + frame_offset];
-				float pvar = variance_image[c*channel_offset + y*stride + x];
-				float qvar = variance_image[c*channel_offset + (y+dy)*stride + (x+dx)];
-				diff += (cdiff*cdiff - a*(pvar + min(pvar, qvar))) / (1e-8f + k_2*(pvar+qvar));
+				/* idx_p is guaranteed to be aligned, but idx_q isn't. */
+				float4 color_p = *((float4*) (weight_image + idx_p + x + c*channel_offset));
+				float4 color_q = load_float4(weight_image + idx_q + x + c*channel_offset);
+				float4 cdiff = color_p - color_q;
+				float4 var_p = *((float4*) (variance_image + idx_p + x + c*channel_offset));
+				float4 var_q = load_float4(variance_image + idx_q + x + c*channel_offset);
+				diff += (cdiff*cdiff - a*(var_p + min(var_p, var_q))) / (make_float4(1e-8f) + k_2*(var_p+var_q));
 			}
-			if(numChannels > 1) {
-				diff *= 1.0f/numChannels;
-			}
-			difference_image[y*stride + x] = diff;
+			*((float4*) (difference_image + idx_p + x)) = diff*channel_fac;
 		}
 	}
 }
@@ -56,18 +63,19 @@ ccl_device_inline void kernel_filter_nlm_blur(const float *ccl_restrict differen
 	for(int y = rect.y; y < rect.w; y++) {
 		const int low = max(rect.y, y-f);
 		const int high = min(rect.w, y+f+1);
-		for(int x = rect.x; x < rect.z; x++) {
-			out_image[y*stride + x] = 0.0f;
+		float4* out_image4 = (float4*)(out_image + y*stride);
+		for(int x = aligned_lowx; x < aligned_highx; x++) {
+			out_image4[x] = make_float4(0.0f);
 		}
 		for(int y1 = low; y1 < high; y1++) {
-			float4* out_image4 = (float4*)(out_image + y*stride);
 			float4* difference_image4 = (float4*)(difference_image + y1*stride);
 			for(int x = aligned_lowx; x < aligned_highx; x++) {
 				out_image4[x] += difference_image4[x];
 			}
 		}
-		for(int x = rect.x; x < rect.z; x++) {
-			out_image[y*stride + x] *= 1.0f/(high - low);
+		float fac = 1.0f/(high - low);
+		for(int x = aligned_lowx; x < aligned_highx; x++) {
+			out_image4[x] = out_image4[x]*fac;
 		}
 	}
 }
@@ -78,17 +86,22 @@ ccl_device_inline void kernel_filter_nlm_calc_weight(const float *ccl_restrict d
                                                      int stride,
                                                      int f)
 {
+	int aligned_lowx = rect.x / 4;
+	int aligned_highx = (rect.z + 3) / 4;
 	for(int y = rect.y; y < rect.w; y++) {
-		for(int x = rect.x; x < rect.z; x++) {
-			out_image[y*stride + x] = 0.0f;
+		float4 *out_image4 = (float4*)(out_image + y*stride);
+		for(int x = aligned_lowx; x < aligned_highx; x++) {
+			out_image4[x] = make_float4(0.0f);
 		}
 	}
 	for(int dx = -f; dx <= f; dx++) {
-		int pos_dx = max(0, dx);
-		int neg_dx = min(0, dx);
+		int aligned_lowx_dx = (rect.x - min(0, dx))/4;
+		int aligned_highx_dx = divide_up(rect.z - max(0, dx), 4);
 		for(int y = rect.y; y < rect.w; y++) {
-			for(int x = rect.x-neg_dx; x < rect.z-pos_dx; x++) {
-				out_image[y*stride + x] += difference_image[y*stride + x+dx];
+			float4 *out_image4 = (float4*)(out_image + y*stride);
+			const float *ccl_restrict difference_image4 = difference_image + y*stride + dx;
+			for(int x = aligned_lowx_dx; x < aligned_highx_dx; x++) {
+				out_image4[x] += load_float4(difference_image4 + 4*x);
 			}
 		}
 	}
