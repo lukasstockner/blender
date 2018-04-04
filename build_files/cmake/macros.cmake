@@ -559,6 +559,8 @@ function(SETUP_BLENDER_SORTED_LIBS)
 	set(BLENDER_SORTED_LIBS
 		bf_windowmanager
 
+		bf_editor_undo
+
 		bf_editor_space_api
 		bf_editor_space_action
 		bf_editor_space_buttons
@@ -588,6 +590,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_editor_mesh
 		bf_editor_metaball
 		bf_editor_object
+		bf_editor_lattice
 		bf_editor_armature
 		bf_editor_physics
 		bf_editor_render
@@ -673,6 +676,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		extern_sdlew
 
 		bf_intern_glew_mx
+		bf_intern_clog
 	)
 
 	if(NOT WITH_SYSTEM_GLOG)
@@ -803,7 +807,7 @@ macro(TEST_SSE_SUPPORT
 		endif()
 	elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
 		set(${_sse_flags} "")  # icc defaults to -msse
-		set(${_sse2_flags} "-msse2")
+		set(${_sse2_flags} "")  # icc defaults to -msse2
 	else()
 		message(WARNING "SSE flags for this compiler: '${CMAKE_C_COMPILER_ID}' not known")
 		set(${_sse_flags})
@@ -1129,7 +1133,9 @@ endmacro()
 
 # External libs may need 'signed char' to be default.
 macro(remove_cc_flag_unsigned_char)
-	if(CMAKE_C_COMPILER_ID MATCHES "^(GNU|Clang|Intel)$")
+	if(CMAKE_COMPILER_IS_GNUCC OR
+	   (CMAKE_C_COMPILER_ID MATCHES "Clang") OR
+	   (CMAKE_C_COMPILER_ID MATCHES "Intel"))
 		remove_cc_flag("-funsigned-char")
 	elseif(MSVC)
 		remove_cc_flag("/J")

@@ -44,7 +44,6 @@
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_effect.h"
-#include "BKE_global.h"
 #include "BKE_lattice.h"
 #include "BKE_library_query.h"
 #include "BKE_modifier.h"
@@ -113,32 +112,24 @@ static bool isDisabled(ModifierData *md, int useRenderParams)
 }
 
 
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob),
-                           DagNode *obNode)
+static void updateDepgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	ParticleInstanceModifierData *pimd = (ParticleInstanceModifierData *) md;
 
 	if (pimd->ob) {
-		DagNode *curNode = dag_get_node(forest, pimd->ob);
+		DagNode *curNode = dag_get_node(ctx->forest, pimd->ob);
 
-		dag_add_relation(forest, curNode, obNode,
+		dag_add_relation(ctx->forest, curNode, ctx->obNode,
 		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA,
 		                 "Particle Instance Modifier");
 	}
 }
 
-static void updateDepsgraph(ModifierData *md,
-                            struct Main *UNUSED(bmain),
-                            struct Scene *UNUSED(scene),
-                            Object *UNUSED(ob),
-                            struct DepsNodeHandle *node)
+static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
 	ParticleInstanceModifierData *pimd = (ParticleInstanceModifierData *) md;
 	if (pimd->ob != NULL) {
-		DEG_add_object_relation(node, pimd->ob, DEG_OB_COMP_TRANSFORM, "Particle Instance Modifier");
+		DEG_add_object_relation(ctx->node, pimd->ob, DEG_OB_COMP_TRANSFORM, "Particle Instance Modifier");
 	}
 }
 

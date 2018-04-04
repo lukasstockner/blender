@@ -68,8 +68,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_global.h"
-
 #ifdef WITH_AVI
 #  include "AVI_avi.h"
 #endif
@@ -84,6 +82,8 @@
 #include "IMB_indexer.h"
 
 #ifdef WITH_FFMPEG
+#  include "BKE_global.h"  /* ENDIAN_ORDER */
+
 #  include <libavformat/avformat.h>
 #  include <libavcodec/avcodec.h>
 #  include <libavutil/rational.h>
@@ -511,7 +511,7 @@ static int startffmpeg(struct anim *anim)
 		return -1;
 	}
 
-	frame_rate = av_get_r_frame_rate_compat(pFormatCtx->streams[videoStream]);
+	frame_rate = av_get_r_frame_rate_compat(pFormatCtx, pFormatCtx->streams[videoStream]);
 	if (pFormatCtx->streams[videoStream]->nb_frames != 0) {
 		anim->duration = pFormatCtx->streams[videoStream]->nb_frames;
 	}
@@ -989,7 +989,7 @@ static ImBuf *ffmpeg_fetchibuf(struct anim *anim, int position,
 
 	v_st = anim->pFormatCtx->streams[anim->videoStream];
 
-	frame_rate = av_q2d(av_get_r_frame_rate_compat(v_st));
+	frame_rate = av_q2d(av_get_r_frame_rate_compat(anim->pFormatCtx, v_st));
 
 	st_time = anim->pFormatCtx->start_time;
 	pts_time_base = av_q2d(v_st->time_base);

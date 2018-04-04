@@ -72,7 +72,6 @@
 #include "BKE_customdata.h"
 #include "BKE_deform.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_global.h"
 #include "BKE_effect.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
@@ -523,8 +522,8 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->domain->burning_rate = 0.75f;
 			smd->domain->flame_smoke = 1.0f;
 			smd->domain->flame_vorticity = 0.5f;
-			smd->domain->flame_ignition = 1.25f;
-			smd->domain->flame_max_temp = 1.75f;
+			smd->domain->flame_ignition = 1.5f;
+			smd->domain->flame_max_temp = 3.0f;
 			/* color */
 			smd->domain->flame_smoke_color[0] = 0.7f;
 			smd->domain->flame_smoke_color[1] = 0.7f;
@@ -551,6 +550,8 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 
 			smd->domain->coba = NULL;
 			smd->domain->coba_field = FLUID_FIELD_DENSITY;
+
+			smd->domain->clipping = 1e-3f;
 		}
 		else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 		{

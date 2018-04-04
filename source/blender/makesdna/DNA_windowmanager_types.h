@@ -58,6 +58,7 @@ struct ReportList;
 struct Report;
 struct uiLayout;
 struct Stereo3dFormat;
+struct UndoStep;
 
 #define OP_MAX_TYPENAME 64
 #define KMAP_MAX_NAME   64
@@ -153,6 +154,8 @@ typedef struct wmWindowManager {
 
 	ListBase timers;                  /* active timers */
 	struct wmTimer *autosavetimer;    /* timer for auto save */
+
+	struct UndoStack *undo_stack;     /* all undo history (runtime only). */
 
 	char is_interface_locked;		/* indicates whether interface is locked for user interaction */
 	char par[7];
@@ -313,8 +316,10 @@ typedef struct wmKeyMap {
 	short kmi_id;     /* last kmi id */
 
 	/* runtime */
-	int (*poll)(struct bContext *);  /* verify if enabled in the current context */
-	const void *modal_items;         /* for modal, EnumPropertyItem for now */
+	/** Verify if enabled in the current context, use #WM_keymap_poll instead of direct calls. */
+	int (*poll)(struct bContext *);
+	/** For modal, #EnumPropertyItem for now. */
+	const void *modal_items;
 } wmKeyMap;
 
 /* wmKeyMap.flag */
