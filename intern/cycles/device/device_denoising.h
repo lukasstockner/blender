@@ -25,7 +25,8 @@
 
 CCL_NAMESPACE_BEGIN
 
-struct DenoisingTiming {
+class DenoisingTiming {
+public:
 	DenoisingTiming()
 	{
 		memset(this, 0, sizeof(DenoisingTiming));

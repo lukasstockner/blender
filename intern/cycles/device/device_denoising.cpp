@@ -25,7 +25,7 @@ CCL_NAMESPACE_BEGIN
 void DenoisingTiming::add(const DenoisingTiming *other)
 {
 	/* REALLY hacky, should do this properly somehow. */
-	static_assert(sizeof(DenoisingTiming) == 19*sizeof(double));
+	static_assert(sizeof(DenoisingTiming) == 19*sizeof(double), "Number of denoising timings incorrect");
 	for(int i = 0; i < 19; i++) {
 		((double*) this)[i] += ((const double*) other)[i];
 	}
