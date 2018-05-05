@@ -81,11 +81,20 @@ ccl_device_forceinline float path_rng_1D(KernelGlobals *kg,
 	/* Cranly-Patterson rotation using rng seed */
 	float shift;
 
-	/* Hash rng with dimension to solve correlation issues.
-	 * See T38710, T50116.
-	 */
-	uint tmp_rng = cmj_hash_simple(dimension, rng_hash);
-	shift = tmp_rng * (1.0f/(float)0xFFFFFFFF);
+	if(rng_hash & RNG_DITHER_MASK) {
+		int x = rng_hash & 0x7f;
+		int y = (rng_hash >> 7) & 0x7f;
+		float2 shifts = kernel_tex_fetch(__sobol_dither, y*RNG_DITHER_SIZE + x);
+		shift = (dimension & 1)? shifts.y : shifts.x;
+		shift += kernel_data.integrator.seed * (1.0f/(float)0xFFFFFFFF);
+	}
+	else {
+		/* Hash rng with dimension to solve correlation issues.
+		* See T38710, T50116.
+		*/
+		uint tmp_rng = cmj_hash_simple(dimension, rng_hash);
+		shift = tmp_rng * (1.0f/(float)0xFFFFFFFF);
+	}
 
 	return r + shift - floorf(r + shift);
 #endif
@@ -128,9 +137,12 @@ ccl_device_inline void path_rng_init(KernelGlobals *kg,
                                      int x, int y,
                                      float *fx, float *fy)
 {
-	/* load state */
-	*rng_hash = hash_int_2d(x, y);
-	*rng_hash ^= kernel_data.integrator.seed;
+	if(kernel_data.integrator.use_sobol_dithering) {
+		*rng_hash = RNG_DITHER_MASK | ((y & 0x7f) << 7) | (x & 0x7f);
+	}
+	else {
+		*rng_hash = (hash_int_2d(x, y) ^ kernel_data.integrator.seed) & (~RNG_DITHER_MASK);
+	}
 
 #ifdef __DEBUG_CORRELATION__
 	srand48(*rng_hash + sample);
@@ -203,11 +215,19 @@ ccl_device_inline float path_state_rng_1D_hash(KernelGlobals *kg,
                                           const ccl_addr_space PathState *state,
                                           uint hash)
 {
+	uint rng_hash = state->rng_hash;
+	if(rng_hash & RNG_DITHER_MASK) {
+		rng_hash = cmj_hash(rng_hash, hash) & (~RNG_DITHER_MASK);
+	}
+	else {
+		rng_hash = cmj_hash_simple(rng_hash, hash);
+	}
+
 	/* Use a hash instead of dimension, this is not great but avoids adding
 	 * more dimensions to each bounce which reduces quality of dimensions we
 	 * are already using. */
 	return path_rng_1D(kg,
-	                   cmj_hash_simple(state->rng_hash, hash),
+	                   rng_hash,
 	                   state->sample, state->num_samples,
 	                   state->rng_offset);
 }
@@ -275,16 +295,22 @@ ccl_device_inline float path_branched_rng_light_termination(
 	return 0.0f;
 }
 
+ccl_device_inline uint path_rng_hash(uint rng, int i)
+{
+	/* Fall back to the regular scrambling after hashing. */
+	return cmj_hash(rng, i) & (~RNG_DITHER_MASK);
+}
+
 ccl_device_inline uint lcg_state_init(PathState *state,
                                       uint scramble)
 {
-	return lcg_init(state->rng_hash + state->rng_offset + state->sample*scramble);
+	return lcg_init(cmj_hash(state->rng_hash, state->rng_offset) + state->sample*scramble);
 }
 
 ccl_device_inline uint lcg_state_init_addrspace(ccl_addr_space PathState *state,
                                                 uint scramble)
 {
-	return lcg_init(state->rng_hash + state->rng_offset + state->sample*scramble);
+	return lcg_init(cmj_hash(state->rng_hash, state->rng_offset) + state->sample*scramble);
 }
 
 

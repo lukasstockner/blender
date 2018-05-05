@@ -56,6 +56,9 @@ CCL_NAMESPACE_BEGIN
 
 #define VOLUME_STACK_SIZE		16
 
+#define RNG_DITHER_MASK 0x80000000
+#define RNG_DITHER_SIZE 128
+
 /* Split kernel constants */
 #define WORK_POOL_SIZE_GPU 64
 #define WORK_POOL_SIZE_CPU 1
@@ -1357,6 +1360,7 @@ typedef struct KernelIntegrator {
 
 	/* sampler */
 	int sampling_pattern;
+	int use_sobol_dithering;
 	int aa_samples;
 
 	/* volume render */
@@ -1368,6 +1372,8 @@ typedef struct KernelIntegrator {
 	int start_sample;
 
 	int max_closures;
+
+	int pad1, pad2, pad3;
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 

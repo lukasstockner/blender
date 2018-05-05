@@ -118,6 +118,7 @@ public:
 
 	/* integrator */
 	device_vector<uint> sobol_directions;
+	device_vector<float2> sobol_dither;
 
 	KernelData data;
 

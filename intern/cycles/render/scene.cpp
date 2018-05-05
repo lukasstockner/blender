@@ -76,7 +76,8 @@ DeviceScene::DeviceScene(Device *device)
   svm_nodes(device, "__svm_nodes", MEM_TEXTURE),
   shaders(device, "__shaders", MEM_TEXTURE),
   lookup_table(device, "__lookup_table", MEM_TEXTURE),
-  sobol_directions(device, "__sobol_directions", MEM_TEXTURE)
+  sobol_directions(device, "__sobol_directions", MEM_TEXTURE),
+  sobol_dither(device, "__sobol_dither", MEM_TEXTURE)
 {
 	memset(&data, 0, sizeof(data));
 }
