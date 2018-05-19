@@ -333,11 +333,16 @@ void FilterTask::parse_channels(const ImageSpec &in_spec)
 		const vector<ChannelMapping> &map = prefilter? prefiltered_channels : final_channels;
 		layers[i].out_results.clear();
 		layers[i].out_results.resize(map.size());
+
+		/* If the output file will only contain a single set of RGB passes, just use the channel name as it is. */
+		bool only_channel = (layers.size() == 1) && (!sd->views) && (out_channels.size() == 0) && !prefilter;
+
 		for(int j = 0; j < map.size(); j++) {
 			layers[i].out_results[map[j].channel] = out_channels.size();
 			string pass = map[j].name, channel;
 			split_last_dot(pass, channel);
-			out_channels.push_back(renderlayer+"."+pass+view+"."+channel);
+			string name = only_channel? channel : (renderlayer+"."+pass+view+"."+channel);
+			out_channels.push_back(name);
 		}
 	}
 }

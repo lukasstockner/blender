@@ -208,6 +208,8 @@ protected:
 	/* Set i-th channel of the output to the out_passthrough[i]-th channel of the input. */
 	vector<int> out_passthrough;
 
+	bool only_rgb;
+
 	/* Layers to be processed. */
 	vector<RenderLayer> layers;
 	int current_layer;
