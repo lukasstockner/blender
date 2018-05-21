@@ -120,6 +120,7 @@ ccl_device_inline void kernel_filter_nlm_update_output(int dx, int dy,
                                                        float *out_image,
                                                        float *accum_image,
                                                        int4 rect,
+                                                       int channel_offset,
                                                        int stride,
                                                        int f)
 {
@@ -133,7 +134,17 @@ ccl_device_inline void kernel_filter_nlm_update_output(int dx, int dy,
 			}
 			float weight = sum * (1.0f/(high - low));
 			accum_image[y*stride + x] += weight;
-			out_image[y*stride + x] += weight*image[(y+dy)*stride + (x+dx)];
+
+			float val;
+			if(channel_offset) {
+				val = average(make_float3(image[(y+dy)*stride + (x+dx)],
+				                          image[(y+dy)*stride + (x+dx) + channel_offset],
+				                          image[(y+dy)*stride + (x+dx) + 2*channel_offset]));
+			}
+			else {
+				val = image[(y+dy)*stride + (x+dx)];
+			}
+			out_image[y*stride + x] += weight*val;
 		}
 	}
 }

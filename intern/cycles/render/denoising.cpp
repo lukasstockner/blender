@@ -116,6 +116,7 @@ static vector<ChannelMapping> init_prefiltered_channels()
 	fill_mapping(map, 5, "Denoising Albedo", "RGB");
 	fill_mapping(map, 8, "Denoising Image", "RGB");
 	fill_mapping(map, 11, "Denoising Image Variance", "RGB");
+	fill_mapping(map, 14, "Denoising Intensity", "X");
 	return map;
 }
 
@@ -655,7 +656,7 @@ bool FilterTask::open_frames(string in_filename, string out_filename)
 bool FilterTask::run_filter(string in_pattern, string out_file, int center_frame_, vector<int> frame_range)
 {
 	prefilter = false;
-	buffer_pass_stride = 14;
+	buffer_pass_stride = 15;
 	target_pass_stride = 3;
 
 	center_frame = center_frame_;
@@ -763,7 +764,7 @@ bool FilterTask::run_prefilter(string in_file, string out_file)
 {
 	prefilter = true;
 	buffer_pass_stride = 26;
-	target_pass_stride = 14;
+	target_pass_stride = 15;
 
 	if(!open_frames(in_file, out_file)) {
 		return false;

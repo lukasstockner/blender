@@ -111,6 +111,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_update_output)(int dx,
                                                          float *out_image,
                                                          float *accum_image,
                                                          int* rect,
+                                                         int channel_offset,
                                                          int stride,
                                                          int f);
 

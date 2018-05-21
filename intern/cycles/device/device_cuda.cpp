@@ -1312,10 +1312,11 @@ public:
 		float a = task->nlm_state.a;
 		float k_2 = task->nlm_state.k_2;
 
+		int channel_offset = task->nlm_state.is_color? task->buffer.pass_stride : 0;
+
 		int shift_stride = stride*h;
 		int num_shifts = (2*r+1)*(2*r+1);
 		int mem_size = sizeof(float)*shift_stride*num_shifts;
-		int channel_offset = 0;
 		int frame_offset = 0;
 
 		device_only_memory<uchar> temporary_mem(this, "Denoising temporary_mem");
@@ -1348,7 +1349,7 @@ public:
 			void *calc_difference_args[] = {&guide_ptr, &variance_ptr, &difference, &w, &h, &stride, &shift_stride, &r, &channel_offset, &frame_offset, &a, &k_2};
 			void *blur_args[]            = {&difference, &blurDifference, &w, &h, &stride, &shift_stride, &r, &f};
 			void *calc_weight_args[]     = {&blurDifference, &difference, &w, &h, &stride, &shift_stride, &r, &f};
-			void *update_output_args[]   = {&blurDifference, &image_ptr, &out_ptr, &weightAccum, &w, &h, &stride, &shift_stride, &r, &f};
+			void *update_output_args[]   = {&blurDifference, &image_ptr, &out_ptr, &weightAccum, &w, &h, &stride, &shift_stride, &channel_offset, &r, &f};
 
 			CUDA_LAUNCH_KERNEL_1D(cuNLMCalcDifference, calc_difference_args);
 			CUDA_LAUNCH_KERNEL_1D(cuNLMBlur, blur_args);

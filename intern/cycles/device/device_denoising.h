@@ -161,6 +161,8 @@ public:
 		float a;    /* Variance compensation factor in the MSE estimation. */
 		float k_2;  /* Squared value of the k parameter of the filter. */
 
+		bool is_color; /* If set, the image to be filtered consists of three channels. */
+
 		void set_parameters(int r_, int f_, float a_, float k_2_) { r = r_; f = f_; a = a_, k_2 = k_2_; }
 	} nlm_state;
 

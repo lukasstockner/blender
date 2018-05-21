@@ -227,6 +227,7 @@ __kernel void kernel_ocl_filter_nlm_update_output(const ccl_global float *ccl_re
                                                   int h,
                                                   int stride,
                                                   int shift_stride,
+                                                  int channel_offset,
                                                   int r,
                                                   int f)
 {
@@ -238,7 +239,9 @@ __kernel void kernel_ocl_filter_nlm_update_output(const ccl_global float *ccl_re
 		                                image,
 		                                out_image,
 		                                accum_image,
-		                                rect, stride, f);
+		                                rect,
+		                                shift_stride,
+		                                stride, f);
 	}
 }
 

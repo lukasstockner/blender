@@ -242,6 +242,7 @@ kernel_cuda_filter_nlm_update_output(const float *ccl_restrict difference_image,
                                      int h,
                                      int stride,
                                      int shift_stride,
+                                     int channel_offset,
                                      int r,
                                      int f)
 {
@@ -253,7 +254,9 @@ kernel_cuda_filter_nlm_update_output(const float *ccl_restrict difference_image,
 		                                image,
 		                                out_image,
 		                                accum_image,
-		                                rect, stride, f);
+		                                rect,
+		                                channel_offset,
+		                                stride, f);
 	}
 }
 

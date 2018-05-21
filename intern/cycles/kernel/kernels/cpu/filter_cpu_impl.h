@@ -217,13 +217,14 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_update_output)(int dx,
                                                          float *out_image,
                                                          float *accum_image,
                                                          int *rect,
+                                                         int channel_offset,
                                                          int stride,
                                                          int f)
 {
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_nlm_update_output);
 #else
-	kernel_filter_nlm_update_output(dx, dy, difference_image, image, out_image, accum_image, load_int4(rect), stride, f);
+	kernel_filter_nlm_update_output(dx, dy, difference_image, image, out_image, accum_image, load_int4(rect), channel_offset, stride, f);
 #endif
 }
 

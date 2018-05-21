@@ -188,7 +188,7 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, int, float, float)> filter_nlm_calc_difference_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                      filter_nlm_blur_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                      filter_nlm_calc_weight_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int)>            filter_nlm_update_output_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int, int)>       filter_nlm_update_output_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int)>                                           filter_nlm_normalize_kernel;
 
 	KernelFunctions<void(*)(float*, TilesInfo*, int, int, int, float*, int*, int*, int, int, int, int, float)>                  filter_construct_transform_kernel;
@@ -486,6 +486,7 @@ public:
 
 		int w = align_up(rect.z-rect.x, 4);
 		int h = rect.w-rect.y;
+		int channel_offset = task->nlm_state.is_color? task->buffer.pass_stride : 0;
 
 		float *blurDifference = (float*) task->nlm_state.temporary_1_ptr;
 		float *difference     = (float*) task->nlm_state.temporary_2_ptr;
@@ -504,7 +505,8 @@ public:
 			                                    (float*) variance_ptr,
 			                                    difference,
 			                                    local_rect,
-			                                    w, 0, 0,
+			                                    w,
+			                                    channel_offset, 0,
 			                                    a, k_2);
 
 			filter_nlm_blur_kernel()       (difference, blurDifference, local_rect, w, f);
@@ -517,7 +519,8 @@ public:
 			                                  (float*) out_ptr,
 			                                  weightAccum,
 			                                  local_rect,
-			                                  w, f);
+			                                  w,
+			                                  task->buffer.stride, f);
 		}
 
 		int local_rect[4] = {0, 0, rect.z-rect.x, rect.w-rect.y};

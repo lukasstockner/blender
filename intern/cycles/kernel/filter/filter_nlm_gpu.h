@@ -133,7 +133,8 @@ ccl_device_inline void kernel_filter_nlm_update_output(int x, int y,
                                                        const ccl_global float *ccl_restrict image,
                                                        ccl_global float *out_image,
                                                        ccl_global float *accum_image,
-                                                       int4 rect, int stride, int f)
+                                                       int4 rect, int channel_offset,
+                                                       int stride, int f)
 {
 	float sum = 0.0f;
 	const int low = max(rect.x, x-f);
@@ -142,9 +143,21 @@ ccl_device_inline void kernel_filter_nlm_update_output(int x, int y,
 		sum += difference_image[y*stride + x1];
 	}
 	sum *= 1.0f/(high-low);
+
+	float val;
+	if(channel_offset) {
+		val = average(make_float3(image[(y+dy)*stride + (x+dx)],
+				                  image[(y+dy)*stride + (x+dx) + channel_offset],
+				                  image[(y+dy)*stride + (x+dx) + 2*channel_offset]));
+	}
+	else {
+		val = image[(y+dy)*stride + (x+dx)];
+	}
+
+	/* TODO: Is out_image ever NULL? */
 	if(out_image) {
 		atomic_add_and_fetch_float(accum_image + y*stride + x, sum);
-		atomic_add_and_fetch_float(out_image + y*stride + x, sum*image[(y+dy)*stride + (x+dx)]);
+		atomic_add_and_fetch_float(out_image + y*stride + x, sum*val);
 	}
 	else {
 		accum_image[y*stride + x] = sum;
