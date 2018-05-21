@@ -50,6 +50,8 @@ public:
 		center_frame = "";
 		frame_radius = 2;
 
+		ldr_out = false;
+
 		DeviceRequestedFeatures req;
 		device->load_kernels(req);
 
@@ -73,6 +75,7 @@ public:
 
 	string in_path;
 	string out_path;
+	bool ldr_out;
 
 	string error;
 
@@ -235,6 +238,8 @@ protected:
 	               float *mem,
 	               bool write_out,
 	               int y0, int y1);
+
+	void write_output();
 
 	/* Open the input image, parse its channels, open the output image and allocate the output buffer. */
 	bool open_frames(string in_filename, string out_filename);

@@ -335,13 +335,13 @@ void FilterTask::parse_channels(const ImageSpec &in_spec)
 		layers[i].out_results.resize(map.size());
 
 		/* If the output file will only contain a single set of RGB passes, just use the channel name as it is. */
-		bool only_channel = (layers.size() == 1) && (!sd->views) && (out_channels.size() == 0) && !prefilter;
+		only_rgb = (layers.size() == 1) && (!sd->views) && (out_channels.size() == 0) && !prefilter;
 
 		for(int j = 0; j < map.size(); j++) {
 			layers[i].out_results[map[j].channel] = out_channels.size();
 			string pass = map[j].name, channel;
 			split_last_dot(pass, channel);
-			string name = only_channel? channel : (renderlayer+"."+pass+view+"."+channel);
+			string name = only_rgb? channel : (renderlayer+"."+pass+view+"."+channel);
 			out_channels.push_back(name);
 		}
 	}
@@ -558,6 +558,19 @@ bool FilterTask::load_file(ImageInput *in_image, const vector<int> &buffer_to_fi
 	return true;
 }
 
+void FilterTask::write_output()
+{
+	scoped_timer timer(&sd->time_file_write, true);
+
+	if(sd->ldr_out && only_rgb) {
+		for(int i = 0; i < 3*width*height; i++) {
+			out_buffer[i] = color_scene_linear_to_srgb(out_buffer[i]);
+		}
+	}
+
+	out->write_image(TypeDesc::FLOAT, out_buffer);
+}
+
 bool FilterTask::open_frames(string in_filename, string out_filename)
 {
 	scoped_timer timer(&sd->time_file_open, true);
@@ -601,7 +614,10 @@ bool FilterTask::open_frames(string in_filename, string out_filename)
 		return false;
 	}
 
-	ImageSpec out_spec(width, height, out_channels.size(), TypeDesc::FLOAT);
+	assert(!only_rgb || out_channels.size() == 3);
+
+	ImageSpec out_spec(width, height, out_channels.size(), sd->ldr_out? TypeDesc::UINT16 : TypeDesc::FLOAT);
+	out_spec.attribute("oiio::ColorSpace", sd->ldr_out? "sRGB" : "Linear");
 	out_spec.channelnames.clear();
 
 	/* Set the channels of the output image based on the input parsing result. */
@@ -736,10 +752,7 @@ bool FilterTask::run_filter(string in_pattern, string out_file, int center_frame
 		printf("\n");
 	}
 
-	{
-		scoped_timer timer(&sd->time_file_write, true);
-		out->write_image(TypeDesc::FLOAT, out_buffer);
-	}
+	write_output();
 
 	free();
 
@@ -778,10 +791,7 @@ bool FilterTask::run_prefilter(string in_file, string out_file)
 		printf("\n");
 	}
 
-	{
-		scoped_timer timer(&sd->time_file_write, true);
-		out->write_image(TypeDesc::FLOAT, out_buffer);
-	}
+	write_output();
 
 	free();
 
