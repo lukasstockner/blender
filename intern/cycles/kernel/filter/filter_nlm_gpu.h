@@ -77,6 +77,7 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int x, int y,
                                                          int dx, int dy,
                                                          const ccl_global float *ccl_restrict weight_image,
                                                          const ccl_global float *ccl_restrict variance_image,
+                                                         const ccl_global float *ccl_restrict scale_image,
                                                          ccl_global float *difference_image,
                                                          int4 rect, int stride,
                                                          int channel_offset,
@@ -86,9 +87,14 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int x, int y,
 	float diff = 0.0f;
 	int numChannels = channel_offset? 3 : 1;
 	for(int c = 0; c < numChannels; c++) {
-		float cdiff = weight_image[c*channel_offset + y*stride + x] - weight_image[c*channel_offset + (y+dy)*stride + (x+dx) + frame_offset];
+		float scale_fac = 1.0f;
+		if(scale_image) {
+			scale_fac = scale_image[y*stride + x] / scale_image[(y+dy)*stride + (x+dx)];
+			scale_fac = clamp(scale_fac, 0.25f, 4.0f);
+		}
+		float cdiff = weight_image[c*channel_offset + y*stride + x] - scale_fac*weight_image[c*channel_offset + (y+dy)*stride + (x+dx) + frame_offset];
 		float pvar = variance_image[c*channel_offset + y*stride + x];
-		float qvar = variance_image[c*channel_offset + (y+dy)*stride + (x+dx)];
+		float qvar = sqr(scale_fac)*variance_image[c*channel_offset + (y+dy)*stride + (x+dx) + frame_offset];
 		diff += (cdiff*cdiff - a*(pvar + min(pvar, qvar))) / (1e-8f + k_2*(pvar+qvar));
 	}
 	if(numChannels > 1) {

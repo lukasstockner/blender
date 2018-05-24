@@ -779,6 +779,7 @@ bool OpenCLDeviceBase::denoising_non_local_means(device_ptr image_ptr,
 	kernel_set_args(ckNLMCalcDifference, 0,
 	                guide_mem,
 	                variance_mem,
+	                NULL,
 	                difference,
 	                w, h, stride,
 	                shift_stride,
@@ -855,11 +856,13 @@ bool OpenCLDeviceBase::denoising_construct_transform(DenoisingTask *task)
 
 bool OpenCLDeviceBase::denoising_accumulate(device_ptr color_ptr,
                                             device_ptr color_variance_ptr,
+                                            device_ptr scale_ptr,
                                             int frame,
                                             DenoisingTask *task)
 {
 	cl_mem color_mem = CL_MEM_PTR(color_ptr);
 	cl_mem color_variance_mem = CL_MEM_PTR(color_variance_ptr);
+	cl_mem scale_mem = CL_MEM_PTR(scale_ptr);
 
 	cl_mem buffer_mem = CL_MEM_PTR(task->buffer.mem.device_pointer);
 	cl_mem transform_mem = CL_MEM_PTR(task->storage.transform.device_pointer);
@@ -891,6 +894,7 @@ bool OpenCLDeviceBase::denoising_accumulate(device_ptr color_ptr,
 	kernel_set_args(ckNLMCalcDifference, 0,
 	                color_mem,
 	                color_variance_mem,
+	                scale_mem,
 	                difference,
 	                w, h, stride,
 	                shift_stride,
@@ -1130,7 +1134,7 @@ void OpenCLDeviceBase::denoise(RenderTile &rtile, DenoisingTask& denoising, cons
 {
 	denoising.functions.set_tiles = function_bind(&OpenCLDeviceBase::denoising_set_tiles, this, _1, &denoising);
 	denoising.functions.construct_transform = function_bind(&OpenCLDeviceBase::denoising_construct_transform, this, &denoising);
-	denoising.functions.accumulate = function_bind(&OpenCLDeviceBase::denoising_accumulate, this, _1, _2, _3, &denoising);
+	denoising.functions.accumulate = function_bind(&OpenCLDeviceBase::denoising_accumulate, this, _1, _2, _3, _4, &denoising);
 	denoising.functions.solve = function_bind(&OpenCLDeviceBase::denoising_solve, this, _1, &denoising);
 	denoising.functions.divide_shadow = function_bind(&OpenCLDeviceBase::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
 	denoising.functions.non_local_means = function_bind(&OpenCLDeviceBase::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);

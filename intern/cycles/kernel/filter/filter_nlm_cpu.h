@@ -19,6 +19,7 @@ CCL_NAMESPACE_BEGIN
 ccl_device_inline void kernel_filter_nlm_calc_difference(int dx, int dy,
                                                          const float *ccl_restrict weight_image,
                                                          const float *ccl_restrict variance_image,
+                                                         const float *ccl_restrict scale_image,
                                                          float *difference_image,
                                                          int4 rect,
                                                          int stride,
@@ -38,13 +39,18 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int dx, int dy,
 		int idx_p = y*stride, idx_q = (y+dy)*stride + dx + frame_offset;
 		for(int x = aligned_lowx; x < rect.z; x += 4) {
 			float4 diff = make_float4(0.0f);
+			float4 scale_fac = make_float4(1.0f);
+			if(scale_image) {
+				scale_fac = *((float4*) (scale_image + idx_p + x)) / load_float4(scale_image + idx_q + x);
+				scale_fac = clamp(scale_fac, make_float4(0.25f), make_float4(4.0f));
+			}
 			for(int c = 0; c < numChannels; c++) {
 				/* idx_p is guaranteed to be aligned, but idx_q isn't. */
 				float4 color_p = *((float4*) (weight_image + idx_p + x + c*channel_offset));
-				float4 color_q = load_float4(weight_image + idx_q + x + c*channel_offset);
+				float4 color_q = scale_fac*load_float4(weight_image + idx_q + x + c*channel_offset);
 				float4 cdiff = color_p - color_q;
 				float4 var_p = *((float4*) (variance_image + idx_p + x + c*channel_offset));
-				float4 var_q = load_float4(variance_image + idx_q + x + c*channel_offset);
+				float4 var_q = sqr(scale_fac)*load_float4(variance_image + idx_q + x + c*channel_offset);
 				diff += (cdiff*cdiff - a*(var_p + min(var_p, var_q))) / (make_float4(1e-8f) + k_2*(var_p+var_q));
 			}
 			*((float4*) (difference_image + idx_p + x)) = diff*channel_fac;

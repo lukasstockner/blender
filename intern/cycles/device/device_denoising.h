@@ -100,6 +100,7 @@ public:
 		              )> non_local_means;
 		function<bool(device_ptr color_ptr,
 		              device_ptr color_variance_ptr,
+		              device_ptr scale_ptr,
 		              int frame
 		              )> accumulate;
 		function<bool(device_ptr output_ptr

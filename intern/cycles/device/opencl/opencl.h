@@ -412,6 +412,7 @@ protected:
 	bool denoising_construct_transform(DenoisingTask *task);
 	bool denoising_accumulate(device_ptr color_ptr,
 	                          device_ptr color_variance_ptr,
+	                          device_ptr scale_ptr,
 	                          int frame,
 	                          DenoisingTask *task);
 	bool denoising_solve(device_ptr output_ptr,

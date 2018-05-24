@@ -185,11 +185,11 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                               filter_detect_outliers_kernel;
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                               filter_combine_halves_kernel;
 
-	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, int, float, float)> filter_nlm_calc_difference_kernel;
-	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                      filter_nlm_blur_kernel;
-	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                      filter_nlm_calc_weight_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int, int)>       filter_nlm_update_output_kernel;
-	KernelFunctions<void(*)(float*, float*, int*, int)>                                           filter_nlm_normalize_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int, int, float, float)> filter_nlm_calc_difference_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                              filter_nlm_blur_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                              filter_nlm_calc_weight_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int, int)>               filter_nlm_update_output_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int)>                                                   filter_nlm_normalize_kernel;
 
 	KernelFunctions<void(*)(float*, TilesInfo*, int, int, int, float*, int*, int*, int, int, int, int, float)>                  filter_construct_transform_kernel;
 	KernelFunctions<void(*)(int, int, int, float*, float*, float*, int*, float*, float3*, int*, int*, int, int, int, int, int)> filter_nlm_construct_gramian_kernel;
@@ -503,6 +503,7 @@ public:
 			filter_nlm_calc_difference_kernel()(dx, dy,
 			                                    (float*) guide_ptr,
 			                                    (float*) variance_ptr,
+			                                    NULL,
 			                                    difference,
 			                                    local_rect,
 			                                    w,
@@ -553,6 +554,7 @@ public:
 
 	bool denoising_accumulate(device_ptr color_ptr,
 	                          device_ptr color_variance_ptr,
+	                          device_ptr scale_ptr,
 	                          int frame,
 	                          DenoisingTask *task)
 	{
@@ -571,6 +573,7 @@ public:
 			filter_nlm_calc_difference_kernel()(dx, dy,
 			                                    (float*) color_ptr,
 			                                    (float*) color_variance_ptr,
+			                                    (float*) scale_ptr,
 			                                    difference,
 			                                    local_rect,
 			                                    task->buffer.stride,
@@ -755,7 +758,7 @@ public:
 		tile.sample = tile.start_sample + tile.num_samples;
 
 		denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
-		denoising.functions.accumulate = function_bind(&CPUDevice::denoising_accumulate, this, _1, _2, _3, &denoising);
+		denoising.functions.accumulate = function_bind(&CPUDevice::denoising_accumulate, this, _1, _2, _3, _4, &denoising);
 		denoising.functions.solve = function_bind(&CPUDevice::denoising_solve, this, _1, &denoising);
 		denoising.functions.divide_shadow = function_bind(&CPUDevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
 		denoising.functions.non_local_means = function_bind(&CPUDevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);

@@ -168,7 +168,8 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(float* buffer,
 void KERNEL_FUNCTION_FULL_NAME(filter_nlm_calc_difference)(int dx,
                                                            int dy,
                                                            float *weight_image,
-                                                           float *variance,
+                                                           float *variance_image,
+                                                           float *scale_image,
                                                            float *difference_image,
                                                            int *rect,
                                                            int stride,
@@ -180,7 +181,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_calc_difference)(int dx,
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_nlm_calc_difference);
 #else
-	kernel_filter_nlm_calc_difference(dx, dy, weight_image, variance, difference_image, load_int4(rect), stride, channel_offset, frame_offset, a, k_2);
+	kernel_filter_nlm_calc_difference(dx, dy, weight_image, scale_image, variance_image, difference_image, load_int4(rect), stride, channel_offset, frame_offset, a, k_2);
 #endif
 }
 

@@ -1332,6 +1332,8 @@ public:
 		cuda_assert(cuMemsetD8(weightAccum, 0, sizeof(float)*shift_stride));
 		cuda_assert(cuMemsetD8(out_ptr, 0, sizeof(float)*shift_stride));
 
+		CUdeviceptr scale_ptr = 0;
+
 		{
 			CUfunction cuNLMCalcDifference, cuNLMBlur, cuNLMCalcWeight, cuNLMUpdateOutput;
 			cuda_assert(cuModuleGetFunction(&cuNLMCalcDifference, cuFilterModule, "kernel_cuda_filter_nlm_calc_difference"));
@@ -1346,7 +1348,7 @@ public:
 
 			CUDA_GET_BLOCKSIZE_1D(cuNLMCalcDifference, w*h, num_shifts);
 
-			void *calc_difference_args[] = {&guide_ptr, &variance_ptr, &difference, &w, &h, &stride, &shift_stride, &r, &channel_offset, &frame_offset, &a, &k_2};
+			void *calc_difference_args[] = {&guide_ptr, &variance_ptr, &scale_ptr, &difference, &w, &h, &stride, &shift_stride, &r, &channel_offset, &frame_offset, &a, &k_2};
 			void *blur_args[]            = {&difference, &blurDifference, &w, &h, &stride, &shift_stride, &r, &f};
 			void *calc_weight_args[]     = {&blurDifference, &difference, &w, &h, &stride, &shift_stride, &r, &f};
 			void *update_output_args[]   = {&blurDifference, &image_ptr, &out_ptr, &weightAccum, &w, &h, &stride, &shift_stride, &channel_offset, &r, &f};
@@ -1406,6 +1408,7 @@ public:
 
 	bool denoising_accumulate(device_ptr color_ptr,
 	                          device_ptr color_variance_ptr,
+	                          device_ptr scale_ptr,
 	                          int frame,
 	                          DenoisingTask *task)
 	{
@@ -1456,6 +1459,7 @@ public:
 
 		void *calc_difference_args[] = {&color_ptr,
 		                                &color_variance_ptr,
+		                                &scale_ptr,
 		                                &difference,
 		                                &w, &h, &stride,
 		                                &shift_stride,
@@ -1673,7 +1677,7 @@ public:
 	void denoise(RenderTile &rtile, DenoisingTask& denoising, const DeviceTask &task)
 	{
 		denoising.functions.construct_transform = function_bind(&CUDADevice::denoising_construct_transform, this, &denoising);
-		denoising.functions.accumulate = function_bind(&CUDADevice::denoising_accumulate, this, _1, _2, _3, &denoising);
+		denoising.functions.accumulate = function_bind(&CUDADevice::denoising_accumulate, this, _1, _2, _3, _4, &denoising);
 		denoising.functions.solve = function_bind(&CUDADevice::denoising_solve, this, _1, &denoising);
 		denoising.functions.divide_shadow = function_bind(&CUDADevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
 		denoising.functions.non_local_means = function_bind(&CUDADevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
