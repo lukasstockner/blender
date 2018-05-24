@@ -63,6 +63,26 @@ ccl_device float color_scene_linear_to_srgb(float c)
 		return 1.055f * powf(c, 1.0f / 2.4f) - 0.055f;
 }
 
+ccl_device_inline float filter_mapping(float c)
+{
+	return logf(1.0f + c);
+}
+
+ccl_device_inline float3 color_filter_mapping(float3 c)
+{
+	return make_float3(filter_mapping(c.x), filter_mapping(c.y), filter_mapping(c.z));
+}
+
+ccl_device_inline float filter_mapping_inv(float c)
+{
+	return expf(c) - 1.0f;
+}
+
+ccl_device_inline float3 color_filter_mapping_inv(float3 c)
+{
+	return make_float3(filter_mapping_inv(c.x), filter_mapping_inv(c.y), filter_mapping_inv(c.z));
+}
+
 ccl_device float3 rgb_to_hsv(float3 rgb)
 {
 	float cmax, cmin, h, s, v, cdelta;

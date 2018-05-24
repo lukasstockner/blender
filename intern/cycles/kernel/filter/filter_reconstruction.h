@@ -52,7 +52,7 @@ ccl_device_inline void kernel_filter_construct_gramian(int x, int y,
 	float design_row[DENOISE_FEATURES+1];
 #endif
 
-	float3 q_color = filter_get_color(buffer + q_offset, pass_stride, feature_mode);
+	float3 q_color = color_filter_mapping(filter_get_color(buffer + q_offset, pass_stride, feature_mode));
 
 	/* If the pixel was flagged as an outlier during prefiltering, skip it. */
 	if(ccl_get_feature(buffer + q_offset, 0) < 0.0f) {
@@ -107,7 +107,7 @@ ccl_device_inline void kernel_filter_finalize(int x, int y,
 	}
 
 	/* Clamp pixel value to positive values. */
-	final_color = max(final_color, make_float3(0.0f, 0.0f, 0.0f));
+	final_color = max(color_filter_mapping_inv(final_color), make_float3(0.0f, 0.0f, 0.0f));
 
 	ccl_global float *combined_buffer = buffer + (y*buffer_params.y + x + buffer_params.x)*buffer_params.z;
 	if(buffer_params.w >= 0) {
