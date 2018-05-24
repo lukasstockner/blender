@@ -1796,6 +1796,35 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				}
 			}
 		}
+
+		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+			int preset = scene->r.ffcodecdata.ffmpeg_preset;
+			if (preset == FFM_PRESET_NONE || preset >= FFM_PRESET_GOOD) {
+				continue;
+			}
+			if (preset <= FFM_PRESET_FAST) {
+				preset = FFM_PRESET_REALTIME;
+			}
+			else if (preset >= FFM_PRESET_SLOW) {
+				preset = FFM_PRESET_BEST;
+			}
+			else {
+				preset = FFM_PRESET_GOOD;
+			}
+			scene->r.ffcodecdata.ffmpeg_preset = preset;
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "ParticleInstanceModifierData", "float", "particle_amount")) {
+			for (Object *ob = main->object.first; ob; ob = ob->id.next) {
+				for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_ParticleInstance) {
+						ParticleInstanceModifierData *pimd = (ParticleInstanceModifierData *)md;
+						pimd->space = eParticleInstanceSpace_World;
+						pimd->particle_amount = 1.0f;
+					}
+				}
+			}
+		}
 	}
 }
 

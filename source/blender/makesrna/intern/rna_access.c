@@ -277,8 +277,9 @@ IDProperty *RNA_struct_idprops(PointerRNA *ptr, bool create)
 {
 	StructRNA *type = ptr->type;
 
-	if (type && type->idproperties)
+	if (type && type->idproperties) {
 		return type->idproperties(ptr, create);
+	}
 	
 	return NULL;
 }
@@ -292,8 +293,16 @@ static IDProperty *rna_idproperty_find(PointerRNA *ptr, const char *name)
 {
 	IDProperty *group = RNA_struct_idprops(ptr, 0);
 
-	if (group)
-		return IDP_GetPropertyFromGroup(group, name);
+	if (group) {
+		if (group->type == IDP_GROUP) {
+			return IDP_GetPropertyFromGroup(group, name);
+		}
+		else {
+			/* Not sure why that happens sometimes, with nested properties... */
+			/* Seems to be actually array prop, name is usually "0"... To be sorted out later. */
+//			printf("Got unexpected IDProp container when trying to retrieve %s: %d\n", name, group->type);
+		}
+	}
 
 	return NULL;
 }
@@ -1376,17 +1385,6 @@ int RNA_property_pointer_poll(PointerRNA *ptr, PropertyRNA *prop, PointerRNA *va
 	return 0;
 }
 
-/* Reuse for dynamic types  */
-const EnumPropertyItem DummyRNA_NULL_items[] = {
-	{0, NULL, 0, NULL, NULL}
-};
-
-/* Reuse for dynamic types with default value */
-const EnumPropertyItem DummyRNA_DEFAULT_items[] = {
-	{0, "DEFAULT", 0, "Default", ""},
-	{0, NULL, 0, NULL, NULL}
-};
-
 void RNA_property_enum_items_ex(
         bContext *C, PointerRNA *ptr, PropertyRNA *prop, const bool use_static,
         const EnumPropertyItem **r_item, int *r_totitem, bool *r_free)
@@ -1842,14 +1840,14 @@ bool RNA_property_editable_info(PointerRNA *ptr, PropertyRNA *prop, const char *
 	else {
 		flag = prop->flag;
 		if ((flag & PROP_EDITABLE) == 0 || (flag & PROP_REGISTER)) {
-			*r_info = "This property is for internal use only and can't be edited.";
+			*r_info = N_("This property is for internal use only and can't be edited");
 		}
 	}
 
 	/* property from linked data-block */
 	if (id && ID_IS_LINKED(id) && (prop->flag & PROP_LIB_EXCEPTION) == 0) {
 		if (!(*r_info)[0]) {
-			*r_info = "Can't edit this property from a linked data-block.";
+			*r_info = N_("Can't edit this property from a linked data-block");
 		}
 		return false;
 	}

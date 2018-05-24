@@ -45,6 +45,7 @@
 #include "BLI_path_util.h"
 #include "BLI_fileops.h"
 #include "BLI_mempool.h"
+#include "BLI_system.h"
 
 #include "BLO_readfile.h"  /* only for BLO_has_bfile_extension */
 
@@ -536,6 +537,7 @@ static int arg_handle_print_help(int UNUSED(argc), const char **UNUSED(argv), vo
 	BLI_argsPrintArgDoc(ba, "--log");
 	BLI_argsPrintArgDoc(ba, "--log-level");
 	BLI_argsPrintArgDoc(ba, "--log-show-basename");
+	BLI_argsPrintArgDoc(ba, "--log-show-backtrace");
 	BLI_argsPrintArgDoc(ba, "--log-file");
 
 	printf("\n");
@@ -715,15 +717,21 @@ static int arg_handle_background_mode_set(int UNUSED(argc), const char **UNUSED(
 static const char arg_handle_log_level_set_doc[] =
 "<level>\n"
 "\n"
-"\tSet the logging verbosity level (higher for more details) defaults to 1."
+"\tSet the logging verbosity level (higher for more details) defaults to 1, use -1 to log all levels."
 ;
 static int arg_handle_log_level_set(int argc, const char **argv, void *UNUSED(data))
 {
 	const char *arg_id = "--log-level";
 	if (argc > 1) {
 		const char *err_msg = NULL;
-		if (!parse_int_clamp(argv[1], NULL, 0, INT_MAX, &G.log.level, &err_msg)) {
+		if (!parse_int_clamp(argv[1], NULL, -1, INT_MAX, &G.log.level, &err_msg)) {
 			printf("\nError: %s '%s %s'.\n", err_msg, arg_id, argv[1]);
+		}
+		else {
+			if (G.log.level == -1) {
+				G.log.level = INT_MAX;
+			}
+			CLG_level_set(G.log.level);
 		}
 		return 1;
 	}
@@ -739,6 +747,17 @@ static const char arg_handle_log_show_basename_set_doc[] =
 static int arg_handle_log_show_basename_set(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	CLG_output_use_basename_set(true);
+	return 0;
+}
+
+static const char arg_handle_log_show_backtrace_set_doc[] =
+"\n\tShow a back trace for each log message (debug builds only)."
+;
+static int arg_handle_log_show_backtrace_set(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
+{
+	/* Ensure types don't become incompatible. */
+	void (*fn)(FILE *fp) = BLI_system_backtrace;
+	CLG_backtrace_fn_set((void (*)(void *))fn);
 	return 0;
 }
 
@@ -1942,6 +1961,7 @@ void main_args_setup(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 	BLI_argsAdd(ba, 1, NULL, "--log", CB(arg_handle_log_set), ba);
 	BLI_argsAdd(ba, 1, NULL, "--log-level", CB(arg_handle_log_level_set), ba);
 	BLI_argsAdd(ba, 1, NULL, "--log-show-basename", CB(arg_handle_log_show_basename_set), ba);
+	BLI_argsAdd(ba, 1, NULL, "--log-show-backtrace", CB(arg_handle_log_show_backtrace_set), ba);
 	BLI_argsAdd(ba, 1, NULL, "--log-file", CB(arg_handle_log_file_set), ba);
 
 	BLI_argsAdd(ba, 1, "-d", "--debug", CB(arg_handle_debug_mode_set), ba);

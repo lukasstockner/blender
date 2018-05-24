@@ -603,7 +603,7 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 	}
 }
 
-void smokeModifier_copy(struct SmokeModifierData *smd, struct SmokeModifierData *tsmd)
+void smokeModifier_copy(const struct SmokeModifierData *smd, struct SmokeModifierData *tsmd)
 {
 	tsmd->type = smd->type;
 	tsmd->time = smd->time;
@@ -864,7 +864,7 @@ static void obstacles_from_derivedmesh(
 			copy_v3_v3(&scs->verts_old[i * 3], co);
 		}
 
-		if (bvhtree_from_mesh_looptri(&treeData, dm, 0.0f, 4, 6)) {
+		if (bvhtree_from_mesh_get(&treeData, dm, BVHTREE_FROM_LOOPTRI, 4)) {
 			ObstaclesFromDMData data = {
 			    .sds = sds, .mvert = mvert, .mloop = mloop, .looptri = looptri,
 			    .tree = &treeData, .obstacle_map = obstacle_map,
@@ -1105,8 +1105,9 @@ static void em_combineMaps(EmissionMap *output, EmissionMap *em2, int hires_mult
 
 				/* initialize with first input if in range */
 				if (x >= em1.min[0] && x < em1.max[0] &&
-					y >= em1.min[1] && y < em1.max[1] &&
-					z >= em1.min[2] && z < em1.max[2]) {
+				    y >= em1.min[1] && y < em1.max[1] &&
+				    z >= em1.min[2] && z < em1.max[2])
+				{
 					int index_in = smoke_get_index(x - em1.min[0], em1.res[0], y - em1.min[1], em1.res[1], z - em1.min[2]);
 
 					/* values */
@@ -1118,8 +1119,9 @@ static void em_combineMaps(EmissionMap *output, EmissionMap *em2, int hires_mult
 
 				/* apply second input if in range */
 				if (x >= em2->min[0] && x < em2->max[0] &&
-					y >= em2->min[1] && y < em2->max[1] &&
-					z >= em2->min[2] && z < em2->max[2]) {
+				    y >= em2->min[1] && y < em2->max[1] &&
+				    z >= em2->min[2] && z < em2->max[2])
+				{
 					int index_in = smoke_get_index(x - em2->min[0], em2->res[0], y - em2->min[1], em2->res[1], z - em2->min[2]);
 
 					/* values */
@@ -1149,8 +1151,9 @@ static void em_combineMaps(EmissionMap *output, EmissionMap *em2, int hires_mult
 
 					/* initialize with first input if in range */
 					if (x >= em1.hmin[0] && x < em1.hmax[0] &&
-						y >= em1.hmin[1] && y < em1.hmax[1] &&
-						z >= em1.hmin[2] && z < em1.hmax[2]) {
+					    y >= em1.hmin[1] && y < em1.hmax[1] &&
+					    z >= em1.hmin[2] && z < em1.hmax[2])
+					{
 						int index_in = smoke_get_index(x - em1.hmin[0], em1.hres[0], y - em1.hmin[1], em1.hres[1], z - em1.hmin[2]);
 						/* values */
 						output->influence_high[index_out] = em1.influence_high[index_in];
@@ -1158,8 +1161,9 @@ static void em_combineMaps(EmissionMap *output, EmissionMap *em2, int hires_mult
 
 					/* apply second input if in range */
 					if (x >= em2->hmin[0] && x < em2->hmax[0] &&
-						y >= em2->hmin[1] && y < em2->hmax[1] &&
-						z >= em2->hmin[2] && z < em2->hmax[2]) {
+					    y >= em2->hmin[1] && y < em2->hmax[1] &&
+					    z >= em2->hmin[2] && z < em2->hmax[2])
+					{
 						int index_in = smoke_get_index(x - em2->hmin[0], em2->hres[0], y - em2->hmin[1], em2->hres[1], z - em2->hmin[2]);
 
 						/* values */
@@ -1731,7 +1735,7 @@ static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, Smo
 			res[i] = em->res[i] * hires_multiplier;
 		}
 
-		if (bvhtree_from_mesh_looptri(&treeData, dm, 0.0f, 4, 6)) {
+		if (bvhtree_from_mesh_get(&treeData, dm, BVHTREE_FROM_LOOPTRI, 4)) {
 			const float hr = 1.0f / ((float)hires_multiplier);
 
 			EmitFromDMData data = {

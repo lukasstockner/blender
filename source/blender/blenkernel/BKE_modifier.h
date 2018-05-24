@@ -160,7 +160,7 @@ typedef struct ModifierTypeInfo {
 	/* Copy instance data for this modifier type. Should copy all user
 	 * level settings to the target modifier.
 	 */
-	void (*copyData)(struct ModifierData *md, struct ModifierData *target);
+	void (*copyData)(const struct ModifierData *md, struct ModifierData *target);
 
 	/********************* Deform modifier functions *********************/
 
@@ -346,6 +346,7 @@ const ModifierTypeInfo *modifierType_getInfo(ModifierType type);
  * default values if pointer is optional.
  */
 struct ModifierData  *modifier_new(int type);
+void          modifier_free_ex(struct ModifierData *md, const int flag);
 void          modifier_free(struct ModifierData *md);
 
 bool          modifier_unique_name(struct ListBase *modifiers, struct ModifierData *md);

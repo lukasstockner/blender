@@ -29,10 +29,13 @@
 #include <assert.h>
 
 /* For 'isatty' to check for color. */
-#if defined(__unix__)
+#if defined(__unix__) || defined(__APPLE__)
 #  include <unistd.h>
 #endif
 
+#if defined(_MSC_VER)
+#  include <io.h>
+#endif
 /* Only other dependency (could use regular malloc too). */
 #include "MEM_guardedalloc.h"
 
@@ -68,7 +71,8 @@ typedef struct CLogContext {
 	bool use_basename;
 
 	/** Borrowed, not owned. */
-	FILE *output;
+	int output;
+	FILE *output_file;
 
 	/** For new types. */
 	struct {
@@ -77,6 +81,7 @@ typedef struct CLogContext {
 
 	struct {
 		void (*fatal_fn)(void *file_handle);
+		void (*backtrace_fn)(void *file_handle);
 	} callbacks;
 } CLogContext;
 
@@ -324,13 +329,21 @@ static CLG_LogType *clg_ctx_type_register(CLogContext *ctx, const char *identifi
 	return ty;
 }
 
-static void clg_ctx_fatal_action(CLogContext *ctx, FILE *file_handle)
+static void clg_ctx_fatal_action(CLogContext *ctx)
 {
 	if (ctx->callbacks.fatal_fn != NULL) {
-		ctx->callbacks.fatal_fn(file_handle);
+		ctx->callbacks.fatal_fn(ctx->output_file);
 	}
-	fflush(file_handle);
+	fflush(ctx->output_file);
 	abort();
+}
+
+static void clg_ctx_backtrace(CLogContext *ctx)
+{
+	/* Note: we avoid writing fo 'FILE', for backtrace we make an exception,
+	 * if necessary we could have a version of the callback that writes to file descriptor all at once. */
+	ctx->callbacks.backtrace_fn(ctx->output_file);
+	fflush(ctx->output_file);
 }
 
 /** \} */
@@ -400,13 +413,16 @@ void CLG_log_str(
 	clg_str_append(&cstr, "\n");
 
 	/* could be optional */
-	fwrite(cstr.data, cstr.len, 1, lg->ctx->output);
-	fflush(lg->ctx->output);
+	write(lg->ctx->output, cstr.data, cstr.len);
 
 	clg_str_free(&cstr);
 
+	if (lg->ctx->callbacks.backtrace_fn) {
+		clg_ctx_backtrace(lg->ctx);
+	}
+
 	if (severity == CLG_SEVERITY_FATAL) {
-		clg_ctx_fatal_action(lg->ctx, lg->ctx->output);
+		clg_ctx_fatal_action(lg->ctx);
 	}
 }
 
@@ -432,13 +448,16 @@ void CLG_logf(
 	clg_str_append(&cstr, "\n");
 
 	/* could be optional */
-	fwrite(cstr.data, cstr.len, 1, lg->ctx->output);
-	fflush(lg->ctx->output);
+	write(lg->ctx->output, cstr.data, cstr.len);
 
 	clg_str_free(&cstr);
 
+	if (lg->ctx->callbacks.backtrace_fn) {
+		clg_ctx_backtrace(lg->ctx);
+	}
+
 	if (severity == CLG_SEVERITY_FATAL) {
-		clg_ctx_fatal_action(lg->ctx, lg->ctx->output);
+		clg_ctx_fatal_action(lg->ctx);
 	}
 }
 
@@ -450,9 +469,10 @@ void CLG_logf(
 
 static void CLG_ctx_output_set(CLogContext *ctx, void *file_handle)
 {
-	ctx->output = file_handle;
-#if defined(__unix__)
-	ctx->use_color = isatty(fileno(file_handle));
+	ctx->output_file = file_handle;
+	ctx->output = fileno(file_handle);
+#if defined(__unix__) || defined(__APPLE__)
+	ctx->use_color = isatty(ctx->output);
 #endif
 }
 
@@ -465,6 +485,11 @@ static void CLG_ctx_output_use_basename_set(CLogContext *ctx, int value)
 static void CLG_ctx_fatal_fn_set(CLogContext *ctx, void (*fatal_fn)(void *file_handle))
 {
 	ctx->callbacks.fatal_fn = fatal_fn;
+}
+
+static void CLG_ctx_backtrace_fn_set(CLogContext *ctx, void (*backtrace_fn)(void *file_handle))
+{
+	ctx->callbacks.backtrace_fn = backtrace_fn;
 }
 
 static void clg_ctx_type_filter_append(CLG_IDFilter **flt_list, const char *type_match, int type_match_len)
@@ -487,6 +512,14 @@ static void CLG_ctx_type_filter_exclude(CLogContext *ctx, const char *type_match
 static void CLG_ctx_type_filter_include(CLogContext *ctx, const char *type_match, int type_match_len)
 {
 	clg_ctx_type_filter_append(&ctx->filters[1], type_match, type_match_len);
+}
+
+static void CLG_ctx_level_set(CLogContext *ctx, int level)
+{
+	ctx->default_type.level = level;
+	for (CLG_LogType *ty = ctx->types; ty; ty = ty->next) {
+		ty->level = level;
+	}
 }
 
 static CLogContext *CLG_ctx_init(void)
@@ -556,6 +589,11 @@ void CLG_fatal_fn_set(void (*fatal_fn)(void *file_handle))
 	CLG_ctx_fatal_fn_set(g_ctx, fatal_fn);
 }
 
+void CLG_backtrace_fn_set(void (*fatal_fn)(void *file_handle))
+{
+	CLG_ctx_backtrace_fn_set(g_ctx, fatal_fn);
+}
+
 void CLG_type_filter_exclude(const char *type_match, int type_match_len)
 {
 	CLG_ctx_type_filter_exclude(g_ctx, type_match, type_match_len);
@@ -565,6 +603,12 @@ void CLG_type_filter_include(const char *type_match, int type_match_len)
 {
 	CLG_ctx_type_filter_include(g_ctx, type_match, type_match_len);
 }
+
+void CLG_level_set(int level)
+{
+	CLG_ctx_level_set(g_ctx, level);
+}
+
 
 /** \} */
 

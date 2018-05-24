@@ -692,11 +692,11 @@ static bool remap_hair_emitter(Scene *scene, Object *ob, ParticleSystem *psys,
 
 	if (dm->getNumTessFaces(dm) != 0) {
 		mface = dm->getTessFaceArray(dm);
-		bvhtree_from_mesh_faces(&bvhtree, dm, 0.0, 2, 6);
+		bvhtree_from_mesh_get(&bvhtree, dm, BVHTREE_FROM_FACES, 2);
 	}
 	else if (dm->getNumEdges(dm) != 0) {
 		medge = dm->getEdgeArray(dm);
-		bvhtree_from_mesh_edges(&bvhtree, dm, 0.0, 2, 6);
+		bvhtree_from_mesh_get(&bvhtree, dm, BVHTREE_FROM_EDGES, 2);
 	}
 	else {
 		dm->release(dm);
@@ -705,8 +705,8 @@ static bool remap_hair_emitter(Scene *scene, Object *ob, ParticleSystem *psys,
 
 	for (i = 0, tpa = target_psys->particles, pa = psys->particles;
 	     i < target_psys->totpart;
-	     i++, tpa++, pa++) {
-
+	     i++, tpa++, pa++)
+	{
 		float from_co[3];
 		BVHTreeNearest nearest;
 
@@ -1004,8 +1004,8 @@ static bool copy_particle_systems_to_object(Main *bmain,
 	cdmask = 0;
 	for (psys_from = PSYS_FROM_FIRST, i = 0;
 	     psys_from;
-	     psys_from = PSYS_FROM_NEXT(psys_from), ++i) {
-		
+	     psys_from = PSYS_FROM_NEXT(psys_from), ++i)
+	{
 		psys = BKE_object_copy_particlesystem(psys_from, 0);
 		tmp_psys[i] = psys;
 		
@@ -1025,8 +1025,8 @@ static bool copy_particle_systems_to_object(Main *bmain,
 	/* now append psys to the object and make modifiers */
 	for (i = 0, psys_from = PSYS_FROM_FIRST;
 	     i < totpsys;
-	     ++i, psys_from = PSYS_FROM_NEXT(psys_from)) {
-		
+	     ++i, psys_from = PSYS_FROM_NEXT(psys_from))
+	{
 		ParticleSystemModifierData *psmd;
 		
 		psys = tmp_psys[i];
@@ -1063,8 +1063,8 @@ static bool copy_particle_systems_to_object(Main *bmain,
 	 */
 	for (psys = psys_start, psys_from = PSYS_FROM_FIRST, i = 0;
 	     psys;
-	     psys = psys->next, psys_from = PSYS_FROM_NEXT(psys_from), ++i) {
-		
+	     psys = psys->next, psys_from = PSYS_FROM_NEXT(psys_from), ++i)
+	{
 		float (*from_mat)[4], (*to_mat)[4];
 		
 		switch (space) {

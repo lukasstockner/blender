@@ -138,6 +138,14 @@ int ED_operator_screen_mainwinactive(bContext *C)
 	return 1;
 }
 
+int ED_operator_scene(bContext *C)
+{
+	Scene *scene = CTX_data_scene(C);
+	if (scene)
+		return 1;
+	return 0;
+}
+
 int ED_operator_scene_editable(bContext *C)
 {
 	Scene *scene = CTX_data_scene(C);
@@ -1741,6 +1749,7 @@ static void area_split_cancel(bContext *C, wmOperator *op)
 	sAreaSplitData *sd = (sAreaSplitData *)op->customdata;
 	
 	if (sd->previewmode) {
+		/* pass */
 	}
 	else {
 		if (screen_area_join(C, CTX_wm_screen(C), sd->sarea, sd->narea)) {

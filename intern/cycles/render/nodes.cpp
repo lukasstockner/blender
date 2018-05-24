@@ -4601,7 +4601,7 @@ void AttributeNode::compile(SVMCompiler& compiler)
 	ShaderOutput *vector_out = output("Vector");
 	ShaderOutput *fac_out = output("Fac");
 	ShaderNodeType attr_node = NODE_ATTR;
-	int attr = compiler.attribute_standard(attribute);;
+	int attr = compiler.attribute_standard(attribute);
 
 	if(bump == SHADER_BUMP_DX)
 		attr_node = NODE_ATTR_BUMP_DX;
@@ -4953,6 +4953,7 @@ NODE_DEFINE(MathNode)
 	type_enum.insert("greater_than", NODE_MATH_GREATER_THAN);
 	type_enum.insert("modulo", NODE_MATH_MODULO);
 	type_enum.insert("absolute", NODE_MATH_ABSOLUTE);
+	type_enum.insert("arctan2", NODE_MATH_ARCTAN2);
 	SOCKET_ENUM(type, "Type", type_enum, NODE_MATH_ADD);
 
 	SOCKET_BOOLEAN(use_clamp, "Use Clamp", false);

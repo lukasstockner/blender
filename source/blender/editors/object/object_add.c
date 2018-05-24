@@ -159,45 +159,44 @@ void ED_object_location_from_view(bContext *C, float loc[3])
 	copy_v3_v3(loc, cursor);
 }
 
+void ED_object_rotation_from_quat(float rot[3], const float viewquat[4], const char align_axis)
+{
+	BLI_assert(align_axis >= 'X' && align_axis <= 'Z');
+
+	switch (align_axis) {
+		case 'X':
+		{
+			/* Same as 'rv3d->viewinv[1]' */
+			float axis_y[4] = {0.0f, 1.0f, 0.0f};
+			float quat_y[4], quat[4];
+			axis_angle_to_quat(quat_y, axis_y, M_PI_2);
+			mul_qt_qtqt(quat, viewquat, quat_y);
+			quat_to_eul(rot, quat);
+			break;
+		}
+		case 'Y':
+		{
+			quat_to_eul(rot, viewquat);
+			rot[0] -= (float)M_PI_2;
+			break;
+		}
+		case 'Z':
+		{
+			quat_to_eul(rot, viewquat);
+			break;
+		}
+	}
+}
+
 void ED_object_rotation_from_view(bContext *C, float rot[3], const char align_axis)
 {
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
-
 	BLI_assert(align_axis >= 'X' && align_axis <= 'Z');
-
 	if (rv3d) {
-		float quat[4];
-
-		switch (align_axis) {
-			case 'X':
-			{
-				float quat_y[4];
-				axis_angle_to_quat(quat_y, rv3d->viewinv[1], -M_PI_2);
-				mul_qt_qtqt(quat, rv3d->viewquat, quat_y);
-				quat[0] = -quat[0];
-
-				quat_to_eul(rot, quat);
-				break;
-			}
-			case 'Y':
-			{
-				copy_qt_qt(quat, rv3d->viewquat);
-				quat[0] = -quat[0];
-
-				quat_to_eul(rot, quat);
-				rot[0] -= (float)M_PI_2;
-				break;
-			}
-			case 'Z':
-			{
-				copy_qt_qt(quat, rv3d->viewquat);
-				quat[0] = -quat[0];
-
-				quat_to_eul(rot, quat);
-				break;
-			}
-		}
-
+		float viewquat[4];
+		copy_qt_qt(viewquat, rv3d->viewquat);
+		viewquat[0] *= -1.0f;
+		ED_object_rotation_from_quat(rot, viewquat, align_axis);
 	}
 	else {
 		zero_v3(rot);
@@ -412,8 +411,9 @@ Object *ED_object_add_type(
 	Object *ob;
 
 	/* for as long scene has editmode... */
-	if (CTX_data_edit_object(C)) 
-		ED_object_editmode_exit(C, EM_FREEDATA | EM_FREEUNDO | EM_WAITCURSOR | EM_DO_UNDO);  /* freedata, and undo */
+	if (CTX_data_edit_object(C)) {
+		ED_object_editmode_exit(C, EM_FREEDATA | EM_WAITCURSOR);
+	}
 
 	/* deselects all, sets scene->basact */
 	ob = BKE_object_add(bmain, scene, type, name);
@@ -753,7 +753,7 @@ static int object_armature_add_exec(bContext *C, wmOperator *op)
 	}
 
 	dia = RNA_float_get(op->ptr, "radius");
-	ED_armature_edit_bone_add_primitive(obedit, dia, view_aligned);
+	ED_armature_ebone_add_primitive(obedit, dia, view_aligned);
 
 	/* userdef */
 	if (newob && !enter_editmode)
@@ -1573,7 +1573,7 @@ static void curvetomesh(Main *bmain, Scene *scene, Object *ob)
 	BKE_mesh_from_nurbs(ob); /* also does users */
 
 	if (ob->type == OB_MESH) {
-		BKE_object_free_modifiers(ob);
+		BKE_object_free_modifiers(ob, 0);
 
 		/* Game engine defaults for mesh objects */
 		ob->body_type = OB_BODY_TYPE_STATIC;
@@ -1702,7 +1702,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 				/* When 2 objects with linked data are selected, converting both
 				 * would keep modifiers on all but the converted object [#26003] */
 				if (ob->type == OB_MESH) {
-					BKE_object_free_modifiers(ob);  /* after derivedmesh calls! */
+					BKE_object_free_modifiers(ob, 0);  /* after derivedmesh calls! */
 				}
 			}
 		}
@@ -1727,7 +1727,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 			BKE_mesh_to_curve(scene, newob);
 
 			if (newob->type == OB_CURVE) {
-				BKE_object_free_modifiers(newob);   /* after derivedmesh calls! */
+				BKE_object_free_modifiers(newob, 0);   /* after derivedmesh calls! */
 				ED_rigidbody_object_remove(bmain, scene, newob);
 			}
 		}
@@ -1760,7 +1760,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 
 			/* re-tessellation is called by DM_to_mesh */
 
-			BKE_object_free_modifiers(newob);   /* after derivedmesh calls! */
+			BKE_object_free_modifiers(newob, 0);   /* after derivedmesh calls! */
 		}
 		else if (ob->type == OB_FONT) {
 			ob->flag |= OB_DONE;

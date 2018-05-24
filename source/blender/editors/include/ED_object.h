@@ -112,12 +112,12 @@ struct Base *ED_object_add_duplicate(struct Main *bmain, struct Scene *scene, st
 void ED_object_parent(struct Object *ob, struct Object *parent, const int type, const char *substr);
 
 /* bitflags for enter/exit editmode */
-#define EM_FREEDATA     1
-#define EM_FREEUNDO     2
-#define EM_WAITCURSOR   4
-#define EM_DO_UNDO      8
-#define EM_IGNORE_LAYER 16
-void ED_object_editmode_exit_ex(struct bContext *C, struct Scene *scene, struct Object *obedit, int flag);
+enum {
+	EM_FREEDATA         = (1 << 0),
+	EM_WAITCURSOR       = (1 << 1),
+	EM_IGNORE_LAYER     = (1 << 3),
+};
+void ED_object_editmode_exit_ex(struct Scene *scene, struct Object *obedit, int flag);
 void ED_object_editmode_exit(struct bContext *C, int flag);
 void ED_object_editmode_enter(struct bContext *C, int flag);
 bool ED_object_editmode_load(struct Object *obedit);
@@ -148,6 +148,7 @@ void ED_object_sculptmode_exit_ex(
 void ED_object_sculptmode_exit(struct bContext *C);
 
 void ED_object_location_from_view(struct bContext *C, float loc[3]);
+void ED_object_rotation_from_quat(float rot[3], const float quat[4], const char align_axis);
 void ED_object_rotation_from_view(struct bContext *C, float rot[3], const char align_axis);
 void ED_object_base_init_transform(struct bContext *C, struct Base *base, const float loc[3], const float rot[3]);
 float ED_object_new_primitive_matrix(

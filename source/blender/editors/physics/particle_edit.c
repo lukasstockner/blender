@@ -401,7 +401,7 @@ static bool PE_create_shape_tree(PEData *data, Object *shapeob)
 		return false;
 	}
 	
-	return (bvhtree_from_mesh_looptri(&data->shape_bvh, dm, 0.0f, 4, 8) != NULL);
+	return (bvhtree_from_mesh_get(&data->shape_bvh, dm, BVHTREE_FROM_LOOPTRI, 4) != NULL);
 }
 
 static void PE_free_shape_tree(PEData *data)
@@ -1347,28 +1347,28 @@ static void toggle_key_select(PEData *data, int point_index, int key_index)
 static void select_action_apply(PTCacheEditPoint *point, PTCacheEditKey *key, int action)
 {
 	switch (action) {
-	case SEL_SELECT:
-		if ((key->flag & PEK_SELECT) == 0) {
-			key->flag |= PEK_SELECT;
-			point->flag |= PEP_EDIT_RECALC;
-		}
-		break;
-	case SEL_DESELECT:
-		if (key->flag & PEK_SELECT) {
-			key->flag &= ~PEK_SELECT;
-			point->flag |= PEP_EDIT_RECALC;
-		}
-		break;
-	case SEL_INVERT:
-		if ((key->flag & PEK_SELECT) == 0) {
-			key->flag |= PEK_SELECT;
-			point->flag |= PEP_EDIT_RECALC;
-		}
-		else {
-			key->flag &= ~PEK_SELECT;
-			point->flag |= PEP_EDIT_RECALC;
-		}
-		break;
+		case SEL_SELECT:
+			if ((key->flag & PEK_SELECT) == 0) {
+				key->flag |= PEK_SELECT;
+				point->flag |= PEP_EDIT_RECALC;
+			}
+			break;
+		case SEL_DESELECT:
+			if (key->flag & PEK_SELECT) {
+				key->flag &= ~PEK_SELECT;
+				point->flag |= PEP_EDIT_RECALC;
+			}
+			break;
+		case SEL_INVERT:
+			if ((key->flag & PEK_SELECT) == 0) {
+				key->flag |= PEK_SELECT;
+				point->flag |= PEP_EDIT_RECALC;
+			}
+			else {
+				key->flag &= ~PEK_SELECT;
+				point->flag |= PEP_EDIT_RECALC;
+			}
+			break;
 	}
 }
 
@@ -2609,7 +2609,7 @@ void PARTICLE_OT_remove_doubles(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_float(ot->srna, "threshold", 0.0002f, 0.0f, FLT_MAX,
-	              "Merge Distance", "Threshold distance withing which particles are removed", 0.00001f, 0.1f);
+	              "Merge Distance", "Threshold distance within which particles are removed", 0.00001f, 0.1f);
 }
 
 

@@ -124,7 +124,7 @@ static float channel_colormanage_noop(float value)
 /* wrap to avoid macro calling functions multiple times */
 BLI_INLINE unsigned short ftoshort(float val)
 {
-	return FTOUSHORT(val);
+	return unit_float_to_ushort_clamp(val);
 }
 
 int imb_savepng(struct ImBuf *ibuf, const char *name, int flags)
@@ -759,8 +759,9 @@ ImBuf *imb_loadpng(const unsigned char *mem, size_t size, int flags, char colors
 		if (flags & IB_metadata) {
 			png_text *text_chunks;
 			int count = png_get_text(png_ptr, info_ptr, &text_chunks, NULL);
+			IMB_metadata_ensure(&ibuf->metadata);
 			for (int i = 0; i < count; i++) {
-				IMB_metadata_add_field(ibuf, text_chunks[i].key, text_chunks[i].text);
+				IMB_metadata_set_field(ibuf->metadata, text_chunks[i].key, text_chunks[i].text);
 				ibuf->flags |= IB_metadata;
 			}
 		}

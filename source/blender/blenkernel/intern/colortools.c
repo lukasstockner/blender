@@ -955,9 +955,9 @@ void curvemapping_evaluate_premulRGB(const CurveMapping *cumap, unsigned char ve
 
 	curvemapping_evaluate_premulRGBF(cumap, vecout, vecin);
 
-	vecout_byte[0] = FTOCHAR(vecout[0]);
-	vecout_byte[1] = FTOCHAR(vecout[1]);
-	vecout_byte[2] = FTOCHAR(vecout[2]);
+	vecout_byte[0] = unit_float_to_uchar_clamp(vecout[0]);
+	vecout_byte[1] = unit_float_to_uchar_clamp(vecout[1]);
+	vecout_byte[2] = unit_float_to_uchar_clamp(vecout[2]);
 }
 
 int curvemapping_RGBA_does_something(const CurveMapping *cumap)
@@ -1034,7 +1034,7 @@ static void save_sample_line(Scopes *scopes, const int idx, const float fx, cons
 	float yuv[3];
 
 	/* vectorscope*/
-	rgb_to_yuv(rgb[0], rgb[1], rgb[2], &yuv[0], &yuv[1], &yuv[2]);
+	rgb_to_yuv(rgb[0], rgb[1], rgb[2], &yuv[0], &yuv[1], &yuv[2], BLI_YUV_ITU_BT709);
 	scopes->vecscope[idx + 0] = yuv[1];
 	scopes->vecscope[idx + 1] = yuv[2];
 

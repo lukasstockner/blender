@@ -970,7 +970,7 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 							fprintf(f, ";\n");
 						}
 						else if (rna_color_quantize(prop, dp)) {
-							fprintf(f, "		data->%s[i] = FTOCHAR(values[i]);\n", dp->dnaname);
+							fprintf(f, "		data->%s[i] = unit_float_to_uchar_clamp(values[i]);\n", dp->dnaname);
 						}
 						else {
 							if (dp->dnatype)
@@ -2092,8 +2092,16 @@ static void rna_def_struct_function_call_impl_cpp(FILE *f, StructRNA *srna, Func
 		if (dp->prop->type == PROP_POINTER)
 			if ((dp->prop->flag_parameter & PARM_RNAPTR) && !(dp->prop->flag & PROP_THICK_WRAP))
 				fprintf(f, "(::%s *) &%s.ptr", rna_parameter_type_name(dp->prop), rna_safe_id(dp->prop->identifier));
-			else if (dp->prop->flag_parameter & PARM_OUTPUT)
-				fprintf(f, "(::%s **) &%s->ptr.data", rna_parameter_type_name(dp->prop), rna_safe_id(dp->prop->identifier));
+			else if (dp->prop->flag_parameter & PARM_OUTPUT) {
+				if (dp->prop->flag_parameter & PARM_RNAPTR) {
+					fprintf(f, "&%s->ptr",
+					        rna_safe_id(dp->prop->identifier));
+				}
+				else {
+					fprintf(f, "(::%s **) &%s->ptr.data",
+					        rna_parameter_type_name(dp->prop), rna_safe_id(dp->prop->identifier));
+				}
+			}
 			else
 				fprintf(f, "(::%s *) %s.ptr.data", rna_parameter_type_name(dp->prop), rna_safe_id(dp->prop->identifier));
 		else
@@ -2831,6 +2839,10 @@ static void rna_generate_struct_prototypes(FILE *f)
 					if (dp->prop->type == PROP_POINTER) {
 						int a, found = 0;
 						const char *struct_name = rna_parameter_type_name(dp->prop);
+						if (struct_name == NULL) {
+							printf("No struct found for property '%s'\n", dp->prop->identifier);
+							exit(1);
+						}
 
 						for (a = 0; a < all_structures; a++) {
 							if (STREQ(struct_name, structures[a])) {

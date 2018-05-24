@@ -136,14 +136,36 @@ ModifierData *modifier_new(int type)
 	return md;
 }
 
-void modifier_free(ModifierData *md) 
+static void modifier_free_data_id_us_cb(void *UNUSED(userData), Object *UNUSED(ob), ID **idpoin, int cb_flag)
+{
+	ID *id = *idpoin;
+	if (id != NULL && (cb_flag & IDWALK_CB_USER) != 0) {
+		id_us_min(id);
+	}
+}
+
+void modifier_free_ex(ModifierData *md, const int flag)
 {
 	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+
+	if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+		if (mti->foreachIDLink) {
+			mti->foreachIDLink(md, NULL, modifier_free_data_id_us_cb, NULL);
+		}
+		else if (mti->foreachObjectLink) {
+			mti->foreachObjectLink(md, NULL, (ObjectWalkFunc)modifier_free_data_id_us_cb, NULL);
+		}
+	}
 
 	if (mti->freeData) mti->freeData(md);
 	if (md->error) MEM_freeN(md->error);
 
 	MEM_freeN(md);
+}
+
+void modifier_free(ModifierData *md)
+{
+	modifier_free_ex(md, 0);
 }
 
 bool modifier_unique_name(ListBase *modifiers, ModifierData *md)
@@ -264,6 +286,13 @@ void modifiers_foreachTexLink(Object *ob, TexWalkFunc walk, void *userData)
 void modifier_copyData_generic(const ModifierData *md_src, ModifierData *md_dst)
 {
 	const ModifierTypeInfo *mti = modifierType_getInfo(md_src->type);
+
+	/* md_dst may have alredy be fully initialized with some extra allocated data,
+	 * we need to free it now to avoid memleak. */
+	if (mti->freeData) {
+		mti->freeData(md_dst);
+	}
+
 	const size_t data_size = sizeof(ModifierData);
 	const char *md_src_data = ((const char *)md_src) + data_size;
 	char       *md_dst_data =       ((char *)md_dst) + data_size;

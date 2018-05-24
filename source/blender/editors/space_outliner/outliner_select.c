@@ -241,7 +241,7 @@ static eOLDrawState tree_element_set_active_object(
 	}
 	
 	if (ob != scene->obedit)
-		ED_object_editmode_exit(C, EM_FREEDATA | EM_FREEUNDO | EM_WAITCURSOR | EM_DO_UNDO);
+		ED_object_editmode_exit(C, EM_FREEDATA | EM_WAITCURSOR);
 		
 	return OL_DRAWSEL_NORMAL;
 }
@@ -622,7 +622,7 @@ static eOLDrawState tree_element_active_ebone(
 	if (set != OL_SETSEL_NONE) {
 		if (set == OL_SETSEL_NORMAL) {
 			if (!(ebone->flag & BONE_HIDDEN_A)) {
-				ED_armature_deselect_all(scene->obedit);
+				ED_armature_edit_deselect_all(scene->obedit);
 				tree_element_active_ebone__sel(C, scene, arm, ebone, true);
 				status = OL_DRAWSEL_NORMAL;
 			}
@@ -714,13 +714,16 @@ static eOLDrawState tree_element_active_pose(
 	}
 
 	if (set != OL_SETSEL_NONE) {
-		if (scene->obedit)
-			ED_object_editmode_exit(C, EM_FREEDATA | EM_FREEUNDO | EM_WAITCURSOR | EM_DO_UNDO);
+		if (scene->obedit) {
+			ED_object_editmode_exit(C, EM_FREEDATA | EM_WAITCURSOR);
+		}
 		
-		if (ob->mode & OB_MODE_POSE)
-			ED_armature_exit_posemode(C, base);
-		else 
-			ED_armature_enter_posemode(C, base);
+		if (ob->mode & OB_MODE_POSE) {
+			ED_object_posemode_exit(C, ob);
+		}
+		else {
+			ED_object_posemode_enter(C, ob);
+		}
 	}
 	else {
 		if (ob->mode & OB_MODE_POSE) {

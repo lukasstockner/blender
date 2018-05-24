@@ -1326,6 +1326,7 @@ void BKE_libblock_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int fla
 	}
 
 	/* the duplicate should get a copy of the animdata */
+	BLI_assert((flag & LIB_ID_COPY_ACTIONS) == 0 || (flag & LIB_ID_CREATE_NO_MAIN) == 0);
 	id_copy_animdata(bmain, new_id, (flag & LIB_ID_COPY_ACTIONS) != 0 && (flag & LIB_ID_CREATE_NO_MAIN) == 0);
 
 	if ((flag & LIB_ID_CREATE_NO_DEG_TAG) == 0 && (flag & LIB_ID_CREATE_NO_MAIN) == 0) {
@@ -2383,7 +2384,9 @@ void BKE_library_filepath_set(Library *lib, const char *filepath)
 		 * outliner, and its not really supported but allow from here for now
 		 * since making local could cause this to be directly linked - campbell
 		 */
-		const char *basepath = lib->parent ? lib->parent->filepath : G.main->name;
+		/* Never make paths relative to parent lib - reading code (blenloader) always set *all* lib->name relative to
+		 * current G.main, not to their parent for indirectly linked ones. */
+		const char *basepath = G.main->name;
 		BLI_path_abs(lib->filepath, basepath);
 	}
 }
