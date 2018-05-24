@@ -766,6 +766,7 @@ bool OpenCLDeviceBase::denoising_non_local_means(device_ptr image_ptr,
 	cl_mem guide_mem = CL_MEM_PTR(guide_ptr);
 	cl_mem variance_mem = CL_MEM_PTR(variance_ptr);
 	cl_mem out_mem = CL_MEM_PTR(out_ptr);
+	cl_mem shift_mem = NULL;
 
 	mem_zero_kernel(task->nlm_state.temporary_3_ptr, sizeof(float)*w*h);
 	mem_zero_kernel(out_ptr, sizeof(float)*w*h);
@@ -779,7 +780,7 @@ bool OpenCLDeviceBase::denoising_non_local_means(device_ptr image_ptr,
 	kernel_set_args(ckNLMCalcDifference, 0,
 	                guide_mem,
 	                variance_mem,
-	                NULL,
+	                shift_mem,
 	                difference,
 	                w, h, stride,
 	                shift_stride,
