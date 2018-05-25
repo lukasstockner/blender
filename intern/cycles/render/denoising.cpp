@@ -760,6 +760,33 @@ bool FilterTask::run_filter(string in_pattern, string out_file, int center_frame
 	return true;
 }
 
+static void box_blur(float *data, int w, int h, int s, int r)
+{
+	float *temp = new float[w*h];
+	for(int y = 0; y < h; y++) {
+		for(int x = 0; x < w; x++) {
+			int n = 0;
+			float sum = 0.0f;
+			for(int dx = max(x-r, 0); dx < min(x+r+1, w); dx++, n++) {
+				sum += data[s*(y*w+dx)];
+			}
+			temp[y*w+x] = sum/n;
+		}
+	}
+	for(int y = 0; y < h; y++) {
+		for(int x = 0; x < w; x++) {
+			int n = 0;
+			float sum = 0.0f;
+			for(int dy = max(y-r, 0); dy < min(y+r+1, h); dy++, n++) {
+				sum += temp[dy*w+x];
+			}
+			data[s*(y*w+x)] = sum/n;
+		}
+	}
+
+	delete[] temp;
+}
+
 bool FilterTask::run_prefilter(string in_file, string out_file)
 {
 	prefilter = true;
@@ -790,6 +817,9 @@ bool FilterTask::run_prefilter(string in_file, string out_file)
 		}
 
 		printf("\n");
+
+		/* Blur the intensity layer - this is done here to avoid visible tile edges. */
+		box_blur(out_buffer + layers[current_layer].out_results[14], width, height, out_pass_stride, sd->radius);
 	}
 
 	write_output();
