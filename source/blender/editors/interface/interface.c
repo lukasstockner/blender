@@ -2924,7 +2924,7 @@ void ui_but_update_ex(uiBut *but, const bool validate)
 	switch (but->type) {
 
 		case UI_BTYPE_MENU:
-			if (BLI_rctf_size_x(&but->rect) > 24.0f) {
+			if (BLI_rctf_size_x(&but->rect) >= (UI_UNIT_X * 2)) {
 				/* only needed for menus in popup blocks that don't recreate buttons on redraw */
 				if (but->block->flag & UI_BLOCK_LOOP) {
 					if (but->rnaprop && (RNA_property_type(but->rnaprop) == PROP_ENUM)) {
@@ -3238,7 +3238,9 @@ static uiBut *ui_def_but(
 	}
 #ifdef USE_NUMBUTS_LR_ALIGN
 	else if (ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER)) {
-		but->drawflag |= UI_BUT_TEXT_LEFT;
+		if (slen != 0) {
+			but->drawflag |= UI_BUT_TEXT_LEFT;
+		}
 	}
 #endif
 
