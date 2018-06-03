@@ -5851,6 +5851,44 @@ void BevelNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_bevel");
 }
 
+/* Bevel */
+
+NODE_DEFINE(AONode)
+{
+	NodeType* type = NodeType::add("ao", create, NodeType::SHADER);
+
+	SOCKET_INT(samples, "Samples", 4);
+
+	SOCKET_IN_FLOAT(radius, "Radius", 0.05f);
+
+	SOCKET_OUT_FLOAT(ao, "Fac");
+
+	return type;
+}
+
+AONode::AONode()
+: ShaderNode(node_type)
+{
+}
+
+void AONode::compile(SVMCompiler& compiler)
+{
+	ShaderInput *radius_in = input("Radius");
+	ShaderOutput *fac_out = output("Fac");
+
+	compiler.add_node(NODE_AO,
+		compiler.encode_uchar4(samples,
+		                       compiler.stack_assign(radius_in),
+		                       compiler.stack_assign(fac_out),
+		                       SVM_STACK_INVALID));
+}
+
+void AONode::compile(OSLCompiler& compiler)
+{
+	compiler.parameter(this, "samples");
+	compiler.add(this, "node_ao");
+}
+
 /* Displacement */
 
 NODE_DEFINE(DisplacementNode)

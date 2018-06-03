@@ -1309,6 +1309,7 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 			ntype->draw_buttons = node_shader_buts_ies;
 			break;
 		case SH_NODE_BEVEL:
+		case SH_NODE_AO:
 			ntype->draw_buttons = node_shader_buts_bevel;
 			break;
 	}

@@ -903,6 +903,12 @@ static ShaderNode *add_node(Scene *scene,
 		bevel->samples = b_bevel_node.samples();
 		node = bevel;
 	}
+	else if(b_node.is_a(&RNA_ShaderNodeAO)) {
+		BL::ShaderNodeAO b_ao_node(b_node);
+		AONode *ao = new AONode();
+		ao->samples = b_ao_node.samples();
+		node = ao;
+	}
 	else if(b_node.is_a(&RNA_ShaderNodeDisplacement)) {
 		BL::ShaderNodeDisplacement b_disp_node(b_node);
 		DisplacementNode *disp = new DisplacementNode();

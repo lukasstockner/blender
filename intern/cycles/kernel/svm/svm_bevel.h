@@ -125,7 +125,7 @@ ccl_device_noinline float3 svm_bevel(
 				                              ray);
 			}
 #ifdef __OBJECT_MOTION__
-			else  if(sd->type & PRIMITIVE_MOTION_TRIANGLE) {
+			else if(sd->type & PRIMITIVE_MOTION_TRIANGLE) {
 				float3 verts[3];
 				motion_triangle_vertices(
 					kg,

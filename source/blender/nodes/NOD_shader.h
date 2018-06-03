@@ -79,6 +79,7 @@ void register_node_type_sh_tex_pointdensity(void);
 
 void register_node_type_sh_attribute(void);
 void register_node_type_sh_bevel(void);
+void register_node_type_sh_ao(void);
 void register_node_type_sh_displacement(void);
 void register_node_type_sh_vector_displacement(void);
 void register_node_type_sh_geometry(void);
