@@ -16,6 +16,8 @@
 
 CCL_NAMESPACE_BEGIN
 
+#define FAST_NLM
+
 ccl_device_inline void kernel_filter_nlm_calc_difference(int dx, int dy,
                                                          const float *ccl_restrict weight_image,
                                                          const float *ccl_restrict variance_image,
@@ -28,6 +30,7 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int dx, int dy,
                                                          float a,
                                                          float k_2)
 {
+#ifdef FAST_NLM
 	/* Strides need to be aligned to 16 bytes. */
 	kernel_assert((stride % 4) == 0 && (channel_offset % 4) == 0);
 
@@ -56,6 +59,27 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int dx, int dy,
 			*((float4*) (difference_image + idx_p + x)) = diff*channel_fac;
 		}
 	}
+#else
+	const int numChannels = (channel_offset > 0)? 3 : 1;
+	for(int y = rect.y; y < rect.w; y++) {
+		for(int x = rect.x; x < rect.z; x++) {
+			float diff = 0.0f;
+			float scale_fac = 1.0f;
+			if(scale_image) {
+				scale_fac = clamp(scale_image[y*stride + x] / scale_image[(y+dy)*stride + (x+dx)], 0.25f, 4.0f);
+			}
+			for(int c = 0; c < numChannels; c++) {
+				float color_p = weight_image[y*stride + x + c*channel_offset];
+				float color_q = scale_fac*weight_image[(y+dy)*stride + (x+dx) + c*channel_offset + frame_offset];
+				float cdiff = color_p - color_q;
+				float var_p = variance_image[y*stride + x + c*channel_offset];
+				float var_q = sqr(scale_fac)*variance_image[(y+dy)*stride + (x+dx) + c*channel_offset + frame_offset];
+				diff += (sqr(cdiff) - a*(var_p + min(var_p, var_q))) / (1e-8f + k_2*(var_p + var_q));
+			}
+			difference_image[y*stride + x] = diff / numChannels;
+		}
+	}
+#endif
 }
 
 ccl_device_inline void kernel_filter_nlm_blur(const float *ccl_restrict difference_image,
@@ -64,6 +88,7 @@ ccl_device_inline void kernel_filter_nlm_blur(const float *ccl_restrict differen
                                               int stride,
                                               int f)
 {
+#ifdef FAST_NLM
 	int aligned_lowx = rect.x / 4;
 	int aligned_highx = (rect.z + 3) / 4;
 	for(int y = rect.y; y < rect.w; y++) {
@@ -84,6 +109,19 @@ ccl_device_inline void kernel_filter_nlm_blur(const float *ccl_restrict differen
 			out_image4[x] = out_image4[x]*fac;
 		}
 	}
+#else
+	for(int y = rect.y; y < rect.w; y++) {
+		for(int x = rect.x; x < rect.z; x++) {
+			int low = max(rect.y, y-f);
+			int high = min(rect.w, y+f+1);
+			float sum = 0.0f;
+			for(int y1 = low; y1 < high; y1++) {
+				sum += difference_image[y1*stride + x];
+			}
+			out_image[y*stride + x] = sum / (high - low);
+		}
+	}
+#endif
 }
 
 ccl_device_inline void kernel_filter_nlm_calc_weight(const float *ccl_restrict difference_image,
@@ -92,6 +130,7 @@ ccl_device_inline void kernel_filter_nlm_calc_weight(const float *ccl_restrict d
                                                      int stride,
                                                      int f)
 {
+#ifdef FAST_NLM
 	int aligned_lowx = rect.x / 4;
 	int aligned_highx = (rect.z + 3) / 4;
 	for(int y = rect.y; y < rect.w; y++) {
@@ -118,6 +157,19 @@ ccl_device_inline void kernel_filter_nlm_calc_weight(const float *ccl_restrict d
 			out_image[y*stride + x] = fast_expf(-max(out_image[y*stride + x] * (1.0f/(high - low)), 0.0f));
 		}
 	}
+#else
+	for(int y = rect.y; y < rect.w; y++) {
+		for(int x = rect.x; x < rect.z; x++) {
+			int low = max(rect.x, x-f);
+			int high = min(rect.z, x+f+1);
+			float sum = 0.0f;
+			for(int x1 = low; x1 < high; x1++) {
+				sum += difference_image[y*stride + x1];
+			}
+			out_image[y*stride + x] = fast_expf(-max(sum / (high - low), 0.0f));
+		}
+	}
+#endif
 }
 
 ccl_device_inline void kernel_filter_nlm_update_output(int dx, int dy,
