@@ -520,7 +520,7 @@ public:
 			                                  (float*) out_ptr,
 			                                  weightAccum,
 			                                  local_rect,
-			                                  w,
+			                                  channel_offset,
 			                                  task->buffer.stride, f);
 		}
 
