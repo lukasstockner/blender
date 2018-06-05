@@ -31,6 +31,7 @@
 
 static bNodeSocketTemplate sh_node_ao_in[] = {
 	{	SOCK_FLOAT, 0, N_("Radius"), 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 1000.0f},
+	{	SOCK_VECTOR, 1, N_("Normal"), 0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, PROP_NONE, SOCK_HIDE_VALUE},
 	{	-1, 0, ""	}
 };
 
@@ -41,7 +42,7 @@ static bNodeSocketTemplate sh_node_ao_out[] = {
 
 static void node_shader_init_ao(bNodeTree *UNUSED(ntree), bNode *node)
 {
-	node->custom1 = 4; /* samples */
+	node->custom1 = 8; /* samples */
 }
 
 /* node type definition */

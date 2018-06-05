@@ -1168,6 +1168,13 @@ static void node_shader_buts_bevel(uiLayout *layout, bContext *UNUSED(C), Pointe
 	uiItemR(layout, ptr, "samples", 0, NULL, ICON_NONE);
 }
 
+static void node_shader_buts_ao(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "samples", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "inside", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "only_local", 0, NULL, ICON_NONE);
+}
+
 /* only once called */
 static void node_shader_set_butfunc(bNodeType *ntype)
 {
@@ -1309,8 +1316,10 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 			ntype->draw_buttons = node_shader_buts_ies;
 			break;
 		case SH_NODE_BEVEL:
-		case SH_NODE_AO:
 			ntype->draw_buttons = node_shader_buts_bevel;
+			break;
+		case SH_NODE_AO:
+			ntype->draw_buttons = node_shader_buts_ao;
 			break;
 	}
 }
