@@ -5857,9 +5857,13 @@ NODE_DEFINE(AONode)
 {
 	NodeType* type = NodeType::add("ao", create, NodeType::SHADER);
 
-	SOCKET_INT(samples, "Samples", 4);
+	SOCKET_INT(samples, "Samples", 8);
 
 	SOCKET_IN_FLOAT(radius, "Radius", 0.05f);
+	SOCKET_IN_NORMAL(normal, "Normal", make_float3(0.0f, 0.0f, 0.0f), SocketType::LINK_NORMAL);
+
+	SOCKET_BOOLEAN(inside, "Inside", false);
+	SOCKET_BOOLEAN(only_local, "Only Local", true);
 
 	SOCKET_OUT_FLOAT(ao, "Fac");
 
@@ -5874,18 +5878,25 @@ AONode::AONode()
 void AONode::compile(SVMCompiler& compiler)
 {
 	ShaderInput *radius_in = input("Radius");
+	ShaderInput *normal_in = input("Normal");
 	ShaderOutput *fac_out = output("Fac");
 
+	int flags = (inside? NODE_AO_INSIDE : 0) | (only_local? NODE_AO_ONLY_LOCAL : 0);
+
 	compiler.add_node(NODE_AO,
-		compiler.encode_uchar4(samples,
-		                       compiler.stack_assign(radius_in),
-		                       compiler.stack_assign(fac_out),
-		                       SVM_STACK_INVALID));
+		compiler.encode_uchar4(flags,
+		                       compiler.stack_assign_if_linked(radius_in),
+		                       compiler.stack_assign_if_linked(normal_in),
+		                       compiler.stack_assign(fac_out)),
+		__float_as_uint(radius),
+		samples);
 }
 
 void AONode::compile(OSLCompiler& compiler)
 {
 	compiler.parameter(this, "samples");
+	compiler.parameter(this, "inside");
+	compiler.parameter(this, "only_local");
 	compiler.add(this, "node_ao");
 }
 

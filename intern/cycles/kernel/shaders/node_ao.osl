@@ -19,9 +19,12 @@
 shader node_ao(
 	int samples = 4,
 	float Radius = 0.2,
+	normal Normal = N,
+	int inside = 0,
+	int only_local = 1,
 	output float Fac = 0.0)
 {
-	/* Abuse texture call with special @bevel token. */
-	Fac = texture("@ao", samples, Radius);
+	/* TODO */
+	Fac = 1.0;
 }
 

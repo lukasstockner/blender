@@ -182,7 +182,6 @@ public:
 	static ustring u_v;
 	static ustring u_empty;
 	static ustring u_at_bevel;
-	static ustring u_at_ao;
 
 private:
 	KernelGlobals *kernel_globals;

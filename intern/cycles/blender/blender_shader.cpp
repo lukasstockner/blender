@@ -907,6 +907,8 @@ static ShaderNode *add_node(Scene *scene,
 		BL::ShaderNodeAO b_ao_node(b_node);
 		AONode *ao = new AONode();
 		ao->samples = b_ao_node.samples();
+		ao->inside = b_ao_node.inside();
+		ao->only_local = b_ao_node.only_local();
 		node = ao;
 	}
 	else if(b_node.is_a(&RNA_ShaderNodeDisplacement)) {

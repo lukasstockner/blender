@@ -1087,10 +1087,14 @@ public:
 	SHADER_NODE_CLASS(AONode)
 	bool has_spatial_varying() { return true; }
 	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
-	virtual bool has_raytrace() { return true; }
+	virtual bool has_raytrace() { return only_local; }
 
 	float radius;
+	float3 normal;
 	int samples;
+
+	bool only_local;
+	bool inside;
 };
 
 class DisplacementNode : public ShaderNode {

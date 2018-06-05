@@ -124,7 +124,6 @@ ustring OSLRenderServices::u_u("u");
 ustring OSLRenderServices::u_v("v");
 ustring OSLRenderServices::u_empty;
 ustring OSLRenderServices::u_at_bevel("@bevel");
-ustring OSLRenderServices::u_at_ao("@ao");
 
 OSLRenderServices::OSLRenderServices()
 {
@@ -957,15 +956,7 @@ bool OSLRenderServices::texture(ustring filename,
 				status = true;
 			}
 		}
-		if(filename == u_at_ao) {
-			/* AO shader hack. */
-			PathState *state = sd->osl_path_state;
-			int num_samples = (int)s;
-			float radius = t;
-			result[0] = svm_ao(kg, sd, state, radius, num_samples);
-			status = true;
-		}
-		else if(filename[1] == 'l') {
+		if(filename[1] == 'l') {
 			/* IES light. */
 			int slot = atoi(filename.c_str() + 2);
 			result[0] = kernel_ies_interp(kg, slot, s, t);
