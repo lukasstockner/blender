@@ -28,7 +28,7 @@ CCL_NAMESPACE_BEGIN
                                      float4 t4 = make_float4(pixel.z); \
                                      for(pixel.y = low.y; pixel.y < high.y; pixel.y++) { \
                                          float4 y4 = make_float4(pixel.y); \
-                                         for(pixel.x = low.x; pixel.x < high.x; pixel.x++, pixel_buffer++) { \
+                                         for(pixel.x = low.x; pixel.x < high.x; pixel.x += 4, pixel_buffer += 4) { \
                                              float4 x4 = make_float4(pixel.x) + make_float4(0.0f, 1.0f, 2.0f, 3.0f); \
                                              int4 active_pixels = x4 < make_float4(high.x);
 
