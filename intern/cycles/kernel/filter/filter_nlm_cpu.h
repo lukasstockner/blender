@@ -130,32 +130,39 @@ ccl_device_inline void kernel_filter_nlm_calc_weight(const float *ccl_restrict d
                                                      int stride,
                                                      int f)
 {
-	/* Has memory access issues. */
-#if 0
-	int aligned_lowx = rect.x / 4;
-	int aligned_highx = (rect.z + 3) / 4;
+#ifdef FAST_NLM
+	int aligned_lowx = round_down(rect.x, 4);
 	for(int y = rect.y; y < rect.w; y++) {
-		float4 *out_image4 = (float4*)(out_image + y*stride);
-		for(int x = aligned_lowx; x < aligned_highx; x++) {
-			out_image4[x] = make_float4(0.0f);
+		for(int x = aligned_lowx; x < rect.z; x += 4) {
+			load4_a(out_image, y*stride + x) = make_float4(0.0f);
 		}
 	}
+
 	for(int dx = -f; dx <= f; dx++) {
-		int aligned_lowx_dx = (rect.x - min(0, dx))/4;
-		int aligned_highx_dx = divide_up(rect.z - max(0, dx), 4);
+		aligned_lowx = round_down(rect.x - min(0, dx), 4);
+		int highx = rect.z - max(0, dx);
+		int4 lowx4 = make_int4(rect.x - min(0, dx));
+		int4 highx4 = make_int4(rect.z - max(0, dx));
 		for(int y = rect.y; y < rect.w; y++) {
-			float4 *out_image4 = (float4*)(out_image + y*stride);
-			const float *ccl_restrict difference_image4 = difference_image + y*stride + dx;
-			for(int x = aligned_lowx_dx; x < aligned_highx_dx; x++) {
-				out_image4[x] += load_float4(difference_image4 + 4*x);
+			for(int x = aligned_lowx; x < highx; x += 4) {
+				int4 x4 = make_int4(x) + make_int4(0, 1, 2, 3);
+				int4 active = (x4 >= lowx4) & (x4 < highx4);
+
+				float4 diff = load4_u(difference_image, y*stride + x + dx);
+				load4_a(out_image, y*stride + x) += mask(active, diff);
 			}
 		}
 	}
+
+	aligned_lowx = round_down(rect.x, 4);
 	for(int y = rect.y; y < rect.w; y++) {
-		for(int x = rect.x; x < rect.z; x++) {
-			const int low = max(rect.x, x-f);
-			const int high = min(rect.z, x+f+1);
-			out_image[y*stride + x] = fast_expf(-max(out_image[y*stride + x] * (1.0f/(high - low)), 0.0f));
+		for(int x = aligned_lowx; x < rect.z; x += 4) {
+			float4 x4 = make_float4(x) + make_float4(0.0f, 1.0f, 2.0f, 3.0f);
+			float4 low = max(make_float4(rect.x), x4 - make_float4(f));
+			float4 high = min(make_float4(rect.z), x4 + make_float4(f+1));
+
+			float4 diff = load4_a(out_image, y*stride + x) * rcp(high - low);
+			load4_a(out_image, y*stride + x) = fast_expf4(-max(diff, make_float4(0.0f)));
 		}
 	}
 #else

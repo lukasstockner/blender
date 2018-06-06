@@ -38,6 +38,7 @@ ccl_device_inline float4 operator+(const float4& a, const float4& b);
 ccl_device_inline float4 operator-(const float4& a, const float4& b);
 ccl_device_inline float4 operator+=(float4& a, const float4& b);
 ccl_device_inline float4 operator*=(float4& a, const float4& b);
+ccl_device_inline float4 operator*=(float4& a, float f);
 ccl_device_inline float4 operator/=(float4& a, float f);
 
 ccl_device_inline int4 operator<(const float4& a, const float4& b);
@@ -167,6 +168,11 @@ ccl_device_inline float4 operator+=(float4& a, const float4& b)
 ccl_device_inline float4 operator*=(float4& a, const float4& b)
 {
 	return a = a * b;
+}
+
+ccl_device_inline float4 operator*=(float4& a, float f)
+{
+	return a = a * f;
 }
 
 ccl_device_inline float4 operator/=(float4& a, float f)
