@@ -124,11 +124,11 @@ ccl_device_inline void kernel_filter_nlm_blur(const float *ccl_restrict differen
 #endif
 }
 
-ccl_device_inline void kernel_filter_nlm_calc_weight(const float *ccl_restrict difference_image,
-                                                     float *out_image,
-                                                     int4 rect,
-                                                     int stride,
-                                                     int f)
+ccl_device_inline void nlm_blur_horizontal(const float *ccl_restrict difference_image,
+                                           float *out_image,
+                                           int4 rect,
+                                           int stride,
+                                           int f)
 {
 #ifdef FAST_NLM
 	int aligned_lowx = round_down(rect.x, 4);
@@ -160,9 +160,7 @@ ccl_device_inline void kernel_filter_nlm_calc_weight(const float *ccl_restrict d
 			float4 x4 = make_float4(x) + make_float4(0.0f, 1.0f, 2.0f, 3.0f);
 			float4 low = max(make_float4(rect.x), x4 - make_float4(f));
 			float4 high = min(make_float4(rect.z), x4 + make_float4(f+1));
-
-			float4 diff = load4_a(out_image, y*stride + x) * rcp(high - low);
-			load4_a(out_image, y*stride + x) = fast_expf4(-max(diff, make_float4(0.0f)));
+			load4_a(out_image, y*stride + x) *= rcp(high - low);
 		}
 	}
 #else
@@ -174,7 +172,31 @@ ccl_device_inline void kernel_filter_nlm_calc_weight(const float *ccl_restrict d
 			for(int x1 = low; x1 < high; x1++) {
 				sum += difference_image[y*stride + x1];
 			}
-			out_image[y*stride + x] = fast_expf(-max(sum / (high - low), 0.0f));
+			out_image[y*stride + x] = sum / (high - low);
+		}
+	}
+#endif
+}
+
+ccl_device_inline void kernel_filter_nlm_calc_weight(const float *ccl_restrict difference_image,
+                                                     float *out_image,
+                                                     int4 rect,
+                                                     int stride,
+                                                     int f)
+{
+	nlm_blur_horizontal(difference_image, out_image, rect, stride, f);
+
+#ifdef FAST_NLM
+	int aligned_lowx = round_down(rect.x, 4);
+	for(int y = rect.y; y < rect.w; y++) {
+		for(int x = aligned_lowx; x < rect.z; x += 4) {
+			load4_a(out_image, y*stride + x) = fast_expf4(-max(load4_a(out_image, y*stride + x), make_float4(0.0f)));
+		}
+	}
+#else
+	for(int y = rect.y; y < rect.w; y++) {
+		for(int x = rect.x; x < rect.z; x++) {
+			out_image[y*stride + x] = fast_expf(-max(out_image[y*stride + x], 0.0f));
 		}
 	}
 #endif
@@ -183,6 +205,7 @@ ccl_device_inline void kernel_filter_nlm_calc_weight(const float *ccl_restrict d
 ccl_device_inline void kernel_filter_nlm_update_output(int dx, int dy,
                                                        const float *ccl_restrict difference_image,
                                                        const float *ccl_restrict image,
+                                                       float *temp_image,
                                                        float *out_image,
                                                        float *accum_image,
                                                        int4 rect,
@@ -190,15 +213,34 @@ ccl_device_inline void kernel_filter_nlm_update_output(int dx, int dy,
                                                        int stride,
                                                        int f)
 {
+	nlm_blur_horizontal(difference_image, temp_image, rect, stride, f);
+
+#ifdef FAST_NLM
+	int aligned_lowx = round_down(rect.x, 4);
+	for(int y = rect.y; y < rect.w; y++) {
+		for(int x = aligned_lowx; x < rect.z; x += 4) {
+			int4 x4 = make_int4(x) + make_int4(0, 1, 2, 3);
+			int4 active = (x4 >= make_int4(rect.x)) & (x4 < make_int4(rect.z));
+
+			int idx_p = y*stride + x, idx_q = (y+dy)*stride + (x+dx);
+
+			float4 weight = load4_a(temp_image, idx_p);
+			load4_a(accum_image, idx_p) += mask(active, weight);
+
+			float4 val = load4_u(image, idx_q);
+			if(channel_offset) {
+				val += load4_u(image, idx_q + channel_offset);
+				val += load4_u(image, idx_q + 2*channel_offset);
+				val *= 1.0f/3.0f;
+			}
+
+			load4_a(out_image, idx_p) += mask(active, weight*val);
+		}
+	}
+#else
 	for(int y = rect.y; y < rect.w; y++) {
 		for(int x = rect.x; x < rect.z; x++) {
-			const int low = max(rect.x, x-f);
-			const int high = min(rect.z, x+f+1);
-			float sum = 0.0f;
-			for(int x1 = low; x1 < high; x1++) {
-				sum += difference_image[y*stride + x1];
-			}
-			float weight = sum * (1.0f/(high - low));
+			float weight = temp_image[y*stride + x];
 			accum_image[y*stride + x] += weight;
 
 			float val;
@@ -213,6 +255,7 @@ ccl_device_inline void kernel_filter_nlm_update_output(int dx, int dy,
 			out_image[y*stride + x] += weight*val;
 		}
 	}
+#endif
 }
 
 ccl_device_inline void kernel_filter_nlm_construct_gramian(int dx, int dy, int t,

@@ -188,7 +188,7 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int, int, float, float)> filter_nlm_calc_difference_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                              filter_nlm_blur_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                              filter_nlm_calc_weight_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int, int)>               filter_nlm_update_output_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, float*, int*, int, int, int)>       filter_nlm_update_output_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int)>                                                   filter_nlm_normalize_kernel;
 
 	KernelFunctions<void(*)(float*, TilesInfo*, int, int, int, float*, int*, int*, int, int, int, int, float)>                  filter_construct_transform_kernel;
@@ -517,6 +517,7 @@ public:
 			filter_nlm_update_output_kernel()(dx, dy,
 			                                  blurDifference,
 			                                  (float*) image_ptr,
+			                                  difference,
 			                                  (float*) out_ptr,
 			                                  weightAccum,
 			                                  local_rect,
