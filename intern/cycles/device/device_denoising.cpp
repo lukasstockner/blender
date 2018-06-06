@@ -334,7 +334,7 @@ void DenoisingTask::reconstruct()
 		scoped_timer subtimer(&timing.reconstruct_accumulate, true);
 		device_sub_ptr color_ptr    (buffer.mem, 8*buffer.pass_stride, 3*buffer.pass_stride);
 		device_sub_ptr color_var_ptr(buffer.mem, 11*buffer.pass_stride, 3*buffer.pass_stride);
-		device_sub_ptr scale_ptr    (buffer.mem, 14*buffer.pass_stride, 3*buffer.pass_stride);
+		device_sub_ptr scale_ptr    (buffer.mem, 14*buffer.pass_stride, buffer.pass_stride);
 		for(int f = 0; f < tiles->num_frames; f++) {
 			functions.accumulate(*color_ptr, *color_var_ptr, *scale_ptr, f);
 		}
