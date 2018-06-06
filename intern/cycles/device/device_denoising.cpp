@@ -146,9 +146,11 @@ void DenoisingTask::setup_denoising_buffer()
 	buffer.width = rect.z - rect.x;
 	buffer.stride = align_up(buffer.width, 4);
 	buffer.h = rect.w - rect.y;
-	buffer.pass_stride = align_up(buffer.stride * buffer.h, divide_up(device->mem_sub_ptr_alignment(), sizeof(float)));
+	int alignment_floats = divide_up(device->mem_sub_ptr_alignment(), sizeof(float));
+	buffer.pass_stride = align_up(buffer.stride * buffer.h, alignment_floats);
 	buffer.frame_stride = buffer.pass_stride * buffer.passes;
-	buffer.mem.alloc_to_device(buffer.frame_stride * tiles->num_frames, false);
+	int mem_size = buffer.frame_stride * tiles->num_frames + max(4, alignment_floats);
+	buffer.mem.alloc_to_device(mem_size, false);
 	buffer.mode = (tiles->num_frames > 1)? FEATURE_MODE_MULTIFRAME : FEATURE_MODE_RENDER;
 }
 
