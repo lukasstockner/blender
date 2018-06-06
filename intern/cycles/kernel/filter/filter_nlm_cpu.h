@@ -130,7 +130,8 @@ ccl_device_inline void kernel_filter_nlm_calc_weight(const float *ccl_restrict d
                                                      int stride,
                                                      int f)
 {
-#ifdef FAST_NLM
+	/* Has memory access issues. */
+#if 0
 	int aligned_lowx = rect.x / 4;
 	int aligned_highx = (rect.z + 3) / 4;
 	for(int y = rect.y; y < rect.w; y++) {
