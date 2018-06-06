@@ -42,7 +42,8 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int dx, int dy,
 	const float4 channel_fac = make_float4(1.0f / numChannels);
 
 	for(int y = rect.y; y < rect.w; y++) {
-		int idx_p = y*stride, idx_q = (y+dy)*stride + dx + frame_offset;
+		int idx_p = y*stride + aligned_lowx;
+		int idx_q = (y+dy)*stride + aligned_lowx + dx + frame_offset;
 		for(int x = aligned_lowx; x < rect.z; x += 4, idx_p += 4, idx_q += 4) {
 			float4 diff = make_float4(0.0f);
 			float4 scale_fac = make_float4(1.0f);
