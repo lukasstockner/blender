@@ -27,17 +27,20 @@ ccl_device void kernel_filter_construct_transform(const float *ccl_restrict buff
 	int buffer_w = align_up(rect.z - rect.x, 4);
 
 	float4 features[DENOISE_FEATURES];
+
 	const float *ccl_restrict pixel_buffer;
 	int3 pixel;
 
 	int num_features = (feature_mode == FEATURE_MODE_MULTIFRAME)? 11 : 10;
 
+	/* === Calculate denoising window. === */
 	int2 low  = make_int2(max(rect.x, x - radius),
 	                      max(rect.y, y - radius));
 	int2 high = make_int2(min(rect.z, x + radius + 1),
 	                      min(rect.w, y + radius + 1));
 	int num_pixels = (high.y - low.y) * (high.x - low.x) * tiles->num_frames;
 
+	/* === Shift feature passes to have mean 0. === */
 	float4 feature_means[DENOISE_FEATURES];
 	math_vector_zero_sse(feature_means, num_features);
 	FOR_PIXEL_WINDOW_SSE {
@@ -50,8 +53,10 @@ ccl_device void kernel_filter_construct_transform(const float *ccl_restrict buff
 		feature_means[i] = reduce_add(feature_means[i]) * pixel_scale;
 	}
 
+	/* === Scale the shifted feature passes to a range of [-1; 1], will be baked into the transform later. === */
 	float4 feature_scale[DENOISE_FEATURES];
 	math_vector_zero_sse(feature_scale, num_features);
+
 	FOR_PIXEL_WINDOW_SSE {
 		filter_get_feature_scales_sse(x4, y4, t4, active_pixels, pixel_buffer, features, feature_mode, feature_means, pass_stride);
 		math_vector_max_sse(feature_scale, features, num_features);
@@ -59,6 +64,9 @@ ccl_device void kernel_filter_construct_transform(const float *ccl_restrict buff
 
 	filter_calculate_scale_sse(feature_scale, feature_mode);
 
+	/* === Generate the feature transformation. ===
+	 * This transformation maps the num_features-dimentional feature space to a reduced feature (r-feature) space
+	 * which generally has fewer dimensions. This mainly helps to prevent overfitting. */
 	float4 feature_matrix_sse[DENOISE_FEATURES*DENOISE_FEATURES];
 	math_matrix_zero_sse(feature_matrix_sse, num_features);
 	FOR_PIXEL_WINDOW_SSE {

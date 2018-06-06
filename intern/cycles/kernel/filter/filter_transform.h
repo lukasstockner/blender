@@ -28,9 +28,6 @@ ccl_device void kernel_filter_construct_transform(const float *ccl_restrict buff
 
 	float features[DENOISE_FEATURES];
 
-	/* Temporary storage, used in different steps of the algorithm. */
-	float tempmatrix[DENOISE_FEATURES*DENOISE_FEATURES];
-	float tempvector[2*DENOISE_FEATURES];
 	const float *ccl_restrict pixel_buffer;
 	int3 pixel;
 
@@ -54,7 +51,7 @@ ccl_device void kernel_filter_construct_transform(const float *ccl_restrict buff
 	math_vector_scale(feature_means, 1.0f / num_pixels, num_features);
 
 	/* === Scale the shifted feature passes to a range of [-1; 1], will be baked into the transform later. === */
-	float *feature_scale = tempvector;
+	float feature_scale[DENOISE_FEATURES];
 	math_vector_zero(feature_scale, num_features);
 
 	FOR_PIXEL_WINDOW {
@@ -67,7 +64,7 @@ ccl_device void kernel_filter_construct_transform(const float *ccl_restrict buff
 	/* === Generate the feature transformation. ===
 	 * This transformation maps the num_features-dimentional feature space to a reduced feature (r-feature) space
 	 * which generally has fewer dimensions. This mainly helps to prevent overfitting. */
-	float* feature_matrix = tempmatrix;
+	float feature_matrix[DENOISE_FEATURES*DENOISE_FEATURES];
 	math_matrix_zero(feature_matrix, num_features);
 	FOR_PIXEL_WINDOW {
 		filter_get_features(pixel, pixel_buffer, features, feature_mode, feature_means, pass_stride);
