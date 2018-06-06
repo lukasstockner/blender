@@ -18,6 +18,9 @@ CCL_NAMESPACE_BEGIN
 
 #define FAST_NLM
 
+#define load4_a(buf, ofs) (*((float4*) ((buf) + (ofs))))
+#define load4_u(buf, ofs) load_float4((buf)+(ofs))
+
 ccl_device_inline void kernel_filter_nlm_calc_difference(int dx, int dy,
                                                          const float *ccl_restrict weight_image,
                                                          const float *ccl_restrict variance_image,
@@ -40,23 +43,23 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int dx, int dy,
 
 	for(int y = rect.y; y < rect.w; y++) {
 		int idx_p = y*stride, idx_q = (y+dy)*stride + dx + frame_offset;
-		for(int x = aligned_lowx; x < rect.z; x += 4) {
+		for(int x = aligned_lowx; x < rect.z; x += 4, idx_p += 4, idx_q += 4) {
 			float4 diff = make_float4(0.0f);
 			float4 scale_fac = make_float4(1.0f);
 			if(scale_image) {
-				scale_fac = *((float4*) (scale_image + idx_p + x)) / load_float4(scale_image + idx_q + x);
+				scale_fac = load4_a(scale_image, idx_p) / load4_u(scale_image, idx_q);
 				scale_fac = clamp(scale_fac, make_float4(0.25f), make_float4(4.0f));
 			}
-			for(int c = 0; c < numChannels; c++) {
+			for(int c = 0, chan_ofs = 0; c < numChannels; c++, chan_ofs += channel_offset) {
 				/* idx_p is guaranteed to be aligned, but idx_q isn't. */
-				float4 color_p = *((float4*) (weight_image + idx_p + x + c*channel_offset));
-				float4 color_q = scale_fac*load_float4(weight_image + idx_q + x + c*channel_offset);
+				float4 color_p = load4_a(weight_image, idx_p + chan_ofs);
+				float4 color_q = scale_fac*load4_u(weight_image, idx_q + chan_ofs);
 				float4 cdiff = color_p - color_q;
-				float4 var_p = *((float4*) (variance_image + idx_p + x + c*channel_offset));
-				float4 var_q = sqr(scale_fac)*load_float4(variance_image + idx_q + x + c*channel_offset);
+				float4 var_p = load4_a(variance_image, idx_p + chan_ofs);
+				float4 var_q = sqr(scale_fac)*load4_u(variance_image, idx_q + chan_ofs);
 				diff += (cdiff*cdiff - a*(var_p + min(var_p, var_q))) / (make_float4(1e-8f) + k_2*(var_p+var_q));
 			}
-			*((float4*) (difference_image + idx_p + x)) = diff*channel_fac;
+			load4_a(difference_image, idx_p) = diff*channel_fac;
 		}
 	}
 #else
@@ -89,24 +92,21 @@ ccl_device_inline void kernel_filter_nlm_blur(const float *ccl_restrict differen
                                               int f)
 {
 #ifdef FAST_NLM
-	int aligned_lowx = rect.x / 4;
-	int aligned_highx = (rect.z + 3) / 4;
+	int aligned_lowx = round_down(rect.x, 4);
 	for(int y = rect.y; y < rect.w; y++) {
 		const int low = max(rect.y, y-f);
 		const int high = min(rect.w, y+f+1);
-		float4* out_image4 = (float4*)(out_image + y*stride);
-		for(int x = aligned_lowx; x < aligned_highx; x++) {
-			out_image4[x] = make_float4(0.0f);
+		for(int x = aligned_lowx; x < rect.z; x += 4) {
+			load4_a(out_image, y*stride + x) = make_float4(0.0f);
 		}
 		for(int y1 = low; y1 < high; y1++) {
-			float4* difference_image4 = (float4*)(difference_image + y1*stride);
-			for(int x = aligned_lowx; x < aligned_highx; x++) {
-				out_image4[x] += difference_image4[x];
+			for(int x = aligned_lowx; x < rect.z; x += 4) {
+				load4_a(out_image, y*stride + x) += load4_a(difference_image, y1*stride + x);
 			}
 		}
 		float fac = 1.0f/(high - low);
-		for(int x = aligned_lowx; x < aligned_highx; x++) {
-			out_image4[x] = out_image4[x]*fac;
+		for(int x = aligned_lowx; x < rect.z; x += 4) {
+			load4_a(out_image, y*stride + x) *= fac;
 		}
 	}
 #else
