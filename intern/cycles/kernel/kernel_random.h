@@ -85,7 +85,7 @@ ccl_device_forceinline float path_rng_1D(KernelGlobals *kg,
 	 * See T38710, T50116.
 	 */
 	uint tmp_rng = cmj_hash_simple(dimension, rng_hash);
-	shift = tmp_rng * (1.0f/(float)0xFFFFFFFF);
+	shift = tmp_rng * (1.0f/(float)0xFFFFFFFF) * kernel_data.integrator.scrambling_distance;
 
 	return r + shift - floorf(r + shift);
 #endif
