@@ -204,6 +204,12 @@ void DenoisingTask::prefilter_color()
 	device_sub_ptr color_var_pass(buffer.mem, variance_to[0]*buffer.pass_stride, 3*buffer.pass_stride);
 	device_sub_ptr output_pass   (buffer.mem,     mean_to[0]*buffer.pass_stride, 3*buffer.pass_stride);
 	functions.detect_outliers(temporary_color.device_pointer, *color_var_pass, *depth_pass, *output_pass);
+
+	if(buffer.use_intensity) {
+		device_sub_ptr intensity_pass(buffer.mem, 14*buffer.pass_stride, buffer.pass_stride);
+		nlm_state.set_parameters(radius, 4, 2.0f, nlm_k_2*4.0f, true);
+		functions.non_local_means(*output_pass, *output_pass, *color_var_pass, *intensity_pass);
+	}
 }
 
 void DenoisingTask::construct_transform()
@@ -236,7 +242,15 @@ void DenoisingTask::reconstruct()
 	device_sub_ptr color_ptr    (buffer.mem,  8*buffer.pass_stride, 3*buffer.pass_stride);
 	device_sub_ptr color_var_ptr(buffer.mem, 11*buffer.pass_stride, 3*buffer.pass_stride);
 	for(int f = 0; f < tile_info->num_frames; f++) {
-		functions.accumulate(*color_ptr, *color_var_ptr, 0, f);
+		device_ptr scale_ptr = 0;
+		device_sub_ptr *scale_sub_ptr = NULL;
+		if(tile_info->frames[f] != 0 && buffer.use_intensity) {
+			scale_sub_ptr = new device_sub_ptr(buffer.mem, 14*buffer.pass_stride, buffer.pass_stride);
+			scale_ptr = **scale_sub_ptr;
+		}
+
+		functions.accumulate(*color_ptr, *color_var_ptr, scale_ptr, f);
+		delete scale_sub_ptr;
 	}
 	functions.solve(target_buffer.ptr);
 }
