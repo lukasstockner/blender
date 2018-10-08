@@ -95,15 +95,27 @@ ccl_device void kernel_filter_get_feature(int sample,
 	int buffer_w = align_up(rect.z - rect.x, 4);
 	int idx = (y-rect.y)*buffer_w + (x - rect.x);
 
-	mean[idx] = center_buffer[m_offset] / sample;
-	if(sample > 1) {
-		/* Approximate variance as E[x^2] - 1/N * (E[x])^2, since online variance
-		 * update does not work efficiently with atomics in the kernel. */
-		variance[idx] = max(0.0f, (center_buffer[v_offset] - mean[idx]*mean[idx]*sample) / (sample * (sample-1)));
+	float val = center_buffer[m_offset];
+	if(tile_info->from_render) {
+		val /= sample;
 	}
-	else {
-		/* Can't compute variance with single sample, just set it very high. */
-		variance[idx] = 1e10f;
+	mean[idx] = val;
+
+	if(v_offset >= 0) {
+		if(sample > 1) {
+			if(tile_info->from_render) {
+				/* Approximate variance as E[x^2] - 1/N * (E[x])^2, since online variance
+				 * update does not work efficiently with atomics in the kernel. */
+				variance[idx] = max(0.0f, (center_buffer[v_offset] - val*val*sample) / (sample * (sample-1)));
+			}
+			else {
+				variance[idx] = center_buffer[v_offset] / (sample - 1);
+			}
+		}
+		else {
+			/* Can't compute variance with single sample, just set it very high. */
+			variance[idx] = 1e10f;
+		}
 	}
 }
 
