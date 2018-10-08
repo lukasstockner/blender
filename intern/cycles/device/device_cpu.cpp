@@ -188,7 +188,7 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, float, float)>   filter_nlm_calc_difference_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                   filter_nlm_blur_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                   filter_nlm_calc_weight_kernel;
-	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, float*, int*, int, int)> filter_nlm_update_output_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, float*, int*, int, int, int)>       filter_nlm_update_output_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int)>                                        filter_nlm_normalize_kernel;
 
 	KernelFunctions<void(*)(float*, int, int, int, float*, int*, int*, int, int, float)>                         filter_construct_transform_kernel;
@@ -472,6 +472,8 @@ public:
 
 		int w = align_up(rect.z-rect.x, 4);
 		int h = rect.w-rect.y;
+		int stride = task->buffer.stride;
+		int channel_offset = task->nlm_state.is_color? task->buffer.pass_stride : 0;
 
 		float *temporary_mem = (float*) task->buffer.temporary_mem.device_pointer;
 		float *blurDifference = temporary_mem;
@@ -491,7 +493,7 @@ public:
 			                                    (float*) variance_ptr,
 			                                    difference,
 			                                    local_rect,
-			                                    w, 0,
+			                                    w, channel_offset,
 			                                    a, k_2);
 
 			filter_nlm_blur_kernel()       (difference, blurDifference, local_rect, w, f);
@@ -505,7 +507,8 @@ public:
 			                                  (float*) out_ptr,
 			                                  weightAccum,
 			                                  local_rect,
-			                                  w, f);
+			                                  channel_offset,
+			                                  stride, f);
 		}
 
 		int local_rect[4] = {0, 0, rect.z-rect.x, rect.w-rect.y};

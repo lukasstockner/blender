@@ -748,6 +748,7 @@ bool OpenCLDeviceBase::denoising_non_local_means(device_ptr image_ptr,
 
 	int pass_stride = task->buffer.pass_stride;
 	int num_shifts = (2*r+1)*(2*r+1);
+	int channel_offset = task->nlm_state.is_color? task->buffer.pass_stride : 0;
 
 	device_sub_ptr difference(task->buffer.temporary_mem, 0, pass_stride*num_shifts);
 	device_sub_ptr blurDifference(task->buffer.temporary_mem, pass_stride*num_shifts, pass_stride*num_shifts);
@@ -776,7 +777,7 @@ bool OpenCLDeviceBase::denoising_non_local_means(device_ptr image_ptr,
 	                difference_mem,
 	                w, h, stride,
 	                pass_stride,
-	                r, 0, a, k_2);
+	                r, channel_offset, a, k_2);
 	kernel_set_args(ckNLMBlur, 0,
 	                difference_mem,
 	                blurDifference_mem,
@@ -796,6 +797,7 @@ bool OpenCLDeviceBase::denoising_non_local_means(device_ptr image_ptr,
 	                weightAccum_mem,
 	                w, h, stride,
 	                pass_stride,
+	                channel_offset,
 	                r, f);
 
 	enqueue_kernel(ckNLMCalcDifference, w*h, num_shifts, true);

@@ -143,6 +143,7 @@ ccl_device_inline void kernel_filter_nlm_update_output(int dx, int dy,
                                                        float *out_image,
                                                        float *accum_image,
                                                        int4 rect,
+                                                       int channel_offset,
                                                        int stride,
                                                        int f)
 {
@@ -160,6 +161,11 @@ ccl_device_inline void kernel_filter_nlm_update_output(int dx, int dy,
 			load4_a(accum_image, idx_p) += mask(active, weight);
 
 			float4 val = load4_u(image, idx_q);
+			if(channel_offset) {
+				val += load4_u(image, idx_q + channel_offset);
+				val += load4_u(image, idx_q + 2*channel_offset);
+				val *= 1.0f/3.0f;
+			}
 
 			load4_a(out_image, idx_p) += mask(active, weight*val);
 		}

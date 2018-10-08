@@ -1296,7 +1296,7 @@ public:
 
 		int pass_stride = task->buffer.pass_stride;
 		int num_shifts = (2*r+1)*(2*r+1);
-		int channel_offset = 0;
+		int channel_offset = task->nlm_state.is_color? task->buffer.pass_stride : 0;
 
 		if(have_error())
 			return false;
@@ -1325,7 +1325,7 @@ public:
 			void *calc_difference_args[] = {&guide_ptr, &variance_ptr, &difference, &w, &h, &stride, &pass_stride, &r, &channel_offset, &a, &k_2};
 			void *blur_args[]            = {&difference, &blurDifference, &w, &h, &stride, &pass_stride, &r, &f};
 			void *calc_weight_args[]     = {&blurDifference, &difference, &w, &h, &stride, &pass_stride, &r, &f};
-			void *update_output_args[]   = {&blurDifference, &image_ptr, &out_ptr, &weightAccum, &w, &h, &stride, &pass_stride, &r, &f};
+			void *update_output_args[]   = {&blurDifference, &image_ptr, &out_ptr, &weightAccum, &w, &h, &stride, &pass_stride, &channel_offset, &r, &f};
 
 			CUDA_LAUNCH_KERNEL_1D(cuNLMCalcDifference, calc_difference_args);
 			CUDA_LAUNCH_KERNEL_1D(cuNLMBlur, blur_args);
