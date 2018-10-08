@@ -133,6 +133,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
 }
 
 void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(float* buffer,
+                                                           TileInfo *tile_info,
                                                            int x,
                                                            int y,
                                                            int storage_ofs,
@@ -140,18 +141,23 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(float* buffer,
                                                            int *rank,
                                                            int* prefilter_rect,
                                                            int pass_stride,
+                                                           int frame_stride,
+                                                           bool use_time,
                                                            int radius,
                                                            float pca_threshold)
 {
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_construct_transform);
 #else
-  rank += storage_ofs;
-  transform += storage_ofs*TRANSFORM_SIZE;
+	rank += storage_ofs;
+	transform += storage_ofs*TRANSFORM_SIZE;
 	kernel_filter_construct_transform(buffer,
+	                                  tile_info,
 	                                  x, y,
 	                                  load_int4(prefilter_rect),
 	                                  pass_stride,
+	                                  frame_stride,
+	                                  use_time,
 	                                  transform,
 	                                  rank,
 	                                  radius,

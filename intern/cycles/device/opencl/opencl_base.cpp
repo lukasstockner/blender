@@ -818,16 +818,31 @@ bool OpenCLDeviceBase::denoising_construct_transform(DenoisingTask *task)
 	cl_mem buffer_mem = CL_MEM_PTR(task->buffer.mem.device_pointer);
 	cl_mem transform_mem = CL_MEM_PTR(task->storage.transform.device_pointer);
 	cl_mem rank_mem = CL_MEM_PTR(task->storage.rank.device_pointer);
+	cl_mem tile_info_mem = CL_MEM_PTR(task->tile_info_mem.device_pointer);
+
+	char use_time = task->buffer.use_time? 1 : 0;
 
 	cl_kernel ckFilterConstructTransform = denoising_program(ustring("filter_construct_transform"));
 
-	kernel_set_args(ckFilterConstructTransform, 0,
-	                buffer_mem,
+	int arg_ofs = kernel_set_args(ckFilterConstructTransform, 0,
+	                              buffer_mem,
+	                              tile_info_mem);
+	cl_mem buffers[9];
+	for(int i = 0; i < 9; i++) {
+		buffers[i] = CL_MEM_PTR(task->tile_info->buffers[i]);
+		arg_ofs += kernel_set_args(ckFilterConstructTransform,
+		                           arg_ofs,
+		                           buffers[i]);
+	}
+	kernel_set_args(ckFilterConstructTransform,
+	                arg_ofs,
 	                transform_mem,
 	                rank_mem,
 	                task->filter_area,
 	                task->rect,
 	                task->buffer.pass_stride,
+	                task->buffer.frame_stride,
+	                use_time,
 	                task->radius,
 	                task->pca_threshold);
 

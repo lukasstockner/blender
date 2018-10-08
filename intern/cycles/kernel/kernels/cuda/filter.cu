@@ -136,10 +136,12 @@ kernel_cuda_filter_combine_halves(float *mean, float *variance, float *a, float 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_filter_construct_transform(float const* __restrict__ buffer,
+                                       CCL_FILTER_TILE_INFO,
                                        float *transform, int *rank,
                                        int4 filter_area, int4 rect,
                                        int radius, float pca_threshold,
-                                       int pass_stride)
+                                       int pass_stride, int frame_stride,
+                                       bool use_time)
 {
 	int x = blockDim.x*blockIdx.x + threadIdx.x;
 	int y = blockDim.y*blockIdx.y + threadIdx.y;
@@ -147,8 +149,11 @@ kernel_cuda_filter_construct_transform(float const* __restrict__ buffer,
 		int *l_rank = rank + y*filter_area.z + x;
 		float *l_transform = transform + y*filter_area.z + x;
 		kernel_filter_construct_transform(buffer,
+		                                  tile_info,
 		                                  x + filter_area.x, y + filter_area.y,
-		                                  rect, pass_stride,
+		                                  rect,
+		                                  pass_stride, frame_stride,
+		                                  use_time,
 		                                  l_transform, l_rank,
 		                                  radius, pca_threshold,
 		                                  filter_area.z*filter_area.w,

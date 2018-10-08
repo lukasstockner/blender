@@ -67,6 +67,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_combine_halves)(int x, int y,
                                                       int r);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(float* buffer,
+                                                           TileInfo *tiles,
                                                            int x,
                                                            int y,
                                                            int storage_ofs,
@@ -74,6 +75,8 @@ void KERNEL_FUNCTION_FULL_NAME(filter_construct_transform)(float* buffer,
                                                            int *rank,
                                                            int* rect,
                                                            int pass_stride,
+                                                           int frame_stride,
+                                                           bool use_time,
                                                            int radius,
                                                            float pca_threshold);
 

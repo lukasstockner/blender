@@ -191,7 +191,7 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, float*, int*, int, int, int)>       filter_nlm_update_output_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int)>                                        filter_nlm_normalize_kernel;
 
-	KernelFunctions<void(*)(float*, int, int, int, float*, int*, int*, int, int, float)>                         filter_construct_transform_kernel;
+	KernelFunctions<void(*)(float*, TileInfo*, int, int, int, float*, int*, int*, int, int, bool, int, float)>   filter_construct_transform_kernel;
 	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, float*, float3*, int*, int*, int, int, int)> filter_nlm_construct_gramian_kernel;
 	KernelFunctions<void(*)(int, int, int, float*, int*, float*, float3*, int*, int)>                            filter_finalize_kernel;
 
@@ -522,6 +522,7 @@ public:
 		for(int y = 0; y < task->filter_area.w; y++) {
 			for(int x = 0; x < task->filter_area.z; x++) {
 				filter_construct_transform_kernel()((float*) task->buffer.mem.device_pointer,
+				                                    task->tile_info,
 				                                    x + task->filter_area.x,
 				                                    y + task->filter_area.y,
 				                                    y*task->filter_area.z + x,
@@ -529,6 +530,8 @@ public:
 				                                    (int*)   task->storage.rank.device_pointer,
 				                                    &task->rect.x,
 				                                    task->buffer.pass_stride,
+				                                    task->buffer.frame_stride,
+				                                    task->buffer.use_time,
 				                                    task->radius,
 				                                    task->pca_threshold);
 			}

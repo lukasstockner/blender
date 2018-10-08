@@ -125,11 +125,14 @@ __kernel void kernel_ocl_filter_combine_halves(ccl_global float *mean,
 }
 
 __kernel void kernel_ocl_filter_construct_transform(const ccl_global float *ccl_restrict buffer,
+                                                    CCL_FILTER_TILE_INFO,
                                                     ccl_global float *transform,
                                                     ccl_global int *rank,
                                                     int4 filter_area,
                                                     int4 rect,
                                                     int pass_stride,
+                                                    int frame_stride,
+                                                    char use_time,
                                                     int radius,
                                                     float pca_threshold)
 {
@@ -139,8 +142,11 @@ __kernel void kernel_ocl_filter_construct_transform(const ccl_global float *ccl_
 		ccl_global int *l_rank = rank + y*filter_area.z + x;
 		ccl_global float *l_transform = transform + y*filter_area.z + x;
 		kernel_filter_construct_transform(buffer,
+		                                  CCL_FILTER_TILE_INFO_ARG,
 		                                  x + filter_area.x, y + filter_area.y,
-		                                  rect, pass_stride,
+		                                  rect,
+		                                  pass_stride, frame_stride,
+		                                  use_time,
 		                                  l_transform, l_rank,
 		                                  radius, pca_threshold,
 		                                  filter_area.z*filter_area.w,
