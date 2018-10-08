@@ -29,7 +29,7 @@
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_filter_divide_shadow(int sample,
-                                 TileInfo *tile_info,
+                                 CCL_FILTER_TILE_INFO,
                                  float *unfilteredA,
                                  float *unfilteredB,
                                  float *sampleVariance,
@@ -59,7 +59,7 @@ kernel_cuda_filter_divide_shadow(int sample,
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_filter_get_feature(int sample,
-                               TileInfo *tile_info,
+                               CCL_FILTER_TILE_INFO,
                                int m_offset,
                                int v_offset,
                                float *mean,
