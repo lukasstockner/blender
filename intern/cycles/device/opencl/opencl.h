@@ -440,6 +440,10 @@ protected:
 	                           device_ptr mean_ptr,
 	                           device_ptr variance_ptr,
 	                           DenoisingTask *task);
+	bool denoising_write_feature(int to_offset,
+	                             device_ptr from_ptr,
+	                             device_ptr buffer_ptr,
+	                             DenoisingTask *task);
 	bool denoising_detect_outliers(device_ptr image_ptr,
 	                               device_ptr variance_ptr,
 	                               device_ptr depth_ptr,

@@ -1558,6 +1558,36 @@ public:
 		return !have_error();
 	}
 
+	bool denoising_write_feature(int out_offset,
+	                             device_ptr from_ptr,
+	                             device_ptr buffer_ptr,
+	                             DenoisingTask *task)
+	{
+		if(have_error())
+			return false;
+
+		CUDAContextScope scope(this);
+
+		CUfunction cuFilterWriteFeature;
+		cuda_assert(cuModuleGetFunction(&cuFilterWriteFeature, cuFilterModule, "kernel_cuda_filter_write_feature"));
+		cuda_assert(cuFuncSetCacheConfig(cuFilterWriteFeature, CU_FUNC_CACHE_PREFER_L1));
+		CUDA_GET_BLOCKSIZE(cuFilterWriteFeature,
+		                   task->filter_area.z,
+		                   task->filter_area.w);
+
+		void *args[] = {&task->render_buffer.samples,
+		                &task->reconstruction_state.buffer_params,
+		                &task->filter_area,
+		                &from_ptr,
+		                &buffer_ptr,
+		                &out_offset,
+		                &task->rect};
+		CUDA_LAUNCH_KERNEL(cuFilterWriteFeature, args);
+		cuda_assert(cuCtxSynchronize());
+
+		return !have_error();
+	}
+
 	bool denoising_detect_outliers(device_ptr image_ptr,
 	                               device_ptr variance_ptr,
 	                               device_ptr depth_ptr,
@@ -1597,6 +1627,7 @@ public:
 		denoising.functions.non_local_means = function_bind(&CUDADevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
 		denoising.functions.combine_halves = function_bind(&CUDADevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
 		denoising.functions.get_feature = function_bind(&CUDADevice::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.write_feature = function_bind(&CUDADevice::denoising_write_feature, this, _1, _2, _3, &denoising);
 		denoising.functions.detect_outliers = function_bind(&CUDADevice::denoising_detect_outliers, this, _1, _2, _3, _4, &denoising);
 
 		denoising.filter_area = make_int4(rtile.x, rtile.y, rtile.w, rtile.h);

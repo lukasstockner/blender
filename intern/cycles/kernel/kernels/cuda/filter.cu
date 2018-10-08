@@ -84,6 +84,30 @@ kernel_cuda_filter_get_feature(int sample,
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
+kernel_cuda_filter_write_feature(int sample,
+                                 int4 buffer_params,
+                                 int4 filter_area,
+                                 float *from,
+                                 float *buffer,
+                                 int out_offset,
+                                 int4 prefilter_rect)
+{
+	int x = blockDim.x*blockIdx.x + threadIdx.x;
+	int y = blockDim.y*blockIdx.y + threadIdx.y;
+	if(x < filter_area.z && y < filter_area.w) {
+	        kernel_filter_write_feature(sample,
+	                                    x + filter_area.x,
+	                                    y + filter_area.y,
+	                                    buffer_params,
+	                                    from,
+	                                    buffer,
+	                                    out_offset,
+	                                    prefilter_rect);
+	}
+}
+
+extern "C" __global__ void
+CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
 kernel_cuda_filter_detect_outliers(float *image,
                                    float *variance,
                                    float *depth,

@@ -74,6 +74,28 @@ __kernel void kernel_ocl_filter_get_feature(int sample,
 	}
 }
 
+__kernel void kernel_ocl_filter_write_feature(int sample,
+                                              int4 buffer_params,
+                                              int4 filter_area,
+                                              ccl_global float *from,
+                                              ccl_global float *buffer,
+                                              int out_offset,
+                                              int4 prefilter_rect)
+{
+	int x = get_global_id(0);
+	int y = get_global_id(1);
+	if(x < filter_area.z && y < filter_area.w) {
+		kernel_filter_write_feature(sample,
+		                            x + filter_area.x,
+		                            y + filter_area.y,
+		                            buffer_params,
+		                            from,
+		                            buffer,
+		                            out_offset,
+		                            prefilter_rect);
+	}
+}
+
 __kernel void kernel_ocl_filter_detect_outliers(ccl_global float *image,
                                                 ccl_global float *variance,
                                                 ccl_global float *depth,

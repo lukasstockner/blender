@@ -1033,6 +1033,31 @@ bool OpenCLDeviceBase::denoising_get_feature(int mean_offset,
 	return true;
 }
 
+bool OpenCLDeviceBase::denoising_write_feature(int out_offset,
+                                               device_ptr from_ptr,
+                                               device_ptr buffer_ptr,
+                                               DenoisingTask *task)
+{
+	cl_mem from_mem = CL_MEM_PTR(from_ptr);
+	cl_mem buffer_mem = CL_MEM_PTR(buffer_ptr);
+
+	cl_kernel ckFilterWriteFeature = denoising_program(ustring("filter_write_feature"));
+
+	kernel_set_args(ckFilterWriteFeature, 0,
+	                task->render_buffer.samples,
+	                task->reconstruction_state.buffer_params,
+	                task->filter_area,
+	                from_mem,
+	                buffer_mem,
+	                out_offset,
+	                task->rect);
+	enqueue_kernel(ckFilterWriteFeature,
+	               task->filter_area.z,
+	               task->filter_area.w);
+
+	return true;
+}
+
 bool OpenCLDeviceBase::denoising_detect_outliers(device_ptr image_ptr,
                                                  device_ptr variance_ptr,
                                                  device_ptr depth_ptr,
@@ -1068,6 +1093,7 @@ void OpenCLDeviceBase::denoise(RenderTile &rtile, DenoisingTask& denoising)
 	denoising.functions.non_local_means = function_bind(&OpenCLDeviceBase::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
 	denoising.functions.combine_halves = function_bind(&OpenCLDeviceBase::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
 	denoising.functions.get_feature = function_bind(&OpenCLDeviceBase::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
+	denoising.functions.write_feature = function_bind(&OpenCLDeviceBase::denoising_write_feature, this, _1, _2, _3, &denoising);
 	denoising.functions.detect_outliers = function_bind(&OpenCLDeviceBase::denoising_detect_outliers, this, _1, _2, _3, _4, &denoising);
 
 	denoising.filter_area = make_int4(rtile.x, rtile.y, rtile.w, rtile.h);

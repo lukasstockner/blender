@@ -41,6 +41,15 @@ void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(int sample,
                                                    int buffer_pass_stride,
                                                    int buffer_denoising_offset);
 
+void KERNEL_FUNCTION_FULL_NAME(filter_write_feature)(int sample,
+                                                     int x,
+                                                     int y,
+                                                     int *buffer_params,
+                                                     float *from,
+                                                     float *buffer,
+                                                     int out_offset,
+                                                     int* prefilter_rect);
+
 void KERNEL_FUNCTION_FULL_NAME(filter_detect_outliers)(int x, int y,
                                                        ccl_global float *image,
                                                        ccl_global float *variance,

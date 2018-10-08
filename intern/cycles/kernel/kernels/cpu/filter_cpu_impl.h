@@ -86,6 +86,22 @@ void KERNEL_FUNCTION_FULL_NAME(filter_get_feature)(int sample,
 #endif
 }
 
+void KERNEL_FUNCTION_FULL_NAME(filter_write_feature)(int sample,
+                                                     int x,
+                                                     int y,
+                                                     int *buffer_params,
+                                                     float *from,
+                                                     float *buffer,
+                                                     int out_offset,
+                                                     int* prefilter_rect)
+{
+#ifdef KERNEL_STUB
+	STUB_ASSERT(KERNEL_ARCH, filter_write_feature);
+#else
+	kernel_filter_write_feature(sample, x, y, load_int4(buffer_params), from, buffer, out_offset, load_int4(prefilter_rect));
+#endif
+}
+
 void KERNEL_FUNCTION_FULL_NAME(filter_detect_outliers)(int x, int y,
                                                        ccl_global float *image,
                                                        ccl_global float *variance,

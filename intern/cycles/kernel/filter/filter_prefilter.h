@@ -107,6 +107,22 @@ ccl_device void kernel_filter_get_feature(int sample,
 	}
 }
 
+ccl_device void kernel_filter_write_feature(int sample,
+                                            int x, int y,
+                                            int4 buffer_params,
+                                            ccl_global float *from,
+                                            ccl_global float *buffer,
+                                            int out_offset,
+                                            int4 rect)
+{
+	ccl_global float *combined_buffer = buffer + (y*buffer_params.y + x + buffer_params.x)*buffer_params.z;
+
+	int buffer_w = align_up(rect.z - rect.x, 4);
+	int idx = (y-rect.y)*buffer_w + (x - rect.x);
+
+	combined_buffer[out_offset] = from[idx];
+}
+
 ccl_device void kernel_filter_detect_outliers(int x, int y,
                                               ccl_global float *image,
                                               ccl_global float *variance,
