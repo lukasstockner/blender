@@ -62,8 +62,10 @@ public:
 		              )> non_local_means;
 		function<bool(device_ptr color_ptr,
 		              device_ptr color_variance_ptr,
-		              device_ptr output_ptr
-		              )> reconstruct;
+		              device_ptr scale_ptr,
+		              int frame
+		              )> accumulate;
+		function<bool(device_ptr output_ptr)> solve;
 		function<bool()> construct_transform;
 
 		function<bool(device_ptr a_ptr,

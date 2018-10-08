@@ -258,7 +258,8 @@ __kernel void kernel_ocl_filter_nlm_normalize(ccl_global float *out_image,
 	}
 }
 
-__kernel void kernel_ocl_filter_nlm_construct_gramian(const ccl_global float *ccl_restrict difference_image,
+__kernel void kernel_ocl_filter_nlm_construct_gramian(int t,
+                                                      const ccl_global float *ccl_restrict difference_image,
                                                       const ccl_global float *ccl_restrict buffer,
                                                       const ccl_global float *ccl_restrict transform,
                                                       ccl_global int *rank,
@@ -270,13 +271,16 @@ __kernel void kernel_ocl_filter_nlm_construct_gramian(const ccl_global float *cc
                                                       int stride,
                                                       int pass_stride,
                                                       int r,
-                                                      int f)
+                                                      int f,
+                                                      int frame_offset,
+                                                      char use_time)
 {
 	int4 co, rect;
 	int ofs;
 	if(get_nlm_coords_window(w, h, r, pass_stride, &rect, &co, &ofs, filter_window)) {
 		kernel_filter_nlm_construct_gramian(co.x, co.y,
 		                                    co.z, co.w,
+		                                    t,
 		                                    difference_image + ofs,
 		                                    buffer,
 		                                    transform, rank,
@@ -284,6 +288,8 @@ __kernel void kernel_ocl_filter_nlm_construct_gramian(const ccl_global float *cc
 		                                    rect, filter_window,
 		                                    stride, f,
 		                                    pass_stride,
+		                                    frame_offset,
+		                                    use_time,
 		                                    get_local_id(1)*get_local_size(0) + get_local_id(0));
 	}
 }

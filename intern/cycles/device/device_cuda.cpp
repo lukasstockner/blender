@@ -1379,18 +1379,16 @@ public:
 		return !have_error();
 	}
 
-	bool denoising_reconstruct(device_ptr color_ptr,
-	                           device_ptr color_variance_ptr,
-	                           device_ptr output_ptr,
-	                           DenoisingTask *task)
+	bool denoising_accumulate(device_ptr color_ptr,
+	                          device_ptr color_variance_ptr,
+	                          device_ptr scale_ptr,
+	                          int frame,
+	                          DenoisingTask *task)
 	{
 		if(have_error())
 			return false;
 
 		CUDAContextScope scope(this);
-
-		mem_zero(task->storage.XtWX);
-		mem_zero(task->storage.XtWY);
 
 		int r = task->radius;
 		int f = 4;
@@ -1400,7 +1398,8 @@ public:
 		int w = task->reconstruction_state.source_w;
 		int h = task->reconstruction_state.source_h;
 		int stride = task->buffer.stride;
-		int frame_offset = 0;
+		int frame_offset = frame * task->buffer.frame_stride;
+		int t = task->tile_info->frames[frame];
 
 		int pass_stride = task->buffer.pass_stride;
 		int num_shifts = (2*r+1)*(2*r+1);
@@ -1411,67 +1410,72 @@ public:
 		CUdeviceptr difference     = cuda_device_ptr(task->buffer.temporary_mem.device_pointer);
 		CUdeviceptr blurDifference = difference + sizeof(float)*pass_stride*num_shifts;
 
-		{
-			CUfunction cuNLMCalcDifference, cuNLMBlur, cuNLMCalcWeight, cuNLMConstructGramian;
-			cuda_assert(cuModuleGetFunction(&cuNLMCalcDifference,   cuFilterModule, "kernel_cuda_filter_nlm_calc_difference"));
-			cuda_assert(cuModuleGetFunction(&cuNLMBlur,             cuFilterModule, "kernel_cuda_filter_nlm_blur"));
-			cuda_assert(cuModuleGetFunction(&cuNLMCalcWeight,       cuFilterModule, "kernel_cuda_filter_nlm_calc_weight"));
-			cuda_assert(cuModuleGetFunction(&cuNLMConstructGramian, cuFilterModule, "kernel_cuda_filter_nlm_construct_gramian"));
+		CUfunction cuNLMCalcDifference, cuNLMBlur, cuNLMCalcWeight, cuNLMConstructGramian;
+		cuda_assert(cuModuleGetFunction(&cuNLMCalcDifference,   cuFilterModule, "kernel_cuda_filter_nlm_calc_difference"));
+		cuda_assert(cuModuleGetFunction(&cuNLMBlur,             cuFilterModule, "kernel_cuda_filter_nlm_blur"));
+		cuda_assert(cuModuleGetFunction(&cuNLMCalcWeight,       cuFilterModule, "kernel_cuda_filter_nlm_calc_weight"));
+		cuda_assert(cuModuleGetFunction(&cuNLMConstructGramian, cuFilterModule, "kernel_cuda_filter_nlm_construct_gramian"));
 
-			cuda_assert(cuFuncSetCacheConfig(cuNLMCalcDifference,   CU_FUNC_CACHE_PREFER_L1));
-			cuda_assert(cuFuncSetCacheConfig(cuNLMBlur,             CU_FUNC_CACHE_PREFER_L1));
-			cuda_assert(cuFuncSetCacheConfig(cuNLMCalcWeight,       CU_FUNC_CACHE_PREFER_L1));
-			cuda_assert(cuFuncSetCacheConfig(cuNLMConstructGramian, CU_FUNC_CACHE_PREFER_SHARED));
+		cuda_assert(cuFuncSetCacheConfig(cuNLMCalcDifference,   CU_FUNC_CACHE_PREFER_L1));
+		cuda_assert(cuFuncSetCacheConfig(cuNLMBlur,             CU_FUNC_CACHE_PREFER_L1));
+		cuda_assert(cuFuncSetCacheConfig(cuNLMCalcWeight,       CU_FUNC_CACHE_PREFER_L1));
+		cuda_assert(cuFuncSetCacheConfig(cuNLMConstructGramian, CU_FUNC_CACHE_PREFER_SHARED));
 
-			CUDA_GET_BLOCKSIZE_1D(cuNLMCalcDifference,
-			                     task->reconstruction_state.source_w * task->reconstruction_state.source_h,
-			                     num_shifts);
+		CUDA_GET_BLOCKSIZE_1D(cuNLMCalcDifference,
+		                     task->reconstruction_state.source_w * task->reconstruction_state.source_h,
+		                     num_shifts);
 
-			void *calc_difference_args[] = {&color_ptr,
-			                                &color_variance_ptr,
-			                                &difference,
-			                                &w, &h,
-			                                &stride, &pass_stride,
-			                                &r, &pass_stride,
-			                                &frame_offset,
-			                                &a, &k_2};
-			void *blur_args[]            = {&difference, &blurDifference, &w, &h, &stride, &shift_stride, &r, &f};
-			void *calc_weight_args[]     = {&blurDifference, &difference, &w, &h, &stride, &shift_stride, &r, &f};
-			void *construct_gramian_args[] = {&blurDifference,
-			                                  &task->buffer.mem.device_pointer,
-			                                  &task->storage.transform.device_pointer,
-			                                  &task->storage.rank.device_pointer,
-			                                  &task->storage.XtWX.device_pointer,
-			                                  &task->storage.XtWY.device_pointer,
-			                                  &task->reconstruction_state.filter_window,
-			                                  &w, &h, &stride,
-			                                  &pass_stride, &r,
-			                                  &f};
+		void *calc_difference_args[] = {&color_ptr,
+		                                &color_variance_ptr,
+		                                &difference,
+		                                &w, &h,
+		                                &stride, &pass_stride,
+		                                &r, &pass_stride,
+		                                &frame_offset,
+		                                &a, &k_2};
+		void *blur_args[]            = {&difference, &blurDifference, &w, &h, &stride, &pass_stride, &r, &f};
+		void *calc_weight_args[]     = {&blurDifference, &difference, &w, &h, &stride, &pass_stride, &r, &f};
+		void *construct_gramian_args[] = {&t,
+		                                  &blurDifference,
+		                                  &task->buffer.mem.device_pointer,
+		                                  &task->storage.transform.device_pointer,
+		                                  &task->storage.rank.device_pointer,
+		                                  &task->storage.XtWX.device_pointer,
+		                                  &task->storage.XtWY.device_pointer,
+		                                  &task->reconstruction_state.filter_window,
+		                                  &w, &h, &stride,
+		                                  &pass_stride, &r,
+		                                  &f,
+		                                  &frame_offset,
+		                                  &task->buffer.use_time};
 
-			CUDA_LAUNCH_KERNEL_1D(cuNLMCalcDifference, calc_difference_args);
-			CUDA_LAUNCH_KERNEL_1D(cuNLMBlur, blur_args);
-			CUDA_LAUNCH_KERNEL_1D(cuNLMCalcWeight, calc_weight_args);
-			CUDA_LAUNCH_KERNEL_1D(cuNLMBlur, blur_args);
-			CUDA_LAUNCH_KERNEL_1D(cuNLMConstructGramian, construct_gramian_args);
-		}
+		CUDA_LAUNCH_KERNEL_1D(cuNLMCalcDifference, calc_difference_args);
+		CUDA_LAUNCH_KERNEL_1D(cuNLMBlur, blur_args);
+		CUDA_LAUNCH_KERNEL_1D(cuNLMCalcWeight, calc_weight_args);
+		CUDA_LAUNCH_KERNEL_1D(cuNLMBlur, blur_args);
+		CUDA_LAUNCH_KERNEL_1D(cuNLMConstructGramian, construct_gramian_args);
+		cuda_assert(cuCtxSynchronize());
 
-		{
-			CUfunction cuFinalize;
-			cuda_assert(cuModuleGetFunction(&cuFinalize, cuFilterModule, "kernel_cuda_filter_finalize"));
-			cuda_assert(cuFuncSetCacheConfig(cuFinalize, CU_FUNC_CACHE_PREFER_L1));
-			void *finalize_args[] = {&output_ptr,
-					                 &task->storage.rank.device_pointer,
-					                 &task->storage.XtWX.device_pointer,
-					                 &task->storage.XtWY.device_pointer,
-					                 &task->filter_area,
-					                 &task->reconstruction_state.buffer_params.x,
-					                 &task->render_buffer.samples};
-			CUDA_GET_BLOCKSIZE(cuFinalize,
-			                   task->reconstruction_state.source_w,
-			                   task->reconstruction_state.source_h);
-			CUDA_LAUNCH_KERNEL(cuFinalize, finalize_args);
-		}
+		return !have_error();
+	}
 
+	bool denoising_solve(device_ptr output_ptr,
+	                     DenoisingTask *task)
+	{
+		CUfunction cuFinalize;
+		cuda_assert(cuModuleGetFunction(&cuFinalize, cuFilterModule, "kernel_cuda_filter_finalize"));
+		cuda_assert(cuFuncSetCacheConfig(cuFinalize, CU_FUNC_CACHE_PREFER_L1));
+		void *finalize_args[] = {&output_ptr,
+		                         &task->storage.rank.device_pointer,
+		                         &task->storage.XtWX.device_pointer,
+		                         &task->storage.XtWY.device_pointer,
+		                         &task->filter_area,
+		                         &task->reconstruction_state.buffer_params.x,
+		                         &task->render_buffer.samples};
+		CUDA_GET_BLOCKSIZE(cuFinalize,
+		                   task->reconstruction_state.source_w,
+		                   task->reconstruction_state.source_h);
+		CUDA_LAUNCH_KERNEL(cuFinalize, finalize_args);
 		cuda_assert(cuCtxSynchronize());
 
 		return !have_error();
@@ -1634,7 +1638,8 @@ public:
 	void denoise(RenderTile &rtile, DenoisingTask& denoising)
 	{
 		denoising.functions.construct_transform = function_bind(&CUDADevice::denoising_construct_transform, this, &denoising);
-		denoising.functions.reconstruct = function_bind(&CUDADevice::denoising_reconstruct, this, _1, _2, _3, &denoising);
+		denoising.functions.accumulate = function_bind(&CUDADevice::denoising_accumulate, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.solve = function_bind(&CUDADevice::denoising_solve, this, _1, &denoising);
 		denoising.functions.divide_shadow = function_bind(&CUDADevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
 		denoising.functions.non_local_means = function_bind(&CUDADevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
 		denoising.functions.combine_halves = function_bind(&CUDADevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);

@@ -221,6 +221,8 @@ void DenoisingTask::reconstruct()
 {
 	storage.XtWX.alloc_to_device(storage.w*storage.h*XTWX_SIZE, false);
 	storage.XtWY.alloc_to_device(storage.w*storage.h*XTWY_SIZE, false);
+	storage.XtWX.zero_to_device();
+	storage.XtWY.zero_to_device();
 
 	reconstruction_state.filter_window = rect_from_shape(filter_area.x-rect.x, filter_area.y-rect.y, storage.w, storage.h);
 	int tile_coordinate_offset = filter_area.y*target_buffer.stride + filter_area.x;
@@ -233,7 +235,10 @@ void DenoisingTask::reconstruct()
 
 	device_sub_ptr color_ptr    (buffer.mem,  8*buffer.pass_stride, 3*buffer.pass_stride);
 	device_sub_ptr color_var_ptr(buffer.mem, 11*buffer.pass_stride, 3*buffer.pass_stride);
-	functions.reconstruct(*color_ptr, *color_var_ptr, target_buffer.ptr);
+	for(int f = 0; f < tile_info->num_frames; f++) {
+		functions.accumulate(*color_ptr, *color_var_ptr, 0, f);
+	}
+	functions.solve(target_buffer.ptr);
 }
 
 void DenoisingTask::run_denoising(RenderTile *tile)

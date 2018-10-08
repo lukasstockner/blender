@@ -277,7 +277,8 @@ kernel_cuda_filter_nlm_normalize(float *out_image,
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)
-kernel_cuda_filter_nlm_construct_gramian(const float *ccl_restrict difference_image,
+kernel_cuda_filter_nlm_construct_gramian(int t,
+                                         const float *ccl_restrict difference_image,
                                          const float *ccl_restrict buffer,
                                          float const* __restrict__ transform,
                                          int *rank,
@@ -289,13 +290,16 @@ kernel_cuda_filter_nlm_construct_gramian(const float *ccl_restrict difference_im
                                          int stride,
                                          int pass_stride,
                                          int r,
-                                         int f)
+                                         int f,
+                                         int frame_offset,
+                                         bool use_time)
 {
 	int4 co, rect;
 	int ofs;
 	if(get_nlm_coords_window(w, h, r, pass_stride, &rect, &co, &ofs, filter_window)) {
 		kernel_filter_nlm_construct_gramian(co.x, co.y,
 		                                    co.z, co.w,
+		                                    t,
 		                                    difference_image + ofs,
 		                                    buffer,
 		                                    transform, rank,
@@ -303,6 +307,8 @@ kernel_cuda_filter_nlm_construct_gramian(const float *ccl_restrict difference_im
 		                                    rect, filter_window,
 		                                    stride, f,
 		                                    pass_stride,
+		                                    frame_offset,
+		                                    use_time,
 		                                    threadIdx.y*blockDim.x + threadIdx.x);
 	}
 }

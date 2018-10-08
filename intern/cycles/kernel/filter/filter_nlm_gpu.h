@@ -164,7 +164,7 @@ ccl_device_inline void kernel_filter_nlm_update_output(int x, int y,
 }
 
 ccl_device_inline void kernel_filter_nlm_construct_gramian(int x, int y,
-                                                           int dx, int dy,
+                                                           int dx, int dy, int t,
                                                            const ccl_global float *ccl_restrict difference_image,
                                                            const ccl_global float *ccl_restrict buffer,
                                                            const ccl_global float *ccl_restrict transform,
@@ -175,6 +175,8 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int x, int y,
                                                            int4 filter_window,
                                                            int stride, int f,
                                                            int pass_stride,
+                                                           int frame_offset,
+                                                           bool use_time,
                                                            int localIdx)
 {
 	const int low = max(rect.x, x-f);
@@ -195,9 +197,11 @@ ccl_device_inline void kernel_filter_nlm_construct_gramian(int x, int y,
 
 	kernel_filter_construct_gramian(x, y,
 	                                rect_size(filter_window),
-	                                dx, dy,
+	                                dx, dy, t,
 	                                stride,
 	                                pass_stride,
+	                                frame_offset,
+	                                use_time,
 	                                buffer,
 	                                transform, rank,
 	                                weight, XtWX, XtWY,

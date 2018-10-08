@@ -104,36 +104,46 @@ ccl_device_inline void design_row_add(float *design_row,
                                       const ccl_global float *ccl_restrict transform,
                                       int stride,
                                       int row,
-                                      float feature)
+                                      float feature,
+                                      int transform_row_stride)
 {
 	for(int i = 0; i < rank; i++) {
-		design_row[1+i] += transform[(row*DENOISE_FEATURES + i)*stride]*feature;
+		design_row[1+i] += transform[(row*transform_row_stride + i)*stride]*feature;
 	}
 }
 
 /* Fill the design row. */
-ccl_device_inline void filter_get_design_row_transform(int2 p_pixel,
+ccl_device_inline void filter_get_design_row_transform(int3 p_pixel,
                                                        const ccl_global float *ccl_restrict p_buffer,
-                                                       int2 q_pixel,
+                                                       int3 q_pixel,
                                                        const ccl_global float *ccl_restrict q_buffer,
                                                        int pass_stride,
                                                        int rank,
                                                        float *design_row,
                                                        const ccl_global float *ccl_restrict transform,
-                                                       int stride)
+                                                       int stride,
+                                                       bool use_time)
 {
+	int num_features = use_time? 11 : 10;
+
 	design_row[0] = 1.0f;
 	math_vector_zero(design_row+1, rank);
-	design_row_add(design_row, rank, transform, stride, 0, q_pixel.x - p_pixel.x);
-	design_row_add(design_row, rank, transform, stride, 1, q_pixel.y - p_pixel.y);
-	design_row_add(design_row, rank, transform, stride, 2, fabsf(ccl_get_feature(q_buffer, 0)) - fabsf(ccl_get_feature(p_buffer, 0)));
-	design_row_add(design_row, rank, transform, stride, 3, ccl_get_feature(q_buffer, 1) - ccl_get_feature(p_buffer, 1));
-	design_row_add(design_row, rank, transform, stride, 4, ccl_get_feature(q_buffer, 2) - ccl_get_feature(p_buffer, 2));
-	design_row_add(design_row, rank, transform, stride, 5, ccl_get_feature(q_buffer, 3) - ccl_get_feature(p_buffer, 3));
-	design_row_add(design_row, rank, transform, stride, 6, ccl_get_feature(q_buffer, 4) - ccl_get_feature(p_buffer, 4));
-	design_row_add(design_row, rank, transform, stride, 7, ccl_get_feature(q_buffer, 5) - ccl_get_feature(p_buffer, 5));
-	design_row_add(design_row, rank, transform, stride, 8, ccl_get_feature(q_buffer, 6) - ccl_get_feature(p_buffer, 6));
-	design_row_add(design_row, rank, transform, stride, 9, ccl_get_feature(q_buffer, 7) - ccl_get_feature(p_buffer, 7));
+
+#define DESIGN_ROW_ADD(I, F) design_row_add(design_row, rank, transform, stride, I, F, num_features);
+	DESIGN_ROW_ADD(0, q_pixel.x - p_pixel.x);
+	DESIGN_ROW_ADD(1, q_pixel.y - p_pixel.y);
+	DESIGN_ROW_ADD(2, fabsf(ccl_get_feature(q_buffer, 0)) - fabsf(ccl_get_feature(p_buffer, 0)));
+	DESIGN_ROW_ADD(3,       ccl_get_feature(q_buffer, 1)  -       ccl_get_feature(p_buffer, 1));
+	DESIGN_ROW_ADD(4,       ccl_get_feature(q_buffer, 2)  -       ccl_get_feature(p_buffer, 2));
+	DESIGN_ROW_ADD(5,       ccl_get_feature(q_buffer, 3)  -       ccl_get_feature(p_buffer, 3));
+	DESIGN_ROW_ADD(6,       ccl_get_feature(q_buffer, 4)  -       ccl_get_feature(p_buffer, 4));
+	DESIGN_ROW_ADD(7,       ccl_get_feature(q_buffer, 5)  -       ccl_get_feature(p_buffer, 5));
+	DESIGN_ROW_ADD(8,       ccl_get_feature(q_buffer, 6)  -       ccl_get_feature(p_buffer, 6));
+	DESIGN_ROW_ADD(9,       ccl_get_feature(q_buffer, 7)  -       ccl_get_feature(p_buffer, 7));
+	if(use_time) {
+		DESIGN_ROW_ADD(10, q_pixel.z - p_pixel.z)
+	}
+#undef DESIGN_ROW_ADD
 }
 
 CCL_NAMESPACE_END

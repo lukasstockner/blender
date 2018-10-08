@@ -118,6 +118,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_update_output)(int dx,
 
 void KERNEL_FUNCTION_FULL_NAME(filter_nlm_construct_gramian)(int dx,
                                                              int dy,
+                                                             int t,
                                                              float *difference_image,
                                                              float *buffer,
                                                              float *transform,
@@ -128,7 +129,9 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_construct_gramian)(int dx,
                                                              int *filter_window,
                                                              int stride,
                                                              int f,
-                                                             int pass_stride);
+                                                             int pass_stride,
+                                                             int frame_offset,
+                                                             bool use_time);
 
 void KERNEL_FUNCTION_FULL_NAME(filter_nlm_normalize)(float *out_image,
                                                      float *accum_image,
