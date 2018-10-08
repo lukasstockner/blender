@@ -185,9 +185,9 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                               filter_detect_outliers_kernel;
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                               filter_combine_halves_kernel;
 
-	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, float, float)>   filter_nlm_calc_difference_kernel;
-	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                   filter_nlm_blur_kernel;
-	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                   filter_nlm_calc_weight_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, int, float, float)> filter_nlm_calc_difference_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                      filter_nlm_blur_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                      filter_nlm_calc_weight_kernel;
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, float*, int*, int, int, int)>       filter_nlm_update_output_kernel;
 	KernelFunctions<void(*)(float*, float*, int*, int)>                                        filter_nlm_normalize_kernel;
 
@@ -494,7 +494,7 @@ public:
 			                                    difference,
 			                                    local_rect,
 			                                    w, channel_offset,
-			                                    a, k_2);
+			                                    0, a, k_2);
 
 			filter_nlm_blur_kernel()       (difference, blurDifference, local_rect, w, f);
 			filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
@@ -552,6 +552,7 @@ public:
 		float *blurDifference = temporary_mem + task->buffer.pass_stride;
 
 		int r = task->radius;
+		int frame_offset = 0;
 		for(int i = 0; i < (2*r+1)*(2*r+1); i++) {
 			int dy = i / (2*r+1) - r;
 			int dx = i % (2*r+1) - r;
@@ -566,6 +567,7 @@ public:
 			                                    local_rect,
 			                                    task->buffer.stride,
 			                                    task->buffer.pass_stride,
+			                                    frame_offset,
 			                                    1.0f,
 			                                    task->nlm_k_2);
 			filter_nlm_blur_kernel()(difference, blurDifference, local_rect, task->buffer.stride, 4);

@@ -88,6 +88,7 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_calc_difference)(int dx,
                                                            int* rect,
                                                            int stride,
                                                            int channel_offset,
+                                                           int frame_offset,
                                                            float a,
                                                            float k_2);
 

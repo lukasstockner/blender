@@ -1297,6 +1297,7 @@ public:
 		int pass_stride = task->buffer.pass_stride;
 		int num_shifts = (2*r+1)*(2*r+1);
 		int channel_offset = task->nlm_state.is_color? task->buffer.pass_stride : 0;
+		int frame_offset = 0;
 
 		if(have_error())
 			return false;
@@ -1322,7 +1323,7 @@ public:
 
 			CUDA_GET_BLOCKSIZE_1D(cuNLMCalcDifference, w*h, num_shifts);
 
-			void *calc_difference_args[] = {&guide_ptr, &variance_ptr, &difference, &w, &h, &stride, &pass_stride, &r, &channel_offset, &a, &k_2};
+			void *calc_difference_args[] = {&guide_ptr, &variance_ptr, &difference, &w, &h, &stride, &pass_stride, &r, &channel_offset, &frame_offset, &a, &k_2};
 			void *blur_args[]            = {&difference, &blurDifference, &w, &h, &stride, &pass_stride, &r, &f};
 			void *calc_weight_args[]     = {&blurDifference, &difference, &w, &h, &stride, &pass_stride, &r, &f};
 			void *update_output_args[]   = {&blurDifference, &image_ptr, &out_ptr, &weightAccum, &w, &h, &stride, &pass_stride, &channel_offset, &r, &f};
@@ -1399,6 +1400,7 @@ public:
 		int w = task->reconstruction_state.source_w;
 		int h = task->reconstruction_state.source_h;
 		int stride = task->buffer.stride;
+		int frame_offset = 0;
 
 		int pass_stride = task->buffer.pass_stride;
 		int num_shifts = (2*r+1)*(2*r+1);
@@ -1425,9 +1427,16 @@ public:
 			                     task->reconstruction_state.source_w * task->reconstruction_state.source_h,
 			                     num_shifts);
 
-			void *calc_difference_args[] = {&color_ptr, &color_variance_ptr, &difference, &w, &h, &stride, &pass_stride, &r, &pass_stride, &a, &k_2};
-			void *blur_args[]            = {&difference, &blurDifference, &w, &h, &stride, &pass_stride, &r, &f};
-			void *calc_weight_args[]     = {&blurDifference, &difference, &w, &h, &stride, &pass_stride, &r, &f};
+			void *calc_difference_args[] = {&color_ptr,
+			                                &color_variance_ptr,
+			                                &difference,
+			                                &w, &h,
+			                                &stride, &pass_stride,
+			                                &r, &pass_stride,
+			                                &frame_offset,
+			                                &a, &k_2};
+			void *blur_args[]            = {&difference, &blurDifference, &w, &h, &stride, &shift_stride, &r, &f};
+			void *calc_weight_args[]     = {&blurDifference, &difference, &w, &h, &stride, &shift_stride, &r, &f};
 			void *construct_gramian_args[] = {&blurDifference,
 			                                  &task->buffer.mem.device_pointer,
 			                                  &task->storage.transform.device_pointer,

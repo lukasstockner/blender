@@ -777,7 +777,8 @@ bool OpenCLDeviceBase::denoising_non_local_means(device_ptr image_ptr,
 	                difference_mem,
 	                w, h, stride,
 	                pass_stride,
-	                r, channel_offset, a, k_2);
+	                r, channel_offset,
+	                0, a, k_2);
 	kernel_set_args(ckNLMBlur, 0,
 	                difference_mem,
 	                blurDifference_mem,
@@ -881,6 +882,7 @@ bool OpenCLDeviceBase::denoising_reconstruct(device_ptr color_ptr,
 	int w = task->reconstruction_state.source_w;
 	int h = task->reconstruction_state.source_h;
 	int stride = task->buffer.stride;
+	int frame_offset = 0;
 
 	int r = task->radius;
 	int pass_stride = task->buffer.pass_stride;
@@ -899,6 +901,7 @@ bool OpenCLDeviceBase::denoising_reconstruct(device_ptr color_ptr,
 	                pass_stride,
 	                r,
 	                pass_stride,
+	                frame_offset,
 	                1.0f, task->nlm_k_2);
 	kernel_set_args(ckNLMBlur, 0,
 	                difference_mem,

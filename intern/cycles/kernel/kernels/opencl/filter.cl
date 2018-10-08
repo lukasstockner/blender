@@ -163,6 +163,7 @@ __kernel void kernel_ocl_filter_nlm_calc_difference(const ccl_global float *ccl_
                                                     int pass_stride,
                                                     int r,
                                                     int channel_offset,
+                                                    int frame_offset,
                                                     float a,
                                                     float k_2)
 {
@@ -174,7 +175,9 @@ __kernel void kernel_ocl_filter_nlm_calc_difference(const ccl_global float *ccl_
 		                                  variance_image,
 		                                  difference_image + ofs,
 		                                  rect, stride,
-		                                  channel_offset, a, k_2);
+		                                  channel_offset,
+		                                  frame_offset,
+		                                  a, k_2);
 	}
 }
 

@@ -173,13 +173,22 @@ void KERNEL_FUNCTION_FULL_NAME(filter_nlm_calc_difference)(int dx,
                                                            int *rect,
                                                            int stride,
                                                            int channel_offset,
+                                                           int frame_offset,
                                                            float a,
                                                            float k_2)
 {
 #ifdef KERNEL_STUB
 	STUB_ASSERT(KERNEL_ARCH, filter_nlm_calc_difference);
 #else
-	kernel_filter_nlm_calc_difference(dx, dy, weight_image, variance, difference_image, load_int4(rect), stride, channel_offset, a, k_2);
+	kernel_filter_nlm_calc_difference(dx, dy,
+	                                  weight_image,
+	                                  variance,
+	                                  difference_image,
+	                                  load_int4(rect),
+	                                  stride,
+	                                  channel_offset,
+	                                  frame_offset,
+	                                  a, k_2);
 #endif
 }
 

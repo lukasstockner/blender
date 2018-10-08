@@ -26,6 +26,7 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int dx, int dy,
                                                          int4 rect,
                                                          int stride,
                                                          int channel_offset,
+                                                         int frame_offset,
                                                          float a,
                                                          float k_2)
 {
@@ -38,7 +39,7 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int dx, int dy,
 
 	for(int y = rect.y; y < rect.w; y++) {
 		int idx_p = y*stride + aligned_lowx;
-		int idx_q = (y+dy)*stride + aligned_lowx + dx;
+		int idx_q = (y+dy)*stride + aligned_lowx + dx + frame_offset;
 		for(int x = aligned_lowx; x < rect.z; x += 4, idx_p += 4, idx_q += 4) {
 			float4 diff = make_float4(0.0f);
 			for(int c = 0, chan_ofs = 0; c < numChannels; c++, chan_ofs += channel_offset) {

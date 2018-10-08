@@ -172,6 +172,7 @@ kernel_cuda_filter_nlm_calc_difference(const float *ccl_restrict weight_image,
                                        int pass_stride,
                                        int r,
                                        int channel_offset,
+                                       int frame_offset,
                                        float a,
                                        float k_2)
 {
@@ -183,7 +184,9 @@ kernel_cuda_filter_nlm_calc_difference(const float *ccl_restrict weight_image,
 		                                  variance_image,
 		                                  difference_image + ofs,
 		                                  rect, stride,
-		                                  channel_offset, a, k_2);
+		                                  channel_offset,
+		                                  frame_offset,
+		                                  a, k_2);
 	}
 }
 
