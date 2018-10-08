@@ -761,6 +761,7 @@ bool OpenCLDeviceBase::denoising_non_local_means(device_ptr image_ptr,
 	cl_mem guide_mem = CL_MEM_PTR(guide_ptr);
 	cl_mem variance_mem = CL_MEM_PTR(variance_ptr);
 	cl_mem out_mem = CL_MEM_PTR(out_ptr);
+	cl_mem scale_mem = NULL;
 
 	mem_zero_kernel(*weightAccum, sizeof(float)*pass_stride);
 	mem_zero_kernel(out_ptr, sizeof(float)*pass_stride);
@@ -774,6 +775,7 @@ bool OpenCLDeviceBase::denoising_non_local_means(device_ptr image_ptr,
 	kernel_set_args(ckNLMCalcDifference, 0,
 	                guide_mem,
 	                variance_mem,
+	                scale_mem,
 	                difference_mem,
 	                w, h, stride,
 	                pass_stride,
@@ -863,6 +865,7 @@ bool OpenCLDeviceBase::denoising_accumulate(device_ptr color_ptr,
 {
 	cl_mem color_mem = CL_MEM_PTR(color_ptr);
 	cl_mem color_variance_mem = CL_MEM_PTR(color_variance_ptr);
+	cl_mem scale_mem = CL_MEM_PTR(scale_ptr);
 
 	cl_mem buffer_mem = CL_MEM_PTR(task->buffer.mem.device_pointer);
 	cl_mem transform_mem = CL_MEM_PTR(task->storage.transform.device_pointer);
@@ -894,6 +897,7 @@ bool OpenCLDeviceBase::denoising_accumulate(device_ptr color_ptr,
 	kernel_set_args(ckNLMCalcDifference, 0,
 	                color_mem,
 	                color_variance_mem,
+	                scale_mem,
 	                difference_mem,
 	                w, h, stride,
 	                pass_stride,

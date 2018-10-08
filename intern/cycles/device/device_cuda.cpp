@@ -1305,6 +1305,7 @@ public:
 		CUdeviceptr difference     = cuda_device_ptr(task->buffer.temporary_mem.device_pointer);
 		CUdeviceptr blurDifference = difference + sizeof(float)*pass_stride*num_shifts;
 		CUdeviceptr weightAccum = difference + 2*sizeof(float)*pass_stride*num_shifts;
+		CUdeviceptr scale_ptr = 0;
 
 		cuda_assert(cuMemsetD8(weightAccum, 0, sizeof(float)*pass_stride));
 		cuda_assert(cuMemsetD8(out_ptr, 0, sizeof(float)*pass_stride));
@@ -1323,7 +1324,7 @@ public:
 
 			CUDA_GET_BLOCKSIZE_1D(cuNLMCalcDifference, w*h, num_shifts);
 
-			void *calc_difference_args[] = {&guide_ptr, &variance_ptr, &difference, &w, &h, &stride, &pass_stride, &r, &channel_offset, &frame_offset, &a, &k_2};
+			void *calc_difference_args[] = {&guide_ptr, &variance_ptr, &scale_ptr, &difference, &w, &h, &stride, &pass_stride, &r, &channel_offset, &frame_offset, &a, &k_2};
 			void *blur_args[]            = {&difference, &blurDifference, &w, &h, &stride, &pass_stride, &r, &f};
 			void *calc_weight_args[]     = {&blurDifference, &difference, &w, &h, &stride, &pass_stride, &r, &f};
 			void *update_output_args[]   = {&blurDifference, &image_ptr, &out_ptr, &weightAccum, &w, &h, &stride, &pass_stride, &channel_offset, &r, &f};
@@ -1427,6 +1428,7 @@ public:
 
 		void *calc_difference_args[] = {&color_ptr,
 		                                &color_variance_ptr,
+		                                &scale_ptr,
 		                                &difference,
 		                                &w, &h,
 		                                &stride, &pass_stride,

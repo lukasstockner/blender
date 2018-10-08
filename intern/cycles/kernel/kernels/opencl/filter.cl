@@ -156,6 +156,7 @@ __kernel void kernel_ocl_filter_construct_transform(const ccl_global float *ccl_
 
 __kernel void kernel_ocl_filter_nlm_calc_difference(const ccl_global float *ccl_restrict weight_image,
                                                     const ccl_global float *ccl_restrict variance_image,
+                                                    const ccl_global float *ccl_restrict scale_image,
                                                     ccl_global float *difference_image,
                                                     int w,
                                                     int h,
@@ -173,6 +174,7 @@ __kernel void kernel_ocl_filter_nlm_calc_difference(const ccl_global float *ccl_
 		kernel_filter_nlm_calc_difference(co.x, co.y, co.z, co.w,
 		                                  weight_image,
 		                                  variance_image,
+		                                  scale_image,
 		                                  difference_image + ofs,
 		                                  rect, stride,
 		                                  channel_offset,

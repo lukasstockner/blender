@@ -185,11 +185,11 @@ public:
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                               filter_detect_outliers_kernel;
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                               filter_combine_halves_kernel;
 
-	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, int, float, float)> filter_nlm_calc_difference_kernel;
-	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                      filter_nlm_blur_kernel;
-	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                      filter_nlm_calc_weight_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int, int, float, float)> filter_nlm_calc_difference_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                              filter_nlm_blur_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                              filter_nlm_calc_weight_kernel;
 	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, float*, int*, int, int, int)>       filter_nlm_update_output_kernel;
-	KernelFunctions<void(*)(float*, float*, int*, int)>                                        filter_nlm_normalize_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int)>                                                   filter_nlm_normalize_kernel;
 
 	KernelFunctions<void(*)(float*, TileInfo*, int, int, int, float*, int*, int*, int, int, bool, int, float)>                   filter_construct_transform_kernel;
 	KernelFunctions<void(*)(int, int, int, float*, float*, float*, int*, float*, float3*, int*, int*, int, int, int, int, bool)> filter_nlm_construct_gramian_kernel;
@@ -491,6 +491,7 @@ public:
 			filter_nlm_calc_difference_kernel()(dx, dy,
 			                                    (float*) guide_ptr,
 			                                    (float*) variance_ptr,
+			                                    NULL,
 			                                    difference,
 			                                    local_rect,
 			                                    w, channel_offset,
@@ -561,6 +562,7 @@ public:
 			filter_nlm_calc_difference_kernel()(dx, dy,
 			                                    (float*) color_ptr,
 			                                    (float*) color_variance_ptr,
+			                                    (float*) scale_ptr,
 			                                    difference,
 			                                    local_rect,
 			                                    task->buffer.stride,

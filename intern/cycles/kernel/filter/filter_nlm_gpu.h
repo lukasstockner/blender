@@ -77,6 +77,7 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int x, int y,
                                                          int dx, int dy,
                                                          const ccl_global float *ccl_restrict weight_image,
                                                          const ccl_global float *ccl_restrict variance_image,
+                                                         const ccl_global float *ccl_restrict scale_image,
                                                          ccl_global float *difference_image,
                                                          int4 rect, int stride,
                                                          int channel_offset,
@@ -87,10 +88,15 @@ ccl_device_inline void kernel_filter_nlm_calc_difference(int x, int y,
 	int numChannels = channel_offset? 3 : 1;
 
 	float diff = 0.0f;
+	float scale_fac = 1.0f;
+	if(scale_image) {
+		scale_fac = clamp(scale_image[idx_p] / scale_image[idx_q], 0.25f, 4.0f);
+	}
+
 	for(int c = 0; c < numChannels; c++, idx_p += channel_offset, idx_q += channel_offset) {
-		float cdiff = weight_image[idx_p] - weight_image[idx_q];
+		float cdiff = weight_image[idx_p] - scale_fac*weight_image[idx_q];
 		float pvar = variance_image[idx_p];
-		float qvar = variance_image[idx_q];
+		float qvar = sqr(scale_fac)*variance_image[idx_q];
 		diff += (cdiff*cdiff - a*(pvar + min(pvar, qvar))) / (1e-8f + k_2*(pvar+qvar));
 	}
 	if(numChannels > 1) {
