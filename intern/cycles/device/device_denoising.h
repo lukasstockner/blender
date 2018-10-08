@@ -110,8 +110,9 @@ public:
 		int f;      /* Patch size of the filter. */
 		float a;    /* Variance compensation factor in the MSE estimation. */
 		float k_2;  /* Squared value of the k parameter of the filter. */
+		bool is_color;
 
-		void set_parameters(int r_, int f_, float a_, float k_2_) { r = r_; f = f_; a = a_, k_2 = k_2_; }
+		void set_parameters(int r_, int f_, float a_, float k_2_, bool is_color_) { r = r_; f = f_; a = a_, k_2 = k_2_; is_color = is_color_; }
 	} nlm_state;
 
 	struct Storage {
@@ -141,8 +142,11 @@ public:
 		int stride;
 		int h;
 		int width;
+		int frame_stride;
 		device_only_memory<float> mem;
 		device_only_memory<float> temporary_mem;
+		bool use_time;
+		bool use_intensity;
 
 		bool gpu_temporary_mem;
 

@@ -43,6 +43,16 @@ DenoisingTask::DenoisingTask(Device *device, const DeviceTask &task)
 
 	functions.map_neighbor_tiles = function_bind(task.map_neighbor_tiles, _1, device);
 	functions.unmap_neighbor_tiles = function_bind(task.unmap_neighbor_tiles, _1, device);
+
+	tile_info = (TileInfo*) tile_info_mem.alloc(sizeof(TileInfo)/sizeof(int));
+	tile_info->from_render = task.denoising_from_render? 1 : 0;
+
+	tile_info->frames[0] = 0;
+	tile_info->num_frames = min(task.denoising_frames.size() + 1, DENOISE_MAX_FRAMES);
+	for(int i = 1; i < tile_info->num_frames; i++) {
+		tile_info->frames[i] = task.denoising_frames[i-1];
+	}
+	buffer.use_intensity = task.denoising_use_intensity;
 }
 
 DenoisingTask::~DenoisingTask()
@@ -58,8 +68,6 @@ DenoisingTask::~DenoisingTask()
 
 void DenoisingTask::set_render_buffer(RenderTile *rtiles)
 {
-	tile_info = (TileInfo*) tile_info_mem.alloc(sizeof(TileInfo)/sizeof(int));
-
 	for(int i = 0; i < 9; i++) {
 		tile_info->offsets[i] = rtiles[i].offset;
 		tile_info->strides[i] = rtiles[i].stride;
@@ -88,15 +96,17 @@ void DenoisingTask::setup_denoising_buffer()
 	rect = rect_expand(rect, radius);
 	rect = rect_clip(rect, make_int4(tile_info->x[0], tile_info->y[0], tile_info->x[3], tile_info->y[3]));
 
-	buffer.passes = 14;
+	buffer.passes = buffer.use_intensity? 15 : 14;
 	buffer.width = rect.z - rect.x;
 	buffer.stride = align_up(buffer.width, 4);
 	buffer.h = rect.w - rect.y;
 	int alignment_floats = divide_up(device->mem_sub_ptr_alignment(), sizeof(float));
 	buffer.pass_stride = align_up(buffer.stride * buffer.h, alignment_floats);
+	buffer.frame_stride = buffer.pass_stride * buffer.passes;
 	/* Pad the total size by four floats since the SIMD kernels might go a bit over the end. */
 	int mem_size = align_up(buffer.pass_stride * buffer.passes + 4, alignment_floats);
 	buffer.mem.alloc_to_device(mem_size, false);
+	buffer.use_time = (tile_info->num_frames > 1);
 
 	/* CPUs process shifts sequentially while GPUs process them in parallel. */
 	int num_layers;
@@ -128,14 +138,14 @@ void DenoisingTask::prefilter_shadowing()
 	functions.divide_shadow(*unfiltered_a, *unfiltered_b, *sample_var, *sample_var_var, *buffer_var);
 
 	/* Smooth the (generally pretty noisy) buffer variance using the spatial information from the sample variance. */
-	nlm_state.set_parameters(6, 3, 4.0f, 1.0f);
+	nlm_state.set_parameters(6, 3, 4.0f, 1.0f, false);
 	functions.non_local_means(*buffer_var, *sample_var, *sample_var_var, *filtered_var);
 
 	/* Reuse memory, the previous data isn't needed anymore. */
 	device_ptr filtered_a = *buffer_var,
 	           filtered_b = *sample_var;
 	/* Use the smoothed variance to filter the two shadow half images using each other for weight calculation. */
-	nlm_state.set_parameters(5, 3, 1.0f, 0.25f);
+	nlm_state.set_parameters(5, 3, 1.0f, 0.25f, false);
 	functions.non_local_means(*unfiltered_a, *unfiltered_b, *filtered_var, filtered_a);
 	functions.non_local_means(*unfiltered_b, *unfiltered_a, *filtered_var, filtered_b);
 
@@ -146,7 +156,7 @@ void DenoisingTask::prefilter_shadowing()
 	device_ptr final_a = *unfiltered_a,
 	           final_b = *unfiltered_b;
 	/* Use the residual variance for a second filter pass. */
-	nlm_state.set_parameters(4, 2, 1.0f, 0.5f);
+	nlm_state.set_parameters(4, 2, 1.0f, 0.5f, false);
 	functions.non_local_means(filtered_a, filtered_b, residual_var, final_a);
 	functions.non_local_means(filtered_b, filtered_a, residual_var, final_b);
 
@@ -168,7 +178,7 @@ void DenoisingTask::prefilter_features()
 		/* Get the unfiltered pass and its variance from the RenderBuffers. */
 		functions.get_feature(mean_from[pass], variance_from[pass], *unfiltered, *variance);
 		/* Smooth the pass and store the result in the denoising buffers. */
-		nlm_state.set_parameters(2, 2, 1.0f, 0.25f);
+		nlm_state.set_parameters(2, 2, 1.0f, 0.25f, false);
 		functions.non_local_means(*unfiltered, *unfiltered, *variance, *feature_pass);
 	}
 }
