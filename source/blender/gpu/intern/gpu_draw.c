@@ -480,6 +480,15 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int textarget
 
   ImageTile *tile = BKE_image_get_tile_from_iuser(ima, iuser);
 
+  if (!tile) {
+    /* TODO(lukas): When a tile gets deleted, the materials using the image
+     * aren't rebuilt and therefore continue to use it.
+     * This workaround isn't ideal, the result should be a pink color
+     * (for a missing tile). With the current behaviour, new tiles also won't
+     * be detected. */
+    tile = BKE_image_get_tile(ima, 0);
+  }
+
   /* Test if we already have a texture. */
   GPUTexture **tex = gpu_get_tile_gputexture(tile, textarget);
   if (*tex) {
