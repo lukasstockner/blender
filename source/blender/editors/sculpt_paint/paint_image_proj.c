@@ -4676,7 +4676,7 @@ static bool project_image_refresh_tagged(ProjPaintState *ps)
         pr = &(projIma->partRedrawRect[i]);
         if (pr->x2 != -1) { /* TODO - use 'enabled' ? */
           set_imapaintpartial(pr);
-          imapaint_image_update(NULL, projIma->ima, projIma->ibuf, true);
+          imapaint_image_update(NULL, projIma->ima, projIma->ibuf, NULL, true);
           redraw = 1;
         }
 

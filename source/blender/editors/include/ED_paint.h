@@ -38,7 +38,10 @@ void ED_keymap_paint(struct wmKeyConfig *keyconf);
 void ED_imapaint_clear_partial_redraw(void);
 void ED_imapaint_dirty_region(
     struct Image *ima, struct ImBuf *ibuf, int x, int y, int w, int h, bool find_old);
-void ED_imapaint_bucket_fill(struct bContext *C, float color[3], struct wmOperator *op);
+void ED_imapaint_bucket_fill(struct bContext *C,
+                             float color[3],
+                             struct wmOperator *op,
+                             const int mouse[2]);
 
 /* paint_image_undo.c */
 void ED_image_undo_push_begin(const char *name, int paint_mode);
