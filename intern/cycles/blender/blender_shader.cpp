@@ -663,6 +663,14 @@ static ShaderNode *add_node(Scene *scene,
       image->animated = b_image_node.image_user().use_auto_refresh();
       image->alpha_type = get_image_alpha_type(b_image);
 
+      image->tiles.clear();
+      BL::Image::tiles_iterator b_iter;
+      for (b_image.tiles.begin(b_iter); b_iter != b_image.tiles.end(); ++b_iter) {
+        image->tiles.push_back(b_iter->tile_number());
+        printf("%d\n", b_iter->tile_number());
+      }
+      printf("\n\n");
+
       /* TODO: restore */
       /* TODO(sergey): Does not work properly when we change builtin type. */
 #if 0
@@ -1230,7 +1238,7 @@ void BlenderSync::sync_materials(BL::Depsgraph &b_depsgraph, bool update_all)
 
     /* test if we need to sync */
     if (shader_map.sync(&shader, b_mat) || shader->need_sync_object || update_all) {
-      ShaderGraph *graph = new ShaderGraph();
+      ShaderGraph *graph = new ShaderGraph(shader);
 
       shader->name = b_mat.name().c_str();
       shader->pass_id = b_mat.pass_index();
@@ -1305,7 +1313,7 @@ void BlenderSync::sync_world(BL::Depsgraph &b_depsgraph, bool update_all)
 
   if (world_recalc || update_all || b_world.ptr.data != world_map) {
     Shader *shader = scene->default_background;
-    ShaderGraph *graph = new ShaderGraph();
+    ShaderGraph *graph = new ShaderGraph(shader);
 
     /* create nodes */
     if (b_world && b_world.use_nodes() && b_world.node_tree()) {
@@ -1395,7 +1403,7 @@ void BlenderSync::sync_lights(BL::Depsgraph &b_depsgraph, bool update_all)
 
     /* test if we need to sync */
     if (shader_map.sync(&shader, b_light) || update_all) {
-      ShaderGraph *graph = new ShaderGraph();
+      ShaderGraph *graph = new ShaderGraph(shader);
 
       /* create nodes */
       if (b_light.use_nodes() && b_light.node_tree()) {
