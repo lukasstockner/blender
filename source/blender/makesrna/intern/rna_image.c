@@ -57,6 +57,7 @@ static const EnumPropertyItem image_source_items[] = {
     {IMA_SRC_MOVIE, "MOVIE", 0, "Movie", "Movie file"},
     {IMA_SRC_GENERATED, "GENERATED", 0, "Generated", "Generated image"},
     {IMA_SRC_VIEWER, "VIEWER", 0, "Viewer", "Compositing node viewer"},
+    {IMA_SRC_TILED, "TILED", 0, "Tiled", "Tiled image texture"},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -209,6 +210,7 @@ static const EnumPropertyItem *rna_Image_source_itemf(bContext *UNUSED(C),
     RNA_enum_items_add_value(&item, &totitem, image_source_items, IMA_SRC_SEQUENCE);
     RNA_enum_items_add_value(&item, &totitem, image_source_items, IMA_SRC_MOVIE);
     RNA_enum_items_add_value(&item, &totitem, image_source_items, IMA_SRC_GENERATED);
+    RNA_enum_items_add_value(&item, &totitem, image_source_items, IMA_SRC_TILED);
   }
 
   RNA_enum_item_end(&item, &totitem);
@@ -296,13 +298,6 @@ static void rna_Image_resolution_set(PointerRNA *ptr, const float *values)
   }
 
   BKE_image_release_ibuf(im, ibuf, lock);
-}
-
-static int rna_Image_bindcode_get(PointerRNA *ptr)
-{
-  Image *ima = (Image *)ptr->data;
-  GPUTexture *tex = ima->gputexture[TEXTARGET_TEXTURE_2D];
-  return (tex) ? GPU_texture_opengl_bindcode(tex) : 0;
 }
 
 static int rna_Image_depth_get(PointerRNA *ptr)
@@ -527,6 +522,23 @@ static void rna_render_slots_active_index_range(
   *max = max_ii(0, BLI_listbase_count(&image->renderslots) - 1);
 }
 
+static ImageTile *rna_ImageTile_new(Image *image, int tile_number, const char *label)
+{
+  ImageTile *tile = BKE_image_add_tile(image, tile_number, label);
+
+  WM_main_add_notifier(NC_IMAGE | ND_DRAW, NULL);
+
+  return tile;
+}
+
+static void rna_ImageTile_remove(ID *id, ImageTile *tile)
+{
+  Image *image = (Image *)id;
+  BKE_image_remove_tile(image, tile);
+
+  WM_main_add_notifier(NC_IMAGE | ND_DRAW, NULL);
+}
+
 #else
 
 static void rna_def_imageuser(BlenderRNA *brna)
@@ -597,6 +609,11 @@ static void rna_def_imageuser(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, NULL, "view");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* image_multi_cb */
   RNA_def_property_ui_text(prop, "View", "View in multilayer image");
+
+  prop = RNA_def_property(srna, "tile", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, NULL, "tile");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Tile", "Tile in tiled image");
 }
 
 /* image.packed_files */
@@ -673,6 +690,57 @@ static void rna_def_render_slots(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_function_ui_description(func, "Add a render slot to the image");
   parm = RNA_def_string(func, "name", NULL, 0, "Name", "New name for the render slot");
   parm = RNA_def_pointer(func, "result", "RenderSlot", "", "Newly created render layer");
+  RNA_def_function_return(func, parm);
+}
+
+static void rna_def_image_tile(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  FunctionRNA *func;
+  PropertyRNA *prop;
+  srna = RNA_def_struct(brna, "ImageTile", NULL);
+  RNA_def_struct_ui_text(srna, "Image Tile", "Properties of the image tile");
+
+  prop = RNA_def_property(srna, "label", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "label");
+  RNA_def_property_ui_text(prop, "Label", "Tile label");
+  RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
+
+  prop = RNA_def_property(srna, "tile_number", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "tile_number");
+  RNA_def_property_ui_text(prop, "Tile Number", "Number of the position that this tile covers");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+  func = RNA_def_function(srna, "remove", "rna_ImageTile_remove");
+  RNA_def_function_ui_description(func, "Remove this tile from the image");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID);
+}
+
+static void rna_def_image_tiles(BlenderRNA *brna, PropertyRNA *cprop)
+{
+  StructRNA *srna;
+  FunctionRNA *func;
+  PropertyRNA *parm;
+
+  RNA_def_property_srna(cprop, "ImageTiles");
+  srna = RNA_def_struct(brna, "ImageTiles", NULL);
+  RNA_def_struct_sdna(srna, "Image");
+  RNA_def_struct_ui_text(srna, "Image Tiles", "Collection of the image tiles");
+
+  func = RNA_def_function(srna, "new", "rna_ImageTile_new");
+  RNA_def_function_ui_description(func, "Add a tile to the image");
+  parm = RNA_def_int(
+      func, "tile_number", 1, 1, INT_MAX, "", "Number of the newly created tile", 1, 100);
+  RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+  parm = RNA_def_string(func, "label", NULL, 0, "", "Optional label for the tile");
+  parm = RNA_def_pointer(func, "result", "ImageTile", "", "Newly created image tile");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "get", "BKE_image_get_tile");
+  RNA_def_function_ui_description(func, "Get a tile based on its tile number");
+  parm = RNA_def_int(func, "tile_number", 0, 0, INT_MAX, "", "Number of the tile", 1, 100);
+  RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+  parm = RNA_def_pointer(func, "result", "ImageTile", "", "The tile");
   RNA_def_function_return(func, parm);
 }
 
@@ -848,17 +916,17 @@ static void rna_def_image(BlenderRNA *brna)
       prop, "Display Aspect", "Display Aspect for this image, does not affect rendering");
   RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
 
-  prop = RNA_def_property(srna, "bindcode", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_funcs(prop, "rna_Image_bindcode_get", NULL, NULL);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Bindcode", "OpenGL bindcode");
-  RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
-
   prop = RNA_def_property(srna, "render_slots", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "RenderSlot");
   RNA_def_property_collection_sdna(prop, NULL, "renderslots", NULL);
   RNA_def_property_ui_text(prop, "Render Slots", "Render slots of the image");
   rna_def_render_slots(brna, prop);
+
+  prop = RNA_def_property(srna, "tiles", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(prop, "ImageTile");
+  RNA_def_property_collection_sdna(prop, NULL, "tiles", NULL);
+  RNA_def_property_ui_text(prop, "Image Tiles", "Tiles of the image");
+  rna_def_image_tiles(brna, prop);
 
   /*
    * Image.has_data and Image.depth are temporary,
@@ -954,6 +1022,7 @@ static void rna_def_image(BlenderRNA *brna)
 void RNA_def_image(BlenderRNA *brna)
 {
   rna_def_render_slot(brna);
+  rna_def_image_tile(brna);
   rna_def_image(brna);
   rna_def_imageuser(brna);
   rna_def_image_packed_files(brna);

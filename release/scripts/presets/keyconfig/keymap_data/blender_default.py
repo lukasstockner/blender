@@ -1546,6 +1546,7 @@ def km_image(params):
         ("image.view_zoom_ratio", {"type": 'NUMPAD_8', "value": 'PRESS'},
          {"properties": [("ratio", 0.125)]}),
         ("image.change_frame", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+        ("image.select_tile", {"type": params.action_mouse, "value": 'PRESS', "ctrl": True}, None),
         ("image.sample", {"type": params.action_mouse, "value": 'PRESS'}, None),
         ("image.curves_point_set", {"type": params.action_mouse, "value": 'PRESS', "ctrl": True},
          {"properties": [("point", 'BLACK_POINT')]}),

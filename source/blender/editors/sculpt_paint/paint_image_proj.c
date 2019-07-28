@@ -6443,7 +6443,8 @@ static Image *proj_paint_image_create(wmOperator *op, Main *bmain, bool is_data)
                                 gen_type,
                                 color,
                                 false,
-                                is_data);
+                                is_data,
+                                false); /* TODO(lukas): Add option */
 
   return ima;
 }

@@ -1037,6 +1037,33 @@ class IMAGE_PT_render_slots(Panel):
         col.operator("image.clear_render_slot", icon='X', text="")
 
 
+class IMAGE_PT_tile_properties(Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+    bl_label = "Tiles"
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        return (sima and sima.image and sima.image.source == 'TILED')
+
+    def draw(self, context):
+        layout = self.layout
+
+        sima = context.space_data
+        ima = sima.image
+
+        row = layout.row(align=True)
+        row.operator("image.add_tile")
+        row.operator("image.remove_tile")
+
+        tile = ima.tiles.get(sima.current_tile)
+        if tile:
+            col = layout.column(align=True)
+            col.operator("image.fill_tile")
+            col.prop(tile, "label")
+
+
 class IMAGE_PT_paint(Panel, ImagePaintPanel):
     bl_label = "Brush"
     bl_context = ".paint_common_2d"
@@ -1683,6 +1710,28 @@ class IMAGE_PT_uv_cursor(Panel):
         col.prop(sima, "cursor_location", text="Cursor Location")
 
 
+class IMAGE_PT_udim_grid(Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "View"
+    bl_label = "UDIM Grid"
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+
+        return sima.show_uvedit and sima.image is None
+
+    def draw(self, context):
+        layout = self.layout
+
+        sima = context.space_data
+        uvedit = sima.uv_editor
+
+        col = layout.column()
+        col.prop(uvedit, "tile_grid_shape", text="Grid Shape")
+
+
 # Grease Pencil properties
 class IMAGE_PT_grease_pencil(AnnotationDataPanel, Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -1724,6 +1773,7 @@ classes = (
     IMAGE_PT_image_properties,
     IMAGE_UL_render_slots,
     IMAGE_PT_render_slots,
+    IMAGE_PT_tile_properties,
     IMAGE_PT_view_display,
     IMAGE_PT_view_display_uv_edit_overlays,
     IMAGE_PT_view_display_uv_edit_overlays_stretch,
@@ -1750,6 +1800,7 @@ classes = (
     IMAGE_PT_sample_line,
     IMAGE_PT_scope_sample,
     IMAGE_PT_uv_cursor,
+    IMAGE_PT_udim_grid,
     IMAGE_PT_grease_pencil,
 )
 

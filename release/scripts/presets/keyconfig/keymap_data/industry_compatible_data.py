@@ -959,6 +959,7 @@ def km_image(params):
          {"properties": [("ratio", 0.125)]}),
         ("image.change_frame", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("image.sample", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+        ("image.select_tile", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True}, None),
         ("image.curves_point_set", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
          {"properties": [("point", 'BLACK_POINT')]}),
         ("image.curves_point_set", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
